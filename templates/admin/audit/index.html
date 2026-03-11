@@ -1,0 +1,339 @@
+{% extends "base.html" %}
+{% block title %}Audit Logs{% endblock %}
+{% block page_title %}Audit Logs{% endblock %}
+{% block bread %}Admin / Audit Logs{% endblock %}
+
+{% block extra_css %}
+.al-tbl{width:100%;border-collapse:collapse;font-size:.8rem}
+.al-tbl th{padding:.55rem .85rem;font-size:.67rem;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;background:#f8fafc;border-bottom:2px solid var(--border);white-space:nowrap}
+.al-tbl td{padding:.55rem .85rem;border-bottom:1px solid #f1f5f9;vertical-align:middle}
+.al-tbl tr:hover td{background:#fafbff}
+.act-badge{display:inline-block;padding:2px 9px;border-radius:20px;font-size:.67rem;font-weight:800;text-transform:uppercase;letter-spacing:.04em}
+.act-INSERT{background:#dcfce7;color:#16a34a}.act-UPDATE{background:#dbeafe;color:#1d4ed8}
+.act-DELETE{background:#fee2e2;color:#dc2626}.act-VIEW{background:#f1f5f9;color:#64748b}
+.act-LOGIN{background:#f0fdf4;color:#15803d}.act-LOGOUT{background:#fef9c3;color:#92400e}
+.act-KANBAN{background:#ede9fe;color:#7c3aed}.act-DISCUSSION{background:#e0f2fe;color:#0369a1}
+.act-NOTE{background:#fef3c7;color:#b45309}.act-REMINDER{background:#fce7f3;color:#be185d}
+.act-ENABLE{background:#dcfce7;color:#16a34a}.act-DISABLE{background:#fee2e2;color:#dc2626}
+.act-ATTACHMENT{background:#f5f3ff;color:#6d28d9}
+.mod-badge{display:inline-block;padding:2px 9px;border-radius:6px;font-size:.67rem;font-weight:700;background:#f1f5f9;color:var(--text2)}
+.fi-sm{padding:6px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:.78rem;background:#fff;color:var(--text)}
+.detail-short{font-size:.73rem;color:var(--text2);max-width:220px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ibtn{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:var(--blue);color:#fff;font-size:.65rem;font-weight:800;cursor:pointer;flex-shrink:0;border:none;outline:none;transition:.15s}
+.ibtn:hover{background:#1e40af;transform:scale(1.12)}
+.stat-card{background:#fff;border:1.5px solid var(--border);border-radius:12px;padding:.75rem 1rem;text-align:center}
+.stat-num{font-size:1.5rem;font-weight:900;color:var(--blue);line-height:1}
+.stat-lbl{font-size:.65rem;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-top:3px}
+/* Popup */
+#aPopup{display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.48);backdrop-filter:blur(3px);align-items:center;justify-content:center}
+#aPopup.show{display:flex}
+#aBox{background:#fff;border-radius:16px;box-shadow:0 24px 64px rgba(0,0,0,.22);width:min(840px,96vw);max-height:88vh;display:flex;flex-direction:column;overflow:hidden}
+#aHead{padding:1rem 1.25rem;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;gap:.75rem;flex-shrink:0}
+#aTitle{font-weight:800;font-size:.95rem;flex:1;line-height:1.5}
+#aMeta{font-size:.72rem;color:var(--text3);margin-top:3px}
+#aClose{width:30px;height:30px;border-radius:50%;border:none;background:#f1f5f9;color:var(--text2);font-size:1rem;cursor:pointer;flex-shrink:0}
+#aClose:hover{background:#fee2e2;color:#dc2626}
+#aBody{overflow-y:auto;flex:1;padding:1rem 1.25rem}
+.ap-tabs{display:flex;gap:4px;margin-bottom:1rem;border-bottom:2px solid var(--border)}
+.ap-tab{padding:6px 16px;font-size:.78rem;font-weight:700;color:var(--text3);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;user-select:none}
+.ap-tab.active{color:var(--blue);border-bottom-color:var(--blue)}
+.diff-tbl{width:100%;border-collapse:collapse;font-size:.78rem}
+.diff-tbl th{padding:.4rem .75rem;background:#f8fafc;font-size:.67rem;color:var(--text3);font-weight:700;text-transform:uppercase;border-bottom:2px solid var(--border);text-align:left}
+.diff-tbl td{padding:.45rem .75rem;border-bottom:1px solid #f1f5f9;vertical-align:top}
+.vb{color:#dc2626;text-decoration:line-through;font-size:.75rem;word-break:break-all}
+.va{color:#16a34a;font-weight:600;font-size:.75rem;word-break:break-all}
+.vn{color:#94a3b8;font-style:italic}
+.jgrid{display:grid;grid-template-columns:1fr 1fr;gap:.4rem}
+.jrow{display:flex;flex-direction:column;background:#f8fafc;border-radius:8px;padding:.45rem .65rem}
+.jkey{font-size:.63rem;font-weight:800;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px}
+.jval{font-size:.77rem;color:var(--text);word-break:break-all}
+.jval.nv{color:#94a3b8;font-style:italic}
+.jval.chg{background:#dbeafe;color:#1d4ed8;font-weight:700;border-radius:4px;padding:1px 4px}
+#rawPre{background:#0f172a;color:#e2e8f0;border-radius:10px;padding:1rem;font-size:.72rem;overflow-x:auto;white-space:pre-wrap;word-break:break-all;line-height:1.6}
+{% endblock %}
+
+{% block content %}
+<div class="page-hdr">
+  <div>
+    <h1>🔍 Audit Logs</h1>
+    <p style="font-size:.78rem;color:var(--text3);">Complete activity trail — who did what and when</p>
+  </div>
+  <a href="{{ url_for('users_bp.audit_export') }}" class="btn-outline" style="font-size:.8rem;">📤 Export CSV</a>
+</div>
+
+<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:.6rem;margin-bottom:1rem;">
+  {% for stat in stats %}
+  <div class="stat-card"><div class="stat-num">{{ stat.cnt }}</div><div class="stat-lbl">{{ stat.action }}</div></div>
+  {% endfor %}
+</div>
+
+<div class="card" style="margin-bottom:1rem;">
+  <div style="padding:.75rem 1rem;">
+    <form method="GET" style="display:flex;flex-wrap:wrap;gap:.5rem;align-items:flex-end;">
+      <div>
+        <label style="font-size:.7rem;font-weight:700;color:var(--text3);display:block;margin-bottom:3px;">Module</label>
+        <select name="module" class="fi-sm">
+          <option value="">All Modules</option>
+          {% for m in modules %}<option value="{{ m }}" {{ 'selected' if module==m }}>{{ m|capitalize }}</option>{% endfor %}
+        </select>
+      </div>
+      <div>
+        <label style="font-size:.7rem;font-weight:700;color:var(--text3);display:block;margin-bottom:3px;">Action</label>
+        <select name="action" class="fi-sm">
+          <option value="">All Actions</option>
+          {% for a in actions %}<option value="{{ a }}" {{ 'selected' if action==a }}>{{ a }}</option>{% endfor %}
+        </select>
+      </div>
+      <div>
+        <label style="font-size:.7rem;font-weight:700;color:var(--text3);display:block;margin-bottom:3px;">User</label>
+        <select name="user_id" class="fi-sm" style="min-width:130px;">
+          <option value="">All Users</option>
+          {% for u in all_users %}<option value="{{ u.id }}" {{ 'selected' if user_id==u.id|string }}>{{ u.full_name or u.username }}</option>{% endfor %}
+        </select>
+      </div>
+      <div>
+        <label style="font-size:.7rem;font-weight:700;color:var(--text3);display:block;margin-bottom:3px;">Date From</label>
+        <input type="date" name="date_from" value="{{ date_from }}" class="fi-sm">
+      </div>
+      <div>
+        <label style="font-size:.7rem;font-weight:700;color:var(--text3);display:block;margin-bottom:3px;">Date To</label>
+        <input type="date" name="date_to" value="{{ date_to }}" class="fi-sm">
+      </div>
+      <div>
+        <label style="font-size:.7rem;font-weight:700;color:var(--text3);display:block;margin-bottom:3px;">Search</label>
+        <input type="text" name="search" value="{{ search }}" placeholder="Name / detail…" class="fi-sm" style="min-width:180px;">
+      </div>
+      <div style="display:flex;gap:.4rem;margin-top:18px;">
+        <button type="submit" class="btn-primary" style="padding:6px 16px;font-size:.78rem;">🔍 Filter</button>
+        <a href="{{ url_for('users_bp.audit_logs') }}" class="btn-outline" style="padding:6px 12px;font-size:.78rem;">✕ Clear</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <div style="padding:.6rem 1rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
+    <span style="font-size:.8rem;color:var(--text2);">Showing <strong>{{ logs|length }}</strong> of <strong>{{ total }}</strong> logs</span>
+    <div style="display:flex;align-items:center;gap:.5rem;">
+      <label style="font-size:.75rem;color:var(--text2);">Per page</label>
+      <select onchange="window.location.href=this.value" class="fi-sm" style="font-size:.72rem;padding:3px 6px;">
+        {% for n in [25,50,100,200] %}
+        <option value="{{ url_for('users_bp.audit_logs', per_page=n, page=1, module=module, action=action, user_id=user_id, date_from=date_from, date_to=date_to, search=search) }}" {{ 'selected' if per_page==n }}>{{ n }}</option>
+        {% endfor %}
+      </select>
+    </div>
+  </div>
+  <div style="overflow-x:auto;">
+  <table class="al-tbl">
+    <thead>
+      <tr><th>#</th><th>Time</th><th>User</th><th>Module</th><th>Action</th><th>Record</th><th>Detail</th><th>IP</th></tr>
+    </thead>
+    <tbody>
+    {% for log in logs %}
+    <tr>
+      <td style="color:var(--text3);font-size:.72rem;">{{ total - ((page-1)*per_page) - loop.index0 }}</td>
+      <td style="white-space:nowrap;">
+        <div style="font-size:.77rem;font-weight:600;">{{ log.created_at.strftime('%d-%m-%Y') }}</div>
+        <div style="font-size:.68rem;color:var(--text3);">{{ log.created_at.strftime('%H:%M:%S') }}</div>
+      </td>
+      <td>
+        <div style="font-weight:700;font-size:.78rem;">{{ log.username }}</div>
+        <div style="font-size:.67rem;color:var(--text3);">{{ log.user_role }}</div>
+      </td>
+      <td><span class="mod-badge">{{ log.module }}</span></td>
+      <td><span class="act-badge act-{{ log.action }}">{{ log.action }}</span></td>
+      <td style="max-width:180px;">
+        {% if log.record_id %}<code style="font-size:.67rem;color:var(--blue);margin-right:4px;">#{{ log.record_id }}</code>{% endif %}
+        <span style="font-size:.74rem;">{{ log.record_label or '—' }}</span>
+      </td>
+      <td>
+        {% set dtxt = log.detail or '' %}
+        <div style="display:flex;align-items:center;gap:5px;">
+          <div class="detail-short">
+            {% if dtxt.startswith('{') %}
+              {% if '"changes"' in dtxt %}🔄 Field changes recorded
+              {% elif '"deleted_record"' in dtxt %}🗑️ Deleted snapshot
+              {% elif '"created_record"' in dtxt %}✅ Created snapshot
+              {% elif '"viewed_record"' in dtxt %}👁️ View snapshot
+              {% else %}📋 Detail available{% endif %}
+            {% else %}{{ dtxt[:70] }}{% if dtxt|length > 70 %}…{% endif %}{% endif %}
+          </div>
+          {% if dtxt %}
+          <button class="ibtn" onclick="openLog({{ log.id }})" title="View full detail">i</button>
+          {% endif %}
+        </div>
+      </td>
+      <td style="font-size:.7rem;color:var(--text3);">{{ log.ip_address }}</td>
+    </tr>
+    {% else %}
+    <tr><td colspan="8" style="text-align:center;padding:2.5rem;color:var(--text3);">No logs found.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% if total_pages > 1 %}
+  <div style="padding:.75rem 1rem;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem;">
+    <span style="font-size:.78rem;color:var(--text2);">Page {{ page }} of {{ total_pages }}</span>
+    <div style="display:flex;gap:4px;flex-wrap:wrap;">
+      {% if page > 1 %}<a href="{{ url_for('users_bp.audit_logs', page=page-1, per_page=per_page, module=module, action=action, user_id=user_id, date_from=date_from, date_to=date_to, search=search) }}" style="padding:4px 12px;border:1.5px solid var(--border);border-radius:7px;font-size:.75rem;text-decoration:none;color:var(--text2);background:#fff;">‹ Prev</a>{% endif %}
+      {% for p in range([1,page-2]|max, [total_pages+1,page+3]|min) %}
+      <a href="{{ url_for('users_bp.audit_logs', page=p, per_page=per_page, module=module, action=action, user_id=user_id, date_from=date_from, date_to=date_to, search=search) }}"
+         style="padding:4px 10px;border:1.5px solid {{ 'var(--blue)' if p==page else 'var(--border)' }};border-radius:7px;font-size:.75rem;text-decoration:none;color:{{ '#fff' if p==page else 'var(--text2)' }};background:{{ 'var(--blue)' if p==page else '#fff' }};">{{ p }}</a>
+      {% endfor %}
+      {% if page < total_pages %}<a href="{{ url_for('users_bp.audit_logs', page=page+1, per_page=per_page, module=module, action=action, user_id=user_id, date_from=date_from, date_to=date_to, search=search) }}" style="padding:4px 12px;border:1.5px solid var(--border);border-radius:7px;font-size:.75rem;text-decoration:none;color:var(--text2);background:#fff;">Next ›</a>{% endif %}
+    </div>
+  </div>
+  {% endif %}
+</div>
+
+<!-- Hidden audit data store — outside any script tag, injection-safe -->
+<div id="_audit_data" style="display:none"
+  data-v="{{ logs | map_audit_data | b64encode }}"
+></div>
+
+<!-- Popup -->
+<div id="aPopup" onclick="if(event.target===this)closeLog()">
+  <div id="aBox">
+    <div id="aHead">
+      <div style="flex:1;"><div id="aTitle"></div><div id="aMeta"></div></div>
+      <button id="aClose" onclick="closeLog()">✕</button>
+    </div>
+    <div id="aBody">
+      <div class="ap-tabs" id="aTabs"></div>
+      <div id="aContent"></div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}{% endblock %}
+
+{% block extra_script_tags %}
+<script>
+/* ── Log data loaded from hidden element ── */
+var _LD = {};
+(function(){
+  var el = document.getElementById('_audit_data');
+  if (!el) return;
+  try {
+    var all = JSON.parse(atob(el.getAttribute('data-v')));
+    all.forEach(function(r){ _LD[r.id] = r; });
+  } catch(e){ console.error('Audit data load error', e); }
+})();
+
+function H(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function openLog(id) {
+  var d = _LD[id];
+  if (!d) { alert('Log not found'); return; }
+
+  document.getElementById('aTitle').innerHTML =
+    '<span class="act-badge act-'+d.action+'" style="margin-right:6px;">'+d.action+'</span>'+
+    '<span class="mod-badge" style="margin-right:6px;">'+H(d.module)+'</span>'+
+    '<span style="font-size:.88rem;">'+H(d.record)+'</span>';
+  document.getElementById('aMeta').innerHTML =
+    '<span style="margin-right:8px;">&#128100; '+H(d.user)+'</span><span>&#128336; '+d.time+'</span>';
+
+  // Parse detail
+  // d.data is plain JSON string (already decoded from the hidden element)
+  var raw = d.data || '';
+  var obj = null;
+  try { obj = JSON.parse(raw); } catch(e) { obj = null; }
+
+  var tabs    = document.getElementById('aTabs');
+  var content = document.getElementById('aContent');
+  tabs.innerHTML = '';
+  content.innerHTML = '';
+
+  var tabDefs = [];
+  if (obj) {
+    var changes = obj.changes || null;
+    var rec = obj.current_record || obj.created_record || obj.deleted_record || obj.viewed_record || obj.record || null;
+    if (changes && Object.keys(changes).length)
+      tabDefs.push({label:'🔄 Changes ('+Object.keys(changes).length+')', fn: function(){ return renderChanges(changes); }});
+    if (rec)
+      tabDefs.push({label:'📋 Full Record', fn: (function(r,c){ return function(){ return renderRecord(r,c); }; })(rec,changes)});
+    if (obj.summary)
+      tabDefs.push({label:'📝 Summary', fn: (function(s){ return function(){ return renderSummary(s); }; })(obj.summary)});
+  }
+  tabDefs.push({label:'{ } Raw JSON', fn: (function(r){ return function(){ return renderRaw(r); }; })(raw)});
+
+  tabDefs.forEach(function(t, i) {
+    var btn = document.createElement('div');
+    btn.className = 'ap-tab' + (i===0?' active':'');
+    btn.textContent = t.label;
+    btn.onclick = (function(tf, b) {
+      return function() {
+        tabs.querySelectorAll('.ap-tab').forEach(function(x){ x.classList.remove('active'); });
+        b.classList.add('active');
+        content.innerHTML = '';
+        content.appendChild(tf());
+      };
+    })(t.fn, btn);
+    tabs.appendChild(btn);
+  });
+  content.appendChild(tabDefs[0].fn());
+  document.getElementById('aPopup').classList.add('show');
+}
+
+function closeLog() { document.getElementById('aPopup').classList.remove('show'); }
+document.addEventListener('keydown', function(e){ if(e.key==='Escape') closeLog(); });
+
+function renderChanges(changes) {
+  var d = document.createElement('div');
+  var keys = Object.keys(changes);
+  if (!keys.length) {
+    d.innerHTML = '<p style="color:var(--text3);text-align:center;padding:2rem;">No changes recorded.</p>';
+    return d;
+  }
+  var rows = '';
+  keys.forEach(function(field) {
+    var val = changes[field];
+    var bv = (val.before===null||val.before===''||val.before===undefined) ? '<span class="vn">— empty —</span>' : '<span class="vb">'+H(String(val.before))+'</span>';
+    var av = (val.after===null||val.after===''||val.after===undefined)   ? '<span class="vn">— empty —</span>' : '<span class="va">'+H(String(val.after))+'</span>';
+    rows += '<tr><td style="font-weight:700;font-size:.75rem;white-space:nowrap;color:var(--text2);">'+H(field)+'</td><td>'+bv+'</td><td style="color:#94a3b8;font-size:1.1rem;padding:0 .5rem;">&#8594;</td><td>'+av+'</td></tr>';
+  });
+  d.innerHTML = '<p style="font-size:.74rem;color:var(--text3);margin-bottom:.6rem;">'+keys.length+' field(s) changed</p>'+
+    '<table class="diff-tbl"><thead><tr><th>Field</th><th>Before</th><th></th><th>After</th></tr></thead><tbody>'+rows+'</tbody></table>';
+  return d;
+}
+
+function renderRecord(rec, changes) {
+  var d = document.createElement('div');
+  if (!rec) { d.textContent='No record data.'; return d; }
+  var ck = changes ? Object.keys(changes) : [];
+  var cells = '';
+  Object.keys(rec).forEach(function(k) {
+    var v = rec[k];
+    var isChg = ck.indexOf(k) >= 0;
+    var vstr = (v===null||v===undefined) ? '<span class="nv">—</span>' : H(String(v));
+    cells += '<div class="jrow" style="'+(isChg?'border:1.5px solid #bfdbfe;':'')+'">' +
+      '<div class="jkey">'+H(k)+'</div>' +
+      '<div class="jval '+(v===null?'nv ':'')+( isChg?'chg':'')+'">'+vstr+'</div></div>';
+  });
+  d.innerHTML = '<p style="font-size:.74rem;color:var(--text3);margin-bottom:.6rem;">'+Object.keys(rec).length+' fields'+
+    (ck.length ? ' <span style="color:var(--blue);margin-left:.5rem;">• '+ck.length+' changed (blue)</span>':'')+'</p>'+
+    '<div class="jgrid">'+cells+'</div>';
+  return d;
+}
+
+function renderSummary(text) {
+  var d = document.createElement('div');
+  d.innerHTML = '<div style="background:#f8fafc;border-radius:10px;padding:1rem 1.25rem;font-size:.82rem;line-height:1.7;">'+H(text)+'</div>';
+  return d;
+}
+
+function renderRaw(raw) {
+  var d = document.createElement('div');
+  var pretty = raw;
+  try {
+    var obj = (typeof raw==='object') ? raw : JSON.parse(raw);
+    pretty = JSON.stringify(obj, null, 2);
+  } catch(e) { pretty = String(raw); }
+  d.innerHTML = '<pre id="rawPre">'+H(pretty)+'</pre>'+
+    '<button onclick="navigator.clipboard.writeText(document.getElementById(\'rawPre\').textContent).then(function(){this.textContent=\'✅ Copied!\';var b=this;setTimeout(function(){b.textContent=\'📋 Copy JSON\'},1500)}.bind(this))" '+
+    'class="btn-outline" style="margin-top:.5rem;font-size:.72rem;padding:4px 14px;">📋 Copy JSON</button>';
+  return d;
+}
+</script>
+{% endblock %}

@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+{% block title %}Permission Matrix{% endblock %}
+{% block page_title %}Permission Matrix{% endblock %}
+{% block bread %}Admin / Permissions{% endblock %}
+
+{% block extra_css %}
+.pm-table { width:100%; border-collapse:collapse; font-size:.82rem; }
+.pm-table th {
+    padding:.6rem .8rem; background:#f8fafc; border-bottom:2px solid var(--border);
+    font-size:.7rem; font-weight:700; color:var(--text3); text-transform:uppercase;
+    letter-spacing:.05em; white-space:nowrap;
+}
+.pm-table td { padding:.55rem .8rem; border-bottom:1px solid #f1f5f9; vertical-align:middle; }
+.pm-table tr:hover td { background:#fafbfc; }
+
+.pm-toggle {
+    width:36px; height:20px; border-radius:10px; border:none; cursor:pointer;
+    transition:background .2s; position:relative; display:inline-block;
+    font-size:0; flex-shrink:0;
+}
+.pm-toggle.on  { background:#22c55e; }
+.pm-toggle.off { background:#d1d5db; }
+.pm-toggle::after {
+    content:''; position:absolute; top:2px; width:16px; height:16px;
+    background:#fff; border-radius:50%; transition:left .2s; box-shadow:0 1px 3px rgba(0,0,0,.2);
+}
+.pm-toggle.on::after  { left:18px; }
+.pm-toggle.off::after { left:2px; }
+
+.role-hdr { text-align:center; padding:.4rem .6rem; }
+.role-grp { background:#eff6ff; }
+.action-cell { display:flex; gap:4px; justify-content:center; }
+.mod-parent { background:#f8fafc; font-weight:800; }
+.mod-child td:first-child { padding-left:2rem; }
+{% endblock %}
+
+{% block content %}
+<div class="page-hdr">
+    <div>
+        <h1 style="font-size:1.2rem;">🔐 Permission Matrix</h1>
+        <p style="font-size:.78rem;color:var(--text3);">Role-based access control for all modules</p>
+    </div>
+    <form method="POST" action="{{ url_for('users_bp.perm_seed') }}" style="display:inline;">
+        <button type="submit" class="btn-outline" style="font-size:.8rem;"
+            onclick="return confirm('Reset all permissions to defaults?')">
+            🔄 Reset to Defaults
+        </button>
+    </form>
+</div>
+
+<div class="card" style="overflow-x:auto;">
+<table class="pm-table">
+    <thead>
+        <tr>
+            <th style="min-width:160px;">Module</th>
+            {% for role in roles %}
+            <th class="role-grp" colspan="5" style="text-align:center;border-left:2px solid var(--border);">
+                <span style="background:{% if role=='admin' %}#fef3c7{% elif role=='manager' %}#eff6ff{% elif role=='hr' %}#f0fdf4{% else %}#f5f3ff{% endif %};
+                    color:{% if role=='admin' %}#d97706{% elif role=='manager' %}#2563eb{% elif role=='hr' %}#16a34a{% else %}#7c3aed{% endif %};
+                    padding:3px 12px;border-radius:20px;font-size:.78rem;font-weight:800;">
+                    {{ role|capitalize }}
+                </span>
+            </th>
+            {% endfor %}
+        </tr>
+        <tr>
+            <th></th>
+            {% for role in roles %}
+            {% for action in ['View','Add','Edit','Delete','Export'] %}
+            <th style="text-align:center;font-size:.65rem;{% if loop.first %}border-left:2px solid var(--border);{% endif %}">{{ action }}</th>
+            {% endfor %}
+            {% endfor %}
+        </tr>
+    </thead>
+    <tbody>
+    {% for mod in modules %}
+    <tr class="{% if not mod.parent_id %}mod-parent{% else %}mod-child{% endif %}">
+        <td>
+            {% if mod.parent_id %}<span style="color:var(--text3);">└ </span>{% endif %}
+            <span>{{ mod.icon }} {{ mod.label }}</span>
+            <span style="font-size:.68rem;color:var(--text3);display:block;margin-top:1px;">{{ mod.url_prefix }}</span>
+        </td>
+        {% for role in roles %}
+        {% set perm = matrix.get(role, {}).get(mod.id) %}
+        {% set is_admin = (role == 'admin') %}
+        {% for action in ['can_view','can_add','can_edit','can_delete','can_export'] %}
+        <td style="text-align:center;{% if loop.first %}border-left:2px solid var(--border);{% endif %}">
+            {% if is_admin %}
+            <button class="pm-toggle on" disabled title="Admin always has full access"></button>
+            {% else %}
+            {% set is_on = (perm and (
+                (action == 'can_view'   and perm.can_view)   or
+                (action == 'can_add'    and perm.can_add)    or
+                (action == 'can_edit'   and perm.can_edit)   or
+                (action == 'can_delete' and perm.can_delete) or
+                (action == 'can_export' and perm.can_export)
+            )) %}
+            <button class="pm-toggle {{ 'on' if is_on else 'off' }}"
+                onclick="togglePerm(this,'{{ role }}',{{ mod.id }},'{{ action }}')"
+                title="{{ action }} — {{ role }} — {{ mod.label }}">
+            </button>
+            {% endif %}
+        </td>
+        {% endfor %}
+        {% endfor %}
+    </tr>
+    {% endfor %}
+    </tbody>
+</table>
+</div>
+
+<script>
+async function togglePerm(btn, role, modId, action) {
+    const isOn = btn.classList.contains('on');
+    const newVal = !isOn;
+    btn.classList.toggle('on',  newVal);
+    btn.classList.toggle('off', !newVal);
+
+    // If turning off 'can_view', turn off all in same row
+    if (action === 'can_view' && !newVal) {
+        const row = btn.closest('tr');
+        row.querySelectorAll('.pm-toggle').forEach(b => {
+            if (!b.disabled) { b.classList.remove('on'); b.classList.add('off'); }
+        });
+    }
+
+    await fetch('{{ url_for("users_bp.perm_save") }}', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ role, module_id: modId, action, value: newVal })
+    });
+}
+</script>
+{% endblock %}

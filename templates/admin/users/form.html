@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit' if user else 'Add' }} User{% endblock %}
+{% block page_title %}{{ 'Edit' if user else 'Add' }} User{% endblock %}
+{% block bread %}Admin / Users / {{ 'Edit' if user else 'Add' }}{% endblock %}
+{% block content %}
+<div class="page-hdr">
+    <div><h1 style="font-size:1.2rem;">{{ '✏️ Edit User' if user else '➕ Add User' }}</h1></div>
+    <a href="{{ url_for('users_bp.users') }}" class="btn-outline" style="font-size:.82rem;">← Back</a>
+</div>
+<form method="POST" style="max-width:580px;">
+    <div class="card" style="margin-bottom:.9rem;">
+        <div style="padding:.7rem 1rem;border-bottom:1px solid var(--border);font-size:.83rem;font-weight:800;">👤 User Details</div>
+        <div style="padding:1rem;">
+            <div class="fgrid-2" style="margin-bottom:.7rem;">
+                <div class="fg">
+                    <label class="fl">Full Name *</label>
+                    <input type="text" name="full_name" class="fi" required value="{{ user.full_name if user else '' }}" placeholder="John Doe">
+                </div>
+                <div class="fg">
+                    <label class="fl">Username *</label>
+                    <input type="text" name="username" class="fi" value="{{ user.username if user else '' }}" {{ 'readonly style=background:#f8fafc;color:var(--text3)' if user else 'required' }} placeholder="johndoe">
+                    {% if user %}<p style="font-size:.7rem;color:var(--text3);margin-top:2px;">Cannot change username</p>{% endif %}
+                </div>
+                <div class="fg">
+                    <label class="fl">Email *</label>
+                    <input type="email" name="email" class="fi" required value="{{ user.email if user else '' }}" placeholder="john@company.com">
+                </div>
+                <div class="fg">
+                    <label class="fl">Role</label>
+                    <select name="role" class="fi sd">
+                        {% for r,l in [('user','👤 User'),('hr','👔 HR'),('manager','📊 Manager'),('admin','🔑 Admin')] %}
+                        <option value="{{ r }}" {{ 'selected' if user and user.role==r or (not user and r=='user') }}>{{ l }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="frow">
+                <label class="fl">{{ 'New Password' if user else 'Password' }} <span style="font-size:.72rem;color:var(--text3);">{{ '(leave blank to keep)' if user else '(default: HCP@123)' }}</span></label>
+                <div style="position:relative;">
+                    <input type="password" name="password" id="pwField" class="fi" {{ 'required' if not user else '' }} placeholder="{{ 'Leave blank = no change' if user else 'HCP@123' }}" style="padding-right:40px;">
+                    <button type="button" onclick="document.getElementById('pwField').type = document.getElementById('pwField').type==='password'?'text':'password'" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text3);">👁️</button>
+                </div>
+            </div>
+            <div class="frow" style="margin-top:.75rem;">
+                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:.84rem;font-weight:600;">
+                    <input type="checkbox" name="is_active" style="accent-color:var(--blue);width:15px;height:15px;" {{ 'checked' if not user or user.is_active }}>
+                    Active — can login
+                </label>
+            </div>
+        </div>
+    </div>
+    <div class="form-actions">
+        <button type="submit" class="btn-primary" style="padding:10px 26px;">{{ '💾 Update' if user else '✅ Create' }}</button>
+        <a href="{{ url_for('users_bp.users') }}" class="btn-outline">Cancel</a>
+    </div>
+</form>
+{% endblock %}

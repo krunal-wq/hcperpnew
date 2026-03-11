@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+{% block title %}Import Leads — CRM{% endblock %}
+{% block page_title %}Import Leads{% endblock %}
+{% block bread %}CRM / Leads / Import{% endblock %}
+
+{% block extra_css %}
+.import-box { background:#fff; border:1.5px solid var(--border); border-radius:14px; padding:2rem; max-width:720px; margin:0 auto; }
+.drop-zone { border:2.5px dashed var(--border); border-radius:12px; padding:3rem 1.5rem; text-align:center; cursor:pointer; transition:all .2s; position:relative; background:#fafcff; }
+.drop-zone:hover,.drop-zone.drag-over { border-color:var(--blue); background:#eff6ff; }
+.drop-zone input[type=file] { position:absolute; inset:0; opacity:0; cursor:pointer; width:100%; height:100%; }
+.drop-icon { font-size:3rem; margin-bottom:0.75rem; }
+.drop-title { font-weight:700; font-size:1rem; color:var(--text); margin-bottom:4px; }
+.drop-sub { font-size:0.82rem; color:var(--text3); }
+.field-table { width:100%; border-collapse:collapse; font-size:0.83rem; }
+.field-table th { background:#f8fafc; padding:8px 12px; text-align:left; font-weight:700; color:var(--text2); border-bottom:1.5px solid var(--border); }
+.field-table td { padding:7px 12px; border-bottom:1px solid var(--border); }
+.field-table tr:last-child td { border-bottom:none; }
+.req-dot { color:#ef4444; font-weight:700; }
+.opt-dot { color:#94a3b8; }
+.step-num { width:28px; height:28px; border-radius:50%; background:var(--blue); color:#fff; font-size:0.82rem; font-weight:700; display:inline-flex; align-items:center; justify-content:center; flex-shrink:0; }
+{% endblock %}
+
+{% block content %}
+<div class="page-hdr">
+    <div><h1>📥 Import Leads</h1><p>Bulk import leads from CSV or Excel file</p></div>
+    <a href="{{ url_for('crm.leads') }}" class="btn-outline">← Back to Leads</a>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;align-items:start;">
+
+    <!-- Upload Card -->
+    <div class="import-box">
+        <h3 style="font-size:0.95rem;font-weight:700;margin:0 0 1.25rem;">📁 Upload File</h3>
+
+        <!-- Steps -->
+        <div style="margin-bottom:1.5rem;">
+            {% for step in [
+                ('1', 'Download the sample template below'),
+                ('2', 'Fill your leads data in the template'),
+                ('3', 'Upload the completed file here'),
+            ] %}
+            <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.6rem;">
+                <span class="step-num">{{ step[0] }}</span>
+                <span style="font-size:0.85rem;color:var(--text2);">{{ step[1] }}</span>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Download Template -->
+        <div style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:10px;padding:0.85rem 1rem;margin-bottom:1.25rem;display:flex;align-items:center;justify-content:space-between;gap:0.75rem;">
+            <div>
+                <div style="font-size:0.88rem;font-weight:700;color:#166534;">📋 Sample Template</div>
+                <div style="font-size:0.78rem;color:#16a34a;">Download CSV with proper column headers</div>
+            </div>
+            <a href="{{ url_for('crm.lead_import_template') }}" class="btn-primary" style="font-size:0.8rem;padding:7px 14px;white-space:nowrap;">⬇️ Download</a>
+        </div>
+
+        <!-- Upload Form -->
+        <form method="POST" enctype="multipart/form-data" id="importForm">
+            <div class="drop-zone" id="dropZone">
+                <input type="file" name="import_file" id="fileInput" accept=".csv,.xls,.xlsx" onchange="showFile(this)">
+                <div class="drop-icon">📂</div>
+                <div class="drop-title">Drop file here or click to browse</div>
+                <div class="drop-sub">Supports: CSV, Excel (.xlsx)</div>
+                <div id="fileName" style="margin-top:0.75rem;font-size:0.85rem;font-weight:600;color:var(--blue);display:none;"></div>
+            </div>
+
+            <div style="margin-top:1.25rem;display:flex;gap:0.75rem;">
+                <button type="submit" class="btn-primary" style="flex:1;" id="importBtn" disabled>📥 Import Now</button>
+                <a href="{{ url_for('crm.leads') }}" class="btn-outline">Cancel</a>
+            </div>
+        </form>
+
+        <!-- Notes -->
+        <div style="margin-top:1rem;background:#fff7ed;border:1.5px solid #fed7aa;border-radius:10px;padding:0.85rem 1rem;">
+            <div style="font-size:0.82rem;font-weight:700;color:#9a3412;margin-bottom:4px;">⚠️ Important Notes</div>
+            <ul style="font-size:0.8rem;color:#c2410c;margin:0;padding-left:1.25rem;line-height:1.7;">
+                <li>First row must be the header row</li>
+                <li><strong>name</strong> column is required</li>
+                <li>status must be: open, in_process, close, or cancel</li>
+                <li>Duplicate entries will be added as new leads</li>
+                <li>Max file size: 5MB</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Field Reference Card -->
+    <div class="import-box">
+        <h3 style="font-size:0.95rem;font-weight:700;margin:0 0 1rem;">📋 Column Reference</h3>
+        <table class="field-table">
+            <thead>
+                <tr><th>Column Name</th><th>Required?</th><th>Example</th></tr>
+            </thead>
+            <tbody>
+                {% set fields = [
+                    ('name', True, 'John Doe'),
+                    ('position', False, 'CEO'),
+                    ('email', False, 'john@abc.com'),
+                    ('mobile', False, '9999999999'),
+                    ('alternate_mobile', False, '8888888888'),
+                    ('company', False, 'ABC Corp'),
+                    ('website', False, 'www.abc.com'),
+                    ('city', False, 'Mumbai'),
+                    ('state', False, 'Maharashtra'),
+                    ('country', False, 'India'),
+                    ('zip_code', False, '400001'),
+                    ('product_name', False, 'Face Wash'),
+                    ('category', False, 'Skin Care'),
+                    ('product_range', False, 'Premium'),
+                    ('order_quantity', False, '500 units'),
+                    ('source', False, 'HCP Website'),
+                    ('status', False, 'open'),
+                    ('requirement_spec', False, 'Vitamin C face wash...'),
+                    ('remark', False, 'Urgent requirement'),
+                    ('tags', False, 'skincare, premium'),
+                ] %}
+                {% for name, req, example in fields %}
+                <tr>
+                    <td><code style="font-size:0.8rem;color:var(--blue);">{{ name }}</code></td>
+                    <td>{% if req %}<span class="req-dot">Required</span>{% else %}<span class="opt-dot">Optional</span>{% endif %}</td>
+                    <td style="color:var(--text3);">{{ example }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+const dropZone = document.getElementById('dropZone');
+const fileInput = document.getElementById('fileInput');
+const importBtn = document.getElementById('importBtn');
+
+function showFile(input) {
+    const file = input.files[0];
+    if (file) {
+        document.getElementById('fileName').textContent = '✅ ' + file.name + ' (' + (file.size/1024).toFixed(1) + ' KB)';
+        document.getElementById('fileName').style.display = 'block';
+        importBtn.disabled = false;
+        importBtn.textContent = '📥 Import ' + file.name;
+    }
+}
+
+['dragenter','dragover'].forEach(e => {
+    dropZone.addEventListener(e, ev => { ev.preventDefault(); dropZone.classList.add('drag-over'); });
+});
+['dragleave','drop'].forEach(e => {
+    dropZone.addEventListener(e, ev => { ev.preventDefault(); dropZone.classList.remove('drag-over'); });
+});
+dropZone.addEventListener('drop', ev => {
+    const files = ev.dataTransfer.files;
+    if (files.length) {
+        fileInput.files = files;
+        showFile(fileInput);
+    }
+});
+
+document.getElementById('importForm').addEventListener('submit', () => {
+    importBtn.textContent = '⏳ Importing...';
+    importBtn.disabled = true;
+});
+</script>
+{% endblock %}

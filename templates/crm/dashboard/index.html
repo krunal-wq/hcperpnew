@@ -1,0 +1,291 @@
+{% extends "base.html" %}
+{% block title %}CRM Dashboard{% endblock %}
+{% block page_title %}CRM Dashboard{% endblock %}
+{% block bread %}CRM / Dashboard{% endblock %}
+
+{% block extra_css %}
+.sec-lbl { font-size:.72rem; font-weight:700; color:var(--text3); text-transform:uppercase; letter-spacing:.07em; margin-bottom:.75rem; }
+
+/* Action Row - buttons above grids */
+.action-row { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:.75rem; margin-bottom:1.25rem; }
+.action-row-title { font-size:1.1rem; font-weight:800; color:var(--text); }
+.action-btns { display:flex; gap:.5rem; flex-wrap:wrap; }
+
+/* Status Cards */
+.status-cards { display:grid; grid-template-columns:repeat(4,1fr); gap:1rem; margin-bottom:1.5rem; }
+.sc {
+    border-radius:14px; padding:1.1rem 1.25rem;
+    display:flex; align-items:center; gap:.9rem;
+    text-decoration:none; transition:transform .15s,box-shadow .15s;
+    cursor:pointer;
+}
+.sc:hover { transform:translateY(-2px); box-shadow:0 6px 20px rgba(0,0,0,.14); }
+.sc-open       { background:#e8eaf0; color:#374151; }
+.sc-in_process { background:#1e2d5e; color:#fff; }
+.sc-close      { background:#0d9488; color:#fff; }
+.sc-cancel     { background:#ef4444; color:#fff; }
+.sc-icon { font-size:1.7rem; }
+.sc-lbl  { font-size:.68rem; font-weight:700; text-transform:uppercase; letter-spacing:.06em; opacity:.8; }
+.sc-num  { font-size:2rem; font-weight:800; line-height:1; }
+
+/* KPI Row */
+.kpi4 { display:grid; grid-template-columns:repeat(4,1fr); gap:1rem; margin-bottom:1.5rem; }
+.kpi-b {
+    background:#fff; border:1.5px solid var(--border); border-radius:14px;
+    padding:1rem 1.2rem; display:flex; align-items:center; gap:.8rem;
+    text-decoration:none; color:var(--text); transition:transform .15s,box-shadow .15s;
+}
+.kpi-b:hover { transform:translateY(-2px); box-shadow:0 4px 16px rgba(0,0,0,.07); }
+.kpi-bi { width:44px; height:44px; border-radius:11px; display:flex; align-items:center; justify-content:center; font-size:1.2rem; flex-shrink:0; }
+.kpi-bl { font-size:.68rem; font-weight:600; color:var(--text3); text-transform:uppercase; letter-spacing:.05em; }
+.kpi-bn { font-size:1.6rem; font-weight:800; line-height:1.1; }
+.kpi-bh { font-size:.68rem; color:var(--text3); margin-top:1px; }
+
+/* Charts */
+.charts-row1 { display:grid; grid-template-columns:2fr 1fr; gap:1rem; margin-bottom:1rem; }
+.charts-row2 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:1rem; margin-bottom:1.5rem; }
+.chart-card { background:#fff; border:1.5px solid var(--border); border-radius:14px; padding:1.25rem; }
+.chart-ttl { font-size:.88rem; font-weight:700; color:var(--text); margin-bottom:.9rem; }
+
+/* Recent + Reminders */
+.bottom-grid { display:grid; grid-template-columns:1.5fr 1fr; gap:1rem; }
+.icard { background:#fff; border:1.5px solid var(--border); border-radius:14px; overflow:hidden; }
+.icard-hdr { padding:.85rem 1.1rem; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; }
+.icard-ttl { font-size:.88rem; font-weight:700; }
+.icard-lnk { font-size:.77rem; color:var(--blue); text-decoration:none; font-weight:600; }
+.icard-body { padding:.75rem 1.1rem; }
+.lead-item { display:flex; align-items:center; gap:.7rem; padding:.55rem 0; border-bottom:1px solid var(--border); }
+.lead-item:last-child { border-bottom:none; }
+.li-av { width:30px; height:30px; border-radius:50%; flex-shrink:0; background:linear-gradient(135deg,#667eea,#764ba2); display:flex; align-items:center; justify-content:center; font-size:.68rem; font-weight:700; color:#fff; }
+.li-name { font-size:.83rem; font-weight:600; color:var(--blue); text-decoration:none; flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.li-co   { font-size:.75rem; color:var(--text2); min-width:80px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.li-dt   { font-size:.7rem; color:var(--text3); white-space:nowrap; }
+.rem-item { display:flex; align-items:flex-start; gap:.6rem; padding:.55rem 0; border-bottom:1px solid var(--border); }
+.rem-item:last-child { border-bottom:none; }
+.rem-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; margin-top:5px; }
+.rem-ttl { font-size:.83rem; font-weight:600; }
+.rem-dt  { font-size:.71rem; color:var(--text3); }
+
+/* Responsive */
+@media(max-width:1100px) {
+    .status-cards,.kpi4 { grid-template-columns:repeat(2,1fr); }
+    .charts-row1,.charts-row2,.bottom-grid { grid-template-columns:1fr; }
+}
+@media(max-width:600px) {
+    .status-cards { grid-template-columns:repeat(2,1fr); }
+    .kpi4 { grid-template-columns:repeat(2,1fr); }
+    .action-row { flex-direction:column; align-items:flex-start; }
+}
+{% endblock %}
+
+{% block content %}
+
+<!-- Action Row: Title + Buttons ABOVE grid -->
+<div class="action-row">
+    <div>
+        <div class="action-row-title">📊 CRM Dashboard</div>
+        <div style="font-size:.8rem;color:var(--text3);margin-top:2px;">{{ now.strftime('%A, %d %B %Y') }} — CRM Overview</div>
+    </div>
+    <div class="action-btns">
+        <a href="/crm/leads/add"    class="btn-primary"  style="font-size:.82rem;">+ New Lead</a>
+        <a href="/crm/clients/add"  class="btn-outline"  style="font-size:.82rem;">+ New Client</a>
+        <a href="/crm/leads/import" class="btn-outline"  style="font-size:.82rem;">📥 Import</a>
+    </div>
+</div>
+
+<!-- Status Cards -->
+<div class="sec-lbl">Lead Status</div>
+<div class="status-cards">
+    <a href="/crm/leads" class="sc sc-open">
+        <span class="sc-icon">✉️</span>
+        <div><div class="sc-lbl">Open</div><div class="sc-num">{{ lead_counts.open }}</div></div>
+    </a>
+    <a href="/crm/leads?status=in_process" class="sc sc-in_process">
+        <span class="sc-icon">⚙️</span>
+        <div><div class="sc-lbl">In Process</div><div class="sc-num">{{ lead_counts.in_process }}</div></div>
+    </a>
+    <a href="/crm/leads?status=close" class="sc sc-close">
+        <span class="sc-icon">✅</span>
+        <div><div class="sc-lbl">Close</div><div class="sc-num">{{ lead_counts.close }}</div></div>
+    </a>
+    <a href="/crm/leads?status=cancel" class="sc sc-cancel">
+        <span class="sc-icon">❌</span>
+        <div><div class="sc-lbl">Cancel</div><div class="sc-num">{{ lead_counts.cancel }}</div></div>
+    </a>
+</div>
+
+<!-- KPI Row -->
+<div class="sec-lbl">Key Metrics</div>
+<div class="kpi4">
+    <a href="/crm/leads" class="kpi-b">
+        <div class="kpi-bi" style="background:#eff6ff;">📋</div>
+        <div>
+            <div class="kpi-bl">Total Leads</div>
+            <div class="kpi-bn" style="color:var(--blue);">{{ lead_counts.total }}</div>
+            <div class="kpi-bh">All time</div>
+        </div>
+    </a>
+    <a href="/crm/clients" class="kpi-b">
+        <div class="kpi-bi" style="background:#f5f3ff;">👥</div>
+        <div>
+            <div class="kpi-bl">Clients</div>
+            <div class="kpi-bn" style="color:var(--purple);">{{ total_clients }}</div>
+            <div class="kpi-bh">Active</div>
+        </div>
+    </a>
+    <a href="/crm/leads?status=close" class="kpi-b">
+        <div class="kpi-bi" style="background:#f0fdf4;">✅</div>
+        <div>
+            <div class="kpi-bl">Conversion</div>
+            <div class="kpi-bn" style="color:var(--green);">
+                {% if lead_counts.total > 0 %}{{ ((lead_counts.close/lead_counts.total)*100)|round(1) }}%{% else %}0%{% endif %}
+            </div>
+            <div class="kpi-bh">{{ lead_counts.close }} closed</div>
+        </div>
+    </a>
+    <a href="/crm/leads?status=cancel" class="kpi-b">
+        <div class="kpi-bi" style="background:#fff7ed;">❌</div>
+        <div>
+            <div class="kpi-bl">Cancelled</div>
+            <div class="kpi-bn" style="color:#ea580c;">{{ lead_counts.cancel }}</div>
+            <div class="kpi-bh">Lost leads</div>
+        </div>
+    </a>
+</div>
+
+<!-- Charts Row 1 -->
+<div class="sec-lbl">Analytics</div>
+<div class="charts-row1">
+    <div class="chart-card">
+        <div class="chart-ttl">📈 Monthly Lead Trend (Last 6 Months)</div>
+        <canvas id="monthlyChart" height="110"></canvas>
+    </div>
+    <div class="chart-card">
+        <div class="chart-ttl">🎯 Status Distribution</div>
+        <canvas id="statusDonut" height="160"></canvas>
+    </div>
+</div>
+
+<!-- Charts Row 2 -->
+<div class="charts-row2">
+    <div class="chart-card">
+        <div class="chart-ttl">📡 Source Wise</div>
+        <canvas id="sourceChart" height="180"></canvas>
+    </div>
+    <div class="chart-card">
+        <div class="chart-ttl">🏷️ Category Wise</div>
+        <canvas id="categoryChart" height="180"></canvas>
+    </div>
+    <div class="chart-card">
+        <div class="chart-ttl">📅 Last 7 Days</div>
+        <canvas id="weekChart" height="180"></canvas>
+    </div>
+</div>
+
+<!-- Recent + Reminders -->
+<div class="sec-lbl">Activity</div>
+<div class="bottom-grid">
+    <div class="icard">
+        <div class="icard-hdr">
+            <span class="icard-ttl">🕐 Recent Leads</span>
+            <a href="/crm/leads" class="icard-lnk">View All →</a>
+        </div>
+        <div class="icard-body">
+            {% if recent_leads %}
+                {% for l in recent_leads %}
+                <div class="lead-item">
+                    <div class="li-av">{{ l.contact_name[:2]|upper }}</div>
+                    <div style="flex:1;min-width:0;">
+                        <a href="/crm/leads/{{ l.id }}" class="li-name">{{ l.contact_name }}</a>
+                        <div class="li-co">{{ l.company_name or '—' }}</div>
+                    </div>
+                    {% if l.status=='open' %}<span class="badge" style="background:#e8eaf0;color:#374151;white-space:nowrap;">Open</span>
+                    {% elif l.status=='in_process' %}<span class="badge" style="background:#1e2d5e;color:#fff;white-space:nowrap;">In Process</span>
+                    {% elif l.status=='close' %}<span class="badge" style="background:#0d9488;color:#fff;white-space:nowrap;">Close</span>
+                    {% elif l.status=='cancel' %}<span class="badge" style="background:#ef4444;color:#fff;white-space:nowrap;">Cancel</span>
+                    {% endif %}
+                    <div class="li-dt">{{ l.created_at.strftime('%d %b') }}</div>
+                </div>
+                {% endfor %}
+            {% else %}
+            <div style="text-align:center;padding:2rem;color:var(--text3);">No leads yet.</div>
+            {% endif %}
+        </div>
+    </div>
+    <div class="icard">
+        <div class="icard-hdr">
+            <span class="icard-ttl">🔔 Reminders</span>
+            <a href="/crm/leads" class="icard-lnk">View All →</a>
+        </div>
+        <div class="icard-body">
+            {% if upcoming_reminders %}
+                {% for r in upcoming_reminders %}
+                {% set ov = r.remind_at < now %}
+                <div class="rem-item">
+                    <div class="rem-dot" style="background:{{ '#ef4444' if ov else 'var(--blue)' }};"></div>
+                    <div>
+                        <div class="rem-ttl">{{ r.title }}</div>
+                        <div class="rem-dt">{{ r.remind_at.strftime('%d %b, %H:%M') }}{% if ov %} <span style="color:#ef4444;font-weight:700;">· Overdue</span>{% endif %}</div>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+            <div style="text-align:center;padding:2rem;color:var(--text3);">No reminders.</div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script>
+Chart.defaults.font.family = "'Plus Jakarta Sans', sans-serif";
+Chart.defaults.color = '#64748b';
+
+async function loadCharts() {
+    try {
+        const res = await fetch('/crm/api/dashboard-stats');
+        const d   = await res.json();
+
+        new Chart(document.getElementById('monthlyChart'), {
+            type: 'line',
+            data: {
+                labels: d.monthly.map(x => x.month),
+                datasets: [{ label:'Leads', data: d.monthly.map(x => x.count),
+                    borderColor:'#2563eb', backgroundColor:'rgba(37,99,235,.08)',
+                    borderWidth:2.5, pointRadius:4, pointBackgroundColor:'#2563eb',
+                    fill:true, tension:.4 }]
+            },
+            options: { responsive:true, plugins:{legend:{display:false}},
+                scales:{ y:{beginAtZero:true,grid:{color:'#f1f5f9'}}, x:{grid:{display:false}} } }
+        });
+
+        new Chart(document.getElementById('statusDonut'), {
+            type: 'doughnut',
+            data: { labels: d.status.map(x=>x.label),
+                datasets:[{ data:d.status.map(x=>x.value), backgroundColor:d.status.map(x=>x.color), borderWidth:2, borderColor:'#fff' }] },
+            options: { responsive:true, cutout:'65%', plugins:{legend:{position:'bottom',labels:{padding:10,font:{size:11}}}} }
+        });
+
+        const clrs = ['#2563eb','#0d9488','#7c3aed','#ea580c','#dc2626','#0891b2','#65a30d','#d97706'];
+        new Chart(document.getElementById('sourceChart'), {
+            type:'bar', data:{ labels:d.sources.map(x=>x.label),
+                datasets:[{data:d.sources.map(x=>x.value), backgroundColor:d.sources.map((_,i)=>clrs[i%clrs.length]), borderRadius:6}]},
+            options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,grid:{color:'#f1f5f9'}},x:{grid:{display:false},ticks:{font:{size:10}}}}}
+        });
+
+        new Chart(document.getElementById('categoryChart'), {
+            type:'bar', data:{ labels:d.categories.map(x=>x.label),
+                datasets:[{data:d.categories.map(x=>x.value), backgroundColor:'#7c3aed', borderRadius:6}]},
+            options:{indexAxis:'y',responsive:true,plugins:{legend:{display:false}},scales:{x:{beginAtZero:true,grid:{color:'#f1f5f9'}},y:{grid:{display:false},ticks:{font:{size:10}}}}}
+        });
+
+        new Chart(document.getElementById('weekChart'), {
+            type:'bar', data:{ labels:d.week.map(x=>x.day),
+                datasets:[{label:'Leads',data:d.week.map(x=>x.count), backgroundColor:'rgba(5,150,105,.7)', borderRadius:6}]},
+            options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,grid:{color:'#f1f5f9'}},x:{grid:{display:false}}}}
+        });
+    } catch(e) { console.error('Chart error:', e); }
+}
+loadCharts();
+</script>
+{% endblock %}

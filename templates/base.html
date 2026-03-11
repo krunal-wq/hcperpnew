@@ -1,0 +1,1259 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Manufacturing ERP{% endblock %}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --bg:         #f1f5f9;
+            --white:      #ffffff;
+            --border:     #e2e8f0;
+            --border2:    #cbd5e1;
+
+            /* Sidebar - Light */
+            --sb-bg:      #ffffff;
+            --sb-border:  #e2e8f0;
+            --sb-hover:   #f1f5f9;
+            --sb-active-bg: #eff6ff;
+            --sb-active-text: #2563eb;
+            --sb-active-border: #bfdbfe;
+            --sb-text:    #475569;
+            --sb-text-dim:#94a3b8;
+            --sb-sec-lbl: #94a3b8;
+
+            --blue:       #2563eb;
+            --blue-dk:    #1d4ed8;
+            --blue-lt:    #eff6ff;
+            --green:      #059669;
+            --green-lt:   #34d399;
+            --red:        #dc2626;
+            --red-lt:     #f87171;
+            --amber:      #d97706;
+            --amber-lt:   #fbbf24;
+            --purple:     #7c3aed;
+
+            --text:       #0f172a;
+            --text2:      #475569;
+            --text3:      #94a3b8;
+            --sw:         220px;
+            --topbar-h:   70px;
+        }
+
+        html, body {
+            height: 100%;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            overflow-x: hidden;
+        }
+
+        /* ════════════════════════════
+           SIDEBAR — LIGHT
+        ════════════════════════════ */
+        .sidebar {
+            position: fixed; left: 0; top: 0; bottom: 0;
+            width: var(--sw);
+            background: var(--sb-bg);
+            border-right: 1px solid var(--sb-border);
+            display: flex; flex-direction: column;
+            z-index: 200;
+            transition: transform 0.3s cubic-bezier(0.16,1,0.3,1);
+        }
+
+        /* Brand */
+        .sb-brand {
+            padding: 0 1rem;
+            height: var(--topbar-h);
+            display: flex; align-items: center; gap: 10px;
+            border-bottom: 1px solid var(--sb-border);
+            flex-shrink: 0;
+			
+        }
+        .sb-logo {
+            width: 60px; height: 60px; flex-shrink: 0;
+           
+            border-radius: 9px;
+            display: flex; align-items: center; justify-content: center;
+            overflow: hidden;
+            
+        }
+        .sb-logo img { width: 100%; height: 100%; object-fit: contain; }
+        .sb-logo-emoji { font-size: 1.1rem; }
+        .sb-info { min-width: 0; }
+        .sb-name {
+            font-weight: 800; font-size: 0.97rem;
+            color: var(--text); letter-spacing: -0.01em; white-space: nowrap;
+        }
+        .sb-name em { color: var(--blue); font-style: normal; }
+        .sb-tag {
+            font-size: 0.6rem; color: var(--text3);
+            letter-spacing: 0.07em; text-transform: uppercase;
+        }
+
+        /* Nav */
+        .sb-nav {
+            flex: 1; overflow-y: auto; padding: 0.75rem 0;
+            scrollbar-width: thin; scrollbar-color: var(--border) transparent;
+        }
+        .sb-nav::-webkit-scrollbar { width: 3px; }
+        .sb-nav::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+        .sb-sec { padding: 0 0.75rem; margin-bottom: 0.2rem; }
+        .sb-sec-lbl {
+            font-size: 0.6rem; font-weight: 700;
+            color: var(--sb-sec-lbl);
+            letter-spacing: 0.1em; text-transform: uppercase;
+            padding: 0.65rem 0.5rem 0.3rem;
+        }
+
+        .nav-a {
+            display: flex; align-items: center; gap: 8px;
+            padding: 7px 10px;
+            border-radius: 8px;
+            text-decoration: none;
+            color: var(--sb-text);
+            font-size: 0.845rem; font-weight: 500;
+            transition: all 0.15s;
+            margin-bottom: 1px;
+            border: 1px solid transparent;
+        }
+        .nav-a:hover {
+            background: var(--sb-hover);
+            color: var(--text);
+        }
+        .nav-a.active {
+            background: var(--sb-active-bg);
+            color: var(--sb-active-text);
+            border-color: var(--sb-active-border);
+            font-weight: 600;
+        }
+        .nav-ic { font-size: 0.9rem; width: 18px; text-align: center; flex-shrink: 0; }
+        .nav-txt { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .nav-badge {
+            font-size: 0.6rem; font-weight: 700;
+            padding: 2px 6px; border-radius: 100px;
+            background: var(--red); color: #fff; flex-shrink: 0;
+        }
+        .nav-badge.blue { background: var(--blue); }
+
+        /* Sidebar footer */
+        .sb-foot {
+            padding: 0.75rem;
+            border-top: 1px solid var(--sb-border);
+            flex-shrink: 0;
+        }
+        .user-row {
+            display: flex; align-items: center; gap: 8px;
+            padding: 8px 9px; border-radius: 9px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+        }
+        .u-av {
+            width: 30px; height: 30px; flex-shrink: 0;
+            background: linear-gradient(135deg, var(--purple), var(--blue));
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.78rem; font-weight: 700; color: #fff;
+        }
+        .u-name {
+            font-size: 0.8rem; font-weight: 600;
+            color: var(--text);
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+            flex: 1; min-width: 0;
+        }
+        .u-role { font-size: 0.65rem; color: var(--text3); }
+        .logout-a {
+            flex-shrink: 0;
+            background: none;
+            border: 1px solid var(--border2);
+            border-radius: 6px; padding: 4px 7px;
+            color: var(--text2); font-size: 0.72rem;
+            cursor: pointer; text-decoration: none;
+            transition: all 0.2s; white-space: nowrap;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+        .logout-a:hover { border-color: var(--red); color: var(--red); }
+
+        /* ════════════════════════════
+           TOPBAR
+        ════════════════════════════ */
+        .topbar {
+            position: fixed; top: 0; left: var(--sw); right: 0;
+            height: var(--topbar-h);
+            background: var(--white);
+            border-bottom: 1px solid var(--border);
+            display: flex; align-items: center;
+            padding: 0 1.25rem; gap: 0.75rem;
+            z-index: 100;
+            transition: left 0.3s;
+        }
+        .hbg {
+            display: none;
+            background: none; border: 1px solid var(--border);
+            border-radius: 7px; padding: 5px 8px;
+            cursor: pointer; font-size: 0.9rem;
+            color: var(--text2); line-height: 1;
+        }
+        .tb-page-title {
+            font-weight: 700; font-size: 1rem;
+            color: var(--text); letter-spacing: -0.01em;
+        }
+        .tb-bread {
+            display: flex; align-items: center; gap: 5px;
+            font-size: 0.75rem; color: var(--text3);
+        }
+        .tb-bread .sep { opacity: 0.4; }
+        .tb-right { margin-left: auto; display: flex; align-items: center; gap: 0.6rem; }
+        .tb-date { font-size: 0.78rem; color: var(--text3); white-space: nowrap; }
+        .tb-btn {
+            position: relative;
+            background: var(--bg); border: 1px solid var(--border);
+            border-radius: 8px; padding: 6px 9px;
+            color: var(--text2); cursor: pointer; font-size: 0.85rem;
+            transition: all 0.15s; line-height: 1;
+        }
+        .tb-btn:hover { background: var(--border); color: var(--text); }
+        .ndot {
+            position: absolute; top: 4px; right: 4px;
+            width: 7px; height: 7px;
+            background: var(--red); border-radius: 50%;
+            border: 1.5px solid var(--white);
+        }
+
+        /* ════════════════════════════
+           MAIN
+        ════════════════════════════ */
+        .main {
+            margin-left: var(--sw);
+            padding-top: var(--topbar-h);
+            min-height: 100vh;
+        }
+        .content { padding: clamp(1rem, 2vw, 1.5rem); }
+
+        /* Flash messages */
+        .flash-wrap { margin-bottom: 1rem; }
+        .f-alert {
+            display: flex; align-items: center; gap: 8px;
+            padding: 10px 14px; border-radius: 10px;
+            font-size: 0.83rem; font-weight: 500; margin-bottom: 0.5rem;
+        }
+        .f-alert.success { background: #ecfdf5; border: 1px solid #a7f3d0; color: #065f46; }
+        .f-alert.danger  { background: #fef2f2; border: 1px solid #fecaca; color: #b91c1c; }
+        .f-alert.warning { background: #fffbeb; border: 1px solid #fde68a; color: #92400e; }
+        .f-alert.info    { background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af; }
+
+        /* Overlay */
+        .overlay {
+            display: none; position: fixed; inset: 0;
+            background: rgba(0,0,0,0.4); z-index: 150;
+            backdrop-filter: blur(2px);
+        }
+        .overlay.open { display: block; }
+
+        /* ════════════════════════════
+           RESPONSIVE
+        ════════════════════════════ */
+        @media (max-width: 768px) {
+            .sidebar { transform: translateX(-100%); }
+            .sidebar.open { transform: translateX(0); box-shadow: 4px 0 24px rgba(0,0,0,0.12); }
+            .topbar { left: 0; }
+            .main { margin-left: 0; }
+            .hbg { display: flex; }
+            .tb-date { display: none; }
+        }
+        @media (max-width: 480px) { .content { padding: 0.875rem; } }
+
+        /* ════════════════════════════
+           REUSABLE COMPONENTS
+        ════════════════════════════ */
+        .page-hdr {
+            display: flex; align-items: center; justify-content: space-between;
+            margin-bottom: 1.25rem; flex-wrap: wrap; gap: 0.75rem;
+        }
+        .page-hdr h1 { font-weight: 700; font-size: 1.3rem; letter-spacing: -0.02em; }
+        .page-hdr p  { font-size: 0.82rem; color: var(--text2); margin-top: 2px; }
+
+        .btn-primary {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 8px 16px; background: var(--blue); border: none;
+            border-radius: 8px; color: #fff;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-weight: 600; font-size: 0.84rem;
+            cursor: pointer; transition: all 0.2s; text-decoration: none;
+        }
+        .btn-primary:hover { background: var(--blue-dk); transform: translateY(-1px); box-shadow: 0 4px 14px rgba(37,99,235,0.3); }
+
+        .btn-outline {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 8px 16px; background: var(--white);
+            border: 1px solid var(--border); border-radius: 8px;
+            color: var(--text2); font-family: 'Plus Jakarta Sans', sans-serif;
+            font-weight: 500; font-size: 0.84rem;
+            cursor: pointer; transition: all 0.2s; text-decoration: none;
+        }
+        .btn-outline:hover { border-color: var(--border2); color: var(--text); }
+
+        .card {
+            background: var(--white); border: 1px solid var(--border);
+            border-radius: 14px; overflow: hidden;
+        }
+        .card-hdr {
+            padding: 0.9rem 1.1rem; border-bottom: 1px solid var(--border);
+            display: flex; align-items: center; justify-content: space-between;
+        }
+        .card-title { font-weight: 700; font-size: 0.9rem; }
+        .card-action { font-size: 0.77rem; color: var(--blue); text-decoration: none; cursor: pointer; }
+        .card-body { padding: 1.1rem; }
+
+        .tbl-wrap { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; font-size: 0.835rem; }
+        thead tr { background: #f8fafc; }
+        th { padding: 9px 12px; text-align: left; font-size: 0.7rem; font-weight: 600; color: var(--text2); text-transform: uppercase; letter-spacing: 0.06em; white-space: nowrap; border-bottom: 1px solid var(--border); }
+        td { padding: 9px 12px; border-bottom: 1px solid var(--border); color: var(--text); }
+        tr:last-child td { border-bottom: none; }
+        tbody tr:hover td { background: #f8fafc; }
+
+        .badge { display: inline-block; padding: 3px 9px; border-radius: 100px; font-size: 0.68rem; font-weight: 600; }
+        .badge-success { background: #dcfce7; color: #166534; }
+        .badge-warning { background: #fef9c3; color: #854d0e; }
+        .badge-danger  { background: #fee2e2; color: #991b1b; }
+        .badge-info    { background: #dbeafe; color: #1e40af; }
+        .badge-purple  { background: #ede9fe; color: #5b21b6; }
+
+        .kpi-card {
+            background: var(--white); border: 1px solid var(--border);
+            border-radius: 12px; padding: 1.1rem;
+            transition: box-shadow 0.2s, transform 0.2s;
+        }
+        .kpi-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.08); transform: translateY(-1px); }
+        .kpi-hdr { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.6rem; }
+        .kpi-lbl { font-size: 0.72rem; font-weight: 600; color: var(--text2); text-transform: uppercase; letter-spacing: 0.05em; }
+        .kpi-ico { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 0.9rem; }
+        .kpi-val { font-weight: 800; font-size: 1.6rem; letter-spacing: -0.03em; margin-bottom: 3px; }
+        .kpi-ch  { font-size: 0.75rem; display: flex; align-items: center; gap: 3px; }
+        .kpi-ch.up { color: var(--green); }
+        .kpi-ch.dn { color: var(--red); }
+
+        /* ═══════════════════════════════════════
+           GLOBAL FORM SYSTEM
+        ═══════════════════════════════════════ */
+        .fl {
+            display: block;
+            font-size: 0.76rem;
+            font-weight: 600;
+            color: var(--text2);
+            margin-bottom: 4px;
+            letter-spacing: 0.01em;
+        }
+        .fi {
+            width: 100%;
+            padding: 8px 11px;
+            border: 1.5px solid var(--border);
+            border-radius: 8px;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-size: 0.84rem;
+            color: var(--text);
+            background: #fff;
+            outline: none;
+            transition: border-color 0.18s, box-shadow 0.18s;
+            -webkit-appearance: none;
+            appearance: none;
+            box-sizing: border-box;
+        }
+        .fi:focus {
+            border-color: var(--blue);
+            box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
+        }
+        .fi::placeholder { color: #b0bec5; }
+        textarea.fi { resize: vertical; min-height: 72px; line-height: 1.5; }
+        select.fi {
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'%3E%3Cpath fill='%2394a3b8' d='M5 7L0 2h10z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 10px center;
+            padding-right: 28px;
+            cursor: pointer;
+        }
+        .fi:disabled { background: #f8fafc; color: var(--text3); cursor: not-allowed; }
+
+        /* Field group */
+        .fg { display: flex; flex-direction: column; }
+
+        /* Form grids */
+        .fgrid-3 { display: grid; grid-template-columns: repeat(3,1fr); gap: 0.75rem; }
+        .fgrid-2 { display: grid; grid-template-columns: repeat(2,1fr); gap: 0.75rem; }
+        .fgrid-4 { display: grid; grid-template-columns: repeat(4,1fr); gap: 0.75rem; }
+        /* Legacy alias */
+        .form-grid  { display: grid; grid-template-columns: repeat(3,1fr); gap: 0.75rem; }
+        .form-grid-2{ display: grid; grid-template-columns: repeat(2,1fr); gap: 0.75rem; }
+        .fg-full, .form-full { grid-column: 1 / -1; }
+
+        /* Two-column form panel layout */
+        .form-panels {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            align-items: start;
+        }
+
+        /* Sub-section label inside card */
+        .fsec {
+            font-size: 0.7rem;
+            font-weight: 700;
+            color: var(--text3);
+            text-transform: uppercase;
+            letter-spacing: 0.07em;
+            background: #f8fafc;
+            border-radius: 7px;
+            padding: 5px 10px;
+            margin: 0.5rem 0 0.65rem;
+        }
+        .fsec:first-child { margin-top: 0; }
+
+        /* Field gap helper */
+        .frow { margin-bottom: 0.7rem; }
+        .frow:last-child { margin-bottom: 0; }
+
+        /* Danger button */
+        .btn-danger {
+            display: inline-flex; align-items: center; gap: 5px;
+            padding: 7px 13px;
+            background: #fee2e2; border: 1.5px solid #fecaca;
+            border-radius: 8px; color: #dc2626;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-weight: 600; font-size: 0.82rem;
+            cursor: pointer; transition: all 0.18s; text-decoration: none;
+        }
+        .btn-danger:hover { background: #fecaca; }
+
+        /* Save bar */
+        .form-actions {
+            display: flex; gap: 0.75rem; align-items: center;
+            padding: 0.5rem 0 1.5rem;
+        }
+
+        /* Responsive */
+        @media (max-width: 920px) {
+            .form-panels { grid-template-columns: 1fr; }
+            .fgrid-3, .form-grid { grid-template-columns: repeat(2,1fr); }
+            .fgrid-4 { grid-template-columns: repeat(2,1fr); }
+        }
+        @media (max-width: 560px) {
+            .fgrid-2, .fgrid-3, .fgrid-4,
+            .form-grid, .form-grid-2 { grid-template-columns: 1fr; }
+        }
+
+        /* ── Searchable Dropdown (global) ── */
+        .sd-wrap { position: relative; }
+        .sd-trigger {
+            width: 100%; height: 40px; padding: 0 36px 0 12px;
+            border: 1.5px solid var(--border); border-radius: 9px;
+            background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2394a3b8' d='M6 8L1 3h10z'/%3E%3C/svg%3E") no-repeat right 12px center;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-size: .85rem; color: var(--text);
+            cursor: pointer; text-align: left;
+            display: flex; align-items: center;
+            transition: border-color .2s;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .sd-trigger:focus { outline: none; border-color: var(--blue); box-shadow: 0 0 0 3px rgba(37,99,235,.1); }
+        .sd-trigger.open { border-color: var(--blue); border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+        .sd-trigger .sd-placeholder { color: #94a3b8; }
+        .sd-trigger .sd-val { color: var(--text); font-weight: 500; }
+
+        .sd-dropdown {
+            display: none; position: fixed; z-index: 99999;
+            background: #fff; border: 1.5px solid var(--blue);
+            border-radius: 0 0 10px 10px;
+            box-shadow: 0 8px 24px rgba(0,0,0,.15);
+            max-height: 260px; overflow: hidden;
+            flex-direction: column;
+        }
+        .sd-dropdown.open { display: flex; }
+
+        .sd-search-wrap {
+            padding: 8px 10px; border-bottom: 1px solid var(--border);
+            display: flex; align-items: center; gap: 6px;
+        }
+        .sd-search-wrap svg { flex-shrink: 0; color: #94a3b8; }
+        .sd-search {
+            flex: 1; border: none; outline: none;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-size: .83rem; color: var(--text);
+            background: transparent;
+        }
+        .sd-list { overflow-y: auto; max-height: 200px; }
+        .sd-option {
+            padding: 8px 14px; font-size: .84rem; cursor: pointer;
+            display: flex; align-items: center; gap: 8px;
+            transition: background .1s; font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+        .sd-option:hover, .sd-option.focused { background: #eff6ff; }
+        .sd-option.selected { background: #dbeafe; color: #1d4ed8; font-weight: 600; }
+        .sd-option.hidden { display: none; }
+        .sd-empty { padding: 12px 14px; color: #94a3b8; font-size: .82rem; text-align: center; }
+        .sd-clear {
+            position: absolute; right: 32px; top: 50%; transform: translateY(-50%);
+            width: 16px; height: 16px; border-radius: 50%; background: #cbd5e1;
+            color: #fff; font-size: .7rem; font-weight: 800;
+            display: none; align-items: center; justify-content: center;
+            cursor: pointer; z-index: 2; line-height: 1;
+        }
+        .sd-clear.show { display: flex; }
+
+        {% block extra_css %}{% endblock %}
+
+        /* ── Global Pagination ── */
+        .pag-wrap{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem;padding:.65rem 1rem;border-top:1px solid var(--border);background:#fafbfc;border-radius:0 0 12px 12px;}
+        .pag-info{font-size:.8rem;color:var(--text2);}
+        .pag-controls{display:flex;align-items:center;gap:4px;}
+        .pag-btn{padding:5px 12px;border-radius:7px;border:1.5px solid var(--border);background:#fff;font-size:.78rem;font-weight:600;cursor:pointer;color:var(--text2);transition:all .15s;}
+        .pag-btn:hover:not(:disabled){background:var(--blue);color:#fff;border-color:var(--blue);}
+        .pag-btn:disabled{opacity:.4;cursor:not-allowed;}
+        .pag-num{min-width:32px;height:32px;border-radius:7px;border:1.5px solid var(--border);background:#fff;font-size:.78rem;font-weight:600;cursor:pointer;color:var(--text2);display:inline-flex;align-items:center;justify-content:center;transition:all .15s;}
+        .pag-num:hover{background:#f1f5f9;}
+        .pag-num.active{background:var(--blue);color:#fff;border-color:var(--blue);}
+        .pag-num.dots{border:none;background:none;cursor:default;}
+        .pag-size select{color:var(--text2);}
+    </style>
+</head>
+<body>
+
+<div class="overlay" id="overlay" onclick="closeSB()"></div>
+
+<!-- ══ SIDEBAR ══ -->
+<aside class="sidebar" id="sidebar">
+    <div class="sb-brand">
+        <div class="sb-logo" align="center">
+                <img src="{{ url_for('static', filename='images/icons/hcp-logo.png') }}" alt="Logo">
+          </div>
+        
+    </div>
+
+   
+<nav class="sb-nav">
+    <div class="sb-sec">
+        <div class="sb-sec-lbl">Main</div>
+        <a class="nav-a {% if active_page == 'dashboard' %}active{% endif %}" href="{{ url_for('dashboard') }}">
+            <span class="nav-ic">🏠</span><span class="nav-txt">Dashboard</span>
+        </a>
+    </div>
+
+    {% set role = current_user.role if current_user.is_authenticated else '' %}
+
+    <!-- CRM Section -->
+    {% if role == 'admin' or role == 'manager' or role == 'user' %}
+    <div class="sb-sec">
+        <div class="sb-sec-lbl">CRM</div>
+        <a class="nav-a {% if active_page == 'crm_dashboard' %}active{% endif %}" href="/crm/dashboard">
+            <span class="nav-ic">📊</span><span class="nav-txt">CRM Dashboard</span>
+        </a>
+        <a class="nav-a {% if active_page == 'leads' %}active{% endif %}" href="/crm/leads">
+            <span class="nav-ic">📋</span><span class="nav-txt">Leads</span>
+        </a>
+        <a class="nav-a {% if active_page == 'clients' %}active{% endif %}" href="/crm/clients">
+            <span class="nav-ic">👥</span><span class="nav-txt">Client Master</span>
+        </a>
+        {% if role in ('admin', 'manager') %}
+        <a class="nav-a {% if active_page == 'lead_import' %}active{% endif %}" href="/crm/leads/import">
+            <span class="nav-ic">📥</span><span class="nav-txt">Import Leads</span>
+        </a>
+        <a class="nav-a {% if active_page == 'client_import' %}active{% endif %}" href="/crm/clients/import">
+            <span class="nav-ic">📥</span><span class="nav-txt">Import Clients</span>
+        </a>
+        {% endif %}
+        <a class="nav-a {% if active_page == 'masters' %}active{% endif %}" href="/masters/">
+            <span class="nav-ic">🏷️</span><span class="nav-txt">Lead Masters</span>
+        </a>
+    </div>
+    {% endif %}
+
+    <!-- HR Section -->
+    {% if role in ('admin', 'manager', 'hr') %}
+    <div class="sb-sec">
+        <div class="sb-sec-lbl">HR</div>
+        <a class="nav-a {% if active_page == 'hr_employees' %}active{% endif %}" href="/hr/employees">
+            <span class="nav-ic">🪪</span><span class="nav-txt">Employees</span>
+        </a>
+        <a class="nav-a {% if active_page == 'hr_contractors' %}active{% endif %}" href="/hr/contractors">
+            <span class="nav-ic">🤝</span><span class="nav-txt">Contractors</span>
+        </a>
+    </div>
+    {% endif %}
+
+    <!-- Admin Section -->
+    {% if role == 'admin' %}
+    <div class="sb-sec">
+        <div class="sb-sec-lbl">Admin</div>
+        <a class="nav-a {% if active_page == 'user_mgmt' %}active{% endif %}" href="/admin/users">
+            <span class="nav-ic">👥</span><span class="nav-txt">User Management</span>
+        </a>
+        <a class="nav-a {% if active_page == 'permissions' %}active{% endif %}" href="/admin/permissions">
+            <span class="nav-ic">🔐</span><span class="nav-txt">Permissions</span>
+        </a>
+        <a class="nav-a {% if active_page == 'audit_logs' %}active{% endif %}" href="/admin/audit-logs">
+            <span class="nav-ic">🔍</span><span class="nav-txt">Audit Logs</span>
+        </a>
+    </div>
+    {% endif %}
+
+</nav>
+
+    <div class="sb-foot">
+        <div class="user-row">
+            <div class="u-av">{{ current_user.full_name[0]|upper if current_user.full_name else 'A' }}</div>
+            <div style="flex:1;min-width:0;">
+                <div class="u-name">{{ current_user.full_name }}</div>
+                <div class="u-role">{{ current_user.role|capitalize }}</div>
+            </div>
+            <a href="/admin/profile" title="My Profile" style="text-decoration:none;font-size:1rem;padding:4px 6px;border-radius:6px;color:var(--text3);transition:background .15s;" onmouseover="this.style.background='rgba(255,255,255,.08)'" onmouseout="this.style.background=''">👤</a>
+            <a href="{{ url_for('logout') }}" class="logout-a" title="Logout">↩</a>
+        </div>
+    </div>
+</aside>
+
+<!-- ══ TOPBAR ══ -->
+<header class="topbar">
+    <button class="hbg" onclick="toggleSB()">☰</button>
+    <div>
+        <div class="tb-page-title">{% block page_title %}Dashboard{% endblock %}</div>
+        <div class="tb-bread">
+            <span>Home</span><span class="sep"> / </span>
+            <span>{% block bread %}Dashboard{% endblock %}</span>
+        </div>
+    </div>
+    <div class="tb-right">
+        <span class="tb-date" id="tdate"></span>
+        <button class="tb-btn" id="bellBtn" onclick="toggleReminderPanel()" title="Reminders" style="position:relative;">
+            🔔
+            <span class="ndot" id="bellCount" style="display:none;position:absolute;top:2px;right:2px;background:#dc2626;color:#fff;font-size:.6rem;font-weight:800;border-radius:50%;min-width:16px;height:16px;line-height:16px;text-align:center;padding:0 3px;"></span>
+        </button>
+        <button class="tb-btn">🔍</button>
+    </div>
+</header>
+
+<!-- ══ MAIN ══ -->
+<div class="main">
+    <div class="content">
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+            <div class="flash-wrap">
+                {% for category, message in messages %}
+                <div class="f-alert {{ category }}">
+                    {% if category == 'success' %}✅{% elif category == 'danger' %}⚠️{% elif category == 'warning' %}⏳{% else %}ℹ️{% endif %}
+                    {{ message }}
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        {% endwith %}
+
+        {% block content %}{% endblock %}
+    </div>
+</div>
+
+<script>
+    const d = new Date();
+    const el = document.getElementById('tdate');
+    if(el) el.textContent = d.toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'short',year:'numeric'});
+
+    function toggleSB(){ document.getElementById('sidebar').classList.toggle('open'); document.getElementById('overlay').classList.toggle('open'); }
+    function closeSB() { document.getElementById('sidebar').classList.remove('open'); document.getElementById('overlay').classList.remove('open'); }
+
+    // ── Global Searchable Dropdown (SearchDrop) ──
+    // Usage: <select class="sd" ...> → auto-converted on DOMContentLoaded
+    // Or call: SearchDrop.init(selectEl)
+    const SearchDrop = (() => {
+        function build(sel) {
+            if (sel._sdBuilt) return;
+            sel._sdBuilt = true;
+            sel.style.display = 'none';
+
+            const wrap = document.createElement('div');
+            wrap.className = 'sd-wrap';
+            wrap.style.position = 'relative';
+            sel.parentNode.insertBefore(wrap, sel);
+            wrap.appendChild(sel);
+
+            const opts = Array.from(sel.options);
+            const placeholder = sel.dataset.placeholder || (opts[0] && opts[0].value === '' ? opts[0].text : 'Select...');
+
+            // Trigger button
+            const trigger = document.createElement('button');
+            trigger.type = 'button';
+            trigger.className = 'sd-trigger';
+            trigger.innerHTML = `<span class="sd-placeholder">${placeholder}</span>`;
+
+            // Clear btn
+            const clearBtn = document.createElement('span');
+            clearBtn.className = 'sd-clear';
+            clearBtn.innerHTML = '✕';
+            clearBtn.title = 'Clear';
+
+            // Dropdown panel
+            const drop = document.createElement('div');
+            drop.className = 'sd-dropdown';
+            drop.innerHTML = `
+                <div class="sd-search-wrap">
+                    <svg width="13" height="13" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="9" cy="9" r="6"/><path d="M15 15l3 3"/>
+                    </svg>
+                    <input type="text" class="sd-search" placeholder="Search...">
+                </div>
+                <div class="sd-list"></div>`;
+
+            wrap.appendChild(trigger);
+            wrap.appendChild(clearBtn);
+            wrap.appendChild(drop);
+
+            const searchInput = drop.querySelector('.sd-search');
+            const list = drop.querySelector('.sd-list');
+
+            // Build option list
+            function buildList(filter = '') {
+                list.innerHTML = '';
+                const fl = filter.toLowerCase();
+                let count = 0;
+                opts.forEach((opt, i) => {
+                    if (opt.value === '') return; // skip placeholder
+                    if (fl && !opt.text.toLowerCase().includes(fl)) return;
+                    const div = document.createElement('div');
+                    div.className = 'sd-option' + (opt.value === sel.value ? ' selected' : '');
+                    div.textContent = opt.text;
+                    div.dataset.val = opt.value;
+                    div.addEventListener('click', () => pick(opt.value, opt.text));
+                    list.appendChild(div);
+                    count++;
+                });
+                if (count === 0) {
+                    const em = document.createElement('div');
+                    em.className = 'sd-empty';
+                    em.textContent = filter ? `No results for "${filter}"` : 'No options';
+                    list.appendChild(em);
+                }
+            }
+
+            function pick(val, text) {
+                sel.value = val;
+                sel.dispatchEvent(new Event('change', { bubbles: true }));
+                trigger.innerHTML = val
+                    ? `<span class="sd-val">${text}</span>`
+                    : `<span class="sd-placeholder">${placeholder}</span>`;
+                clearBtn.classList.toggle('show', !!val);
+                close();
+            }
+
+            function open() {
+                // Position using fixed coords so it always appears on top
+                const rect = trigger.getBoundingClientRect();
+                drop.style.top    = rect.bottom + 'px';
+                drop.style.left   = rect.left + 'px';
+                drop.style.width  = rect.width + 'px';
+                drop.classList.add('open');
+                trigger.classList.add('open');
+                searchInput.value = '';
+                buildList();
+                searchInput.focus();
+                requestAnimationFrame(() => {
+                    const sel2 = list.querySelector('.selected');
+                    if (sel2) sel2.scrollIntoView({ block: 'nearest' });
+                });
+            }
+
+            function close() {
+                drop.classList.remove('open');
+                trigger.classList.remove('open');
+            }
+
+            function reposition() {
+                if (drop.classList.contains('open')) {
+                    const rect = trigger.getBoundingClientRect();
+                    drop.style.top   = rect.bottom + 'px';
+                    drop.style.left  = rect.left + 'px';
+                    drop.style.width = rect.width + 'px';
+                }
+            }
+            window.addEventListener('scroll', reposition, true);
+            window.addEventListener('resize', reposition);
+
+            // Set initial display value
+            if (sel.value) {
+                const cur = opts.find(o => o.value === sel.value);
+                if (cur) {
+                    trigger.innerHTML = `<span class="sd-val">${cur.text}</span>`;
+                    clearBtn.classList.add('show');
+                }
+            }
+
+            trigger.addEventListener('click', (e) => {
+                e.stopPropagation();
+                drop.classList.contains('open') ? close() : open();
+            });
+
+            clearBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                pick('', '');
+            });
+
+            searchInput.addEventListener('input', () => buildList(searchInput.value));
+
+            // Keyboard nav
+            searchInput.addEventListener('keydown', (e) => {
+                const items = [...list.querySelectorAll('.sd-option:not(.hidden)')];
+                const fi = list.querySelector('.sd-option.focused');
+                let idx = items.indexOf(fi);
+                if (e.key === 'ArrowDown') { e.preventDefault(); idx = Math.min(idx + 1, items.length - 1); }
+                else if (e.key === 'ArrowUp') { e.preventDefault(); idx = Math.max(idx - 1, 0); }
+                else if (e.key === 'Enter' && fi) { e.preventDefault(); fi.click(); return; }
+                else if (e.key === 'Escape') { close(); return; }
+                items.forEach(it => it.classList.remove('focused'));
+                if (items[idx]) { items[idx].classList.add('focused'); items[idx].scrollIntoView({ block: 'nearest' }); }
+            });
+
+            document.addEventListener('click', (e) => {
+                if (!wrap.contains(e.target)) close();
+            });
+
+            // Allow external refresh (after adding new option)
+            sel._sdRefresh = function(newVal, newText) {
+                opts.length = 0;
+                Array.from(sel.options).forEach(o => opts.push(o));
+                if (newVal !== undefined) pick(newVal, newText || newVal);
+                else buildList();
+            };
+        }
+
+        // Auto-init all <select class="sd">
+        document.addEventListener('DOMContentLoaded', () => {
+            document.querySelectorAll('select.sd').forEach(build);
+        });
+
+        return { init: build };
+    })();
+
+    // ══ GLOBAL PAGINATION ENGINE ══
+    var _pagState = {};  // { tableId: { page, size } }
+
+    function pagInit(tableId, rowSel, size) {
+        size = size || 10;
+        _pagState[tableId] = { page: 1, size: parseInt(size) };
+        pagRender(tableId, rowSel);
+    }
+
+    function pagRender(tableId, rowSel) {
+        var s     = _pagState[tableId];
+        if (!s) return;
+        var rows  = Array.from(document.querySelectorAll(rowSel));
+        var total = rows.length;
+        var size  = s.size;
+        var page  = s.page;
+        var pages = size >= 9999 ? 1 : Math.max(1, Math.ceil(total / size));
+        if (page > pages) { s.page = page = pages; }
+
+        rows.forEach(function(r, i) {
+            if (size >= 9999) { r.style.display = ''; return; }
+            r.style.display = (i >= (page-1)*size && i < page*size) ? '' : 'none';
+        });
+
+        var from = total === 0 ? 0 : (page-1)*size + 1;
+        var to   = Math.min(page*size, total);
+        if (size >= 9999) { from = total > 0 ? 1 : 0; to = total; }
+
+        var elFrom = document.getElementById('pagFrom_' + tableId);
+        var elTo   = document.getElementById('pagTo_'   + tableId);
+        if (elFrom) elFrom.textContent = from;
+        if (elTo)   elTo.textContent   = to;
+
+        var prevBtn = document.getElementById('pagPrev_' + tableId);
+        var nextBtn = document.getElementById('pagNext_' + tableId);
+        if (prevBtn) prevBtn.disabled = page <= 1;
+        if (nextBtn) nextBtn.disabled = page >= pages;
+
+        // Page number buttons
+        var container = document.getElementById('pagPages_' + tableId);
+        if (!container) return;
+        if (size >= 9999 || pages <= 1) { container.innerHTML = ''; return; }
+
+        var btns = [];
+        var range = [];
+        for (var i = 1; i <= pages; i++) {
+            if (i === 1 || i === pages || (i >= page-2 && i <= page+2)) range.push(i);
+        }
+        var prev = 0;
+        range.forEach(function(i) {
+            if (prev && i - prev > 1) btns.push('<span class="pag-num dots">…</span>');
+            var act = i === page ? ' active' : '';
+            btns.push('<button class="pag-num' + act + '" onclick="pagGoTo(\'' + tableId + '\',\'' + rowSel + '\',' + i + ')">' + i + '</button>');
+            prev = i;
+        });
+        container.innerHTML = btns.join('');
+    }
+
+    function pagGo(tableId, rowSel, dir) {
+        if (!_pagState[tableId]) return;
+        _pagState[tableId].page += dir;
+        pagRender(tableId, rowSel);
+    }
+
+    function pagGoTo(tableId, rowSel, page) {
+        if (!_pagState[tableId]) return;
+        _pagState[tableId].page = page;
+        pagRender(tableId, rowSel);
+    }
+
+    function pagSetSize(tableId, rowSel, val) {
+        if (!_pagState[tableId]) return;
+        _pagState[tableId].size = parseInt(val) || 10;
+        _pagState[tableId].page = 1;
+        pagRender(tableId, rowSel);
+        // Sync both dropdowns
+        var topSel = document.getElementById('rowCount_' + tableId);
+        var botSel = document.getElementById('pagSize_' + tableId);
+        if (topSel) topSel.value = val;
+        if (botSel) botSel.value = val;
+    }
+
+    {% block extra_js %}{% endblock %}
+</script>
+{% block extra_script_tags %}{% endblock %}
+
+{% if current_user.is_authenticated %}
+<!-- ══ REMINDER NOTIFICATION SYSTEM ══ -->
+<style>
+#notif-container{
+    position:fixed;bottom:20px;right:20px;z-index:99999;
+    display:flex;flex-direction:column;gap:10px;max-width:360px;
+    pointer-events:none;
+}
+.notif-card{
+    background:#fff;border-radius:14px;padding:0;
+    box-shadow:0 8px 32px rgba(0,0,0,.18),0 2px 8px rgba(0,0,0,.08);
+    border-left:5px solid #2563eb;
+    animation:notif-in .35s cubic-bezier(.34,1.56,.64,1);
+    pointer-events:all;overflow:hidden;
+}
+.notif-card.overdue{ border-left-color:#dc2626; }
+.notif-card.soon   { border-left-color:#f59e0b; }
+.notif-hdr{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:.65rem 1rem .4rem;
+    background:linear-gradient(135deg,#f0f7ff,#fff);
+}
+.notif-badge{
+    font-size:.68rem;font-weight:800;padding:2px 8px;border-radius:20px;
+    background:#dbeafe;color:#1d4ed8;letter-spacing:.04em;
+}
+.notif-badge.overdue{background:#fee2e2;color:#dc2626;}
+.notif-badge.soon   {background:#fef3c7;color:#b45309;}
+.notif-close{
+    background:none;border:none;cursor:pointer;
+    color:#94a3b8;font-size:1rem;line-height:1;padding:2px;
+}
+.notif-close:hover{color:#475569;}
+.notif-body{padding:.4rem 1rem .7rem;}
+.notif-title{font-size:.85rem;font-weight:800;color:#1e293b;margin-bottom:3px;line-height:1.3;}
+.notif-lead{font-size:.75rem;color:#64748b;margin-bottom:.5rem;}
+.notif-time{font-size:.72rem;color:#94a3b8;margin-bottom:.6rem;}
+.notif-btns{display:flex;gap:.4rem;}
+.nb{
+    padding:4px 12px;border-radius:7px;font-size:.73rem;font-weight:700;
+    border:1.5px solid;cursor:pointer;font-family:inherit;transition:opacity .15s;
+}
+.nb:hover{opacity:.8;}
+.nb-done  {background:#f0fdf4;color:#16a34a;border-color:#86efac;}
+.nb-snooze{background:#fef9ee;color:#b45309;border-color:#fde68a;}
+.nb-view  {background:#eff6ff;color:#2563eb;border-color:#bfdbfe;text-decoration:none;display:inline-flex;align-items:center;}
+@keyframes notif-in{
+    from{opacity:0;transform:translateX(60px) scale(.9);}
+    to  {opacity:1;transform:translateX(0) scale(1);}
+}
+@keyframes notif-out{
+    from{opacity:1;transform:translateX(0) scale(1);max-height:200px;}
+    to  {opacity:0;transform:translateX(60px) scale(.9);max-height:0;margin:0;padding:0;}
+}
+.notif-card.removing{
+    animation:notif-out .3s ease forwards;
+}
+</style>
+
+<!-- Bell Reminder Panel -->
+<style>
+#bellPanel{
+    display:none;position:fixed;top:72px;right:16px;z-index:99998;
+    width:340px;max-height:70vh;overflow-y:auto;
+    background:#fff;border-radius:14px;
+    box-shadow:0 8px 40px rgba(0,0,0,.18);
+    border:1px solid #e2e8f0;
+}
+.bp-hdr{
+    padding:.85rem 1rem .6rem;
+    border-bottom:1px solid #f1f5f9;
+    display:flex;align-items:center;justify-content:space-between;
+    position:sticky;top:0;background:#fff;z-index:1;
+}
+.bp-hdr h4{font-size:.85rem;font-weight:800;margin:0;color:#1e293b;}
+.bp-close{background:none;border:none;cursor:pointer;color:#94a3b8;font-size:1rem;}
+.bp-empty{padding:2rem;text-align:center;color:#94a3b8;font-size:.82rem;}
+.bp-item{
+    padding:.75rem 1rem;border-bottom:1px solid #f8fafc;
+    cursor:pointer;transition:background .12s;
+}
+.bp-item:hover{background:#f8fafc;}
+.bp-item:last-child{border-bottom:none;}
+.bp-title{font-size:.82rem;font-weight:700;color:#1e293b;margin-bottom:2px;}
+.bp-sub{font-size:.73rem;color:#64748b;margin-bottom:4px;}
+.bp-time{font-size:.7rem;color:#94a3b8;}
+.bp-overdue .bp-title{color:#dc2626;}
+.bp-soon    .bp-title{color:#b45309;}
+</style>
+
+<div id="bellPanel">
+    <div class="bp-hdr">
+        <h4>🔔 Pending Reminders</h4>
+        <button class="bp-close" onclick="toggleReminderPanel()">✕</button>
+    </div>
+    <div id="bellPanelBody">
+        <div class="bp-empty">Loading...</div>
+    </div>
+</div>
+
+<div id="notif-container"></div>
+
+<script>
+// ══ REMINDER NOTIFICATION SYSTEM ══
+// All vars global so onclick handlers can access them
+
+var _remPollInterval = 60000;
+var _remShownIds     = {};
+var _remVoice        = true;
+var _remPanelOpen    = false;
+var _remLatest       = [];
+
+// ── IST Time helper ──
+function _remNowIST() {
+    // Returns current datetime in Asia/Kolkata (IST = UTC+5:30)
+    var now = new Date();
+    // Get UTC ms + 5.5 hours offset
+    var istMs = now.getTime() + (5.5 * 60 * 60 * 1000);
+    return new Date(istMs);
+}
+
+// ── Browser notification permission ──
+function _remRequestPerm() {
+    if ('Notification' in window && Notification.permission === 'default') {
+        Notification.requestPermission();
+    }
+}
+document.addEventListener('click', _remRequestPerm, { once: true });
+
+// ── Voice Alert ──
+function _remSpeak(text) {
+    if (!_remVoice || !('speechSynthesis' in window)) return;
+    try {
+        window.speechSynthesis.cancel();
+        var u = new SpeechSynthesisUtterance(text);
+        u.lang = 'hi-IN';
+        u.rate = 0.9; u.pitch = 1.1; u.volume = 1;
+        var voices = window.speechSynthesis.getVoices();
+        var v = voices.find(function(x) { return x.lang === 'hi-IN'; }) ||
+                voices.find(function(x) { return x.lang.startsWith('en'); });
+        if (v) u.voice = v;
+        window.speechSynthesis.speak(u);
+    } catch(e) {}
+}
+
+// ── Browser Push Notification ──
+function _remBrowserNotif(title, body, url) {
+    if ('Notification' in window && Notification.permission === 'granted') {
+        var n = new Notification(title, {
+            body: body,
+            icon: '/static/images/icons/hcp-logo.png',
+            requireInteraction: true
+        });
+        n.onclick = function() { window.focus(); window.location.href = url; n.close(); };
+    }
+}
+
+// ── Escape HTML ──
+function _remEsc(s) {
+    return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── Bell Panel ──
+function toggleReminderPanel() {
+    _remPanelOpen = !_remPanelOpen;
+    var panel = document.getElementById('bellPanel');
+    if (!panel) return;
+    if (_remPanelOpen) {
+        panel.style.display = 'block';
+        _remRenderPanel();
+    } else {
+        panel.style.display = 'none';
+    }
+}
+
+document.addEventListener('click', function(e) {
+    if (!_remPanelOpen) return;
+    var panel = document.getElementById('bellPanel');
+    var bell  = document.getElementById('bellBtn');
+    if (panel && bell && !panel.contains(e.target) && !bell.contains(e.target)) {
+        panel.style.display = 'none';
+        _remPanelOpen = false;
+    }
+});
+
+function _remRenderPanel() {
+    var body = document.getElementById('bellPanelBody');
+    if (!body) return;
+    if (!_remLatest.length) {
+        body.innerHTML = '<div class="bp-empty">✅ No pending reminders</div>';
+        return;
+    }
+    body.innerHTML = _remLatest.map(function(r) {
+        var cls = r.overdue ? 'bp-overdue' : (r.mins_left <= 2 ? 'bp-soon' : '');
+        var lbl = r.overdue
+            ? '<span style="color:#dc2626;font-weight:800;">&#9888; Overdue</span>'
+            : (r.mins_left <= 0
+                ? '<span style="color:#dc2626;">&#128308; Due now</span>'
+                : '<span style="color:#b45309;">&#9200; ' + r.mins_left + ' min left</span>');
+        return [
+            '<a href="' + r.lead_url + '" class="bp-item ' + cls + '" style="display:block;text-decoration:none;color:inherit;">',
+            '<div class="bp-title">&#128204; ' + _remEsc(r.title) + '</div>',
+            '<div class="bp-sub">&#128100; ' + _remEsc(r.lead_name) + (r.company ? ' &mdash; ' + _remEsc(r.company) : '') + '</div>',
+            '<div class="bp-time">' + lbl + ' &nbsp;&middot;&nbsp; ' + _remEsc(r.remind_at) + '</div>',
+            '</a>'
+        ].join('');
+    }).join('');
+}
+
+function _remUpdateBell(count) {
+    var el = document.getElementById('bellCount');
+    if (!el) return;
+    if (count > 0) {
+        el.style.display = 'inline-block';
+        el.textContent   = count > 9 ? '9+' : count;
+    } else {
+        el.style.display = 'none';
+    }
+}
+
+// ── Notification Card ──
+function _remCreateCard(r) {
+    var container = document.getElementById('notif-container');
+    if (!container) return;
+    var card = document.createElement('div');
+    var cls  = r.overdue ? 'overdue' : (r.mins_left <= 2 ? 'soon' : '');
+    card.className = 'notif-card ' + cls;
+    card.id = 'notif_' + r.id;
+
+    var badge = r.overdue ? '⚠️ OVERDUE'
+              : (r.mins_left <= 0 ? '🔴 NOW' : '⏰ ' + r.mins_left + ' min');
+    var bCls  = r.overdue ? 'overdue' : (r.mins_left <= 2 ? 'soon' : '');
+
+    card.innerHTML =
+        '<div class="notif-hdr">' +
+            '<span class="notif-badge ' + bCls + '">' + badge + '</span>' +
+            '<button class="notif-close" onclick="remCloseCard(' + r.id + ')">✕</button>' +
+        '</div>' +
+        '<div class="notif-body">' +
+            '<div class="notif-title">📌 ' + _remEsc(r.title) + '</div>' +
+            '<div class="notif-lead">👤 ' + _remEsc(r.lead_name) +
+                (r.company ? ' &mdash; ' + _remEsc(r.company) : '') +
+                ' <span style="color:#94a3b8;">(' + _remEsc(r.lead_code) + ')</span></div>' +
+            '<div class="notif-time">🕐 ' + _remEsc(r.remind_at) + '</div>' +
+            '<div class="notif-btns">' +
+                '<button class="nb nb-done"   onclick="remMarkDone(' + r.id + ')">✅ Done</button>' +
+                '<button class="nb nb-snooze" onclick="remSnooze(' + r.id + ')">💤 +5 min</button>' +
+                '<a      class="nb nb-view"   href="' + _remEsc(r.lead_url) + '">🔗 View</a>' +
+            '</div>' +
+        '</div>';
+
+    container.appendChild(card);
+    setTimeout(function() { remCloseCard(r.id); }, 5 * 60 * 1000);
+}
+
+function remCloseCard(id) {
+    var c = document.getElementById('notif_' + id);
+    if (c) {
+        c.classList.add('removing');
+        setTimeout(function() { if (c.parentNode) c.parentNode.removeChild(c); }, 300);
+    }
+}
+
+function remMarkDone(id) {
+    fetch('/crm/api/reminder/' + id + '/done', { method: 'POST' })
+    .then(function() {
+        remCloseCard(id);
+        _remLatest = _remLatest.filter(function(r) { return r.id !== id; });
+        _remUpdateBell(_remLatest.length);
+        if (_remPanelOpen) _remRenderPanel();
+    });
+}
+
+function remSnooze(id) {
+    fetch('/crm/api/reminder/' + id + '/snooze', { method: 'POST' })
+    .then(function() {
+        remCloseCard(id);
+        delete _remShownIds[id];
+        _remLatest = _remLatest.filter(function(r) { return r.id !== id; });
+        _remUpdateBell(_remLatest.length);
+        if (_remPanelOpen) _remRenderPanel();
+    });
+}
+
+// ── Main Poll ──
+function _remPoll() {
+    fetch('/crm/api/due-reminders')
+    .then(function(res) { return res.json(); })
+    .then(function(data) {
+        if (!data.reminders) return;
+        _remLatest = data.reminders;
+        _remUpdateBell(data.reminders.length);
+        if (_remPanelOpen) _remRenderPanel();
+
+        data.reminders.forEach(function(r) {
+            if (_remShownIds[r.id]) return;
+            _remShownIds[r.id] = true;
+
+            _remCreateCard(r);
+
+            var msg = r.overdue
+                ? 'Overdue: ' + r.title
+                : r.mins_left + ' min left: ' + r.title;
+            _remBrowserNotif('📌 ' + r.lead_name + ' (' + r.lead_code + ')', msg, r.lead_url);
+
+            var voice = r.overdue
+                ? r.lead_name + ' ka follow-up overdue hai. ' + r.title
+                : r.mins_left + ' minute mein follow-up hai. ' + r.lead_name + ' ke liye, ' + r.title;
+            _remSpeak(voice);
+        });
+    })
+    .catch(function(e) { console.warn('[Reminders] Poll error:', e); });
+}
+
+// ── Debug helper ──
+window._testReminders = function() {
+    fetch('/crm/api/due-reminders')
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+        console.log('[Reminders] Server time (IST):', d.server_time);
+        console.log('[Reminders] Count:', d.reminders ? d.reminders.length : 0);
+        if (d.reminders) d.reminders.forEach(function(r) {
+            console.log('  -', r.lead_code, r.title, '| mins_left:', r.mins_left, '| overdue:', r.overdue);
+        });
+    });
+};
+
+document.addEventListener('DOMContentLoaded', function() {
+    setTimeout(_remPoll, 2000);
+    setInterval(_remPoll, _remPollInterval);
+});
+</script>
+{% endif %}
+</body>
+</html>

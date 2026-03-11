@@ -1,0 +1,113 @@
+{% from 'macros/pagination.html' import render_pagination %}
+{% extends "base.html" %}
+{% block title %}Contractors{% endblock %}
+{% block page_title %}Contractors{% endblock %}
+{% block bread %}HR / Contractors{% endblock %}
+{% block content %}
+<div class="page-hdr">
+    <div>
+        <h1 style="font-size:1.2rem;">🤝 Contractors</h1>
+        <p style="font-size:.78rem;color:var(--text3);">{{ contractors|length }} contractors</p>
+    </div>
+    {% if perm.can_add %}
+    <a href="{{ url_for('hr.contractor_add') }}" class="btn-primary" style="font-size:.82rem;">＋ Add Contractor</a>
+    {% endif %}
+</div>
+
+<div class="card" style="margin-bottom:1rem;">
+    <div style="padding:.75rem 1rem;">
+        <form method="GET" style="display:flex;gap:.6rem;flex-wrap:wrap;align-items:flex-end;">
+            <div class="fg" style="flex:1;min-width:200px;">
+                <label class="fl">Search</label>
+                <input type="text" name="search" class="fi" value="{{ search }}" placeholder="Company, contract ID, contact...">
+            </div>
+            <div class="fg" style="min-width:120px;">
+                <label class="fl">Status</label>
+                <select name="status" class="fi">
+                    <option value="">All</option>
+                    <option value="1" {{ 'selected' if status=='1' }}>Active</option>
+                    <option value="0" {{ 'selected' if status=='0' }}>Inactive</option>
+                </select>
+            </div>
+            <button type="submit" class="btn-primary" style="height:40px;padding:0 16px;font-size:.83rem;">🔍 Filter</button>
+            <a href="{{ url_for('hr.contractors') }}" class="btn-outline" style="height:40px;padding:0 12px;font-size:.83rem;display:flex;align-items:center;">✕ Clear</a>
+        </form>
+    </div>
+</div>
+
+
+<div class="card" style="margin-bottom:.5rem;">
+    <div style="padding:.6rem 1rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem;">
+        <div style="display:flex;align-items:center;gap:.75rem;">
+            <label style="font-size:0.82rem;color:var(--text2);">Show
+                    <select id="rowCount_contractorTable" onchange="changeRows_contractorTable(this.value)" style="padding:4px 8px;border:1.5px solid var(--border);border-radius:7px;font-size:0.82rem;margin-left:4px;">
+                        <option value="10">10</option>
+                        <option value="25">25</option>
+                        <option value="50">50</option>
+                        <option value="9999">All</option>
+                    </select>
+                    rows
+                </label>
+        </div>
+        <span id="pagCountLabel_contractorTable" style="font-size:.8rem;color:var(--text3);"></span>
+    </div>
+</div>
+
+<div class="card" style="overflow-x:auto;">
+    <table id="contractorTable" style="width:100%;border-collapse:collapse;font-size:.83rem;">
+        <thead>
+            <tr>
+                {% for h in ['#','Contract ID','Company','Supply','Contact Person','Contact No','Email','PAN','GST','Status','Actions'] %}
+                <th style="text-align:left;padding:.55rem .9rem;font-size:.7rem;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;border-bottom:2px solid var(--border);background:#f8fafc;white-space:nowrap;">{{ h }}</th>
+                {% endfor %}
+            </tr>
+        </thead>
+        <tbody>
+            {% for c in contractors %}
+            <tr class="c-row" style="{% if not loop.last %}border-bottom:1px solid #f1f5f9;{% endif %}">
+                <td style="padding:.6rem .9rem;color:var(--text3);">{{ loop.index }}</td>
+                <td style="padding:.6rem .9rem;"><span style="font-family:monospace;font-weight:700;color:var(--blue);">{{ c.contract_id }}</span></td>
+                <td style="padding:.6rem .9rem;font-weight:700;">{{ c.company_name }}</td>
+                <td style="padding:.6rem .9rem;color:var(--text2);">{{ c.supply or '—' }}</td>
+                <td style="padding:.6rem .9rem;">{{ c.contact_person }}</td>
+                <td style="padding:.6rem .9rem;">{{ c.contact_no or '—' }}</td>
+                <td style="padding:.6rem .9rem;color:var(--text2);font-size:.78rem;">{{ c.email_address or '—' }}</td>
+                <td style="padding:.6rem .9rem;font-size:.78rem;">{{ c.pancard or '—' }}</td>
+                <td style="padding:.6rem .9rem;font-size:.78rem;">{{ c.gstno or '—' }}</td>
+                <td style="padding:.6rem .9rem;">
+                    <span style="padding:3px 10px;border-radius:20px;font-size:.7rem;font-weight:700;background:{{ '#dcfce7' if c.status==1 else '#fee2e2' }};color:{{ '#16a34a' if c.status==1 else '#dc2626' }};">
+                        {{ 'Active' if c.status==1 else 'Inactive' }}
+                    </span>
+                </td>
+                <td style="padding:.6rem .9rem;">
+                    <div style="display:flex;gap:4px;">
+                        {% if perm.can_edit %}
+                        <a href="{{ url_for('hr.contractor_edit', id=c.id) }}"
+                           style="padding:3px 8px;border-radius:6px;background:#eff6ff;color:#1d4ed8;font-size:.72rem;font-weight:700;text-decoration:none;border:1.5px solid #bfdbfe;">✏️ Edit</a>
+                        {% endif %}
+                        {% if perm.can_delete %}
+                        <form method="POST" action="{{ url_for('hr.contractor_delete', id=c.id) }}" style="display:inline;" onsubmit="return confirm('Delete {{ c.company_name }}?')">
+                            <button type="submit" style="padding:3px 8px;border-radius:6px;background:#fee2e2;color:#dc2626;font-size:.72rem;font-weight:700;border:1.5px solid #fecaca;cursor:pointer;">🗑️</button>
+                        </form>
+                        {% endif %}
+                    </div>
+                </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="11" style="text-align:center;padding:2rem;color:var(--text3);">No contractors found.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {{ render_pagination('contractorTable', '#contractorTable .c-row', contractors|length, 'contractors') }}
+</div>
+{% block extra_js %}
+<script>
+function changeRows_contractorTable(val) {
+    pagSetSize('contractorTable', '#contractorTable .c-row', val);
+    var ps = document.getElementById('pagSize_contractorTable');
+    if(ps) ps.value = val;
+}
+document.addEventListener('DOMContentLoaded', function(){ pagInit('contractorTable', '#contractorTable .c-row', 10); });
+</script>
+{% endblock %}
+{% endblock %}

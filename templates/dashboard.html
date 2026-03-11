@@ -1,0 +1,255 @@
+{% extends "base.html" %}
+{% block title %}Main Dashboard — ERP{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+{% block bread %}Home{% endblock %}
+
+{% block extra_css %}
+.welcome-card {
+    background: linear-gradient(135deg, #1e2d5e 0%, #2563eb 60%, #0d9488 100%);
+    border-radius: 16px; padding: 1.75rem 2rem; color: #fff;
+    display: flex; align-items: center; justify-content: space-between;
+    flex-wrap: wrap; gap: 1rem; margin-bottom: 1.5rem;
+    position: relative; overflow: hidden;
+}
+.welcome-card::before { content:''; position:absolute; top:-40px; right:-40px; width:200px; height:200px; background:rgba(255,255,255,.05); border-radius:50%; }
+.welcome-card::after  { content:''; position:absolute; bottom:-60px; right:100px; width:150px; height:150px; background:rgba(255,255,255,.04); border-radius:50%; }
+.wc-title { font-size:1.4rem; font-weight:800; margin-bottom:4px; }
+.wc-sub   { font-size:.85rem; opacity:.8; }
+.wc-date  { font-size:.75rem; opacity:.6; margin-top:4px; }
+.wc-btns  { display:flex; gap:.6rem; flex-wrap:wrap; z-index:1; }
+.wc-btn   { padding:9px 18px; border-radius:9px; font-size:.83rem; font-weight:600; text-decoration:none; transition:all .15s; white-space:nowrap; }
+.wc-btn-white { background:#fff; color:#1e2d5e; }
+.wc-btn-white:hover { background:#f0f4ff; transform:translateY(-1px); }
+.wc-btn-ghost { background:rgba(255,255,255,.15); color:#fff; border:1px solid rgba(255,255,255,.3); }
+.wc-btn-ghost:hover { background:rgba(255,255,255,.25); }
+
+.sec-lbl { font-size:.72rem; font-weight:700; color:var(--text3); text-transform:uppercase; letter-spacing:.07em; margin-bottom:.75rem; }
+
+.kpi-grid4 { display:grid; grid-template-columns:repeat(4,1fr); gap:1rem; margin-bottom:1.5rem; }
+.kpi-box {
+    background:#fff; border:1.5px solid var(--border); border-radius:14px;
+    padding:1.1rem 1.25rem; display:flex; align-items:center; gap:.9rem;
+    text-decoration:none; color:var(--text); transition:transform .15s,box-shadow .15s;
+    position:relative; overflow:hidden;
+}
+.kpi-box:hover { transform:translateY(-2px); box-shadow:0 6px 20px rgba(0,0,0,.08); }
+.kpi-box::after { content:''; position:absolute; top:0; right:0; width:4px; height:100%; border-radius:0 14px 14px 0; }
+.kpi-box.c-blue::after  { background:var(--blue); }
+.kpi-box.c-green::after { background:var(--green); }
+.kpi-box.c-amber::after { background:var(--amber); }
+.kpi-box.c-purple::after{ background:var(--purple); }
+.kpi-ico { width:48px; height:48px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:1.4rem; flex-shrink:0; }
+.kpi-ico.c-blue   { background:#eff6ff; }
+.kpi-ico.c-green  { background:#f0fdf4; }
+.kpi-ico.c-amber  { background:#fffbeb; }
+.kpi-ico.c-purple { background:#f5f3ff; }
+.kpi-lbl { font-size:.7rem; font-weight:600; color:var(--text3); text-transform:uppercase; letter-spacing:.05em; }
+.kpi-num { font-size:1.75rem; font-weight:800; line-height:1.1; }
+.kpi-hint{ font-size:.7rem; color:var(--text3); margin-top:1px; }
+
+.modules-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:1rem; margin-bottom:1.5rem; }
+.mod-card {
+    background:#fff; border:1.5px solid var(--border); border-radius:14px;
+    padding:1.25rem 1rem; text-align:center; text-decoration:none; color:var(--text);
+    transition:all .15s;
+}
+.mod-card:hover { border-color:var(--blue); box-shadow:0 4px 16px rgba(37,99,235,.1); transform:translateY(-2px); }
+.mod-card.mod-active { border-color:var(--blue); background:#eff6ff; }
+.mod-icon { font-size:1.9rem; margin-bottom:.5rem; }
+.mod-name { font-size:.85rem; font-weight:700; margin-bottom:2px; }
+.mod-desc { font-size:.7rem; color:var(--text3); }
+.mod-pill { display:inline-block; margin-top:.35rem; padding:2px 8px; border-radius:100px; font-size:.62rem; font-weight:700; background:var(--blue); color:#fff; }
+
+.status-row { display:grid; grid-template-columns:repeat(4,1fr); gap:1rem; margin-bottom:1.5rem; }
+.spill { border-radius:12px; padding:1rem 1.1rem; display:flex; align-items:center; gap:.7rem; text-decoration:none; transition:transform .15s; }
+.spill:hover { transform:translateY(-2px); }
+.spill-open       { background:#e8eaf0; color:#374151; }
+.spill-in_process { background:#1e2d5e; color:#fff; }
+.spill-close      { background:#0d9488; color:#fff; }
+.spill-cancel     { background:#ef4444; color:#fff; }
+.spill-ic  { font-size:1.3rem; }
+.spill-lbl { font-size:.68rem; font-weight:700; opacity:.8; text-transform:uppercase; letter-spacing:.05em; }
+.spill-num { font-size:1.5rem; font-weight:800; line-height:1; }
+
+.bottom-grid { display:grid; grid-template-columns:1.5fr 1fr; gap:1rem; }
+.icard { background:#fff; border:1.5px solid var(--border); border-radius:14px; overflow:hidden; }
+.icard-hdr { padding:.85rem 1.1rem; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; }
+.icard-ttl { font-size:.88rem; font-weight:700; }
+.icard-lnk { font-size:.77rem; color:var(--blue); text-decoration:none; font-weight:600; }
+.icard-lnk:hover { text-decoration:underline; }
+.icard-body { padding:.75rem 1.1rem; }
+
+.lead-item { display:flex; align-items:center; gap:.7rem; padding:.6rem 0; border-bottom:1px solid var(--border); }
+.lead-item:last-child { border-bottom:none; }
+.li-av { width:32px; height:32px; border-radius:50%; flex-shrink:0; background:linear-gradient(135deg,#667eea,#764ba2); display:flex; align-items:center; justify-content:center; font-size:.7rem; font-weight:700; color:#fff; }
+.li-name { font-size:.84rem; font-weight:600; color:var(--blue); text-decoration:none; flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.li-name:hover { text-decoration:underline; }
+.li-co   { font-size:.76rem; color:var(--text2); min-width:80px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.li-dt   { font-size:.71rem; color:var(--text3); white-space:nowrap; }
+
+.rem-item { display:flex; align-items:flex-start; gap:.6rem; padding:.6rem 0; border-bottom:1px solid var(--border); }
+.rem-item:last-child { border-bottom:none; }
+.rem-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; margin-top:5px; }
+.rem-ttl { font-size:.84rem; font-weight:600; }
+.rem-dt  { font-size:.72rem; color:var(--text3); }
+
+@media(max-width:1100px) {
+    .kpi-grid4 { grid-template-columns:repeat(2,1fr); }
+    .modules-grid { grid-template-columns:repeat(2,1fr); }
+    .status-row { grid-template-columns:repeat(2,1fr); }
+    .bottom-grid { grid-template-columns:1fr; }
+}
+@media(max-width:600px) {
+    .kpi-grid4 { grid-template-columns:repeat(2,1fr); }
+    .modules-grid { grid-template-columns:repeat(2,1fr); }
+    .status-row { grid-template-columns:repeat(2,1fr); }
+    .welcome-card { padding:1.25rem; }
+    .wc-title { font-size:1.1rem; }
+}
+{% endblock %}
+
+{% block content %}
+
+<!-- Welcome -->
+<div class="welcome-card">
+    <div style="z-index:1;">
+        <div class="wc-title">👋 Welcome back, {{ current_user.full_name }}!</div>
+        <div class="wc-sub">Manufacturing ERP — Complete Business Management</div>
+        <div class="wc-date">{{ now.strftime('%A, %d %B %Y') }}</div>
+    </div>
+    <div class="wc-btns">
+        <a href="/crm/dashboard" class="wc-btn wc-btn-white">📊 CRM Dashboard</a>
+        <a href="/crm/leads" class="wc-btn wc-btn-ghost">📋 Leads</a>
+    </div>
+</div>
+
+<!-- KPI -->
+<div class="sec-lbl">📈 Quick Overview</div>
+<div class="kpi-grid4">
+    <a href="/crm/leads" class="kpi-box c-blue">
+        <div class="kpi-ico c-blue">📋</div>
+        <div>
+            <div class="kpi-lbl">Total Leads</div>
+            <div class="kpi-num" style="color:var(--blue);">{{ lead_counts.total }}</div>
+            <div class="kpi-hint">{{ lead_counts.open }} open</div>
+        </div>
+    </a>
+    <a href="/crm/clients" class="kpi-box c-purple">
+        <div class="kpi-ico c-purple">👥</div>
+        <div>
+            <div class="kpi-lbl">Clients</div>
+            <div class="kpi-num" style="color:var(--purple);">{{ total_clients }}</div>
+            <div class="kpi-hint">Client master</div>
+        </div>
+    </a>
+    <a href="/crm/leads?status=close" class="kpi-box c-green">
+        <div class="kpi-ico c-green">✅</div>
+        <div>
+            <div class="kpi-lbl">Closed</div>
+            <div class="kpi-num" style="color:var(--green);">{{ lead_counts.close }}</div>
+            <div class="kpi-hint">{% if lead_counts.total > 0 %}{{ ((lead_counts.close/lead_counts.total)*100)|round(1) }}%{% else %}0%{% endif %} conversion</div>
+        </div>
+    </a>
+    <a href="/crm/leads?status=in_process" class="kpi-box c-amber">
+        <div class="kpi-ico c-amber">⚙️</div>
+        <div>
+            <div class="kpi-lbl">In Process</div>
+            <div class="kpi-num" style="color:var(--amber);">{{ lead_counts.in_process }}</div>
+            <div class="kpi-hint">Active pipeline</div>
+        </div>
+    </a>
+</div>
+
+<!-- Modules -->
+<div class="sec-lbl">🏢 ERP Modules</div>
+<div class="modules-grid">
+    <a href="/crm/dashboard" class="mod-card mod-active">
+        <div class="mod-icon">📊</div>
+        <div class="mod-name">CRM</div>
+        <div class="mod-desc">Leads & Clients</div>
+        <div class="mod-pill">Active</div>
+    </a>
+    <a href="#" class="mod-card"><div class="mod-icon">📦</div><div class="mod-name">Inventory</div><div class="mod-desc">Stock Management</div></a>
+    <a href="#" class="mod-card"><div class="mod-icon">🏭</div><div class="mod-name">Production</div><div class="mod-desc">Manufacturing</div></a>
+    <a href="#" class="mod-card"><div class="mod-icon">🛒</div><div class="mod-name">Purchase</div><div class="mod-desc">Procurement</div></a>
+    <a href="#" class="mod-card"><div class="mod-icon">📤</div><div class="mod-name">Sales</div><div class="mod-desc">Order Management</div></a>
+    <a href="#" class="mod-card"><div class="mod-icon">💰</div><div class="mod-name">Accounts</div><div class="mod-desc">Finance & GST</div></a>
+    <a href="#" class="mod-card"><div class="mod-icon">👥</div><div class="mod-name">HR & Payroll</div><div class="mod-desc">Employee Mgmt</div></a>
+    <a href="#" class="mod-card"><div class="mod-icon">📋</div><div class="mod-name">Reports</div><div class="mod-desc">Analytics</div></a>
+</div>
+
+<!-- Status -->
+<div class="sec-lbl">🎯 Lead Status</div>
+<div class="status-row">
+    <a href="/crm/leads" class="spill spill-open">
+        <span class="spill-ic">✉️</span>
+        <div><div class="spill-lbl">Open</div><div class="spill-num">{{ lead_counts.open }}</div></div>
+    </a>
+    <a href="/crm/leads?status=in_process" class="spill spill-in_process">
+        <span class="spill-ic">⚙️</span>
+        <div><div class="spill-lbl">In Process</div><div class="spill-num">{{ lead_counts.in_process }}</div></div>
+    </a>
+    <a href="/crm/leads?status=close" class="spill spill-close">
+        <span class="spill-ic">✅</span>
+        <div><div class="spill-lbl">Closed</div><div class="spill-num">{{ lead_counts.close }}</div></div>
+    </a>
+    <a href="/crm/leads?status=cancel" class="spill spill-cancel">
+        <span class="spill-ic">❌</span>
+        <div><div class="spill-lbl">Cancelled</div><div class="spill-num">{{ lead_counts.cancel }}</div></div>
+    </a>
+</div>
+
+<!-- Bottom -->
+<div class="bottom-grid">
+    <div class="icard">
+        <div class="icard-hdr">
+            <span class="icard-ttl">🕐 Recent Leads</span>
+            <a href="/crm/leads" class="icard-lnk">View All →</a>
+        </div>
+        <div class="icard-body">
+            {% if recent_leads %}
+                {% for l in recent_leads %}
+                <div class="lead-item">
+                    <div class="li-av">{{ l.contact_name[:2]|upper }}</div>
+                    <div style="flex:1;min-width:0;">
+                        <a href="/crm/leads/{{ l.id }}" class="li-name">{{ l.contact_name }}</a>
+                        <div class="li-co">{{ l.company_name or '—' }}</div>
+                    </div>
+                    {% if l.status=='open' %}<span class="badge" style="background:#e8eaf0;color:#374151;white-space:nowrap;">Open</span>
+                    {% elif l.status=='in_process' %}<span class="badge" style="background:#1e2d5e;color:#fff;white-space:nowrap;">In Process</span>
+                    {% elif l.status=='close' %}<span class="badge" style="background:#0d9488;color:#fff;white-space:nowrap;">Close</span>
+                    {% elif l.status=='cancel' %}<span class="badge" style="background:#ef4444;color:#fff;white-space:nowrap;">Cancel</span>
+                    {% endif %}
+                    <div class="li-dt">{{ l.created_at.strftime('%d %b') }}</div>
+                </div>
+                {% endfor %}
+            {% else %}
+            <div style="text-align:center;padding:2rem;color:var(--text3);">No leads yet. <a href="/crm/leads/add" style="color:var(--blue);">Add first →</a></div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="icard">
+        <div class="icard-hdr">
+            <span class="icard-ttl">🔔 Reminders</span>
+            <a href="/crm/leads" class="icard-lnk">View All →</a>
+        </div>
+        <div class="icard-body">
+            {% if upcoming_reminders %}
+                {% for r in upcoming_reminders %}
+                {% set ov = r.remind_at < now %}
+                <div class="rem-item">
+                    <div class="rem-dot" style="background:{{ '#ef4444' if ov else 'var(--blue)' }};"></div>
+                    <div>
+                        <div class="rem-ttl">{{ r.title }}</div>
+                        <div class="rem-dt">{{ r.remind_at.strftime('%d %b, %H:%M') }}{% if ov %} <span style="color:#ef4444;font-weight:700;">· Overdue</span>{% endif %}</div>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+            <div style="text-align:center;padding:2rem;color:var(--text3);">No upcoming reminders.</div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

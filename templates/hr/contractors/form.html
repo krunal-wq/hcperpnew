@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit' if contractor else 'Add' }} Contractor{% endblock %}
+{% block page_title %}{{ 'Edit' if contractor else 'Add' }} Contractor{% endblock %}
+{% block bread %}HR / Contractors / {{ 'Edit' if contractor else 'Add' }}{% endblock %}
+{% block content %}
+<div class="page-hdr">
+    <div>
+        <h1 style="font-size:1.2rem;">{{ '✏️ Edit Contractor' if contractor else '➕ Add Contractor' }}</h1>
+        {% if contractor %}<p style="font-size:.78rem;color:var(--text3);">{{ contractor.contract_id }}</p>{% endif %}
+    </div>
+    <a href="{{ url_for('hr.contractors') }}" class="btn-outline" style="font-size:.82rem;">← Back</a>
+</div>
+<form method="POST" style="max-width:780px;">
+    <div class="card" style="margin-bottom:.9rem;">
+        <div style="padding:.7rem 1rem;border-bottom:1px solid var(--border);font-size:.83rem;font-weight:800;">🤝 Contractor Details</div>
+        <div style="padding:1rem;">
+            <div class="fgrid-2" style="margin-bottom:.7rem;">
+                <div class="fg">
+                    <label class="fl">Company Name *</label>
+                    <input type="text" name="company_name" class="fi" required value="{{ contractor.company_name if contractor else '' }}" placeholder="Company name">
+                </div>
+                <div class="fg">
+                    <label class="fl">Supply / Service</label>
+                    <input type="text" name="supply" class="fi" value="{{ contractor.supply if contractor else '' }}" placeholder="Type of supply/service">
+                </div>
+                <div class="fg">
+                    <label class="fl">Contact Person *</label>
+                    <input type="text" name="contact_person" class="fi" required value="{{ contractor.contact_person if contractor else '' }}" placeholder="Contact person name">
+                </div>
+                <div class="fg">
+                    <label class="fl">Contact No</label>
+                    <input type="text" name="contact_no" class="fi" value="{{ contractor.contact_no if contractor else '' }}" placeholder="9999999999">
+                </div>
+                <div class="fg">
+                    <label class="fl">Email Address</label>
+                    <input type="email" name="email_address" class="fi" value="{{ contractor.email_address if contractor else '' }}" placeholder="email@company.com">
+                </div>
+                <div class="fg">
+                    <label class="fl">PAN Card</label>
+                    <input type="text" name="pancard" class="fi" value="{{ contractor.pancard if contractor else '' }}" placeholder="ABCDE1234F" style="text-transform:uppercase;">
+                </div>
+                <div class="fg">
+                    <label class="fl">GST No</label>
+                    <input type="text" name="gstno" class="fi" value="{{ contractor.gstno if contractor else '' }}" placeholder="22AAAAA0000A1Z5">
+                </div>
+                {% if contractor %}
+                <div class="fg">
+                    <label class="fl">Status</label>
+                    <select name="status" class="fi">
+                        <option value="1" {{ 'selected' if contractor.status==1 }}>Active</option>
+                        <option value="0" {{ 'selected' if contractor.status==0 }}>Inactive</option>
+                    </select>
+                </div>
+                {% endif %}
+            </div>
+            <div class="frow">
+                <label class="fl">Address</label>
+                <textarea name="address" class="fi" rows="3" placeholder="Full address">{{ contractor.address if contractor else '' }}</textarea>
+            </div>
+            <div class="frow">
+                <label class="fl">Remarks</label>
+                <textarea name="remarks" class="fi" rows="2" placeholder="Any additional remarks">{{ contractor.remarks if contractor else '' }}</textarea>
+            </div>
+        </div>
+    </div>
+    <div class="form-actions">
+        <button type="submit" class="btn-primary" style="padding:10px 26px;">{{ '💾 Update' if contractor else '✅ Save' }}</button>
+        <a href="{{ url_for('hr.contractors') }}" class="btn-outline">Cancel</a>
+    </div>
+</form>
+{% endblock %}

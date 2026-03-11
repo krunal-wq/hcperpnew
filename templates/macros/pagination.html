@@ -1,0 +1,23 @@
+{% macro render_pagination(table_id, row_selector, total_count, item_label='records') %}
+<div class="pag-wrap" id="pagWrap_{{ table_id }}">
+    <div class="pag-info">
+        Showing <strong id="pagFrom_{{ table_id }}">1</strong>–<strong id="pagTo_{{ table_id }}">—</strong>
+        of <strong>{{ total_count }}</strong> {{ item_label }}
+    </div>
+    <div class="pag-controls">
+        <button class="pag-btn" id="pagPrev_{{ table_id }}" onclick="pagGo('{{ table_id }}','{{ row_selector }}',-1)" disabled>‹ Prev</button>
+        <div class="pag-pages" id="pagPages_{{ table_id }}"></div>
+        <button class="pag-btn" id="pagNext_{{ table_id }}" onclick="pagGo('{{ table_id }}','{{ row_selector }}',1)">Next ›</button>
+    </div>
+    <div class="pag-size">
+        <select onchange="pagSetSize('{{ table_id }}','{{ row_selector }}',this.value)" id="pagSize_{{ table_id }}"
+            style="padding:4px 8px;border:1.5px solid var(--border);border-radius:7px;font-size:.8rem;">
+            <option value="10">10 / page</option>
+            <option value="25">25 / page</option>
+            <option value="50">50 / page</option>
+            <option value="100">100 / page</option>
+            <option value="9999">All</option>
+        </select>
+    </div>
+</div>
+{% endmacro %}

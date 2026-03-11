@@ -1,0 +1,97 @@
+{% from 'macros/pagination.html' import render_pagination %}
+{% extends "base.html" %}
+{% block title %}User Management{% endblock %}
+{% block page_title %}User Management{% endblock %}
+{% block bread %}Admin / Users{% endblock %}
+{% block extra_css %}
+.u-tbl { width:100%;border-collapse:collapse; }
+.u-tbl th { text-align:left;padding:.55rem .9rem;font-size:.7rem;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;border-bottom:2px solid var(--border);background:#f8fafc; }
+.u-tbl td { padding:.65rem .9rem;border-bottom:1px solid #f1f5f9;font-size:.83rem;vertical-align:middle; }
+.u-tbl tr:hover td { background:#f8fafc; }
+.u-av { width:34px;height:34px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:800;color:#fff;flex-shrink:0; }
+{% endblock %}
+{% block content %}
+<div class="page-hdr">
+    <div>
+        <h1 style="font-size:1.2rem;">👥 User Management</h1>
+        <p style="font-size:.78rem;color:var(--text3);">{{ users|length }} users</p>
+    </div>
+    <a href="{{ url_for('users_bp.user_add') }}" class="btn-primary" style="font-size:.82rem;">＋ Add User</a>
+</div>
+
+<div class="card" style="margin-bottom:.5rem;">
+    <div style="padding:.6rem 1rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem;">
+        <div style="display:flex;align-items:center;gap:.75rem;">
+            <label style="font-size:0.82rem;color:var(--text2);">Show
+                    <select id="rowCount_userTable" onchange="changeRows_userTable(this.value)" style="padding:4px 8px;border:1.5px solid var(--border);border-radius:7px;font-size:0.82rem;margin-left:4px;">
+                        <option value="10">10</option>
+                        <option value="25">25</option>
+                        <option value="50">50</option>
+                        <option value="9999">All</option>
+                    </select>
+                    rows
+                </label>
+        </div>
+        <span id="pagCountLabel_userTable" style="font-size:.8rem;color:var(--text3);"></span>
+    </div>
+</div>
+
+<div class="card">
+<table class="u-tbl" id="userTable">
+    <thead><tr>
+        <th>User</th><th>Username</th><th>Email</th><th>Role</th><th>Status</th><th>Last Login</th><th>Actions</th>
+    </tr></thead>
+    <tbody>
+    {% set clrs = ['#6366f1','#f59e0b','#10b981','#3b82f6','#ef4444','#8b5cf6','#ec4899','#14b8a6'] %}
+    {% for u in users %}
+    {% set c = clrs[loop.index0 % clrs|length] %}
+    <tr>
+        <td><div style="display:flex;align-items:center;gap:9px;">
+            <span class="u-av" style="background:{{ c }};">{{ (u.full_name or u.username)[:2]|upper }}</span>
+            <div>
+                <div style="font-weight:700;">{{ u.full_name or '—' }}</div>
+                <div style="font-size:.7rem;color:var(--text3);">#{{ u.id }}</div>
+            </div>
+        </div></td>
+        <td style="font-family:monospace;font-size:.8rem;color:var(--text2);">{{ u.username }}</td>
+        <td style="color:var(--text2);">{{ u.email }}</td>
+        <td><span style="padding:3px 10px;border-radius:20px;font-size:.72rem;font-weight:700;background:{% if u.role=='admin' %}#fef3c7{% elif u.role=='manager' %}#eff6ff{% elif u.role=='hr' %}#f0fdf4{% else %}#f5f3ff{% endif %};color:{% if u.role=='admin' %}#d97706{% elif u.role=='manager' %}#2563eb{% elif u.role=='hr' %}#16a34a{% else %}#7c3aed{% endif %};">{{ u.role|capitalize }}</span></td>
+        <td><span id="spill_{{ u.id }}" style="padding:3px 10px;border-radius:20px;font-size:.72rem;font-weight:700;background:{{ '#dcfce7' if u.is_active else '#fee2e2' }};color:{{ '#16a34a' if u.is_active else '#dc2626' }};">{{ '✅ Active' if u.is_active else '⛔ Inactive' }}</span></td>
+        <td style="font-size:.78rem;color:var(--text3);">{{ u.last_login.strftime('%d %b %Y') if u.last_login else '—' }}</td>
+        <td>
+            <div style="display:flex;gap:4px;">
+                <a href="{{ url_for('users_bp.user_edit', id=u.id) }}" style="padding:3px 8px;border-radius:6px;background:#eff6ff;color:#1d4ed8;font-size:.72rem;font-weight:700;text-decoration:none;border:1.5px solid #bfdbfe;">✏️ Edit</a>
+                {% if u.id != current_user.id %}
+                <button id="tbtn_{{ u.id }}" onclick="toggleUser({{ u.id }})" style="padding:3px 8px;border-radius:6px;background:#f1f5f9;color:#64748b;font-size:.72rem;font-weight:700;border:1.5px solid #e2e8f0;cursor:pointer;">{{ '⛔ Disable' if u.is_active else '✅ Enable' }}</button>
+                <form method="POST" action="{{ url_for('users_bp.user_delete', id=u.id) }}" style="display:inline;" onsubmit="return confirm('Delete {{ u.full_name or u.username }}?')">
+                    <button type="submit" style="padding:3px 8px;border-radius:6px;background:#fee2e2;color:#dc2626;font-size:.72rem;font-weight:700;border:1.5px solid #fecaca;cursor:pointer;">🗑️</button>
+                </form>
+                {% else %}<span style="font-size:.7rem;color:var(--text3);">(you)</span>{% endif %}
+            </div>
+        </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+</table>
+{{ render_pagination('userTable', '#userTable .u-row', users|length, 'users') }}
+</div>
+<script>
+async function toggleUser(id) {
+    const res = await fetch(`/admin/users/${id}/toggle`,{method:'POST'});
+    const d = await res.json();
+    if(d.success){
+        document.getElementById('spill_'+id).style.background = d.is_active?'#dcfce7':'#fee2e2';
+        document.getElementById('spill_'+id).style.color = d.is_active?'#16a34a':'#dc2626';
+        document.getElementById('spill_'+id).textContent = d.is_active?'✅ Active':'⛔ Inactive';
+        document.getElementById('tbtn_'+id).textContent = d.is_active?'⛔ Disable':'✅ Enable';
+    }
+}
+
+function changeRows_userTable(val) {
+    pagSetSize('userTable', '#userTable .u-row', val);
+    var ps = document.getElementById('pagSize_userTable');
+    if(ps) ps.value = val;
+}
+document.addEventListener('DOMContentLoaded', function(){ pagInit('userTable', '#userTable .u-row', 10); });
+</script>
+{% endblock %}

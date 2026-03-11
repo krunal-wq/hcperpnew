@@ -1,0 +1,232 @@
+{% from 'macros/pagination.html' import render_pagination %}
+{% extends "base.html" %}
+{% block title %}Client Master — CRM{% endblock %}
+{% block page_title %}Client Master{% endblock %}
+{% block bread %}CRM / Client Master{% endblock %}
+
+{% block extra_css %}
+.filter-panel { background:#fff; border:1.5px solid var(--border); border-radius:14px; padding:1.25rem; margin-bottom:1rem; }
+.filter-row { display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:0.75rem; }
+.filter-row select, .filter-row input[type=text] {
+    padding:7px 10px; border:1.5px solid var(--border); border-radius:8px;
+    font-family:'Plus Jakarta Sans',sans-serif; font-size:0.83rem; outline:none; width:100%;
+    transition:border-color .2s; background:#fff; color:var(--text);
+}
+.filter-row select:focus,.filter-row input:focus { border-color:var(--blue); }
+.filter-actions { display:flex; gap:0.5rem; align-items:flex-end; }
+.brand-chip { display:inline-block; padding:2px 8px; background:#eff6ff; color:#1e40af; border-radius:100px; font-size:0.72rem; font-weight:600; margin:2px; }
+.sort-th { cursor:pointer; user-select:none; }
+.sort-th:hover { background:rgba(37,99,235,0.05); }
+.sort-ic { font-size:0.7rem; color:var(--text3); margin-left:3px; }
+.sort-ic.active { color:var(--blue); }
+.client-link { color:var(--blue); font-weight:600; text-decoration:none; }
+.client-link:hover { text-decoration:underline; }
+{% endblock %}
+
+{% block content %}
+<div class="page-hdr">
+    <div>
+        <h1>👥 Client Master</h1>
+        <p>Manage all clients with their brands</p>
+    </div>
+    <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+        <a href="{{ url_for('crm.client_add') }}" class="btn-primary">+ Add Client</a>
+        <a href="{{ url_for('crm.client_import') }}" class="btn-outline">📥 Import</a>
+        <button class="btn-outline" onclick="exportCSV()">📤 Export</button>
+    </div>
+</div>
+
+<!-- Filter Panel -->
+<div class="filter-panel">
+    <form method="GET" id="filterForm">
+        <div class="filter-row">
+            <div>
+                <label style="font-size:0.75rem;font-weight:600;color:var(--text3);display:block;margin-bottom:3px;">🔍 Search</label>
+                <input type="text" name="search" value="{{ search }}" placeholder="Name, company, mobile, email...">
+            </div>
+            <div>
+                <label style="font-size:0.75rem;font-weight:600;color:var(--text3);display:block;margin-bottom:3px;">🏙️ City</label>
+                <input type="text" name="city" value="{{ city }}" placeholder="Filter by city" list="cityList">
+                <datalist id="cityList">{% for c in all_cities %}<option value="{{ c }}">{% endfor %}</datalist>
+            </div>
+            <div>
+                <label style="font-size:0.75rem;font-weight:600;color:var(--text3);display:block;margin-bottom:3px;">🗺️ State</label>
+                <input type="text" name="state" value="{{ state }}" placeholder="Filter by state" list="stateList">
+                <datalist id="stateList">{% for s in all_states %}<option value="{{ s }}">{% endfor %}</datalist>
+            </div>
+            <div>
+                <label style="font-size:0.75rem;font-weight:600;color:var(--text3);display:block;margin-bottom:3px;">👤 Client Type</label>
+                <select name="client_type">
+                    <option value="">All Types</option>
+                    <option value="regular" {{ 'selected' if client_type=='regular' }}>Regular</option>
+                    <option value="vip"     {{ 'selected' if client_type=='vip' }}>VIP</option>
+                    <option value="dealer"  {{ 'selected' if client_type=='dealer' }}>Dealer</option>
+                </select>
+            </div>
+            <div>
+                <label style="font-size:0.75rem;font-weight:600;color:var(--text3);display:block;margin-bottom:3px;">✅ Status</label>
+                <select name="status_f">
+                    <option value="">All Status</option>
+                    <option value="active"   {{ 'selected' if status_f=='active' }}>Active</option>
+                    <option value="inactive" {{ 'selected' if status_f=='inactive' }}>Inactive</option>
+                </select>
+            </div>
+            <div>
+                <label style="font-size:0.75rem;font-weight:600;color:var(--text3);display:block;margin-bottom:3px;">↕️ Sort By</label>
+                <select name="sort_by">
+                    <option value="created_at"   {{ 'selected' if sort_by=='created_at' }}>Created Date</option>
+                    <option value="contact_name" {{ 'selected' if sort_by=='contact_name' }}>Name</option>
+                    <option value="company_name" {{ 'selected' if sort_by=='company_name' }}>Company</option>
+                    <option value="city"         {{ 'selected' if sort_by=='city' }}>City</option>
+                    <option value="client_type"  {{ 'selected' if sort_by=='client_type' }}>Type</option>
+                </select>
+            </div>
+            <div>
+                <label style="font-size:0.75rem;font-weight:600;color:var(--text3);display:block;margin-bottom:3px;">⬆️⬇️ Direction</label>
+                <select name="sort_dir">
+                    <option value="desc" {{ 'selected' if sort_dir=='desc' }}>Newest First</option>
+                    <option value="asc"  {{ 'selected' if sort_dir=='asc' }}>A-Z / Oldest</option>
+                </select>
+            </div>
+            <div class="filter-actions">
+                <button type="submit" class="btn-primary" style="width:100%;">Apply</button>
+            </div>
+            <div class="filter-actions">
+                <a href="{{ url_for('crm.clients') }}" class="btn-outline" style="width:100%;text-align:center;">Clear</a>
+            </div>
+        </div>
+        {% if search or city or state or client_type or status_f %}
+        <div style="margin-top:0.6rem;display:flex;flex-wrap:wrap;gap:0.4rem;align-items:center;">
+            <span style="font-size:0.75rem;color:var(--text3);">Active filters:</span>
+            {% if search %}<span class="badge badge-info">Search: {{ search }}</span>{% endif %}
+            {% if city %}<span class="badge badge-info">City: {{ city }}</span>{% endif %}
+            {% if state %}<span class="badge badge-info">State: {{ state }}</span>{% endif %}
+            {% if client_type %}<span class="badge badge-info">Type: {{ client_type }}</span>{% endif %}
+            {% if status_f %}<span class="badge badge-info">Status: {{ status_f }}</span>{% endif %}
+        </div>
+        {% endif %}
+    </form>
+</div>
+
+<!-- Table -->
+<div class="card">
+    <div class="card-body" style="border-bottom:1px solid var(--border);padding:0.75rem 1rem;">
+        <div style="display:flex;align-items:center;justify-content:space-between;">
+            <label style="font-size:0.82rem;color:var(--text2);">Show
+                <select id="rowCount" onchange="changeRows(this.value)" style="padding:4px 8px;border:1.5px solid var(--border);border-radius:7px;font-size:0.82rem;margin:0 4px;">
+                    <option value="10">10</option>
+                    <option value="25">25</option>
+                    <option value="50">50</option>
+                    <option value="9999">All</option>
+                </select>
+                rows
+            </label>
+            <span style="font-size:0.82rem;color:var(--text3);">Total: <strong>{{ clients|length }}</strong> clients</span>
+        </div>
+    </div>
+
+    <div class="tbl-wrap">
+        <table id="clientsTable">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Code</th>
+                    <th class="sort-th" onclick="sortTable(2)">Contact Name <span class="sort-ic" id="ic2">↕</span></th>
+                    <th class="sort-th" onclick="sortTable(3)">Company <span class="sort-ic" id="ic3">↕</span></th>
+                    <th>Mobile</th>
+                    <th>Email</th>
+                    <th class="sort-th" onclick="sortTable(6)">City <span class="sort-ic" id="ic6">↕</span></th>
+                    <th>Brands</th>
+                    <th class="sort-th" onclick="sortTable(8)">Type <span class="sort-ic" id="ic8">↕</span></th>
+                    <th class="sort-th" onclick="sortTable(9)">Status <span class="sort-ic" id="ic9">↕</span></th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for c in clients %}
+                <tr class="client-row">
+                    <td style="color:var(--text3);">{{ loop.index }}</td>
+                    <td><code style="font-size:0.77rem;color:var(--blue);">{{ c.code }}</code></td>
+                    <td><a href="{{ url_for('crm.client_view', id=c.id) }}" class="client-link">{{ c.contact_name }}</a></td>
+                    <td>{{ c.company_name or '—' }}</td>
+                    <td>{{ c.mobile or '—' }}</td>
+                    <td style="font-size:0.82rem;">{{ c.email or '—' }}</td>
+                    <td>{{ c.city or '—' }}</td>
+                    <td>
+                        {% for b in c.brands %}
+                            <span class="brand-chip">{{ b.brand_name }}</span>
+                        {% else %}
+                            <span style="color:var(--text3);font-size:0.8rem;">—</span>
+                        {% endfor %}
+                    </td>
+                    <td><span class="badge" style="background:#f1f5f9;color:var(--text2);">{{ c.client_type|capitalize }}</span></td>
+                    <td>
+                        {% if c.status == 'active' %}
+                            <span class="badge badge-success">Active</span>
+                        {% else %}
+                            <span class="badge badge-grey">Inactive</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div style="display:flex;gap:3px;">
+                            <a href="{{ url_for('crm.client_view', id=c.id) }}" class="btn-outline" style="padding:4px 7px;font-size:0.72rem;">👁️</a>
+                            <a href="{{ url_for('crm.client_edit', id=c.id) }}" class="btn-outline" style="padding:4px 7px;font-size:0.72rem;">✏️</a>
+                            <form method="POST" action="{{ url_for('crm.client_delete', id=c.id) }}" onsubmit="return confirm('Delete this client?')">
+                                <button type="submit" class="btn-danger" style="padding:4px 7px;font-size:0.72rem;">🗑️</button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="11" style="text-align:center;padding:2rem;color:var(--text3);">
+                    No clients found.
+                    <a href="{{ url_for('crm.client_add') }}" style="color:var(--blue);">Add first client →</a> or
+                    <a href="{{ url_for('crm.client_import') }}" style="color:var(--blue);">import from CSV →</a>
+                </td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {{ render_pagination('clientsTable', '#clientsTable .client-row', clients|length, 'clients') }}
+</div>
+
+<script>
+let rowLimit = 10;
+let sortDir = {};
+
+function changeRows(val) {
+    pagSetSize('clientsTable', '#clientsTable .client-row', val);
+    document.getElementById('pagSize_clientsTable').value = val;
+}
+function sortTable(col) {
+    const tbl = document.getElementById('clientsTable').tBodies[0];
+    const rows = Array.from(tbl.querySelectorAll('tr.client-row'));
+    const asc = !sortDir[col];
+    sortDir[col] = asc;
+    document.querySelectorAll('.sort-ic').forEach(ic => { ic.textContent='↕'; ic.classList.remove('active'); });
+    const ic = document.getElementById('ic' + col);
+    if (ic) { ic.textContent = asc ? '↑' : '↓'; ic.classList.add('active'); }
+    rows.sort((a,b) => {
+        const av = a.cells[col].innerText.trim().toLowerCase();
+        const bv = b.cells[col].innerText.trim().toLowerCase();
+        return asc ? av.localeCompare(bv) : bv.localeCompare(av);
+    });
+    rows.forEach(r => tbl.appendChild(r));
+    pagRender('clientsTable', '#clientsTable .client-row');
+}
+function exportCSV() {
+    const rows = document.querySelectorAll('#clientsTable tr');
+    const csv = [];
+    rows.forEach(row => {
+        const cells = Array.from(row.querySelectorAll('th,td')).slice(0, -1);
+        csv.push(cells.map(c => '"' + c.innerText.trim().replace(/"/g,'""').replace(/\n/g,' ') + '"').join(','));
+    });
+    const blob = new Blob([csv.join('\n')], { type:'text/csv;charset=utf-8;' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'clients_export.csv';
+    a.click();
+}
+document.addEventListener('DOMContentLoaded', function(){ pagInit('clientsTable', '#clientsTable .client-row', 10); });
+</script>
+{% endblock %}

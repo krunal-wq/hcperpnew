@@ -1,0 +1,830 @@
+{% extends "base.html" %}
+{% from 'macros/pagination.html' import render_pagination %}
+{% block title %}Leads List — CRM{% endblock %}
+{% block page_title %}Leads{% endblock %}
+{% block bread %}CRM / Leads{% endblock %}
+
+{% block extra_css %}
+/* Status Cards */
+.status-cards { display:grid; grid-template-columns:repeat(4,1fr); gap:1rem; margin-bottom:1.5rem; }
+.status-card { border-radius:14px; padding:1.1rem 1.4rem; display:flex; align-items:center; gap:1rem; cursor:pointer; text-decoration:none; transition:transform .15s,box-shadow .15s; }
+.status-card:hover { transform:translateY(-2px); box-shadow:0 6px 20px rgba(0,0,0,0.12); }
+.sc-icon { font-size:1.8rem; }
+.sc-label { font-size:0.72rem; font-weight:700; letter-spacing:0.06em; text-transform:uppercase; opacity:0.85; }
+.sc-count { font-size:2rem; font-weight:800; line-height:1; }
+.sc-open       { background:#e8eaf0; color:#374151; }
+.sc-in_process { background:#1e2d5e; color:#fff; }
+.sc-close      { background:#0d9488; color:#fff; }
+.sc-cancel     { background:#ef4444; color:#fff; }
+.sc-active { box-shadow:0 0 0 3px rgba(0,0,0,0.18) inset; }
+
+/* Filter Panel */
+.filter-panel { background:#fff; border:1.5px solid var(--border); border-radius:14px; padding:1.25rem; margin-bottom:1rem; }
+.filter-row { display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:0.75rem; }
+.filter-row select, .filter-row input[type=text], .filter-row input[type=date] {
+    padding:7px 10px; border:1.5px solid var(--border); border-radius:8px;
+    font-family:'Plus Jakarta Sans',sans-serif; font-size:0.83rem; outline:none; width:100%;
+    transition:border-color .2s; background:#fff; color:var(--text);
+}
+.filter-row select:focus,.filter-row input:focus { border-color:var(--blue); }
+.filter-actions { display:flex; gap:0.5rem; align-items:flex-end; }
+
+/* Sortable headers */
+.sort-th { cursor:pointer; user-select:none; white-space:nowrap; }
+.sort-th:hover { background:rgba(37,99,235,0.05); }
+.sort-ic { font-size:0.7rem; color:var(--text3); margin-left:3px; }
+.sort-ic.active { color:var(--blue); }
+
+/* Badges */
+.badge-open       { background:#e8eaf0 !important; color:#374151 !important; }
+.badge-in_process { background:#1e2d5e !important; color:#fff !important; }
+.badge-close      { background:#0d9488 !important; color:#fff !important; }
+.badge-cancel     { background:#ef4444 !important; color:#fff !important; }
+
+/* Avatar group */
+.avatar-group { display:flex; }
+.av { width:24px; height:24px; border-radius:50%; background:var(--blue); color:#fff; font-size:0.6rem; font-weight:700; display:flex;align-items:center;justify-content:center; border:2px solid #fff; margin-left:-5px; }
+.av:first-child { margin-left:0; }
+.av-more { background:#e2e8f0; color:var(--text2); }
+
+/* Lead name link */
+.lead-link { color:var(--blue); font-weight:600; text-decoration:none; }
+.lead-link:hover { text-decoration:underline; }
+
+/* ── View Toggle ── */
+.view-toggle { display:flex; gap:4px; background:#f1f5f9; padding:3px; border-radius:9px; }
+.vt-btn { padding:5px 14px; border-radius:7px; border:none; background:none; font-size:.78rem; font-weight:700; cursor:pointer; color:var(--text2); transition:all .15s; }
+.vt-btn.active { background:#fff; color:var(--blue); box-shadow:0 1px 4px rgba(0,0,0,.12); }
+
+/* ── Kanban Board ── */
+#kanbanView { display:none; }
+.kb-board { display:grid; grid-template-columns:repeat(4,1fr); gap:1rem; align-items:start; }
+.kb-col { background:#f8fafc; border-radius:14px; border:1.5px solid var(--border); min-height:200px; }
+.kb-col-hdr { padding:.75rem 1rem; border-radius:12px 12px 0 0; display:flex; align-items:center; justify-content:space-between; }
+.kb-col-hdr .kb-title { font-size:.78rem; font-weight:800; text-transform:uppercase; letter-spacing:.06em; }
+.kb-col-hdr .kb-count { font-size:.72rem; font-weight:700; padding:2px 8px; border-radius:20px; background:rgba(255,255,255,.35); transition:transform .2s; }
+.kb-col[data-status="open"]       .kb-col-hdr { background:#e8eaf0; color:#374151; }
+.kb-col[data-status="in_process"] .kb-col-hdr { background:#1e2d5e; color:#fff; }
+.kb-col[data-status="close"]      .kb-col-hdr { background:#0d9488; color:#fff; }
+.kb-col[data-status="cancel"]     .kb-col-hdr { background:#ef4444; color:#fff; }
+.kb-body { padding:.6rem; display:flex; flex-direction:column; gap:.5rem; min-height:120px; }
+.kb-card { background:#fff; border-radius:10px; border:1.5px solid var(--border); padding:.65rem .8rem;
+           cursor:grab; transition:box-shadow .15s, transform .15s; user-select:none; }
+.kb-card:active { cursor:grabbing; }
+.kb-card.dragging { opacity:.45; transform:scale(.97); box-shadow:0 8px 24px rgba(0,0,0,.18); }
+.kb-body.drag-over { background:#e0f2fe; border-radius:10px; outline:2px dashed #38bdf8; }
+.kb-card-code { font-size:.68rem; font-weight:700; color:var(--blue); font-family:monospace; margin-bottom:3px; }
+.kb-card-name { font-size:.8rem; font-weight:700; color:var(--text); margin-bottom:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.kb-card-co   { font-size:.72rem; color:var(--text2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-bottom:4px; }
+.kb-card-foot { display:flex; align-items:center; justify-content:space-between; }
+.kb-card-prod { font-size:.68rem; color:var(--text3); max-width:60%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.kb-card-av   { display:flex; }
+.kb-av        { width:20px; height:20px; border-radius:50%; background:var(--blue); color:#fff; font-size:.55rem;
+                font-weight:700; display:flex; align-items:center; justify-content:center;
+                border:2px solid #fff; margin-left:-4px; }
+.kb-av:first-child { margin-left:0; }
+.kb-empty { text-align:center; padding:1.5rem .5rem; color:var(--text3); font-size:.75rem; }
+.kb-saving { pointer-events:none; opacity:.6; }
+
+
+/* ── Filter/Sort Tab Panel ── */
+.fs-tab { padding:7px 18px; border-radius:10px; border:1.5px solid var(--border); background:#f8fafc; color:var(--text2); font-size:.8rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:5px; transition:.15s; }
+.fs-tab.active { background:var(--blue); color:#fff; border-color:var(--blue); }
+.fs-tab:hover:not(.active) { background:#f1f5f9; color:var(--text); border-color:#94a3b8; }
+.fs-badge { background:var(--blue); color:#fff; border-radius:99px; font-size:.6rem; font-weight:800; padding:1px 6px; min-width:16px; text-align:center; }
+.fs-clear { margin-left:auto; align-self:flex-end; padding:6px 14px; border-radius:8px; font-size:.75rem; font-weight:700; color:#dc2626; background:#fee2e2; border:1.5px solid #fca5a5; text-decoration:none; display:inline-flex; align-items:center; gap:4px; cursor:pointer; transition:.15s; }
+.fs-clear:hover { background:#fecaca; }
+.fs-pane { background:#fff; border:1.5px solid var(--border); border-radius:12px; padding:1rem 1.25rem; margin-top:.4rem; box-shadow:0 4px 16px rgba(0,0,0,.06); }
+.fs-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(175px,1fr)); gap:.65rem; }
+.fs-field label { display:block; font-size:.7rem; font-weight:700; color:var(--text3); margin-bottom:3px; text-transform:uppercase; letter-spacing:.04em; }
+.fs-field input, .fs-field select { width:100%; padding:7px 10px; border:1.5px solid var(--border); border-radius:9px; font-size:.8rem; color:var(--text); background:#fff; transition:.15s; }
+.fs-field input:focus, .fs-field select:focus { border-color:var(--blue); outline:none; box-shadow:0 0 0 3px rgba(59,130,246,.1); }
+.fs-chip { display:inline-flex; align-items:center; gap:4px; background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; border-radius:99px; font-size:.7rem; font-weight:600; padding:2px 10px; }
+.fs-chip a { cursor:pointer; color:#3b82f6; font-size:.85rem; font-weight:800; line-height:1; margin-left:2px; }
+.fs-chip a:hover { color:#dc2626; }
+.sort-dir-btn { flex:1; padding:8px 12px; border:1.5px solid var(--border); border-radius:9px; font-size:.8rem; font-weight:600; color:var(--text2); background:#fff; cursor:pointer; transition:.15s; }
+.sort-dir-btn.active { background:var(--blue); color:#fff; border-color:var(--blue); }
+.sort-dir-btn:hover:not(.active) { background:#f1f5f9; border-color:#94a3b8; }
+
+{% endblock %}
+
+{% block content %}
+<div class="page-hdr">
+    <div><h1>📋 Leads List</h1></div>
+    <div style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center;">
+        <div class="view-toggle">
+            <button class="vt-btn active" id="btnList" onclick="switchView('list')">☰ List</button>
+            <button class="vt-btn" id="btnKanban" onclick="switchView('kanban')">⬛ Kanban</button>
+        </div>
+        <a href="{{ url_for('crm.lead_add') }}" class="btn-primary">+ Add New</a>
+        <a href="{{ url_for('crm.lead_import') }}" class="btn-outline">📥 Import</a>
+        <button class="btn-outline" onclick="exportCSV()">📤 Export</button>
+    </div>
+</div>
+
+<!-- Status Summary Cards -->
+<div class="status-cards">
+    <a href="{{ url_for('crm.leads') }}" class="status-card sc-open {{ 'sc-active' if not status }}">
+        <span class="sc-icon">✉️</span>
+        <div><div class="sc-label">Open</div><div class="sc-count" id="scCnt_open">{{ counts.open }}</div></div>
+    </a>
+    <a href="{{ url_for('crm.leads', status='in_process') }}" class="status-card sc-in_process {{ 'sc-active' if status=='in_process' }}">
+        <span class="sc-icon">⚙️</span>
+        <div><div class="sc-label">In Process</div><div class="sc-count" id="scCnt_in_process">{{ counts.in_process }}</div></div>
+    </a>
+    <a href="{{ url_for('crm.leads', status='close') }}" class="status-card sc-close {{ 'sc-active' if status=='close' }}">
+        <span class="sc-icon">✅</span>
+        <div><div class="sc-label">Close</div><div class="sc-count" id="scCnt_close">{{ counts.close }}</div></div>
+    </a>
+    <a href="{{ url_for('crm.leads', status='cancel') }}" class="status-card sc-cancel {{ 'sc-active' if status=='cancel' }}">
+        <span class="sc-icon">❌</span>
+        <div><div class="sc-label">Cancel</div><div class="sc-count" id="scCnt_cancel">{{ counts.cancel }}</div></div>
+    </a>
+</div>
+
+<!-- Advanced Filter Panel -->
+<!-- Filter / Sort Tab Panel -->
+<div class="fs-panel" id="fsPanelWrap" style="margin-bottom:1rem;">
+
+  <!-- Tab Buttons -->
+  <div style="display:flex;gap:6px;margin-bottom:0;align-items:center;">
+    <button id="fsTabFilter" class="fs-tab" onclick="toggleFsTab('filter')">
+      🔍 Filter
+      {% set _fc = [search,source,category,p_range,city,date_from,date_to]|select|list|length %}
+      {% if _fc > 0 %}<span class="fs-badge">{{ _fc }}</span>{% endif %}
+    </button>
+    <button id="fsTabSort" class="fs-tab" onclick="toggleFsTab('sort')">
+      ↕️ Sort
+      {% if sort_by != 'created_at' or sort_dir != 'desc' %}<span class="fs-badge">•</span>{% endif %}
+    </button>
+    {% if search or source or category or p_range or city or date_from or date_to %}
+    <a href="{{ url_for('crm.leads') }}" class="fs-clear">✕ Clear All</a>
+    {% endif %}
+  </div>
+
+  <!-- FILTER TAB -->
+  <div id="fsPanelFilter" class="fs-pane" style="display:none;">
+    <div class="fs-grid">
+      <div class="fs-field">
+        <label>🔍 Search</label>
+        <input type="text" id="f_search" value="{{ search }}" placeholder="Name, company, mobile, product…"
+               oninput="fsDebouncedSubmit()" list="cityList2">
+      </div>
+      <div class="fs-field">
+        <label>📡 Source</label>
+        <select id="f_source" onchange="fsSubmit()">
+          <option value="">All Sources</option>
+          {% for s in all_sources %}<option value="{{ s }}" {{ 'selected' if source==s }}>{{ s }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="fs-field">
+        <label>🏷️ Category</label>
+        <select id="f_category" onchange="fsSubmit()">
+          <option value="">All Categories</option>
+          {% for c in all_categories %}<option value="{{ c }}" {{ 'selected' if category==c }}>{{ c }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="fs-field">
+        <label>💎 Product Range</label>
+        <select id="f_product_range" onchange="fsSubmit()">
+          <option value="">All Ranges</option>
+          {% for r in all_ranges %}<option value="{{ r }}" {{ 'selected' if p_range==r }}>{{ r }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="fs-field">
+        <label>🏙️ City</label>
+        <input type="text" id="f_city" value="{{ city }}" placeholder="Filter by city"
+               oninput="fsDebouncedSubmit()" list="cityList">
+        <datalist id="cityList">{% for c in all_cities %}<option value="{{ c }}">{% endfor %}</datalist>
+      </div>
+      <div class="fs-field">
+        <label>📅 Date From</label>
+        <input type="date" id="f_date_from" value="{{ date_from }}" onchange="fsSubmit()">
+      </div>
+      <div class="fs-field">
+        <label>📅 Date To</label>
+        <input type="date" id="f_date_to" value="{{ date_to }}" onchange="fsSubmit()">
+      </div>
+    </div>
+    <!-- Active filter chips -->
+    {% if search or source or category or p_range or city or date_from or date_to %}
+    <div style="display:flex;flex-wrap:wrap;gap:.35rem;margin-top:.65rem;align-items:center;">
+      <span style="font-size:.7rem;color:var(--text3);font-weight:600;">Active:</span>
+      {% if search %}<span class="fs-chip">Search: {{ search }}<a onclick="fsClearField('f_search')">×</a></span>{% endif %}
+      {% if source %}<span class="fs-chip">Source: {{ source }}<a onclick="fsClearField('f_source')">×</a></span>{% endif %}
+      {% if category %}<span class="fs-chip">Category: {{ category }}<a onclick="fsClearField('f_category')">×</a></span>{% endif %}
+      {% if p_range %}<span class="fs-chip">Range: {{ p_range }}<a onclick="fsClearField('f_product_range')">×</a></span>{% endif %}
+      {% if city %}<span class="fs-chip">City: {{ city }}<a onclick="fsClearField('f_city')">×</a></span>{% endif %}
+      {% if date_from %}<span class="fs-chip">From: {{ date_from }}<a onclick="fsClearField('f_date_from')">×</a></span>{% endif %}
+      {% if date_to %}<span class="fs-chip">To: {{ date_to }}<a onclick="fsClearField('f_date_to')">×</a></span>{% endif %}
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- SORT TAB -->
+  <div id="fsPanelSort" class="fs-pane" style="display:none;">
+    <div class="fs-grid" style="max-width:500px;">
+      <div class="fs-field">
+        <label>↕️ Sort By</label>
+        <select id="f_sort_by" onchange="fsSubmit()">
+          <option value="created_at"  {{ 'selected' if sort_by=='created_at' }}>Created Date</option>
+          <option value="name"        {{ 'selected' if sort_by=='name' }}>Name</option>
+          <option value="company"     {{ 'selected' if sort_by=='company' }}>Company</option>
+          <option value="status"      {{ 'selected' if sort_by=='status' }}>Status</option>
+          <option value="product_name"{{ 'selected' if sort_by=='product_name' }}>Product</option>
+          <option value="city"        {{ 'selected' if sort_by=='city' }}>City</option>
+          <option value="expected_value" {{ 'selected' if sort_by=='expected_value' }}>Expected Value</option>
+          <option value="follow_up_date" {{ 'selected' if sort_by=='follow_up_date' }}>Follow Up Date</option>
+        </select>
+      </div>
+      <div class="fs-field">
+        <label>⬆️⬇️ Direction</label>
+        <div style="display:flex;gap:.5rem;">
+          <button id="sortDirDesc" onclick="setSortDir('desc')"
+            class="sort-dir-btn {{ 'active' if sort_dir=='desc' else '' }}">
+            ↓ Newest First
+          </button>
+          <button id="sortDirAsc" onclick="setSortDir('asc')"
+            class="sort-dir-btn {{ 'active' if sort_dir=='asc' else '' }}">
+            ↑ Oldest First
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+<!-- Hidden form for AJAX submit -->
+<form id="fsForm" method="GET" style="display:none;">
+  <input type="hidden" name="status"        id="hStatus"       value="{{ status }}">
+  <input type="hidden" name="search"        id="hSearch"       value="{{ search }}">
+  <input type="hidden" name="source"        id="hSource"       value="{{ source }}">
+  <input type="hidden" name="category"      id="hCategory"     value="{{ category }}">
+  <input type="hidden" name="product_range" id="hProductRange" value="{{ p_range }}">
+  <input type="hidden" name="city"          id="hCity"         value="{{ city }}">
+  <input type="hidden" name="date_from"     id="hDateFrom"     value="{{ date_from }}">
+  <input type="hidden" name="date_to"       id="hDateTo"       value="{{ date_to }}">
+  <input type="hidden" name="sort_by"       id="hSortBy"       value="{{ sort_by }}">
+  <input type="hidden" name="sort_dir"      id="hSortDir"      value="{{ sort_dir }}">
+</form>
+
+<!-- Table -->
+<div class="card">
+    <div class="card-body" style="border-bottom:1px solid var(--border);padding:0.75rem 1rem;">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem;">
+            <label style="font-size:0.82rem;color:var(--text2);">Show
+                    <select id="rowCount_leadsTable" onchange="changeRows_leadsTable(this.value)" style="padding:4px 8px;border:1.5px solid var(--border);border-radius:7px;font-size:0.82rem;margin-left:4px;">
+                        <option value="10">10</option>
+                        <option value="25">25</option>
+                        <option value="50">50</option>
+                        <option value="9999">All</option>
+                    </select>
+                    rows
+                </label>
+                <div style="display:flex;align-items:center;gap:0.75rem;">
+                <!-- Column Customizer -->
+                <div style="position:relative;">
+                    <button type="button" onclick="toggleLeadCols(event)"
+                        style="padding:4px 11px;border-radius:7px;background:#f1f5f9;border:1.5px solid #e2e8f0;font-size:.78rem;font-weight:700;cursor:pointer;color:var(--text2);">
+                        ⚙️ Columns
+                    </button>
+                    <div id="leadColPanel" style="display:none;position:absolute;top:calc(100% + 6px);right:0;z-index:200;
+                        background:#fff;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.15);
+                        border:1px solid #e2e8f0;padding:1rem;width:260px;">
+                        <div style="font-size:.78rem;font-weight:800;color:var(--text2);margin-bottom:.6rem;">Select Columns</div>
+                        <div style="display:flex;flex-direction:column;gap:.35rem;max-height:280px;overflow-y:auto;">
+                        {% for key, label in all_cols.items() %}
+                        <label style="display:flex;align-items:center;gap:6px;font-size:.8rem;cursor:pointer;">
+                            <input type="checkbox" value="{{ key }}"
+                                {{ 'checked' if key in grid_cols else '' }}
+                                style="accent-color:var(--blue);">
+                            {{ label }}
+                        </label>
+                        {% endfor %}
+                        </div>
+                        <div style="margin-top:.75rem;display:flex;gap:.5rem;">
+                            <button onclick="saveLeadCols()"
+                                style="flex:1;padding:5px;border-radius:7px;background:var(--blue);color:#fff;border:none;font-size:.78rem;font-weight:700;cursor:pointer;">
+                                ✅ Apply
+                            </button>
+                            <button onclick="document.getElementById('leadColPanel').style.display='none'"
+                                style="padding:5px 10px;border-radius:7px;background:#f1f5f9;border:1.5px solid #e2e8f0;font-size:.78rem;cursor:pointer;">
+                                ✕
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <div class="tbl-wrap">
+        <table id="leadsTable">
+            <thead>
+                <tr>
+                    <th style="width:36px;">#</th>
+                    {% for col in grid_cols %}
+                    <th>{{ all_cols.get(col, col) }}</th>
+                    {% endfor %}
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for l in leads %}
+                <tr class="lead-row">
+                    <td style="color:var(--text3);font-size:0.82rem;">{{ loop.index }}</td>
+                    {% for col in grid_cols %}
+                    {% if col == 'code' %}
+                    <td><code style="font-size:0.77rem;color:var(--blue);">{{ l.code or 'None' }}</code></td>
+                    {% elif col == 'created_at' %}
+                    <td style="font-size:0.8rem;color:var(--text2);white-space:nowrap;">
+                        {{ l.created_at.strftime('%d-%m-%Y %H:%M') if l.created_at else '—' }}
+                    </td>
+                    {% elif col == 'name' %}
+                    <td><a href="{{ url_for('crm.lead_view', id=l.id) }}" class="lead-link">{{ l.contact_name }}</a></td>
+                    {% elif col == 'company' %}
+                    <td>{{ l.company or '—' }}</td>
+                    {% elif col == 'email' %}
+                    <td style="font-size:0.82rem;">{{ l.email or '—' }}</td>
+                    {% elif col == 'mobile' %}
+                    <td>{{ l.mobile or '—' }}</td>
+                    {% elif col == 'product' %}
+                    <td>{{ l.product_name or '—' }}</td>
+                    {% elif col == 'category' %}
+                    <td>{{ l.category or '—' }}</td>
+                    {% elif col == 'source' %}
+                    <td>{{ l.source or '—' }}</td>
+                    {% elif col == 'city' %}
+                    <td>{{ l.city or '—' }}</td>
+                    {% elif col == 'priority' %}
+                    <td>
+                        {% if l.priority == 'high' %}<span style="color:#dc2626;font-weight:700;">🔴 High</span>
+                        {% elif l.priority == 'medium' %}<span style="color:#f59e0b;font-weight:700;">🟡 Medium</span>
+                        {% else %}<span style="color:#64748b;">🟢 Low</span>{% endif %}
+                    </td>
+                    {% elif col == 'expected_value' %}
+                    <td style="font-size:0.82rem;">{{ '₹%.0f'|format(l.expected_value) if l.expected_value else '—' }}</td>
+                    {% elif col == 'assigned_to' %}
+                    <td style="font-size:0.82rem;">
+                        {% if l.assigned_to %}
+                        {% set asgn = all_users | selectattr('id','eq',l.assigned_to) | first | default(None) %}
+                        {{ asgn.full_name if asgn else '—' }}
+                        {% else %}—{% endif %}
+                    </td>
+                    {% elif col == 'team' %}
+                    <td>
+                        {% set members = l.get_team_member_objects() %}
+                        {% if members %}
+                        <div class="avatar-group">
+                            {% for m in members[:3] %}
+                            <div class="av" title="{{ m.full_name }}">{{ m.full_name[:2]|upper }}</div>
+                            {% endfor %}
+                            {% if members|length > 3 %}
+                            <div class="av av-more">+{{ members|length - 3 }}</div>
+                            {% endif %}
+                        </div>
+                        {% else %}<span style="color:var(--text3);">—</span>{% endif %}
+                    </td>
+                    {% elif col == 'follow_up' %}
+                    <td style="font-size:0.8rem;">{{ l.follow_up_date.strftime('%d-%m-%Y') if l.follow_up_date else '—' }}</td>
+                    {% elif col == 'status' %}
+                    <td>
+                        {% if l.status=='open' %}<span class="badge badge-open">Open</span>
+                        {% elif l.status=='in_process' %}<span class="badge badge-in_process">In Process</span>
+                        {% elif l.status=='close' %}<span class="badge badge-close">Close</span>
+                        {% elif l.status=='cancel' %}<span class="badge badge-cancel">Cancel</span>
+                        {% endif %}
+                    </td>
+                    {% elif col == 'last_contact' %}
+                    <td style="font-size:0.8rem;color:var(--text2);">
+                        {% if l.last_contact %}{{ l.last_contact.strftime('%d-%m-%Y') }}
+                        {% elif l.updated_at %}{{ l.updated_at.strftime('%d-%m-%Y') }}
+                        {% else %}—{% endif %}
+                    </td>
+                    {% endif %}
+                    {% endfor %}
+                    <td>
+                        <div style="display:flex;gap:3px;">
+                            <a href="{{ url_for('crm.lead_view', id=l.id) }}" class="btn-outline" style="padding:4px 7px;font-size:0.72rem;" title="View">👁️</a>
+                            <a href="{{ url_for('crm.lead_edit', id=l.id) }}" class="btn-outline" style="padding:4px 7px;font-size:0.72rem;" title="Edit">✏️</a>
+                            <form method="POST" action="{{ url_for('crm.lead_delete', id=l.id) }}" onsubmit="return confirm('Delete this lead?')">
+                                <button type="submit" class="btn-danger" style="padding:4px 7px;font-size:0.72rem;" title="Delete">🗑️</button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="{{ grid_cols|length + 2 }}" style="text-align:center;padding:2rem;color:var(--text3);">
+                    No leads found.
+                    <a href="{{ url_for('crm.lead_add') }}" style="color:var(--blue);">Add first lead →</a> or
+                    <a href="{{ url_for('crm.lead_import') }}" style="color:var(--blue);">import from CSV →</a>
+                </td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {{ render_pagination('leadsTable', '#leadsTable .lead-row', leads|length, 'leads') }}
+    </div>
+</div>
+
+<!-- ══ KANBAN VIEW ══ -->
+<div id="kanbanView">
+<div class="kb-board">
+    {% set statuses = [
+        ('open',       '✉️ Open',       counts.open),
+        ('in_process', '⚙️ In Process', counts.in_process),
+        ('close',      '✅ Close',       counts.close),
+        ('cancel',     '❌ Cancel',      counts.cancel),
+    ] %}
+    {% for stat, label, cnt in statuses %}
+    <div class="kb-col" data-status="{{ stat }}" id="kbCol_{{ stat }}">
+        <div class="kb-col-hdr">
+            <span class="kb-title">{{ label }}</span>
+            <span class="kb-count" id="kbCnt_{{ stat }}">{{ cnt }}</span>
+        </div>
+        <div class="kb-body" id="kbBody_{{ stat }}"
+             ondragover="kbDragOver(event)" ondragleave="kbDragLeave(event)" ondrop="kbDrop(event,'{{ stat }}')">
+            {% set col_leads = leads | selectattr('status','eq',stat) | list %}
+            {% for l in col_leads %}
+            <div class="kb-card" draggable="true"
+                 data-id="{{ l.id }}" data-status="{{ l.status }}"
+                 ondragstart="kbDragStart(event)"
+                 ondragend="kbDragEnd(event)">
+                <div class="kb-card-code">{{ l.code or 'No Code' }}</div>
+                <div class="kb-card-name" title="{{ l.contact_name }}">{{ l.contact_name }}</div>
+                {% if l.company %}<div class="kb-card-co" title="{{ l.company }}">🏢 {{ l.company }}</div>{% endif %}
+                <div class="kb-card-foot">
+                    <span class="kb-card-prod">{{ l.product_name or '—' }}</span>
+                    <div class="kb-card-av">
+                        {% set members = l.get_team_member_objects() %}
+                        {% for m in members[:3] %}
+                        <div class="kb-av" title="{{ m.full_name }}">{{ m.full_name[:2]|upper }}</div>
+                        {% endfor %}
+                    </div>
+                </div>
+                <div style="margin-top:5px;">
+                    <a href="{{ url_for('crm.lead_view', id=l.id) }}"
+                       style="font-size:.68rem;color:var(--blue);text-decoration:none;font-weight:600;"
+                       onclick="event.stopPropagation()">🔗 View</a>
+                </div>
+            </div>
+            {% else %}
+            <div class="kb-empty" id="kbEmpty_{{ stat }}">Drop leads here</div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+</div>
+
+
+<script>
+// Pagination via global pagInit
+function changeRows_leadsTable(val) {
+    pagSetSize('leadsTable', '#leadsTable .lead-row', val);
+    var ps = document.getElementById('pagSize_leadsTable');
+    if (ps) ps.value = val;
+}
+
+function sortTable(col) {
+    const tbl = document.getElementById('leadsTable').tBodies[0];
+    const rows = Array.from(tbl.querySelectorAll('tr.lead-row'));
+    const asc = !sortDir[col];
+    sortDir[col] = asc;
+
+    // Reset all sort icons
+    document.querySelectorAll('.sort-ic').forEach(ic => { ic.textContent = '↕'; ic.classList.remove('active'); });
+    const ic = document.getElementById('ic' + col);
+    if (ic) { ic.textContent = asc ? '↑' : '↓'; ic.classList.add('active'); }
+
+    rows.sort((a, b) => {
+        const aCell = a.cells[col];
+        const bCell = b.cells[col];
+        const aVal = (aCell.dataset.val || aCell.innerText).trim().toLowerCase();
+        const bVal = (bCell.dataset.val || bCell.innerText).trim().toLowerCase();
+        return asc ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+    });
+
+    rows.forEach(r => tbl.appendChild(r));
+    applyRowLimit();
+}
+
+function exportCSV() {
+    const rows = document.querySelectorAll('#leadsTable tr');
+    const csv = [];
+    rows.forEach(row => {
+        const cells = Array.from(row.querySelectorAll('th, td'));
+        // Skip last column (Actions)
+        const data = cells.slice(0, -1).map(c => '"' + c.innerText.trim().replace(/"/g, '""').replace(/\n/g, ' ') + '"');
+        csv.push(data.join(','));
+    });
+    const blob = new Blob([csv.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'leads_export_' + new Date().toISOString().slice(0,10) + '.csv';
+    a.click();
+}
+
+// Initialize
+document.addEventListener('DOMContentLoaded', function(){ pagInit('leadsTable', '#leadsTable .lead-row', 10); });
+
+// ══ VIEW SWITCH ══
+var _currentView = localStorage.getItem('leadsView') || 'list';
+
+function switchView(v) {
+    _currentView = v;
+    localStorage.setItem('leadsView', v);
+    document.getElementById('kanbanView').style.display   = v === 'kanban' ? 'block' : 'none';
+    document.getElementById('listViewWrap').style.display = v === 'list'   ? 'block' : 'none';
+    document.getElementById('btnList').classList.toggle('active',   v === 'list');
+    document.getElementById('btnKanban').classList.toggle('active', v === 'kanban');
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    var filterPanel = document.querySelector('.filter-panel');
+    var wrap = document.createElement('div');
+    wrap.id  = 'listViewWrap';
+    filterPanel.parentNode.insertBefore(wrap, filterPanel);
+    wrap.appendChild(filterPanel);
+    document.querySelectorAll('.card').forEach(function(card) {
+        if (!wrap.contains(card)) wrap.appendChild(card);
+    });
+    switchView(_currentView);
+});
+
+// ══ KANBAN DRAG & DROP (smooth) ══
+var _kbDragging   = null;
+var _kbDragClone  = null;
+var _kbDragOffX   = 0;
+var _kbDragOffY   = 0;
+
+function kbDragStart(e) {
+    _kbDragging = e.currentTarget;
+
+    // Ghost clone follows cursor
+    _kbDragClone = _kbDragging.cloneNode(true);
+    Object.assign(_kbDragClone.style, {
+        position:'fixed', zIndex:9999, pointerEvents:'none', opacity:'.92',
+        width: _kbDragging.offsetWidth + 'px',
+        borderRadius:'10px', boxShadow:'0 12px 32px rgba(0,0,0,.22)',
+        transform:'rotate(2deg) scale(1.03)', transition:'transform .1s'
+    });
+    document.body.appendChild(_kbDragClone);
+
+    _kbDragOffX = e.clientX - _kbDragging.getBoundingClientRect().left;
+    _kbDragOffY = e.clientY - _kbDragging.getBoundingClientRect().top;
+    _kbDragClone.style.left = (e.clientX - _kbDragOffX) + 'px';
+    _kbDragClone.style.top  = (e.clientY - _kbDragOffY) + 'px';
+
+    // Use transparent drag image
+    var ghost = document.createElement('div');
+    ghost.style.cssText = 'width:1px;height:1px;position:fixed;top:-100px;opacity:0;';
+    document.body.appendChild(ghost);
+    e.dataTransfer.setDragImage(ghost, 0, 0);
+    setTimeout(function(){ document.body.removeChild(ghost); }, 0);
+
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', _kbDragging.dataset.id);
+
+    setTimeout(function(){
+        _kbDragging.style.opacity = '0.35';
+        _kbDragging.style.transform = 'scale(0.97)';
+    }, 0);
+}
+
+document.addEventListener('dragover', function(e) {
+    if (!_kbDragClone) return;
+    _kbDragClone.style.left = (e.clientX - _kbDragOffX) + 'px';
+    _kbDragClone.style.top  = (e.clientY - _kbDragOffY) + 'px';
+});
+
+function kbDragEnd(e) {
+    if (_kbDragClone && _kbDragClone.parentNode) {
+        _kbDragClone.parentNode.removeChild(_kbDragClone);
+    }
+    _kbDragClone = null;
+    if (_kbDragging) {
+        _kbDragging.style.opacity  = '';
+        _kbDragging.style.transform = '';
+    }
+    document.querySelectorAll('.kb-body').forEach(function(b){
+        b.classList.remove('drag-over');
+    });
+    _kbDragging = null;
+}
+
+function kbDragOver(e) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    e.currentTarget.classList.add('drag-over');
+}
+
+function kbDragLeave(e) {
+    if (!e.currentTarget.contains(e.relatedTarget)) {
+        e.currentTarget.classList.remove('drag-over');
+    }
+}
+
+function _kbUpdateCount(status, delta) {
+    // Update kanban column count
+    var kbEl = document.getElementById('kbCnt_' + status);
+    if (kbEl) {
+        var n = parseInt(kbEl.textContent || 0) + delta;
+        kbEl.textContent = n;
+        kbEl.style.transform = 'scale(1.4)';
+        setTimeout(function(){ kbEl.style.transform = ''; }, 250);
+    }
+    // Update top status card count
+    var scEl = document.getElementById('scCnt_' + status);
+    if (scEl) {
+        var m = parseInt(scEl.textContent || 0) + delta;
+        scEl.textContent = m;
+        scEl.style.transform = 'scale(1.15)';
+        scEl.style.transition = 'transform .2s';
+        setTimeout(function(){ scEl.style.transform = ''; }, 300);
+    }
+}
+
+function kbDrop(e, newStatus) {
+    e.preventDefault();
+    e.currentTarget.classList.remove('drag-over');
+    if (!_kbDragging) return;
+
+    var card      = _kbDragging;
+    var oldStatus = card.dataset.status;
+    if (oldStatus === newStatus) return;
+
+    var leadId     = card.dataset.id;
+    var targetBody = document.getElementById('kbBody_' + newStatus);
+
+    // Animate card out of old column
+    card.style.transition = 'opacity .15s, transform .15s';
+    card.style.opacity    = '0';
+    card.style.transform  = 'scale(0.9)';
+
+    setTimeout(function() {
+        card.dataset.status   = newStatus;
+        card.style.transition = '';
+        card.style.opacity    = '';
+        card.style.transform  = '';
+
+        // Remove empty placeholder
+        var emptyEl = document.getElementById('kbEmpty_' + newStatus);
+        if (emptyEl) emptyEl.remove();
+
+        // Insert at top of target column with animation
+        card.style.opacity   = '0';
+        card.style.transform = 'translateY(-10px) scale(0.96)';
+        if (targetBody.firstChild) {
+            targetBody.insertBefore(card, targetBody.firstChild);
+        } else {
+            targetBody.appendChild(card);
+        }
+        requestAnimationFrame(function() {
+            card.style.transition = 'opacity .2s, transform .2s';
+            card.style.opacity    = '1';
+            card.style.transform  = '';
+            setTimeout(function(){ card.style.transition = ''; }, 220);
+        });
+
+        // Add empty to old column if needed
+        var oldBody = document.getElementById('kbBody_' + oldStatus);
+        if (oldBody && oldBody.querySelectorAll('.kb-card').length === 0) {
+            var emp = document.createElement('div');
+            emp.className = 'kb-empty'; emp.id = 'kbEmpty_' + oldStatus;
+            emp.textContent = 'Drop leads here';
+            oldBody.appendChild(emp);
+        }
+
+        // Update both kanban + top status card counts
+        _kbUpdateCount(oldStatus, -1);
+        _kbUpdateCount(newStatus, +1);
+
+        // Save to DB
+        fetch('/crm/leads/' + leadId + '/update-status', {
+            method: 'POST',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({status: newStatus})
+        })
+        .then(function(r){ return r.json(); })
+        .then(function(d) {
+            if (!d.success) { alert('Save failed. Refreshing...'); location.reload(); }
+        })
+        .catch(function() { alert('Network error. Refreshing...'); location.reload(); });
+
+    }, 150);
+}
+
+
+// ── Column Customizer ──
+var _leadColPanelOpen = false;
+
+function toggleLeadCols(e) {
+    if (e) e.stopPropagation();
+    var p = document.getElementById('leadColPanel');
+    if (!p) return;
+    _leadColPanelOpen = !_leadColPanelOpen;
+    p.style.display = _leadColPanelOpen ? 'block' : 'none';
+}
+
+// Close panel on outside click
+document.addEventListener('click', function(e) {
+    if (!_leadColPanelOpen) return;
+    var panel = document.getElementById('leadColPanel');
+    if (panel && !panel.contains(e.target)) {
+        panel.style.display = 'none';
+        _leadColPanelOpen = false;
+    }
+});
+
+function saveLeadCols() {
+    var checked = Array.from(document.querySelectorAll('#leadColPanel input[type=checkbox]:checked'))
+                       .map(function(cb){ return cb.value; });
+    if (checked.length === 0) {
+        alert('Kam se kam ek column select karo!');
+        return;
+    }
+    fetch('/crm/leads/grid-config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cols: checked })
+    })
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+        if (d.success) { location.reload(); }
+    })
+    .catch(function(){ location.reload(); });
+}
+</script>
+{% endblock %}
+
+{% block extra_js %}
+// ══ Filter / Sort Tab Panel ══
+var _fsOpenTab = null;
+
+function toggleFsTab(tab) {
+    var filterPane = document.getElementById('fsPanelFilter');
+    var sortPane   = document.getElementById('fsPanelSort');
+    var filterBtn  = document.getElementById('fsTabFilter');
+    var sortBtn    = document.getElementById('fsTabSort');
+
+    if (_fsOpenTab === tab) {
+        // Same tab clicked — close it
+        filterPane.style.display = 'none';
+        sortPane.style.display   = 'none';
+        filterBtn.classList.remove('active');
+        sortBtn.classList.remove('active');
+        _fsOpenTab = null;
+    } else {
+        // Open clicked tab, close other
+        filterPane.style.display = tab === 'filter' ? '' : 'none';
+        sortPane.style.display   = tab === 'sort'   ? '' : 'none';
+        filterBtn.classList.toggle('active', tab === 'filter');
+        sortBtn.classList.toggle('active',   tab === 'sort');
+        _fsOpenTab = tab;
+    }
+}
+
+var _fsTimer = null;
+function fsDebouncedSubmit() {
+    clearTimeout(_fsTimer);
+    _fsTimer = setTimeout(fsSubmit, 420);
+}
+
+function fsSubmit() {
+    document.getElementById('hSearch').value       = document.getElementById('f_search').value;
+    document.getElementById('hSource').value       = document.getElementById('f_source').value;
+    document.getElementById('hCategory').value     = document.getElementById('f_category').value;
+    document.getElementById('hProductRange').value = document.getElementById('f_product_range').value;
+    document.getElementById('hCity').value         = document.getElementById('f_city').value;
+    document.getElementById('hDateFrom').value     = document.getElementById('f_date_from').value;
+    document.getElementById('hDateTo').value       = document.getElementById('f_date_to').value;
+    document.getElementById('hSortBy').value       = document.getElementById('f_sort_by').value;
+    document.getElementById('fsForm').submit();
+}
+
+function setSortDir(dir) {
+    document.getElementById('hSortDir').value = dir;
+    document.getElementById('sortDirDesc').classList.toggle('active', dir==='desc');
+    document.getElementById('sortDirAsc').classList.toggle('active',  dir==='asc');
+    fsSubmit();
+}
+
+function fsClearField(fieldId) {
+    var el = document.getElementById(fieldId);
+    if (!el) return;
+    el.tagName === 'SELECT' ? el.selectedIndex = 0 : (el.value = '');
+    fsSubmit();
+}
+
+// Auto-open relevant tab if active filters/sort exist
+(function(){
+    var sb  = document.getElementById('f_sort_by');
+    var sd  = document.getElementById('hSortDir');
+    var hasSort   = sb && (sb.value !== 'created_at' || (sd && sd.value !== 'desc'));
+    var hasFilter = document.querySelector('.fs-badge') !== null;
+    if (hasSort) toggleFsTab('sort');
+    else if (hasFilter) toggleFsTab('filter');
+    // else both stay closed
+})();
+{% endblock %}

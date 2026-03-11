@@ -1,0 +1,369 @@
+{% from 'macros/pagination.html' import render_pagination %}
+{% extends "base.html" %}
+{% block title %}Employees{% endblock %}
+{% block page_title %}Employees{% endblock %}
+{% block bread %}HR / Employees{% endblock %}
+
+{% block extra_css %}
+.emp-grid { width:100%; border-collapse:collapse; font-size:.83rem; }
+.emp-grid th {
+    text-align:left; padding:.55rem .9rem; font-size:.7rem; font-weight:700;
+    color:var(--text3); text-transform:uppercase; letter-spacing:.06em;
+    border-bottom:2px solid var(--border); background:#f8fafc; white-space:nowrap;
+}
+.emp-grid td { padding:.6rem .9rem; border-bottom:1px solid #f1f5f9; vertical-align:middle; }
+.emp-grid tr:hover td { background:#f8fafc; }
+.emp-grid tr:last-child td { border-bottom:none; }
+
+.emp-av {
+    width:32px; height:32px; border-radius:50%; object-fit:cover;
+    border:2px solid var(--border); flex-shrink:0;
+}
+.emp-av-text {
+    width:32px; height:32px; border-radius:50%;
+    background:#6366f1; color:#fff; display:inline-flex;
+    align-items:center; justify-content:center; font-size:.72rem; font-weight:800;
+}
+.qr-thumb { width:36px; height:36px; border-radius:4px; cursor:pointer; border:1px solid var(--border); }
+
+.status-pill {
+    display:inline-block; padding:3px 10px; border-radius:20px;
+    font-size:.7rem; font-weight:700;
+}
+.sp-active     { background:#dcfce7; color:#16a34a; }
+.sp-inactive   { background:#fee2e2; color:#dc2626; }
+.sp-terminated { background:#fef3c7; color:#d97706; }
+.sp-on_leave   { background:#eff6ff; color:#2563eb; }
+
+/* Grid customizer */
+.col-customizer {
+    display:none; position:fixed; z-index:9999; top:60px; right:1rem;
+    background:#fff; border:1.5px solid var(--border); border-radius:14px;
+    padding:1rem; width:260px; box-shadow:0 8px 30px rgba(0,0,0,.12);
+}
+.col-customizer.show { display:block; }
+.col-item { display:flex; align-items:center; gap:8px; padding:5px 0;
+    font-size:.83rem; cursor:pointer; }
+.col-item input { accent-color:var(--blue); width:14px; height:14px; }
+
+/* QR Modal */
+.qr-modal-overlay {
+    display:none; position:fixed; inset:0; background:rgba(0,0,0,.6);
+    z-index:9999; align-items:center; justify-content:center;
+}
+.qr-modal-overlay.show { display:flex; }
+.qr-modal {
+    background:#fff; border-radius:16px; padding:1.5rem; text-align:center;
+    width:240px; box-shadow:0 20px 60px rgba(0,0,0,.25);
+}
+.qr-modal img { width:180px; height:180px; }
+{% endblock %}
+
+{% block content %}
+<div class="page-hdr">
+    <div>
+        <h1 style="font-size:1.2rem;">🪪 Employees</h1>
+        <p style="font-size:.78rem;color:var(--text3);">{{ employees|length }} employees found</p>
+    </div>
+    <div style="display:flex;gap:.5rem;flex-wrap:wrap;">
+        <button type="button" onclick="toggleCustomizer()" class="btn-outline" style="font-size:.8rem;">⚙️ Columns</button>
+        {% if perm.can_add %}
+        <a href="{{ url_for('hr.emp_add') }}" class="btn-primary" style="font-size:.82rem;">＋ Add Employee</a>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="card" style="margin-bottom:1rem;">
+    <div style="padding:.75rem 1rem;">
+        <form method="GET" style="display:flex;gap:.6rem;flex-wrap:wrap;align-items:flex-end;">
+            <div class="fg" style="flex:1;min-width:180px;">
+                <label class="fl">Search</label>
+                <input type="text" name="search" class="fi" value="{{ search }}" placeholder="Name, code, mobile...">
+            </div>
+            <div class="fg" style="min-width:140px;">
+                <label class="fl">Department</label>
+                <select name="dept" class="fi">
+                    <option value="">All Depts</option>
+                    {% for d in all_depts %}
+                    <option value="{{ d }}" {{ 'selected' if dept==d }}>{{ d }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="fg" style="min-width:120px;">
+                <label class="fl">Status</label>
+                <select name="status" class="fi">
+                    <option value="">All</option>
+                    <option value="active"     {{ 'selected' if status=='active' }}>Active</option>
+                    <option value="inactive"   {{ 'selected' if status=='inactive' }}>Inactive</option>
+                    <option value="terminated" {{ 'selected' if status=='terminated' }}>Terminated</option>
+                </select>
+            </div>
+            <div class="fg" style="min-width:130px;">
+                <label class="fl">Type</label>
+                <select name="emptype" class="fi">
+                    <option value="">All Types</option>
+                    {% for t in ['Full Time','Part Time','Contract','Intern'] %}
+                    <option value="{{ t }}" {{ 'selected' if emptype==t }}>{{ t }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <button type="submit" class="btn-primary" style="height:40px;padding:0 16px;font-size:.83rem;">🔍 Filter</button>
+            <a href="{{ url_for('hr.employees') }}" class="btn-outline" style="height:40px;padding:0 12px;font-size:.83rem;display:flex;align-items:center;">✕ Clear</a>
+        </form>
+    </div>
+</div>
+
+
+<div class="card" style="margin-bottom:.5rem;">
+    <div style="padding:.6rem 1rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem;">
+        <div style="display:flex;align-items:center;gap:.75rem;">
+            <label style="font-size:0.82rem;color:var(--text2);">Show
+                    <select id="rowCount_empTable" onchange="changeRows_empTable(this.value)" style="padding:4px 8px;border:1.5px solid var(--border);border-radius:7px;font-size:0.82rem;margin-left:4px;">
+                        <option value="10">10</option>
+                        <option value="25">25</option>
+                        <option value="50">50</option>
+                        <option value="9999">All</option>
+                    </select>
+                    rows
+                </label>
+        </div>
+        <span id="pagCountLabel_empTable" style="font-size:.8rem;color:var(--text3);"></span>
+    </div>
+</div>
+
+<!-- Grid Customizer Panel -->
+<div class="col-customizer" id="colCustomizer">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem;">
+        <span style="font-size:.85rem;font-weight:800;">⚙️ Visible Columns</span>
+        <button type="button" onclick="toggleCustomizer()" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:1rem;">✕</button>
+    </div>
+    {% for key, label in all_cols.items() %}
+    <label class="col-item">
+        <input type="checkbox" value="{{ key }}" {{ 'checked' if key in grid_cols }}> {{ label }}
+    </label>
+    {% endfor %}
+    <button type="button" onclick="saveColumns()" class="btn-primary" style="width:100%;margin-top:.75rem;padding:8px;">💾 Apply</button>
+</div>
+
+<!-- Table -->
+<div class="card" style="overflow-x:auto;">
+    <table class="emp-grid" id="empTable">
+        <thead>
+            <tr>
+                <th>#</th>
+                {% for col in grid_cols %}
+                <th data-col="{{ col }}">{{ all_cols.get(col, col) }}</th>
+                {% endfor %}
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for e in employees %}
+            <tr>
+                <td style="color:var(--text3);font-size:.75rem;">{{ loop.index }}</td>
+                {% for col in grid_cols %}
+                <td>
+                    {% if col == 'employee_code' %}
+                        <span style="font-family:monospace;font-weight:700;color:var(--blue);font-size:.82rem;">{{ e.employee_code }}</span>
+                    {% elif col == 'full_name' %}
+                        <div style="display:flex;align-items:center;gap:8px;">
+                            {% if e.profile_photo %}
+                            <img src="{{ e.profile_photo }}" class="emp-av" alt="">
+                            {% else %}
+                            <span class="emp-av-text">{{ e.full_name[:2]|upper }}</span>
+                            {% endif %}
+                            <div>
+                                <div style="font-weight:700;">{{ e.full_name }}</div>
+                                {% if e.is_contractor %}<div style="font-size:.7rem;color:#f59e0b;">🤝 Contractor</div>{% endif %}
+                            </div>
+                        </div>
+                    {% elif col == 'mobile' %}
+                        {{ e.mobile or '—' }}
+                    {% elif col == 'email' %}
+                        <span style="color:var(--text2);font-size:.8rem;">{{ e.email or '—' }}</span>
+                    {% elif col == 'department' %}
+                        {{ e.department or '—' }}
+                    {% elif col == 'designation' %}
+                        {{ e.designation or '—' }}
+                    {% elif col == 'employee_type' %}
+                        <span style="background:#eff6ff;color:#2563eb;padding:2px 8px;border-radius:10px;font-size:.72rem;font-weight:700;">{{ e.employee_type or '—' }}</span>
+                    {% elif col == 'date_of_joining' %}
+                        {{ e.date_of_joining.strftime('%d %b %Y') if e.date_of_joining else '—' }}
+                    {% elif col == 'location' %}
+                        {{ e.location or '—' }}
+                    {% elif col == 'is_contractor' %}
+                        {{ '✅ Yes' if e.is_contractor else 'No' }}
+                    {% elif col == 'marital_status' %}
+                        {{ e.marital_status or '—' }}
+                    {% elif col == 'blood_group' %}
+                        {% if e.blood_group %}<span style="background:#fef3c7;color:#d97706;padding:2px 8px;border-radius:10px;font-size:.72rem;font-weight:700;">{{ e.blood_group }}</span>{% else %}—{% endif %}
+                    {% elif col == 'status' %}
+                        <span class="status-pill sp-{{ e.status }}">{{ e.status|replace('_',' ')|capitalize }}</span>
+                    {% elif col == 'qr' %}
+                        {% if e.qr_code_base64 %}
+                        <img src="{{ e.qr_code_base64 }}" class="qr-thumb"
+                             onclick="showQR('{{ e.qr_code_base64 }}','{{ e.employee_code }}')"
+                             title="Click to enlarge" id="qrImg_{{ e.id }}">
+                        {% elif e.employee_code %}
+                        <span id="qrCell_{{ e.id }}" style="font-size:.7rem;color:#94a3b8;">⏳</span>
+                        <script>pendingQR.push({ id: {{ e.id }}, code: '{{ e.employee_code }}' });</script>
+                        {% else %}
+                        <span style="color:var(--text3);font-size:.75rem;">—</span>
+                        {% endif %}
+                    {% endif %}
+                </td>
+                {% endfor %}
+                <td>
+                    <div style="display:flex;gap:4px;">
+                        <a href="{{ url_for('hr.emp_view', id=e.id) }}"
+                           style="padding:3px 8px;border-radius:6px;background:#f1f5f9;color:#475569;font-size:.72rem;font-weight:700;text-decoration:none;border:1.5px solid #e2e8f0;">
+                            👁️
+                        </a>
+                        {% if perm.can_edit %}
+                        <a href="{{ url_for('hr.emp_edit', id=e.id) }}"
+                           style="padding:3px 8px;border-radius:6px;background:#eff6ff;color:#1d4ed8;font-size:.72rem;font-weight:700;text-decoration:none;border:1.5px solid #bfdbfe;">
+                            ✏️
+                        </a>
+                        {% endif %}
+                        {% if perm.can_delete %}
+                        <form method="POST" action="{{ url_for('hr.emp_delete', id=e.id) }}" style="display:inline;"
+                            onsubmit="return confirm('Delete {{ e.full_name }}?')">
+                            <button style="padding:3px 8px;border-radius:6px;background:#fee2e2;color:#dc2626;font-size:.72rem;font-weight:700;border:1.5px solid #fecaca;cursor:pointer;" type="submit">🗑️</button>
+                        </form>
+                        {% endif %}
+                    </div>
+                </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="20" style="text-align:center;padding:2rem;color:var(--text3);">No employees found.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {{ render_pagination('empTable', '#empTable tbody tr:not(.no-results)', employees|length, 'employees') }}
+</div>
+
+<!-- QR Modal -->
+<div class="qr-modal-overlay" id="qrModal" onclick="if(event.target===this)this.classList.remove('show')">
+    <div class="qr-modal">
+        <h3 style="font-size:.9rem;font-weight:800;margin-bottom:.75rem;">🔲 Employee QR Code</h3>
+        <img id="qrModalImg" src="" alt="QR">
+        <p id="qrModalCode" style="font-size:.85rem;font-weight:800;margin-top:.5rem;color:var(--blue);"></p>
+        <button onclick="document.getElementById('qrModal').classList.remove('show')"
+            style="margin-top:.75rem;padding:6px 20px;border-radius:8px;background:var(--blue);color:#fff;border:none;cursor:pointer;font-size:.82rem;font-weight:700;">Close</button>
+    </div>
+</div>
+
+<!-- Hidden QR render target -->
+<div id="qrRenderTarget" style="position:absolute;left:-9999px;top:-9999px;width:200px;height:200px;"></div>
+
+<script>
+// QR queue - populated by inline scripts in table rows
+var pendingQR = [];
+var qrLibLoaded = false;
+
+// Load qrcode.js library then auto-process queue
+(function(){
+    var s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js';
+    s.onload  = function(){ qrLibLoaded = true; processQRQueue(); };
+    s.onerror = function(){
+        var s2 = document.createElement('script');
+        s2.src = 'https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js';
+        s2.onload = function(){ qrLibLoaded = true; processQRQueue(); };
+        document.head.appendChild(s2);
+    };
+    document.head.appendChild(s);
+})();
+
+function processQRQueue() {
+    // Process one at a time to avoid overloading
+    if (!pendingQR.length) return;
+    var item = pendingQR.shift();
+    genQRForEmp(item.id, item.code, function() {
+        setTimeout(processQRQueue, 100);
+    });
+}
+
+function showQR(src, code) {
+    document.getElementById('qrModalImg').src  = src;
+    document.getElementById('qrModalCode').textContent = code;
+    document.getElementById('qrModal').classList.add('show');
+}
+
+function genQRForEmp(empId, empCode, callback) {
+    var cell = document.getElementById('qrCell_' + empId);
+
+    var target = document.getElementById('qrRenderTarget');
+    target.innerHTML = '';
+
+    try {
+        new QRCode(target, {
+            text: empCode, width: 200, height: 200,
+            colorDark: '#000000', colorLight: '#ffffff',
+            correctLevel: QRCode.CorrectLevel.M
+        });
+    } catch(e) {
+        if (cell) cell.textContent = '❌';
+        if (callback) callback();
+        return;
+    }
+
+    var attempts = 0;
+    var poll = setInterval(function() {
+        attempts++;
+        var canvas = target.querySelector('canvas');
+        var img    = target.querySelector('img');
+        var dataUrl = null;
+        if (canvas && canvas.width > 0) dataUrl = canvas.toDataURL('image/png');
+        else if (img && img.src && img.src.indexOf('data:') === 0) dataUrl = img.src;
+
+        if (dataUrl) {
+            clearInterval(poll);
+            fetch('{{ url_for("hr.emp_save_qr") }}', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ emp_id: empId, qr_base64: dataUrl })
+            })
+            .then(function(r){ return r.json(); })
+            .then(function(data) {
+                if (data.success && cell) {
+                    cell.outerHTML = '<img src="' + dataUrl + '" class="qr-thumb" ' +
+                        'onclick="showQR(this.src,'' + empCode + '')" ' +
+                        'title="Click to enlarge" id="qrImg_' + empId + '">';
+                }
+                if (callback) callback();
+            })
+            .catch(function() { if (callback) callback(); });
+        }
+        if (attempts > 30) {
+            clearInterval(poll);
+            if (cell) cell.textContent = '—';
+            if (callback) callback();
+        }
+    }, 80);
+}
+
+function toggleCustomizer() {
+    document.getElementById('colCustomizer').classList.toggle('show');
+}
+
+async function saveColumns() {
+    const checks = document.querySelectorAll('#colCustomizer input[type=checkbox]:checked');
+    const cols   = Array.from(checks).map(c => c.value);
+    if (cols.length === 0) { alert('Select at least 1 column'); return; }
+    const res = await fetch('{{ url_for("hr.emp_grid_config") }}', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ cols })
+    });
+    if ((await res.json()).success) location.reload();
+}
+
+function changeRows_empTable(val) {
+    pagSetSize('empTable', '#empTable tbody tr:not(.no-results)', val);
+    var ps = document.getElementById('pagSize_empTable');
+    if(ps) ps.value = val;
+}
+document.addEventListener('DOMContentLoaded', function(){ pagInit('empTable', '#empTable tbody tr:not(.no-results)', 10); });
+</script>
+{% endblock %}

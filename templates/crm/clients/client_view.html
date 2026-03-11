@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}{{ client.contact_name }} — Client Master{% endblock %}
+{% block page_title %}Client Detail{% endblock %}
+{% block bread %}CRM / Client Master / {{ client.contact_name }}{% endblock %}
+
+{% block extra_css %}
+.info-grid { display:grid; grid-template-columns:1fr 1fr; gap:0.5rem 2rem; }
+.info-row { display:flex; gap:0.5rem; padding:0.4rem 0; border-bottom:1px solid var(--border); }
+.info-lbl { font-size:0.82rem; font-weight:600; color:var(--text2); min-width:130px; }
+.info-val { font-size:0.85rem; color:var(--text); }
+.brand-card { background:#f8fafc; border:1.5px solid var(--border); border-radius:10px; padding:0.85rem 1rem; margin-bottom:0.5rem; }
+.brand-name { font-weight:700; font-size:0.95rem; color:var(--text); }
+.brand-cat  { font-size:0.78rem; color:var(--blue); background:#eff6ff; padding:2px 8px; border-radius:100px; font-weight:600; }
+{% endblock %}
+
+{% block content %}
+<div class="page-hdr">
+    <div>
+        <h1>👤 {{ client.contact_name }}</h1>
+        <p>{{ client.company_name or '' }} {% if client.city %}· {{ client.city }}{% endif %}</p>
+    </div>
+    <div style="display:flex;gap:0.75rem;">
+        <a href="{{ url_for('crm.client_edit', id=client.id) }}" class="btn-primary">✏️ Edit</a>
+        <a href="{{ url_for('crm.clients') }}" class="btn-outline">← Back</a>
+    </div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+    <div class="card">
+        <div class="card-hdr"><div class="card-title">Contact Information</div></div>
+        <div class="card-body">
+            <div class="info-row"><span class="info-lbl">Name</span><span class="info-val">{{ client.contact_name }}</span></div>
+            <div class="info-row"><span class="info-lbl">Position</span><span class="info-val">{{ client.position or 'N/A' }}</span></div>
+            <div class="info-row"><span class="info-lbl">Email</span><span class="info-val"><a href="mailto:{{ client.email }}" style="color:var(--blue);">{{ client.email or 'N/A' }}</a></span></div>
+            <div class="info-row"><span class="info-lbl">Mobile</span><span class="info-val">{{ client.mobile or 'N/A' }}</span></div>
+            <div class="info-row"><span class="info-lbl">Alt. Mobile</span><span class="info-val">{{ client.alternate_mobile or 'N/A' }}</span></div>
+            <div class="info-row"><span class="info-lbl">Website</span><span class="info-val">{{ client.website or 'N/A' }}</span></div>
+            <div class="info-row"><span class="info-lbl">Company</span><span class="info-val">{{ client.company_name or 'N/A' }}</span></div>
+            <div class="info-row"><span class="info-lbl">GSTIN</span><span class="info-val">{{ client.gstin or 'N/A' }}</span></div>
+            <div class="info-row"><span class="info-lbl">Type</span><span class="info-val">{{ client.client_type|capitalize }}</span></div>
+            <div class="info-row"><span class="info-lbl">Address</span><span class="info-val">{{ client.address or '' }}</span></div>
+            <div class="info-row"><span class="info-lbl">City</span><span class="info-val">{{ client.city or 'N/A' }}</span></div>
+            <div class="info-row"><span class="info-lbl">State</span><span class="info-val">{{ client.state or 'N/A' }}</span></div>
+            <div class="info-row"><span class="info-lbl">Country</span><span class="info-val">{{ client.country or 'N/A' }}</span></div>
+            <div class="info-row"><span class="info-lbl">Zip Code</span><span class="info-val">{{ client.zip_code or 'N/A' }}</span></div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-hdr">
+            <div class="card-title">🏷️ Brands ({{ brands|length }})</div>
+        </div>
+        <div class="card-body">
+            {% for b in brands %}
+            <div class="brand-card">
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+                    <span class="brand-name">{{ b.brand_name }}</span>
+                    {% if b.category %}<span class="brand-cat">{{ b.category }}</span>{% endif %}
+                </div>
+                {% if b.description %}<p style="font-size:0.82rem;color:var(--text2);margin:0;">{{ b.description }}</p>{% endif %}
+            </div>
+            {% else %}
+            <p style="color:var(--text3);font-size:0.88rem;">No brands added yet.</p>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+{% if client.notes %}
+<div class="card" style="margin-top:1rem;">
+    <div class="card-hdr"><div class="card-title">Notes</div></div>
+    <div class="card-body"><p style="color:var(--text2);">{{ client.notes }}</p></div>
+</div>
+{% endif %}
+{% endblock %}

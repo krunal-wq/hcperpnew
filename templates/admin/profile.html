@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% block title %}My Profile{% endblock %}
+{% block page_title %}My Profile{% endblock %}
+{% block bread %}Profile{% endblock %}
+
+{% block content %}
+<div class="page-hdr">
+    <h1 style="font-size:1.2rem;">👤 My Profile</h1>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;max-width:860px;">
+
+    <!-- Profile Update -->
+    <div class="card">
+        <div style="padding:.7rem 1rem;border-bottom:1px solid var(--border);font-size:.83rem;font-weight:800;">✏️ Update Profile</div>
+        <div style="padding:1rem;">
+            <form method="POST">
+                <input type="hidden" name="action" value="profile">
+                <div class="frow">
+                    <label class="fl">Full Name</label>
+                    <input type="text" name="full_name" class="fi" value="{{ current_user.full_name or '' }}" required>
+                </div>
+                <div class="frow">
+                    <label class="fl">Email</label>
+                    <input type="email" name="email" class="fi" value="{{ current_user.email }}" required>
+                </div>
+                <div class="frow">
+                    <label class="fl">Username</label>
+                    <input type="text" class="fi" value="{{ current_user.username }}" readonly style="background:#f8fafc;color:var(--text3);">
+                </div>
+                <div class="frow">
+                    <label class="fl">Role</label>
+                    <input type="text" class="fi" value="{{ current_user.role|capitalize }}" readonly style="background:#f8fafc;color:var(--text3);">
+                </div>
+                <div class="form-actions" style="padding-top:.5rem;">
+                    <button type="submit" class="btn-primary" style="padding:9px 20px;">💾 Update</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Change Password -->
+    <div class="card">
+        <div style="padding:.7rem 1rem;border-bottom:1px solid var(--border);font-size:.83rem;font-weight:800;">🔑 Change Password</div>
+        <div style="padding:1rem;">
+            <form method="POST">
+                <input type="hidden" name="action" value="password">
+                <div class="frow">
+                    <label class="fl">Current Password</label>
+                    <div style="position:relative;">
+                        <input type="password" name="old_password" id="pw1" class="fi" required placeholder="Current password" style="padding-right:40px;">
+                        <button type="button" onclick="toggle('pw1')" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text3);">👁️</button>
+                    </div>
+                </div>
+                <div class="frow">
+                    <label class="fl">New Password</label>
+                    <div style="position:relative;">
+                        <input type="password" name="new_password" id="pw2" class="fi" required placeholder="Min 6 characters" style="padding-right:40px;">
+                        <button type="button" onclick="toggle('pw2')" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text3);">👁️</button>
+                    </div>
+                </div>
+                <div class="form-actions" style="padding-top:.5rem;">
+                    <button type="submit" class="btn-primary" style="padding:9px 20px;">🔑 Change</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+</div>
+
+<!-- Login History -->
+<div class="card" style="margin-top:1rem;max-width:860px;">
+    <div style="padding:.7rem 1rem;border-bottom:1px solid var(--border);font-size:.83rem;font-weight:800;">📋 Recent Login History</div>
+    <div style="padding:0;">
+        <table style="width:100%;border-collapse:collapse;font-size:.82rem;">
+            <thead>
+                <tr>
+                    {% for h in ['Date & Time','IP Address','Status'] %}
+                    <th style="text-align:left;padding:.5rem 1rem;font-size:.7rem;font-weight:700;color:var(--text3);text-transform:uppercase;border-bottom:1px solid var(--border);background:#f8fafc;">{{ h }}</th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in logs %}
+                <tr style="{% if not loop.last %}border-bottom:1px solid #f1f5f9;{% endif %}">
+                    <td style="padding:.55rem 1rem;">{{ log.timestamp.strftime('%d %b %Y, %I:%M %p') if log.timestamp else '—' }}</td>
+                    <td style="padding:.55rem 1rem;font-family:monospace;font-size:.8rem;">{{ log.ip_address or '—' }}</td>
+                    <td style="padding:.55rem 1rem;">
+                        <span style="padding:3px 10px;border-radius:20px;font-size:.7rem;font-weight:700;
+                            background:{{ '#dcfce7' if log.status=='success' else '#fee2e2' }};
+                            color:{{ '#16a34a' if log.status=='success' else '#dc2626' }};">
+                            {{ log.status|capitalize }}
+                        </span>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="3" style="padding:1.5rem;text-align:center;color:var(--text3);">No login history.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+function toggle(id) {
+    const f = document.getElementById(id);
+    f.type = f.type === 'password' ? 'text' : 'password';
+}
+</script>
+{% endblock %}

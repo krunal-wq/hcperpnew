@@ -1,0 +1,272 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manufacturing ERP — Login</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --bg:       #f5f7fa;
+            --white:    #ffffff;
+            --border:   #e2e8f0;
+            --blue:     #2563eb;
+            --blue-dk:  #1d4ed8;
+            --blue-lt:  #eff6ff;
+            --green-lt: #ecfdf5;
+            --red-lt:   #fef2f2;
+            --amber-lt: #fffbeb;
+            --text:     #0f172a;
+            --text2:    #475569;
+            --text3:    #94a3b8;
+        }
+
+        html, body {
+            height: 100%;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+        }
+
+        /* Background subtle pattern */
+        body::before {
+            content: '';
+            position: fixed; inset: 0; z-index: 0;
+            background-image:
+                radial-gradient(circle at 20% 20%, rgba(37,99,235,0.06) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(2,132,199,0.05) 0%, transparent 50%);
+            pointer-events: none;
+        }
+
+        /* ─── Layout ─── */
+        .page {
+            position: relative; z-index: 1;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem 1.25rem;
+        }
+
+        .lwrap {
+            width: 100%; max-width: 420px;
+            animation: fadeUp 0.5s cubic-bezier(0.16,1,0.3,1) both;
+        }
+        @keyframes fadeUp { from{opacity:0;transform:translateY(18px);} to{opacity:1;transform:translateY(0);} }
+
+        /* Brand top */
+        .top-brand {
+            display: flex; align-items: center; justify-content: center;
+            gap: 11px; margin-bottom: 2rem;
+        }
+        .t-logo {
+            width: 80px; height: 80px;
+            border-radius: 12px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.3rem;
+        }
+        .t-name { font-weight: 800; font-size: 1.2rem; letter-spacing: -0.02em; color: var(--text); }
+        .t-name em { color: var(--blue); font-style: normal; }
+
+        .ftitle { font-weight: 800; font-size: 1.65rem; letter-spacing: -0.025em; margin-bottom: 4px; color: var(--text); text-align: center; }
+        .fsub { font-size: 0.875rem; color: var(--text2); margin-bottom: 1.75rem; text-align: center; }
+
+        /* Card */
+        .fcard {
+            background: var(--white);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 2rem;
+            box-shadow:
+                0 4px 6px -1px rgba(0,0,0,0.07),
+                0 2px 4px -1px rgba(0,0,0,0.04),
+                0 20px 40px -10px rgba(0,0,0,0.08);
+        }
+
+        /* Alerts */
+        .alert {
+            display: flex; align-items: flex-start; gap: 8px;
+            padding: 10px 13px; border-radius: 10px;
+            font-size: 0.83rem; line-height: 1.5;
+            margin-bottom: 1.1rem; font-weight: 500;
+        }
+        .alert-danger  { background: var(--red-lt);   border: 1px solid #fecaca; color: #b91c1c; }
+        .alert-success { background: var(--green-lt); border: 1px solid #a7f3d0; color: #065f46; }
+        .alert-warning { background: var(--amber-lt); border: 1px solid #fde68a; color: #92400e; }
+        .alert-info    { background: var(--blue-lt);  border: 1px solid #bfdbfe; color: #1e40af; }
+
+        /* Fields */
+        .fg { margin-bottom: 1rem; }
+        .fl { display: block; font-size: 0.78rem; font-weight: 600; color: var(--text2); margin-bottom: 6px; letter-spacing: 0.02em; }
+        .fi-wrap { position: relative; }
+        .fic { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); font-size: 0.95rem; pointer-events: none; opacity: 0.45; }
+        .fi {
+            width: 100%; padding: 11px 12px 11px 37px;
+            background: var(--bg);
+            border: 1.5px solid var(--border);
+            border-radius: 10px;
+            color: var(--text); font-family: 'Plus Jakarta Sans', sans-serif;
+            font-size: 0.93rem; outline: none; transition: all 0.2s;
+        }
+        .fi:focus { border-color: var(--blue); background: #fff; box-shadow: 0 0 0 3px rgba(37,99,235,0.12); }
+        .fi::placeholder { color: var(--text3); }
+        .fi.pr { padding-right: 42px; }
+
+        .feye {
+            position: absolute; right: 11px; top: 50%; transform: translateY(-50%);
+            background: none; border: none; color: var(--text3);
+            cursor: pointer; font-size: 0.85rem; padding: 4px; transition: color 0.2s; line-height: 1;
+        }
+        .feye:hover { color: var(--text2); }
+
+        /* Strength bar */
+        .sbar { display: flex; gap: 4px; margin-top: 6px; }
+        .ss { flex: 1; height: 3px; border-radius: 100px; background: var(--border); transition: background 0.3s; }
+        .ss.weak { background: #f87171; }
+        .ss.med  { background: #fbbf24; }
+        .ss.str  { background: #34d399; }
+
+        /* Extras */
+        .fex { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-bottom: 1.3rem; }
+        .rem { display: flex; align-items: center; gap: 7px; font-size: 0.84rem; color: var(--text2); cursor: pointer; user-select: none; }
+        .rem input { accent-color: var(--blue); width: 15px; height: 15px; cursor: pointer; }
+        .fgt { font-size: 0.84rem; color: var(--blue); text-decoration: none; font-weight: 500; transition: color 0.2s; }
+        .fgt:hover { color: var(--blue-dk); }
+
+        /* Button */
+        .btn {
+            width: 100%; padding: 12px;
+            background: var(--blue);
+            border: none; border-radius: 10px;
+            color: #fff; font-family: 'Plus Jakarta Sans', sans-serif;
+            font-weight: 700; font-size: 0.95rem;
+            cursor: pointer; transition: all 0.2s;
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+        }
+        .btn:hover { background: var(--blue-dk); transform: translateY(-1px); box-shadow: 0 6px 20px rgba(37,99,235,0.35); }
+        .btn:active { transform: none; box-shadow: none; }
+        .btn.loading { pointer-events: none; opacity: 0.75; }
+        .spin { display: none; width: 15px; height: 15px; border: 2px solid rgba(255,255,255,0.4); border-top-color: #fff; border-radius: 50%; animation: spin 0.65s linear infinite; }
+        .btn.loading .spin { display: block; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .sec { display: flex; align-items: center; justify-content: center; gap: 5px; margin-top: 1rem; font-size: 0.74rem; color: var(--text3); }
+        .fver { text-align: center; margin-top: 1.25rem; font-size: 0.74rem; color: var(--text3); }
+
+        /* Responsive */
+        @media (max-width: 420px) {
+            .fcard { padding: 1.4rem; border-radius: 16px; }
+            .page { padding: 1.5rem 1rem; align-items: flex-start; padding-top: 2.5rem; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="page">
+    <div class="lwrap">
+
+        <!-- Brand -->
+        <div class="top-brand">
+            <div class="t-logo">
+    <img src="{{ url_for('static', filename='images/icons/hcp-logo.png') }}" 
+         alt="Logo" style="width:75px; height:75px; object-fit:contain;">
+</div>
+        </div>
+
+       
+        <div class="fcard">
+
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                    <div class="alert alert-{{ category }}">
+                        {% if category == 'danger' %}⚠️{% elif category == 'success' %}✅{% elif category == 'warning' %}⏳{% else %}ℹ️{% endif %}
+                        {{ message }}
+                    </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
+            <form method="POST" id="loginForm" autocomplete="on" novalidate>
+
+                <div class="fg">
+                    <label class="fl" for="username">Username / Email / Employee Code</label>
+                    <div class="fi-wrap">
+                        <span class="fic">👤</span>
+                        <input type="text" id="username" name="username" class="fi"
+                            placeholder="Username, email or EMP-XXXX"
+                            autocomplete="username" required autofocus>
+                    </div>
+                </div>
+
+                <div class="fg">
+                    <label class="fl" for="password">Password</label>
+                    <div class="fi-wrap">
+                        <span class="fic">🔑</span>
+                        <input type="password" id="password" name="password" class="fi pr"
+                            placeholder="Enter your password"
+                            autocomplete="current-password" required
+                            oninput="chkStr(this.value)">
+                        <button type="button" class="feye" onclick="togPwd()" id="eyeBtn">👁️</button>
+                    </div>
+                    <div class="sbar" id="sbar" style="display:none;">
+                        <div class="ss" id="s1"></div>
+                        <div class="ss" id="s2"></div>
+                        <div class="ss" id="s3"></div>
+                        <div class="ss" id="s4"></div>
+                    </div>
+                </div>
+
+                <div class="fex">
+                    <label class="rem">
+                        <input type="checkbox" name="remember"> Remember me
+                    </label>
+                    <a href="#" class="fgt">Forgot password?</a>
+                </div>
+
+                <button type="submit" class="btn" id="sbtn">
+                    <div class="spin"></div>
+                    <span id="btxt">Sign In →</span>
+                </button>
+            </form>
+
+            <div class="sec">🔒 Protected with 256-bit SSL encryption</div>
+        </div>
+
+        <div class="fver">Manufacturing ERP v1.0 &nbsp;·&nbsp; Need help? Contact admin</div>
+    </div>
+</div>
+
+<script>
+    function togPwd(){
+        const f=document.getElementById('password'), b=document.getElementById('eyeBtn');
+        f.type = f.type==='password' ? 'text' : 'password';
+        b.textContent = f.type==='password' ? '👁️' : '🙈';
+    }
+    function chkStr(v){
+        const bar=document.getElementById('sbar');
+        if(!v){bar.style.display='none';return;}
+        bar.style.display='flex';
+        const ss=[document.getElementById('s1'),document.getElementById('s2'),document.getElementById('s3'),document.getElementById('s4')];
+        ss.forEach(s=>s.className='ss');
+        let sc=0;
+        if(v.length>=6)sc++;
+        if(v.length>=10)sc++;
+        if(/[A-Z]/.test(v)&&/[0-9]/.test(v))sc++;
+        if(/[^A-Za-z0-9]/.test(v))sc++;
+        const cl=sc<=1?'weak':sc<=2?'med':'str';
+        for(let i=0;i<sc;i++)ss[i].classList.add(cl);
+    }
+    document.getElementById('loginForm').addEventListener('submit', function(e){
+        const u=document.getElementById('username').value.trim();
+        const p=document.getElementById('password').value;
+        if(!u||!p){e.preventDefault();return;}
+        document.getElementById('sbtn').classList.add('loading');
+        document.getElementById('btxt').textContent='Signing in…';
+    });
+</script>
+</body>
+</html>

@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block title %}{{ employee.full_name }}{% endblock %}
+{% block page_title %}Employee Profile{% endblock %}
+{% block bread %}HR / Employees / View{% endblock %}
+
+{% block content %}
+<div class="page-hdr">
+    <div style="display:flex;align-items:center;gap:1rem;">
+        {% if employee.profile_photo %}
+        <img src="{{ employee.profile_photo }}" style="width:56px;height:56px;border-radius:50%;object-fit:cover;border:3px solid var(--blue);" alt="">
+        {% else %}
+        <span style="width:56px;height:56px;border-radius:50%;background:#6366f1;color:#fff;display:flex;align-items:center;justify-content:center;font-size:1.3rem;font-weight:800;">{{ employee.full_name[:2]|upper }}</span>
+        {% endif %}
+        <div>
+            <h1 style="font-size:1.3rem;">{{ employee.full_name }}</h1>
+            <p style="font-size:.78rem;color:var(--text3);">{{ employee.employee_code }} · {{ employee.designation or 'N/A' }} · {{ employee.department or 'N/A' }}</p>
+        </div>
+    </div>
+    <div style="display:flex;gap:.5rem;">
+        {% if perm.can_edit %}
+        <a href="{{ url_for('hr.emp_edit', id=employee.id) }}" class="btn-primary" style="font-size:.82rem;">✏️ Edit</a>
+        {% endif %}
+        <a href="{{ url_for('hr.employees') }}" class="btn-outline" style="font-size:.82rem;">← Back</a>
+    </div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr 280px;gap:1rem;">
+
+    <div class="card">
+        <div style="padding:.7rem 1rem;border-bottom:1px solid var(--border);font-size:.83rem;font-weight:800;">👤 Basic Info</div>
+        <div style="padding:1rem;">
+            {% for label, val in [
+                ('Employee Code', employee.employee_code),
+                ('Mobile', employee.mobile),
+                ('Email', employee.email),
+                ('Gender', employee.gender),
+                ('Employee Type', employee.employee_type),
+                ('Date of Joining', employee.date_of_joining.strftime('%d %b %Y') if employee.date_of_joining else '—'),
+                ('Location', employee.location),
+                ('Department', employee.department),
+                ('Designation', employee.designation),
+            ] %}
+            <div style="display:flex;padding:.45rem 0;border-bottom:1px solid #f1f5f9;">
+                <span style="width:140px;font-size:.78rem;color:var(--text3);font-weight:600;flex-shrink:0;">{{ label }}</span>
+                <span style="font-size:.83rem;font-weight:600;">{{ val or '—' }}</span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="card">
+        <div style="padding:.7rem 1rem;border-bottom:1px solid var(--border);font-size:.83rem;font-weight:800;">🪪 Personal Info</div>
+        <div style="padding:1rem;">
+            {% for label, val in [
+                ('Date of Birth', employee.date_of_birth.strftime('%d %b %Y') if employee.date_of_birth else '—'),
+                ('Blood Group', employee.blood_group),
+                ('Marital Status', employee.marital_status),
+                ('LinkedIn', employee.linkedin),
+                ('Facebook', employee.facebook),
+                ('Is Contractor', 'Yes' if employee.is_contractor else 'No'),
+                ('Status', employee.status|replace('_',' ')|capitalize),
+                ('Is Block', 'Yes' if employee.is_block else 'No'),
+                ('Is Late', 'Yes' if employee.is_late else 'No'),
+                ('Is Probation', 'Yes' if employee.is_probation else 'No'),
+            ] %}
+            <div style="display:flex;padding:.45rem 0;border-bottom:1px solid #f1f5f9;">
+                <span style="width:140px;font-size:.78rem;color:var(--text3);font-weight:600;flex-shrink:0;">{{ label }}</span>
+                <span style="font-size:.83rem;font-weight:600;">{{ val or '—' }}</span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:1rem;">
+        {% if employee.qr_code_base64 %}
+        <div class="card" style="text-align:center;padding:1.25rem;">
+            <div style="font-size:.8rem;font-weight:800;margin-bottom:.75rem;">🔲 QR Code</div>
+            <img src="{{ employee.qr_code_base64 }}" style="width:160px;height:160px;border:2px solid var(--border);border-radius:10px;" alt="QR">
+            <div style="font-size:.78rem;font-weight:800;color:var(--blue);margin-top:.5rem;">{{ employee.employee_code }}</div>
+        </div>
+        {% endif %}
+        {% if employee.remark %}
+        <div class="card" style="padding:1rem;">
+            <div style="font-size:.8rem;font-weight:800;margin-bottom:.5rem;">📝 Remark</div>
+            <p style="font-size:.83rem;color:var(--text2);">{{ employee.remark }}</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

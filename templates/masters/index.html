@@ -1,0 +1,213 @@
+{% extends "base.html" %}
+{% block title %}Lead Masters{% endblock %}
+{% block page_title %}Lead Masters{% endblock %}
+{% block bread %}CRM / Masters{% endblock %}
+
+{% block extra_css %}
+.master-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.2rem; }
+@media(max-width:900px){ .master-grid { grid-template-columns: 1fr; } }
+
+.master-card { border-radius: 14px; border: 1.5px solid var(--border); overflow: hidden; background: #fff; }
+.master-card-hdr {
+    padding: .75rem 1rem; display: flex; align-items: center; justify-content: space-between;
+    border-bottom: 2px solid var(--border);
+}
+.master-card-hdr.status-hdr   { background: #eff6ff; border-color: #bfdbfe; }
+.master-card-hdr.source-hdr   { background: #f0fdf4; border-color: #86efac; }
+.master-card-hdr.category-hdr { background: #fef9c3; border-color: #fde68a; }
+.master-card-hdr.range-hdr    { background: #fdf4ff; border-color: #e9d5ff; }
+
+.master-hdr-title { font-size: .9rem; font-weight: 800; }
+.master-row {
+    display: flex; align-items: center; gap: .6rem;
+    padding: .55rem 1rem; border-bottom: 1px solid #f1f5f9;
+    transition: background .12s;
+}
+.master-row:last-child { border-bottom: none; }
+.master-row:hover { background: #f8fafc; }
+.master-row.inactive { opacity: .5; }
+
+.color-dot { width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0; }
+.master-icon { font-size: .95rem; flex-shrink: 0; width: 22px; text-align: center; }
+.master-name { flex: 1; font-size: .85rem; font-weight: 600; }
+.master-order { font-size: .72rem; color: var(--text3); margin-right: 4px; }
+
+.row-actions { display: flex; gap: 4px; opacity: 0; transition: opacity .15s; }
+.master-row:hover .row-actions { opacity: 1; }
+.row-btn {
+    padding: 3px 8px; border-radius: 6px; font-size: .72rem;
+    font-weight: 600; cursor: pointer; border: 1.5px solid transparent;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+}
+.row-btn-edit   { background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; }
+.row-btn-del    { background: #fee2e2; color: #dc2626; border-color: #fecaca; }
+.row-btn-toggle { background: #f1f5f9; color: #64748b; border-color: #e2e8f0; }
+
+/* Add form inside card */
+.add-form-wrap {
+    padding: .75rem 1rem; background: #f8fafc;
+    border-top: 1.5px dashed var(--border);
+}
+.add-form-row { display: flex; gap: .5rem; align-items: flex-end; flex-wrap: wrap; }
+.add-form-row .fi { height: 36px; padding: 6px 10px; font-size: .83rem; flex: 1; min-width: 100px; }
+.add-form-row .fi-sm { width: 60px; flex: unset; }
+.add-form-row .fi-color { width: 50px; height: 36px; padding: 2px; flex: unset; cursor: pointer; }
+.add-form-submit {
+    padding: 7px 16px; background: var(--blue); color: #fff;
+    border: none; border-radius: 9px; font-size: .82rem;
+    font-weight: 700; cursor: pointer; font-family: 'Plus Jakarta Sans', sans-serif;
+    white-space: nowrap; height: 36px;
+}
+.add-form-submit:hover { background: #1d4ed8; }
+
+/* Edit modal */
+.edit-modal-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,.4); z-index: 1000;
+    align-items: center; justify-content: center;
+}
+.edit-modal-overlay.show { display: flex; }
+.edit-modal {
+    background: #fff; border-radius: 16px; padding: 1.5rem;
+    width: 420px; max-width: 95vw;
+    box-shadow: 0 20px 60px rgba(0,0,0,.2);
+}
+.edit-modal h3 { font-size: .95rem; font-weight: 800; margin-bottom: 1rem; }
+.edit-modal .fg { margin-bottom: .75rem; }
+.edit-modal-actions { display: flex; gap: .5rem; justify-content: flex-end; margin-top: 1rem; }
+{% endblock %}
+
+{% block content %}
+<div class="page-hdr">
+    <div>
+        <h1 style="font-size:1.2rem;">⚙️ Lead Masters</h1>
+        <p style="font-size:.78rem;color:var(--text3);">Manage dropdown values for Lead form</p>
+    </div>
+</div>
+
+<div class="master-grid">
+
+{% for mtype, items in data.items() %}
+{% set labels = {'status':'Lead Status','source':'Lead Source','category':'Lead Category','range':'Product Range'} %}
+{% set hdrcls = {'status':'status-hdr','source':'source-hdr','category':'category-hdr','range':'range-hdr'} %}
+{% set icons  = {'status':'🔵','source':'📌','category':'🏷️','range':'📦'} %}
+<div class="master-card" id="{{ mtype }}">
+    <div class="master-card-hdr {{ hdrcls[mtype] }}">
+        <span class="master-hdr-title">{{ icons[mtype] }} {{ labels[mtype] }}</span>
+        <span style="font-size:.72rem;color:var(--text3);">{{ items|length }} items</span>
+    </div>
+
+    <!-- Items list -->
+    <div>
+        {% for item in items %}
+        <div class="master-row {{ 'inactive' if not item.is_active }}">
+            {% if mtype == 'status' %}
+            <span class="color-dot" style="background:{{ item.color }};"></span>
+            {% endif %}
+            <span class="master-icon">{{ item.icon }}</span>
+            <span class="master-name">{{ item.name }}</span>
+            <span class="master-order">#{{ item.sort_order }}</span>
+            <div class="row-actions">
+                <button class="row-btn row-btn-edit"
+                    onclick="openEdit('{{ mtype }}',{{ item.id }},'{{ item.name }}','{{ item.icon }}',{{ item.sort_order }},'{{ item.color if mtype=='status' else '' }}',{{ item.is_active|lower }})">
+                    ✏️ Edit
+                </button>
+                <form method="POST" action="{{ url_for('masters.toggle', mtype=mtype, id=item.id) }}"
+                    style="display:inline;" onsubmit="return true;">
+                    <button class="row-btn row-btn-toggle" type="submit">
+                        {{ '✅' if item.is_active else '⛔' }}
+                    </button>
+                </form>
+                <form method="POST" action="{{ url_for('masters.delete', mtype=mtype, id=item.id) }}"
+                    style="display:inline;"
+                    onsubmit="return confirm('Delete {{ item.name }}?')">
+                    <button class="row-btn row-btn-del" type="submit">🗑️</button>
+                </form>
+            </div>
+        </div>
+        {% else %}
+        <div style="padding:.75rem 1rem; text-align:center; color:var(--text3); font-size:.82rem;">
+            No items yet. Add one below.
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Add new form -->
+    <div class="add-form-wrap">
+        <form method="POST" action="{{ url_for('masters.add', mtype=mtype) }}">
+            <div class="add-form-row">
+                <input type="text" name="name" class="fi" placeholder="Add new {{ labels[mtype] }}..." required>
+                <input type="text" name="icon" class="fi fi-sm" placeholder="🔵" maxlength="4">
+                {% if mtype == 'status' %}
+                <input type="color" name="color" class="fi fi-color" value="#6b7280" title="Status color">
+                {% endif %}
+                <input type="number" name="sort_order" class="fi fi-sm" placeholder="0" value="0" min="0">
+                <label style="display:flex;align-items:center;gap:4px;font-size:.78rem;font-weight:600;cursor:pointer;">
+                    <input type="checkbox" name="is_active" checked> Active
+                </label>
+                <button type="submit" class="add-form-submit">＋ Add</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endfor %}
+
+</div>
+
+<!-- Edit Modal -->
+<div class="edit-modal-overlay" id="editModal" onclick="if(event.target===this)closeEdit()">
+    <div class="edit-modal">
+        <h3>✏️ Edit <span id="editModalTitle"></span></h3>
+        <form id="editForm" method="POST">
+            <div class="fg">
+                <label class="fl">Name *</label>
+                <input type="text" name="name" id="editName" class="fi" required>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:.6rem;">
+                <div class="fg">
+                    <label class="fl">Icon / Emoji</label>
+                    <input type="text" name="icon" id="editIcon" class="fi" maxlength="4" placeholder="🔵">
+                </div>
+                <div class="fg">
+                    <label class="fl">Sort Order</label>
+                    <input type="number" name="sort_order" id="editOrder" class="fi" min="0">
+                </div>
+            </div>
+            <div class="fg" id="editColorRow" style="display:none;">
+                <label class="fl">Status Color</label>
+                <input type="color" name="color" id="editColor" class="fi" style="height:40px;padding:3px;">
+            </div>
+            <div class="fg">
+                <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:.83rem;font-weight:600;">
+                    <input type="checkbox" name="is_active" id="editActive"> Active
+                </label>
+            </div>
+            <div class="edit-modal-actions">
+                <button type="button" class="btn-outline" onclick="closeEdit()">Cancel</button>
+                <button type="submit" class="btn-primary">💾 Save</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function openEdit(mtype, id, name, icon, order, color, isActive) {
+    document.getElementById('editModalTitle').textContent =
+        {status:'Lead Status',source:'Lead Source',category:'Lead Category',range:'Product Range'}[mtype];
+    document.getElementById('editForm').action = `/masters/${mtype}/${id}/edit`;
+    document.getElementById('editName').value  = name;
+    document.getElementById('editIcon').value  = icon;
+    document.getElementById('editOrder').value = order;
+    document.getElementById('editActive').checked = isActive;
+    const colorRow = document.getElementById('editColorRow');
+    if (mtype === 'status') {
+        colorRow.style.display = 'block';
+        document.getElementById('editColor').value = color || '#6b7280';
+    } else { colorRow.style.display = 'none'; }
+    document.getElementById('editModal').classList.add('show');
+}
+function closeEdit() {
+    document.getElementById('editModal').classList.remove('show');
+}
+</script>
+{% endblock %}

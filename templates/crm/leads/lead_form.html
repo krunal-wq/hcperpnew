@@ -1,0 +1,412 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit' if lead else 'Add' }} Lead{% endblock %}
+{% block page_title %}{{ 'Edit' if lead else 'Add' }} Lead{% endblock %}
+{% block bread %}CRM / Leads / {{ 'Edit' if lead else 'Add' }}{% endblock %}
+
+{% block extra_css %}
+.team-chip {
+    display:inline-flex;align-items:center;gap:5px;padding:5px 12px;
+    border:1.5px solid var(--border);border-radius:20px;cursor:pointer;
+    font-size:.8rem;font-weight:500;transition:all .15s;user-select:none;background:#fff;
+}
+.team-chip:has(input:checked){background:#eff6ff;border-color:var(--blue);color:var(--blue);font-weight:600;}
+.team-chip input{accent-color:var(--blue);width:13px;height:13px;}
+.card-hdr-sm{padding:.7rem 1rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.card-body-sm{padding:.85rem 1rem;}
+
+/* Tag chips */
+.tag-input-wrap{display:flex;flex-wrap:wrap;align-items:center;gap:5px;min-height:40px;padding:5px 10px;border:1.5px solid var(--border);border-radius:9px;background:#fff;cursor:text;transition:border-color .2s;}
+.tag-input-wrap:focus-within{border-color:var(--blue);box-shadow:0 0 0 3px rgba(59,130,246,.1);}
+.tag-chip{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:20px;font-size:.78rem;font-weight:600;color:#1e40af;white-space:nowrap;}
+.tag-chip .tag-x{cursor:pointer;color:#93c5fd;font-size:.85rem;font-weight:800;line-height:1;padding:0 1px;transition:color .1s;}
+.tag-chip .tag-x:hover{color:#dc2626;}
+.tag-typer{border:none;outline:none;background:transparent;font-family:'Plus Jakarta Sans',sans-serif;font-size:.85rem;color:var(--text);flex:1;min-width:120px;padding:2px 0;}
+
+/* Select with + button */
+.select-with-add { display:flex; gap:6px; align-items:stretch; }
+.select-with-add .sd-wrap { flex:1; min-width:0; }
+.quick-add-btn {
+    padding: 0 11px; background: #f0fdf4; border: 1.5px solid #86efac;
+    border-radius: 9px; color: #16a34a; font-size: 1rem; font-weight: 800;
+    cursor: pointer; flex-shrink: 0; display:flex;align-items:center;justify-content:center;
+    transition: all .15s; line-height:1;
+}
+.quick-add-btn:hover { background: #dcfce7; }
+
+/* Quick-add popup */
+.qa-popup {
+    display:none; position:fixed; z-index:99999;
+    background:#fff; border:1.5px solid var(--border); border-radius:12px;
+    padding:1rem; width:280px;
+    box-shadow:0 8px 30px rgba(0,0,0,.18);
+}
+.qa-popup.show { display:block; }
+.qa-popup h4 { font-size:.82rem; font-weight:800; margin-bottom:.65rem; color:var(--text); }
+.qa-popup-row { display:flex; gap:6px; }
+.qa-popup-row input { flex:1; }
+.qa-popup-add {
+    padding:7px 14px; background:var(--blue); color:#fff;
+    border:none; border-radius:8px; font-size:.82rem; font-weight:700;
+    cursor:pointer; font-family:'Plus Jakarta Sans',sans-serif; white-space:nowrap;
+}
+.qa-popup-add:hover { background:#1d4ed8; }
+.qa-popup-close {
+    position:absolute; top:8px; right:10px;
+    font-size:.9rem; color:var(--text3); cursor:pointer; font-weight:700;
+}
+{% endblock %}
+
+{% block content %}
+
+<div class="page-hdr">
+    <div>
+        <h1 style="font-size:1.2rem;">{{ '✏️ Edit Lead' if lead else '➕ Add New Lead' }}</h1>
+        <p style="font-size:.78rem;color:var(--text3);margin-top:2px;">{{ 'Update lead information below' if lead else 'Fill in the details to add a new lead' }}</p>
+    </div>
+    <a href="{{ url_for('crm.leads') }}" class="btn-outline" style="font-size:.82rem;">← Back</a>
+</div>
+
+<form method="POST" id="leadForm">
+
+    <!-- Lead Settings Strip -->
+    <div class="card" style="margin-bottom:.9rem;">
+        <div class="card-hdr-sm"><span class="card-title" style="font-size:.83rem;">⚙️ Lead Settings</span></div>
+        <div class="card-body-sm">
+            <div class="fgrid-4" style="margin-bottom:.65rem;">
+
+                <!-- Status -->
+                <div class="fg">
+                    <label class="fl">Status</label>
+                    <div class="select-with-add">
+                        <select name="status" id="sel_status" class="fi sd">
+                            <option value="">Select Status</option>
+                            {% for s in lead_statuses %}
+                            <option value="{{ s.name }}" {{ 'selected' if lead and lead.status==s.name }}
+                                data-color="{{ s.color }}">{{ s.icon }} {{ s.name }}</option>
+                            {% endfor %}
+                            {% if not lead_statuses %}
+                            <option value="open" {{ 'selected' if not lead or lead.status=='open' }}>🔵 Open</option>
+                            <option value="in_process" {{ 'selected' if lead and lead.status=='in_process' }}>🟡 In Process</option>
+                            <option value="close" {{ 'selected' if lead and lead.status=='close' }}>🟢 Close</option>
+                            <option value="cancel" {{ 'selected' if lead and lead.status=='cancel' }}>🔴 Cancel</option>
+                            {% endif %}
+                        </select>
+                        <button type="button" class="quick-add-btn" onclick="openQA('status',this)" title="Add new status">＋</button>
+                    </div>
+                </div>
+
+                <!-- Source -->
+                <div class="fg">
+                    <label class="fl">Source</label>
+                    <div class="select-with-add">
+                        <select name="source" id="sel_source" class="fi sd">
+                            <option value="">Select Source</option>
+                            {% for s in lead_sources %}
+                            <option value="{{ s.name }}" {{ 'selected' if lead and lead.source==s.name }}>{{ s.icon }} {{ s.name }}</option>
+                            {% endfor %}
+                            {% if not lead_sources %}
+                            {% for s in ['HCP Website','Pharma Hopper','Just Dial','India Mart','Trade India','Referral','Cold Call','Exhibition','Social Media','WhatsApp','Email','Other'] %}
+                            <option value="{{ s }}" {{ 'selected' if lead and lead.source==s }}>{{ s }}</option>
+                            {% endfor %}
+                            {% endif %}
+                        </select>
+                        <button type="button" class="quick-add-btn" onclick="openQA('source',this)" title="Add new source">＋</button>
+                    </div>
+                </div>
+
+                <!-- Tags -->
+                <div class="fg">
+                    <label class="fl">Tags</label>
+                    <input type="hidden" name="tags" id="tagsHidden" value="{{ lead.tags if lead else '' }}">
+                    <div class="tag-input-wrap" id="tagWrap" onclick="document.getElementById('tagTyper').focus()">
+                        <div id="tagChips"></div>
+                        <input type="text" id="tagTyper" class="tag-typer" placeholder="Type + Enter...">
+                    </div>
+                </div>
+
+                <!-- Team Members -->
+                <div class="fg">
+                    <label class="fl">Team Members</label>
+                    <div style="display:flex;flex-wrap:wrap;gap:.35rem;padding-top:4px;">
+                        {% for u in all_users %}
+                        <label class="team-chip">
+                            <input type="checkbox" name="team_members[]" value="{{ u.id }}"
+                                {% if lead and u.id in lead.get_team_member_ids() %}checked{% endif %}>
+                            {{ u.full_name }}
+                        </label>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main 2-column panels -->
+    <div class="form-panels">
+
+        <!-- LEFT: Lead / Contact Info -->
+        <div class="card">
+            <div class="card-hdr-sm"><span class="card-title" style="font-size:.83rem;">👤 Lead Information</span></div>
+            <div class="card-body-sm">
+
+                <div class="fsec">Contact Details</div>
+                <div class="fgrid-2" style="margin-bottom:.7rem;">
+                    <div class="fg">
+                        <label class="fl">Name *</label>
+                        <input type="text" name="name" class="fi" required
+                            value="{{ lead.contact_name if lead else '' }}" placeholder="Contact person name">
+                    </div>
+                    <div class="fg">
+                        <label class="fl">Position</label>
+                        <input type="text" name="position" class="fi"
+                            value="{{ lead.position if lead else '' }}" placeholder="CEO, Manager...">
+                    </div>
+                    <div class="fg">
+                        <label class="fl">Mobile *</label>
+                        <input type="text" name="mobile" class="fi"
+                            value="{{ lead.phone if lead else '' }}" placeholder="9999999999">
+                    </div>
+                    <div class="fg">
+                        <label class="fl">Alt. Mobile</label>
+                        <input type="text" name="alternate_mobile" class="fi"
+                            value="{{ lead.alternate_mobile if lead else '' }}" placeholder="Alternate number">
+                    </div>
+                    <div class="fg">
+                        <label class="fl">Email</label>
+                        <input type="email" name="email" class="fi"
+                            value="{{ lead.email if lead else '' }}" placeholder="email@company.com">
+                    </div>
+                    <div class="fg">
+                        <label class="fl">Website</label>
+                        <input type="text" name="website" class="fi"
+                            value="{{ lead.website if lead else '' }}" placeholder="www.company.com">
+                    </div>
+                </div>
+
+                <div class="fsec">Company & Address</div>
+                <div class="frow">
+                    <label class="fl">Company Name</label>
+                    <input type="text" name="company" class="fi"
+                        value="{{ lead.company_name if lead else '' }}" placeholder="Company name">
+                </div>
+                <div class="frow">
+                    <label class="fl">Address</label>
+                    <textarea name="address" class="fi" rows="2" placeholder="Street address">{{ lead.address if lead else '' }}</textarea>
+                </div>
+                <div class="fgrid-2" style="margin-bottom:.7rem;">
+                    <div class="fg"><label class="fl">City</label><input type="text" name="city" class="fi" value="{{ lead.city if lead else '' }}" placeholder="City"></div>
+                    <div class="fg"><label class="fl">State</label><input type="text" name="state" class="fi" value="{{ lead.state if lead else '' }}" placeholder="State"></div>
+                    <div class="fg"><label class="fl">Country</label><input type="text" name="country" class="fi" value="{{ lead.country if lead else 'India' }}"></div>
+                    <div class="fg"><label class="fl">Zip Code</label><input type="text" name="zip_code" class="fi" value="{{ lead.zip_code if lead else '' }}" placeholder="Pincode"></div>
+                </div>
+
+                <div class="fsec">Other</div>
+                <div class="fgrid-2">
+                    <div class="fg">
+                        <label class="fl">Average Cost (₹)</label>
+                        <input type="number" name="average_cost" class="fi" step="0.01"
+                            value="{{ lead.average_cost if lead else '' }}" placeholder="0.00">
+                    </div>
+                    <div class="fg">
+                        <label class="fl">Link to Client Master</label>
+                        <select name="client_id" id="sel_client" class="fi sd">
+                            <option value="">— No client linked —</option>
+                            {% for c in clients %}
+                            <option value="{{ c.id }}" {{ 'selected' if lead and lead.client_id==c.id }}>
+                                {{ c.contact_name }}{% if c.company_name %} — {{ c.company_name }}{% endif %}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- RIGHT: Requirement Info -->
+        <div class="card">
+            <div class="card-hdr-sm"><span class="card-title" style="font-size:.83rem;">📦 Requirement Information</span></div>
+            <div class="card-body-sm">
+
+                <div class="fsec">Product Details</div>
+                <div class="frow">
+                    <label class="fl">Product Name</label>
+                    <input type="text" name="product_name" class="fi"
+                        value="{{ lead.product_name if lead else '' }}" placeholder="Product name">
+                </div>
+                <div class="fgrid-2" style="margin-bottom:.7rem;">
+                    <div class="fg">
+                        <label class="fl">Category</label>
+                        <div class="select-with-add">
+                            <select name="category" id="sel_category" class="fi sd">
+                                <option value="">Select Category</option>
+                                {% for cat in lead_categories %}
+                                <option value="{{ cat.name }}" {{ 'selected' if lead and lead.category==cat.name }}>{{ cat.icon }} {{ cat.name }}</option>
+                                {% endfor %}
+                                {% if not lead_categories %}
+                                {% for cat in ['Skin Care','Hair Care','Body Care','Oral Care','Baby Care','Cosmetics','Pharmaceuticals','Other'] %}
+                                <option value="{{ cat }}" {{ 'selected' if lead and lead.category==cat }}>{{ cat }}</option>
+                                {% endfor %}
+                                {% endif %}
+                            </select>
+                            <button type="button" class="quick-add-btn" onclick="openQA('category',this)" title="Add new category">＋</button>
+                        </div>
+                    </div>
+                    <div class="fg">
+                        <label class="fl">Product Range</label>
+                        <div class="select-with-add">
+                            <select name="product_range" id="sel_range" class="fi sd">
+                                <option value="">Select Range</option>
+                                {% for r in product_ranges %}
+                                <option value="{{ r.name }}" {{ 'selected' if lead and lead.product_range==r.name }}>{{ r.icon }} {{ r.name }}</option>
+                                {% endfor %}
+                                {% if not product_ranges %}
+                                {% for r in ['Economy','Standard','Premium','Luxury'] %}
+                                <option value="{{ r }}" {{ 'selected' if lead and lead.product_range==r }}>{{ r }}</option>
+                                {% endfor %}
+                                {% endif %}
+                            </select>
+                            <button type="button" class="quick-add-btn" onclick="openQA('range',this)" title="Add new range">＋</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="frow">
+                    <label class="fl">Order Quantity</label>
+                    <input type="text" name="order_quantity" class="fi"
+                        value="{{ lead.order_quantity if lead else '' }}" placeholder="e.g. 500 units, 1000 pcs">
+                </div>
+
+                <div class="fsec">Specifications</div>
+                <div class="frow">
+                    <label class="fl">Requirement Specification</label>
+                    <textarea name="requirement_spec" class="fi" rows="5"
+                        placeholder="Describe product requirements in detail...">{{ lead.requirement_spec if lead else '' }}</textarea>
+                </div>
+                <div class="frow">
+                    <label class="fl">Remark</label>
+                    <textarea name="remark" class="fi" rows="3"
+                        placeholder="Additional remarks, special instructions...">{{ lead.remark if lead else '' }}</textarea>
+                </div>
+
+            </div>
+        </div>
+
+    </div><!-- /form-panels -->
+
+    <div class="form-actions">
+        <button type="submit" class="btn-primary" style="padding:10px 26px;">
+            {{ '💾 Update Lead' if lead else '✅ Save Lead' }}
+        </button>
+        <a href="{{ url_for('crm.leads') }}" class="btn-outline">Cancel</a>
+    </div>
+
+</form>
+
+<!-- Quick-Add Popup -->
+<div class="qa-popup" id="qaPopup">
+    <span class="qa-popup-close" onclick="closeQA()">✕</span>
+    <h4 id="qaTitle">Add New Item</h4>
+    <div class="qa-popup-row">
+        <input type="text" id="qaIcon" class="fi" style="width:52px;padding:6px 8px;font-size:.9rem;" placeholder="🔵" maxlength="4">
+        <input type="text" id="qaName" class="fi" placeholder="Name..." style="flex:1;">
+        <button type="button" class="qa-popup-add" onclick="submitQA()">Add</button>
+    </div>
+    <p id="qaError" style="color:#dc2626;font-size:.75rem;margin-top:6px;display:none;"></p>
+</div>
+
+
+<script>
+// ── Tag Chips ──
+const tagHidden = document.getElementById('tagsHidden');
+const tagChips  = document.getElementById('tagChips');
+const tagTyper  = document.getElementById('tagTyper');
+let tags = [];
+
+function initTags() {
+    const val = tagHidden.value.trim();
+    if (val) val.split(',').forEach(t => { const s=t.trim(); if(s) tags.push(s); });
+    renderTags();
+}
+function renderTags() {
+    tagChips.innerHTML = tags.map((t,i)=>`<span class="tag-chip">${t}<span class="tag-x" onclick="removeTag(${i})">×</span></span>`).join('');
+    tagHidden.value = tags.join(',');
+}
+function addTag(val) {
+    const s = val.trim().replace(/,+$/,'');
+    if(s && !tags.includes(s)){ tags.push(s); renderTags(); }
+    tagTyper.value='';
+}
+function removeTag(i){ tags.splice(i,1); renderTags(); tagTyper.focus(); }
+tagTyper.addEventListener('keydown', e=>{
+    if(e.key==='Enter'||e.key===','){ e.preventDefault(); addTag(tagTyper.value); }
+    else if(e.key==='Backspace'&&tagTyper.value===''&&tags.length){ tags.pop(); renderTags(); }
+});
+tagTyper.addEventListener('blur', ()=>{ if(tagTyper.value.trim()) addTag(tagTyper.value); });
+tagTyper.addEventListener('paste', e=>{
+    e.preventDefault();
+    (e.clipboardData||window.clipboardData).getData('text').split(/[,\n]+/).forEach(t=>addTag(t));
+});
+initTags();
+
+// ── Quick Add ──
+let qaType = '', qaSelectId = '';
+const selMap   = { status:'sel_status', source:'sel_source', category:'sel_category', range:'sel_range' };
+const labelMap = { status:'Lead Status', source:'Lead Source', category:'Lead Category', range:'Product Range' };
+
+function openQA(type, btn) {
+    qaType = type;
+    qaSelectId = selMap[type];
+    document.getElementById('qaTitle').textContent = '＋ Add ' + labelMap[type];
+    document.getElementById('qaName').value = '';
+    document.getElementById('qaIcon').value = '';
+    document.getElementById('qaError').style.display = 'none';
+    const popup = document.getElementById('qaPopup');
+    popup.classList.add('show');
+    const r = btn.getBoundingClientRect();
+    popup.style.top  = (r.bottom + window.scrollY + 6) + 'px';
+    popup.style.left = Math.min(r.left + window.scrollX, window.innerWidth - 300) + 'px';
+    setTimeout(()=> document.getElementById('qaName').focus(), 50);
+}
+function closeQA() { document.getElementById('qaPopup').classList.remove('show'); }
+
+async function submitQA() {
+    const name = document.getElementById('qaName').value.trim();
+    const icon = document.getElementById('qaIcon').value.trim();
+    if (!name) { showQAError('Please enter a name'); return; }
+    try {
+        const res = await fetch('/masters/quick-add', {
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ type: qaType, name, icon })
+        });
+        const data = await res.json();
+        if (data.success) {
+            // Add option to native <select> then refresh SearchDrop
+            const sel = document.getElementById(qaSelectId);
+            const displayText = (icon ? icon + ' ' : '') + name;
+            const opt = document.createElement('option');
+            opt.value = name;
+            opt.text  = displayText;
+            sel.appendChild(opt);
+            // Refresh the SearchDrop UI
+            if (sel._sdRefresh) sel._sdRefresh(name, displayText);
+            closeQA();
+        } else {
+            showQAError(data.error || 'Error adding item');
+        }
+    } catch(e) { showQAError('Network error'); }
+}
+function showQAError(msg) {
+    const el = document.getElementById('qaError');
+    el.textContent = msg; el.style.display = 'block';
+}
+
+document.addEventListener('click', e => {
+    const popup = document.getElementById('qaPopup');
+    if (popup.classList.contains('show') && !popup.contains(e.target) && !e.target.classList.contains('quick-add-btn'))
+        closeQA();
+});
+document.getElementById('qaName').addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); submitQA(); }
+});
+</script>
+{% endblock %}

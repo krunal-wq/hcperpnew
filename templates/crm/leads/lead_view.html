@@ -1,0 +1,581 @@
+{% extends "base.html" %}
+{% block title %}{{ lead.name }} — Lead View{% endblock %}
+{% block page_title %}Lead Detail{% endblock %}
+{% block bread %}CRM / Leads / {{ lead.name }}{% endblock %}
+
+{% block extra_css %}
+/* Lead Header */
+.lead-header { background:#fff; border:1.5px solid var(--border); border-radius:14px; padding:1.25rem 1.5rem; margin-bottom:1rem; }
+.lead-header-top { display:flex; align-items:flex-start; justify-content:space-between; gap:1rem; flex-wrap:wrap; margin-bottom:1rem; }
+.lead-title-block h2 { font-size:1.2rem; font-weight:800; color:var(--text); margin:0 0 4px; }
+.lead-meta { display:flex; align-items:center; gap:1rem; flex-wrap:wrap; margin-top:4px; }
+.lead-meta-item { font-size:0.8rem; color:var(--text2); display:flex; align-items:center; gap:4px; }
+.lead-actions-row { display:flex; gap:0.5rem; flex-wrap:wrap; }
+.badge-open       { background:#e8eaf0 !important; color:#374151 !important; }
+.badge-in_process { background:#1e2d5e !important; color:#fff !important; }
+.badge-close      { background:#0d9488 !important; color:#fff !important; }
+.badge-cancel     { background:#ef4444 !important; color:#fff !important; }
+
+/* Tabs */
+.tab-nav { display:flex; gap:0; border-bottom:2px solid var(--border); margin-bottom:1.25rem; flex-wrap:wrap; }
+.tab-btn { padding:10px 20px; font-size:0.85rem; font-weight:600; color:var(--text2); background:transparent; border:none; border-bottom:2px solid transparent; margin-bottom:-2px; cursor:pointer; transition:all .15s; text-decoration:none; }
+.tab-btn:hover { color:var(--blue); }
+.tab-btn.active { color:var(--blue); border-bottom-color:var(--blue); }
+.tab-pane { display:none; }
+.tab-pane.active { display:block; }
+
+/* Overview layout */
+.overview-grid { display:grid; grid-template-columns:1fr 1fr; gap:1rem; }
+.info-row { display:flex; gap:0.5rem; padding:0.45rem 0; border-bottom:1px solid var(--border); font-size:0.875rem; }
+.info-row:last-child { border-bottom:none; }
+.info-lbl { font-weight:600; color:var(--text2); min-width:160px; flex-shrink:0; }
+.info-val { color:var(--text); }
+
+/* Discussion Board */
+.disc-form { background:#f8fafc; border:1.5px solid var(--border); border-radius:12px; padding:1rem; margin-bottom:1.5rem; }
+.disc-input { width:100%; padding:10px 12px; border:1.5px solid var(--border); border-radius:9px; font-family:'Plus Jakarta Sans',sans-serif; font-size:0.88rem; resize:vertical; min-height:80px; outline:none; transition:border-color .2s; box-sizing:border-box; }
+.disc-input:focus { border-color:var(--blue); }
+.disc-item { display:flex; gap:0.85rem; padding:1rem 0; border-bottom:1px solid var(--border); }
+.disc-item:last-child { border-bottom:none; }
+.disc-avatar { width:40px; height:40px; border-radius:50%; background:var(--blue); color:#fff; font-size:0.82rem; font-weight:700; display:flex;align-items:center;justify-content:center; flex-shrink:0; }
+.disc-content { flex:1; }
+.disc-meta { font-size:0.78rem; color:var(--text3); margin-bottom:4px; }
+.disc-text { font-size:0.88rem; color:var(--text); line-height:1.5; }
+.disc-attach { margin-top:0.5rem; display:flex; flex-wrap:wrap; gap:6px; }
+.attach-chip { display:inline-flex; align-items:center; gap:4px; padding:3px 10px; background:#eff6ff; color:var(--blue); border-radius:6px; font-size:0.78rem; text-decoration:none; }
+.attach-chip:hover { background:#dbeafe; }
+
+/* Drag & Drop Zone */
+.drop-zone {
+    margin-top: 0.65rem;
+    border: 2px dashed #cbd5e1;
+    border-radius: 10px;
+    padding: 1rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all .2s;
+    background: #f8fafc;
+    position: relative;
+}
+.drop-zone.drag-over {
+    border-color: var(--blue);
+    background: #eff6ff;
+    transform: scale(1.01);
+    box-shadow: 0 0 0 3px rgba(59,130,246,.15);
+}
+.drop-zone-inner { display:flex; flex-direction:column; align-items:center; gap:4px; pointer-events:none; }
+.drop-icon { font-size: 1.4rem; }
+.drop-text { font-size: .82rem; color: var(--text2); font-weight: 500; }
+.drop-browse { color: var(--blue); text-decoration: underline; cursor: pointer; pointer-events: all; font-weight: 600; }
+.drop-hint { font-size: .72rem; color: var(--text3); }
+
+/* File preview chips */
+.file-preview-wrap {
+    display: flex; flex-wrap: wrap; gap: 6px;
+    margin-top: 0.6rem;
+}
+.file-chip {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 4px 10px; background: #eff6ff;
+    border: 1.5px solid #bfdbfe; border-radius: 20px;
+    font-size: .76rem; font-weight: 600; color: #1e40af;
+}
+.file-chip .chip-rm {
+    cursor: pointer; color: #93c5fd; font-size: .85rem; line-height: 1;
+    font-weight: 700; padding: 0 2px;
+}
+.file-chip .chip-rm:hover { color: #dc2626; }
+
+/* Activity Log */
+.activity-item { display:flex; gap:0.75rem; padding:0.85rem 0; border-bottom:1px solid var(--border); position:relative; }
+.activity-item:last-child { border-bottom:none; }
+.activity-avatar { width:36px; height:36px; border-radius:50%; background:#e2e8f0; color:var(--text2); font-size:0.78rem; font-weight:700; display:flex;align-items:center;justify-content:center; flex-shrink:0; }
+.activity-line { position:absolute; left:17px; top:52px; bottom:-10px; width:2px; background:var(--border); }
+.activity-action { font-size:0.85rem; color:var(--text); }
+.activity-when { font-size:0.75rem; color:var(--text3); margin-top:2px; }
+.time-badge { background:#f1f5f9; color:var(--text2); font-size:0.72rem; font-weight:600; padding:2px 8px; border-radius:100px; }
+
+/* Attachment List */
+.att-item { display:flex; align-items:center; gap:0.75rem; padding:0.75rem; border:1.5px solid var(--border); border-radius:10px; margin-bottom:0.5rem; }
+.att-icon { font-size:1.5rem; }
+.att-name { font-weight:600; font-size:0.88rem; color:var(--text); }
+.att-meta { font-size:0.78rem; color:var(--text3); }
+
+/* Reminders */
+.reminder-item { display:flex; align-items:start; gap:0.75rem; padding:0.85rem; border:1.5px solid var(--border); border-radius:10px; margin-bottom:0.6rem; transition:background .15s; }
+.reminder-item.done { opacity:0.55; }
+.reminder-item.overdue { border-color:#fca5a5; background:#fff7f7; }
+.reminder-check { width:20px; height:20px; accent-color:var(--blue); cursor:pointer; flex-shrink:0; margin-top:2px; }
+.reminder-title { font-weight:600; font-size:0.9rem; color:var(--text); }
+.reminder-when { font-size:0.78rem; color:var(--text2); }
+.reminder-done-txt { text-decoration:line-through; }
+
+/* Notes */
+.note-item { background:#fffbeb; border:1.5px solid #fde68a; border-radius:10px; padding:0.85rem 1rem; margin-bottom:0.6rem; }
+.note-text { font-size:0.88rem; color:var(--text); line-height:1.5; white-space:pre-wrap; }
+.note-meta { font-size:0.75rem; color:var(--text3); margin-top:6px; display:flex; align-items:center; justify-content:space-between; }
+{% endblock %}
+
+{% block content %}
+<!-- Lead Header -->
+<div class="lead-header">
+    <div class="lead-header-top">
+        <div class="lead-title-block">
+            <h2>
+                {{ lead.name }}
+                {% if lead.city %} — {{ lead.city }}{% endif %}
+                {% if lead.product_name %} — {{ lead.product_name }}{% endif %}
+                &nbsp;
+                {% if lead.status == 'open' %}<span class="badge badge-open">Open</span>
+                {% elif lead.status == 'in_process' %}<span class="badge badge-in_process">In Process</span>
+                {% elif lead.status == 'close' %}<span class="badge badge-close">Close</span>
+                {% elif lead.status == 'cancel' %}<span class="badge badge-cancel">Cancel</span>
+                {% endif %}
+            </h2>
+            <div class="lead-meta">
+                <span class="lead-meta-item">📅 Create Date: <strong>{{ lead.created_at.strftime('%d-%m-%Y %I:%M:%S %p') }}</strong></span>
+                <span class="lead-meta-item">🕐 Last Connected: <strong>
+                    {% if lead.last_contact %}{{ lead.last_contact.strftime('%d-%m-%Y') }}{% else %}—{% endif %}
+                </strong></span>
+                <span class="lead-meta-item">📌 Follow Up Date: <strong>
+                    {% if lead.follow_up_date %}{{ lead.follow_up_date.strftime('%d-%m-%Y') }}{% else %}N/A{% endif %}
+                </strong></span>
+            </div>
+        </div>
+        <div class="lead-actions-row">
+            <a href="{{ url_for('crm.lead_edit', id=lead.id) }}" class="btn-primary" style="font-size:0.83rem;">✏️ Edit Lead</a>
+            <button onclick="document.getElementById('statusModal').style.display='flex'" class="btn-outline" style="font-size:0.83rem;">🔄 Change Status</button>
+            <form method="POST" action="{{ url_for('crm.lead_delete', id=lead.id) }}" onsubmit="return confirm('Delete this lead permanently?')" style="display:inline;">
+                <button type="submit" class="btn-danger" style="font-size:0.83rem;">🗑️ Delete</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Tabs Navigation -->
+<div class="tab-nav">
+    <a href="#" class="tab-btn {% if tab=='overview' %}active{% endif %}" onclick="switchTab('overview',this); return false;">Overview</a>
+    <a href="#" class="tab-btn {% if tab=='discussion' %}active{% endif %}" onclick="switchTab('discussion',this); return false;">Discussion Board</a>
+    <a href="#" class="tab-btn {% if tab=='activity' %}active{% endif %}" onclick="switchTab('activity',this); return false;">Activity Log</a>
+    <a href="#" class="tab-btn {% if tab=='attachments' %}active{% endif %}" onclick="switchTab('attachments',this); return false;">Attachments List</a>
+    <a href="#" class="tab-btn {% if tab=='reminder' %}active{% endif %}" onclick="switchTab('reminder',this); return false;">Reminder</a>
+    <a href="#" class="tab-btn {% if tab=='notes' %}active{% endif %}" onclick="switchTab('notes',this); return false;">Personal Notes</a>
+</div>
+
+<!-- TAB 1: OVERVIEW -->
+<div id="tab-overview" class="tab-pane {% if tab=='overview' %}active{% endif %}">
+    <div class="overview-grid">
+        <!-- Lead Info -->
+        <div class="card">
+            <div class="card-hdr"><div class="card-title">Lead Information</div></div>
+            <div class="card-body">
+                <div class="info-row"><span class="info-lbl">Name</span><span class="info-val">{{ lead.name }}</span></div>
+                <div class="info-row"><span class="info-lbl">Position</span><span class="info-val">{{ lead.position or 'N/A' }}</span></div>
+                <div class="info-row"><span class="info-lbl">Email Address</span><span class="info-val"><a href="mailto:{{ lead.email }}" style="color:var(--blue);">{{ lead.email or 'N/A' }}</a></span></div>
+                <div class="info-row"><span class="info-lbl">Website</span><span class="info-val">{% if lead.website %}<a href="{{ lead.website }}" target="_blank" style="color:var(--blue);">{{ lead.website }}</a>{% else %}N/A{% endif %}</span></div>
+                <div class="info-row"><span class="info-lbl">Mobile</span><span class="info-val"><a href="tel:{{ lead.mobile }}" style="color:var(--blue);">{{ lead.mobile or 'N/A' }}</a></span></div>
+                <div class="info-row"><span class="info-lbl">Alternate Mobile</span><span class="info-val">{% if lead.alternate_mobile %}<a href="tel:{{ lead.alternate_mobile }}" style="color:var(--blue);">{{ lead.alternate_mobile }}</a>{% else %}N/A{% endif %}</span></div>
+                <div class="info-row"><span class="info-lbl">Average Cost</span><span class="info-val">{{ lead.average_cost or '0.00' }}</span></div>
+                <div class="info-row"><span class="info-lbl">Company</span><span class="info-val">{{ lead.company or 'N/A' }}</span></div>
+                <div class="info-row"><span class="info-lbl">Address</span><span class="info-val">{{ lead.address or 'N/A' }}</span></div>
+                <div class="info-row"><span class="info-lbl">City</span><span class="info-val">{{ lead.city or 'N/A' }}</span></div>
+                <div class="info-row"><span class="info-lbl">State</span><span class="info-val">{{ lead.state or 'N/A' }}</span></div>
+                <div class="info-row"><span class="info-lbl">Country</span><span class="info-val">{{ lead.country or 'N/A' }}</span></div>
+                <div class="info-row"><span class="info-lbl">Zip Code</span><span class="info-val">{{ lead.zip_code or 'N/A' }}</span></div>
+            </div>
+        </div>
+
+        <!-- Requirement Info -->
+        <div class="card">
+            <div class="card-hdr"><div class="card-title">Requirement Information</div></div>
+            <div class="card-body">
+                <div class="info-row"><span class="info-lbl">Client Attachments</span><span class="info-val">{{ lead.client_attachment or 'No Files' }}</span></div>
+                <div class="info-row"><span class="info-lbl">Product Name</span><span class="info-val">{{ lead.product_name or 'N/A' }}</span></div>
+                <div class="info-row"><span class="info-lbl">Category</span><span class="info-val">{{ lead.category or 'N/A' }}</span></div>
+                <div class="info-row"><span class="info-lbl">Requirement Spec</span><span class="info-val" style="white-space:pre-wrap;">{{ lead.requirement_spec or 'N/A' }}</span></div>
+                <div class="info-row"><span class="info-lbl">Tags</span><span class="info-val">{{ lead.tags or 'N/A' }}</span></div>
+                <div class="info-row"><span class="info-lbl">Product Range</span><span class="info-val">{{ lead.product_range or 'N/A' }}</span></div>
+                <div class="info-row"><span class="info-lbl">Order Quantity</span><span class="info-val">{{ lead.order_quantity or 'N/A' }}</span></div>
+                <div class="info-row"><span class="info-lbl">Remark</span><span class="info-val">{{ lead.remark or 'N/A' }}</span></div>
+                <div class="info-row"><span class="info-lbl">Source</span><span class="info-val">{{ lead.source or 'N/A' }}</span></div>
+                <div class="info-row"><span class="info-lbl">Created Date</span><span class="info-val">{{ lead.created_at.strftime('%d-%m-%Y %I:%M:%S %p') }}</span></div>
+                <div class="info-row"><span class="info-lbl">Last Contact</span><span class="info-val">{% if lead.last_contact %}{{ lead.last_contact.strftime('%d-%m-%Y') }}{% else %}N/A{% endif %}</span></div>
+                <div class="info-row"><span class="info-lbl">Followup Date</span><span class="info-val">{% if lead.follow_up_date %}{{ lead.follow_up_date.strftime('%d-%m-%Y') }}{% else %}N/A{% endif %}</span></div>
+                <div class="info-row">
+                    <span class="info-lbl">Team Member</span>
+                    <span class="info-val">
+                        {% set members = team_members %}
+                        {% if members %}
+                            {{ members | map(attribute='full_name') | join(', ') }}
+                        {% else %}N/A{% endif %}
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Latest Discussion Preview -->
+    {% if discussions %}
+    <div class="card" style="margin-top:1rem;">
+        <div class="card-hdr">
+            <div class="card-title">Latest Discussion</div>
+            <a href="#" class="btn-outline" style="font-size:0.78rem;padding:4px 10px;" onclick="switchTab('discussion',null); return false;">View All →</a>
+        </div>
+        <div class="card-body">
+            {% set d = discussions[0] %}
+            <div class="disc-item" style="border:none;padding:0;">
+                <div class="disc-avatar">{{ d.user.full_name[:2]|upper if d.user else 'NA' }}</div>
+                <div class="disc-content">
+                    <div class="disc-meta">{{ d.user.full_name if d.user else 'Unknown' }} · {{ d.created_at.strftime('%d-%m-%Y %H:%M') }}</div>
+                    <div class="disc-text">{{ d.comment }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- TAB 2: DISCUSSION BOARD -->
+<div id="tab-discussion" class="tab-pane {% if tab=='discussion' %}active{% endif %}">
+    <div class="card">
+        <div class="card-hdr"><div class="card-title">Discussion Board</div></div>
+        <div class="card-body">
+            <!-- Add comment form -->
+            <form method="POST" action="{{ url_for('crm.lead_discussion_add', id=lead.id) }}" enctype="multipart/form-data" id="discussionForm">
+                <div class="disc-form">
+                    <div style="display:flex;gap:0.75rem;align-items:flex-start;">
+                        <div class="disc-avatar" style="width:36px;height:36px;flex-shrink:0;">{{ current_user.full_name[:2]|upper }}</div>
+                        <div style="flex:1;min-width:0;">
+                            <textarea name="comment" class="disc-input" placeholder="Add a comment..." id="commentBox"></textarea>
+
+                            <!-- Drag & Drop Zone -->
+                            <div id="dropZone" class="drop-zone">
+                                <div class="drop-zone-inner">
+                                    <span class="drop-icon">📎</span>
+                                    <span class="drop-text">Drag & drop files here, or <label for="fileInput" class="drop-browse">browse</label></span>
+                                    <span class="drop-hint">Any file type supported</span>
+                                </div>
+                                <input type="file" name="attachments[]" multiple id="fileInput" style="display:none;" onchange="handleFiles(this.files)">
+                            </div>
+
+                            <!-- File preview chips -->
+                            <div id="filePreview" class="file-preview-wrap" style="display:none;"></div>
+
+                            <div style="display:flex;justify-content:flex-end;margin-top:0.65rem;">
+                                <button type="submit" class="btn-primary" style="font-size:0.83rem;padding:7px 20px;">💬 Post Comment</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </form>
+
+            <!-- Discussion list -->
+            {% if discussions %}
+                {% for d in discussions %}
+                <div class="disc-item">
+                    <div class="disc-avatar">{{ d.user.full_name[:2]|upper if d.user else 'NA' }}</div>
+                    <div class="disc-content">
+                        <div class="disc-meta">
+                            <strong>{{ d.user.full_name if d.user else 'Unknown' }}</strong> · {{ d.created_at.strftime('%d-%m-%Y %H:%M:%S') }}
+                        </div>
+                        <div class="disc-text">{{ d.comment }}</div>
+                        {% if d.attachments %}
+                        <div class="disc-attach">
+                            {% for att in d.attachments %}
+                            <a href="/static/{{ att.file_path }}" target="_blank" class="attach-chip">📎 {{ att.file_name }}</a>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <p style="color:var(--text3);text-align:center;padding:2rem;">No comments yet. Add first comment above.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- TAB 3: ACTIVITY LOG -->
+<div id="tab-activity" class="tab-pane {% if tab=='activity' %}active{% endif %}">
+    <div class="card">
+        <div class="card-hdr"><div class="card-title">Activity Log</div></div>
+        <div class="card-body">
+            {% if activity %}
+                {% for a in activity %}
+                <div class="activity-item">
+                    {% if loop.index < activity|length %}
+                    <div class="activity-line"></div>
+                    {% endif %}
+                    <div class="activity-avatar">{{ a.user.full_name[:2]|upper if a.user else '?' }}</div>
+                    <div>
+                        <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;">
+                            <strong style="font-size:0.88rem;">{{ a.user.full_name if a.user else 'System' }}</strong>
+                            <span class="time-badge">{{ a.created_at.strftime('%d-%m-%Y') }}</span>
+                        </div>
+                        <div class="activity-action">{{ a.action }}</div>
+                        <div class="activity-when">{{ a.created_at.strftime('%d-%m-%Y %H:%M:%S') }}</div>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <p style="color:var(--text3);text-align:center;padding:2rem;">No activity recorded yet.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- TAB 4: ATTACHMENTS -->
+<div id="tab-attachments" class="tab-pane {% if tab=='attachments' %}active{% endif %}">
+    <div class="card">
+        <div class="card-hdr">
+            <div class="card-title">Attachments List</div>
+            <small style="color:var(--text3);">Files attached in discussions appear here</small>
+        </div>
+        <div class="card-body">
+            {% if attachments %}
+                {% for att in attachments %}
+                <div class="att-item">
+                    <span class="att-icon">
+                        {% if att.file_name.endswith('.pdf') %}📄
+                        {% elif att.file_name.endswith(('.png','.jpg','.jpeg','.gif')) %}🖼️
+                        {% elif att.file_name.endswith(('.xls','.xlsx')) %}📊
+                        {% elif att.file_name.endswith(('.doc','.docx')) %}📝
+                        {% else %}📎{% endif %}
+                    </span>
+                    <div style="flex:1;">
+                        <div class="att-name">{{ att.file_name }}</div>
+                        <div class="att-meta">
+                            Uploaded by {{ att.uploader.full_name if att.uploader else 'Unknown' }}
+                            · {{ att.created_at.strftime('%d-%m-%Y %H:%M') }}
+                            {% if att.file_size %}· {{ (att.file_size / 1024)|round(1) }} KB{% endif %}
+                        </div>
+                    </div>
+                    <a href="/static/{{ att.file_path }}" target="_blank" class="btn-outline" style="font-size:0.78rem;padding:5px 10px;">Download</a>
+                </div>
+                {% endfor %}
+            {% else %}
+                <p style="color:var(--text3);text-align:center;padding:2rem;">No attachments found. Add files through Discussion Board.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- TAB 5: REMINDER (Followup) -->
+<div id="tab-reminder" class="tab-pane {% if tab=='reminder' %}active{% endif %}">
+    <div style="display:grid;grid-template-columns:1fr 350px;gap:1rem;align-items:start;">
+        <div class="card">
+            <div class="card-hdr"><div class="card-title">Reminders / Follow-ups</div></div>
+            <div class="card-body">
+                {% if reminders %}
+                    {% for r in reminders %}
+                    {% set is_overdue = r.remind_at < now and not r.is_done %}
+                    <div class="reminder-item {{ 'done' if r.is_done }} {{ 'overdue' if is_overdue }}">
+                        <form method="POST" action="{{ url_for('crm.lead_reminder_done', rid=r.id) }}" style="margin:0;">
+                            <input type="checkbox" class="reminder-check" onchange="this.form.submit()" {{ 'checked' if r.is_done }}>
+                        </form>
+                        <div style="flex:1;">
+                            <div class="reminder-title {{ 'reminder-done-txt' if r.is_done }}">{{ r.title }}</div>
+                            <div class="reminder-when">
+                                📅 {{ r.remind_at.strftime('%d-%m-%Y %H:%M') }}
+                                {% if is_overdue %}<span style="color:#dc2626;font-weight:700;"> (Overdue!)</span>{% endif %}
+                                {% if r.is_done %}<span style="color:var(--green);"> ✓ Done</span>{% endif %}
+                            </div>
+                            {% if r.description %}<div style="font-size:0.82rem;color:var(--text2);margin-top:4px;">{{ r.description }}</div>{% endif %}
+                        </div>
+                        <form method="POST" action="{{ url_for('crm.lead_reminder_delete', rid=r.id) }}" onsubmit="return confirm('Delete this reminder?')" style="margin:0;">
+                            <button type="submit" class="btn-danger" style="padding:4px 8px;font-size:0.75rem;">🗑️</button>
+                        </form>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <p style="color:var(--text3);text-align:center;padding:2rem;">No reminders set. Add one from the form.</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Add Reminder Form -->
+        <div class="card">
+            <div class="card-hdr"><div class="card-title">➕ Add Reminder</div></div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('crm.lead_reminder_add', id=lead.id) }}">
+                    <div class="fg" style="margin-bottom:0.75rem;">
+                        <label class="fl">Title *</label>
+                        <input type="text" name="title" class="fi" required placeholder="Follow up call, Send sample...">
+                    </div>
+                    <div class="fg" style="margin-bottom:0.75rem;">
+                        <label class="fl">Reminder Date & Time *</label>
+                        <input type="datetime-local" name="remind_at" class="fi" required>
+                    </div>
+                    <div class="fg" style="margin-bottom:1rem;">
+                        <label class="fl">Description</label>
+                        <textarea name="description" class="fi" rows="3" placeholder="Details..."></textarea>
+                    </div>
+                    <button type="submit" class="btn-primary" style="width:100%;">Set Reminder</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- TAB 6: PERSONAL NOTES -->
+<div id="tab-notes" class="tab-pane {% if tab=='notes' %}active{% endif %}">
+    <div style="display:grid;grid-template-columns:1fr 350px;gap:1rem;align-items:start;">
+        <div class="card">
+            <div class="card-hdr">
+                <div class="card-title">📝 Personal Notes</div>
+                <small style="color:var(--text3);">Only visible to you</small>
+            </div>
+            <div class="card-body">
+                {% if notes_list %}
+                    {% for n in notes_list %}
+                    <div class="note-item">
+                        <div class="note-text">{{ n.note }}</div>
+                        <div class="note-meta">
+                            <span>{{ n.created_at.strftime('%d-%m-%Y %H:%M') }}</span>
+                            <form method="POST" action="{{ url_for('crm.lead_note_delete', nid=n.id) }}" onsubmit="return confirm('Delete this note?')" style="margin:0;">
+                                <button type="submit" style="background:none;border:none;color:#dc2626;cursor:pointer;font-size:0.78rem;">🗑️ Delete</button>
+                            </form>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <p style="color:var(--text3);text-align:center;padding:2rem;">No personal notes yet.</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-hdr"><div class="card-title">➕ Add Note</div></div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('crm.lead_note_add', id=lead.id) }}">
+                    <textarea name="note" class="fi" rows="5" required placeholder="Write your private note here..."></textarea>
+                    <button type="submit" class="btn-primary" style="width:100%;margin-top:0.75rem;">Save Note</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Status Change Modal -->
+<div id="statusModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:1000;align-items:center;justify-content:center;">
+    <div style="background:#fff;border-radius:16px;padding:1.5rem;min-width:300px;box-shadow:0 20px 60px rgba(0,0,0,0.2);">
+        <h3 style="margin:0 0 1rem;font-size:1rem;">Change Lead Status</h3>
+        <form method="POST" action="{{ url_for('crm.lead_status_change', id=lead.id) }}">
+            <div class="fg" style="margin-bottom:1rem;">
+                <select name="status" class="fi">
+                    <option value="open"       {{ 'selected' if lead.status=='open' }}>Open</option>
+                    <option value="in_process" {{ 'selected' if lead.status=='in_process' }}>In Process</option>
+                    <option value="close"      {{ 'selected' if lead.status=='close' }}>Close</option>
+                    <option value="cancel"     {{ 'selected' if lead.status=='cancel' }}>Cancel</option>
+                </select>
+            </div>
+            <div style="display:flex;gap:0.5rem;">
+                <button type="submit" class="btn-primary" style="flex:1;">Update</button>
+                <button type="button" class="btn-outline" onclick="document.getElementById('statusModal').style.display='none'">Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+const now = new Date();
+
+function switchTab(name, el) {
+    document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('tab-' + name).classList.add('active');
+    if (el) el.classList.add('active');
+    else {
+        document.querySelectorAll('.tab-btn').forEach(b => {
+            if (b.getAttribute('onclick') && b.getAttribute('onclick').includes("'" + name + "'")) {
+                b.classList.add('active');
+            }
+        });
+    }
+    history.replaceState(null, '', '?tab=' + name);
+}
+
+// ── Drag & Drop File Upload ──
+let selectedFiles = [];
+
+const dropZone  = document.getElementById('dropZone');
+const fileInput = document.getElementById('fileInput');
+const preview   = document.getElementById('filePreview');
+
+// Click on zone opens file picker (but not on browse label — that already works)
+dropZone.addEventListener('click', (e) => {
+    if (e.target.tagName !== 'LABEL') fileInput.click();
+});
+
+// Drag events
+['dragenter','dragover'].forEach(evt => {
+    dropZone.addEventListener(evt, (e) => {
+        e.preventDefault(); e.stopPropagation();
+        dropZone.classList.add('drag-over');
+    });
+});
+['dragleave','dragend'].forEach(evt => {
+    dropZone.addEventListener(evt, (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('drag-over');
+    });
+});
+dropZone.addEventListener('drop', (e) => {
+    e.preventDefault(); e.stopPropagation();
+    dropZone.classList.remove('drag-over');
+    handleFiles(e.dataTransfer.files);
+});
+
+function handleFiles(fileList) {
+    Array.from(fileList).forEach(f => {
+        if (!selectedFiles.find(x => x.name === f.name && x.size === f.size))
+            selectedFiles.push(f);
+    });
+    syncInputFiles();
+    renderPreview();
+}
+
+function syncInputFiles() {
+    // Rebuild the file input with selected files via DataTransfer
+    const dt = new DataTransfer();
+    selectedFiles.forEach(f => dt.items.add(f));
+    fileInput.files = dt.files;
+}
+
+function renderPreview() {
+    if (selectedFiles.length === 0) {
+        preview.style.display = 'none';
+        preview.innerHTML = '';
+        return;
+    }
+    preview.style.display = 'flex';
+    preview.innerHTML = selectedFiles.map((f, i) => `
+        <span class="file-chip">
+            ${fileIcon(f.name)} ${f.name}
+            <span class="chip-rm" onclick="removeFile(${i})">✕</span>
+        </span>`).join('');
+}
+
+function removeFile(idx) {
+    selectedFiles.splice(idx, 1);
+    syncInputFiles();
+    renderPreview();
+}
+
+function fileIcon(name) {
+    const ext = name.split('.').pop().toLowerCase();
+    if (['jpg','jpeg','png','gif','webp'].includes(ext)) return '🖼️';
+    if (['pdf'].includes(ext)) return '📄';
+    if (['doc','docx'].includes(ext)) return '📝';
+    if (['xls','xlsx','csv'].includes(ext)) return '📊';
+    if (['zip','rar','7z'].includes(ext)) return '🗜️';
+    return '📎';
+}
+
+// Close modal on outside click
+document.getElementById('statusModal').addEventListener('click', function(e) {
+    if (e.target === this) this.style.display = 'none';
+});
+</script>
+{% endblock %}
