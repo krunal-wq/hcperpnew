@@ -3,108 +3,328 @@
 {% block page_title %}My Profile{% endblock %}
 {% block bread %}Profile{% endblock %}
 
+{% block extra_css %}
+.prof-tabs { display:flex; gap:6px; margin-bottom:1rem; }
+.prof-tab  { padding:8px 20px; border-radius:10px; border:1.5px solid var(--border); background:#f8fafc; color:var(--text2); font-size:.82rem; font-weight:700; cursor:pointer; transition:.15s; }
+.prof-tab.active { background:var(--blue); color:#fff; border-color:var(--blue); }
+.prof-pane { display:none; }
+.prof-pane.active { display:block; }
+.pf-grid { display:grid; grid-template-columns:1fr 1fr; gap:.75rem; }
+.pf-grid.three { grid-template-columns:1fr 1fr 1fr; }
+.pf-field { display:flex; flex-direction:column; gap:3px; }
+.pf-field label { font-size:.7rem; font-weight:700; color:var(--text3); text-transform:uppercase; letter-spacing:.04em; }
+.pf-field input, .pf-field select, .pf-field textarea {
+    padding:8px 10px; border:1.5px solid var(--border); border-radius:9px;
+    font-size:.82rem; color:var(--text); background:#fff; transition:.15s;
+}
+.pf-field input:focus, .pf-field select:focus, .pf-field textarea:focus {
+    border-color:var(--blue); outline:none; box-shadow:0 0 0 3px rgba(59,130,246,.1);
+}
+.pf-field input[readonly] { background:#f8fafc; color:var(--text3); cursor:default; }
+.pf-photo-wrap { display:flex; align-items:center; gap:1rem; margin-bottom:1rem; }
+.pf-photo { width:80px; height:80px; border-radius:50%; object-fit:cover; border:3px solid var(--border); background:#f1f5f9; display:flex; align-items:center; justify-content:center; font-size:2rem; overflow:hidden; }
+.pf-photo img { width:100%; height:100%; object-fit:cover; border-radius:50%; }
+.section-hdr { font-size:.7rem; font-weight:800; color:var(--text3); text-transform:uppercase; letter-spacing:.08em; padding:.4rem 0; border-bottom:1.5px solid var(--border); margin:.75rem 0 .5rem; grid-column:1/-1; }
+{% endblock %}
+
 {% block content %}
 <div class="page-hdr">
+  <div>
     <h1 style="font-size:1.2rem;">👤 My Profile</h1>
+    <p style="font-size:.78rem;color:var(--text3);">{{ current_user.full_name }} &nbsp;·&nbsp; {{ current_user.role|capitalize }}</p>
+  </div>
 </div>
 
-<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;max-width:860px;">
-
-    <!-- Profile Update -->
-    <div class="card">
-        <div style="padding:.7rem 1rem;border-bottom:1px solid var(--border);font-size:.83rem;font-weight:800;">✏️ Update Profile</div>
-        <div style="padding:1rem;">
-            <form method="POST">
-                <input type="hidden" name="action" value="profile">
-                <div class="frow">
-                    <label class="fl">Full Name</label>
-                    <input type="text" name="full_name" class="fi" value="{{ current_user.full_name or '' }}" required>
-                </div>
-                <div class="frow">
-                    <label class="fl">Email</label>
-                    <input type="email" name="email" class="fi" value="{{ current_user.email }}" required>
-                </div>
-                <div class="frow">
-                    <label class="fl">Username</label>
-                    <input type="text" class="fi" value="{{ current_user.username }}" readonly style="background:#f8fafc;color:var(--text3);">
-                </div>
-                <div class="frow">
-                    <label class="fl">Role</label>
-                    <input type="text" class="fi" value="{{ current_user.role|capitalize }}" readonly style="background:#f8fafc;color:var(--text3);">
-                </div>
-                <div class="form-actions" style="padding-top:.5rem;">
-                    <button type="submit" class="btn-primary" style="padding:9px 20px;">💾 Update</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <!-- Change Password -->
-    <div class="card">
-        <div style="padding:.7rem 1rem;border-bottom:1px solid var(--border);font-size:.83rem;font-weight:800;">🔑 Change Password</div>
-        <div style="padding:1rem;">
-            <form method="POST">
-                <input type="hidden" name="action" value="password">
-                <div class="frow">
-                    <label class="fl">Current Password</label>
-                    <div style="position:relative;">
-                        <input type="password" name="old_password" id="pw1" class="fi" required placeholder="Current password" style="padding-right:40px;">
-                        <button type="button" onclick="toggle('pw1')" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text3);">👁️</button>
-                    </div>
-                </div>
-                <div class="frow">
-                    <label class="fl">New Password</label>
-                    <div style="position:relative;">
-                        <input type="password" name="new_password" id="pw2" class="fi" required placeholder="Min 6 characters" style="padding-right:40px;">
-                        <button type="button" onclick="toggle('pw2')" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text3);">👁️</button>
-                    </div>
-                </div>
-                <div class="form-actions" style="padding-top:.5rem;">
-                    <button type="submit" class="btn-primary" style="padding:9px 20px;">🔑 Change</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
+<!-- Tabs -->
+<div class="prof-tabs">
+  <button class="prof-tab active" onclick="profTab('info')">👤 Profile Info</button>
+  <button class="prof-tab" onclick="profTab('password')">🔑 Change Password</button>
+  <button class="prof-tab" onclick="profTab('history')">📋 Login History</button>
 </div>
 
-<!-- Login History -->
-<div class="card" style="margin-top:1rem;max-width:860px;">
-    <div style="padding:.7rem 1rem;border-bottom:1px solid var(--border);font-size:.83rem;font-weight:800;">📋 Recent Login History</div>
-    <div style="padding:0;">
-        <table style="width:100%;border-collapse:collapse;font-size:.82rem;">
-            <thead>
-                <tr>
-                    {% for h in ['Date & Time','IP Address','Status'] %}
-                    <th style="text-align:left;padding:.5rem 1rem;font-size:.7rem;font-weight:700;color:var(--text3);text-transform:uppercase;border-bottom:1px solid var(--border);background:#f8fafc;">{{ h }}</th>
-                    {% endfor %}
-                </tr>
-            </thead>
-            <tbody>
-                {% for log in logs %}
-                <tr style="{% if not loop.last %}border-bottom:1px solid #f1f5f9;{% endif %}">
-                    <td style="padding:.55rem 1rem;">{{ log.timestamp.strftime('%d %b %Y, %I:%M %p') if log.timestamp else '—' }}</td>
-                    <td style="padding:.55rem 1rem;font-family:monospace;font-size:.8rem;">{{ log.ip_address or '—' }}</td>
-                    <td style="padding:.55rem 1rem;">
-                        <span style="padding:3px 10px;border-radius:20px;font-size:.7rem;font-weight:700;
-                            background:{{ '#dcfce7' if log.status=='success' else '#fee2e2' }};
-                            color:{{ '#16a34a' if log.status=='success' else '#dc2626' }};">
-                            {{ log.status|capitalize }}
-                        </span>
-                    </td>
-                </tr>
-                {% else %}
-                <tr><td colspan="3" style="padding:1.5rem;text-align:center;color:var(--text3);">No login history.</td></tr>
-                {% endfor %}
-            </tbody>
-        </table>
+<!-- ═══ TAB 1: Profile Info ═══ -->
+<div id="pane_info" class="prof-pane active">
+<form method="POST" enctype="multipart/form-data">
+  <input type="hidden" name="action" value="profile">
+
+  <!-- Photo + basic -->
+  <div class="card" style="padding:1.25rem;margin-bottom:1rem;">
+    <div class="pf-photo-wrap">
+      <div class="pf-photo" id="photoPreview">
+        {% if employee and employee.profile_photo %}
+          <img src="{{ employee.profile_photo }}" id="photoImg">
+        {% else %}
+          <span id="photoInitial">{{ (current_user.full_name or current_user.username)[:2]|upper }}</span>
+        {% endif %}
+      </div>
+      {% if employee %}
+      <div>
+        <label for="photoInput" class="btn-outline" style="font-size:.78rem;cursor:pointer;padding:6px 14px;">📷 Change Photo</label>
+        <input type="file" id="photoInput" accept="image/*" style="display:none;" onchange="loadPhoto(this)">
+        <input type="hidden" name="photo_base64" id="photoBase64">
+        <p style="font-size:.72rem;color:var(--text3);margin-top:4px;">JPG/PNG, max 2MB</p>
+      </div>
+      {% endif %}
     </div>
+
+    <div class="pf-grid">
+      <div class="pf-field">
+        <label>Full Name</label>
+        <input type="text" name="full_name" value="{{ current_user.full_name or '' }}" required>
+      </div>
+      <div class="pf-field">
+        <label>Email</label>
+        <input type="email" name="email" value="{{ current_user.email or '' }}" required>
+      </div>
+      <div class="pf-field">
+        <label>Username</label>
+        <input type="text" value="{{ current_user.username }}" readonly>
+      </div>
+      <div class="pf-field">
+        <label>Role</label>
+        <input type="text" value="{{ current_user.role|capitalize }}" readonly>
+      </div>
+    </div>
+  </div>
+
+  {% if employee %}
+  <!-- Employee Details -->
+  <div class="card" style="padding:1.25rem;margin-bottom:1rem;">
+    <div style="font-size:.83rem;font-weight:800;margin-bottom:.75rem;">🪪 Employee Details</div>
+    <div class="pf-grid">
+      <div class="pf-field">
+        <label>Employee Code</label>
+        <input type="text" value="{{ employee.employee_code or '—' }}" readonly>
+      </div>
+      <div class="pf-field">
+        <label>First Name</label>
+        <input type="text" name="first_name" value="{{ employee.first_name or '' }}">
+      </div>
+      <div class="pf-field">
+        <label>Last Name</label>
+        <input type="text" name="last_name" value="{{ employee.last_name or '' }}">
+      </div>
+      <div class="pf-field">
+        <label>Mobile</label>
+        <input type="text" name="mobile" value="{{ employee.mobile or '' }}">
+      </div>
+      <div class="pf-field">
+        <label>Gender</label>
+        <select name="gender">
+          <option value="">— Select —</option>
+          {% for g in ['Male','Female','Other'] %}
+          <option value="{{ g }}" {{ 'selected' if employee.gender==g }}>{{ g }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="pf-field">
+        <label>Date of Birth</label>
+        <input type="date" name="date_of_birth" value="{{ employee.date_of_birth.strftime('%Y-%m-%d') if employee.date_of_birth else '' }}">
+      </div>
+      <div class="pf-field">
+        <label>Blood Group</label>
+        <select name="blood_group">
+          <option value="">— Select —</option>
+          {% for bg in ['A+','A-','B+','B-','AB+','AB-','O+','O-'] %}
+          <option value="{{ bg }}" {{ 'selected' if employee.blood_group==bg }}>{{ bg }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="pf-field">
+        <label>Marital Status</label>
+        <select name="marital_status">
+          <option value="">— Select —</option>
+          {% for ms in ['Single','Married','Divorced','Widowed'] %}
+          <option value="{{ ms }}" {{ 'selected' if employee.marital_status==ms }}>{{ ms }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="section-hdr">🏢 Work Info</div>
+      <div class="pf-field">
+        <label>Department</label>
+        <input type="text" value="{{ employee.department or '—' }}" readonly>
+      </div>
+      <div class="pf-field">
+        <label>Designation</label>
+        <input type="text" value="{{ employee.designation or '—' }}" readonly>
+      </div>
+      <div class="pf-field">
+        <label>Employee Type</label>
+        <input type="text" value="{{ employee.employee_type or '—' }}" readonly>
+      </div>
+      <div class="pf-field">
+        <label>Date of Joining</label>
+        <input type="text" value="{{ employee.date_of_joining.strftime('%d %b %Y') if employee.date_of_joining else '—' }}" readonly>
+      </div>
+      <div class="pf-field">
+        <label>Location</label>
+        <input type="text" value="{{ employee.location or '—' }}" readonly>
+      </div>
+      <div class="pf-field">
+        <label>Status</label>
+        <input type="text" value="{{ (employee.status or '—')|title }}" readonly>
+      </div>
+
+      <div class="section-hdr">📍 Address</div>
+      <div class="pf-field" style="grid-column:1/-1;">
+        <label>Address</label>
+        <textarea name="address" rows="2" style="resize:vertical;">{{ employee.address or '' }}</textarea>
+      </div>
+      <div class="pf-field">
+        <label>City</label>
+        <input type="text" name="city" value="{{ employee.city or '' }}">
+      </div>
+      <div class="pf-field">
+        <label>State</label>
+        <input type="text" name="state" value="{{ employee.state or '' }}">
+      </div>
+      <div class="pf-field">
+        <label>Country</label>
+        <input type="text" name="country" value="{{ employee.country or 'India' }}">
+      </div>
+      <div class="pf-field">
+        <label>Zip Code</label>
+        <input type="text" name="zip_code" value="{{ employee.zip_code or '' }}">
+      </div>
+
+      <div class="section-hdr">🔗 Social Links</div>
+      <div class="pf-field">
+        <label>LinkedIn</label>
+        <input type="url" name="linkedin" value="{{ employee.linkedin or '' }}" placeholder="https://linkedin.com/in/...">
+      </div>
+      <div class="pf-field">
+        <label>Facebook</label>
+        <input type="url" name="facebook" value="{{ employee.facebook or '' }}" placeholder="https://facebook.com/...">
+      </div>
+
+      <div class="section-hdr">📝 Remark</div>
+      <div class="pf-field" style="grid-column:1/-1;">
+        <label>Remark</label>
+        <textarea name="remark" rows="2" style="resize:vertical;">{{ employee.remark or '' }}</textarea>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <div style="padding:.5rem 0;">
+    <button type="submit" class="btn-primary" style="padding:10px 28px;font-size:.85rem;">💾 Save Profile</button>
+  </div>
+</form>
+</div>
+
+<!-- ═══ TAB 2: Change Password ═══ -->
+<div id="pane_password" class="prof-pane">
+<div class="card" style="padding:1.25rem;max-width:460px;">
+  <div style="font-size:.83rem;font-weight:800;margin-bottom:.75rem;">🔑 Change Password</div>
+  <form method="POST">
+    <input type="hidden" name="action" value="password">
+    <div style="display:flex;flex-direction:column;gap:.65rem;">
+      <div class="pf-field">
+        <label>Current Password</label>
+        <div style="position:relative;">
+          <input type="password" name="old_password" id="pw1" required placeholder="Enter current password" style="padding-right:40px;">
+          <button type="button" onclick="togglePw('pw1')" tabindex="-1" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text3);">👁️</button>
+        </div>
+      </div>
+      <div class="pf-field">
+        <label>New Password</label>
+        <div style="position:relative;">
+          <input type="password" name="new_password" id="pw2" required placeholder="Min 6 characters" style="padding-right:40px;" oninput="checkPw()">
+          <button type="button" onclick="togglePw('pw2')" tabindex="-1" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text3);">👁️</button>
+        </div>
+      </div>
+      <div class="pf-field">
+        <label>Confirm New Password</label>
+        <div style="position:relative;">
+          <input type="password" name="confirm_password" id="pw3" required placeholder="Re-enter new password" style="padding-right:40px;" oninput="checkPw()">
+          <button type="button" onclick="togglePw('pw3')" tabindex="-1" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text3);">👁️</button>
+        </div>
+        <span id="pwMatch" style="font-size:.72rem;"></span>
+      </div>
+      <button type="submit" class="btn-primary" style="padding:10px 24px;margin-top:.25rem;">🔑 Change Password</button>
+    </div>
+  </form>
+</div>
+</div>
+
+<!-- ═══ TAB 3: Login History ═══ -->
+<div id="pane_history" class="prof-pane">
+<div class="card" style="overflow-x:auto;max-width:700px;">
+  <div style="padding:.7rem 1rem;border-bottom:1px solid var(--border);font-size:.83rem;font-weight:800;">📋 Recent Login History</div>
+  <table style="width:100%;border-collapse:collapse;font-size:.82rem;">
+    <thead>
+      <tr>
+        {% for h in ['Date & Time','IP Address','Status'] %}
+        <th style="text-align:left;padding:.5rem 1rem;font-size:.7rem;font-weight:700;color:var(--text3);text-transform:uppercase;border-bottom:1px solid var(--border);background:#f8fafc;">{{ h }}</th>
+        {% endfor %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for l in logs %}
+      <tr>
+        <td style="padding:.55rem 1rem;">{{ l.timestamp.strftime('%d %b %Y, %I:%M %p') }}</td>
+        <td style="padding:.55rem 1rem;color:var(--text2);font-family:monospace;font-size:.78rem;">{{ l.ip_address or '—' }}</td>
+        <td style="padding:.55rem 1rem;">
+          <span style="padding:2px 10px;border-radius:99px;font-size:.7rem;font-weight:700;background:{{ '#dcfce7' if l.success else '#fee2e2' }};color:{{ '#16a34a' if l.success else '#dc2626' }};">
+            {{ '✅ Success' if l.success else '❌ Failed' }}
+          </span>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="3" style="text-align:center;padding:1.5rem;color:var(--text3);">No login history</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
 </div>
 
 <script>
-function toggle(id) {
-    const f = document.getElementById(id);
-    f.type = f.type === 'password' ? 'text' : 'password';
+function profTab(name) {
+    document.querySelectorAll('.prof-tab').forEach(function(t,i){
+        var names = ['info','password','history'];
+        t.classList.toggle('active', names[i]===name);
+    });
+    document.querySelectorAll('.prof-pane').forEach(function(p){
+        p.classList.remove('active');
+    });
+    document.getElementById('pane_'+name).classList.add('active');
 }
+
+function togglePw(id) {
+    var el = document.getElementById(id);
+    el.type = el.type==='password' ? 'text' : 'password';
+}
+
+function checkPw() {
+    var p2 = document.getElementById('pw2').value;
+    var p3 = document.getElementById('pw3').value;
+    var sp = document.getElementById('pwMatch');
+    if (!p3) { sp.textContent=''; return; }
+    if (p2===p3) { sp.textContent='✅ Passwords match'; sp.style.color='#16a34a'; }
+    else         { sp.textContent='❌ Passwords do not match'; sp.style.color='#dc2626'; }
+}
+
+function loadPhoto(input) {
+    var file = input.files[0];
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function(e) {
+        document.getElementById('photoBase64').value = e.target.result;
+        var img = document.getElementById('photoImg');
+        if (!img) {
+            document.getElementById('photoPreview').innerHTML = '<img src="'+e.target.result+'" id="photoImg">';
+        } else {
+            img.src = e.target.result;
+        }
+    };
+    reader.readAsDataURL(file);
+}
+
+// Auto-open password tab if flash has password error
+{% with msgs = get_flashed_messages(with_categories=true) %}
+{% for cat,msg in msgs %}{% if 'password' in msg.lower() %}
+document.addEventListener('DOMContentLoaded', function(){ profTab('password'); });
+{% endif %}{% endfor %}{% endwith %}
 </script>
 {% endblock %}

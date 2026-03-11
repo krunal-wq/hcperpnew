@@ -1,0 +1,401 @@
+{% extends "base.html" %}
+{% block title %}Import Employees{% endblock %}
+{% block page_title %}Import Employees{% endblock %}
+{% block bread %}HR / Employees / Import{% endblock %}
+
+{% block extra_css %}
+.imp-tabs{display:flex;gap:0;border-bottom:2px solid var(--border);margin-bottom:1.5rem;}
+.imp-tab{padding:.5rem 1.1rem;font-size:.78rem;font-weight:700;color:var(--text2);border:none;background:none;cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-2px;border-radius:8px 8px 0 0;transition:all .15s;}
+.imp-tab:hover{color:var(--blue);background:#f0f7ff;}
+.imp-tab.active{color:var(--blue);border-bottom-color:var(--blue);background:#eff6ff;}
+.sheet-card{border-radius:12px;border:1.5px solid var(--border);overflow:hidden;margin-bottom:1rem;}
+.sheet-hdr{padding:.65rem 1rem;font-size:.8rem;font-weight:800;display:flex;align-items:center;gap:.5rem;color:#fff;}
+.sheet-body{padding:.9rem 1rem;}
+.col-pill{display:inline-block;background:#f1f5f9;color:var(--text);font-size:.72rem;font-weight:700;padding:3px 9px;border-radius:6px;margin:2px 2px 2px 0;border:1px solid var(--border);}
+.col-pill.req{background:#dbeafe;color:#1d4ed8;border-color:#bfdbfe;}
+.col-pill.opt{background:#f0fdf4;color:#166534;border-color:#bbf7d0;}
+.drop-zone{border:2.5px dashed var(--border);border-radius:14px;padding:2.5rem 1rem;text-align:center;transition:all .2s;cursor:pointer;background:#fafbff;}
+.drop-zone.drag-over{border-color:var(--blue);background:#eff6ff;}
+.drop-zone:hover{border-color:#93c5fd;background:#f0f7ff;}
+.step-num{width:28px;height:28px;border-radius:50%;background:var(--blue);color:#fff;font-size:.78rem;font-weight:900;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.prog-bar{height:8px;border-radius:99px;background:#e2e8f0;overflow:hidden;}
+.prog-fill{height:100%;border-radius:99px;background:linear-gradient(90deg,#3b82f6,#10b981);transition:width .4s;}
+{% endblock %}
+
+{% block content %}
+<div class="page-hdr">
+    <div>
+        <h1 style="font-size:1.2rem;margin:0;">📥 Import Employees</h1>
+        <p style="font-size:.78rem;color:var(--text3);margin:.2rem 0 0;">7-tab Excel file se bulk employees import karo</p>
+    </div>
+    <div style="display:flex;gap:.5rem;">
+        <a href="{{ url_for('hr.emp_import_template') }}" class="btn-primary" style="font-size:.82rem;">⬇️ Download Template</a>
+        <a href="{{ url_for('hr.employees') }}" class="btn-outline" style="font-size:.82rem;">← Back</a>
+    </div>
+</div>
+
+<!-- TABS -->
+<div class="imp-tabs">
+    <button class="imp-tab active" onclick="impTab('t-upload',this)">📤 Upload File</button>
+    <button class="imp-tab" onclick="impTab('t-format',this)">📋 Format Guide</button>
+    <button class="imp-tab" onclick="impTab('t-rules',this)">⚠️ Rules & Tips</button>
+</div>
+
+<!-- ══════════ TAB: UPLOAD ══════════ -->
+<div id="t-upload">
+<div style="display:grid;grid-template-columns:1fr 340px;gap:1.25rem;">
+
+    <!-- Upload card -->
+    <div>
+        <div class="card" style="padding:1.25rem;">
+            <div style="font-size:.85rem;font-weight:800;margin-bottom:1rem;">📤 Upload Excel File</div>
+
+            <!-- Steps -->
+            <div style="display:flex;flex-direction:column;gap:.75rem;margin-bottom:1.5rem;">
+                <div style="display:flex;align-items:center;gap:.75rem;">
+                    <div class="step-num">1</div>
+                    <div style="font-size:.82rem;">
+                        <strong>Template download karo</strong> — 
+                        <a href="{{ url_for('hr.emp_import_template') }}" style="color:var(--blue);">⬇️ employee_import_template.xlsx</a>
+                    </div>
+                </div>
+                <div style="display:flex;align-items:center;gap:.75rem;">
+                    <div class="step-num">2</div>
+                    <div style="font-size:.82rem;"><strong>Data fill karo</strong> — Sheet 1 (Basic Info) required hai, baaki optional hain</div>
+                </div>
+                <div style="display:flex;align-items:center;gap:.75rem;">
+                    <div class="step-num">3</div>
+                    <div style="font-size:.82rem;"><strong>Note row (Row 2) hatao</strong> — ya chhod do, system handle karega</div>
+                </div>
+                <div style="display:flex;align-items:center;gap:.75rem;">
+                    <div class="step-num">4</div>
+                    <div style="font-size:.82rem;"><strong>File upload karo</strong> — neeche drop karo ya click karo</div>
+                </div>
+            </div>
+
+            <form method="POST" enctype="multipart/form-data" id="importForm">
+                <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+                    <div id="dropContent">
+                        <div style="font-size:2.2rem;margin-bottom:.5rem;">📊</div>
+                        <div style="font-size:.9rem;font-weight:700;color:var(--text);">Excel file yahan drop karo</div>
+                        <div style="font-size:.75rem;color:var(--text3);margin:.3rem 0 .75rem;">ya click karke select karo</div>
+                        <span style="background:var(--blue);color:#fff;padding:6px 18px;border-radius:8px;font-size:.78rem;font-weight:700;">📂 Browse File</span>
+                    </div>
+                    <div id="fileSelected" style="display:none;">
+                        <div style="font-size:2rem;">✅</div>
+                        <div style="font-size:.88rem;font-weight:700;color:#166534;" id="fileNameDisplay"></div>
+                        <div style="font-size:.72rem;color:var(--text3);" id="fileSizeDisplay"></div>
+                        <div style="margin-top:.6rem;font-size:.75rem;color:var(--blue);font-weight:600;">Click to change file</div>
+                    </div>
+                </div>
+                <input type="file" id="fileInput" name="import_file" accept=".xlsx,.xls" style="display:none;" onchange="onFileChange(this)">
+
+                <!-- Progress bar (hidden initially) -->
+                <div id="progWrap" style="display:none;margin-top:1rem;">
+                    <div style="font-size:.75rem;color:var(--text3);margin-bottom:.3rem;" id="progLabel">Uploading...</div>
+                    <div class="prog-bar"><div class="prog-fill" id="progFill" style="width:0%"></div></div>
+                </div>
+
+                <div style="display:flex;gap:.75rem;margin-top:1.25rem;">
+                    <button type="submit" class="btn-primary" id="importBtn" disabled style="flex:1;padding:.65rem;">
+                        📥 Import Employees
+                    </button>
+                    <button type="button" onclick="clearFile()" class="btn-outline" style="padding:.65rem 1rem;">✖ Clear</button>
+                </div>
+
+                <p style="font-size:.72rem;color:var(--text3);margin:.75rem 0 0;text-align:center;">
+                    Only .xlsx files · Max 50MB · Duplicate employee codes will be skipped
+                </p>
+            </form>
+        </div>
+    </div>
+
+    <!-- Info panel -->
+    <div>
+        <div class="card" style="padding:1rem;margin-bottom:1rem;">
+            <div style="font-size:.8rem;font-weight:800;margin-bottom:.75rem;">📊 7 Sheets in Template</div>
+            {% for color, num, title, desc in [
+                ('#1E3A5F','1','Basic Info','Name, Contact, Address, DOB ✱ Required'),
+                ('#1D4ED8','2','Professional','Dept, Designation, DOJ, Shift'),
+                ('#7C3AED','3','Personal & KYC','Aadhaar, PAN, Passport, Emergency'),
+                ('#065F46','4','Bank Details','Account No., IFSC, Branch'),
+                ('#B45309','5','Salary','CTC, Basic, HRA, PF, Net Pay'),
+                ('#0F766E','6','Education','Qualification, Prev Company'),
+                ('#BE185D','7','Documents','(Auto-handled, not in template)'),
+            ] %}
+            <div style="display:flex;align-items:center;gap:.6rem;padding:.4rem 0;border-bottom:1px solid #f1f5f9;">
+                <div style="background:{{ color }};color:#fff;font-size:.65rem;font-weight:800;padding:2px 7px;border-radius:5px;flex-shrink:0;">{{ num }}</div>
+                <div style="flex:1;">
+                    <div style="font-size:.78rem;font-weight:700;">{{ title }}</div>
+                    <div style="font-size:.68rem;color:var(--text3);">{{ desc }}</div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <div style="background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:10px;padding:.9rem 1rem;">
+            <div style="font-size:.78rem;font-weight:800;color:#166534;margin-bottom:.5rem;">✅ Auto kya hoga</div>
+            <div style="font-size:.74rem;color:#166534;line-height:1.7;">
+                🔑 Login auto-create (password: HCP@123)<br>
+                🆔 Duplicate code skip ho jayega<br>
+                📅 Date format auto-detect<br>
+                ₹ Salary se ₹/comma hata dega<br>
+                🔤 PAN / IFSC uppercase ho jayega
+            </div>
+        </div>
+    </div>
+</div>
+</div>
+
+<!-- ══════════ TAB: FORMAT GUIDE ══════════ -->
+<div id="t-format" style="display:none;">
+
+{% set sheets = [
+    ('1E3A5F','1 - Basic Info ✱ Required',[
+        ('Employee Code','req','Unique code. e.g. EMP0001'),
+        ('First Name','req','Employee first name'),
+        ('Last Name','opt','Last name'),
+        ('Mobile','req','10-digit mobile number'),
+        ('Email','opt','Valid email (skipped if duplicate)'),
+        ('Gender','opt','Male / Female / Other'),
+        ('Date of Birth','opt','DD-MM-YYYY format'),
+        ('Blood Group','opt','A+ / B+ / O+ / AB+ etc.'),
+        ('Marital Status','opt','Single / Married / Divorced'),
+        ('Marriage Anniversary','opt','DD-MM-YYYY (if Married)'),
+        ('Address','opt','Street address'),
+        ('City','opt','City name'),
+        ('State','opt','State name'),
+        ('Country','opt','Default: India'),
+        ('ZIP','opt','PIN / ZIP code'),
+        ('LinkedIn','opt','Profile URL'),
+        ('Facebook','opt','Profile URL'),
+        ('Status','opt','active / inactive / on_leave (default: active)'),
+    ]),
+    ('1D4ED8','2 - Professional',[
+        ('Code','req','Must match Sheet 1 Employee Code'),
+        ('Department','opt','e.g. Sales / HR / IT'),
+        ('Designation','opt','e.g. Manager / Executive'),
+        ('Employee Type','opt','Full Time / Part Time / Contract / Intern'),
+        ('Location','opt','City or branch'),
+        ('Pay Grade','opt','G1 / G2 / G3 etc.'),
+        ('DOJ','opt','Date of Joining — DD-MM-YYYY'),
+        ('Confirmation','opt','Confirmation date — DD-MM-YYYY'),
+        ('Shift','opt','e.g. General (9-6) / Night'),
+        ('Work Hrs','opt','Hours per day (default 8)'),
+        ('Weekly Off','opt','Sunday / Saturday'),
+        ('Notice Days','opt','Notice period in days (default 30)'),
+        ('Contractor','opt','Yes / No'),
+        ('Probation','opt','Yes / No'),
+        ('Block','opt','Yes / No'),
+        ('Reports To','opt','Manager full name'),
+    ]),
+    ('7C3AED','3 - Personal & KYC',[
+        ('Code','req','Must match Sheet 1 Employee Code'),
+        ('Nationality','opt','Default: Indian'),
+        ('Religion','opt','Hindu / Muslim / Christian etc.'),
+        ('Aadhaar','opt','12-digit Aadhaar number'),
+        ('PAN','opt','10-char PAN (auto-uppercase)'),
+        ('UAN','opt','12-digit UAN'),
+        ('ESIC','opt','17-digit ESIC number'),
+        ('Passport No.','opt','Passport number'),
+        ('Passport Expiry','opt','DD-MM-YYYY'),
+        ('DL No','opt','Driving license number'),
+        ('DL Expiry','opt','DD-MM-YYYY'),
+        ('Emergency Name','opt','Emergency contact name'),
+        ('Emergency Relation','opt','Father / Spouse / Sibling'),
+        ('Emergency Phone','opt','10-digit phone'),
+        ('Emergency Address','opt','Full address'),
+    ]),
+    ('065F46','4 - Bank Details',[
+        ('Code','req','Must match Sheet 1 Employee Code'),
+        ('Account Holder','opt','Name as per bank'),
+        ('Bank Name','opt','e.g. HDFC Bank'),
+        ('Account Number','opt','Full account number'),
+        ('IFSC Code','opt','11-char IFSC (auto-uppercase)'),
+        ('Branch','opt','Branch name'),
+        ('Account Type','opt','Savings / Current'),
+    ]),
+    ('B45309','5 - Salary',[
+        ('Code','req','Must match Sheet 1 Employee Code'),
+        ('CTC Annual','opt','Annual CTC in ₹ (numbers only)'),
+        ('Basic','opt','Monthly basic salary'),
+        ('HRA','opt','Monthly HRA'),
+        ('DA','opt','Dearness allowance'),
+        ('TA','opt','Transport allowance'),
+        ('Medical','opt','Medical allowance'),
+        ('Special','opt','Special allowance'),
+        ('PF Emp','opt','PF employee share (12%)'),
+        ('PF Er','opt','PF employer share (12%)'),
+        ('ESIC Emp','opt','ESIC employee share'),
+        ('ESIC Er','opt','ESIC employer share'),
+        ('Prof Tax','opt','Professional tax'),
+        ('TDS','opt','Monthly TDS'),
+        ('Net Salary','opt','Net take-home monthly'),
+        ('Mode','opt','Bank Transfer / Cash / Cheque'),
+        ('Effective Date','opt','DD-MM-YYYY'),
+    ]),
+    ('0F766E','6 - Education',[
+        ('Code','req','Must match Sheet 1 Employee Code'),
+        ('Qualification','opt','10th / 12th / Diploma / B.Com / MBA etc.'),
+        ('University / Board','opt','University or board name'),
+        ('Year','opt','Passing year e.g. 2015'),
+        ('Specialization','opt','Subject or branch'),
+        ('Prev Company','opt','Previous employer name'),
+        ('Prev Designation','opt','Previous designation'),
+        ('Prev From','opt','DD-MM-YYYY'),
+        ('Prev To','opt','DD-MM-YYYY'),
+        ('Leaving Reason','opt','Reason for leaving'),
+        ('Experience (Yrs)','opt','Total experience in years e.g. 5.5'),
+    ]),
+] %}
+
+{% for color, title, cols in sheets %}
+<div class="sheet-card">
+    <div class="sheet-hdr" style="background:#{{ color }};">📋 {{ title }}</div>
+    <div class="sheet-body">
+        <div style="margin-bottom:.5rem;">
+            <span style="font-size:.72rem;color:var(--text3);">
+                <span class="col-pill req">Blue = Required</span>
+                <span class="col-pill opt">Green = Optional</span>
+            </span>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:.3rem .2rem;margin-bottom:.75rem;">
+            {% for col, typ, hint in cols %}
+            <span class="col-pill {{ typ }}" title="{{ hint }}">{{ col }}</span>
+            {% endfor %}
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:.3rem;">
+            {% for col, typ, hint in cols %}
+            <div style="font-size:.72rem;color:var(--text3);display:flex;gap:.3rem;">
+                <span style="font-weight:700;color:var(--text);min-width:120px;flex-shrink:0;">{{ col }}:</span>
+                <span>{{ hint }}</span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endfor %}
+</div>
+
+<!-- ══════════ TAB: RULES ══════════ -->
+<div id="t-rules" style="display:none;">
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+
+    <div class="card" style="padding:1.1rem;">
+        <div style="font-size:.85rem;font-weight:800;margin-bottom:.9rem;">✅ Do's</div>
+        {% for tip in [
+            ('🔑','Employee Code must be unique across all employees','Required in Sheet 1'),
+            ('🔗','Sheet 2-6 me Code must exactly match Sheet 1','Case-insensitive match'),
+            ('📅','Date format DD-MM-YYYY use karo','e.g. 15-06-2024'),
+            ('💰','Salary numbers only — no ₹ sign','e.g. 25000 not ₹25,000'),
+            ('🔡','Yes/No fields exactly this way','Yes ya No only'),
+            ('📧','Unique email use karo','Duplicate email auto-skip hoga'),
+            ('🗑️','Row 2 (notes) hatao before import','Ya chhod do, system handle karega'),
+            ('📊','Sheet names same rakhna template jaisa','1 - Basic Info, 2 - Professional...'),
+        ] %}
+        <div style="display:flex;gap:.6rem;padding:.45rem 0;border-bottom:1px solid #f1f5f9;align-items:flex-start;">
+            <span style="font-size:1rem;flex-shrink:0;">{{ tip[0] }}</span>
+            <div>
+                <div style="font-size:.78rem;font-weight:700;">{{ tip[1] }}</div>
+                <div style="font-size:.7rem;color:var(--text3);">{{ tip[2] }}</div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <div>
+        <div class="card" style="padding:1.1rem;margin-bottom:1rem;">
+            <div style="font-size:.85rem;font-weight:800;margin-bottom:.9rem;">❌ Don'ts</div>
+            {% for tip in [
+                ('⛔','Duplicate Employee Code mat dalna — skip ho jayega'),
+                ('⛔','Sheet names rename mat karo'),
+                ('⛔','Date format ₹ comma ke saath mat dena'),
+                ('⛔','Employee Code blank mat chhodo — row skip hoga'),
+                ('⛔','Doosre format ki file (.csv, .doc) mat dalna'),
+                ('⛔','Column headers rename mat karo template ke'),
+            ] %}
+            <div style="display:flex;gap:.6rem;padding:.38rem 0;border-bottom:1px solid #f1f5f9;">
+                <span style="font-size:.9rem;flex-shrink:0;">{{ tip[0] }}</span>
+                <span style="font-size:.77rem;">{{ tip[1] }}</span>
+            </div>
+            {% endfor %}
+        </div>
+
+        <div class="card" style="padding:1.1rem;">
+            <div style="font-size:.85rem;font-weight:800;margin-bottom:.9rem;">💡 Valid Values</div>
+            {% for label, vals in [
+                ('Status','active, inactive, on_leave, terminated'),
+                ('Gender','Male, Female, Other'),
+                ('Marital Status','Single, Married, Divorced, Widowed'),
+                ('Employee Type','Full Time, Part Time, Contract, Intern'),
+                ('Account Type','Savings, Current'),
+                ('Salary Mode','Bank Transfer, Cash, Cheque'),
+                ('Blood Group','A+, A-, B+, B-, O+, O-, AB+, AB-'),
+            ] %}
+            <div style="display:flex;gap:.5rem;padding:.38rem 0;border-bottom:1px solid #f1f5f9;align-items:flex-start;">
+                <span style="font-size:.74rem;font-weight:700;color:var(--text2);min-width:110px;flex-shrink:0;">{{ label }}</span>
+                <span style="font-size:.72rem;color:var(--text3);">{{ vals }}</span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+</div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+function impTab(id, btn) {
+    ['t-upload','t-format','t-rules'].forEach(t => document.getElementById(t).style.display = 'none');
+    document.querySelectorAll('.imp-tab').forEach(b => b.classList.remove('active'));
+    document.getElementById(id).style.display = 'block';
+    btn.classList.add('active');
+}
+
+function onFileChange(input) {
+    const file = input.files[0];
+    if (!file) return;
+    document.getElementById('dropContent').style.display = 'none';
+    document.getElementById('fileSelected').style.display = 'block';
+    document.getElementById('fileNameDisplay').textContent = file.name;
+    document.getElementById('fileSizeDisplay').textContent = (file.size / 1024).toFixed(1) + ' KB';
+    document.getElementById('importBtn').disabled = false;
+}
+
+function clearFile() {
+    document.getElementById('fileInput').value = '';
+    document.getElementById('dropContent').style.display = 'block';
+    document.getElementById('fileSelected').style.display = 'none';
+    document.getElementById('importBtn').disabled = true;
+}
+
+// Drag & drop
+const dz = document.getElementById('dropZone');
+dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag-over'); });
+dz.addEventListener('dragleave', () => dz.classList.remove('drag-over'));
+dz.addEventListener('drop', e => {
+    e.preventDefault(); dz.classList.remove('drag-over');
+    const file = e.dataTransfer.files[0];
+    if (file && (file.name.endsWith('.xlsx') || file.name.endsWith('.xls'))) {
+        const input = document.getElementById('fileInput');
+        const dt = new DataTransfer(); dt.items.add(file); input.files = dt.files;
+        onFileChange(input);
+    } else {
+        alert('Only .xlsx files allowed!');
+    }
+});
+
+// Show progress on submit
+document.getElementById('importForm').addEventListener('submit', function() {
+    const btn = document.getElementById('importBtn');
+    btn.disabled = true; btn.textContent = '⏳ Importing...';
+    document.getElementById('progWrap').style.display = 'block';
+    let pct = 0;
+    const iv = setInterval(() => {
+        pct = Math.min(pct + Math.random() * 12, 90);
+        document.getElementById('progFill').style.width = pct + '%';
+        document.getElementById('progLabel').textContent = 'Processing... ' + Math.round(pct) + '%';
+    }, 300);
+});
+{% endblock %}

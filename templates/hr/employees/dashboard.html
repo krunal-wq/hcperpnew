@@ -1,0 +1,440 @@
+{% extends "base.html" %}
+{% block title %}Employee Dashboard{% endblock %}
+{% block page_title %}Employee Dashboard{% endblock %}
+{% block bread %}HR / Employee Dashboard{% endblock %}
+
+{% block extra_css %}
+/* ── KPI Cards ── */
+.kpi-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:.85rem; margin-bottom:1.1rem; }
+.kpi-card { background:#fff; border:1.5px solid var(--border); border-radius:14px; padding:1rem 1.15rem; display:flex; align-items:center; gap:.85rem; transition:.15s; cursor:default; position:relative; overflow:hidden; }
+.kpi-card::after { content:''; position:absolute; top:0; right:0; width:4px; height:100%; border-radius:0 14px 14px 0; }
+.kpi-card.blue::after  { background:#3b82f6; } .kpi-card.green::after { background:#10b981; }
+.kpi-card.amber::after { background:#f59e0b; } .kpi-card.red::after   { background:#ef4444; }
+.kpi-card.purple::after{ background:#8b5cf6; } .kpi-card.teal::after  { background:#14b8a6; }
+.kpi-card.pink::after  { background:#ec4899; } .kpi-card.indigo::after{ background:#6366f1; }
+.kpi-card:hover { box-shadow:0 4px 18px rgba(0,0,0,.08); transform:translateY(-1px); }
+.kpi-icon { width:46px; height:46px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:1.35rem; flex-shrink:0; }
+.kpi-icon.blue   { background:#eff6ff; } .kpi-icon.green  { background:#f0fdf4; }
+.kpi-icon.amber  { background:#fffbeb; } .kpi-icon.red    { background:#fef2f2; }
+.kpi-icon.purple { background:#f5f3ff; } .kpi-icon.teal   { background:#f0fdfa; }
+.kpi-icon.pink   { background:#fdf2f8; } .kpi-icon.indigo { background:#eef2ff; }
+.kpi-val { font-size:1.6rem; font-weight:900; color:var(--text); line-height:1; }
+.kpi-lbl { font-size:.72rem; color:var(--text3); font-weight:600; margin-top:2px; }
+.kpi-sub { font-size:.68rem; color:var(--text3); margin-top:3px; }
+.kpi-up   { color:#16a34a; } .kpi-down { color:#dc2626; }
+
+/* ── Section header ── */
+.dash-sec { font-size:.72rem; font-weight:800; color:var(--text3); text-transform:uppercase; letter-spacing:.07em; margin:1rem 0 .6rem; padding-bottom:.3rem; border-bottom:2px solid #f1f5f9; }
+
+/* ── Chart cards ── */
+.chart-card { background:#fff; border:1.5px solid var(--border); border-radius:14px; padding:1.1rem 1.25rem; height:100%; }
+.chart-ttl { font-size:.82rem; font-weight:800; color:var(--text); margin-bottom:.85rem; display:flex; align-items:center; gap:.4rem; }
+
+/* ── Progress bars ── */
+.prog-row { display:flex; align-items:center; gap:.6rem; margin-bottom:.55rem; font-size:.78rem; }
+.prog-lbl { width:110px; flex-shrink:0; color:var(--text2); font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-size:.75rem; }
+.prog-bar-wrap { flex:1; background:#f1f5f9; border-radius:99px; height:8px; overflow:hidden; }
+.prog-bar { height:100%; border-radius:99px; transition:width .6s ease; }
+.prog-cnt { width:28px; text-align:right; font-weight:800; color:var(--text); font-size:.75rem; flex-shrink:0; }
+.prog-pct { width:36px; text-align:right; color:var(--text3); font-size:.7rem; flex-shrink:0; }
+
+/* ── Timeline / Event cards ── */
+.event-list { display:flex; flex-direction:column; gap:.45rem; }
+.event-item { display:flex; align-items:center; gap:.7rem; padding:.5rem .65rem; background:#f8fafc; border-radius:9px; border:1px solid #f1f5f9; }
+.event-av { width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:.72rem; font-weight:800; color:#fff; flex-shrink:0; }
+.event-info { flex:1; min-width:0; }
+.event-name { font-size:.78rem; font-weight:700; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.event-sub  { font-size:.68rem; color:var(--text3); }
+.event-badge { font-size:.68rem; padding:2px 8px; border-radius:99px; font-weight:800; flex-shrink:0; }
+.badge-bday  { background:#fdf2f8; color:#db2777; }
+.badge-anniv { background:#eff6ff; color:#2563eb; }
+.badge-today { background:#fef3c7; color:#d97706; }
+.badge-soon  { background:#f0fdf4; color:#16a34a; }
+.badge-warn  { background:#fef2f2; color:#dc2626; }
+
+/* ── KYC Completion ── */
+.completion-grid { display:grid; grid-template-columns:1fr 1fr; gap:.6rem; }
+.comp-item { background:#f8fafc; border-radius:10px; padding:.65rem .85rem; border:1.5px solid #f1f5f9; }
+.comp-top { display:flex; justify-content:space-between; align-items:center; margin-bottom:.35rem; }
+.comp-name { font-size:.75rem; font-weight:700; color:var(--text2); }
+.comp-pct  { font-size:.82rem; font-weight:900; }
+.comp-bar-wrap { background:#e2e8f0; border-radius:99px; height:6px; overflow:hidden; }
+.comp-bar { height:100%; border-radius:99px; transition:width .8s ease; }
+
+/* ── Recent table ── */
+.mini-table { width:100%; border-collapse:collapse; font-size:.78rem; }
+.mini-table th { font-size:.68rem; font-weight:800; color:var(--text3); text-transform:uppercase; letter-spacing:.05em; padding:.4rem .6rem; border-bottom:2px solid #f1f5f9; }
+.mini-table td { padding:.5rem .6rem; border-bottom:1px solid #f8fafc; color:var(--text2); vertical-align:middle; }
+.mini-table tr:last-child td { border-bottom:none; }
+.mini-table tr:hover td { background:#f8fafc; }
+.status-pill { padding:2px 9px; border-radius:99px; font-size:.68rem; font-weight:800; display:inline-block; }
+.sp-active   { background:#dcfce7; color:#16a34a; }
+.sp-inactive { background:#f1f5f9; color:#64748b; }
+.sp-leave    { background:#fef3c7; color:#d97706; }
+.sp-term     { background:#fee2e2; color:#dc2626; }
+
+/* ── Donut ── */
+.donut-wrap { position:relative; width:120px; height:120px; margin:0 auto; }
+.donut-wrap canvas { width:120px !important; height:120px !important; }
+.donut-center { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); text-align:center; pointer-events:none; }
+.donut-num { font-size:1.3rem; font-weight:900; color:var(--text); }
+.donut-sub { font-size:.6rem; color:var(--text3); font-weight:700; }
+{% endblock %}
+
+{% block content %}
+<!-- ── Header ── -->
+<div class="page-hdr">
+    <div>
+        <h1 style="font-size:1.25rem;">📊 Employee Dashboard</h1>
+        <p style="font-size:.75rem;color:var(--text3);">Live overview of your workforce</p>
+    </div>
+    <div style="display:flex;gap:.5rem;">
+        <a href="{{ url_for('hr.employees') }}" class="btn-outline" style="font-size:.8rem;">👥 All Employees</a>
+        <a href="{{ url_for('hr.emp_add') }}" class="btn-primary" style="font-size:.8rem;">➕ Add Employee</a>
+    </div>
+</div>
+
+<!-- ════════════════ KPI ROW 1 ════════════════ -->
+<div class="kpi-grid">
+    <div class="kpi-card blue">
+        <div class="kpi-icon blue">👥</div>
+        <div>
+            <div class="kpi-val">{{ total }}</div>
+            <div class="kpi-lbl">Total Employees</div>
+            <div class="kpi-sub">Excl. terminated</div>
+        </div>
+    </div>
+    <div class="kpi-card green">
+        <div class="kpi-icon green">✅</div>
+        <div>
+            <div class="kpi-val">{{ active }}</div>
+            <div class="kpi-lbl">Active</div>
+            <div class="kpi-sub">{{ ((active/total*100)|round(1)) if total else 0 }}% of total</div>
+        </div>
+    </div>
+    <div class="kpi-card amber">
+        <div class="kpi-icon amber">🟡</div>
+        <div>
+            <div class="kpi-val">{{ on_leave }}</div>
+            <div class="kpi-lbl">On Leave</div>
+            <div class="kpi-sub">{{ inactive }} inactive</div>
+        </div>
+    </div>
+    <div class="kpi-card red">
+        <div class="kpi-icon red">🔴</div>
+        <div>
+            <div class="kpi-val">{{ terminated }}</div>
+            <div class="kpi-lbl">Terminated</div>
+            <div class="kpi-sub">All time</div>
+        </div>
+    </div>
+</div>
+
+<!-- KPI ROW 2 -->
+<div class="kpi-grid" style="margin-top:-.25rem;">
+    <div class="kpi-card teal">
+        <div class="kpi-icon teal">🆕</div>
+        <div>
+            <div class="kpi-val">{{ new_this_month }}</div>
+            <div class="kpi-lbl">Joined This Month</div>
+            <div class="kpi-sub">
+                {% if new_this_month > new_last_month %}<span class="kpi-up">▲ {{ new_this_month - new_last_month }} vs last month</span>
+                {% elif new_this_month < new_last_month %}<span class="kpi-down">▼ {{ new_last_month - new_this_month }} vs last month</span>
+                {% else %}Same as last month{% endif %}
+            </div>
+        </div>
+    </div>
+    <div class="kpi-card purple">
+        <div class="kpi-icon purple">🔬</div>
+        <div>
+            <div class="kpi-val">{{ probation }}</div>
+            <div class="kpi-lbl">On Probation</div>
+            <div class="kpi-sub">{{ on_block }} blocked</div>
+        </div>
+    </div>
+    <div class="kpi-card indigo">
+        <div class="kpi-icon indigo">🤝</div>
+        <div>
+            <div class="kpi-val">{{ contractors }}</div>
+            <div class="kpi-lbl">Contractors</div>
+            <div class="kpi-sub">via contractor firms</div>
+        </div>
+    </div>
+    <div class="kpi-card pink">
+        <div class="kpi-icon pink">💰</div>
+        <div>
+            <div class="kpi-val">₹{{ '{:,.0f}'.format(total_ctc) }}</div>
+            <div class="kpi-lbl">Monthly Payroll</div>
+            <div class="kpi-sub">{{ sal_filled }} employees with CTC</div>
+        </div>
+    </div>
+</div>
+
+<!-- ════════════════ ROW: Charts ════════════════ -->
+<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.85rem;margin-bottom:.85rem;">
+
+    <!-- Department bar chart -->
+    <div class="chart-card">
+        <div class="chart-ttl">🏢 By Department</div>
+        {% set max_dept = dept_data[0][1] if dept_data else 1 %}
+        {% set bar_colors = ['#3b82f6','#10b981','#f59e0b','#8b5cf6','#ef4444','#14b8a6','#ec4899','#6366f1','#f97316','#84cc16'] %}
+        {% for dept, cnt in dept_data[:8] %}
+        <div class="prog-row">
+            <div class="prog-lbl" title="{{ dept }}">{{ dept }}</div>
+            <div class="prog-bar-wrap"><div class="prog-bar" style="width:{{ (cnt/max_dept*100)|int }}%;background:{{ bar_colors[loop.index0 % bar_colors|length] }};"></div></div>
+            <div class="prog-cnt">{{ cnt }}</div>
+            <div class="prog-pct">{{ ((cnt/total*100)|round(0))|int if total else 0 }}%</div>
+        </div>
+        {% endfor %}
+        {% if not dept_data %}<div style="text-align:center;padding:1rem;color:var(--text3);font-size:.8rem;">No data</div>{% endif %}
+    </div>
+
+    <!-- Employee Type donut + Gender -->
+    <div class="chart-card">
+        <div class="chart-ttl">📋 Employment Type</div>
+        <div class="donut-wrap" style="margin-bottom:.85rem;">
+            <canvas id="typeChart"></canvas>
+            <div class="donut-center"><div class="donut-num">{{ total }}</div><div class="donut-sub">TOTAL</div></div>
+        </div>
+        <div style="font-size:.72rem;display:flex;flex-direction:column;gap:.25rem;margin-top:.5rem;">
+            {% set type_colors={'Full Time':'#3b82f6','Part Time':'#10b981','Contract':'#f59e0b','Intern':'#8b5cf6','Consultant':'#ef4444','Unknown':'#94a3b8'} %}
+            {% for t,cnt in type_counts.items() %}
+            <div style="display:flex;align-items:center;gap:.4rem;">
+                <div style="width:9px;height:9px;border-radius:50%;background:{{ type_colors.get(t,'#94a3b8') }};flex-shrink:0;"></div>
+                <span style="flex:1;color:var(--text2);">{{ t }}</span>
+                <strong>{{ cnt }}</strong>
+                <span style="color:var(--text3);">{{ ((cnt/total*100)|round(0))|int if total else 0 }}%</span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Monthly joining trend -->
+    <div class="chart-card">
+        <div class="chart-ttl">📈 Joining Trend (6 Months)</div>
+        <canvas id="trendChart" style="max-height:160px;"></canvas>
+        <div style="margin-top:.85rem;">
+            <div class="chart-ttl" style="margin-bottom:.5rem;">⚧️ Gender Split</div>
+            {% set g_colors = {'Male':'#3b82f6','Female':'#ec4899','Other':'#10b981','Not Specified':'#94a3b8'} %}
+            {% for g,cnt in gender_counts.items() %}
+            <div class="prog-row">
+                <div class="prog-lbl">{{ g }}</div>
+                <div class="prog-bar-wrap"><div class="prog-bar" style="width:{{ (cnt/total*100)|int if total else 0 }}%;background:{{ g_colors.get(g,'#94a3b8') }};"></div></div>
+                <div class="prog-cnt">{{ cnt }}</div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+</div>
+
+<!-- ════════════════ ROW: Profile Completeness + Events ════════════════ -->
+<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.85rem;margin-bottom:.85rem;">
+
+    <!-- KYC / Data Completeness -->
+    <div class="chart-card">
+        <div class="chart-ttl">✅ Profile Completeness</div>
+        <div class="completion-grid">
+            {% set comp_items = [
+                ('📸 Photo',       photo_complete, 'linear-gradient(90deg,#3b82f6,#60a5fa)'),
+                ('🪪 KYC (Aadhaar+PAN)', kyc_complete, 'linear-gradient(90deg,#10b981,#34d399)'),
+                ('🏦 Bank Details', bank_complete, 'linear-gradient(90deg,#f59e0b,#fbbf24)'),
+                ('💰 Salary Set',   sal_filled, 'linear-gradient(90deg,#8b5cf6,#a78bfa)'),
+            ] %}
+            {% for name, cnt, color in comp_items %}
+            <div class="comp-item">
+                <div class="comp-top">
+                    <div class="comp-name">{{ name }}</div>
+                    <div class="comp-pct" style="color:{{ '#10b981' if (cnt/total*100 if total else 0) >= 80 else ('#f59e0b' if (cnt/total*100 if total else 0) >= 50 else '#ef4444') }};">
+                        {{ ((cnt/total*100)|round(0))|int if total else 0 }}%
+                    </div>
+                </div>
+                <div class="comp-bar-wrap">
+                    <div class="comp-bar" style="width:{{ ((cnt/total*100)|int) if total else 0 }}%;background:{{ color }};"></div>
+                </div>
+                <div style="font-size:.68rem;color:var(--text3);margin-top:3px;">{{ cnt }} / {{ total }}</div>
+            </div>
+            {% endfor %}
+        </div>
+
+        {% if expiring_docs %}
+        <div style="margin-top:.85rem;">
+            <div class="chart-ttl" style="margin-bottom:.4rem;">⚠️ Expiring Documents</div>
+            {% for item in expiring_docs %}
+            <div class="event-item" style="margin-bottom:.3rem;">
+                <div class="event-av" style="background:#ef4444;font-size:.6rem;">{{ item.emp.full_name[:2]|upper }}</div>
+                <div class="event-info">
+                    <div class="event-name">{{ item.emp.full_name }}</div>
+                    <div class="event-sub">{{ item.doc }} · {{ item.expiry.strftime('%d %b %Y') }}</div>
+                </div>
+                <span class="event-badge {{ 'badge-warn' if item.days <= 15 else 'badge-soon' }}">{{ item.days }}d</span>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Birthdays -->
+    <div class="chart-card">
+        <div class="chart-ttl">🎂 Upcoming Birthdays <span style="font-size:.68rem;color:var(--text3);font-weight:600;">(next 30 days)</span></div>
+        <div class="event-list">
+            {% if bday_emps %}
+            {% for item in bday_emps %}
+            {% set colors = ['#6366f1','#f59e0b','#10b981','#3b82f6','#ef4444','#8b5cf6','#ec4899'] %}
+            <div class="event-item">
+                <div class="event-av" style="background:{{ colors[loop.index0 % colors|length] }};">{{ item.emp.full_name[:2]|upper }}</div>
+                <div class="event-info">
+                    <div class="event-name">{{ item.emp.full_name }}</div>
+                    <div class="event-sub">{{ item.bday.strftime('%d %b') }} · {{ item.emp.department or '—' }}</div>
+                </div>
+                {% if item.days == 0 %}
+                <span class="event-badge badge-today">🎉 Today!</span>
+                {% elif item.days <= 3 %}
+                <span class="event-badge badge-warn">{{ item.days }}d</span>
+                {% else %}
+                <span class="event-badge badge-soon">{{ item.days }}d</span>
+                {% endif %}
+            </div>
+            {% endfor %}
+            {% else %}
+            <div style="text-align:center;padding:1.5rem;color:var(--text3);font-size:.8rem;">🎂 No birthdays in next 30 days</div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Anniversaries -->
+    <div class="chart-card">
+        <div class="chart-ttl">🎖️ Work Anniversaries <span style="font-size:.68rem;color:var(--text3);font-weight:600;">(next 30 days)</span></div>
+        <div class="event-list" style="margin-bottom:.85rem;">
+            {% if anniv_emps %}
+            {% for item in anniv_emps %}
+            <div class="event-item">
+                <div class="event-av" style="background:#6366f1;">{{ item.emp.full_name[:2]|upper }}</div>
+                <div class="event-info">
+                    <div class="event-name">{{ item.emp.full_name }}</div>
+                    <div class="event-sub">{{ item.years }} year{{ 's' if item.years != 1 }} · {{ item.emp.department or '—' }}</div>
+                </div>
+                {% if item.days == 0 %}
+                <span class="event-badge badge-today">🥳 Today!</span>
+                {% else %}
+                <span class="event-badge badge-bday">{{ item.days }}d</span>
+                {% endif %}
+            </div>
+            {% endfor %}
+            {% else %}
+            <div style="text-align:center;padding:1rem;color:var(--text3);font-size:.8rem;">No anniversaries in next 30 days</div>
+            {% endif %}
+        </div>
+
+        <div class="chart-ttl" style="margin-bottom:.5rem;">🆕 Recent Joiners</div>
+        <div class="event-list">
+            {% for e in recent %}
+            {% set colors = ['#10b981','#3b82f6','#f59e0b','#8b5cf6','#ef4444'] %}
+            <div class="event-item">
+                <div class="event-av" style="background:{{ colors[loop.index0 % colors|length] }};">{{ e.full_name[:2]|upper }}</div>
+                <div class="event-info">
+                    <div class="event-name">{{ e.full_name }}</div>
+                    <div class="event-sub">{{ e.employee_code }} · {{ e.date_of_joining.strftime('%d %b %Y') if e.date_of_joining else '—' }}</div>
+                </div>
+                <span class="status-pill sp-{{ e.status }}">{{ e.status|replace('_',' ')|title }}</span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+</div>
+
+<!-- ════════════════ Recent Employees Table ════════════════ -->
+<div class="chart-card" style="margin-bottom:.85rem;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem;">
+        <div class="chart-ttl" style="margin-bottom:0;">📋 Employee Quick View</div>
+        <a href="{{ url_for('hr.employees') }}" style="font-size:.75rem;color:var(--blue);font-weight:700;">View All →</a>
+    </div>
+    <div style="overflow-x:auto;">
+    <table class="mini-table">
+        <thead>
+            <tr>
+                <th>Employee</th><th>Code</th><th>Dept / Designation</th>
+                <th>Type</th><th>DOJ</th><th>Status</th><th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for e in recent %}
+            <tr>
+                <td>
+                    <div style="display:flex;align-items:center;gap:.5rem;">
+                        {% if e.profile_photo %}
+                        <img src="{{ e.profile_photo }}" style="width:28px;height:28px;border-radius:50%;object-fit:cover;flex-shrink:0;">
+                        {% else %}
+                        {% set c=['#6366f1','#f59e0b','#10b981','#3b82f6','#ef4444'] %}
+                        <div style="width:28px;height:28px;border-radius:50%;background:{{ c[loop.index0 % c|length] }};display:flex;align-items:center;justify-content:center;font-size:.65rem;font-weight:800;color:#fff;flex-shrink:0;">{{ e.full_name[:2]|upper }}</div>
+                        {% endif %}
+                        <div>
+                            <div style="font-weight:700;font-size:.8rem;">{{ e.full_name }}</div>
+                            <div style="font-size:.68rem;color:var(--text3);">{{ e.email or '—' }}</div>
+                        </div>
+                    </div>
+                </td>
+                <td style="font-weight:700;font-size:.78rem;">{{ e.employee_code }}</td>
+                <td>{{ e.department or '—' }}{% if e.designation %}<br><span style="font-size:.68rem;color:var(--text3);">{{ e.designation }}</span>{% endif %}</td>
+                <td><span style="background:#eff6ff;color:#1d4ed8;font-size:.68rem;padding:2px 7px;border-radius:99px;font-weight:700;">{{ e.employee_type or '—' }}</span></td>
+                <td style="font-size:.75rem;">{{ e.date_of_joining.strftime('%d %b %Y') if e.date_of_joining else '—' }}</td>
+                <td><span class="status-pill sp-{{ e.status }}">{{ e.status|replace('_',' ')|title }}</span></td>
+                <td>
+                    <div style="display:flex;gap:.3rem;">
+                        <a href="{{ url_for('hr.emp_view', id=e.id) }}" style="font-size:.72rem;padding:3px 8px;border-radius:6px;background:#f1f5f9;color:var(--text2);font-weight:700;text-decoration:none;">👁️</a>
+                        {% if perm.can_edit %}<a href="{{ url_for('hr.emp_edit', id=e.id) }}" style="font-size:.72rem;padding:3px 8px;border-radius:6px;background:#eff6ff;color:#1d4ed8;font-weight:700;text-decoration:none;">✏️</a>{% endif %}
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    </div>
+</div>
+
+<!-- Chart.js -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script>
+var typeData  = {{ type_json|safe }};
+var trendData = {{ trend_json|safe }};
+
+/* ── Type Donut ── */
+var typeLabels = Object.keys(typeData);
+var typeVals   = Object.values(typeData);
+var typeColors = {'Full Time':'#3b82f6','Part Time':'#10b981','Contract':'#f59e0b','Intern':'#8b5cf6','Consultant':'#ef4444','Unknown':'#94a3b8'};
+var typeBg = typeLabels.map(function(l){ return typeColors[l] || '#94a3b8'; });
+
+new Chart(document.getElementById('typeChart'), {
+    type: 'doughnut',
+    data: { labels: typeLabels, datasets: [{ data: typeVals, backgroundColor: typeBg, borderWidth: 2, borderColor: '#fff', hoverOffset: 4 }] },
+    options: { cutout: '68%', plugins: { legend: { display: false }, tooltip: { callbacks: { label: function(ctx){ return ' '+ctx.label+': '+ctx.raw; } } } }, animation: { animateRotate: true, duration: 900 } }
+});
+
+/* ── Trend Bar ── */
+var trendLabels = trendData.map(function(d){ return d.label; });
+var trendVals   = trendData.map(function(d){ return d.count; });
+
+new Chart(document.getElementById('trendChart'), {
+    type: 'bar',
+    data: {
+        labels: trendLabels,
+        datasets: [{
+            label: 'Joinings',
+            data: trendVals,
+            backgroundColor: 'rgba(59,130,246,.75)',
+            borderRadius: 6,
+            borderSkipped: false,
+        }]
+    },
+    options: {
+        plugins: { legend: { display: false } },
+        scales: {
+            y: { beginAtZero: true, ticks: { stepSize: 1, font: { size: 10 } }, grid: { color: '#f1f5f9' } },
+            x: { ticks: { font: { size: 10 } }, grid: { display: false } }
+        },
+        animation: { duration: 900 }
+    }
+});
+</script>
+{% endblock %}

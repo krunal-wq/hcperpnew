@@ -67,52 +67,100 @@
     </div>
     <div style="display:flex;gap:.5rem;flex-wrap:wrap;">
         <button type="button" onclick="toggleCustomizer()" class="btn-outline" style="font-size:.8rem;">⚙️ Columns</button>
+        <button type="button" onclick="doExport('em')" class="btn-outline" style="font-size:.8rem;">📤 Export</button>
         {% if perm.can_add %}
+        <a href="{{ url_for('hr.emp_import') }}" class="btn-outline" style="font-size:.8rem;">📥 Import</a>
+        <a href="{{ url_for('hr.emp_dashboard') }}" class="btn-outline" style="font-size:.82rem;">📊 Dashboard</a>
         <a href="{{ url_for('hr.emp_add') }}" class="btn-primary" style="font-size:.82rem;">＋ Add Employee</a>
         {% endif %}
     </div>
 </div>
 
-<!-- Filters -->
-<div class="card" style="margin-bottom:1rem;">
-    <div style="padding:.75rem 1rem;">
-        <form method="GET" style="display:flex;gap:.6rem;flex-wrap:wrap;align-items:flex-end;">
-            <div class="fg" style="flex:1;min-width:180px;">
-                <label class="fl">Search</label>
-                <input type="text" name="search" class="fi" value="{{ search }}" placeholder="Name, code, mobile...">
-            </div>
-            <div class="fg" style="min-width:140px;">
-                <label class="fl">Department</label>
-                <select name="dept" class="fi">
-                    <option value="">All Depts</option>
-                    {% for d in all_depts %}
-                    <option value="{{ d }}" {{ 'selected' if dept==d }}>{{ d }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="fg" style="min-width:120px;">
-                <label class="fl">Status</label>
-                <select name="status" class="fi">
-                    <option value="">All</option>
-                    <option value="active"     {{ 'selected' if status=='active' }}>Active</option>
-                    <option value="inactive"   {{ 'selected' if status=='inactive' }}>Inactive</option>
-                    <option value="terminated" {{ 'selected' if status=='terminated' }}>Terminated</option>
-                </select>
-            </div>
-            <div class="fg" style="min-width:130px;">
-                <label class="fl">Type</label>
-                <select name="emptype" class="fi">
-                    <option value="">All Types</option>
-                    {% for t in ['Full Time','Part Time','Contract','Intern'] %}
-                    <option value="{{ t }}" {{ 'selected' if emptype==t }}>{{ t }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <button type="submit" class="btn-primary" style="height:40px;padding:0 16px;font-size:.83rem;">🔍 Filter</button>
-            <a href="{{ url_for('hr.employees') }}" class="btn-outline" style="height:40px;padding:0 12px;font-size:.83rem;display:flex;align-items:center;">✕ Clear</a>
-        </form>
+{% set _efc = [search,dept,status,emptype]|select|list|length %}
+<div class="fs-panel" style="margin-bottom:1rem;">
+  <div style="display:flex;gap:6px;align-items:center;">
+    <button id="fsTabFilter" class="fs-tab" onclick="toggleFsTab('filter','em')">
+      🔍 Filter{% if _efc > 0 %} <span class="fs-badge">{{ _efc }}</span>{% endif %}
+    </button>
+    <button id="fsTabSort" class="fs-tab" onclick="toggleFsTab('sort','em')">
+      ↕️ Sort
+    </button>
+    {% if _efc > 0 %}<a href="{{ url_for('hr.employees') }}" class="fs-clear">✕ Clear All</a>{% endif %}
+  </div>
+
+  <div id="fsPanelFilter_em" class="fs-pane" style="display:none;">
+    <div class="fs-grid">
+      <div class="fs-field">
+        <label>🔍 Search</label>
+        <input type="text" id="em_search" value="{{ search }}" placeholder="Name, code, mobile…" oninput="fsDebounce('em')">
+      </div>
+      <div class="fs-field">
+        <label>🏢 Department</label>
+        <select id="em_dept" onchange="fsSubmit('em')">
+          <option value="">All Depts</option>
+          {% for d in all_depts %}<option value="{{ d }}" {{ 'selected' if dept==d }}>{{ d }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="fs-field">
+        <label>✅ Status</label>
+        <select id="em_status" onchange="fsSubmit('em')">
+          <option value="">All</option>
+          <option value="active"     {{ 'selected' if status=='active' }}>Active</option>
+          <option value="inactive"   {{ 'selected' if status=='inactive' }}>Inactive</option>
+          <option value="terminated" {{ 'selected' if status=='terminated' }}>Terminated</option>
+        </select>
+      </div>
+      <div class="fs-field">
+        <label>👔 Type</label>
+        <select id="em_emptype" onchange="fsSubmit('em')">
+          <option value="">All Types</option>
+          {% for t in ['Full Time','Part Time','Contract','Intern'] %}
+          <option value="{{ t }}" {{ 'selected' if emptype==t }}>{{ t }}</option>
+          {% endfor %}
+        </select>
+      </div>
     </div>
+    {% if search or dept or status or emptype %}
+    <div style="display:flex;flex-wrap:wrap;gap:.35rem;margin-top:.65rem;align-items:center;">
+      <span style="font-size:.7rem;color:var(--text3);font-weight:600;">Active:</span>
+      {% if search %}<span class="fs-chip">Search: {{ search }}<a onclick="fsClear('em_search','em')">×</a></span>{% endif %}
+      {% if dept %}<span class="fs-chip">Dept: {{ dept }}<a onclick="fsClear('em_dept','em')">×</a></span>{% endif %}
+      {% if status %}<span class="fs-chip">Status: {{ status }}<a onclick="fsClear('em_status','em')">×</a></span>{% endif %}
+      {% if emptype %}<span class="fs-chip">Type: {{ emptype }}<a onclick="fsClear('em_emptype','em')">×</a></span>{% endif %}
+    </div>
+    {% endif %}
+  </div>
+
+  <div id="fsPanelSort_em" class="fs-pane" style="display:none;">
+    <div class="fs-grid" style="max-width:480px;">
+      <div class="fs-field">
+        <label>↕️ Sort By</label>
+        <select id="em_sort_by" onchange="fsSubmit('em')">
+          <option value="created_at"  {{ 'selected' if sort_by=='created_at' }}>Joined Date</option>
+          <option value="full_name"   {{ 'selected' if sort_by=='full_name' }}>Name</option>
+          <option value="department"  {{ 'selected' if sort_by=='department' }}>Department</option>
+          <option value="employee_code" {{ 'selected' if sort_by=='employee_code' }}>Employee Code</option>
+        </select>
+      </div>
+      <div class="fs-field">
+        <label>⬆️⬇️ Direction</label>
+        <div style="display:flex;gap:.5rem;">
+          <button id="em_sortDirDesc" onclick="fsSetDir('em','desc')" class="sort-dir-btn {{ 'active' if sort_dir=='desc' else '' }}">↓ Newest</button>
+          <button id="em_sortDirAsc"  onclick="fsSetDir('em','asc')"  class="sort-dir-btn {{ 'active' if sort_dir=='asc'  else '' }}">↑ Oldest</button>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
+
+<form id="fsForm_em" method="GET" style="display:none;">
+  <input type="hidden" id="em_h_search"  name="search"  value="{{ search }}">
+  <input type="hidden" id="em_h_dept"    name="dept"    value="{{ dept }}">
+  <input type="hidden" id="em_h_status"  name="status"  value="{{ status }}">
+  <input type="hidden" id="em_h_emptype" name="emptype" value="{{ emptype }}">
+  <input type="hidden" id="em_h_sort_by" name="sort_by" value="{{ sort_by|default('created_at') }}">
+  <input type="hidden" id="em_h_sort_dir" name="sort_dir" value="{{ sort_dir|default('desc') }}">
+</form>
 
 
 <div class="card" style="margin-bottom:.5rem;">
@@ -226,6 +274,7 @@
                             ✏️
                         </a>
                         {% endif %}
+
                         {% if perm.can_delete %}
                         <form method="POST" action="{{ url_for('hr.emp_delete', id=e.id) }}" style="display:inline;"
                             onsubmit="return confirm('Delete {{ e.full_name }}?')">
@@ -329,7 +378,7 @@ function genQRForEmp(empId, empCode, callback) {
             .then(function(data) {
                 if (data.success && cell) {
                     cell.outerHTML = '<img src="' + dataUrl + '" class="qr-thumb" ' +
-                        'onclick="showQR(this.src,'' + empCode + '')" ' +
+                        'onclick="showQR(this.src,\'' + empCode + '\')" ' +
                         'title="Click to enlarge" id="qrImg_' + empId + '">';
                 }
                 if (callback) callback();
@@ -365,5 +414,6 @@ function changeRows_empTable(val) {
     if(ps) ps.value = val;
 }
 document.addEventListener('DOMContentLoaded', function(){ pagInit('empTable', '#empTable tbody tr:not(.no-results)', 10); });
+
 </script>
 {% endblock %}

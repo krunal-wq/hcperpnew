@@ -1,90 +1,326 @@
 {% extends "base.html" %}
 {% block title %}{{ employee.full_name }}{% endblock %}
 {% block page_title %}Employee Profile{% endblock %}
-{% block bread %}HR / Employees / View{% endblock %}
+{% block bread %}HR / Employees / {{ employee.employee_code }}{% endblock %}
+
+{% block extra_css %}
+.vw-tabs{display:flex;gap:0;border-bottom:2px solid var(--border);margin-bottom:1.25rem;overflow-x:auto;}
+.vw-tab{padding:.55rem 1.1rem;font-size:.78rem;font-weight:700;color:var(--text2);border:none;background:none;cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-2px;white-space:nowrap;border-radius:8px 8px 0 0;transition:all .15s;}
+.vw-tab:hover{color:var(--blue);background:#f0f7ff;}
+.vw-tab.active{color:var(--blue);border-bottom-color:var(--blue);background:#eff6ff;}
+.vw-pane{display:none;}.vw-pane.active{display:block;}
+.vf{display:flex;padding:.5rem 0;border-bottom:1px solid #f1f5f9;align-items:flex-start;}
+.vf:last-child{border-bottom:none;}
+.vl{width:165px;font-size:.75rem;color:var(--text3);font-weight:600;flex-shrink:0;padding-top:2px;}
+.vv{font-size:.83rem;font-weight:600;color:var(--text);flex:1;}
+.vcard{background:#fff;border-radius:12px;border:1px solid var(--border);padding:1.1rem 1.25rem;margin-bottom:1rem;}
+.vcard:last-child{margin-bottom:0;}
+.vcard-hdr{font-size:.8rem;font-weight:800;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;padding-bottom:.6rem;margin-bottom:.75rem;border-bottom:1.5px solid var(--border);display:flex;align-items:center;gap:.4rem;}
+.sal-row-v{display:flex;justify-content:space-between;align-items:center;padding:.45rem 0;border-bottom:1px solid #f1f5f9;}
+.sal-row-v:last-child{border-bottom:none;}
+.doc-view-item{display:flex;align-items:center;gap:.75rem;padding:.65rem .9rem;background:#f8fafc;border-radius:9px;border:1px solid var(--border);margin-bottom:.5rem;}
+{% endblock %}
 
 {% block content %}
 <div class="page-hdr">
     <div style="display:flex;align-items:center;gap:1rem;">
         {% if employee.profile_photo %}
-        <img src="{{ employee.profile_photo }}" style="width:56px;height:56px;border-radius:50%;object-fit:cover;border:3px solid var(--blue);" alt="">
+        <img src="{{ employee.profile_photo }}" style="width:58px;height:58px;border-radius:50%;object-fit:cover;border:3px solid var(--blue);" alt="">
         {% else %}
-        <span style="width:56px;height:56px;border-radius:50%;background:#6366f1;color:#fff;display:flex;align-items:center;justify-content:center;font-size:1.3rem;font-weight:800;">{{ employee.full_name[:2]|upper }}</span>
+        <span style="width:58px;height:58px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#3b82f6);color:#fff;display:flex;align-items:center;justify-content:center;font-size:1.3rem;font-weight:800;">{{ employee.full_name[:2]|upper }}</span>
         {% endif %}
         <div>
-            <h1 style="font-size:1.3rem;">{{ employee.full_name }}</h1>
-            <p style="font-size:.78rem;color:var(--text3);">{{ employee.employee_code }} · {{ employee.designation or 'N/A' }} · {{ employee.department or 'N/A' }}</p>
+            <h1 style="font-size:1.25rem;margin:0;">{{ employee.full_name }}
+                {% if employee.status == 'active' %}<span style="background:#dcfce7;color:#166534;padding:2px 9px;border-radius:99px;font-size:.68rem;font-weight:800;vertical-align:middle;margin-left:.4rem;">Active</span>
+                {% elif employee.status == 'terminated' %}<span style="background:#fee2e2;color:#991b1b;padding:2px 9px;border-radius:99px;font-size:.68rem;font-weight:800;vertical-align:middle;margin-left:.4rem;">Terminated</span>
+                {% else %}<span style="background:#f1f5f9;color:#64748b;padding:2px 9px;border-radius:99px;font-size:.68rem;font-weight:800;vertical-align:middle;margin-left:.4rem;">{{ employee.status|title }}</span>{% endif %}
+                {% if employee.is_probation %}<span style="background:#fef3c7;color:#d97706;padding:2px 9px;border-radius:99px;font-size:.68rem;font-weight:800;vertical-align:middle;margin-left:.3rem;">🕐 Probation</span>{% endif %}
+                {% if employee.is_block %}<span style="background:#fee2e2;color:#dc2626;padding:2px 9px;border-radius:99px;font-size:.68rem;font-weight:800;vertical-align:middle;margin-left:.3rem;">🔴 Blocked</span>{% endif %}
+            </h1>
+            <p style="font-size:.78rem;color:var(--text3);margin:.2rem 0 0;">{{ employee.employee_code }} &nbsp;·&nbsp; {{ employee.designation or '—' }} &nbsp;·&nbsp; {{ employee.department or '—' }}</p>
         </div>
     </div>
-    <div style="display:flex;gap:.5rem;">
-        {% if perm.can_edit %}
-        <a href="{{ url_for('hr.emp_edit', id=employee.id) }}" class="btn-primary" style="font-size:.82rem;">✏️ Edit</a>
-        {% endif %}
+    <div style="display:flex;gap:.5rem;flex-wrap:wrap;">
+        {% if perm.can_edit %}<a href="{{ url_for('hr.emp_edit', id=employee.id) }}" class="btn-primary" style="font-size:.82rem;">✏️ Edit</a>{% endif %}
+        <a href="{{ url_for('hr.emp_export_single', id=employee.id) }}" class="btn-outline" style="font-size:.82rem;">📥 Export Excel</a>
         <a href="{{ url_for('hr.employees') }}" class="btn-outline" style="font-size:.82rem;">← Back</a>
     </div>
 </div>
 
-<div style="display:grid;grid-template-columns:1fr 1fr 280px;gap:1rem;">
+<div class="vw-tabs">
+    <button class="vw-tab active" onclick="vwTab('vt1',this)">👤 Basic Info</button>
+    <button class="vw-tab" onclick="vwTab('vt2',this)">🏢 Professional</button>
+    <button class="vw-tab" onclick="vwTab('vt3',this)">🪪 Personal & KYC</button>
+    <button class="vw-tab" onclick="vwTab('vt4',this)">🏦 Bank Details</button>
+    <button class="vw-tab" onclick="vwTab('vt5',this)">💰 Salary</button>
+    <button class="vw-tab" onclick="vwTab('vt6',this)">📚 Education</button>
+    <button class="vw-tab" onclick="vwTab('vt7',this)">📎 Documents</button>
+</div>
 
-    <div class="card">
-        <div style="padding:.7rem 1rem;border-bottom:1px solid var(--border);font-size:.83rem;font-weight:800;">👤 Basic Info</div>
-        <div style="padding:1rem;">
-            {% for label, val in [
-                ('Employee Code', employee.employee_code),
-                ('Mobile', employee.mobile),
-                ('Email', employee.email),
-                ('Gender', employee.gender),
-                ('Employee Type', employee.employee_type),
-                ('Date of Joining', employee.date_of_joining.strftime('%d %b %Y') if employee.date_of_joining else '—'),
-                ('Location', employee.location),
-                ('Department', employee.department),
-                ('Designation', employee.designation),
+<!-- TAB 1: BASIC INFO -->
+<div class="vw-pane active" id="vt1">
+<div style="display:grid;grid-template-columns:1fr 1fr 210px;gap:1rem;">
+    <div>
+        <div class="vcard">
+            <div class="vcard-hdr">👤 Basic Information</div>
+            {% for l,v in [
+                ('Employee Code', employee.employee_code),('First Name', employee.first_name),('Last Name', employee.last_name),
+                ('Mobile', employee.mobile),('Email', employee.email),('Gender', employee.gender),
+                ('Date of Birth', employee.date_of_birth.strftime('%d %b %Y') if employee.date_of_birth else None),
+                ('Blood Group', employee.blood_group),('Marital Status', employee.marital_status),
+                ('Marriage Anniversary', employee.marriage_anniversary.strftime('%d %b %Y') if employee.marriage_anniversary else None),
             ] %}
-            <div style="display:flex;padding:.45rem 0;border-bottom:1px solid #f1f5f9;">
-                <span style="width:140px;font-size:.78rem;color:var(--text3);font-weight:600;flex-shrink:0;">{{ label }}</span>
-                <span style="font-size:.83rem;font-weight:600;">{{ val or '—' }}</span>
-            </div>
+            <div class="vf"><span class="vl">{{ l }}</span><span class="vv">{{ v or '—' }}</span></div>
             {% endfor %}
         </div>
     </div>
-
-    <div class="card">
-        <div style="padding:.7rem 1rem;border-bottom:1px solid var(--border);font-size:.83rem;font-weight:800;">🪪 Personal Info</div>
-        <div style="padding:1rem;">
-            {% for label, val in [
-                ('Date of Birth', employee.date_of_birth.strftime('%d %b %Y') if employee.date_of_birth else '—'),
-                ('Blood Group', employee.blood_group),
-                ('Marital Status', employee.marital_status),
-                ('LinkedIn', employee.linkedin),
-                ('Facebook', employee.facebook),
-                ('Is Contractor', 'Yes' if employee.is_contractor else 'No'),
-                ('Status', employee.status|replace('_',' ')|capitalize),
-                ('Is Block', 'Yes' if employee.is_block else 'No'),
-                ('Is Late', 'Yes' if employee.is_late else 'No'),
-                ('Is Probation', 'Yes' if employee.is_probation else 'No'),
-            ] %}
-            <div style="display:flex;padding:.45rem 0;border-bottom:1px solid #f1f5f9;">
-                <span style="width:140px;font-size:.78rem;color:var(--text3);font-weight:600;flex-shrink:0;">{{ label }}</span>
-                <span style="font-size:.83rem;font-weight:600;">{{ val or '—' }}</span>
-            </div>
+    <div>
+        <div class="vcard">
+            <div class="vcard-hdr">📍 Address</div>
+            {% for l,v in [('Address',employee.address),('City',employee.city),('State',employee.state),('Country',employee.country),('ZIP / Pin Code',employee.zip_code)] %}
+            <div class="vf"><span class="vl">{{ l }}</span><span class="vv">{{ v or '—' }}</span></div>
             {% endfor %}
         </div>
-    </div>
-
-    <div style="display:flex;flex-direction:column;gap:1rem;">
-        {% if employee.qr_code_base64 %}
-        <div class="card" style="text-align:center;padding:1.25rem;">
-            <div style="font-size:.8rem;font-weight:800;margin-bottom:.75rem;">🔲 QR Code</div>
-            <img src="{{ employee.qr_code_base64 }}" style="width:160px;height:160px;border:2px solid var(--border);border-radius:10px;" alt="QR">
-            <div style="font-size:.78rem;font-weight:800;color:var(--blue);margin-top:.5rem;">{{ employee.employee_code }}</div>
+        {% if employee.linkedin or employee.facebook %}
+        <div class="vcard">
+            <div class="vcard-hdr">🔗 Social Links</div>
+            {% if employee.linkedin %}<div class="vf"><span class="vl">LinkedIn</span><span class="vv"><a href="{{ employee.linkedin }}" target="_blank" style="color:var(--blue);word-break:break-all;">{{ employee.linkedin }}</a></span></div>{% endif %}
+            {% if employee.facebook %}<div class="vf"><span class="vl">Facebook</span><span class="vv"><a href="{{ employee.facebook }}" target="_blank" style="color:var(--blue);word-break:break-all;">{{ employee.facebook }}</a></span></div>{% endif %}
         </div>
         {% endif %}
-        {% if employee.remark %}
-        <div class="card" style="padding:1rem;">
-            <div style="font-size:.8rem;font-weight:800;margin-bottom:.5rem;">📝 Remark</div>
-            <p style="font-size:.83rem;color:var(--text2);">{{ employee.remark }}</p>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:1rem;">
+        {% if employee.profile_photo %}
+        <div class="vcard" style="text-align:center;padding:1rem;">
+            <div class="vcard-hdr" style="justify-content:center;">📸 Photo</div>
+            <img src="{{ employee.profile_photo }}" style="width:130px;height:130px;border-radius:12px;object-fit:cover;border:2px solid var(--border);">
+        </div>
+        {% endif %}
+        {% if employee.qr_code_base64 %}
+        <div class="vcard" style="text-align:center;padding:1rem;">
+            <div class="vcard-hdr" style="justify-content:center;">🔲 QR Code</div>
+            <img src="{{ employee.qr_code_base64 }}" style="width:130px;height:130px;border:2px solid var(--border);border-radius:10px;">
+            <div style="font-size:.72rem;font-weight:800;color:var(--blue);margin-top:.4rem;">{{ employee.employee_code }}</div>
         </div>
         {% endif %}
     </div>
 </div>
+</div>
+
+<!-- TAB 2: PROFESSIONAL -->
+<div class="vw-pane" id="vt2">
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+    <div>
+        <div class="vcard">
+            <div class="vcard-hdr">🏢 Employment Details</div>
+            {% for l,v in [
+                ('Department',employee.department),('Designation',employee.designation),('Employee Type',employee.employee_type),
+                ('Location',employee.location),('Pay Grade',employee.pay_grade),
+                ('Date of Joining',employee.date_of_joining.strftime('%d %b %Y') if employee.date_of_joining else None),
+                ('Confirmation Date',employee.confirmation_date.strftime('%d %b %Y') if employee.confirmation_date else None),
+                ('Reports To',employee.manager_emp.full_name if employee.manager_emp else None),
+            ] %}
+            <div class="vf"><span class="vl">{{ l }}</span><span class="vv">{{ v or '—' }}</span></div>
+            {% endfor %}
+        </div>
+    </div>
+    <div>
+        <div class="vcard">
+            <div class="vcard-hdr">⚙️ Work Settings</div>
+            {% for l,v in [
+                ('Shift',employee.shift),
+                ('Work Hours/Day',(employee.work_hours_per_day|string+' hrs') if employee.work_hours_per_day else None),
+                ('Weekly Off',employee.weekly_off),
+                ('Notice Period',(employee.notice_period_days|string+' days') if employee.notice_period_days else None),
+                ('Is Contractor','Yes' if employee.is_contractor else 'No'),
+            ] %}
+            <div class="vf"><span class="vl">{{ l }}</span><span class="vv">{{ v or '—' }}</span></div>
+            {% endfor %}
+        </div>
+        <div class="vcard">
+            <div class="vcard-hdr">🚦 Status Flags</div>
+            {% for l,v in [
+                ('Status',employee.status|replace('_',' ')|capitalize),
+                ('Probation','Yes' if employee.is_probation else 'No'),
+                ('Blocked','Yes' if employee.is_block else 'No'),
+                ('Late Mark','Yes' if employee.is_late else 'No'),
+                ('Rehire Eligible','Yes' if employee.rehire_eligible else 'No'),
+            ] %}
+            <div class="vf"><span class="vl">{{ l }}</span><span class="vv">{{ v or '—' }}</span></div>
+            {% endfor %}
+        </div>
+        {% if employee.resignation_date or employee.last_working_date %}
+        <div class="vcard">
+            <div class="vcard-hdr">🚪 Exit Details</div>
+            {% if employee.resignation_date %}<div class="vf"><span class="vl">Resignation Date</span><span class="vv">{{ employee.resignation_date.strftime('%d %b %Y') }}</span></div>{% endif %}
+            {% if employee.last_working_date %}<div class="vf"><span class="vl">Last Working Date</span><span class="vv">{{ employee.last_working_date.strftime('%d %b %Y') }}</span></div>{% endif %}
+        </div>
+        {% endif %}
+        {% if employee.remark %}
+        <div class="vcard">
+            <div class="vcard-hdr">📝 Remark</div>
+            <p style="font-size:.83rem;line-height:1.5;margin:0;">{{ employee.remark }}</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+</div>
+
+<!-- TAB 3: KYC -->
+<div class="vw-pane" id="vt3">
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+    <div>
+        <div class="vcard">
+            <div class="vcard-hdr">🪪 Identity & KYC</div>
+            {% for l,v in [
+                ('Nationality',employee.nationality),('Religion',employee.religion),('Caste',employee.caste),
+                ('Physically Handicapped','Yes' if employee.physically_handicapped else 'No'),
+                ('Aadhaar Number',employee.aadhar_number),('PAN Number',employee.pan_number),
+                ('UAN Number',employee.uan_number),('ESIC Number',employee.esic_number),
+            ] %}
+            <div class="vf"><span class="vl">{{ l }}</span><span class="vv">{{ v or '—' }}</span></div>
+            {% endfor %}
+        </div>
+        <div class="vcard">
+            <div class="vcard-hdr">🛂 Travel Documents</div>
+            {% for l,v in [
+                ('Passport No.',employee.passport_number),
+                ('Passport Expiry',employee.passport_expiry.strftime('%d %b %Y') if employee.passport_expiry else None),
+                ('Driving License',employee.driving_license),
+                ('DL Expiry',employee.dl_expiry.strftime('%d %b %Y') if employee.dl_expiry else None),
+            ] %}
+            <div class="vf"><span class="vl">{{ l }}</span><span class="vv">{{ v or '—' }}</span></div>
+            {% endfor %}
+        </div>
+    </div>
+    <div class="vcard">
+        <div class="vcard-hdr">🆘 Emergency Contact</div>
+        {% for l,v in [('Name',employee.emergency_name),('Relation',employee.emergency_relation),('Phone',employee.emergency_phone),('Address',employee.emergency_address)] %}
+        <div class="vf"><span class="vl">{{ l }}</span><span class="vv">{{ v or '—' }}</span></div>
+        {% endfor %}
+    </div>
+</div>
+</div>
+
+<!-- TAB 4: BANK -->
+<div class="vw-pane" id="vt4">
+<div style="max-width:580px;">
+    <div class="vcard">
+        <div class="vcard-hdr">🏦 Bank Account Details</div>
+        {% for l,v in [
+            ('Account Holder',employee.bank_account_holder),('Bank Name',employee.bank_name),
+            ('Account Number',employee.bank_account_number),('IFSC Code',employee.bank_ifsc),
+            ('Branch',employee.bank_branch),('Account Type',employee.bank_account_type),
+        ] %}
+        <div class="vf"><span class="vl">{{ l }}</span>
+            <span class="vv">{% if l=='Account Number' and v %}{{ v[:4] }}****{{ v[-4:] if v|length > 8 else v }}{% else %}{{ v or '—' }}{% endif %}</span>
+        </div>
+        {% endfor %}
+    </div>
+    <div style="background:#fffbeb;border:1.5px solid #fcd34d;border-radius:10px;padding:.75rem 1rem;font-size:.78rem;color:#92400e;">
+        🔒 Bank details are confidential. Visible only to authorized HR personnel.
+    </div>
+</div>
+</div>
+
+<!-- TAB 5: SALARY -->
+<div class="vw-pane" id="vt5">
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+    <div class="vcard">
+        <div class="vcard-hdr">💰 Earnings (Monthly)</div>
+        {% for l,v in [
+            ('CTC Annual',employee.salary_ctc),('Basic',employee.salary_basic),('HRA',employee.salary_hra),
+            ('DA',employee.salary_da),('Transport Allow.',employee.salary_ta),
+            ('Medical Allow.',employee.salary_medical_allow),('Special Allow.',employee.salary_special_allow),
+        ] %}
+        <div class="sal-row-v">
+            <span style="font-size:.78rem;color:var(--text3);font-weight:600;">{{ l }}</span>
+            <span style="font-size:.85rem;font-weight:800;">{% if v %}₹{{ '{:,.0f}'.format(v) }}{% else %}—{% endif %}</span>
+        </div>
+        {% endfor %}
+    </div>
+    <div>
+        <div class="vcard">
+            <div class="vcard-hdr">🔻 Deductions</div>
+            {% for l,v in [
+                ('PF Employee',employee.salary_pf_employee),('PF Employer',employee.salary_pf_employer),
+                ('ESIC Employee',employee.salary_esic_employee),('ESIC Employer',employee.salary_esic_employer),
+                ('Professional Tax',employee.salary_professional_tax),('TDS',employee.salary_tds),
+            ] %}
+            <div class="sal-row-v">
+                <span style="font-size:.78rem;color:var(--text3);font-weight:600;">{{ l }}</span>
+                <span style="font-size:.85rem;font-weight:800;color:#dc2626;">{% if v %}₹{{ '{:,.0f}'.format(v) }}{% else %}—{% endif %}</span>
+            </div>
+            {% endfor %}
+        </div>
+        <div class="vcard" style="background:linear-gradient(135deg,#eff6ff,#f0fdf4);border:1.5px solid #bfdbfe;">
+            <div class="vcard-hdr">🧾 Net Monthly Pay</div>
+            <div style="font-size:1.8rem;font-weight:900;color:#1d4ed8;">
+                {% if employee.salary_net %}₹{{ '{:,.0f}'.format(employee.salary_net) }}{% else %}—{% endif %}
+            </div>
+            <div style="font-size:.75rem;color:var(--text3);margin-top:.3rem;display:flex;gap:1rem;">
+                <span>Mode: <strong>{{ employee.salary_mode or '—' }}</strong></span>
+                <span>Effective: <strong>{{ employee.salary_effective_date.strftime('%d %b %Y') if employee.salary_effective_date else '—' }}</strong></span>
+            </div>
+        </div>
+    </div>
+</div>
+</div>
+
+<!-- TAB 6: EDUCATION -->
+<div class="vw-pane" id="vt6">
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+    <div class="vcard">
+        <div class="vcard-hdr">📚 Education</div>
+        {% for l,v in [
+            ('Qualification',employee.highest_qualification),('University / Board',employee.university),
+            ('Passing Year',employee.passing_year|string if employee.passing_year else None),
+            ('Specialization',employee.specialization),
+        ] %}
+        <div class="vf"><span class="vl">{{ l }}</span><span class="vv">{{ v or '—' }}</span></div>
+        {% endfor %}
+    </div>
+    <div class="vcard">
+        <div class="vcard-hdr">💼 Previous Employment</div>
+        {% for l,v in [
+            ('Company',employee.prev_company),('Designation',employee.prev_designation),
+            ('From Date',employee.prev_from_date.strftime('%d %b %Y') if employee.prev_from_date else None),
+            ('To Date',employee.prev_to_date.strftime('%d %b %Y') if employee.prev_to_date else None),
+            ('Leaving Reason',employee.prev_leaving_reason),
+            ('Total Experience',(employee.total_experience_yrs|string+' yrs') if employee.total_experience_yrs else None),
+        ] %}
+        <div class="vf"><span class="vl">{{ l }}</span><span class="vv">{{ v or '—' }}</span></div>
+        {% endfor %}
+    </div>
+</div>
+</div>
+
+<!-- TAB 7: DOCUMENTS -->
+<div class="vw-pane" id="vt7">
+{% if employee.documents_json and employee.documents_json != '[]' %}
+{% set doc_list = employee.documents_json | from_json %}
+{% if doc_list %}
+<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:.75rem;">
+{% for doc in doc_list %}
+<div class="doc-view-item">
+    <div style="font-size:1.5rem;flex-shrink:0;">{% if doc.filename.endswith('.pdf') %}📄{% else %}🖼️{% endif %}</div>
+    <div style="flex:1;min-width:0;">
+        <div style="font-size:.82rem;font-weight:700;">{{ doc.name }}</div>
+        <div style="font-size:.7rem;color:var(--text3);">{{ doc.type }} · {{ (doc.size / 1024)|round(0)|int }} KB · {{ doc.uploaded_at[:10] if doc.uploaded_at else '' }}</div>
+    </div>
+    <a href="{{ doc.base64 }}" download="{{ doc.filename }}" class="btn-outline" style="font-size:.72rem;padding:4px 10px;flex-shrink:0;">⬇ Save</a>
+</div>
+{% endfor %}
+</div>
+{% else %}
+<div style="text-align:center;padding:3rem;color:var(--text3);"><div style="font-size:2.5rem;margin-bottom:.75rem;">📂</div><p>No documents uploaded</p></div>
+{% endif %}
+{% else %}
+<div style="text-align:center;padding:3rem;color:var(--text3);"><div style="font-size:2.5rem;margin-bottom:.75rem;">📂</div><p>No documents uploaded</p></div>
+{% endif %}
+</div>
+
+{% endblock %}
+{% block extra_js %}
+function vwTab(id,btn){document.querySelectorAll('.vw-pane').forEach(p=>p.classList.remove('active'));document.querySelectorAll('.vw-tab').forEach(b=>b.classList.remove('active'));document.getElementById(id).classList.add('active');btn.classList.add('active');}
 {% endblock %}

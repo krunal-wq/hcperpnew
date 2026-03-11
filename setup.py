@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env python3
+#!/usr/bin/env python3
 """
 ╔══════════════════════════════════════════════════════════════════╗
 ║           ERP CRM — ONE-CLICK SETUP SCRIPT                       ║
@@ -24,7 +24,7 @@ DB_HOST     = "localhost"
 DB_PORT     = 3306
 DB_NAME     = "erpdb"
 DB_USER     = "root"          # MySQL root user
-DB_PASSWORD = ""   # MySQL root password
+DB_PASSWORD = "Krunal@2424"   # MySQL root password
 APP_SECRET  = "erp-super-secret-key-2024"
 
 # Admin user jo create hoga
@@ -186,14 +186,14 @@ def seed_master_data(app, db):
 
         # ── Lead Statuses ──
         statuses = [
-            ("open",       "Open",       "📧", "#6366f1", 1),
-            ("in_process", "In Process", "⚙️",  "#1e3a5f", 2),
-            ("close",      "Close",      "✅", "#059669", 3),
-            ("cancel",     "Cancel",     "❌", "#dc2626", 4),
+            ("open",       "📧", "#6366f1", 1),
+            ("in_process", "⚙️",  "#1e3a5f", 2),
+            ("close",      "✅", "#059669", 3),
+            ("cancel",     "❌", "#dc2626", 4),
         ]
-        for val, label, icon, color, sort in statuses:
-            if not LeadStatus.query.filter_by(value=val).first():
-                db.session.add(LeadStatus(value=val, label=label, icon=icon,
+        for name, icon, color, sort in statuses:
+            if not LeadStatus.query.filter_by(name=name).first():
+                db.session.add(LeadStatus(name=name, icon=icon,
                                           color=color, sort_order=sort, is_active=True))
 
         # ── Lead Sources ──
@@ -252,7 +252,7 @@ def seed_master_data(app, db):
                     db.session.add(RolePermission(
                         role=role, module_id=mod.id,
                         can_view=True,
-                        can_create=can_write,
+                        can_add=can_write,
                         can_edit=can_write,
                         can_delete=can_delete,
                         can_export=(role != "viewer"),
@@ -340,13 +340,10 @@ def add_missing_columns(app, db):
         safe_add("leads", "modified_by",      "INT")
         safe_add("leads", "alternate_mobile", "VARCHAR(20)")
 
-        # users table
+        # users table (created_by/modified_by/updated_at already in model)
         safe_add("users", "created_by",  "INT")
         safe_add("users", "modified_by", "INT")
         safe_add("users", "updated_at",  "DATETIME")
-        safe_add("users", "phone",       "VARCHAR(20)")
-        safe_add("users", "department",  "VARCHAR(100)")
-        safe_add("users", "avatar",      "VARCHAR(300)")
 
         # employees table
         safe_add("employees", "modified_by", "INT")

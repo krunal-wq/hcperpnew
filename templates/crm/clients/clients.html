@@ -32,81 +32,101 @@
     <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
         <a href="{{ url_for('crm.client_add') }}" class="btn-primary">+ Add Client</a>
         <a href="{{ url_for('crm.client_import') }}" class="btn-outline">📥 Import</a>
-        <button class="btn-outline" onclick="exportCSV()">📤 Export</button>
+        <button class="btn-outline" onclick="doExport('cl')">📤 Export</button>
     </div>
 </div>
 
 <!-- Filter Panel -->
-<div class="filter-panel">
-    <form method="GET" id="filterForm">
-        <div class="filter-row">
-            <div>
-                <label style="font-size:0.75rem;font-weight:600;color:var(--text3);display:block;margin-bottom:3px;">🔍 Search</label>
-                <input type="text" name="search" value="{{ search }}" placeholder="Name, company, mobile, email...">
-            </div>
-            <div>
-                <label style="font-size:0.75rem;font-weight:600;color:var(--text3);display:block;margin-bottom:3px;">🏙️ City</label>
-                <input type="text" name="city" value="{{ city }}" placeholder="Filter by city" list="cityList">
-                <datalist id="cityList">{% for c in all_cities %}<option value="{{ c }}">{% endfor %}</datalist>
-            </div>
-            <div>
-                <label style="font-size:0.75rem;font-weight:600;color:var(--text3);display:block;margin-bottom:3px;">🗺️ State</label>
-                <input type="text" name="state" value="{{ state }}" placeholder="Filter by state" list="stateList">
-                <datalist id="stateList">{% for s in all_states %}<option value="{{ s }}">{% endfor %}</datalist>
-            </div>
-            <div>
-                <label style="font-size:0.75rem;font-weight:600;color:var(--text3);display:block;margin-bottom:3px;">👤 Client Type</label>
-                <select name="client_type">
-                    <option value="">All Types</option>
-                    <option value="regular" {{ 'selected' if client_type=='regular' }}>Regular</option>
-                    <option value="vip"     {{ 'selected' if client_type=='vip' }}>VIP</option>
-                    <option value="dealer"  {{ 'selected' if client_type=='dealer' }}>Dealer</option>
-                </select>
-            </div>
-            <div>
-                <label style="font-size:0.75rem;font-weight:600;color:var(--text3);display:block;margin-bottom:3px;">✅ Status</label>
-                <select name="status_f">
-                    <option value="">All Status</option>
-                    <option value="active"   {{ 'selected' if status_f=='active' }}>Active</option>
-                    <option value="inactive" {{ 'selected' if status_f=='inactive' }}>Inactive</option>
-                </select>
-            </div>
-            <div>
-                <label style="font-size:0.75rem;font-weight:600;color:var(--text3);display:block;margin-bottom:3px;">↕️ Sort By</label>
-                <select name="sort_by">
-                    <option value="created_at"   {{ 'selected' if sort_by=='created_at' }}>Created Date</option>
-                    <option value="contact_name" {{ 'selected' if sort_by=='contact_name' }}>Name</option>
-                    <option value="company_name" {{ 'selected' if sort_by=='company_name' }}>Company</option>
-                    <option value="city"         {{ 'selected' if sort_by=='city' }}>City</option>
-                    <option value="client_type"  {{ 'selected' if sort_by=='client_type' }}>Type</option>
-                </select>
-            </div>
-            <div>
-                <label style="font-size:0.75rem;font-weight:600;color:var(--text3);display:block;margin-bottom:3px;">⬆️⬇️ Direction</label>
-                <select name="sort_dir">
-                    <option value="desc" {{ 'selected' if sort_dir=='desc' }}>Newest First</option>
-                    <option value="asc"  {{ 'selected' if sort_dir=='asc' }}>A-Z / Oldest</option>
-                </select>
-            </div>
-            <div class="filter-actions">
-                <button type="submit" class="btn-primary" style="width:100%;">Apply</button>
-            </div>
-            <div class="filter-actions">
-                <a href="{{ url_for('crm.clients') }}" class="btn-outline" style="width:100%;text-align:center;">Clear</a>
-            </div>
+{% set _cfc = [search,city,state,client_type,status_f]|select|list|length %}
+<div class="fs-panel" style="margin-bottom:1rem;">
+  <div style="display:flex;gap:6px;align-items:center;">
+    <button id="fsTabFilter" class="fs-tab" onclick="toggleFsTab('filter','cl')">
+      🔍 Filter{% if _cfc > 0 %} <span class="fs-badge">{{ _cfc }}</span>{% endif %}
+    </button>
+    <button id="fsTabSort" class="fs-tab" onclick="toggleFsTab('sort','cl')">
+      ↕️ Sort{% if sort_by != 'created_at' or sort_dir != 'desc' %} <span class="fs-badge">•</span>{% endif %}
+    </button>
+    {% if _cfc > 0 %}<a href="{{ url_for('crm.clients') }}" class="fs-clear">✕ Clear All</a>{% endif %}
+  </div>
+
+  <div id="fsPanelFilter_cl" class="fs-pane" style="display:none;">
+    <div class="fs-grid">
+      <div class="fs-field">
+        <label>🔍 Search</label>
+        <input type="text" id="cl_search" value="{{ search }}" placeholder="Name, company, mobile, email…" oninput="fsDebounce('cl')">
+        <datalist id="cityList">{% for c in all_cities %}<option value="{{ c }}">{% endfor %}</datalist>
+      </div>
+      <div class="fs-field">
+        <label>🏙️ City</label>
+        <input type="text" id="cl_city" value="{{ city }}" placeholder="Filter by city" oninput="fsDebounce('cl')" list="cityList">
+      </div>
+      <div class="fs-field">
+        <label>🗺️ State</label>
+        <input type="text" id="cl_state" value="{{ state }}" placeholder="Filter by state" oninput="fsDebounce('cl')" list="stateList">
+        <datalist id="stateList">{% for s in all_states %}<option value="{{ s }}">{% endfor %}</datalist>
+      </div>
+      <div class="fs-field">
+        <label>👤 Client Type</label>
+        <select id="cl_client_type" onchange="fsSubmit('cl')">
+          <option value="">All Types</option>
+          <option value="regular" {{ 'selected' if client_type=='regular' }}>Regular</option>
+          <option value="vip"     {{ 'selected' if client_type=='vip' }}>VIP</option>
+          <option value="dealer"  {{ 'selected' if client_type=='dealer' }}>Dealer</option>
+        </select>
+      </div>
+      <div class="fs-field">
+        <label>✅ Status</label>
+        <select id="cl_status_f" onchange="fsSubmit('cl')">
+          <option value="">All Status</option>
+          <option value="active"   {{ 'selected' if status_f=='active' }}>Active</option>
+          <option value="inactive" {{ 'selected' if status_f=='inactive' }}>Inactive</option>
+        </select>
+      </div>
+    </div>
+    {% if search or city or state or client_type or status_f %}
+    <div style="display:flex;flex-wrap:wrap;gap:.35rem;margin-top:.65rem;align-items:center;">
+      <span style="font-size:.7rem;color:var(--text3);font-weight:600;">Active:</span>
+      {% if search %}<span class="fs-chip">Search: {{ search }}<a onclick="fsClear('cl_search','cl')">×</a></span>{% endif %}
+      {% if city %}<span class="fs-chip">City: {{ city }}<a onclick="fsClear('cl_city','cl')">×</a></span>{% endif %}
+      {% if state %}<span class="fs-chip">State: {{ state }}<a onclick="fsClear('cl_state','cl')">×</a></span>{% endif %}
+      {% if client_type %}<span class="fs-chip">Type: {{ client_type }}<a onclick="fsClear('cl_client_type','cl')">×</a></span>{% endif %}
+      {% if status_f %}<span class="fs-chip">Status: {{ status_f }}<a onclick="fsClear('cl_status_f','cl')">×</a></span>{% endif %}
+    </div>
+    {% endif %}
+  </div>
+
+  <div id="fsPanelSort_cl" class="fs-pane" style="display:none;">
+    <div class="fs-grid" style="max-width:480px;">
+      <div class="fs-field">
+        <label>↕️ Sort By</label>
+        <select id="cl_sort_by" onchange="fsSubmit('cl')">
+          <option value="created_at"   {{ 'selected' if sort_by=='created_at' }}>Created Date</option>
+          <option value="contact_name" {{ 'selected' if sort_by=='contact_name' }}>Name</option>
+          <option value="company_name" {{ 'selected' if sort_by=='company_name' }}>Company</option>
+          <option value="city"         {{ 'selected' if sort_by=='city' }}>City</option>
+          <option value="client_type"  {{ 'selected' if sort_by=='client_type' }}>Type</option>
+        </select>
+      </div>
+      <div class="fs-field">
+        <label>⬆️⬇️ Direction</label>
+        <div style="display:flex;gap:.5rem;">
+          <button id="cl_sortDirDesc" onclick="fsSetDir('cl','desc')" class="sort-dir-btn {{ 'active' if sort_dir=='desc' else '' }}">↓ Newest</button>
+          <button id="cl_sortDirAsc"  onclick="fsSetDir('cl','asc')"  class="sort-dir-btn {{ 'active' if sort_dir=='asc'  else '' }}">↑ Oldest</button>
         </div>
-        {% if search or city or state or client_type or status_f %}
-        <div style="margin-top:0.6rem;display:flex;flex-wrap:wrap;gap:0.4rem;align-items:center;">
-            <span style="font-size:0.75rem;color:var(--text3);">Active filters:</span>
-            {% if search %}<span class="badge badge-info">Search: {{ search }}</span>{% endif %}
-            {% if city %}<span class="badge badge-info">City: {{ city }}</span>{% endif %}
-            {% if state %}<span class="badge badge-info">State: {{ state }}</span>{% endif %}
-            {% if client_type %}<span class="badge badge-info">Type: {{ client_type }}</span>{% endif %}
-            {% if status_f %}<span class="badge badge-info">Status: {{ status_f }}</span>{% endif %}
-        </div>
-        {% endif %}
-    </form>
+      </div>
+    </div>
+  </div>
 </div>
+
+<form id="fsForm_cl" method="GET" style="display:none;">
+  <input type="hidden" id="cl_h_search"      name="search"      value="{{ search }}">
+  <input type="hidden" id="cl_h_city"         name="city"        value="{{ city }}">
+  <input type="hidden" id="cl_h_state"        name="state"       value="{{ state }}">
+  <input type="hidden" id="cl_h_client_type"  name="client_type" value="{{ client_type }}">
+  <input type="hidden" id="cl_h_status_f"     name="status_f"    value="{{ status_f }}">
+  <input type="hidden" id="cl_h_sort_by"      name="sort_by"     value="{{ sort_by }}">
+  <input type="hidden" id="cl_h_sort_dir"     name="sort_dir"    value="{{ sort_dir }}">
+</form>
 
 <!-- Table -->
 <div class="card">
@@ -214,18 +234,16 @@ function sortTable(col) {
     rows.forEach(r => tbl.appendChild(r));
     pagRender('clientsTable', '#clientsTable .client-row');
 }
-function exportCSV() {
-    const rows = document.querySelectorAll('#clientsTable tr');
-    const csv = [];
-    rows.forEach(row => {
-        const cells = Array.from(row.querySelectorAll('th,td')).slice(0, -1);
-        csv.push(cells.map(c => '"' + c.innerText.trim().replace(/"/g,'""').replace(/\n/g,' ') + '"').join(','));
-    });
-    const blob = new Blob([csv.join('\n')], { type:'text/csv;charset=utf-8;' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = 'clients_export.csv';
-    a.click();
+function doExport(ns) {
+    var form = document.getElementById('fsForm_' + ns);
+    var params = new URLSearchParams();
+    if (form) {
+        form.querySelectorAll('input[type=hidden]').forEach(function(h) {
+            if (h.value) params.set(h.name, h.value);
+        });
+    }
+    var urlMap = { cl: '/crm/clients/export', em: '/hr/employees/export', ct: '/hr/contractors/export' };
+    window.location.href = (urlMap[ns] || '#') + '?' + params.toString();
 }
 document.addEventListener('DOMContentLoaded', function(){ pagInit('clientsTable', '#clientsTable .client-row', 10); });
 </script>

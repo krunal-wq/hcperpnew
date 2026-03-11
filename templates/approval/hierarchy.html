@@ -1,0 +1,182 @@
+{% extends "base.html" %}
+{% block title %}Org Chart{% endblock %}
+{% block page_title %}Org Chart{% endblock %}
+{% block bread %}HR / Hierarchy{% endblock %}
+
+{% block extra_css %}
+.tree-wrap { overflow-x:auto; padding:1rem 0; }
+.tree ul { padding-left:2.2rem; margin:0; list-style:none; position:relative; }
+.tree > ul { padding-left:0; }
+.tree ul::before { content:''; position:absolute; left:.9rem; top:0; bottom:1.2rem; border-left:2px dashed #cbd5e1; }
+.tree > ul::before { display:none; }
+.tree li { position:relative; padding:.3rem 0; }
+.tree li::before { content:''; position:absolute; left:-1.3rem; top:1.3rem; width:1.3rem; border-top:2px dashed #cbd5e1; }
+.tree > ul > li::before { display:none; }
+.emp-node { display:inline-flex; align-items:center; gap:.5rem; background:#fff; border:1.5px solid var(--border); border-radius:10px; padding:.45rem .85rem; font-size:.8rem; transition:.15s; }
+.emp-node:hover { border-color:var(--blue); background:#f0f7ff; }
+.emp-av { width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:.65rem; font-weight:800; color:#fff; flex-shrink:0; }
+.emp-name { font-weight:700; color:var(--text); font-size:.78rem; }
+.emp-sub  { font-size:.68rem; color:var(--text3); }
+.lv-badge { font-size:.62rem; background:#e0f2fe; color:#0369a1; border-radius:99px; padding:1px 7px; font-weight:700; }
+.hr-badge { font-size:.62rem; background:#fef3c7; color:#d97706; border-radius:99px; padding:1px 7px; font-weight:700; }
+.mgr-select { font-size:.75rem; padding:4px 8px; border:1.5px solid var(--border); border-radius:7px; }
+{% endblock %}
+
+{% block content %}
+
+{# ── Recursive node macro ── #}
+{% macro render_node(node) %}
+{% set e = node.emp %}
+{% set colors = ['#6366f1','#f59e0b','#10b981','#3b82f6','#ef4444','#8b5cf6','#ec4899','#14b8a6'] %}
+{% set col = colors[e.id % (colors|length)] %}
+<li>
+  <div class="emp-node">
+    <div class="emp-av" style="background:{{ col }};">{{ e.full_name[:2]|upper }}</div>
+    <div style="display:flex;flex-direction:column;">
+      <span class="emp-name">{{ e.full_name }}</span>
+      <span class="emp-sub">{{ e.employee_code }}{% if e.designation %} · {{ e.designation }}{% endif %}</span>
+    </div>
+    <span class="lv-badge">L{{ node.depth + 1 }}</span>
+    {% if e.department == 'HR' %}<span class="hr-badge">HR</span>{% endif %}
+  </div>
+  {% if node.children %}
+  <ul>
+    {% for child in node.children %}
+      {% if child %}{{ render_node(child) }}{% endif %}
+    {% endfor %}
+  </ul>
+  {% endif %}
+</li>
+{% endmacro %}
+
+<div class="page-hdr">
+  <div>
+    <h1 style="font-size:1.2rem;">🏢 Organisation Chart</h1>
+    <p style="font-size:.78rem;color:var(--text3);">Employee reporting structure</p>
+  </div>
+  {% if current_user.role == 'admin' %}
+  <a href="{{ url_for('approval.approval_config') }}" class="btn-outline" style="font-size:.8rem;">⚙️ Approval Config</a>
+  {% endif %}
+</div>
+
+{% with msgs = get_flashed_messages(with_categories=true) %}
+{% for cat,msg in msgs %}<div class="alert alert-{{ cat }}" style="margin-bottom:.75rem;">{{ msg }}</div>{% endfor %}
+{% endwith %}
+
+<div style="display:grid;grid-template-columns:1fr 320px;gap:1rem;align-items:start;">
+
+  <!-- Tree -->
+  <div class="card" style="padding:1.25rem;overflow-x:auto;">
+    <div style="font-size:.82rem;font-weight:800;margin-bottom:1rem;">🌳 Reporting Tree</div>
+    {% if trees %}
+      <div class="tree tree-wrap">
+        <ul>
+          {% for tree in trees %}
+            {% if tree %}{{ render_node(tree) }}{% endif %}
+          {% endfor %}
+        </ul>
+      </div>
+    {% else %}
+      <p style="color:var(--text3);text-align:center;padding:2rem;">No hierarchy set yet. Use the panel to assign managers.</p>
+    {% endif %}
+  </div>
+
+  <!-- Stats only on right -->
+  <div style="display:flex;flex-direction:column;gap:1rem;">
+    <div class="card" style="padding:1.25rem;">
+      <div style="font-size:.82rem;font-weight:800;margin-bottom:.5rem;">📊 Summary</div>
+      {% set total    = all_employees|length %}
+      {% set with_mgr = all_employees|selectattr('reports_to')|list|length %}
+      <div style="font-size:.78rem;display:flex;flex-direction:column;gap:.3rem;">
+        <div style="display:flex;justify-content:space-between;padding:3px 0;">
+          <span style="color:var(--text2);">Total Employees</span><strong>{{ total }}</strong>
+        </div>
+        <div style="display:flex;justify-content:space-between;padding:3px 0;">
+          <span style="color:var(--text2);">With Manager</span><strong>{{ with_mgr }}</strong>
+        </div>
+        <div style="display:flex;justify-content:space-between;padding:3px 0;">
+          <span style="color:var(--text2);">Top Level</span><strong>{{ total - with_mgr }}</strong>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ── Bulk Manager Assignment Table ── -->
+{% if current_user.role in ('admin','manager') %}
+<div class="card" style="margin-top:1rem;padding:1.25rem;">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem;">
+    <div style="font-size:.82rem;font-weight:800;">✏️ Set Reporting Managers</div>
+    <button onclick="saveAll()" class="btn-primary" style="font-size:.8rem;padding:7px 18px;">💾 Save All Changes</button>
+  </div>
+  <div id="saveMsg" style="font-size:.75rem;margin-bottom:.5rem;min-height:16px;"></div>
+  <table style="width:100%;border-collapse:collapse;font-size:.82rem;">
+    <thead>
+      <tr style="background:#f8fafc;">
+        <th style="text-align:left;padding:.5rem .75rem;border-bottom:2px solid var(--border);color:var(--text3);font-size:.7rem;text-transform:uppercase;font-weight:700;">Employee</th>
+        <th style="text-align:left;padding:.5rem .75rem;border-bottom:2px solid var(--border);color:var(--text3);font-size:.7rem;text-transform:uppercase;font-weight:700;">Dept / Designation</th>
+        <th style="text-align:left;padding:.5rem .75rem;border-bottom:2px solid var(--border);color:var(--text3);font-size:.7rem;text-transform:uppercase;font-weight:700;min-width:220px;">Reports To (Manager)</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for e in all_employees %}
+      <tr style="border-bottom:1px solid #f1f5f9;" id="row_{{ e.id }}">
+        <td style="padding:.55rem .75rem;">
+          <div style="font-weight:700;">{{ e.full_name }}</div>
+          <div style="font-size:.7rem;color:var(--text3);">{{ e.employee_code }}</div>
+        </td>
+        <td style="padding:.55rem .75rem;color:var(--text2);font-size:.78rem;">
+          {{ e.department or '—' }}{% if e.designation %} / {{ e.designation }}{% endif %}
+        </td>
+        <td style="padding:.55rem .75rem;">
+          <select class="mgr-select" style="width:100%;" id="mgr_{{ e.id }}"
+            data-emp="{{ e.id }}" data-orig="{{ e.reports_to or 0 }}">
+            <option value="0">— No Manager (Top Level) —</option>
+            {% for m in all_employees %}
+            {% if m.id != e.id %}
+            <option value="{{ m.id }}" {{ 'selected' if e.reports_to == m.id }}>
+              {{ m.employee_code }} — {{ m.full_name }}{% if m.designation %} ({{ m.designation }}){% endif %}
+            </option>
+            {% endif %}
+            {% endfor %}
+          </select>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
+<script>
+async function saveAll() {
+    var selects = document.querySelectorAll('select[data-emp]');
+    var changed = [];
+    selects.forEach(function(sel) {
+        if (sel.value !== sel.getAttribute('data-orig')) {
+            changed.push({ emp_id: sel.getAttribute('data-emp'), manager_id: sel.value });
+        }
+    });
+    if (changed.length === 0) {
+        var msg = document.getElementById('saveMsg');
+        msg.textContent = 'No changes to save.'; msg.style.color = 'var(--text3)'; return;
+    }
+    var msg = document.getElementById('saveMsg');
+    msg.textContent = 'Saving ' + changed.length + ' change(s)…'; msg.style.color = 'var(--text3)';
+
+    var ok = 0;
+    for (var i = 0; i < changed.length; i++) {
+        var fd = new FormData();
+        fd.append('emp_id', changed[i].emp_id);
+        fd.append('manager_id', changed[i].manager_id);
+        var res = await fetch('/hierarchy/set-manager', { method: 'POST', body: fd });
+        var d = await res.json();
+        if (d.success) ok++;
+    }
+    msg.textContent = '✅ ' + ok + ' of ' + changed.length + ' saved! Reloading…';
+    msg.style.color = '#16a34a';
+    setTimeout(() => location.reload(), 900);
+}
+</script>
+{% endblock %}

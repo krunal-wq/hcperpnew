@@ -4,69 +4,33 @@
 {% block bread %}HR / Employees / {{ 'Edit' if employee else 'Add' }}{% endblock %}
 
 {% block extra_css %}
-/* ── Card headers & body ── */
-.card-hdr-sm{
-    padding:.75rem 1.1rem;
-    border-bottom:1px solid var(--border);
-    display:flex;align-items:center;justify-content:space-between;
-    background:linear-gradient(135deg,#f8fafc 0%,#f1f5f9 100%);
-    border-radius:12px 12px 0 0;
-}
-.card-hdr-sm .card-title{font-size:.82rem;font-weight:800;color:var(--text1);letter-spacing:.01em;}
+.tab-nav{display:flex;gap:0;border-bottom:2px solid var(--border);margin-bottom:1.25rem;overflow-x:auto;background:#fff;border-radius:12px 12px 0 0;padding:.5rem .75rem 0;flex-wrap:nowrap;}
+.tab-btn{padding:.55rem 1rem;font-size:.78rem;font-weight:700;color:var(--text2);border:none;background:none;cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-2px;white-space:nowrap;border-radius:8px 8px 0 0;transition:all .15s;font-family:inherit;display:flex;align-items:center;gap:.35rem;}
+.tab-btn:hover{color:var(--blue);background:#f0f7ff;}
+.tab-btn.active{color:var(--blue);border-bottom-color:var(--blue);background:#eff6ff;}
+.tab-btn.tab-locked{color:#cbd5e1 !important;cursor:not-allowed !important;background:none !important;opacity:.55;}
+.tab-btn.tab-saved{color:#16a34a !important;}
+.tab-btn.tab-saved::after{content:' ✓';font-size:.7rem;}
+.tab-pane{display:none;}.tab-pane.active{display:block;}
+.card-hdr-sm{padding:.65rem 1.1rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:linear-gradient(135deg,#f8fafc 0%,#f1f5f9 100%);border-radius:12px 12px 0 0;}
+.card-hdr-sm .card-title{font-size:.82rem;font-weight:800;color:var(--text);letter-spacing:.01em;}
 .card-body-sm{padding:1.1rem 1.25rem;}
-
-/* ── Section sub-header ── */
-.sec-hdr{
-    font-size:.75rem;font-weight:800;color:var(--text2);
-    text-transform:uppercase;letter-spacing:.06em;
-    margin:1rem 0 .6rem;padding-bottom:.35rem;
-    border-bottom:2px solid #e2e8f0;
-}
-
-/* ── Photo zone ── */
+.sec-hdr{font-size:.72rem;font-weight:800;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;margin:1.1rem 0 .6rem;padding-bottom:.3rem;border-bottom:2px solid #e2e8f0;}
 .photo-zone{padding:1.25rem;display:flex;flex-direction:column;align-items:center;gap:.85rem;}
-.photo-preview{
-    width:115px;height:115px;border-radius:50%;
-    border:3px solid var(--blue);background:#e2e8f0;
-    display:flex;align-items:center;justify-content:center;
-    font-size:2.5rem;overflow:hidden;flex-shrink:0;
-    box-shadow:0 4px 14px rgba(37,99,235,.15);
-}
+.photo-preview{width:115px;height:115px;border-radius:50%;border:3px solid var(--blue);background:#e2e8f0;display:flex;align-items:center;justify-content:center;font-size:2.5rem;overflow:hidden;flex-shrink:0;box-shadow:0 4px 14px rgba(37,99,235,.15);}
 .photo-preview img{width:100%;height:100%;object-fit:cover;border-radius:50%;}
 .ph-btns{display:flex;gap:.4rem;flex-wrap:wrap;justify-content:center;}
-.ph-btn{
-    padding:5px 13px;border-radius:8px;font-size:.77rem;font-weight:700;
-    cursor:pointer;border:1.5px solid;font-family:inherit;
-    display:inline-flex;align-items:center;gap:4px;transition:opacity .15s;
-}
+.ph-btn{padding:5px 13px;border-radius:8px;font-size:.77rem;font-weight:700;cursor:pointer;border:1.5px solid;font-family:inherit;display:inline-flex;align-items:center;gap:4px;transition:opacity .15s;}
 .ph-btn:hover{opacity:.85;}
-.ph-btn-cam  {background:#eff6ff;color:#1d4ed8;border-color:#bfdbfe;}
-.ph-btn-file {background:#f0fdf4;color:#16a34a;border-color:#86efac;}
+.ph-btn-cam{background:#eff6ff;color:#1d4ed8;border-color:#bfdbfe;}
+.ph-btn-file{background:#f0fdf4;color:#16a34a;border-color:#86efac;}
 .ph-btn-clear{background:#fee2e2;color:#dc2626;border-color:#fecaca;}
 .divider{width:100%;border:none;border-top:1px solid var(--border);margin:.25rem 0;}
-
-/* ── QR box ── */
-.qr-box{text-align:center;}
-.qr-box img{
-    width:115px;height:115px;
-    border:2px solid var(--border);border-radius:10px;
-    display:block;margin:0 auto;
-    box-shadow:0 2px 8px rgba(0,0,0,.08);
-}
+.qr-box{text-align:center;}.qr-box img{width:115px;height:115px;border:2px solid var(--border);border-radius:10px;display:block;margin:0 auto;box-shadow:0 2px 8px rgba(0,0,0,.08);}
 .qr-lbl{font-size:.7rem;color:var(--text3);margin-top:5px;font-weight:700;letter-spacing:.03em;}
-.qr-pending{
-    width:115px;height:115px;border:2px dashed #cbd5e1;border-radius:10px;
-    display:flex;align-items:center;justify-content:center;flex-direction:column;
-    gap:5px;background:#f8fafc;font-size:.71rem;color:var(--text3);
-    margin:0 auto;text-align:center;line-height:1.4;
-}
+.qr-pending{width:115px;height:115px;border:2px dashed #cbd5e1;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:5px;background:#f8fafc;font-size:.71rem;color:var(--text3);margin:0 auto;text-align:center;line-height:1.4;}
 .qr-status{font-size:.7rem;margin-top:5px;text-align:center;min-height:16px;}
-
-/* ── Camera modal ── */
-.camera-overlay{
-    display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);
-    z-index:9999;align-items:center;justify-content:center;
-}
+.camera-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:9999;align-items:center;justify-content:center;}
 .camera-overlay.show{display:flex;}
 .camera-box{background:#000;border-radius:16px;overflow:hidden;width:400px;max-width:95vw;box-shadow:0 20px 60px rgba(0,0,0,.5);}
 .camera-bar{background:#111;padding:.75rem 1rem;display:flex;justify-content:space-between;align-items:center;}
@@ -74,18 +38,16 @@
 #camVideo{width:100%;display:block;}
 .camera-btns{background:#111;padding:.75rem;display:flex;gap:.5rem;justify-content:center;}
 .cbtn{padding:8px 22px;border-radius:8px;border:none;font-size:.83rem;font-weight:700;cursor:pointer;font-family:inherit;}
-.cbtn-cap{background:#2563eb;color:#fff;}
-.cbtn-cls{background:#374151;color:#fff;}
-
-/* ── Form actions bar ── */
-.form-actions{
-    display:flex;align-items:center;gap:.75rem;
-    padding:1rem 1.25rem;
-    background:#fff;border-radius:12px;
-    border:1px solid var(--border);
-    box-shadow:0 2px 8px rgba(0,0,0,.05);
-    margin-bottom:1.5rem;
-}
+.cbtn-cap{background:#2563eb;color:#fff;}.cbtn-cls{background:#374151;color:#fff;}
+.sal-row{display:flex;align-items:center;gap:.5rem;margin-bottom:.4rem;}
+.sal-row label{font-size:.75rem;font-weight:600;color:var(--text2);width:170px;flex-shrink:0;}
+.sal-row input{width:150px;}
+.sal-divider{border:none;border-top:1.5px dashed #e2e8f0;margin:.6rem 0;}
+.sal-total{background:#f0fdf4;border:1.5px solid #86efac;border-radius:8px;padding:.5rem .75rem;display:flex;justify-content:space-between;align-items:center;}
+.doc-list{display:flex;flex-direction:column;gap:.5rem;}
+.doc-item{background:#f8fafc;border:1.5px solid var(--border);border-radius:9px;padding:.6rem .9rem;display:flex;align-items:center;gap:.75rem;}
+.doc-item-name{font-size:.8rem;font-weight:700;flex:1;}
+.form-actions{display:flex;align-items:center;gap:.75rem;padding:1rem 1.25rem;background:#fff;border-radius:12px;border:1px solid var(--border);box-shadow:0 2px 8px rgba(0,0,0,.05);margin-top:1rem;}
 {% endblock %}
 
 {% block content %}
@@ -97,56 +59,49 @@
     <a href="{{ url_for('hr.employees') }}" class="btn-outline" style="font-size:.82rem;">← Back</a>
 </div>
 
-<form method="POST" id="empForm">
+<form method="POST" id="empForm" novalidate>
+<input type="hidden" id="empId" value="{{ employee.id if employee else '' }}">
+<input type="hidden" id="isNewEmp" value="{{ '0' if employee else '1' }}">
 <input type="hidden" name="photo_base64" id="photoBase64" value="{{ employee.profile_photo or '' }}">
 <input type="hidden" name="qr_base64"   id="qrBase64"   value="{{ employee.qr_code_base64 or '' }}">
+<input type="hidden" name="documents_json" id="documentsJson" value="{{ employee.documents_json or '[]' }}">
 
-<!-- Row 1: Photo+QR | Basic Info -->
+<div class="tab-nav">
+    <button type="button" class="tab-btn active" onclick="switchTab('t1',this)" data-tab="basic" data-tabid="t1">👤 Basic Info</button>
+    <button type="button" class="tab-btn {% if not employee %}tab-locked{% endif %}" onclick="switchTab('t2',this)" data-tab="professional" data-tabid="t2">🏢 Professional</button>
+    <button type="button" class="tab-btn {% if not employee %}tab-locked{% endif %}" onclick="switchTab('t3',this)" data-tab="kyc" data-tabid="t3">🪪 Personal & KYC</button>
+    <button type="button" class="tab-btn {% if not employee %}tab-locked{% endif %}" onclick="switchTab('t4',this)" data-tab="bank" data-tabid="t4">🏦 Bank Details</button>
+    <button type="button" class="tab-btn {% if not employee %}tab-locked{% endif %}" onclick="switchTab('t5',this)" data-tab="salary" data-tabid="t5">💰 Salary</button>
+    <button type="button" class="tab-btn {% if not employee %}tab-locked{% endif %}" onclick="switchTab('t6',this)" data-tab="education" data-tabid="t6">📚 Education</button>
+    <button type="button" class="tab-btn {% if not employee %}tab-locked{% endif %}" onclick="switchTab('t7',this)" data-tab="documents" data-tabid="t7">📎 Documents</button>
+</div>
+
+<!-- TAB 1: BASIC INFO -->
+<div class="tab-pane active" id="t1">
 <div style="display:grid;grid-template-columns:210px 1fr;gap:1.25rem;margin-bottom:1.25rem;">
-
-    <!-- Photo + QR -->
     <div class="card">
         <div class="card-hdr-sm"><span class="card-title">📸 Photo & QR</span></div>
         <div class="photo-zone">
-            <!-- Photo Preview -->
             <div class="photo-preview" id="previewWrap">
-                {% if employee and employee.profile_photo %}
-                <img id="previewImg" src="{{ employee.profile_photo }}" alt="Photo">
-                {% else %}
-                <span id="previewEmoji" style="font-size:2.5rem;">👤</span>
-                {% endif %}
+                {% if employee and employee.profile_photo %}<img id="previewImg" src="{{ employee.profile_photo }}" alt="Photo">
+                {% else %}<span id="previewEmoji" style="font-size:2.5rem;">👤</span>{% endif %}
             </div>
-            <!-- Photo Buttons -->
             <div class="ph-btns">
                 <button type="button" class="ph-btn ph-btn-cam" onclick="openCamera()">📷 Camera</button>
-                <label class="ph-btn ph-btn-file">
-                    🗂️ Browse
-                    <input type="file" id="photoFile" accept="image/*" style="display:none;" onchange="loadFile(this)">
-                </label>
-                <button type="button" class="ph-btn ph-btn-clear" id="clearPhotoBtn"
-                    onclick="clearPhoto()"
-                    style="display:{{ 'inline-flex' if employee and employee.profile_photo else 'none' }};">✕ Clear</button>
+                <label class="ph-btn ph-btn-file">🗂️ Browse<input type="file" id="photoFile" accept="image/*" style="display:none;" onchange="loadFile(this)"></label>
+                <button type="button" class="ph-btn ph-btn-clear" id="clearPhotoBtn" onclick="clearPhoto()" style="display:{{ 'inline-flex' if employee and employee.profile_photo else 'none' }};">✕ Clear</button>
             </div>
             <hr class="divider">
-            <!-- QR Display -->
             <div id="qrDisplay">
                 {% if employee and employee.qr_code_base64 %}
-                <div class="qr-box">
-                    <img src="{{ employee.qr_code_base64 }}" id="qrImg" alt="QR">
-                    <div class="qr-lbl">{{ employee.employee_code }}</div>
-                </div>
+                <div class="qr-box"><img src="{{ employee.qr_code_base64 }}" id="qrImg" alt="QR"><div class="qr-lbl">{{ employee.employee_code }}</div></div>
                 {% else %}
-                <div class="qr-pending" id="qrPending">
-                    <span style="font-size:1.6rem;">🔲</span>
-                    <span>Enter employee<br>code to generate QR</span>
-                </div>
+                <div class="qr-pending" id="qrPending"><span style="font-size:1.6rem;">🔲</span><span>Enter code<br>to generate QR</span></div>
                 {% endif %}
             </div>
             <div id="qrStatus" class="qr-status"></div>
         </div>
     </div>
-
-    <!-- Basic Info -->
     <div class="card">
         <div class="card-hdr-sm"><span class="card-title">👤 Basic Information</span></div>
         <div class="card-body-sm">
@@ -154,14 +109,10 @@
                 <div class="fg">
                     <label class="fl">Employee Code *</label>
                     {% if employee and employee.employee_code %}
-                        <input type="text" name="employee_code" id="empCodeInput" class="fi"
-                            value="{{ employee.employee_code }}" readonly
-                            style="background:#f8fafc;color:var(--text2);font-weight:700;">
+                    <input type="text" name="employee_code" id="empCodeInput" class="fi" value="{{ employee.employee_code }}" readonly style="background:#f8fafc;color:var(--text2);font-weight:700;">
                     {% else %}
-                        <input type="text" name="employee_code" id="empCodeInput" class="fi"
-                            value="{{ employee.employee_code if employee else '' }}"
-                            placeholder="e.g. EMP1001" required>
-                        <span style="font-size:.7rem;color:var(--text3);margin-top:2px;display:block;">QR auto-generates on input</span>
+                    <input type="text" name="employee_code" id="empCodeInput" class="fi" value="" placeholder="e.g. EMP1001" required>
+                    <span style="font-size:.7rem;color:var(--text3);margin-top:2px;display:block;">QR auto-generates on input</span>
                     {% endif %}
                 </div>
                 <div class="fg">
@@ -174,176 +125,60 @@
                     </select>
                 </div>
                 <div class="fg">
-                    <label class="fl">Is Contractor?</label>
-                    <select name="is_contractor" class="fi" id="isContractorSel" onchange="toggleContractor(this.value)">
-                        <option value="no"  {{ 'selected' if not employee or not employee.is_contractor }}>No</option>
-                        <option value="yes" {{ 'selected' if employee and employee.is_contractor }}>Yes</option>
+                    <label class="fl">Status *</label>
+                    <select name="status" class="fi sd">
+                        <option value="active" {{ 'selected' if not employee or employee.status=='active' }}>✅ Active</option>
+                        <option value="inactive" {{ 'selected' if employee and employee.status=='inactive' }}>⛔ Inactive</option>
+                        <option value="terminated" {{ 'selected' if employee and employee.status=='terminated' }}>🔴 Terminated</option>
+                        <option value="on_leave" {{ 'selected' if employee and employee.status=='on_leave' }}>🟡 On Leave</option>
                     </select>
                 </div>
             </div>
-            <div class="frow" id="contractorRow" style="display:none;margin-bottom:.7rem;">
-                <label class="fl">Select Contractor</label>
-                <select name="contractor_id" class="fi sd" id="contractorSel">
-                    <option value="">— Select Contractor —</option>
-                    {% for c in contractors %}
-                    <option value="{{ c.id }}" {{ 'selected' if employee and employee.contractor_id==c.id }}>
-                        {{ c.contract_id }} — {{ c.company_name }}
-                    </option>
-                    {% endfor %}
-                </select>
-            </div>
             <div class="fgrid-2">
+                <div class="fg"><label class="fl">First Name *</label><input type="text" name="first_name" class="fi" required value="{{ employee.first_name if employee else '' }}" placeholder="First name"></div>
+                <div class="fg"><label class="fl">Last Name *</label><input type="text" name="last_name" class="fi" required value="{{ employee.last_name if employee else '' }}" placeholder="Last name"></div>
+                <div class="fg"><label class="fl">Mobile *</label><input type="text" name="mobile" class="fi" required value="{{ employee.mobile if employee else '' }}" placeholder="9999999999"></div>
+                <div class="fg"><label class="fl">Email Address</label><input type="email" name="email" class="fi" value="{{ employee.email if employee else '' }}" placeholder="email@company.com"></div>
                 <div class="fg">
-                    <label class="fl">First Name *</label>
-                    <input type="text" name="first_name" class="fi" required
-                        value="{{ employee.first_name if employee else '' }}" placeholder="First name">
-                </div>
-                <div class="fg">
-                    <label class="fl">Last Name *</label>
-                    <input type="text" name="last_name" class="fi" required
-                        value="{{ employee.last_name if employee else '' }}" placeholder="Last name">
-                </div>
-                <div class="fg">
-                    <label class="fl">Mobile *</label>
-                    <input type="text" name="mobile" class="fi" required
-                        value="{{ employee.mobile if employee else '' }}" placeholder="9999999999">
-                </div>
-                <div class="fg">
-                    <label class="fl">Email Address</label>
-                    <input type="email" name="email" class="fi"
-                        value="{{ employee.email if employee else '' }}" placeholder="email@company.com">
-                </div>
-                <div class="fg" style="grid-column:1/-1;">
                     <label class="fl">Gender</label>
-                    <select name="gender" class="fi sd" style="max-width:280px;">
+                    <select name="gender" class="fi sd">
                         <option value="">Select Gender</option>
-                        {% for g in ['Male','Female','Other'] %}
-                        <option value="{{ g }}" {{ 'selected' if employee and employee.gender==g }}>{{ g }}</option>
-                        {% endfor %}
+                        {% for g in ['Male','Female','Other'] %}<option value="{{ g }}" {{ 'selected' if employee and employee.gender==g }}>{{ g }}</option>{% endfor %}
                     </select>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Row 2: Professional + Personal -->
-<div class="form-panels" style="margin-bottom:1.25rem;">
-    <div class="card">
-        <div class="card-hdr-sm"><span class="card-title">🏢 Professional Details</span></div>
-        <div class="card-body-sm">
-            <div class="fgrid-2" style="margin-bottom:.85rem;">
-                <div class="fg">
-                    <label class="fl">Department</label>
-                    <input type="text" name="department" class="fi" list="deptList"
-                        value="{{ employee.department if employee else '' }}" placeholder="e.g. Sales, HR, IT">
-                    <datalist id="deptList">
-                        {% for d in ['Sales','HR','IT','Finance','Operations','Marketing','Production','Quality','Admin'] %}
-                        <option value="{{ d }}">{% endfor %}
-                    </datalist>
-                </div>
-                <div class="fg">
-                    <label class="fl">Designation</label>
-                    <input type="text" name="designation" class="fi"
-                        value="{{ employee.designation if employee else '' }}" placeholder="e.g. Manager">
-                </div>
-                <div class="fg">
-                    <label class="fl">Date of Joining</label>
-                    <input type="date" name="date_of_joining" class="fi"
-                        value="{{ employee.date_of_joining.strftime('%Y-%m-%d') if employee and employee.date_of_joining else '' }}">
-                </div>
-                <div class="fg">
-                    <label class="fl">Location</label>
-                    <select name="location" class="fi sd">
-                        <option value="">Select</option>
-                        {% for l in ['Head Office','Branch Office','Site A','Site B','Remote','Warehouse'] %}
-                        <option value="{{ l }}" {{ 'selected' if employee and employee.location==l }}>{{ l }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-            </div>
-            <div class="sec-hdr">Social Profiles</div>
-            <div class="fgrid-2">
-                <div class="fg">
-                    <label class="fl">LinkedIn</label>
-                    <input type="text" name="linkedin" class="fi"
-                        value="{{ employee.linkedin if employee else '' }}" placeholder="linkedin.com/in/...">
-                </div>
-                <div class="fg">
-                    <label class="fl">Facebook</label>
-                    <input type="text" name="facebook" class="fi"
-                        value="{{ employee.facebook if employee else '' }}" placeholder="facebook.com/...">
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="card">
-        <div class="card-hdr-sm"><span class="card-title">🪪 Personal Details</span></div>
-        <div class="card-body-sm">
-            <div class="fgrid-2" style="margin-bottom:.85rem;">
-                <div class="fg">
-                    <label class="fl">Date of Birth</label>
-                    <input type="date" name="date_of_birth" class="fi"
-                        value="{{ employee.date_of_birth.strftime('%Y-%m-%d') if employee and employee.date_of_birth else '' }}">
                 </div>
                 <div class="fg">
                     <label class="fl">Marital Status</label>
-                    <select name="marital_status" class="fi sd">
+                    <select name="marital_status" class="fi sd" id="maritalSel" onchange="toggleMarriageDate(this.value)">
                         {% for m in ['Single','Married','Divorced','Widowed'] %}
                         <option value="{{ m }}" {{ 'selected' if employee and employee.marital_status==m else ('selected' if not employee and m=='Single' else '') }}>{{ m }}</option>
                         {% endfor %}
                     </select>
                 </div>
+                <div class="fg" id="marriageDateRow" style="{{ '' if employee and employee.marital_status=='Married' else 'display:none;' }}">
+                    <label class="fl">💍 Marriage Anniversary</label>
+                    <input type="date" name="marriage_anniversary" class="fi"
+                        value="{{ employee.marriage_anniversary.strftime('%Y-%m-%d') if employee and employee.marriage_anniversary else '' }}">
+                    <span style="font-size:.68rem;color:var(--text3);margin-top:2px;display:block;">Used for anniversary wishes</span>
+                </div>
+                <div class="fg"><label class="fl">Date of Birth</label><input type="date" name="date_of_birth" class="fi" value="{{ employee.date_of_birth.strftime('%Y-%m-%d') if employee and employee.date_of_birth else '' }}"></div>
                 <div class="fg">
                     <label class="fl">Blood Group</label>
                     <select name="blood_group" class="fi sd">
                         <option value="">Select</option>
-                        {% for bg in ['A+','A-','B+','B-','AB+','AB-','O+','O-'] %}
-                        <option value="{{ bg }}" {{ 'selected' if employee and employee.blood_group==bg }}>{{ bg }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="fg">
-                    <label class="fl">Status *</label>
-                    <select name="status" class="fi sd">
-                        <option value="active"     {{ 'selected' if not employee or employee.status=='active' }}>✅ Active</option>
-                        <option value="inactive"   {{ 'selected' if employee and employee.status=='inactive' }}>⛔ Inactive</option>
-                        <option value="terminated" {{ 'selected' if employee and employee.status=='terminated' }}>🔴 Terminated</option>
-                        <option value="on_leave"   {{ 'selected' if employee and employee.status=='on_leave' }}>🟡 On Leave</option>
+                        {% for bg in ['A+','A-','B+','B-','AB+','AB-','O+','O-'] %}<option value="{{ bg }}" {{ 'selected' if employee and employee.blood_group==bg }}>{{ bg }}</option>{% endfor %}
                     </select>
                 </div>
             </div>
-            <div class="sec-hdr">Flags</div>
-            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.5rem;margin-bottom:.75rem;">
-                <div class="fg">
-                    <label class="fl">Is Block?</label>
-                    <select name="is_block" class="fi">
-                        <option value="no"  {{ 'selected' if not employee or not employee.is_block }}>No</option>
-                        <option value="yes" {{ 'selected' if employee and employee.is_block }}>Yes</option>
-                    </select>
-                </div>
-                <div class="fg">
-                    <label class="fl">Is Late?</label>
-                    <select name="is_late" class="fi">
-                        <option value="no"  {{ 'selected' if not employee or not employee.is_late }}>No</option>
-                        <option value="yes" {{ 'selected' if employee and employee.is_late }}>Yes</option>
-                    </select>
-                </div>
-                <div class="fg">
-                    <label class="fl">Is Probation?</label>
-                    <select name="is_probation" class="fi">
-                        <option value="no"  {{ 'selected' if employee and not employee.is_probation }}>No</option>
-                        <option value="yes" {{ 'selected' if not employee or employee.is_probation }}>Yes</option>
-                    </select>
-                </div>
-            </div>
-            <div class="frow">
-                <label class="fl">Remark</label>
-                <textarea name="remark" class="fi" rows="3" placeholder="Additional notes...">{{ employee.remark if employee else '' }}</textarea>
+            <div class="sec-hdr">📍 Address</div>
+            <div class="fgrid-2">
+                <div class="fg" style="grid-column:1/-1;"><label class="fl">Address</label><textarea name="address" class="fi" rows="2" placeholder="Street address...">{{ employee.address if employee else '' }}</textarea></div>
+                <div class="fg"><label class="fl">City</label><input type="text" name="city" class="fi" value="{{ employee.city if employee else '' }}" placeholder="City"></div>
+                <div class="fg"><label class="fl">State</label><input type="text" name="state" class="fi" value="{{ employee.state if employee else '' }}" placeholder="State"></div>
+                <div class="fg"><label class="fl">Country</label><input type="text" name="country" class="fi" value="{{ employee.country if employee else 'India' }}"></div>
+                <div class="fg"><label class="fl">ZIP / Pin Code</label><input type="text" name="zip_code" class="fi" value="{{ employee.zip_code if employee else '' }}" placeholder="PIN Code"></div>
             </div>
             {% if not employee %}
-            <div style="margin-top:.75rem;">
+            <div style="margin-top:.75rem;background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:8px;padding:.5rem .75rem;">
                 <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:.83rem;font-weight:600;">
                     <input type="checkbox" name="create_user" value="yes" style="accent-color:var(--blue);width:15px;height:15px;" checked>
                     Also create system login (password: HCP@123)
@@ -353,221 +188,575 @@
         </div>
     </div>
 </div>
-
-<div class="form-actions">
-    <button type="submit" class="btn-primary" style="padding:10px 28px;font-size:.88rem;">
-        {{ '💾 Update Employee' if employee else '✅ Save Employee' }}
-    </button>
-    <a href="{{ url_for('hr.employees') }}" class="btn-outline" style="padding:10px 20px;font-size:.88rem;">← Cancel</a>
 </div>
-</form>
 
-<!-- Camera Modal -->
-<div class="camera-overlay" id="cameraModal">
-    <div class="camera-box">
-        <div class="camera-bar">
-            <span>📷 Capture Photo</span>
-            <button type="button" onclick="closeCamera()" style="background:none;border:none;color:#94a3b8;font-size:1.2rem;cursor:pointer;">✕</button>
+<!-- TAB 2: PROFESSIONAL -->
+<div class="tab-pane" id="t2">
+<div class="card" style="margin-bottom:1rem;">
+    <div class="card-hdr-sm"><span class="card-title">🏢 Professional Details</span></div>
+    <div class="card-body-sm">
+        <div class="sec-hdr">🗂️ Job Information</div>
+        <div class="fgrid-3">
+            <div class="fg">
+                <label class="fl">Department</label>
+                <input type="text" name="department" class="fi" list="deptList" value="{{ employee.department if employee else '' }}" placeholder="e.g. Sales, HR, IT">
+                <datalist id="deptList">{% for d in ['Sales','HR','IT','Finance','Operations','Marketing','Production','Quality','Admin','Legal','R&D'] %}<option value="{{ d }}">{% endfor %}</datalist>
+            </div>
+            <div class="fg"><label class="fl">Designation</label><input type="text" name="designation" class="fi" value="{{ employee.designation if employee else '' }}" placeholder="e.g. Manager"></div>
+            <div class="fg">
+                <label class="fl">Pay Grade</label>
+                <select name="pay_grade" class="fi sd">
+                    <option value="">Select</option>
+                    {% for g in ['G1','G2','G3','G4','G5','G6','M1','M2','M3','E1','E2','E3'] %}<option value="{{ g }}" {{ 'selected' if employee and employee.pay_grade==g }}>{{ g }}</option>{% endfor %}
+                </select>
+            </div>
+            <div class="fg"><label class="fl">Date of Joining</label><input type="date" name="date_of_joining" class="fi" value="{{ employee.date_of_joining.strftime('%Y-%m-%d') if employee and employee.date_of_joining else '' }}"></div>
+            <div class="fg"><label class="fl">Confirmation Date</label><input type="date" name="confirmation_date" class="fi" value="{{ employee.confirmation_date.strftime('%Y-%m-%d') if employee and employee.confirmation_date else '' }}"></div>
+            <div class="fg">
+                <label class="fl">Location / Branch</label>
+                <select name="location" class="fi sd">
+                    <option value="">Select</option>
+                    {% for l in ['Head Office','Branch Office','Site A','Site B','Remote','Warehouse','Factory'] %}<option value="{{ l }}" {{ 'selected' if employee and employee.location==l }}>{{ l }}</option>{% endfor %}
+                </select>
+            </div>
+            <div class="fg">
+                <label class="fl">Shift</label>
+                <select name="shift" class="fi sd">
+                    <option value="">Select</option>
+                    {% for s in ['General (9–6)','Morning (6–2)','Afternoon (2–10)','Night (10–6)','Flexible'] %}<option value="{{ s }}" {{ 'selected' if employee and employee.shift==s }}>{{ s }}</option>{% endfor %}
+                </select>
+            </div>
+            <div class="fg"><label class="fl">Work Hours / Day</label><input type="number" name="work_hours_per_day" class="fi" step="0.5" min="1" max="24" value="{{ employee.work_hours_per_day if employee and employee.work_hours_per_day else '8' }}"></div>
+            <div class="fg">
+                <label class="fl">Weekly Off</label>
+                <select name="weekly_off" class="fi sd">
+                    <option value="">Select</option>
+                    {% for w in ['Sunday','Saturday+Sunday','No Weekly Off','Rotational'] %}<option value="{{ w }}" {{ 'selected' if employee and employee.weekly_off==w }}>{{ w }}</option>{% endfor %}
+                </select>
+            </div>
+            <div class="fg"><label class="fl">Notice Period (Days)</label><input type="number" name="notice_period_days" class="fi" min="0" max="365" value="{{ employee.notice_period_days if employee and employee.notice_period_days else '30' }}"></div>
+            <div class="fg">
+                <label class="fl">Reports To (Manager)</label>
+                <select name="reports_to" class="fi sd">
+                    <option value="">— No Manager —</option>
+                    {% for e in all_employees %}{% if not employee or e.id != employee.id %}
+                    <option value="{{ e.id }}" {{ 'selected' if employee and employee.reports_to == e.id }}>{{ e.employee_code }} — {{ e.full_name }}{% if e.designation %} ({{ e.designation }}){% endif %}</option>
+                    {% endif %}{% endfor %}
+                </select>
+            </div>
+            <div class="fg">
+                <label class="fl">Rehire Eligible?</label>
+                <select name="rehire_eligible" class="fi">
+                    <option value="yes" {{ 'selected' if not employee or employee.rehire_eligible }}>Yes</option>
+                    <option value="no" {{ 'selected' if employee and not employee.rehire_eligible }}>No</option>
+                </select>
+            </div>
         </div>
-        <video id="camVideo" autoplay playsinline></video>
-        <canvas id="camCanvas" style="display:none;"></canvas>
-        <div class="camera-btns">
-            <button type="button" class="cbtn cbtn-cap" onclick="capturePhoto()">📸 Capture</button>
-            <button type="button" class="cbtn cbtn-cls" onclick="closeCamera()">✕ Close</button>
+
+        <div class="sec-hdr">⚙️ Flags</div>
+        <div class="fgrid-3">
+            <div class="fg"><label class="fl">Is Block?</label><select name="is_block" class="fi"><option value="no" {{ 'selected' if not employee or not employee.is_block }}>No</option><option value="yes" {{ 'selected' if employee and employee.is_block }}>Yes</option></select></div>
+            <div class="fg"><label class="fl">Is Late?</label><select name="is_late" class="fi"><option value="no" {{ 'selected' if not employee or not employee.is_late }}>No</option><option value="yes" {{ 'selected' if employee and employee.is_late }}>Yes</option></select></div>
+            <div class="fg"><label class="fl">Is Probation?</label><select name="is_probation" class="fi"><option value="no" {{ 'selected' if employee and not employee.is_probation }}>No</option><option value="yes" {{ 'selected' if not employee or employee.is_probation }}>Yes</option></select></div>
+        </div>
+
+        <div class="sec-hdr">🔗 Contractor</div>
+        <div class="fgrid-3">
+            <div class="fg"><label class="fl">Is Contractor?</label><select name="is_contractor" class="fi" id="isContractorSel" onchange="toggleContractor(this.value)"><option value="no" {{ 'selected' if not employee or not employee.is_contractor }}>No</option><option value="yes" {{ 'selected' if employee and employee.is_contractor }}>Yes</option></select></div>
+            <div class="fg" id="contractorRow" style="{{ '' if employee and employee.is_contractor else 'display:none;' }}">
+                <label class="fl">Select Contractor</label>
+                <select name="contractor_id" class="fi sd"><option value="">— Select —</option>{% for c in contractors %}<option value="{{ c.id }}" {{ 'selected' if employee and employee.contractor_id==c.id }}>{{ c.contract_id }} — {{ c.company_name }}</option>{% endfor %}</select>
+            </div>
+        </div>
+
+        <div class="sec-hdr">🔚 Exit Details</div>
+        <div class="fgrid-3">
+            <div class="fg"><label class="fl">Resignation Date</label><input type="date" name="resignation_date" class="fi" value="{{ employee.resignation_date.strftime('%Y-%m-%d') if employee and employee.resignation_date else '' }}"></div>
+            <div class="fg"><label class="fl">Last Working Date</label><input type="date" name="last_working_date" class="fi" value="{{ employee.last_working_date.strftime('%Y-%m-%d') if employee and employee.last_working_date else '' }}"></div>
+        </div>
+
+        <div class="sec-hdr">🌐 Social Profiles</div>
+        <div class="fgrid-2">
+            <div class="fg"><label class="fl">LinkedIn</label><input type="text" name="linkedin" class="fi" value="{{ employee.linkedin if employee else '' }}" placeholder="linkedin.com/in/..."></div>
+            <div class="fg"><label class="fl">Facebook</label><input type="text" name="facebook" class="fi" value="{{ employee.facebook if employee else '' }}" placeholder="facebook.com/..."></div>
+        </div>
+
+        <div class="sec-hdr">📝 Remark</div>
+        <div class="fg"><textarea name="remark" class="fi" rows="3" placeholder="Additional notes...">{{ employee.remark if employee else '' }}</textarea></div>
+    </div>
+</div>
+</div>
+
+<!-- TAB 3: PERSONAL & KYC -->
+<div class="tab-pane" id="t3">
+<div class="card" style="margin-bottom:1rem;">
+    <div class="card-hdr-sm"><span class="card-title">🪪 Personal & KYC</span></div>
+    <div class="card-body-sm">
+        <div class="sec-hdr">👤 Personal Info</div>
+        <div class="fgrid-3">
+            <div class="fg"><label class="fl">Nationality</label><input type="text" name="nationality" class="fi" value="{{ employee.nationality if employee else 'Indian' }}"></div>
+            <div class="fg"><label class="fl">Religion</label><select name="religion" class="fi sd"><option value="">Select</option>{% for r in ['Hindu','Muslim','Christian','Sikh','Jain','Buddhist','Other'] %}<option value="{{ r }}" {{ 'selected' if employee and employee.religion==r }}>{{ r }}</option>{% endfor %}</select></div>
+            <div class="fg"><label class="fl">Caste Category</label><select name="caste" class="fi sd"><option value="">Select</option>{% for cat in ['General','OBC','SC','ST','EWS','Other'] %}<option value="{{ cat }}" {{ 'selected' if employee and employee.caste==cat }}>{{ cat }}</option>{% endfor %}</select></div>
+            <div class="fg"><label class="fl">Physically Handicapped?</label><select name="physically_handicapped" class="fi"><option value="no" {{ 'selected' if not employee or not employee.physically_handicapped }}>No</option><option value="yes" {{ 'selected' if employee and employee.physically_handicapped }}>Yes</option></select></div>
+        </div>
+
+        <div class="sec-hdr">🪪 KYC Documents</div>
+        <div class="fgrid-3">
+            <div class="fg"><label class="fl">Aadhaar Number</label><input type="text" name="aadhar_number" class="fi" maxlength="14" value="{{ employee.aadhar_number if employee else '' }}" placeholder="XXXX XXXX XXXX"></div>
+            <div class="fg"><label class="fl">PAN Number</label><input type="text" name="pan_number" class="fi" maxlength="10" style="text-transform:uppercase;" value="{{ employee.pan_number if employee else '' }}" placeholder="ABCDE1234F"></div>
+            <div class="fg"><label class="fl">UAN Number (PF)</label><input type="text" name="uan_number" class="fi" maxlength="12" value="{{ employee.uan_number if employee else '' }}" placeholder="PF UAN"></div>
+            <div class="fg"><label class="fl">ESIC Number</label><input type="text" name="esic_number" class="fi" value="{{ employee.esic_number if employee else '' }}" placeholder="ESIC No."></div>
+            <div class="fg"><label class="fl">Passport Number</label><input type="text" name="passport_number" class="fi" value="{{ employee.passport_number if employee else '' }}" placeholder="Passport No."></div>
+            <div class="fg"><label class="fl">Passport Expiry</label><input type="date" name="passport_expiry" class="fi" value="{{ employee.passport_expiry.strftime('%Y-%m-%d') if employee and employee.passport_expiry else '' }}"></div>
+            <div class="fg"><label class="fl">Driving License No.</label><input type="text" name="driving_license" class="fi" value="{{ employee.driving_license if employee else '' }}" placeholder="DL Number"></div>
+            <div class="fg"><label class="fl">DL Expiry Date</label><input type="date" name="dl_expiry" class="fi" value="{{ employee.dl_expiry.strftime('%Y-%m-%d') if employee and employee.dl_expiry else '' }}"></div>
+        </div>
+
+        <div class="sec-hdr">🚨 Emergency Contact</div>
+        <div class="fgrid-3">
+            <div class="fg"><label class="fl">Contact Name</label><input type="text" name="emergency_name" class="fi" value="{{ employee.emergency_name if employee else '' }}" placeholder="Full name"></div>
+            <div class="fg"><label class="fl">Relationship</label><select name="emergency_relation" class="fi sd"><option value="">Select</option>{% for rel in ['Father','Mother','Spouse','Brother','Sister','Son','Daughter','Friend','Other'] %}<option value="{{ rel }}" {{ 'selected' if employee and employee.emergency_relation==rel }}>{{ rel }}</option>{% endfor %}</select></div>
+            <div class="fg"><label class="fl">Contact Phone</label><input type="text" name="emergency_phone" class="fi" value="{{ employee.emergency_phone if employee else '' }}" placeholder="Mobile number"></div>
+            <div class="fg" style="grid-column:1/-1;"><label class="fl">Contact Address</label><textarea name="emergency_address" class="fi" rows="2" placeholder="Emergency contact address...">{{ employee.emergency_address if employee else '' }}</textarea></div>
         </div>
     </div>
 </div>
+</div>
 
-<!-- Hidden div for qrcode.js rendering -->
+<!-- TAB 4: BANK DETAILS -->
+<div class="tab-pane" id="t4">
+<div class="card" style="margin-bottom:1rem;">
+    <div class="card-hdr-sm"><span class="card-title">🏦 Bank Details</span></div>
+    <div class="card-body-sm">
+        <div style="background:#fffbeb;border:1.5px solid #fcd34d;border-radius:8px;padding:.6rem .9rem;margin-bottom:.9rem;font-size:.78rem;color:#92400e;">⚠️ Bank details are sensitive. Ensure accuracy before saving.</div>
+        <div class="fgrid-3">
+            <div class="fg"><label class="fl">Account Holder Name</label><input type="text" name="bank_account_holder" class="fi" value="{{ employee.bank_account_holder if employee else '' }}" placeholder="As on bank account"></div>
+            <div class="fg">
+                <label class="fl">Bank Name</label>
+                <input type="text" name="bank_name" class="fi" list="bankList" value="{{ employee.bank_name if employee else '' }}" placeholder="e.g. SBI, HDFC">
+                <datalist id="bankList">{% for b in ['State Bank of India','HDFC Bank','ICICI Bank','Axis Bank','Kotak Mahindra Bank','Bank of Baroda','Punjab National Bank','Canara Bank','Union Bank','IDFC First Bank','IndusInd Bank','Yes Bank'] %}<option value="{{ b }}">{% endfor %}</datalist>
+            </div>
+            <div class="fg"><label class="fl">Account Number</label><input type="text" name="bank_account_number" class="fi" value="{{ employee.bank_account_number if employee else '' }}" placeholder="Account number"></div>
+            <div class="fg"><label class="fl">IFSC Code</label><input type="text" name="bank_ifsc" class="fi" maxlength="11" style="text-transform:uppercase;" value="{{ employee.bank_ifsc if employee else '' }}" placeholder="SBIN0001234"></div>
+            <div class="fg"><label class="fl">Branch Name</label><input type="text" name="bank_branch" class="fi" value="{{ employee.bank_branch if employee else '' }}" placeholder="Branch name"></div>
+            <div class="fg"><label class="fl">Account Type</label><select name="bank_account_type" class="fi sd"><option value="">Select</option>{% for at in ['Savings','Current','Salary'] %}<option value="{{ at }}" {{ 'selected' if employee and employee.bank_account_type==at }}>{{ at }}</option>{% endfor %}</select></div>
+        </div>
+    </div>
+</div>
+</div>
+
+<!-- TAB 5: SALARY -->
+<div class="tab-pane" id="t5">
+<div style="display:grid;grid-template-columns:1fr 320px;gap:1rem;">
+<div class="card">
+    <div class="card-hdr-sm"><span class="card-title">💰 Salary Structure</span></div>
+    <div class="card-body-sm">
+        <div class="fgrid-3" style="margin-bottom:.75rem;">
+            <div class="fg"><label class="fl">CTC (Annual) ₹</label><input type="number" name="salary_ctc" id="salCtc" class="fi" step="1000" value="{{ employee.salary_ctc|int if employee and employee.salary_ctc else '' }}" placeholder="e.g. 500000" oninput="autoCalcSalary()"></div>
+            <div class="fg"><label class="fl">Salary Mode</label><select name="salary_mode" class="fi sd"><option value="">Select</option>{% for sm in ['Bank Transfer','Cash','Cheque'] %}<option value="{{ sm }}" {{ 'selected' if employee and employee.salary_mode==sm else ('selected' if sm=='Bank Transfer' and not employee else '') }}>{{ sm }}</option>{% endfor %}</select></div>
+            <div class="fg"><label class="fl">Effective Date</label><input type="date" name="salary_effective_date" class="fi" value="{{ employee.salary_effective_date.strftime('%Y-%m-%d') if employee and employee.salary_effective_date else '' }}"></div>
+        </div>
+        <div class="sec-hdr">➕ Earnings (Monthly)</div>
+        <div class="sal-row"><label>Basic Salary</label><input type="number" name="salary_basic" id="salBasic" class="fi" step="100" value="{{ employee.salary_basic|int if employee and employee.salary_basic else '' }}" oninput="recalcNet()" placeholder="0"></div>
+        <div class="sal-row"><label>HRA (House Rent)</label><input type="number" name="salary_hra" id="salHra" class="fi" step="100" value="{{ employee.salary_hra|int if employee and employee.salary_hra else '' }}" oninput="recalcNet()" placeholder="0"></div>
+        <div class="sal-row"><label>DA (Dearness Allow.)</label><input type="number" name="salary_da" id="salDa" class="fi" step="100" value="{{ employee.salary_da|int if employee and employee.salary_da else '' }}" oninput="recalcNet()" placeholder="0"></div>
+        <div class="sal-row"><label>Transport Allow.</label><input type="number" name="salary_ta" id="salTa" class="fi" step="100" value="{{ employee.salary_ta|int if employee and employee.salary_ta else '' }}" oninput="recalcNet()" placeholder="0"></div>
+        <div class="sal-row"><label>Medical Allow.</label><input type="number" name="salary_medical_allow" id="salMed" class="fi" step="100" value="{{ employee.salary_medical_allow|int if employee and employee.salary_medical_allow else '' }}" oninput="recalcNet()" placeholder="0"></div>
+        <div class="sal-row"><label>Special Allow.</label><input type="number" name="salary_special_allow" id="salSpecial" class="fi" step="100" value="{{ employee.salary_special_allow|int if employee and employee.salary_special_allow else '' }}" oninput="recalcNet()" placeholder="0"></div>
+        <div class="sec-hdr">➖ Deductions (Monthly)</div>
+        <div class="sal-row"><label>PF Employee (12%)</label><input type="number" name="salary_pf_employee" id="salPfEmp" class="fi" step="10" value="{{ employee.salary_pf_employee|int if employee and employee.salary_pf_employee else '' }}" oninput="recalcNet()" placeholder="0"></div>
+        <div class="sal-row"><label>PF Employer (12%)</label><input type="number" name="salary_pf_employer" id="salPfEr" class="fi" step="10" value="{{ employee.salary_pf_employer|int if employee and employee.salary_pf_employer else '' }}" placeholder="0"></div>
+        <div class="sal-row"><label>ESIC Employee (0.75%)</label><input type="number" name="salary_esic_employee" id="salEsicEmp" class="fi" step="10" value="{{ employee.salary_esic_employee|int if employee and employee.salary_esic_employee else '' }}" oninput="recalcNet()" placeholder="0"></div>
+        <div class="sal-row"><label>ESIC Employer (3.25%)</label><input type="number" name="salary_esic_employer" id="salEsicEr" class="fi" step="10" value="{{ employee.salary_esic_employer|int if employee and employee.salary_esic_employer else '' }}" placeholder="0"></div>
+        <div class="sal-row"><label>Professional Tax</label><input type="number" name="salary_professional_tax" id="salPt" class="fi" step="10" value="{{ employee.salary_professional_tax|int if employee and employee.salary_professional_tax else '' }}" oninput="recalcNet()" placeholder="200"></div>
+        <div class="sal-row"><label>TDS</label><input type="number" name="salary_tds" id="salTds" class="fi" step="100" value="{{ employee.salary_tds|int if employee and employee.salary_tds else '' }}" oninput="recalcNet()" placeholder="0"></div>
+        <hr class="sal-divider">
+        <div class="sal-total">
+            <div>
+                <div style="font-size:.7rem;color:#16a34a;font-weight:800;margin-bottom:2px;">NET TAKE HOME (Monthly)</div>
+                <input type="number" name="salary_net" id="salNet" class="fi" style="width:160px;font-weight:800;font-size:1rem;border:none;background:transparent;" value="{{ employee.salary_net|int if employee and employee.salary_net else '' }}" placeholder="0">
+            </div>
+            <button type="button" onclick="autoCalcSalary()" class="btn-primary" style="font-size:.78rem;padding:6px 14px;">🔁 Auto Calculate</button>
+        </div>
+    </div>
+</div>
+<div class="card" style="height:fit-content;">
+    <div class="card-hdr-sm"><span class="card-title">📊 Salary Summary</span></div>
+    <div class="card-body-sm" id="salSummary">
+        <div style="font-size:.78rem;color:var(--text3);text-align:center;padding:1.5rem 0;">Enter CTC and click<br>Auto Calculate</div>
+    </div>
+</div>
+</div>
+</div>
+
+<!-- TAB 6: EDUCATION -->
+<div class="tab-pane" id="t6">
+<div class="card" style="margin-bottom:1rem;">
+    <div class="card-hdr-sm"><span class="card-title">📚 Education & Experience</span></div>
+    <div class="card-body-sm">
+        <div class="sec-hdr">🎓 Education</div>
+        <div class="fgrid-3">
+            <div class="fg"><label class="fl">Highest Qualification</label><select name="highest_qualification" class="fi sd"><option value="">Select</option>{% for q in ['10th (SSC)','12th (HSC)','Diploma','ITI','B.Sc','B.Com','B.A','B.E / B.Tech','BBA','BCA','M.Sc','M.Com','M.A','M.E / M.Tech','MBA','MCA','PhD','Other'] %}<option value="{{ q }}" {{ 'selected' if employee and employee.highest_qualification==q }}>{{ q }}</option>{% endfor %}</select></div>
+            <div class="fg"><label class="fl">University / Board</label><input type="text" name="university" class="fi" value="{{ employee.university if employee else '' }}" placeholder="University or Board name"></div>
+            <div class="fg"><label class="fl">Passing Year</label><input type="number" name="passing_year" class="fi" min="1980" max="2030" value="{{ employee.passing_year if employee and employee.passing_year else '' }}" placeholder="e.g. 2018"></div>
+            <div class="fg"><label class="fl">Specialization</label><input type="text" name="specialization" class="fi" value="{{ employee.specialization if employee else '' }}" placeholder="e.g. Computer Science"></div>
+        </div>
+        <div class="sec-hdr">💼 Previous Employment</div>
+        <div class="fgrid-3">
+            <div class="fg"><label class="fl">Previous Company</label><input type="text" name="prev_company" class="fi" value="{{ employee.prev_company if employee else '' }}" placeholder="Company name"></div>
+            <div class="fg"><label class="fl">Previous Designation</label><input type="text" name="prev_designation" class="fi" value="{{ employee.prev_designation if employee else '' }}" placeholder="Designation"></div>
+            <div class="fg"><label class="fl">Total Experience (Yrs)</label><input type="number" name="total_experience_yrs" class="fi" step="0.5" min="0" value="{{ employee.total_experience_yrs if employee and employee.total_experience_yrs else '' }}" placeholder="e.g. 3.5"></div>
+            <div class="fg"><label class="fl">From Date</label><input type="date" name="prev_from_date" class="fi" value="{{ employee.prev_from_date.strftime('%Y-%m-%d') if employee and employee.prev_from_date else '' }}"></div>
+            <div class="fg"><label class="fl">To Date</label><input type="date" name="prev_to_date" class="fi" value="{{ employee.prev_to_date.strftime('%Y-%m-%d') if employee and employee.prev_to_date else '' }}"></div>
+            <div class="fg" style="grid-column:1/-1;"><label class="fl">Reason for Leaving</label><textarea name="prev_leaving_reason" class="fi" rows="2" placeholder="Reason...">{{ employee.prev_leaving_reason if employee else '' }}</textarea></div>
+        </div>
+    </div>
+</div>
+</div>
+
+<!-- TAB 7: DOCUMENTS -->
+<div class="tab-pane" id="t7">
+<div class="card" style="margin-bottom:1rem;">
+    <div class="card-hdr-sm"><span class="card-title">📎 Documents</span><span style="font-size:.75rem;color:var(--text3);">JPG/PNG auto-compressed · PDF max 2MB recommended</span></div>
+    <div class="card-body-sm">
+        <div style="background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:8px;padding:.6rem .9rem;margin-bottom:.9rem;font-size:.78rem;color:#1d4ed8;">💡 Images auto-compressed. PDF: compress before upload for best results (<1MB ideal).</div>
+        <div style="display:flex;flex-wrap:wrap;gap:.4rem;margin-bottom:1rem;">
+            {% for dtype,icon in [('Offer Letter','📄'),('Appointment Letter','📋'),('Aadhaar Card','🪪'),('PAN Card','💳'),('Passport Copy','🛂'),('Driving License','🚗'),('10th Certificate','🎓'),('12th Certificate','🎓'),('Degree Certificate','🏛️'),('Experience Letter','💼'),('Relieving Letter','📤'),('Salary Slip','💰'),('Bank Passbook','🏦'),('Photo','📸'),('Other','📎')] %}
+            <button type="button" class="ph-btn ph-btn-file" style="font-size:.72rem;padding:4px 10px;" onclick="openDocUpload('{{ dtype }}')">{{ icon }} {{ dtype }}</button>
+            {% endfor %}
+        </div>
+        <div id="docUploadBox" style="display:none;background:#f8fafc;border:1.5px dashed #cbd5e1;border-radius:10px;padding:1rem;margin-bottom:1rem;">
+            <div style="font-size:.8rem;font-weight:700;margin-bottom:.5rem;" id="docUploadTitle">📄 Upload Document</div>
+            <div style="display:flex;gap:.6rem;align-items:center;flex-wrap:wrap;">
+                <input type="text" id="docCustomName" class="fi" style="width:200px;" placeholder="Document name">
+                <label class="ph-btn ph-btn-file" style="font-size:.78rem;">🗂️ Choose File<input type="file" id="docFileInput" accept=".pdf,.jpg,.jpeg,.png" style="display:none;" onchange="attachDoc()"></label>
+                <button type="button" class="ph-btn ph-btn-clear" onclick="closeDocUpload()" style="font-size:.78rem;">✕ Cancel</button>
+            </div>
+            <div id="docUploadMsg" style="font-size:.75rem;margin-top:.4rem;color:var(--text3);"></div>
+        </div>
+        <div id="docList" class="doc-list"></div>
+    </div>
+</div>
+</div>
+
+<div class="form-actions" id="formActions">
+    <!-- Shown dynamically per tab by JS -->
+    <button type="button" class="btn-primary" id="btnSaveTab" onclick="ajaxSaveCurrentTab()" style="padding:10px 28px;font-size:.88rem;">💾 Save Tab</button>
+    <a href="{{ url_for('hr.employees') }}" class="btn-outline" id="btnDone" style="padding:10px 20px;font-size:.88rem;display:none;">✅ Done</a>
+    <a href="{{ url_for('hr.employees') }}" class="btn-outline" style="padding:10px 20px;font-size:.88rem;">← Cancel</a>
+    <span id="ajaxSaveMsg" style="font-size:.8rem;margin-left:auto;font-weight:600;padding:6px 14px;border-radius:8px;display:none;"></span>
+</div>
+</form>
+
+<div class="camera-overlay" id="cameraModal">
+    <div class="camera-box">
+        <div class="camera-bar"><span>📷 Capture Photo</span><button type="button" onclick="closeCamera()" style="background:none;border:none;color:#94a3b8;font-size:1.2rem;cursor:pointer;">✕</button></div>
+        <video id="camVideo" autoplay playsinline></video><canvas id="camCanvas" style="display:none;"></canvas>
+        <div class="camera-btns"><button type="button" class="cbtn cbtn-cap" onclick="capturePhoto()">📸 Capture</button><button type="button" class="cbtn cbtn-cls" onclick="closeCamera()">✕ Close</button></div>
+    </div>
+</div>
 <div id="qrRenderTarget" style="position:absolute;left:-9999px;top:-9999px;width:200px;height:200px;"></div>
 {% endblock %}
 
 {% block extra_js %}
-// Load qrcode.js dynamically then init
-(function loadQRLib() {
-    var s = document.createElement('script');
-    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js';
-    s.onload = function() { initQR(); };
-    s.onerror = function() {
-        // fallback: try another CDN
-        var s2 = document.createElement('script');
-        s2.src = 'https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js';
-        s2.onload = function() { initQR(); };
-        document.head.appendChild(s2);
-    };
-    document.head.appendChild(s);
-})();
-
-var qrObj      = null;
-var qrReady    = false;
-var qrPending  = null;   // code waiting to be rendered
-
-function initQR() {
-    qrReady = true;
-    // If there was a code waiting, generate now
-    if (qrPending) {
-        _doGenerate(qrPending);
-        qrPending = null;
-    } else {
-        // Edit page: employee has code but no QR saved
-        {% if employee and employee.employee_code and not employee.qr_code_base64 %}
-        _doGenerate('{{ employee.employee_code | e }}');
-        {% endif %}
-    }
+function _showSaveMsg(msg,ok){
+    var el=document.getElementById('ajaxSaveMsg');
+    if(!el){alert(msg);return;}
+    el.style.display='block';el.textContent=msg;
+    el.style.background=ok?'#dcfce7':'#fee2e2';
+    el.style.color=ok?'#166534':'#991b1b';
+    el.style.border='1.5px solid '+(ok?'#bbf7d0':'#fecaca');
+    clearTimeout(el._t);el._t=setTimeout(function(){el.style.display='none';},4000);
 }
-
-function generateQR(code) {
-    if (!code || !code.trim()) return;
-    code = code.trim();
-    if (!qrReady) {
-        qrPending = code;   // library not loaded yet, store and wait
+function switchTab(id,btn){
+    if(btn.classList.contains('tab-locked')){
+        _showSaveMsg('⚠️ Pehle current tab save karo, phir aage jao!', false);
         return;
     }
-    _doGenerate(code);
+    document.querySelectorAll('.tab-pane').forEach(p=>p.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+    btn.classList.add('active');
 }
-
-function _doGenerate(code) {
-    var statusEl = document.getElementById('qrStatus');
-    statusEl.innerHTML = '<span style="color:#64748b;">⏳ Generating QR...</span>';
-
-    var target = document.getElementById('qrRenderTarget');
-    target.innerHTML = '';
-
-    try {
-        qrObj = new QRCode(target, {
-            text:         code,
-            width:        200,
-            height:       200,
-            colorDark:    '#000000',
-            colorLight:   '#ffffff',
-            correctLevel: QRCode.CorrectLevel.M
-        });
-    } catch(e) {
-        statusEl.innerHTML = '<span style="color:red;">❌ QR error: ' + e.message + '</span>';
-        return;
-    }
-
-    // QRCode.js renders asynchronously — poll for canvas/img
-    var attempts = 0;
-    var poll = setInterval(function() {
-        attempts++;
-        var canvas = target.querySelector('canvas');
-        var img    = target.querySelector('img');
-        var dataUrl = null;
-
-        if (canvas && canvas.width > 0) {
-            dataUrl = canvas.toDataURL('image/png');
-        } else if (img && img.src && img.src.indexOf('data:') === 0) {
-            dataUrl = img.src;
-        }
-
-        if (dataUrl) {
-            clearInterval(poll);
-            document.getElementById('qrBase64').value = dataUrl;
-
-            // Update display
-            document.getElementById('qrDisplay').innerHTML =
-                '<div class="qr-box">' +
-                '<img src="' + dataUrl + '" style="width:110px;height:110px;border:2px solid #e2e8f0;border-radius:10px;">' +
-                '<div class="qr-lbl">' + code + '</div>' +
-                '</div>';
-
-            statusEl.innerHTML = '<span style="color:#16a34a;">✅ QR ready</span>';
-            setTimeout(function(){ statusEl.innerHTML=''; }, 2500);
-        }
-
-        if (attempts > 30) {
-            clearInterval(poll);
-            statusEl.innerHTML = '<span style="color:orange;">⚠️ QR generation slow</span>';
-        }
-    }, 100);
+(function loadQRLib(){var s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js';s.onload=function(){initQR();};s.onerror=function(){var s2=document.createElement('script');s2.src='https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js';s2.onload=function(){initQR();};document.head.appendChild(s2);};document.head.appendChild(s);})();
+var qrObj=null,qrReady=false,qrPending=null;
+function initQR(){
+  qrReady=true;
+  if(qrPending){_doGenerate(qrPending);qrPending=null;}
+  else{
+    {% if employee and employee.employee_code and not employee.qr_code_base64 %}
+    _doGenerate('{{ employee.employee_code|e }}');
+    {% endif %}
+  }
 }
-
-// Debounced input handler for employee code field
-var codeTimer = null;
-var codeInput = document.getElementById('empCodeInput');
-if (codeInput && !codeInput.readOnly) {
-    codeInput.addEventListener('input', function() {
-        clearTimeout(codeTimer);
-        var val = this.value.trim();
-        codeTimer = setTimeout(function() {
-            if (val.length >= 2) generateQR(val);
-        }, 700);
-    });
-}
-
-// ── Contractor toggle ──
-function toggleContractor(val) {
-    document.getElementById('contractorRow').style.display = val === 'yes' ? '' : 'none';
-}
+function generateQR(code){if(!code||!code.trim())return;code=code.trim();if(!qrReady){qrPending=code;return;}_doGenerate(code);}
+function _doGenerate(code){var statusEl=document.getElementById('qrStatus');statusEl.innerHTML='<span style="color:#64748b;">⏳ Generating QR...</span>';var target=document.getElementById('qrRenderTarget');target.innerHTML='';try{qrObj=new QRCode(target,{text:code,width:200,height:200,colorDark:'#000000',colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.M});}catch(e){statusEl.innerHTML='<span style="color:red;">❌ QR error</span>';return;}var attempts=0;var poll=setInterval(function(){attempts++;var canvas=target.querySelector('canvas'),img=target.querySelector('img'),dataUrl=null;if(canvas&&canvas.width>0)dataUrl=canvas.toDataURL('image/png');else if(img&&img.src&&img.src.indexOf('data:')===0)dataUrl=img.src;if(dataUrl){clearInterval(poll);document.getElementById('qrBase64').value=dataUrl;document.getElementById('qrDisplay').innerHTML='<div class="qr-box"><img src="'+dataUrl+'" style="width:110px;height:110px;border:2px solid #e2e8f0;border-radius:10px;"><div class="qr-lbl">'+code+'</div></div>';statusEl.innerHTML='<span style="color:#16a34a;">✅ QR ready</span>';setTimeout(function(){statusEl.innerHTML='';},2500);}if(attempts>30){clearInterval(poll);statusEl.innerHTML='<span style="color:orange;">⚠️ QR slow</span>';}},100);}
+var codeTimer=null,codeInput=document.getElementById('empCodeInput');
+if(codeInput&&!codeInput.readOnly){codeInput.addEventListener('input',function(){clearTimeout(codeTimer);var val=this.value.trim();codeTimer=setTimeout(function(){if(val.length>=2)generateQR(val);},700);});}
+function toggleContractor(val){document.getElementById('contractorRow').style.display=val==='yes'?'':'none';}
 toggleContractor(document.getElementById('isContractorSel').value);
-
-// ── Photo: file browse ──
-function loadFile(input) {
-    var file = input.files[0];
-    if (!file) return;
-    var reader = new FileReader();
-    reader.onload = function(e) { compressAndSet(e.target.result); };
-    reader.readAsDataURL(file);
+function toggleMarriageDate(val){
+    var row = document.getElementById('marriageDateRow');
+    if(row) row.style.display = val === 'Married' ? '' : 'none';
 }
-
-function compressAndSet(dataUrl) {
-    var img = new Image();
-    img.onload = function() {
-        var MAX = 400, canvas = document.createElement('canvas');
-        var w = img.width, h = img.height;
-        if (w > MAX) { h = Math.round(h * MAX / w); w = MAX; }
-        if (h > MAX) { w = Math.round(w * MAX / h); h = MAX; }
-        canvas.width = w; canvas.height = h;
-        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-        setPhoto(canvas.toDataURL('image/jpeg', 0.72));
+var _ms = document.getElementById('maritalSel');
+if(_ms) toggleMarriageDate(_ms.value);
+function loadFile(input){var file=input.files[0];if(!file)return;var reader=new FileReader();reader.onload=function(e){compressAndSet(e.target.result);};reader.readAsDataURL(file);}
+function compressAndSet(dataUrl){
+  var img=new Image();
+  img.onload=function(){
+    var MAX=300,canvas=document.createElement('canvas'),w=img.width,h=img.height;
+    if(w>MAX){h=Math.round(h*MAX/w);w=MAX;}
+    if(h>MAX){w=Math.round(w*MAX/h);h=MAX;}
+    canvas.width=w;canvas.height=h;
+    canvas.getContext('2d').drawImage(img,0,0,w,h);
+    // Try quality 0.60, if still >80KB reduce more
+    var dataOut=canvas.toDataURL('image/jpeg',0.60);
+    if(dataOut.length>80*1024){dataOut=canvas.toDataURL('image/jpeg',0.45);}
+    setPhoto(dataOut);
+  };
+  img.src=dataUrl;
+}
+function setPhoto(dataUrl){document.getElementById('photoBase64').value=dataUrl;var wrap=document.getElementById('previewWrap'),pi=document.getElementById('previewImg');if(!pi){wrap.innerHTML='';pi=document.createElement('img');pi.id='previewImg';wrap.appendChild(pi);}pi.src=dataUrl;document.getElementById('clearPhotoBtn').style.display='inline-block';var em=document.getElementById('previewEmoji');if(em)em.style.display='none';}
+function clearPhoto(){document.getElementById('photoBase64').value='';document.getElementById('previewWrap').innerHTML='<span id="previewEmoji">👤</span>';document.getElementById('clearPhotoBtn').style.display='none';}
+var camStream=null;
+async function openCamera(){try{camStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user'},audio:false});document.getElementById('camVideo').srcObject=camStream;document.getElementById('cameraModal').classList.add('show');}catch(e){alert('Camera error: '+e.message);}}
+function closeCamera(){if(camStream){camStream.getTracks().forEach(function(t){t.stop();});camStream=null;}document.getElementById('cameraModal').classList.remove('show');}
+function capturePhoto(){
+  var video=document.getElementById('camVideo'),canvas=document.getElementById('camCanvas'),MAX=300,w=video.videoWidth,h=video.videoHeight;
+  if(w>MAX){h=Math.round(h*MAX/w);w=MAX;}
+  if(h>MAX){w=Math.round(w*MAX/h);h=MAX;}
+  canvas.width=w;canvas.height=h;
+  canvas.getContext('2d').drawImage(video,0,0,w,h);
+  setPhoto(canvas.toDataURL('image/jpeg',0.60));
+  closeCamera();
+}
+function autoCalcSalary(){var ctcA=parseFloat(document.getElementById('salCtc').value)||0;if(ctcA<=0)return;var monthly=Math.round(ctcA/12);var basic=Math.round(monthly*0.40);var hra=Math.round(basic*0.50);var da=Math.round(basic*0.10);var ta=1600;var med=1250;var pf=Math.round(basic*0.12);var gross=basic+hra+da+ta+med;var esicGross=gross;var esicEmp=esicGross<=21000?Math.round(esicGross*0.0075):0;var esicEr=esicGross<=21000?Math.round(esicGross*0.0325):0;var pt=200;var special=Math.max(0,monthly-basic-hra-da-ta-med);var totalEarn=basic+hra+da+ta+med+special;var deduct=pf+esicEmp+pt;var net=totalEarn-deduct;document.getElementById('salBasic').value=basic;document.getElementById('salHra').value=hra;document.getElementById('salDa').value=da;document.getElementById('salTa').value=ta;document.getElementById('salMed').value=med;document.getElementById('salSpecial').value=special;document.getElementById('salPfEmp').value=pf;document.getElementById('salPfEr').value=pf;document.getElementById('salEsicEmp').value=esicEmp;document.getElementById('salEsicEr').value=esicEr;document.getElementById('salPt').value=pt;document.getElementById('salNet').value=net;updateSalSummary(ctcA,totalEarn,deduct,net);}
+function recalcNet(){var earn=['salBasic','salHra','salDa','salTa','salMed','salSpecial'].reduce((s,id)=>s+(parseFloat(document.getElementById(id).value)||0),0);var deduct=['salPfEmp','salEsicEmp','salPt','salTds'].reduce((s,id)=>s+(parseFloat(document.getElementById(id).value)||0),0);var net=Math.round(earn-deduct);document.getElementById('salNet').value=net;updateSalSummary(parseFloat(document.getElementById('salCtc').value)||0,earn,deduct,net);}
+function updateSalSummary(ctcA,gross,deduct,net){document.getElementById('salSummary').innerHTML='<div style="display:flex;flex-direction:column;gap:.4rem;font-size:.8rem;"><div style="display:flex;justify-content:space-between;padding:.3rem 0;border-bottom:1px solid #f1f5f9;"><span style="color:var(--text2);">CTC (Annual)</span><strong>₹'+Number(ctcA).toLocaleString('en-IN')+'</strong></div><div style="display:flex;justify-content:space-between;padding:.3rem 0;"><span style="color:var(--text2);">Gross Monthly</span><strong>₹'+Math.round(gross).toLocaleString('en-IN')+'</strong></div><div style="display:flex;justify-content:space-between;padding:.3rem 0;"><span style="color:#dc2626;">Total Deductions</span><strong style="color:#dc2626;">- ₹'+Math.round(deduct).toLocaleString('en-IN')+'</strong></div><div style="display:flex;justify-content:space-between;padding:.5rem .6rem;background:#dcfce7;border-radius:7px;margin-top:.2rem;"><span style="color:#16a34a;font-weight:800;">Net Take Home</span><strong style="color:#16a34a;font-size:1rem;">₹'+Math.round(net).toLocaleString('en-IN')+'</strong></div></div>';}
+var currentDocType='',docFiles=[];
+try{docFiles=JSON.parse(document.getElementById('documentsJson').value||'[]');}catch(e){docFiles=[];}
+function openDocUpload(dtype){currentDocType=dtype;document.getElementById('docUploadTitle').textContent='📄 Upload: '+dtype;document.getElementById('docCustomName').value=dtype;document.getElementById('docUploadBox').style.display='block';document.getElementById('docUploadMsg').textContent='';document.getElementById('docFileInput').value='';}
+function closeDocUpload(){document.getElementById('docUploadBox').style.display='none';}
+function attachDoc(){
+  var file=document.getElementById('docFileInput').files[0];
+  if(!file)return;
+  if(file.size>8*1024*1024){document.getElementById('docUploadMsg').textContent='❌ File too large (max 8MB)';return;}
+  var name=document.getElementById('docCustomName').value.trim()||currentDocType;
+  document.getElementById('docUploadMsg').textContent='⏳ Processing…';
+  var isImage=/\.(jpe?g|png|webp)$/i.test(file.name);
+  var isPdf=/\.pdf$/i.test(file.name);
+  if(isImage){
+    // Compress image documents
+    var reader=new FileReader();
+    reader.onload=function(e){
+      var img=new Image();
+      img.onload=function(){
+        var MAX=1200,canvas=document.createElement('canvas'),w=img.width,h=img.height;
+        if(w>MAX){h=Math.round(h*MAX/w);w=MAX;}
+        if(h>MAX){w=Math.round(w*MAX/h);h=MAX;}
+        canvas.width=w;canvas.height=h;
+        canvas.getContext('2d').drawImage(img,0,0,w,h);
+        var out=canvas.toDataURL('image/jpeg',0.70);
+        if(out.length>200*1024){out=canvas.toDataURL('image/jpeg',0.50);}
+        var kb=Math.round(out.length*0.75/1024);
+        _saveDocFile(name,file.name,file.size,out,kb);
+      };
+      img.src=e.target.result;
     };
-    img.src = dataUrl;
+    reader.readAsDataURL(file);
+  } else {
+    // PDF — read as-is, warn if large
+    var reader=new FileReader();
+    reader.onload=function(e){
+      var kb=Math.round(file.size/1024);
+      if(file.size>2*1024*1024){
+        document.getElementById('docUploadMsg').textContent='⚠️ PDF is '+kb+'KB — consider compressing for faster saves';
+      }
+      _saveDocFile(name,file.name,file.size,e.target.result,kb);
+    };
+    reader.readAsDataURL(file);
+  }
+}
+function _saveDocFile(name,filename,origSize,base64,kb){
+  docFiles.push({name:name,type:currentDocType,filename:filename,size:origSize,base64:base64,uploaded_at:new Date().toISOString()});
+  document.getElementById('documentsJson').value=JSON.stringify(docFiles);
+  document.getElementById('docUploadMsg').textContent='✅ Added ('+kb+' KB)';
+  renderDocList();
+  setTimeout(closeDocUpload,800);
+}
+function removeDoc(idx){docFiles.splice(idx,1);document.getElementById('documentsJson').value=JSON.stringify(docFiles);renderDocList();}
+function renderDocList(){var html='';if(docFiles.length===0){html='<div style="text-align:center;padding:1.5rem;color:var(--text3);font-size:.8rem;">No documents uploaded yet</div>';}else{docFiles.forEach(function(d,i){var sizeKb=Math.round((d.size||0)/1024);var icon=d.filename&&d.filename.endsWith('.pdf')?'📄':'🖼️';html+='<div class="doc-item"><span style="font-size:1.4rem;">'+icon+'</span><div class="doc-item-name">'+d.name+'<div style="font-size:.7rem;color:var(--text3);">'+d.filename+' · '+sizeKb+' KB</div></div><span style="background:#dcfce7;color:#16a34a;font-size:.68rem;padding:2px 8px;border-radius:99px;font-weight:700;">✅ Uploaded</span>'+(d.base64?'<a href="'+d.base64+'" download="'+d.filename+'" style="font-size:.75rem;color:var(--blue);font-weight:700;">⬇️</a>':'')+'<button type="button" onclick="removeDoc('+i+')" style="background:#fee2e2;color:#dc2626;border:1.5px solid #fecaca;border-radius:6px;padding:3px 8px;font-size:.72rem;cursor:pointer;font-weight:700;">🗑️</button></div>';});}document.getElementById('docList').innerHTML=html;}
+renderDocList();
+{% if employee and employee.salary_net %}
+updateSalSummary(
+  {{ employee.salary_ctc or 0 }},
+  {{ (employee.salary_basic or 0)+(employee.salary_hra or 0)+(employee.salary_da or 0)+(employee.salary_ta or 0)+(employee.salary_medical_allow or 0)+(employee.salary_special_allow or 0) }},
+  {{ (employee.salary_pf_employee or 0)+(employee.salary_esic_employee or 0)+(employee.salary_professional_tax or 0)+(employee.salary_tds or 0) }},
+  {{ employee.salary_net or 0 }}
+);
+{% endif %}
+
+// ════════════════════════════════════════════
+// AJAX TAB-WISE SAVE SYSTEM
+// ════════════════════════════════════════════
+var _currentTab = 'basic';
+var _empId = (document.getElementById('empId')||{value:''}).value;
+var _isNew = (document.getElementById('isNewEmp')||{value:'0'}).value === '1';
+var _savedTabs = {};
+
+var _origSwitchTab = switchTab;
+switchTab = function(id, btn) {
+    _origSwitchTab(id, btn);
+    _currentTab = btn.getAttribute('data-tab') || 'basic';
+    _updateSaveBtn();
+};
+
+function _updateSaveBtn() {
+    var btn = document.getElementById('btnSaveTab');
+    if (!btn) return;
+    // Always read from active tab button - source of truth
+    var activeBtn = document.querySelector('.tab-btn.active');
+    if (activeBtn) _currentTab = activeBtn.getAttribute('data-tab') || 'basic';
+    var labels = {basic:'💾 Save Basic Info',professional:'💾 Save Professional',kyc:'💾 Save KYC',bank:'💾 Save Bank Details',salary:'💾 Save Salary',education:'💾 Save Education',documents:'💾 Save Documents'};
+    btn.textContent = labels[_currentTab] || '💾 Save Tab';
+    var doneBtn = document.getElementById('btnDone');
+    if (doneBtn) doneBtn.style.display = _empId ? 'inline-flex' : 'none';
 }
 
-function setPhoto(dataUrl) {
-    document.getElementById('photoBase64').value = dataUrl;
-    var wrap = document.getElementById('previewWrap');
-    var pi   = document.getElementById('previewImg');
-    if (!pi) {
-        wrap.innerHTML = '';
-        pi = document.createElement('img');
-        pi.id = 'previewImg';
-        wrap.appendChild(pi);
+// _showSaveMsg defined above
+
+function _inp(name){var e=document.querySelector('[name="'+name+'"]');return e?e.value:'';}
+function _sel(name){var e=document.querySelector('select[name="'+name+'"]');return e?e.value:'';}
+
+function _collectTab(tab) {
+    var d={tab:tab};
+    if(tab==='basic'){
+        d.photo_base64=(_inp('photo_base64')||document.getElementById('photoBase64').value||'');
+        d.qr_base64=(document.getElementById('qrBase64')||{value:''}).value;
+        d.employee_code=_inp('employee_code'); d.first_name=_inp('first_name'); d.last_name=_inp('last_name');
+        d.mobile=_inp('mobile'); d.email=_inp('email'); d.gender=_sel('gender');
+        d.date_of_birth=_inp('date_of_birth'); d.blood_group=_sel('blood_group');
+        d.marital_status=_sel('marital_status'); d.marriage_anniversary=_inp('marriage_anniversary');
+        d.address=_inp('address'); d.city=_inp('city'); d.state=_inp('state');
+        d.country=_inp('country'); d.zip_code=_inp('zip_code');
+        d.linkedin=_inp('linkedin'); d.facebook=_inp('facebook'); d.reports_to=_inp('reports_to');
+    } else if(tab==='professional'){
+        d.department=_inp('department'); d.designation=_inp('designation'); d.employee_type=_sel('employee_type');
+        d.date_of_joining=_inp('date_of_joining'); d.location=_inp('location');
+        d.pay_grade=_inp('pay_grade'); d.shift=_inp('shift'); d.weekly_off=_inp('weekly_off');
+        d.work_hours_per_day=_inp('work_hours_per_day'); d.notice_period_days=_inp('notice_period_days');
+        d.is_contractor=_sel('is_contractor'); d.contractor_id=_inp('contractor_id');
+        d.is_block=_sel('is_block'); d.is_late=_sel('is_late'); d.is_probation=_sel('is_probation');
+        d.status=_sel('status'); d.remark=_inp('remark');
+        d.confirmation_date=_inp('confirmation_date'); d.resignation_date=_inp('resignation_date');
+        d.last_working_date=_inp('last_working_date'); d.rehire_eligible=_sel('rehire_eligible');
+    } else if(tab==='kyc'){
+        d.nationality=_inp('nationality'); d.religion=_inp('religion'); d.caste=_inp('caste');
+        d.physically_handicapped=_sel('physically_handicapped');
+        d.aadhar_number=_inp('aadhar_number'); d.pan_number=_inp('pan_number');
+        d.uan_number=_inp('uan_number'); d.esic_number=_inp('esic_number');
+        d.passport_number=_inp('passport_number'); d.passport_expiry=_inp('passport_expiry');
+        d.driving_license=_inp('driving_license'); d.dl_expiry=_inp('dl_expiry');
+        d.emergency_name=_inp('emergency_name'); d.emergency_relation=_inp('emergency_relation');
+        d.emergency_phone=_inp('emergency_phone'); d.emergency_address=_inp('emergency_address');
+    } else if(tab==='bank'){
+        d.bank_account_holder=_inp('bank_account_holder'); d.bank_name=_inp('bank_name');
+        d.bank_account_number=_inp('bank_account_number'); d.bank_ifsc=_inp('bank_ifsc');
+        d.bank_branch=_inp('bank_branch'); d.bank_account_type=_sel('bank_account_type');
+    } else if(tab==='salary'){
+        d.salary_ctc=_inp('salary_ctc'); d.salary_basic=_inp('salary_basic'); d.salary_hra=_inp('salary_hra');
+        d.salary_da=_inp('salary_da'); d.salary_ta=_inp('salary_ta');
+        d.salary_medical_allow=_inp('salary_medical_allow'); d.salary_special_allow=_inp('salary_special_allow');
+        d.salary_pf_employee=_inp('salary_pf_employee'); d.salary_pf_employer=_inp('salary_pf_employer');
+        d.salary_esic_employee=_inp('salary_esic_employee'); d.salary_esic_employer=_inp('salary_esic_employer');
+        d.salary_professional_tax=_inp('salary_professional_tax'); d.salary_tds=_inp('salary_tds');
+        d.salary_net=_inp('salary_net'); d.salary_mode=_sel('salary_mode');
+        d.salary_effective_date=_inp('salary_effective_date');
+    } else if(tab==='education'){
+        d.highest_qualification=_sel('highest_qualification'); d.university=_inp('university');
+        d.passing_year=_inp('passing_year'); d.specialization=_inp('specialization');
+        d.prev_company=_inp('prev_company'); d.prev_designation=_inp('prev_designation');
+        d.total_experience_yrs=_inp('total_experience_yrs');
+        d.prev_from_date=_inp('prev_from_date'); d.prev_to_date=_inp('prev_to_date');
+        d.prev_leaving_reason=_inp('prev_leaving_reason');
+    } else if(tab==='documents'){
+        d.documents_json=(document.getElementById('documentsJson')||{value:'[]'}).value;
     }
-    pi.src = dataUrl;
-    document.getElementById('clearPhotoBtn').style.display = 'inline-block';
-    var em = document.getElementById('previewEmoji');
-    if (em) em.style.display = 'none';
+    return d;
 }
 
-function clearPhoto() {
-    document.getElementById('photoBase64').value = '';
-    document.getElementById('previewWrap').innerHTML = '<span id="previewEmoji">👤</span>';
-    document.getElementById('clearPhotoBtn').style.display = 'none';
+function _markTabSaved(tabId){
+    var btn=document.querySelector('[data-tabid="'+tabId+'"]');
+    if(btn){
+        btn.classList.remove('tab-locked');
+        btn.classList.add('tab-saved');
+        btn.style.color='';
+    }
+    // Unlock next tab too
+    var order=['t1','t2','t3','t4','t5','t6','t7'];
+    var idx=order.indexOf(tabId);
+    if(idx>=0 && idx<order.length-1){
+        var nextBtn=document.querySelector('[data-tabid="'+order[idx+1]+'"]');
+        if(nextBtn) nextBtn.classList.remove('tab-locked');
+    }
 }
 
-// ── Camera ──
-var camStream = null;
-async function openCamera() {
-    try {
-        camStream = await navigator.mediaDevices.getUserMedia({video:{facingMode:'user'},audio:false});
-        document.getElementById('camVideo').srcObject = camStream;
-        document.getElementById('cameraModal').classList.add('show');
-    } catch(e) { alert('Camera error: ' + e.message); }
+function ajaxSaveCurrentTab(){
+    var btn=document.getElementById('btnSaveTab');
+    if(btn){btn.disabled=true; btn.textContent='⏳ Saving…';}
+    var tab=_currentTab;
+
+    if(_isNew && !_empId){
+        if(tab!=='basic'){
+            _showSaveMsg('⚠️ Pehle Basic Info save karo!',false);
+            if(btn){btn.disabled=false;_updateSaveBtn();}return;
+        }
+        var data=_collectTab('basic');
+        if(!data.employee_code){
+            _showSaveMsg('⚠️ Employee Code required',false);
+            if(btn){btn.disabled=false;_updateSaveBtn();}return;
+        }
+        fetch('/hr/employees/ajax-init',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)})
+        .then(function(r){return r.json();})
+        .then(function(res){
+            if(res.ok){
+                _empId=String(res.emp_id);
+                document.getElementById('empId').value=_empId;
+                document.getElementById('isNewEmp').value='0';
+                _isNew=false;
+                _markTabSaved('t1');
+                _showSaveMsg('✅ '+res.msg,true);
+                var doneBtn=document.getElementById('btnDone');
+                if(doneBtn)doneBtn.style.display='inline-flex';
+            } else {_showSaveMsg('❌ '+res.error,false);}
+            if(btn){btn.disabled=false;_updateSaveBtn();}
+        })
+        .catch(function(){_showSaveMsg('❌ Network error',false);if(btn){btn.disabled=false;_updateSaveBtn();}});
+        return;
+    }
+
+    if(!_empId){
+        _showSaveMsg('⚠️ Pehle Basic Info save karo!',false);
+        if(btn){btn.disabled=false;_updateSaveBtn();}return;
+    }
+
+    var data=_collectTab(tab);
+    fetch('/hr/employees/'+_empId+'/ajax-save-tab',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)})
+    .then(function(r){return r.json();})
+    .then(function(res){
+        if(res.ok){
+            var tabIds={basic:'t1',professional:'t2',kyc:'t3',bank:'t4',salary:'t5',education:'t6',documents:'t7'};
+            _markTabSaved(tabIds[tab]);
+            _showSaveMsg('✅ '+res.msg,true);
+        } else {_showSaveMsg('❌ '+res.error,false);}
+        if(btn){btn.disabled=false;_updateSaveBtn();}
+    })
+    .catch(function(){_showSaveMsg('❌ Network error',false);if(btn){btn.disabled=false;_updateSaveBtn();}});
 }
-function closeCamera() {
-    if (camStream) { camStream.getTracks().forEach(function(t){t.stop();}); camStream = null; }
-    document.getElementById('cameraModal').classList.remove('show');
-}
-function capturePhoto() {
-    var video  = document.getElementById('camVideo');
-    var canvas = document.getElementById('camCanvas');
-    var MAX = 400, w = video.videoWidth, h = video.videoHeight;
-    if (w > MAX) { h = Math.round(h*MAX/w); w = MAX; }
-    canvas.width = w; canvas.height = h;
-    canvas.getContext('2d').drawImage(video, 0, 0, w, h);
-    setPhoto(canvas.toDataURL('image/jpeg', 0.72));
-    closeCamera();
-}
+
+document.addEventListener('DOMContentLoaded',function(){
+    _updateSaveBtn();
+    if(_empId){var d=document.getElementById('btnDone');if(d)d.style.display='inline-flex';}
+});
 {% endblock %}

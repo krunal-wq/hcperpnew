@@ -9,31 +9,52 @@
         <h1 style="font-size:1.2rem;">🤝 Contractors</h1>
         <p style="font-size:.78rem;color:var(--text3);">{{ contractors|length }} contractors</p>
     </div>
-    {% if perm.can_add %}
-    <a href="{{ url_for('hr.contractor_add') }}" class="btn-primary" style="font-size:.82rem;">＋ Add Contractor</a>
-    {% endif %}
-</div>
-
-<div class="card" style="margin-bottom:1rem;">
-    <div style="padding:.75rem 1rem;">
-        <form method="GET" style="display:flex;gap:.6rem;flex-wrap:wrap;align-items:flex-end;">
-            <div class="fg" style="flex:1;min-width:200px;">
-                <label class="fl">Search</label>
-                <input type="text" name="search" class="fi" value="{{ search }}" placeholder="Company, contract ID, contact...">
-            </div>
-            <div class="fg" style="min-width:120px;">
-                <label class="fl">Status</label>
-                <select name="status" class="fi">
-                    <option value="">All</option>
-                    <option value="1" {{ 'selected' if status=='1' }}>Active</option>
-                    <option value="0" {{ 'selected' if status=='0' }}>Inactive</option>
-                </select>
-            </div>
-            <button type="submit" class="btn-primary" style="height:40px;padding:0 16px;font-size:.83rem;">🔍 Filter</button>
-            <a href="{{ url_for('hr.contractors') }}" class="btn-outline" style="height:40px;padding:0 12px;font-size:.83rem;display:flex;align-items:center;">✕ Clear</a>
-        </form>
+    <div style="display:flex;gap:.5rem;flex-wrap:wrap;">
+        <button type="button" onclick="doExport('ct')" class="btn-outline" style="font-size:.8rem;">📤 Export</button>
+        {% if perm.can_add %}
+        <a href="{{ url_for('hr.contractor_add') }}" class="btn-primary" style="font-size:.82rem;">＋ Add Contractor</a>
+        {% endif %}
     </div>
 </div>
+
+{% set _ctfc = [search,status]|select|list|length %}
+<div class="fs-panel" style="margin-bottom:1rem;">
+  <div style="display:flex;gap:6px;align-items:center;">
+    <button id="fsTabFilter" class="fs-tab" onclick="toggleFsTab('filter','ct')">
+      🔍 Filter{% if _ctfc > 0 %} <span class="fs-badge">{{ _ctfc }}</span>{% endif %}
+    </button>
+    {% if _ctfc > 0 %}<a href="{{ url_for('hr.contractors') }}" class="fs-clear">✕ Clear All</a>{% endif %}
+  </div>
+
+  <div id="fsPanelFilter_ct" class="fs-pane" style="display:none;">
+    <div class="fs-grid" style="max-width:520px;">
+      <div class="fs-field">
+        <label>🔍 Search</label>
+        <input type="text" id="ct_search" value="{{ search }}" placeholder="Company, contract ID, contact…" oninput="fsDebounce('ct')">
+      </div>
+      <div class="fs-field">
+        <label>✅ Status</label>
+        <select id="ct_status" onchange="fsSubmit('ct')">
+          <option value="">All</option>
+          <option value="1" {{ 'selected' if status=='1' }}>Active</option>
+          <option value="0" {{ 'selected' if status=='0' }}>Inactive</option>
+        </select>
+      </div>
+    </div>
+    {% if search or status %}
+    <div style="display:flex;flex-wrap:wrap;gap:.35rem;margin-top:.65rem;align-items:center;">
+      <span style="font-size:.7rem;color:var(--text3);font-weight:600;">Active:</span>
+      {% if search %}<span class="fs-chip">Search: {{ search }}<a onclick="fsClear('ct_search','ct')">×</a></span>{% endif %}
+      {% if status %}<span class="fs-chip">Status: {{ 'Active' if status=='1' else 'Inactive' }}<a onclick="fsClear('ct_status','ct')">×</a></span>{% endif %}
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<form id="fsForm_ct" method="GET" style="display:none;">
+  <input type="hidden" id="ct_h_search" name="search" value="{{ search }}">
+  <input type="hidden" id="ct_h_status" name="status" value="{{ status }}">
+</form>
 
 
 <div class="card" style="margin-bottom:.5rem;">

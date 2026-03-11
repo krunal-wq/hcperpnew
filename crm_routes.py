@@ -359,10 +359,16 @@ def leads():
 @login_required
 def leads_export():
     """Export filtered leads to Excel with ALL fields."""
-    import openpyxl
-    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
-    from openpyxl.utils import get_column_letter
-    import io
+    import io, sys, subprocess
+    try:
+        import openpyxl
+        from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+        from openpyxl.utils import get_column_letter
+    except ImportError:
+        subprocess.run([sys.executable, '-m', 'pip', 'install', 'openpyxl', '--quiet'], check=True)
+        import openpyxl
+        from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+        from openpyxl.utils import get_column_letter
 
     # ── Apply same filters as leads list ──
     status   = request.args.get('status', '')
@@ -537,6 +543,120 @@ def leads_export():
     return send_file(buf, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
                      as_attachment=True, download_name=fname)
 
+
+
+# ══════════════════════════════════════════════════════════
+# SHARED EXCEL HELPER
+# ══════════════════════════════════════════════════════════
+
+def _make_excel(ws, headers, rows):
+    """Write styled header + data rows to openpyxl worksheet."""
+    import openpyxl
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    from openpyxl.utils import get_column_letter
+    hdr_fill  = PatternFill("solid", fgColor="1E3A5F")
+    hdr_font  = Font(bold=True, color="FFFFFF", size=10)
+    hdr_align = Alignment(horizontal="center", vertical="center", wrap_text=True)
+    thin      = Side(style="thin", color="D0D7E2")
+    bdr       = Border(left=thin, right=thin, top=thin, bottom=thin)
+    alt_fill  = PatternFill("solid", fgColor="F0F4FA")
+    d_font    = Font(size=9)
+    d_align   = Alignment(vertical="center")
+
+    ws.row_dimensions[1].height = 30
+    for ci, h in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=ci, value=h)
+        cell.font = hdr_font; cell.fill = hdr_fill
+        cell.alignment = hdr_align; cell.border = bdr
+
+    for ri, row in enumerate(rows, 2):
+        ws.row_dimensions[ri].height = 17
+        fill = alt_fill if ri % 2 == 0 else None
+        for ci, val in enumerate(row, 1):
+            cell = ws.cell(row=ri, column=ci, value=val)
+            cell.font = d_font; cell.alignment = d_align; cell.border = bdr
+            if fill: cell.fill = fill
+
+    for ci in range(1, len(headers)+1):
+        col = get_column_letter(ci)
+        mx = max((len(str(ws.cell(r, ci).value or '')) for r in range(1, ws.max_row+1)), default=10)
+        ws.column_dimensions[col].width = min(mx + 2, 45)
+    ws.freeze_panes = "A2"
+
+
+@crm.route('/clients/export')
+@login_required
+def clients_export():
+    import io, sys, subprocess
+    try:
+        import openpyxl
+    except ImportError:
+        subprocess.run([sys.executable, '-m', 'pip', 'install', 'openpyxl', '--quiet'], check=True)
+        import openpyxl
+
+    search      = request.args.get('search', '')
+    city        = request.args.get('city', '')
+    state       = request.args.get('state', '')
+    client_type = request.args.get('client_type', '')
+    status_f    = request.args.get('status_f', '')
+    sort_by     = request.args.get('sort_by', 'created_at')
+    sort_dir    = request.args.get('sort_dir', 'desc')
+
+    q = ClientMaster.query
+    if search:
+        s = f'%{search}%'
+        q = q.filter(ClientMaster.contact_name.ilike(s)|ClientMaster.company_name.ilike(s)|
+                     ClientMaster.mobile.ilike(s)|ClientMaster.email.ilike(s)|
+                     ClientMaster.city.ilike(s)|ClientMaster.gstin.ilike(s))
+    if city:        q = q.filter(ClientMaster.city.ilike(f'%{city}%'))
+    if state:       q = q.filter(ClientMaster.state.ilike(f'%{state}%'))
+    if client_type: q = q.filter_by(client_type=client_type)
+    if status_f:    q = q.filter_by(status=status_f)
+    sort_col = getattr(ClientMaster, sort_by, ClientMaster.created_at)
+    q = q.order_by(sort_col.asc() if sort_dir=='asc' else sort_col.desc())
+    clients = q.all()
+
+    from models.user import User as UserModel
+    users = {u.id: u.full_name for u in UserModel.query.all()}
+
+    headers = ["Code","Company","Contact Name","Position","Email","Mobile","Alt Mobile",
+               "GSTIN","Client Type","Status","Address","City","State","Country","Zip Code",
+               "Notes","Brands","Created By","Created At","Updated At"]
+
+    rows = []
+    for cl in clients:
+        brands = ', '.join([b.brand_name for b in cl.brands]) if hasattr(cl,'brands') else ''
+        rows.append([
+            cl.code or '', cl.company_name or '', cl.contact_name or '', cl.position or '',
+            cl.email or '', cl.mobile or '', cl.alternate_mobile or '', cl.gstin or '',
+            (cl.client_type or '').title(), (cl.status or '').title(),
+            cl.address or '', cl.city or '', cl.state or '', cl.country or '', cl.zip_code or '',
+            cl.notes or '', brands,
+            users.get(cl.created_by,'') if cl.created_by else '',
+            cl.created_at.strftime('%d-%m-%Y %H:%M') if cl.created_at else '',
+            cl.updated_at.strftime('%d-%m-%Y %H:%M') if cl.updated_at else '',
+        ])
+
+    wb = openpyxl.Workbook()
+    ws = wb.active; ws.title = "Clients"
+    _make_excel(ws, headers, rows)
+
+    ws2 = wb.create_sheet("Filter Info")
+    for r,(k,v) in enumerate([
+        ("Exported At", datetime.now().strftime('%d-%m-%Y %H:%M')),
+        ("Total",       len(clients)),
+        ("Search",      search or '—'), ("City", city or '—'),
+        ("State",       state or '—'), ("Type", client_type or 'All'),
+        ("Status",      status_f or 'All'),
+    ], 1):
+        from openpyxl.styles import Font as F2
+        ws2.cell(r,1,k).font = F2(bold=True); ws2.cell(r,2,str(v))
+
+    buf = io.BytesIO(); wb.save(buf); buf.seek(0)
+    return send_file(buf,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        as_attachment=True,
+        download_name=f"clients_export_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx")
 
 @crm.route('/leads/grid-config', methods=['POST'])
 @login_required

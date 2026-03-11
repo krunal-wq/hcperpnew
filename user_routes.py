@@ -2,7 +2,7 @@
 user_routes.py — User Management + Profile + Permission Admin
 """
 import json
-from flask import Blueprint, render_template, redirect, url_for, request, flash, jsonify
+from flask import send_file, Blueprint, render_template, redirect, url_for, request, flash, jsonify
 from flask_login import login_required, current_user
 from audit_helper import audit, snapshot
 from functools import wraps
@@ -31,8 +31,30 @@ def admin_required(f):
 @login_required
 @admin_required
 def users():
-    all_users = User.query.order_by(User.full_name).all()
-    return render_template('admin/users/index.html', users=all_users, active_page='user_mgmt')
+    from flask import send_file, request
+    search   = request.args.get('search', '').strip()
+    role_f   = request.args.get('role_f', '')
+    status_f = request.args.get('status_f', '')
+    sort_by  = request.args.get('sort_by', 'full_name')
+    sort_dir = request.args.get('sort_dir', 'asc')
+
+    q = User.query
+    if search:
+        s = f'%{search}%'
+        q = q.filter(User.full_name.ilike(s) | User.email.ilike(s) | User.username.ilike(s))
+    if role_f:
+        q = q.filter_by(role=role_f)
+    if status_f:
+        q = q.filter_by(is_active=(status_f == 'active'))
+
+    sort_col = getattr(User, sort_by, User.full_name)
+    q = q.order_by(sort_col.asc() if sort_dir == 'asc' else sort_col.desc())
+    all_users = q.all()
+
+    return render_template('admin/users/index.html',
+        users=all_users, active_page='user_mgmt',
+        search=search, role_f=role_f, status_f=status_f,
+        sort_by=sort_by, sort_dir=sort_dir)
 
 
 @users_bp.route('/users/add', methods=['GET', 'POST'])
@@ -177,30 +199,65 @@ def perm_seed():
 @users_bp.route('/profile', methods=['GET', 'POST'])
 @login_required
 def profile():
+    from models.employee import Employee
+    from datetime import date as date_type
+    # Find linked employee
+    emp = Employee.query.filter_by(user_id=current_user.id).first()
+
     if request.method == 'POST':
         action = request.form.get('action', 'profile')
         if action == 'password':
             old_pw = request.form.get('old_password', '')
             new_pw = request.form.get('new_password', '')
+            conf   = request.form.get('confirm_password', '')
             if not current_user.check_password(old_pw):
                 flash('Current password is incorrect.', 'error')
             elif len(new_pw) < 6:
                 flash('New password must be at least 6 characters.', 'error')
+            elif new_pw != conf:
+                flash('Passwords do not match.', 'error')
             else:
                 current_user.set_password(new_pw)
                 db.session.commit()
-                flash('Password changed!', 'success')
+                flash('Password changed successfully!', 'success')
         else:
+            # Update user basic info
             current_user.full_name = request.form.get('full_name', '').strip()
             current_user.email     = request.form.get('email', '').strip()
+
+            # Update employee fields if linked
+            if emp:
+                def _pd(v):
+                    try: return date_type.fromisoformat(v) if v else None
+                    except: return None
+
+                photo = request.form.get('photo_base64', '').strip()
+                if photo: emp.profile_photo = photo
+
+                emp.first_name     = request.form.get('first_name', '').strip() or emp.first_name
+                emp.last_name      = request.form.get('last_name', '').strip() or emp.last_name
+                emp.mobile         = request.form.get('mobile', '').strip()
+                emp.email          = current_user.email
+                emp.gender         = request.form.get('gender', '')
+                emp.linkedin       = request.form.get('linkedin', '').strip()
+                emp.facebook       = request.form.get('facebook', '').strip()
+                emp.date_of_birth  = _pd(request.form.get('date_of_birth'))
+                emp.blood_group    = request.form.get('blood_group', '').strip()
+                emp.marital_status = request.form.get('marital_status', '')
+                emp.address        = request.form.get('address', '').strip()
+                emp.city           = request.form.get('city', '').strip()
+                emp.state          = request.form.get('state', '').strip()
+                emp.country        = request.form.get('country', '').strip()
+                emp.zip_code       = request.form.get('zip_code', '').strip()
+                emp.remark         = request.form.get('remark', '').strip()
+
             db.session.commit()
-            flash('Profile updated!', 'success')
+            flash('Profile updated successfully!', 'success')
         return redirect(url_for('users_bp.profile'))
 
-    # Login history
     logs = LoginLog.query.filter_by(user_id=current_user.id)\
                .order_by(LoginLog.timestamp.desc()).limit(10).all()
-    return render_template('admin/profile.html', logs=logs, active_page='profile')
+    return render_template('admin/profile.html', employee=emp, logs=logs, active_page='profile')
 
 
 # ══════════════════════════════════════
@@ -268,7 +325,7 @@ def audit_export():
     from models import AuditLog
     import csv
     from io import StringIO
-    from flask import Response
+    from flask import send_file, Response
 
     logs = AuditLog.query.order_by(AuditLog.created_at.desc()).limit(5000).all()
     si   = StringIO()
@@ -281,3 +338,73 @@ def audit_export():
     output = si.getvalue()
     return Response(output, mimetype='text/csv',
                     headers={'Content-Disposition': 'attachment;filename=audit_logs.csv'})
+
+
+@users_bp.route('/users/export')
+@login_required
+@admin_required
+def users_export():
+    import io, sys, subprocess
+    try:
+        import openpyxl
+    except ImportError:
+        subprocess.run([sys.executable, '-m', 'pip', 'install', 'openpyxl', '--quiet'], check=True)
+        import openpyxl
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    from openpyxl.utils import get_column_letter
+    from datetime import datetime as dt
+
+    search   = request.args.get('search', '')
+    role_f   = request.args.get('role_f', '')
+    status_f = request.args.get('status_f', '')
+    sort_by  = request.args.get('sort_by', 'full_name')
+    sort_dir = request.args.get('sort_dir', 'asc')
+
+    q = User.query
+    if search:
+        s = f'%{search}%'
+        q = q.filter(User.full_name.ilike(s)|User.email.ilike(s)|User.username.ilike(s))
+    if role_f:   q = q.filter_by(role=role_f)
+    if status_f: q = q.filter_by(is_active=(status_f=='active'))
+    sort_col = getattr(User, sort_by, User.full_name)
+    users_data = q.order_by(sort_col.asc() if sort_dir=='asc' else sort_col.desc()).all()
+
+    headers = ["#","Full Name","Username","Email","Role","Status",
+               "Last Login","Login Attempts","Created At"]
+    rows = []
+    for i, u in enumerate(users_data, 1):
+        rows.append([
+            i, u.full_name or '', u.username or '', u.email or '',
+            (u.role or '').title(),
+            'Active' if u.is_active else 'Inactive',
+            u.last_login.strftime('%d-%m-%Y %H:%M') if u.last_login else '',
+            u.login_attempts or 0,
+            u.created_at.strftime('%d-%m-%Y %H:%M') if u.created_at else '',
+        ])
+
+    wb = openpyxl.Workbook()
+    ws = wb.active; ws.title = "Users"
+    hdr_fill=PatternFill("solid",fgColor="1E3A5F"); hdr_font=Font(bold=True,color="FFFFFF",size=10)
+    hdr_align=Alignment(horizontal="center",vertical="center")
+    thin=Side(style="thin",color="D0D7E2"); bdr=Border(left=thin,right=thin,top=thin,bottom=thin)
+    alt_fill=PatternFill("solid",fgColor="F0F4FA"); d_font=Font(size=9); d_align=Alignment(vertical="center")
+    ws.row_dimensions[1].height=28
+    for ci,h in enumerate(headers,1):
+        cell=ws.cell(1,ci,h); cell.font=hdr_font; cell.fill=hdr_fill
+        cell.alignment=hdr_align; cell.border=bdr
+    for ri,row in enumerate(rows,2):
+        ws.row_dimensions[ri].height=17; fill=alt_fill if ri%2==0 else None
+        for ci,val in enumerate(row,1):
+            cell=ws.cell(ri,ci,val); cell.font=d_font; cell.alignment=d_align; cell.border=bdr
+            if fill: cell.fill=fill
+    for ci in range(1,len(headers)+1):
+        col=get_column_letter(ci)
+        mx=max((len(str(ws.cell(r,ci).value or '')) for r in range(1,ws.max_row+1)),default=8)
+        ws.column_dimensions[col].width=min(mx+2,40)
+    ws.freeze_panes="A2"
+
+    buf=io.BytesIO(); wb.save(buf); buf.seek(0)
+    return send_file(buf,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        as_attachment=True,
+        download_name=f"users_export_{dt.now().strftime('%Y%m%d_%H%M')}.xlsx")

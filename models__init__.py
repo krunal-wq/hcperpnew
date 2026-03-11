@@ -18,7 +18,7 @@ __all__ = [
     'LeadReminder', 'LeadNote', 'LeadActivityLog',
     'Customer', 'CustomerAddress',
     'LeadStatus', 'LeadSource', 'LeadCategory', 'ProductRange',
-    'Employee', 'Contractor',
+    'Employee', 'Contractor', 'WishLog',
     'Module', 'RolePermission', 'UserGridConfig',
     'AuditLog',
 ]

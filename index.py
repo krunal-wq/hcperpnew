@@ -2,16 +2,20 @@ from flask import Flask, render_template, redirect, url_for, request, flash
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from datetime import datetime, timedelta
 from audit_helper import audit
-from models import db, User, LoginLog, Lead, ClientMaster, LeadReminder, Employee
+from models import db, User, LoginLog, Lead, ClientMaster, LeadReminder, Employee, WishLog
 from config import Config
 
 from crm_routes  import crm
 from master_routes import masters
 from hr_routes   import hr
 from user_routes import users_bp
+from approval_routes import approval_bp
 
 app = Flask(__name__)
 app.config.from_object(Config)
+app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024
+import json as _json
+app.jinja_env.filters['from_json'] = lambda s: _json.loads(s) if s else []   # 100MB — base64 photos + docs
 db.init_app(app)
 
 # ── Jinja filter: safe base64 encode for JS embedding ──
@@ -42,6 +46,7 @@ app.register_blueprint(crm)
 app.register_blueprint(masters)
 app.register_blueprint(hr)
 app.register_blueprint(users_bp)
+app.register_blueprint(approval_bp)
 
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
