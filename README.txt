@@ -2,70 +2,46 @@
 ║           ERP CRM v7 — SETUP GUIDE                          ║
 ╚══════════════════════════════════════════════════════════════╝
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- STEP 1 — Pehle yeh install karo (ek baar)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  1. Python 3.9+   → https://python.org/downloads
-  2. MySQL 8.0+    → https://dev.mysql.com/downloads/mysql/
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ OPTION A — Fresh Setup (naya PC, koi data nahi)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- STEP 2 — setup.py mein apni DB details daalo
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  setup.py file kholo aur upar yeh lines edit karo:
+  1. Python 3.9+ install karo  → https://python.org/downloads
+  2. MySQL 8.0+ install karo   → https://dev.mysql.com/downloads/mysql/
+  3. setup.py mein apna MySQL password daalo:
+       DB_PASSWORD = "apna_mysql_password"
+  4. Run: python setup.py
+  5. Run: python index.py
+  6. Browser: http://localhost:5000
+     Login:   admin@erp.com / Admin@123
 
-    DB_HOST     = "localhost"
-    DB_PORT     = 3306
-    DB_NAME     = "erpdb"
-    DB_USER     = "root"
-    DB_PASSWORD = "apna_mysql_password"
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ OPTION B — Purane PC ka data naye PC pe laana
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-  Admin user bhi change kar sakte ho:
-    ADMIN_EMAIL    = "admin@erp.com"
-    ADMIN_PASSWORD = "Admin@123"
+  PURANE PC PE:
+    python export_data.py   ← data_dump.py generate hogi
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- STEP 3 — Setup run karo
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  Terminal/Command Prompt mein:
+  NAYE PC PE:
+    1. erp_v7.zip extract karo
+    2. data_dump.py copy karo erp_v7/ mein
+    3. setup.py mein naye PC ka MySQL password daalo
+    4. python setup.py        (tables + admin)
+    5. python data_dump.py    (saara data restore)
+    6. python index.py        (server)
 
-    cd erp_v7
-    python setup.py
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ SCRIPTS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  export_data.py  → Purane PC pe: data_dump.py generate karo
+  setup.py        → Naye PC pe: DB + tables + admin create
+  data_dump.py    → Data restore (export ke baad milti hai)
+  index.py        → Flask server start
 
-  Yeh script automatically karega:
-    ✅ Python packages install
-    ✅ MySQL database create
-    ✅ config.py update
-    ✅ Saari tables create
-    ✅ Master data seed (statuses, sources, categories)
-    ✅ Admin user create
-    ✅ Missing columns add
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- STEP 4 — Server start karo
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    python index.py
-
-  Browser mein kholo:
-    http://localhost:5000
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- DEFAULT LOGIN
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  Email   : admin@erp.com
-  Password: Admin@123
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  TROUBLESHOOTING
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  ❌ MySQL connection failed?
-     → MySQL service start karo
-     → DB_PASSWORD check karo setup.py mein
-
-  ❌ Port 5000 busy?
-     → index.py ke last line mein port change karo:
-       app.run(debug=True, port=5001)
-
-  ❌ pip error on Python 3.12+?
-     → requirements.txt manually install karo:
-       pip install flask flask-sqlalchemy flask-login
-       pip install pymysql cryptography openpyxl pillow
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  MySQL error → MySQL service start karo, password check karo
+  Port busy   → index.py mein port=5001 karo
+  pip error   → pip install flask flask-sqlalchemy flask-login
+                pip install pymysql cryptography openpyxl pillow
