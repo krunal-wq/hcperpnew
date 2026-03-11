@@ -698,6 +698,7 @@
     const SearchDrop = (() => {
         function build(sel) {
             if (sel._sdBuilt) return;
+            if (!sel.parentNode) return;
             sel._sdBuilt = true;
             sel.style.display = 'none';
 
@@ -1022,7 +1023,11 @@ function doExport(ns) {
             if (h.value) params.set(h.name, h.value);
         });
     }
+    var btn = document.getElementById('exportBtn');
+    if (btn) { btn.textContent = '⏳ Preparing…'; btn.disabled = true;
+        setTimeout(function(){ btn.textContent = '📤 Export'; btn.disabled = false; }, 3000); }
     var urlMap = {
+        ld: '/crm/leads/export',
         cl: '/crm/clients/export',
         em: '/hr/employees/export',
         ct: '/hr/contractors/export',
@@ -1035,7 +1040,7 @@ function doExportUsers() { doExport('us'); }
 
 // Auto-open on page load if active filters/sort
 (function(){
-    ['cl','em','ct','us'].forEach(function(ns) {
+    ['ld','cl','em','ct','us'].forEach(function(ns) {
         var badge = document.querySelector('#fsPanelFilter_' + ns + ' ~ form ~ * .fs-badge, .fs-badge');
         var hasFilter = document.querySelectorAll('.fs-badge').length > 0;
         // Check sort badge: if sort tab has badge, open sort
@@ -1078,6 +1083,14 @@ function doExportUsers() { doExport('us'); }
 .cel-close{background:#f1f5f9;color:#64748b;border-color:#e2e8f0;}
 .cel-strip{height:4px;}
 .cel-strip.birthday{background:linear-gradient(90deg,#ec4899,#f59e0b,#10b981);}
+.cel-strip.work_anniversary{background:linear-gradient(90deg,#6366f1,#3b82f6);}
+.cel-strip.marriage_anniversary{background:linear-gradient(90deg,#ec4899,#f43f5e);}
+.cel-self{border:2px solid #f59e0b;box-shadow:0 0 0 3px #fef3c7,0 8px 24px rgba(0,0,0,.12);}
+.cel-self-msg{padding:.6rem .9rem;font-size:.8rem;line-height:1.5;color:#92400e;background:#fffbeb;border-radius:8px;margin:.5rem .9rem;font-weight:600;}
+.cel-btn.cel-wished-done{background:#dcfce7;color:#166534;cursor:default;border-color:#bbf7d0;}
+.cel-btn.cel-copy{background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;}
+.cel-btn.cel-copy:hover{background:#e2e8f0;}
+.cel-btn.cel-profile{background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;}
 .cel-strip.work_anniversary{background:linear-gradient(90deg,#6366f1,#3b82f6);}
 .cel-strip.marriage_anniversary{background:linear-gradient(90deg,#ec4899,#f43f5e);}
 .bp-cel-item{padding:.55rem .75rem;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;gap:.5rem;}
@@ -1408,148 +1421,244 @@ function _remPoll() {
 // Birthday / Work Anniversary / Marriage Anniversary
 // ══════════════════════════════════════════
 
-var _celShownToday  = {};      // emp_id+type → shown
-var _celLatest      = [];      // all upcoming celebrations
+// ═══════════════════════════════════════════════
+// CELEBRATION SYSTEM — Birthday / Work Anniv / Marriage Anniv
+// Once per day per person — self-wish + colleague notify
+// ═══════════════════════════════════════════════
+
+var _celShownCard   = {};    // key → true (card shown this session)
+var _celWishedToday = {};    // key → true (wish sent this session OR from server)
+var _celLatest      = [];
 var _celColors      = ['#6366f1','#f59e0b','#10b981','#3b82f6','#ef4444','#8b5cf6','#ec4899'];
 
-function _celAvatarColor(id) {
-    return _celColors[id % _celColors.length];
+// Persist dismissed state across page refreshes (localStorage key = date)
+var _celStorageKey = 'cel_dismissed_' + new Date().toISOString().slice(0,10);
+var _celDismissed  = {};
+try { _celDismissed = JSON.parse(localStorage.getItem(_celStorageKey) || '{}'); } catch(e){}
+
+function _celSaveDismissed() {
+    try { localStorage.setItem(_celStorageKey, JSON.stringify(_celDismissed)); } catch(e){}
 }
 
+function _celAvatarColor(id) { return _celColors[id % _celColors.length]; }
 function _celTypeIcon(type) {
     return type === 'birthday' ? '🎂' : type === 'work_anniversary' ? '🎖️' : '💍';
 }
 
-function _celVoiceMsg(item) {
-    if (item.type === 'birthday')
-        return 'Aaj ' + item.name + ' ka birthday hai! Unhe wishes karein.';
-    if (item.type === 'work_anniversary')
-        return item.name + ' ki ' + item.extra + ' work anniversary hai! Unhe congratulate karein.';
-    if (item.type === 'marriage_anniversary')
-        return 'Aaj ' + item.name + ' ki shaadi ki saalgirah hai! Unhe wishes bhejein.';
-    return item.name + ' ki special occasion hai!';
-}
-
+// ── Show notification card ──
 function _celShowCard(item) {
     var key = item.id + '_' + item.type;
-    if (_celShownToday[key]) return;
-    _celShownToday[key] = true;
+    // Skip if already shown this session OR dismissed today
+    if (_celShownCard[key] || _celDismissed[key]) return;
+    _celShownCard[key] = true;
 
     var container = document.getElementById('celContainer');
     if (!container) return;
 
-    var card = document.createElement('div');
-    card.className = 'cel-card';
-    card.id = 'cel_' + key.replace('+','_');
-
-    var col = _celAvatarColor(item.id);
+    var col  = _celAvatarColor(item.id);
     var icon = _celTypeIcon(item.type);
+    var isSelf = item.is_self;
+
     var avatarHtml = item.photo
         ? '<img class="cel-av-img" src="' + item.photo + '" alt="">'
         : '<div class="cel-av" style="background:' + col + ';">' + item.name.substring(0,2).toUpperCase() + '</div>';
 
-    var dayLabel = item.days === 0 ? '<span style="color:#d97706;font-weight:800;">🎉 Today!</span>'
-                 : item.days === 1 ? '<span style="color:#16a34a;">Tomorrow</span>'
-                 : '<span style="color:#64748b;">In ' + item.days + ' days</span>';
+    // For self — show personal birthday message
+    // For others — show "wish them" card
+    var msgHtml, footerHtml;
 
+    if (isSelf) {
+        // Personal wish FOR the birthday/anniversary person
+        msgHtml = '<div class="cel-self-msg">' +
+            '<div style="font-size:1.5rem;margin-bottom:.3rem;">' + icon + '</div>' +
+            _remEsc(item.self_wish) +
+            '</div>';
+        footerHtml = '<div class="cel-footer">' +
+            '<button class="cel-btn cel-close" onclick="celDismiss(&quot;' + key + '&quot;)">✕ Dismiss</button>' +
+            '</div>';
+    } else {
+        var alreadyWished = item.already_wished || _celWishedToday[key];
+        var wishBtnHtml = alreadyWished
+            ? '<button class="cel-btn cel-wished-done" disabled>✅ Wished!</button>'
+            : '<button class="cel-btn cel-wish" id="wb_' + key + '" onclick="celSendWish(' + item.id + ',&quot;' + item.type + '&quot;,&quot;' + key + '&quot;)">🙏 Wish Now</button>';
+
+        msgHtml = '<div class="cel-msg">' + _remEsc(item.wish_template.split('\n')[0]) + '</div>';
+        footerHtml = '<div class="cel-footer">' +
+            wishBtnHtml +
+            '<button class="cel-btn cel-copy" onclick="celCopyWish(&quot;' + key + '&quot;)">📋 Copy</button>' +
+            '<a href="' + _remEsc(item.view_url) + '" class="cel-btn cel-profile" style="text-decoration:none;">👤 Profile</a>' +
+            '<button class="cel-btn cel-close" onclick="celDismiss(&quot;' + key + '&quot;)">✕</button>' +
+            '</div>';
+    }
+
+    var card = document.createElement('div');
+    card.className = 'cel-card' + (isSelf ? ' cel-self' : '');
+    card.id = 'celcard_' + key;
     card.innerHTML =
         '<div class="cel-strip ' + item.type + '"></div>' +
-        '<div class="cel-top">' +
-            avatarHtml +
+        '<div class="cel-top">' + avatarHtml +
             '<div class="cel-info">' +
-                '<div class="cel-name">' + _remEsc(item.name) + ' ' + icon + '</div>' +
-                '<div class="cel-type">' + _remEsc(item.type_label) + ' &nbsp;·&nbsp; ' + dayLabel + '</div>' +
+                '<div class="cel-name">' + _remEsc(item.name) + ' ' + icon + (isSelf ? ' <span style=\"color:#d97706;font-size:.72rem;font-weight:800;\">🎉 You!</span>' : '') + '</div>' +
+                '<div class="cel-type">' + _remEsc(item.type_label) + ' &nbsp;·&nbsp; ' + _remEsc(item.extra) + '</div>' +
             '</div>' +
         '</div>' +
-        '<div class="cel-msg">' + _remEsc(item.wish_template) + '</div>' +
-        '<div class="cel-footer">' +
-            '<button class="cel-btn cel-wish" onclick="celCopyWish(&quot;' + key + '&quot;, this)">📋 Copy Wish</button>' +
-            '<a href="' + _remEsc(item.view_url) + '" class="cel-btn cel-wish" style="text-decoration:none;">👤 Profile</a>' +
-            '<button class="cel-btn cel-close" onclick="celClose(&quot;' + key + '&quot;)">✕</button>' +
-        '</div>';
+        msgHtml + footerHtml;
 
     container.appendChild(card);
 
-    // Browser notification (today only)
-    if (item.days === 0) {
-        _remBrowserNotif(
-            icon + ' ' + item.type_label + ' — ' + item.name,
-            item.wish_template.substring(0, 80) + '...',
-            item.view_url
-        );
-        // Voice
-        _remSpeak(_celVoiceMsg(item));
+    // Browser push notification (today only, not self)
+    if (item.days === 0 && !isSelf) {
+        _remBrowserNotif(icon + ' ' + item.name + ' — ' + item.type_label, item.wish_template.substring(0,80), item.view_url);
+    }
+    if (item.days === 0 && isSelf) {
+        _remSpeak('Aapko aaj ki bahut bahut badhai!');
     }
 
-    // Auto-close after 25 seconds
-    setTimeout(function() { celClose(key); }, 25000);
+    // Auto-close after 30s (self card stays longer)
+    setTimeout(function() { celDismiss(key); }, isSelf ? 60000 : 30000);
 }
 
-function celClose(key) {
-    var card = document.getElementById('cel_' + key.replace('+','_'));
+// ── Dismiss card (save to localStorage so it doesn't reappear) ──
+function celDismiss(key) {
+    _celDismissed[key] = true;
+    _celSaveDismissed();
+    var card = document.getElementById('celcard_' + key);
     if (card) {
         card.classList.add('removing');
         setTimeout(function() { if (card.parentNode) card.parentNode.removeChild(card); }, 300);
     }
 }
 
-function celCopyWish(key, text) {
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(text).then(function() {
-            var btn = document.querySelector('#cel_' + key.replace('+','_') + ' .cel-wish');
-            if (btn) { var orig = btn.textContent; btn.textContent = '✅ Copied!'; setTimeout(function(){ btn.textContent = orig; }, 1500); }
-        });
+// ── Send Wish — call API then mark wished ──
+function celSendWish(empId, wishType, key) {
+    var btn = document.getElementById('wb_' + key);
+    if (btn) { btn.disabled = true; btn.textContent = '⏳ Sending...'; }
+
+    // Find wish text
+    var item = _celLatest.find(function(i) { return i.id === empId && i.type === wishType; });
+    var wishText = item ? item.wish_template : '';
+
+    fetch('/hr/api/send-wish', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({emp_id: empId, wish_type: wishType, wish_text: wishText})
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+        _celWishedToday[key] = true;
+        if (btn) {
+            btn.textContent = '✅ Wished!';
+            btn.className = 'cel-btn cel-wished-done';
+            btn.disabled = true;
+        }
+        // Also copy wish text to clipboard
+        if (wishText && navigator.clipboard) {
+            navigator.clipboard.writeText(wishText).catch(function(){});
+        }
+        // Show mini toast
+        _celToast('✅ Wish sent & copied to clipboard!');
+    })
+    .catch(function() {
+        if (btn) { btn.disabled = false; btn.textContent = '🙏 Wish Now'; }
+    });
+}
+
+// ── Copy wish text ──
+function celCopyWish(key) {
+    var item = _celLatest.find(function(i) { return (i.id + '_' + i.type) === key; });
+    if (!item) return;
+    var text = item.wish_template;
+    if (navigator.clipboard) {
+        navigator.clipboard.writeText(text).then(function() { _celToast('📋 Copied!'); });
     } else {
-        // Fallback
         var ta = document.createElement('textarea');
-        ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+        ta.value = text; document.body.appendChild(ta); ta.select();
+        document.execCommand('copy'); document.body.removeChild(ta);
+        _celToast('📋 Copied!');
     }
 }
 
-// ── Bell panel: show celebrations tab ──
+// ── Mini toast ──
+function _celToast(msg) {
+    var t = document.createElement('div');
+    t.textContent = msg;
+    t.style.cssText = 'position:fixed;bottom:1rem;left:50%;transform:translateX(-50%);background:#1e3a5f;color:#fff;padding:8px 18px;border-radius:99px;font-size:.78rem;font-weight:700;z-index:99999;opacity:1;transition:opacity .4s;';
+    document.body.appendChild(t);
+    setTimeout(function() { t.style.opacity='0'; setTimeout(function() { document.body.removeChild(t); }, 400); }, 2000);
+}
+
+// ── Bell panel section ──
 function _celRenderBellSection() {
     var body = document.getElementById('bellPanelBody');
     if (!body || !_celLatest.length) return;
 
-    var todayItems   = _celLatest.filter(function(c) { return c.today; });
-    var upcomingItems= _celLatest.filter(function(c) { return !c.today; });
+    var todayItems    = _celLatest.filter(function(c) { return c.today; });
+    var upcomingItems = _celLatest.filter(function(c) { return !c.today; });
 
     var html = '';
     if (todayItems.length) {
-        html += '<div style="font-size:.68rem;font-weight:800;color:#d97706;text-transform:uppercase;letter-spacing:.06em;padding:.4rem .75rem .2rem;background:#fffbeb;">🎉 Today&#39;s Celebrations</div>';
+        html += '<div style="font-size:.68rem;font-weight:800;color:#d97706;text-transform:uppercase;letter-spacing:.06em;padding:.4rem .75rem .2rem;background:#fffbeb;">🎉 Today&#39;s Celebrations (' + todayItems.length + ')</div>';
         todayItems.forEach(function(item) {
-            var col = _celAvatarColor(item.id);
             var icon = _celTypeIcon(item.type);
-            html += '<a href="' + item.view_url + '" class="bp-cel-item" style="text-decoration:none;">' +
+            var key  = item.id + '_' + item.type;
+            var wished = item.already_wished || _celWishedToday[key];
+            var wishPart = item.is_self ? '' :
+                (wished
+                    ? '<span style="color:#16a34a;font-size:.7rem;font-weight:700;">✅ Wished</span>'
+                    : '<button onclick="celSendWishBell(' + item.id + ',&quot;' + item.type + '&quot;,&quot;' + key + '&quot;,this)" style="background:#dbeafe;color:#1d4ed8;border:none;border-radius:6px;font-size:.7rem;font-weight:700;padding:2px 8px;cursor:pointer;">🙏 Wish</button>');
+            html += '<div class="bp-cel-item">' +
                 '<div class="bp-cel-icon">' + icon + '</div>' +
-                '<div style="flex:1;min-width:0;"><div class="bp-cel-name">' + _remEsc(item.name) + '</div><div class="bp-cel-sub">' + _remEsc(item.type_label) + ' &nbsp;·&nbsp; ' + _remEsc(item.extra) + '</div></div>' +
-                '<span class="bp-cel-badge bp-cel-today">🎉 Today</span>' +
-                '</a>';
+                '<div style="flex:1;min-width:0;">' +
+                    '<div class="bp-cel-name">' + _remEsc(item.name) + (item.is_self ? ' <span style=\"color:#d97706;\">(You!)</span>' : '') + '</div>' +
+                    '<div class="bp-cel-sub">' + _remEsc(item.type_label) + ' &nbsp;·&nbsp; ' + _remEsc(item.extra) + '</div>' +
+                '</div>' +
+                wishPart +
+                '</div>';
         });
     }
     if (upcomingItems.length) {
         html += '<div style="font-size:.68rem;font-weight:800;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;padding:.4rem .75rem .2rem;background:#f8fafc;">📅 Upcoming (7 days)</div>';
-        upcomingItems.slice(0,5).forEach(function(item) {
+        upcomingItems.slice(0,6).forEach(function(item) {
             var icon = _celTypeIcon(item.type);
             html += '<a href="' + item.view_url + '" class="bp-cel-item" style="text-decoration:none;">' +
                 '<div class="bp-cel-icon">' + icon + '</div>' +
                 '<div style="flex:1;min-width:0;"><div class="bp-cel-name">' + _remEsc(item.name) + '</div><div class="bp-cel-sub">' + _remEsc(item.type_label) + ' &nbsp;·&nbsp; ' + _remEsc(item.extra) + '</div></div>' +
-                '<span class="bp-cel-badge bp-cel-soon">+' + item.days + 'd</span>' +
-                '</a>';
+                '<span class="bp-cel-badge bp-cel-soon">+' + item.days + 'd</span></a>';
         });
     }
 
-    // Prepend to existing bell panel content
     var existing = body.innerHTML;
+    var sep = '<div style="border-top:2px solid #f1f5f9;margin:.25rem 0;"></div>';
     if (existing.indexOf('bp-empty') >= 0 || existing.indexOf('Loading') >= 0) {
         body.innerHTML = html;
     } else {
-        var sep = '<div style="border-top:2px solid #f1f5f9;margin:.25rem 0;"></div>';
         body.innerHTML = html + sep + existing;
     }
 }
 
-// ── Poll celebrations ──
+// ── Wish button inside bell panel ──
+function celSendWishBell(empId, wishType, key, btn) {
+    btn.disabled = true; btn.textContent = '⏳';
+    var item = _celLatest.find(function(i) { return i.id === empId && i.type === wishType; });
+    fetch('/hr/api/send-wish', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({emp_id:empId, wish_type:wishType, wish_text: item ? item.wish_template : ''})
+    })
+    .then(function(r){return r.json();})
+    .then(function(d){
+        _celWishedToday[key] = true;
+        btn.outerHTML = '<span style="color:#16a34a;font-size:.7rem;font-weight:700;">✅ Wished</span>';
+        if (item && item.wish_template && navigator.clipboard)
+            navigator.clipboard.writeText(item.wish_template).catch(function(){});
+        _celToast('✅ Wish sent!');
+        // Update card if visible
+        var wb = document.getElementById('wb_' + key);
+        if (wb) { wb.textContent = '✅ Wished!'; wb.className = 'cel-btn cel-wished-done'; wb.disabled = true; }
+    })
+    .catch(function(){ btn.disabled=false; btn.textContent='🙏 Wish'; });
+}
+
+// ── Poll ──
 function _celPoll() {
     fetch('/hr/api/celebrations')
     .then(function(r) { return r.json(); })
@@ -1557,45 +1666,41 @@ function _celPoll() {
         if (!data.celebrations) return;
         _celLatest = data.celebrations;
 
-        // Update bell badge (combine with reminders)
-        var totalCount = (_remLatest ? _remLatest.length : 0) + data.today_count;
-        _remUpdateBell(totalCount);
-
-        // Show card for each today's celebration (once per session)
+        // Update server-side already_wished into local state
         data.celebrations.forEach(function(item) {
-            if (item.today || item.days === 1) {  // today + tomorrow preview
-                _celShowCard(item);
+            if (item.already_wished) {
+                _celWishedToday[item.id + '_' + item.type] = true;
             }
         });
 
-        // Update bell panel if open
-        if (_remPanelOpen) {
-            setTimeout(_celRenderBellSection, 100);
-        }
+        // Bell badge
+        var totalCount = (_remLatest ? _remLatest.length : 0) + data.today_count;
+        _remUpdateBell(totalCount);
+
+        // Show cards for today's celebrations (not dismissed)
+        data.celebrations.forEach(function(item) {
+            if (item.today) _celShowCard(item);
+        });
+
+        if (_remPanelOpen) setTimeout(_celRenderBellSection, 100);
     })
-    .catch(function(e) { console.warn('[Celebrations] Poll error:', e); });
+    .catch(function(e) { console.warn('[Celebrations]', e); });
 }
 
-// ── Hook into existing bell panel render ──
+// ── Hook into bell panel ──
 var _origRenderPanel = _remRenderPanel;
-_remRenderPanel = function() {
-    _origRenderPanel();
-    setTimeout(_celRenderBellSection, 50);
-};
+_remRenderPanel = function() { _origRenderPanel(); setTimeout(_celRenderBellSection, 50); };
 
-// ── Start ──
+// ── Init ──
 document.addEventListener('DOMContentLoaded', function() {
     setTimeout(_celPoll, 3500);
-    setInterval(_celPoll, 5 * 60 * 1000);  // re-check every 5 minutes
+    setInterval(_celPoll, 5 * 60 * 1000);
 });
 
-// ── Debug ──
 window._testCelebrations = function() {
-    fetch('/hr/api/celebrations')
-    .then(function(r) { return r.json(); })
-    .then(function(d) {
+    fetch('/hr/api/celebrations').then(function(r){return r.json();}).then(function(d){
         console.log('[Celebrations] Count:', d.count, '| Today:', d.today_count);
-        if (d.celebrations) d.celebrations.forEach(function(c) { console.log(' -', c.name, c.type_label, '| days:', c.days); });
+        if (d.celebrations) d.celebrations.forEach(function(c){ console.log(' -', c.name, c.type_label, '| days:', c.days, '| self:', c.is_self, '| wished:', c.already_wished); });
     });
 };
 

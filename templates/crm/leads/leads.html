@@ -105,7 +105,6 @@
 .sort-dir-btn { flex:1; padding:8px 12px; border:1.5px solid var(--border); border-radius:9px; font-size:.8rem; font-weight:600; color:var(--text2); background:#fff; cursor:pointer; transition:.15s; }
 .sort-dir-btn.active { background:var(--blue); color:#fff; border-color:var(--blue); }
 .sort-dir-btn:hover:not(.active) { background:#f1f5f9; border-color:#94a3b8; }
-
 {% endblock %}
 
 {% block content %}
@@ -118,7 +117,7 @@
         </div>
         <a href="{{ url_for('crm.lead_add') }}" class="btn-primary">+ Add New</a>
         <a href="{{ url_for('crm.lead_import') }}" class="btn-outline">📥 Import</a>
-        <button class="btn-outline" onclick="doExport()" id="exportBtn">📤 Export</button>
+        <button class="btn-outline" onclick="doExport('ld')" id="exportBtn">📤 Export</button>
     </div>
 </div>
 
@@ -142,19 +141,18 @@
     </a>
 </div>
 
-<div id="listViewWrap">
 <!-- Advanced Filter Panel -->
 <!-- Filter / Sort Tab Panel -->
 <div class="fs-panel" id="fsPanelWrap" style="margin-bottom:1rem;">
 
   <!-- Tab Buttons -->
   <div style="display:flex;gap:6px;margin-bottom:0;align-items:center;">
-    <button id="fsTabFilter" class="fs-tab" onclick="toggleFsTab('filter')">
+    <button id="fsTabFilter" class="fs-tab" onclick="toggleFsTab('filter','ld')">
       🔍 Filter
       {% set _fc = [search,source,category,p_range,city,date_from,date_to]|select|list|length %}
       {% if _fc > 0 %}<span class="fs-badge">{{ _fc }}</span>{% endif %}
     </button>
-    <button id="fsTabSort" class="fs-tab" onclick="toggleFsTab('sort')">
+    <button id="fsTabSort" class="fs-tab" onclick="toggleFsTab('sort','ld')">
       ↕️ Sort
       {% if sort_by != 'created_at' or sort_dir != 'desc' %}<span class="fs-badge">•</span>{% endif %}
     </button>
@@ -164,70 +162,70 @@
   </div>
 
   <!-- FILTER TAB -->
-  <div id="fsPanelFilter" class="fs-pane" style="display:none;">
+  <div id="fsPanelFilter_ld" class="fs-pane" style="display:none;">
     <div class="fs-grid">
       <div class="fs-field">
         <label>🔍 Search</label>
-        <input type="text" id="f_search" value="{{ search }}" placeholder="Name, company, mobile, product…"
-               oninput="fsDebouncedSubmit()" list="cityList2">
+        <input type="text" id="ld_search" value="{{ search }}" placeholder="Name, company, mobile, product…"
+               oninput="fsDebounce('ld')" list="cityList2">
       </div>
       <div class="fs-field">
         <label>📡 Source</label>
-        <select id="f_source" onchange="fsSubmit()">
+        <select id="ld_source" onchange="fsSubmit('ld')">
           <option value="">All Sources</option>
           {% for s in all_sources %}<option value="{{ s }}" {{ 'selected' if source==s }}>{{ s }}</option>{% endfor %}
         </select>
       </div>
       <div class="fs-field">
         <label>🏷️ Category</label>
-        <select id="f_category" onchange="fsSubmit()">
+        <select id="ld_category" onchange="fsSubmit('ld')">
           <option value="">All Categories</option>
           {% for c in all_categories %}<option value="{{ c }}" {{ 'selected' if category==c }}>{{ c }}</option>{% endfor %}
         </select>
       </div>
       <div class="fs-field">
         <label>💎 Product Range</label>
-        <select id="f_product_range" onchange="fsSubmit()">
+        <select id="ld_product_range" onchange="fsSubmit('ld')">
           <option value="">All Ranges</option>
           {% for r in all_ranges %}<option value="{{ r }}" {{ 'selected' if p_range==r }}>{{ r }}</option>{% endfor %}
         </select>
       </div>
       <div class="fs-field">
         <label>🏙️ City</label>
-        <input type="text" id="f_city" value="{{ city }}" placeholder="Filter by city"
-               oninput="fsDebouncedSubmit()" list="cityList">
+        <input type="text" id="ld_city" value="{{ city }}" placeholder="Filter by city"
+               oninput="fsDebounce('ld')" list="cityList">
         <datalist id="cityList">{% for c in all_cities %}<option value="{{ c }}">{% endfor %}</datalist>
       </div>
       <div class="fs-field">
         <label>📅 Date From</label>
-        <input type="date" id="f_date_from" value="{{ date_from }}" onchange="fsSubmit()">
+        <input type="date" id="ld_date_from" value="{{ date_from }}" onchange="fsSubmit('ld')">
       </div>
       <div class="fs-field">
         <label>📅 Date To</label>
-        <input type="date" id="f_date_to" value="{{ date_to }}" onchange="fsSubmit()">
+        <input type="date" id="ld_date_to" value="{{ date_to }}" onchange="fsSubmit('ld')">
       </div>
     </div>
     <!-- Active filter chips -->
     {% if search or source or category or p_range or city or date_from or date_to %}
     <div style="display:flex;flex-wrap:wrap;gap:.35rem;margin-top:.65rem;align-items:center;">
       <span style="font-size:.7rem;color:var(--text3);font-weight:600;">Active:</span>
-      {% if search %}<span class="fs-chip">Search: {{ search }}<a onclick="fsClearField('f_search')">×</a></span>{% endif %}
-      {% if source %}<span class="fs-chip">Source: {{ source }}<a onclick="fsClearField('f_source')">×</a></span>{% endif %}
-      {% if category %}<span class="fs-chip">Category: {{ category }}<a onclick="fsClearField('f_category')">×</a></span>{% endif %}
-      {% if p_range %}<span class="fs-chip">Range: {{ p_range }}<a onclick="fsClearField('f_product_range')">×</a></span>{% endif %}
-      {% if city %}<span class="fs-chip">City: {{ city }}<a onclick="fsClearField('f_city')">×</a></span>{% endif %}
-      {% if date_from %}<span class="fs-chip">From: {{ date_from }}<a onclick="fsClearField('f_date_from')">×</a></span>{% endif %}
-      {% if date_to %}<span class="fs-chip">To: {{ date_to }}<a onclick="fsClearField('f_date_to')">×</a></span>{% endif %}
+      {% if search %}<span class="fs-chip">Search: {{ search }}<a onclick="fsClear('ld_search','ld')">×</a></span>{% endif %}
+      {% if source %}<span class="fs-chip">Source: {{ source }}<a onclick="fsClear('ld_source','ld')">×</a></span>{% endif %}
+      {% if category %}<span class="fs-chip">Category: {{ category }}<a onclick="fsClear('ld_category','ld')">×</a></span>{% endif %}
+      {% if p_range %}<span class="fs-chip">Range: {{ p_range }}<a onclick="fsClear('ld_product_range','ld')">×</a></span>{% endif %}
+      {% if city %}<span class="fs-chip">City: {{ city }}<a onclick="fsClear('ld_city','ld')">×</a></span>{% endif %}
+      {% if date_from %}<span class="fs-chip">From: {{ date_from }}<a onclick="fsClear('ld_date_from','ld')">×</a></span>{% endif %}
+      {% if date_to %}<span class="fs-chip">To: {{ date_to }}<a onclick="fsClear('ld_date_to','ld')">×</a></span>{% endif %}
     </div>
     {% endif %}
   </div>
 
   <!-- SORT TAB -->
-  <div id="fsPanelSort" class="fs-pane" style="display:none;">
+  <div id="fsPanelSort_ld" class="fs-pane" style="display:none;">
     <div class="fs-grid" style="max-width:500px;">
       <div class="fs-field">
         <label>↕️ Sort By</label>
-        <select id="f_sort_by" onchange="fsSubmit()">
+        <select id="ld_sort_by" onchange="fsSubmit('ld')">
           <option value="created_at"  {{ 'selected' if sort_by=='created_at' }}>Created Date</option>
           <option value="name"        {{ 'selected' if sort_by=='name' }}>Name</option>
           <option value="company"     {{ 'selected' if sort_by=='company' }}>Company</option>
@@ -241,11 +239,11 @@
       <div class="fs-field">
         <label>⬆️⬇️ Direction</label>
         <div style="display:flex;gap:.5rem;">
-          <button id="sortDirDesc" onclick="setSortDir('desc')"
+          <button id="ld_sortDirDesc" onclick="fsSetDir('ld','desc')"
             class="sort-dir-btn {{ 'active' if sort_dir=='desc' else '' }}">
             ↓ Newest First
           </button>
-          <button id="sortDirAsc" onclick="setSortDir('asc')"
+          <button id="ld_sortDirAsc" onclick="fsSetDir('ld','asc')"
             class="sort-dir-btn {{ 'active' if sort_dir=='asc' else '' }}">
             ↑ Oldest First
           </button>
@@ -256,17 +254,17 @@
 
 </div>
 <!-- Hidden form for AJAX submit -->
-<form id="fsForm" method="GET" style="display:none;">
-  <input type="hidden" name="status"        id="hStatus"       value="{{ status }}">
-  <input type="hidden" name="search"        id="hSearch"       value="{{ search }}">
-  <input type="hidden" name="source"        id="hSource"       value="{{ source }}">
-  <input type="hidden" name="category"      id="hCategory"     value="{{ category }}">
-  <input type="hidden" name="product_range" id="hProductRange" value="{{ p_range }}">
-  <input type="hidden" name="city"          id="hCity"         value="{{ city }}">
-  <input type="hidden" name="date_from"     id="hDateFrom"     value="{{ date_from }}">
-  <input type="hidden" name="date_to"       id="hDateTo"       value="{{ date_to }}">
-  <input type="hidden" name="sort_by"       id="hSortBy"       value="{{ sort_by }}">
-  <input type="hidden" name="sort_dir"      id="hSortDir"      value="{{ sort_dir }}">
+<form id="fsForm_ld" method="GET" style="display:none;">
+  <input type="hidden" name="status"        id="ld_h_status"       value="{{ status }}">
+  <input type="hidden" name="search"        id="ld_h_search"       value="{{ search }}">
+  <input type="hidden" name="source"        id="ld_h_source"       value="{{ source }}">
+  <input type="hidden" name="category"      id="ld_h_category"     value="{{ category }}">
+  <input type="hidden" name="product_range" id="ld_h_product_range" value="{{ p_range }}">
+  <input type="hidden" name="city"          id="ld_h_city"         value="{{ city }}">
+  <input type="hidden" name="date_from"     id="ld_h_date_from"     value="{{ date_from }}">
+  <input type="hidden" name="date_to"       id="ld_h_date_to"       value="{{ date_to }}">
+  <input type="hidden" name="sort_by"       id="ld_h_sort_by"       value="{{ sort_by }}">
+  <input type="hidden" name="sort_dir"      id="ld_h_sort_dir"      value="{{ sort_dir }}">
 </form>
 
 <!-- Table -->
@@ -428,8 +426,6 @@
     </div>
 </div>
 
-</div><!-- /listViewWrap -->
-
 <!-- ══ KANBAN VIEW ══ -->
 <div id="kanbanView">
 <div class="kb-board">
@@ -512,32 +508,6 @@ function sortTable(col) {
     applyRowLimit();
 }
 
-function doExport() {
-    // Build query string from current filter hidden fields
-    var params = new URLSearchParams();
-    var map = {
-        status:        'hStatus',
-        search:        'hSearch',
-        source:        'hSource',
-        category:      'hCategory',
-        product_range: 'hProductRange',
-        city:          'hCity',
-        date_from:     'hDateFrom',
-        date_to:       'hDateTo',
-        sort_by:       'hSortBy',
-        sort_dir:      'hSortDir'
-    };
-    Object.keys(map).forEach(function(key) {
-        var el = document.getElementById(map[key]);
-        if (el && el.value) params.set(key, el.value);
-    });
-    var btn = document.getElementById('exportBtn');
-    btn.textContent = '⏳ Preparing…';
-    btn.disabled = true;
-    setTimeout(function(){ btn.textContent = '📤 Export'; btn.disabled = false; }, 3000);
-    window.location.href = '/crm/leads/export?' + params.toString();
-}
-
 // Initialize
 document.addEventListener('DOMContentLoaded', function(){ pagInit('leadsTable', '#leadsTable .lead-row', 10); });
 
@@ -546,18 +516,32 @@ var _currentView = localStorage.getItem('leadsView') || 'list';
 
 function switchView(v) {
     _currentView = v;
-    try { localStorage.setItem('leadsView', v); } catch(e) {}
-    var kv = document.getElementById('kanbanView');
-    var lv = document.getElementById('listViewWrap');
-    var bl = document.getElementById('btnList');
-    var bk = document.getElementById('btnKanban');
-    if (kv) kv.style.display   = v === 'kanban' ? 'block' : 'none';
-    if (lv) lv.style.display   = v === 'list'   ? 'block' : 'none';
-    if (bl) bl.classList.toggle('active',   v === 'list');
-    if (bk) bk.classList.toggle('active', v === 'kanban');
+    localStorage.setItem('leadsView', v);
+    document.getElementById('kanbanView').style.display   = v === 'kanban' ? 'block' : 'none';
+    document.getElementById('listViewWrap').style.display = v === 'list'   ? 'block' : 'none';
+    document.getElementById('btnList').classList.toggle('active',   v === 'list');
+    document.getElementById('btnKanban').classList.toggle('active', v === 'kanban');
 }
 
 document.addEventListener('DOMContentLoaded', function() {
+    var filterPanel = document.querySelector('.filter-panel') || document.querySelector('.fs-panel');
+    var wrap = document.createElement('div');
+    wrap.id  = 'listViewWrap';
+    if (filterPanel && filterPanel.parentNode) {
+        filterPanel.parentNode.insertBefore(wrap, filterPanel);
+        wrap.appendChild(filterPanel);
+    } else {
+        // fs-panel nahi mila — directly content wrap karo
+        var content = document.querySelector('.card');
+        if (content && content.parentNode) {
+            content.parentNode.insertBefore(wrap, content);
+        } else {
+            document.body.appendChild(wrap);
+        }
+    }
+    document.querySelectorAll('.card').forEach(function(card) {
+        if (!wrap.contains(card)) wrap.appendChild(card);
+    });
     switchView(_currentView);
 });
 
@@ -768,72 +752,13 @@ function saveLeadCols() {
 {% endblock %}
 
 {% block extra_js %}
-// ══ Filter / Sort Tab Panel ══
-var _fsOpenTab = null;
-
-function toggleFsTab(tab) {
-    var filterPane = document.getElementById('fsPanelFilter');
-    var sortPane   = document.getElementById('fsPanelSort');
-    var filterBtn  = document.getElementById('fsTabFilter');
-    var sortBtn    = document.getElementById('fsTabSort');
-
-    if (_fsOpenTab === tab) {
-        // Same tab clicked — close it
-        filterPane.style.display = 'none';
-        sortPane.style.display   = 'none';
-        filterBtn.classList.remove('active');
-        sortBtn.classList.remove('active');
-        _fsOpenTab = null;
-    } else {
-        // Open clicked tab, close other
-        filterPane.style.display = tab === 'filter' ? '' : 'none';
-        sortPane.style.display   = tab === 'sort'   ? '' : 'none';
-        filterBtn.classList.toggle('active', tab === 'filter');
-        sortBtn.classList.toggle('active',   tab === 'sort');
-        _fsOpenTab = tab;
-    }
-}
-
-var _fsTimer = null;
-function fsDebouncedSubmit() {
-    clearTimeout(_fsTimer);
-    _fsTimer = setTimeout(fsSubmit, 420);
-}
-
-function fsSubmit() {
-    document.getElementById('hSearch').value       = document.getElementById('f_search').value;
-    document.getElementById('hSource').value       = document.getElementById('f_source').value;
-    document.getElementById('hCategory').value     = document.getElementById('f_category').value;
-    document.getElementById('hProductRange').value = document.getElementById('f_product_range').value;
-    document.getElementById('hCity').value         = document.getElementById('f_city').value;
-    document.getElementById('hDateFrom').value     = document.getElementById('f_date_from').value;
-    document.getElementById('hDateTo').value       = document.getElementById('f_date_to').value;
-    document.getElementById('hSortBy').value       = document.getElementById('f_sort_by').value;
-    document.getElementById('fsForm').submit();
-}
-
-function setSortDir(dir) {
-    document.getElementById('hSortDir').value = dir;
-    document.getElementById('sortDirDesc').classList.toggle('active', dir==='desc');
-    document.getElementById('sortDirAsc').classList.toggle('active',  dir==='asc');
-    fsSubmit();
-}
-
-function fsClearField(fieldId) {
-    var el = document.getElementById(fieldId);
-    if (!el) return;
-    el.tagName === 'SELECT' ? el.selectedIndex = 0 : (el.value = '');
-    fsSubmit();
-}
-
-// Auto-open relevant tab if active filters/sort exist
+// Auto-open filter/sort tab if active on page load
 (function(){
-    var sb  = document.getElementById('f_sort_by');
-    var sd  = document.getElementById('hSortDir');
+    var sb = document.getElementById('ld_sort_by');
+    var sd = document.getElementById('ld_h_sort_dir');
     var hasSort   = sb && (sb.value !== 'created_at' || (sd && sd.value !== 'desc'));
-    var hasFilter = document.querySelector('.fs-badge') !== null;
-    if (hasSort) toggleFsTab('sort');
-    else if (hasFilter) toggleFsTab('filter');
-    // else both stay closed
+    var hasFilter = document.querySelectorAll('.fs-badge').length > 0;
+    if (hasSort) toggleFsTab('sort', 'ld');
+    else if (hasFilter) toggleFsTab('filter', 'ld');
 })();
 {% endblock %}

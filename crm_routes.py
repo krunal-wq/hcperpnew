@@ -430,42 +430,54 @@ def leads_export():
     thin = Side(style="thin", color="D0D7E2")
     border = Border(left=thin, right=thin, top=thin, bottom=thin)
 
-    # All columns definition: (Header Label, field_getter)
+    # All columns — getattr used so missing DB columns don't crash
+    def _s(l, f, default=''):
+        v = getattr(l, f, None)
+        return v if v is not None else default
+
+    def _d(l, f, fmt='%d-%m-%Y'):
+        v = getattr(l, f, None)
+        return v.strftime(fmt) if v else ''
+
+    def _f(l, f):
+        v = getattr(l, f, None)
+        return float(v) if v else ''
+
     COLUMNS = [
-        ("Lead Code",        lambda l: l.code or ''),
-        ("Title",            lambda l: l.title or ''),
-        ("Contact Name",     lambda l: l.contact_name or ''),
-        ("Company",          lambda l: l.company_name or ''),
-        ("Position",         lambda l: l.position or ''),
-        ("Email",            lambda l: l.email or ''),
-        ("Mobile",           lambda l: l.phone or ''),
-        ("Alternate Mobile", lambda l: l.alternate_mobile or ''),
-        ("Website",          lambda l: l.website or ''),
-        ("Address",          lambda l: l.address or ''),
-        ("City",             lambda l: l.city or ''),
-        ("State",            lambda l: l.state or ''),
-        ("Country",          lambda l: l.country or ''),
-        ("Zip Code",         lambda l: l.zip_code or ''),
-        ("Source",           lambda l: l.source or ''),
-        ("Category",         lambda l: l.category or ''),
-        ("Product Range",    lambda l: l.product_range or ''),
-        ("Product Name",     lambda l: l.product_name or ''),
-        ("Order Quantity",   lambda l: l.order_quantity or ''),
-        ("Requirement Spec", lambda l: l.requirement_spec or ''),
-        ("Status",           lambda l: (l.status or '').replace('_', ' ').title()),
-        ("Priority",         lambda l: (l.priority or '').title()),
-        ("Expected Value",   lambda l: float(l.expected_value) if l.expected_value else ''),
-        ("Average Cost",     lambda l: float(l.average_cost) if l.average_cost else ''),
-        ("Tags",             lambda l: l.tags or ''),
-        ("Remark",           lambda l: l.remark or ''),
-        ("Notes",            lambda l: l.notes or ''),
-        ("Lost Reason",      lambda l: l.lost_reason or ''),
-        ("Assigned To",      lambda l: users.get(l.assigned_to, '') if l.assigned_to else ''),
-        ("Follow Up Date",   lambda l: l.follow_up_date.strftime('%d-%m-%Y') if l.follow_up_date else ''),
-        ("Last Contact",     lambda l: l.last_contact.strftime('%d-%m-%Y %H:%M') if l.last_contact else ''),
-        ("Created By",       lambda l: users.get(l.created_by, '') if l.created_by else ''),
-        ("Created At",       lambda l: l.created_at.strftime('%d-%m-%Y %H:%M') if l.created_at else ''),
-        ("Updated At",       lambda l: l.updated_at.strftime('%d-%m-%Y %H:%M') if l.updated_at else ''),
+        ("Lead Code",        lambda l: _s(l,'code')),
+        ("Title",            lambda l: _s(l,'title')),
+        ("Contact Name",     lambda l: _s(l,'contact_name')),
+        ("Company",          lambda l: _s(l,'company_name')),
+        ("Position",         lambda l: _s(l,'position')),
+        ("Email",            lambda l: _s(l,'email')),
+        ("Mobile",           lambda l: _s(l,'phone')),
+        ("Alternate Mobile", lambda l: _s(l,'alternate_mobile')),
+        ("Website",          lambda l: _s(l,'website')),
+        ("Address",          lambda l: _s(l,'address')),
+        ("City",             lambda l: _s(l,'city')),
+        ("State",            lambda l: _s(l,'state')),
+        ("Country",          lambda l: _s(l,'country')),
+        ("Zip Code",         lambda l: _s(l,'zip_code')),
+        ("Source",           lambda l: _s(l,'source')),
+        ("Category",         lambda l: _s(l,'category')),
+        ("Product Range",    lambda l: _s(l,'product_range')),
+        ("Product Name",     lambda l: _s(l,'product_name')),
+        ("Order Quantity",   lambda l: _s(l,'order_quantity')),
+        ("Requirement Spec", lambda l: _s(l,'requirement_spec')),
+        ("Status",           lambda l: _s(l,'status','').replace('_',' ').title()),
+        ("Priority",         lambda l: _s(l,'priority','').title()),
+        ("Expected Value",   lambda l: _f(l,'expected_value')),
+        ("Average Cost",     lambda l: _f(l,'average_cost')),
+        ("Tags",             lambda l: _s(l,'tags')),
+        ("Remark",           lambda l: _s(l,'remark')),
+        ("Notes",            lambda l: _s(l,'notes')),
+        ("Lost Reason",      lambda l: _s(l,'lost_reason')),
+        ("Assigned To",      lambda l: users.get(l.assigned_to,'') if getattr(l,'assigned_to',None) else ''),
+        ("Follow Up Date",   lambda l: _d(l,'follow_up_date')),
+        ("Last Contact",     lambda l: _d(l,'last_contact','%d-%m-%Y %H:%M')),
+        ("Created By",       lambda l: users.get(l.created_by,'') if getattr(l,'created_by',None) else ''),
+        ("Created At",       lambda l: _d(l,'created_at','%d-%m-%Y %H:%M')),
+        ("Updated At",       lambda l: _d(l,'updated_at','%d-%m-%Y %H:%M')),
     ]
 
     # Write header row

@@ -218,118 +218,122 @@ def emp_dashboard():
 @hr.route('/api/celebrations')
 @login_required
 def api_celebrations():
-    """Return today/upcoming birthdays, work anniversaries, marriage anniversaries.
-    Also marks which ones current user has already wished today."""
+    """Return today/upcoming birthdays, work anniversaries, marriage anniversaries."""
     from datetime import date
-    today = date.today()
-    all_emps = Employee.query.filter(Employee.status == 'active').all()
+    try:
+        today = date.today()
+        all_emps = Employee.query.filter(Employee.status == 'active').all()
 
-    # Find current user's employee record (if any)
-    my_emp = Employee.query.filter_by(user_id=current_user.id).first()
-    my_emp_id = my_emp.id if my_emp else None
+        my_emp = Employee.query.filter_by(user_id=current_user.id).first()
+        my_emp_id = my_emp.id if my_emp else None
 
-    # Load all wishes current user sent today
-    wished_today = set()
-    for w in WishLog.query.filter_by(sender_id=current_user.id, wish_date=today).all():
-        wished_today.add(f"{w.target_emp_id}_{w.wish_type}")
+        # Load wishes safely (wish_logs table may not exist yet)
+        wished_today = set()
+        try:
+            for w in WishLog.query.filter_by(sender_id=current_user.id, wish_date=today).all():
+                wished_today.add(f"{w.target_emp_id}_{w.wish_type}")
+        except Exception:
+            pass
 
-    celebrations = []
+        celebrations = []
 
-    def _ord(n):
-        return str(n) + ('st' if n==1 else 'nd' if n==2 else 'rd' if n==3 else 'th')
+        def _ord(n):
+            return str(n) + ('st' if n==1 else 'nd' if n==2 else 'rd' if n==3 else 'th')
 
-    for e in all_emps:
-        emp_data = {
-            'id': e.id,
-            'name': e.full_name,
-            'first_name': e.first_name or e.full_name,
-            'code': e.employee_code or '',
-            'dept': e.department or '',
-            'designation': e.designation or '',
-            'photo': e.profile_photo or '',
-            'view_url': f'/hr/employees/{e.id}/view',
-            'is_self': e.id == my_emp_id,   # is this the logged-in employee?
-        }
+        for e in all_emps:
+            emp_data = {
+                'id': e.id,
+                'name': e.full_name,
+                'first_name': e.first_name or e.full_name,
+                'code': e.employee_code or '',
+                'dept': e.department or '',
+                'designation': e.designation or '',
+                'photo': e.profile_photo or '',
+                'view_url': f'/hr/employees/{e.id}/view',
+                'is_self': e.id == my_emp_id,
+            }
 
-        # ── Birthday ──
-        if e.date_of_birth:
-            try:
-                bday = e.date_of_birth.replace(year=today.year)
-                days = (bday - today).days
-                if -1 <= days <= 7:
-                    age = today.year - e.date_of_birth.year
-                    fn = e.first_name or e.full_name
-                    # Self-wish (for the birthday person)
-                    self_wish = f"🎂 Aaj aapka birthday hai, {fn}ji! Team ki taraf se aapko bahut bahut Happy Birthday! 🎉🥳 Aapki zindagi mein khushiyan aur safalta barhti rahe. Have a wonderful day! 🌟"
-                    # Colleague wish
-                    other_wish = f"Aaj {e.full_name} ka birthday hai! 🎂 Unhe wish karo:\n\nDear {fn},\nWishing you a very Happy Birthday! 🎂🎉 May this year bring you lots of joy, health and success. Team wishes you all the best! 🥳"
-                    key = f"{e.id}_birthday"
-                    celebrations.append({{**emp_data,
-                        'type': 'birthday',
-                        'type_label': '🎂 Birthday',
-                        'days': days,
-                        'extra': f'Turning {age}' if days >= 0 else f'Was yesterday ({age} yrs)',
-                        'today': days == 0,
-                        'self_wish': self_wish,
-                        'wish_template': other_wish,
-                        'already_wished': key in wished_today,
-                    }})
-            except ValueError:
-                pass
-
-        # ── Work Anniversary ──
-        if e.date_of_joining:
-            try:
-                anniv = e.date_of_joining.replace(year=today.year)
-                days = (anniv - today).days
-                if -1 <= days <= 7:
-                    years = today.year - e.date_of_joining.year
-                    if years > 0:
+            # ── Birthday ──
+            if e.date_of_birth:
+                try:
+                    bday = e.date_of_birth.replace(year=today.year)
+                    days = (bday - today).days
+                    if -1 <= days <= 7:
+                        age = today.year - e.date_of_birth.year
                         fn = e.first_name or e.full_name
-                        self_wish = f"🎖️ Aaj aapki {_ord(years)} Work Anniversary hai, {fn}ji! Hamare saath {years} saal poore karne par bahut bahut badhai! Aapka yogdan hamare liye anmol hai. 💪"
-                        other_wish = f"Aaj {e.full_name} ki {_ord(years)} Work Anniversary hai! 🎖️ Unhe congratulate karo:\n\nDear {fn},\nHappy {_ord(years)} Work Anniversary! 🎉 Thank you for your {years} wonderful year{'s' if years!=1 else ''} of dedication. We're proud to have you! 💪"
-                        key = f"{e.id}_work_anniversary"
-                        celebrations.append({{**emp_data,
-                            'type': 'work_anniversary',
-                            'type_label': '🎖️ Work Anniversary',
+                        self_wish = f"🎂 Aaj aapka birthday hai, {fn}ji! Team ki taraf se aapko bahut bahut Happy Birthday! 🎉🥳 Aapki zindagi mein khushiyan aur safalta barhti rahe. Have a wonderful day! 🌟"
+                        other_wish = f"Aaj {e.full_name} ka birthday hai! 🎂 Unhe wish karo:\n\nDear {fn},\nWishing you a very Happy Birthday! 🎂🎉 May this year bring you lots of joy, health and success. Team wishes you all the best! 🥳"
+                        key = f"{e.id}_birthday"
+                        celebrations.append({**emp_data,
+                            'type': 'birthday',
+                            'type_label': '🎂 Birthday',
                             'days': days,
-                            'extra': f'{years} year{"s" if years != 1 else ""} with us',
+                            'extra': f'Turning {age}' if days >= 0 else f'Was yesterday ({age} yrs)',
                             'today': days == 0,
                             'self_wish': self_wish,
                             'wish_template': other_wish,
                             'already_wished': key in wished_today,
-                        }})
-            except ValueError:
-                pass
+                        })
+                except ValueError:
+                    pass
 
-        # ── Marriage Anniversary ──
-        if e.marital_status == 'Married' and e.marriage_anniversary:
-            try:
-                manniv = e.marriage_anniversary.replace(year=today.year)
-                days = (manniv - today).days
-                if -1 <= days <= 7:
-                    years = today.year - e.marriage_anniversary.year
-                    yrs_label = f'{_ord(years)} Wedding' if years > 0 else 'Wedding'
-                    fn = e.first_name or e.full_name
-                    self_wish = f"💍 Aaj aapki {yrs_label} Anniversary hai, {fn}ji! Dil se mubarak ho! ❤️ Aapki zindagi mein pyaar aur khushiyaan hamesha bani rahe. Team ki taraf se dher saari shubhkamnayein! 🌹"
-                    other_wish = f"Aaj {e.full_name} ki {yrs_label} Anniversary hai! 💍 Unhe wish karo:\n\nDear {fn},\nHappy {yrs_label} Anniversary! 💍❤️ Wishing you and your family a lifetime of love and happiness! 🌹"
-                    key = f"{e.id}_marriage_anniversary"
-                    celebrations.append({{**emp_data,
-                        'type': 'marriage_anniversary',
-                        'type_label': '💍 Marriage Anniversary',
-                        'days': days,
-                        'extra': f'{years} year{"s" if years != 1 else ""} of togetherness' if years > 0 else 'First Anniversary!',
-                        'today': days == 0,
-                        'self_wish': self_wish,
-                        'wish_template': other_wish,
-                        'already_wished': key in wished_today,
-                    }})
-            except ValueError:
-                pass
+            # ── Work Anniversary ──
+            if e.date_of_joining:
+                try:
+                    anniv = e.date_of_joining.replace(year=today.year)
+                    days = (anniv - today).days
+                    if -1 <= days <= 7:
+                        years = today.year - e.date_of_joining.year
+                        if years > 0:
+                            fn = e.first_name or e.full_name
+                            self_wish = f"🎖️ Aaj aapki {_ord(years)} Work Anniversary hai, {fn}ji! Hamare saath {years} saal poore karne par bahut bahut badhai! Aapka yogdan hamare liye anmol hai. 💪"
+                            other_wish = f"Aaj {e.full_name} ki {_ord(years)} Work Anniversary hai! 🎖️ Unhe congratulate karo:\n\nDear {fn},\nHappy {_ord(years)} Work Anniversary! 🎉 Thank you for your {years} wonderful year{'s' if years!=1 else ''} of dedication. We're proud to have you! 💪"
+                            key = f"{e.id}_work_anniversary"
+                            celebrations.append({**emp_data,
+                                'type': 'work_anniversary',
+                                'type_label': '🎖️ Work Anniversary',
+                                'days': days,
+                                'extra': f'{years} year{"s" if years != 1 else ""} with us',
+                                'today': days == 0,
+                                'self_wish': self_wish,
+                                'wish_template': other_wish,
+                                'already_wished': key in wished_today,
+                            })
+                except ValueError:
+                    pass
 
-    celebrations.sort(key=lambda x: (0 if x['today'] else 1, x['days']))
-    return {{'celebrations': celebrations, 'count': len(celebrations),
-             'today_count': sum(1 for c in celebrations if c['today'])}}
+            # ── Marriage Anniversary ──
+            if getattr(e, 'marital_status', None) == 'Married' and getattr(e, 'marriage_anniversary', None):
+                try:
+                    manniv = e.marriage_anniversary.replace(year=today.year)
+                    days = (manniv - today).days
+                    if -1 <= days <= 7:
+                        years = today.year - e.marriage_anniversary.year
+                        yrs_label = f'{_ord(years)} Wedding' if years > 0 else 'Wedding'
+                        fn = e.first_name or e.full_name
+                        self_wish = f"💍 Aaj aapki {yrs_label} Anniversary hai, {fn}ji! Dil se mubarak ho! ❤️ Aapki zindagi mein pyaar aur khushiyaan hamesha bani rahe. Team ki taraf se dher saari shubhkamnayein! 🌹"
+                        other_wish = f"Aaj {e.full_name} ki {yrs_label} Anniversary hai! 💍 Unhe wish karo:\n\nDear {fn},\nHappy {yrs_label} Anniversary! 💍❤️ Wishing you and your family a lifetime of love and happiness! 🌹"
+                        key = f"{e.id}_marriage_anniversary"
+                        celebrations.append({**emp_data,
+                            'type': 'marriage_anniversary',
+                            'type_label': '💍 Marriage Anniversary',
+                            'days': days,
+                            'extra': f'{years} year{"s" if years != 1 else ""} of togetherness' if years > 0 else 'First Anniversary!',
+                            'today': days == 0,
+                            'self_wish': self_wish,
+                            'wish_template': other_wish,
+                            'already_wished': key in wished_today,
+                        })
+                except ValueError:
+                    pass
+
+        celebrations.sort(key=lambda x: (0 if x['today'] else 1, x['days']))
+        return jsonify(celebrations=celebrations, count=len(celebrations),
+                       today_count=sum(1 for c in celebrations if c['today']))
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify(celebrations=[], count=0, today_count=0, error=str(e))
 
 
 @hr.route('/api/send-wish', methods=['POST'])
