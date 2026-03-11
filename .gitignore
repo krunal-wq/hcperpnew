@@ -1,0 +1,50 @@
+# ── Python ──
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+
+# ── Virtual Environment ──
+venv/
+env/
+.venv/
+.env/
+
+# ── Flask / App ──
+instance/
+.env
+*.env
+config_local.py
+
+# ── Database ──
+*.db
+*.sqlite
+*.sqlite3
+
+# ── Uploads (user files) ──
+static/uploads/
+static/qrcodes/
+
+# ── Logs ──
+*.log
+logs/
+
+# ── IDE ──
+.vscode/
+.idea/
+*.suo
+*.user
+
+# ── OS ──
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── Distribution ──
+dist/
+build/
+*.egg-info/
+
+# ── Migrations (optional - remove if you want to track) ──
+# migrations/
