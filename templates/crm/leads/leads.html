@@ -142,6 +142,7 @@
     </a>
 </div>
 
+<div id="listViewWrap">
 <!-- Advanced Filter Panel -->
 <!-- Filter / Sort Tab Panel -->
 <div class="fs-panel" id="fsPanelWrap" style="margin-bottom:1rem;">
@@ -427,6 +428,8 @@
     </div>
 </div>
 
+</div><!-- /listViewWrap -->
+
 <!-- ══ KANBAN VIEW ══ -->
 <div id="kanbanView">
 <div class="kb-board">
@@ -543,22 +546,18 @@ var _currentView = localStorage.getItem('leadsView') || 'list';
 
 function switchView(v) {
     _currentView = v;
-    localStorage.setItem('leadsView', v);
-    document.getElementById('kanbanView').style.display   = v === 'kanban' ? 'block' : 'none';
-    document.getElementById('listViewWrap').style.display = v === 'list'   ? 'block' : 'none';
-    document.getElementById('btnList').classList.toggle('active',   v === 'list');
-    document.getElementById('btnKanban').classList.toggle('active', v === 'kanban');
+    try { localStorage.setItem('leadsView', v); } catch(e) {}
+    var kv = document.getElementById('kanbanView');
+    var lv = document.getElementById('listViewWrap');
+    var bl = document.getElementById('btnList');
+    var bk = document.getElementById('btnKanban');
+    if (kv) kv.style.display   = v === 'kanban' ? 'block' : 'none';
+    if (lv) lv.style.display   = v === 'list'   ? 'block' : 'none';
+    if (bl) bl.classList.toggle('active',   v === 'list');
+    if (bk) bk.classList.toggle('active', v === 'kanban');
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-    var filterPanel = document.querySelector('.filter-panel');
-    var wrap = document.createElement('div');
-    wrap.id  = 'listViewWrap';
-    filterPanel.parentNode.insertBefore(wrap, filterPanel);
-    wrap.appendChild(filterPanel);
-    document.querySelectorAll('.card').forEach(function(card) {
-        if (!wrap.contains(card)) wrap.appendChild(card);
-    });
     switchView(_currentView);
 });
 
