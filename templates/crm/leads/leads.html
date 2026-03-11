@@ -118,7 +118,7 @@
         </div>
         <a href="{{ url_for('crm.lead_add') }}" class="btn-primary">+ Add New</a>
         <a href="{{ url_for('crm.lead_import') }}" class="btn-outline">📥 Import</a>
-        <button class="btn-outline" onclick="exportCSV()">📤 Export</button>
+        <button class="btn-outline" onclick="doExport()" id="exportBtn">📤 Export</button>
     </div>
 </div>
 
@@ -509,20 +509,30 @@ function sortTable(col) {
     applyRowLimit();
 }
 
-function exportCSV() {
-    const rows = document.querySelectorAll('#leadsTable tr');
-    const csv = [];
-    rows.forEach(row => {
-        const cells = Array.from(row.querySelectorAll('th, td'));
-        // Skip last column (Actions)
-        const data = cells.slice(0, -1).map(c => '"' + c.innerText.trim().replace(/"/g, '""').replace(/\n/g, ' ') + '"');
-        csv.push(data.join(','));
+function doExport() {
+    // Build query string from current filter hidden fields
+    var params = new URLSearchParams();
+    var map = {
+        status:        'hStatus',
+        search:        'hSearch',
+        source:        'hSource',
+        category:      'hCategory',
+        product_range: 'hProductRange',
+        city:          'hCity',
+        date_from:     'hDateFrom',
+        date_to:       'hDateTo',
+        sort_by:       'hSortBy',
+        sort_dir:      'hSortDir'
+    };
+    Object.keys(map).forEach(function(key) {
+        var el = document.getElementById(map[key]);
+        if (el && el.value) params.set(key, el.value);
     });
-    const blob = new Blob([csv.join('\n')], { type: 'text/csv;charset=utf-8;' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = 'leads_export_' + new Date().toISOString().slice(0,10) + '.csv';
-    a.click();
+    var btn = document.getElementById('exportBtn');
+    btn.textContent = '⏳ Preparing…';
+    btn.disabled = true;
+    setTimeout(function(){ btn.textContent = '📤 Export'; btn.disabled = false; }, 3000);
+    window.location.href = '/crm/leads/export?' + params.toString();
 }
 
 // Initialize

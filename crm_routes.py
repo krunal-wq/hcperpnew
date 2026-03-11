@@ -1,5 +1,5 @@
 import os
-from flask import Blueprint, render_template, redirect, url_for, request, flash, jsonify
+from flask import Blueprint, render_template, redirect, url_for, request, flash, jsonify, send_file
 from flask_login import login_required, current_user
 from datetime import datetime, date
 from werkzeug.utils import secure_filename
@@ -283,12 +283,31 @@ def leads():
     if date_to:
         query = query.filter(Lead.created_at <= datetime.strptime(date_to + ' 23:59:59', '%Y-%m-%d %H:%M:%S'))
     if search:
+        s = f'%{search}%'
         query = query.filter(
-            Lead.contact_name.ilike(f'%{search}%') |
-            Lead.company_name.ilike(f'%{search}%') |
-            Lead.phone.ilike(f'%{search}%') |
-            Lead.email.ilike(f'%{search}%') |
-            Lead.product_name.ilike(f'%{search}%')
+            Lead.contact_name.ilike(s)    |
+            Lead.company_name.ilike(s)    |
+            Lead.phone.ilike(s)           |
+            Lead.alternate_mobile.ilike(s)|
+            Lead.email.ilike(s)           |
+            Lead.product_name.ilike(s)    |
+            Lead.category.ilike(s)        |
+            Lead.product_range.ilike(s)   |
+            Lead.source.ilike(s)          |
+            Lead.city.ilike(s)            |
+            Lead.state.ilike(s)           |
+            Lead.country.ilike(s)         |
+            Lead.zip_code.ilike(s)        |
+            Lead.address.ilike(s)         |
+            Lead.position.ilike(s)        |
+            Lead.title.ilike(s)           |
+            Lead.tags.ilike(s)            |
+            Lead.remark.ilike(s)          |
+            Lead.notes.ilike(s)           |
+            Lead.lost_reason.ilike(s)     |
+            Lead.requirement_spec.ilike(s)|
+            Lead.order_quantity.ilike(s)  |
+            Lead.code.ilike(s)
         )
 
     # Sort
@@ -332,6 +351,191 @@ def leads():
         all_ranges=all_ranges, all_cities=all_cities,
         grid_cols=grid_cols, all_cols=LEAD_COLS_ALL,
         active_page='leads')
+
+
+
+
+@crm.route('/leads/export')
+@login_required
+def leads_export():
+    """Export filtered leads to Excel with ALL fields."""
+    import openpyxl
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    from openpyxl.utils import get_column_letter
+    import io
+
+    # ── Apply same filters as leads list ──
+    status   = request.args.get('status', '')
+    search   = request.args.get('search', '')
+    source   = request.args.get('source', '')
+    category = request.args.get('category', '')
+    p_range  = request.args.get('product_range', '')
+    city     = request.args.get('city', '')
+    date_from= request.args.get('date_from', '')
+    date_to  = request.args.get('date_to', '')
+    sort_by  = request.args.get('sort_by', 'created_at')
+    sort_dir = request.args.get('sort_dir', 'desc')
+
+    query = Lead.query
+    if status:   query = query.filter_by(status=status)
+    if source:   query = query.filter_by(source=source)
+    if category: query = query.filter_by(category=category)
+    if p_range:  query = query.filter_by(product_range=p_range)
+    if city:     query = query.filter(Lead.city.ilike(f'%{city}%'))
+    if date_from:
+        query = query.filter(Lead.created_at >= datetime.strptime(date_from, '%Y-%m-%d'))
+    if date_to:
+        query = query.filter(Lead.created_at <= datetime.strptime(date_to + ' 23:59:59', '%Y-%m-%d %H:%M:%S'))
+    if search:
+        s = f'%{search}%'
+        query = query.filter(
+            Lead.contact_name.ilike(s)    | Lead.company_name.ilike(s)    |
+            Lead.phone.ilike(s)           | Lead.alternate_mobile.ilike(s)|
+            Lead.email.ilike(s)           | Lead.product_name.ilike(s)    |
+            Lead.category.ilike(s)        | Lead.product_range.ilike(s)   |
+            Lead.source.ilike(s)          | Lead.city.ilike(s)            |
+            Lead.state.ilike(s)           | Lead.country.ilike(s)         |
+            Lead.zip_code.ilike(s)        | Lead.address.ilike(s)         |
+            Lead.position.ilike(s)        | Lead.title.ilike(s)           |
+            Lead.tags.ilike(s)            | Lead.remark.ilike(s)          |
+            Lead.notes.ilike(s)           | Lead.lost_reason.ilike(s)     |
+            Lead.requirement_spec.ilike(s)| Lead.order_quantity.ilike(s)  |
+            Lead.code.ilike(s)
+        )
+    sort_map = {'name': 'contact_name', 'mobile': 'phone', 'company': 'company_name'}
+    actual_sort = sort_map.get(sort_by, sort_by)
+    sort_col = getattr(Lead, actual_sort, Lead.created_at)
+    query = query.order_by(sort_col.asc() if sort_dir == 'asc' else sort_col.desc())
+    leads_data = query.all()
+
+    # User lookup for assigned_to / created_by
+    from models.user import User as UserModel
+    users = {u.id: u.full_name for u in UserModel.query.all()}
+
+    # ── Build Excel ──
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Leads"
+
+    # Header style
+    hdr_fill = PatternFill("solid", fgColor="1E3A5F")
+    hdr_font = Font(bold=True, color="FFFFFF", size=10)
+    hdr_align = Alignment(horizontal="center", vertical="center", wrap_text=True)
+    thin = Side(style="thin", color="D0D7E2")
+    border = Border(left=thin, right=thin, top=thin, bottom=thin)
+
+    # All columns definition: (Header Label, field_getter)
+    COLUMNS = [
+        ("Lead Code",        lambda l: l.code or ''),
+        ("Title",            lambda l: l.title or ''),
+        ("Contact Name",     lambda l: l.contact_name or ''),
+        ("Company",          lambda l: l.company_name or ''),
+        ("Position",         lambda l: l.position or ''),
+        ("Email",            lambda l: l.email or ''),
+        ("Mobile",           lambda l: l.phone or ''),
+        ("Alternate Mobile", lambda l: l.alternate_mobile or ''),
+        ("Website",          lambda l: l.website or ''),
+        ("Address",          lambda l: l.address or ''),
+        ("City",             lambda l: l.city or ''),
+        ("State",            lambda l: l.state or ''),
+        ("Country",          lambda l: l.country or ''),
+        ("Zip Code",         lambda l: l.zip_code or ''),
+        ("Source",           lambda l: l.source or ''),
+        ("Category",         lambda l: l.category or ''),
+        ("Product Range",    lambda l: l.product_range or ''),
+        ("Product Name",     lambda l: l.product_name or ''),
+        ("Order Quantity",   lambda l: l.order_quantity or ''),
+        ("Requirement Spec", lambda l: l.requirement_spec or ''),
+        ("Status",           lambda l: (l.status or '').replace('_', ' ').title()),
+        ("Priority",         lambda l: (l.priority or '').title()),
+        ("Expected Value",   lambda l: float(l.expected_value) if l.expected_value else ''),
+        ("Average Cost",     lambda l: float(l.average_cost) if l.average_cost else ''),
+        ("Tags",             lambda l: l.tags or ''),
+        ("Remark",           lambda l: l.remark or ''),
+        ("Notes",            lambda l: l.notes or ''),
+        ("Lost Reason",      lambda l: l.lost_reason or ''),
+        ("Assigned To",      lambda l: users.get(l.assigned_to, '') if l.assigned_to else ''),
+        ("Follow Up Date",   lambda l: l.follow_up_date.strftime('%d-%m-%Y') if l.follow_up_date else ''),
+        ("Last Contact",     lambda l: l.last_contact.strftime('%d-%m-%Y %H:%M') if l.last_contact else ''),
+        ("Created By",       lambda l: users.get(l.created_by, '') if l.created_by else ''),
+        ("Created At",       lambda l: l.created_at.strftime('%d-%m-%Y %H:%M') if l.created_at else ''),
+        ("Updated At",       lambda l: l.updated_at.strftime('%d-%m-%Y %H:%M') if l.updated_at else ''),
+    ]
+
+    # Write header row
+    ws.row_dimensions[1].height = 32
+    for col_idx, (label, _) in enumerate(COLUMNS, 1):
+        cell = ws.cell(row=1, column=col_idx, value=label)
+        cell.font    = hdr_font
+        cell.fill    = hdr_fill
+        cell.alignment = hdr_align
+        cell.border  = border
+
+    # Write data rows
+    alt_fill = PatternFill("solid", fgColor="F0F4FA")
+    data_font = Font(size=9)
+    data_align = Alignment(vertical="center", wrap_text=False)
+
+    for row_idx, lead in enumerate(leads_data, 2):
+        row_fill = alt_fill if row_idx % 2 == 0 else None
+        ws.row_dimensions[row_idx].height = 18
+        for col_idx, (_, getter) in enumerate(COLUMNS, 1):
+            try:
+                val = getter(lead)
+            except Exception:
+                val = ''
+            cell = ws.cell(row=row_idx, column=col_idx, value=val)
+            cell.font      = data_font
+            cell.alignment = data_align
+            cell.border    = border
+            if row_fill:
+                cell.fill = row_fill
+
+    # Auto column widths
+    for col_idx in range(1, len(COLUMNS) + 1):
+        col_letter = get_column_letter(col_idx)
+        max_len = 10
+        for row in ws.iter_rows(min_col=col_idx, max_col=col_idx):
+            for cell in row:
+                try:
+                    if cell.value:
+                        max_len = max(max_len, min(len(str(cell.value)), 40))
+                except:
+                    pass
+        ws.column_dimensions[col_letter].width = max_len + 2
+
+    # Freeze header row
+    ws.freeze_panes = "A2"
+
+    # Filter info sheet
+    ws2 = wb.create_sheet("Filter Info")
+    ws2.column_dimensions['A'].width = 20
+    ws2.column_dimensions['B'].width = 40
+    info_rows = [
+        ("Exported At",    datetime.now().strftime('%d-%m-%Y %H:%M:%S')),
+        ("Total Records",  len(leads_data)),
+        ("Status Filter",  status or 'All'),
+        ("Search",         search or '—'),
+        ("Source",         source or 'All'),
+        ("Category",       category or 'All'),
+        ("Product Range",  p_range or 'All'),
+        ("City",           city or 'All'),
+        ("Date From",      date_from or '—'),
+        ("Date To",        date_to or '—'),
+        ("Sort By",        sort_by),
+        ("Sort Direction", 'Ascending' if sort_dir == 'asc' else 'Descending'),
+    ]
+    for r, (k, v) in enumerate(info_rows, 1):
+        ws2.cell(row=r, column=1, value=k).font = Font(bold=True)
+        ws2.cell(row=r, column=2, value=str(v))
+
+    # Output
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    fname = f"leads_export_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx"
+    return send_file(buf, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                     as_attachment=True, download_name=fname)
 
 
 @crm.route('/leads/grid-config', methods=['POST'])
