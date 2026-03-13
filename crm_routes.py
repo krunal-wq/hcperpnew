@@ -33,6 +33,23 @@ LEAD_COLS_ALL = {
     'expected_value':'Expected Value',
 }
 
+CLIENT_COLS_DEFAULT = ['code','created_at','contact_name','company_name','mobile','email','city','brands','client_type','status']
+CLIENT_COLS_ALL = {
+    'code':          'Client Code',
+    'created_at':    'Created Date',
+    'contact_name':  'Contact Name',
+    'company_name':  'Company',
+    'mobile':        'Mobile',
+    'email':         'Email',
+    'city':          'City',
+    'state':         'State',
+    'gstin':         'GSTIN',
+    'website':       'Website',
+    'brands':        'Brands',
+    'client_type':   'Client Type',
+    'status':        'Status',
+}
+
 UPLOAD_FOLDER = os.path.join(os.path.dirname(__file__), 'static', 'uploads')
 ALLOWED_EXTENSIONS = {'pdf', 'png', 'jpg', 'jpeg', 'gif', 'doc', 'docx', 'xls', 'xlsx', 'txt'}
 
@@ -69,7 +86,8 @@ def clients():
     sort_by     = request.args.get('sort_by', 'created_at')
     sort_dir    = request.args.get('sort_dir', 'desc')
 
-    query = ClientMaster.query
+    show_trash = request.args.get('trash', '') == '1'
+    query = ClientMaster.query.filter_by(is_deleted=True) if show_trash else ClientMaster.query.filter_by(is_deleted=False)
 
     if search:
         query = query.filter(
@@ -94,11 +112,16 @@ def clients():
     all_cities = [r[0] for r in db.session.query(ClientMaster.city).distinct().all() if r[0]]
     all_states = [r[0] for r in db.session.query(ClientMaster.state).distinct().all() if r[0]]
 
+    grid_cols = get_grid_columns('clients', CLIENT_COLS_DEFAULT, list(CLIENT_COLS_ALL.keys()))
+
+    deleted_count = ClientMaster.query.filter_by(is_deleted=True).count()
     return render_template('crm/clients/clients.html',
-        clients=all_clients, search=search,
+        clients=all_clients, search=search, show_trash=show_trash,
+        deleted_count=deleted_count,
         city=city, state=state, client_type=client_type, status_f=status_f,
         sort_by=sort_by, sort_dir=sort_dir,
         all_cities=all_cities, all_states=all_states,
+        grid_cols=grid_cols, all_cols=CLIENT_COLS_ALL,
         active_page='clients')
 
 
@@ -161,6 +184,9 @@ def client_add():
                 ))
 
         db.session.commit()
+        is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+        if is_ajax:
+            return jsonify(success=True, message=f'Client {c.contact_name} added! (Code: {c.code})', redirect=url_for('crm.clients'))
         flash(f'Client {c.contact_name} added! (Code: {c.code})', 'success')
         return redirect(url_for('crm.clients'))
 
@@ -224,6 +250,9 @@ def client_edit(id):
                 ))
 
         db.session.commit()
+        is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+        if is_ajax:
+            return jsonify(success=True, message='Client updated successfully!', redirect=url_for('crm.clients'))
         flash('Client updated successfully!', 'success')
         return redirect(url_for('crm.clients'))
 
@@ -244,10 +273,22 @@ def client_view(id):
 def client_delete(id):
     c = ClientMaster.query.get_or_404(id)
     name = c.contact_name
-    db.session.delete(c)
+    c.is_deleted = True
+    c.deleted_at = datetime.utcnow()
     db.session.commit()
-    flash(f'Client "{name}" deleted!', 'success')
+    flash(f'Client "{name}" moved to trash.', 'warning')
     return redirect(url_for('crm.clients'))
+
+
+@crm.route('/clients/<int:id>/restore', methods=['POST'])
+@login_required
+def client_restore(id):
+    c = ClientMaster.query.get_or_404(id)
+    c.is_deleted = False
+    c.deleted_at = None
+    db.session.commit()
+    flash(f'Client "{c.contact_name}" restored successfully!', 'success')
+    return redirect(url_for('crm.clients', trash=1))
 
 
 # ══════════════════════════════════════
@@ -271,9 +312,11 @@ def leads():
     sort_by  = request.args.get('sort_by', 'created_at')
     sort_dir = request.args.get('sort_dir', 'desc')
 
-    query = Lead.query
+    show_trash = request.args.get('trash', '') == '1'
+    query = Lead.query.filter_by(is_deleted=True) if show_trash else Lead.query.filter_by(is_deleted=False)
 
-    if status:   query = query.filter_by(status=status)
+    if not show_trash:
+        if status:   query = query.filter_by(status=status)
     if source:   query = query.filter_by(source=source)
     if category: query = query.filter_by(category=category)
     if p_range:  query = query.filter_by(product_range=p_range)
@@ -327,11 +370,12 @@ def leads():
     all_leads = query.all()
 
     counts = {
-        'open':       Lead.query.filter_by(status='open').count(),
-        'in_process': Lead.query.filter_by(status='in_process').count(),
-        'close':      Lead.query.filter_by(status='close').count(),
-        'cancel':     Lead.query.filter_by(status='cancel').count(),
+        'open':       Lead.query.filter_by(status='open', is_deleted=False).count(),
+        'in_process': Lead.query.filter_by(status='in_process', is_deleted=False).count(),
+        'close':      Lead.query.filter_by(status='close', is_deleted=False).count(),
+        'cancel':     Lead.query.filter_by(status='cancel', is_deleted=False).count(),
     }
+    deleted_count = Lead.query.filter_by(is_deleted=True).count()
 
     # Filter options
     all_sources   = [r[0] for r in db.session.query(Lead.source).distinct().all() if r[0]]
@@ -340,15 +384,22 @@ def leads():
     all_cities    = [r[0] for r in db.session.query(Lead.city).distinct().all() if r[0]]
     all_users     = User.query.filter_by(is_active=True).all()
     grid_cols     = get_grid_columns('leads', LEAD_COLS_DEFAULT, list(LEAD_COLS_ALL.keys()))
+    lead_statuses  = LeadStatus.query.filter_by(is_active=True).order_by(LeadStatus.sort_order).all()
+    lead_sources   = LeadSource.query.filter_by(is_active=True).order_by(LeadSource.sort_order).all()
+    lead_categories= LeadCategory.query.filter_by(is_active=True).order_by(LeadCategory.sort_order).all()
+    product_ranges = ProductRange.query.filter_by(is_active=True).order_by(ProductRange.sort_order).all()
 
     return render_template('crm/leads/leads.html',
-        leads=all_leads, counts=counts, all_users=all_users,
+        leads=all_leads, counts=counts, deleted_count=deleted_count,
+        show_trash=show_trash, all_users=all_users,
         status=status, search=search,
         source=source, category=category, p_range=p_range,
         city=city, date_from=date_from, date_to=date_to,
         sort_by=sort_by, sort_dir=sort_dir,
         all_sources=all_sources, all_categories=all_categories,
         all_ranges=all_ranges, all_cities=all_cities,
+        lead_statuses=lead_statuses, lead_sources=lead_sources,
+        lead_categories=lead_categories, product_ranges=product_ranges,
         grid_cols=grid_cols, all_cols=LEAD_COLS_ALL,
         active_page='leads')
 
@@ -678,6 +729,14 @@ def lead_grid_config():
     return jsonify(success=True)
 
 
+@crm.route('/clients/grid-config', methods=['POST'])
+@login_required
+def client_grid_config():
+    cols = request.json.get('cols', [])
+    save_grid_columns('clients', cols)
+    return jsonify(success=True)
+
+
 @crm.route('/leads/<int:id>/update-status', methods=['POST'])
 @login_required
 def lead_update_status(id):
@@ -697,6 +756,48 @@ def lead_update_status(id):
     db.session.commit()
     return jsonify(success=True, id=id, status=new_status)
 
+
+
+@crm.route('/leads/<int:id>/inline-edit', methods=['POST'])
+@login_required
+def lead_inline_edit(id):
+    lead = Lead.query.get_or_404(id)
+    data = request.get_json()
+    field = data.get('field','').strip()
+    value = data.get('value','')
+    allowed = {
+        'contact_name','company_name','email','phone','city','state',
+        'product_name','category','source','status','priority',
+        'product_range','order_quantity','remark','tags'
+    }
+    if field not in allowed:
+        return jsonify(success=False, error='Field not allowed'), 400
+    old_val = getattr(lead, field, None)
+    setattr(lead, field, value.strip() if isinstance(value, str) else value)
+    lead.updated_at = datetime.now()
+    lead.modified_by = current_user.id
+    log_activity(id, f'Inline edit: {field} changed')
+    db.session.commit()
+    return jsonify(success=True, field=field, value=value)
+
+
+@crm.route('/clients/<int:id>/inline-edit', methods=['POST'])
+@login_required
+def client_inline_edit(id):
+    c = ClientMaster.query.get_or_404(id)
+    data = request.get_json()
+    field = data.get('field','').strip()
+    value = data.get('value','')
+    allowed = {
+        'contact_name','company_name','mobile','alternate_mobile',
+        'email','website','city','state','gstin','client_type','status','notes'
+    }
+    if field not in allowed:
+        return jsonify(success=False, error='Field not allowed'), 400
+    setattr(c, field, value.strip() if isinstance(value, str) else value)
+    c.updated_at = datetime.now()
+    db.session.commit()
+    return jsonify(success=True, field=field, value=value)
 
 
 @crm.route('/leads/add', methods=['GET', 'POST'])
@@ -743,6 +844,9 @@ def lead_add():
         db.session.flush()
         log_activity(l.id, 'New Lead Added')
         db.session.commit()
+        is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+        if is_ajax:
+            return jsonify(success=True, message=f'Lead {l.code} added successfully!', redirect=url_for('crm.lead_view', id=l.id))
         flash(f'Lead {l.code} added!', 'success')
         return redirect(url_for('crm.lead_view', id=l.id))
 
@@ -798,6 +902,9 @@ def lead_edit(id):
 
         log_activity(l.id, f'Lead Record Updated')
         db.session.commit()
+        is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+        if is_ajax:
+            return jsonify(success=True, message='Lead updated successfully!', redirect=url_for('crm.lead_view', id=l.id))
         flash('Lead updated!', 'success')
         return redirect(url_for('crm.lead_view', id=l.id))
 
@@ -818,10 +925,22 @@ def lead_edit(id):
 def lead_delete(id):
     l = Lead.query.get_or_404(id)
     name = l.contact_name
-    db.session.delete(l)
+    l.is_deleted = True
+    l.deleted_at = datetime.utcnow()
     db.session.commit()
-    flash(f'Lead "{name}" deleted!', 'success')
+    flash(f'Lead "{name}" moved to trash.', 'warning')
     return redirect(url_for('crm.leads'))
+
+
+@crm.route('/leads/<int:id>/restore', methods=['POST'])
+@login_required
+def lead_restore(id):
+    l = Lead.query.get_or_404(id)
+    l.is_deleted = False
+    l.deleted_at = None
+    db.session.commit()
+    flash(f'Lead "{l.contact_name}" restored successfully!', 'success')
+    return redirect(url_for('crm.leads', trash=1))
 
 
 @crm.route('/leads/<int:id>')

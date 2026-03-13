@@ -106,7 +106,7 @@
             <label style="font-size:0.82rem;color:var(--text2);">Show
                     <select id="rowCount_userTable" onchange="changeRows_userTable(this.value)" style="padding:4px 8px;border:1.5px solid var(--border);border-radius:7px;font-size:0.82rem;margin-left:4px;">
                         <option value="10">10</option>
-                        <option value="25">25</option>
+                        <option value="25" selected>25</option>
                         <option value="50">50</option>
                         <option value="9999">All</option>
                     </select>
@@ -173,7 +173,7 @@ function changeRows_userTable(val) {
     var ps = document.getElementById('pagSize_userTable');
     if(ps) ps.value = val;
 }
-document.addEventListener('DOMContentLoaded', function(){ pagInit('userTable', '#userTable .u-row', 10); });
+document.addEventListener('DOMContentLoaded', function(){ pagInit('userTable', '#userTable .u-row', 25); });
 </script>
 
 

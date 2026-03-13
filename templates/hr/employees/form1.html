@@ -48,14 +48,6 @@
 .doc-item{background:#f8fafc;border:1.5px solid var(--border);border-radius:9px;padding:.6rem .9rem;display:flex;align-items:center;gap:.75rem;}
 .doc-item-name{font-size:.8rem;font-weight:700;flex:1;}
 .form-actions{display:flex;align-items:center;gap:.75rem;padding:1rem 1.25rem;background:#fff;border-radius:12px;border:1px solid var(--border);box-shadow:0 2px 8px rgba(0,0,0,.05);margin-top:1rem;}
-/* ── Salary Config ── */
-/* ── Validation ── */
-.req-star{color:#dc2626;font-weight:700;margin-left:2px;}
-.fi.field-error{border-color:#dc2626 !important;background:#fff8f8 !important;box-shadow:0 0 0 3px rgba(220,38,38,.08) !important;}
-.field-err-msg{font-size:.72rem;color:#dc2626;font-weight:600;margin-top:3px;display:none;}
-.field-err-msg.show{display:block;}
-@keyframes empShake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-5px)}40%,80%{transform:translateX(5px)}}
-.tab-btn.tab-needs-fix{border-bottom-color:#ef4444 !important;color:#ef4444 !important;}
 {% endblock %}
 
 {% block content %}
@@ -126,24 +118,22 @@
         <div class="card-body-sm">
             <div class="fgrid-3" style="margin-bottom:.85rem;">
                 <div class="fg">
-                    <label class="fl">Employee Code<span class="req-star">*</span></label>
+                    <label class="fl">Employee Code *</label>
                     {% if employee and employee.employee_code %}
                     <input type="text" name="employee_code" id="empCodeInput" class="fi" value="{{ employee.employee_code }}" readonly style="background:#f8fafc;color:var(--text2);font-weight:700;">
                     {% else %}
-                    <input type="text" name="employee_code" id="empCodeInput" class="fi" value="" placeholder="e.g. EMP1001">
+                    <input type="text" name="employee_code" id="empCodeInput" class="fi" value="" placeholder="e.g. EMP1001" required>
                     <span style="font-size:.7rem;color:var(--text3);margin-top:2px;display:block;">QR auto-generates on input</span>
                     {% endif %}
-                    <div class="field-err-msg" id="err_emp_code">Employee Code is required.</div>
                 </div>
                 <div class="fg">
-                    <label class="fl">Employee Type<span class="req-star">*</span></label>
-                    <select name="employee_type" id="empTypeSelect" class="fi sd">
+                    <label class="fl">Employee Type *</label>
+                    <select name="employee_type" class="fi sd">
                         <option value="">Select</option>
                         {% for t in ['Full Time','Part Time','Contract','Intern','Consultant'] %}
                         <option value="{{ t }}" {{ 'selected' if employee and employee.employee_type==t }}>{{ t }}</option>
                         {% endfor %}
                     </select>
-                    <div class="field-err-msg" id="err_emp_type">Employee Type is required.</div>
                 </div>
                 <div class="fg">
                     <label class="fl">Status *</label>
@@ -156,9 +146,9 @@
                 </div>
             </div>
             <div class="fgrid-2">
-                <div class="fg"><label class="fl">First Name<span class="req-star">*</span></label><input type="text" name="first_name" id="empFirstName" class="fi" value="{{ employee.first_name if employee else '' }}" placeholder="First name"><div class="field-err-msg" id="err_first_name">First name is required.</div></div>
-                <div class="fg"><label class="fl">Last Name<span class="req-star">*</span></label><input type="text" name="last_name" id="empLastName" class="fi" value="{{ employee.last_name if employee else '' }}" placeholder="Last name"><div class="field-err-msg" id="err_last_name">Last name is required.</div></div>
-                <div class="fg"><label class="fl">Mobile<span class="req-star">*</span></label><input type="text" name="mobile" id="empMobile" class="fi" value="{{ employee.mobile if employee else '' }}" placeholder="9999999999"><div class="field-err-msg" id="err_mobile">Mobile number is required.</div></div>
+                <div class="fg"><label class="fl">First Name *</label><input type="text" name="first_name" class="fi" required value="{{ employee.first_name if employee else '' }}" placeholder="First name"></div>
+                <div class="fg"><label class="fl">Last Name *</label><input type="text" name="last_name" class="fi" required value="{{ employee.last_name if employee else '' }}" placeholder="Last name"></div>
+                <div class="fg"><label class="fl">Mobile *</label><input type="text" name="mobile" class="fi" required value="{{ employee.mobile if employee else '' }}" placeholder="9999999999"></div>
                 <div class="fg"><label class="fl">Email Address</label><input type="email" name="email" class="fi" value="{{ employee.email if employee else '' }}" placeholder="email@company.com"></div>
                 <div class="fg">
                     <label class="fl">Gender</label>
@@ -397,10 +387,7 @@
                 <div style="font-size:.7rem;color:#16a34a;font-weight:800;margin-bottom:2px;">NET TAKE HOME (Monthly)</div>
                 <input type="number" name="salary_net" id="salNet" class="fi" style="width:160px;font-weight:800;font-size:1rem;border:none;background:transparent;" value="{{ employee.salary_net|int if employee and employee.salary_net else '' }}" placeholder="0">
             </div>
-            <div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;">
-              <button type="button" onclick="autoCalcSalary()" class="btn-primary" style="font-size:.78rem;padding:6px 14px;">🔁 Auto Calculate</button>
-              <a href="/hr/salary-config/page" target="_blank" style="padding:6px 12px;border:1.5px solid #bfdbfe;background:#eff6ff;color:#1d4ed8;border-radius:8px;font-size:.78rem;font-weight:700;cursor:pointer;font-family:inherit;text-decoration:none;">⚙️ Config</a>
-            </div>
+            <button type="button" onclick="autoCalcSalary()" class="btn-primary" style="font-size:.78rem;padding:6px 14px;">🔁 Auto Calculate</button>
         </div>
     </div>
 </div>
@@ -471,7 +458,6 @@
 </div>
 </form>
 
-
 <div class="camera-overlay" id="cameraModal">
     <div class="camera-box">
         <div class="camera-bar"><span>📷 Capture Photo</span><button type="button" onclick="closeCamera()" style="background:none;border:none;color:#94a3b8;font-size:1.2rem;cursor:pointer;">✕</button></div>
@@ -480,7 +466,9 @@
     </div>
 </div>
 <div id="qrRenderTarget" style="position:absolute;left:-9999px;top:-9999px;width:200px;height:200px;"></div>
-<script>
+{% endblock %}
+
+{% block extra_js %}
 function _showSaveMsg(msg,ok){
     var el=document.getElementById('ajaxSaveMsg');
     if(!el){alert(msg);return;}
@@ -492,7 +480,7 @@ function _showSaveMsg(msg,ok){
 }
 function switchTab(id,btn){
     if(btn.classList.contains('tab-locked')){
-        _showSaveMsg('⚠️ Pehle Basic Info save karo, phir aage jao!', false);
+        _showSaveMsg('⚠️ Pehle current tab save karo, phir aage jao!', false);
         return;
     }
     document.querySelectorAll('.tab-pane').forEach(p=>p.classList.remove('active'));
@@ -500,71 +488,6 @@ function switchTab(id,btn){
     document.getElementById(id).classList.add('active');
     btn.classList.add('active');
 }
-
-// ── Basic Info Validation ─────────────────────────────────────────
-function _setEmpErr(inputId, errId, msg) {
-    var el = document.getElementById(inputId);
-    var em = document.getElementById(errId);
-    if (el) { el.classList.add('field-error'); el.style.animation='none'; el.offsetHeight; el.style.animation='empShake .35s ease'; }
-    if (em) { em.textContent = '⚠ ' + msg; em.classList.add('show'); }
-}
-function _clearEmpErr(inputId, errId) {
-    var el = document.getElementById(inputId);
-    var em = document.getElementById(errId);
-    if (el) el.classList.remove('field-error');
-    if (em) em.classList.remove('show');
-}
-function validateBasicTab() {
-    var ok = true;
-    // Employee Code (only for new employee — readonly when editing)
-    var ecInput = document.getElementById('empCodeInput');
-    if (ecInput && !ecInput.readOnly) {
-        if (!ecInput.value.trim()) { _setEmpErr('empCodeInput','err_emp_code','Employee Code is required.'); ok=false; }
-        else _clearEmpErr('empCodeInput','err_emp_code');
-    }
-    // Employee Type
-    var etSel = document.getElementById('empTypeSelect');
-    if (etSel && !etSel.value) { _setEmpErr('empTypeSelect','err_emp_type','Employee Type is required.'); ok=false; }
-    else if(etSel) _clearEmpErr('empTypeSelect','err_emp_type');
-    // First Name
-    var fn = document.getElementById('empFirstName');
-    if (!fn || !fn.value.trim()) { _setEmpErr('empFirstName','err_first_name','First name is required.'); ok=false; }
-    else _clearEmpErr('empFirstName','err_first_name');
-    // Last Name
-    var ln = document.getElementById('empLastName');
-    if (!ln || !ln.value.trim()) { _setEmpErr('empLastName','err_last_name','Last name is required.'); ok=false; }
-    else _clearEmpErr('empLastName','err_last_name');
-    // Mobile
-    var mob = document.getElementById('empMobile');
-    if (!mob || !mob.value.trim()) { _setEmpErr('empMobile','err_mobile','Mobile number is required.'); ok=false; }
-    else _clearEmpErr('empMobile','err_mobile');
-    // Scroll to first error
-    if (!ok) {
-        var fe = document.querySelector('#t1 .field-error');
-        if (fe) fe.scrollIntoView({behavior:'smooth', block:'center'});
-    }
-    return ok;
-}
-// Live clear on input
-document.addEventListener('DOMContentLoaded', function() {
-    // Load salary config from DB on page load
-    _fetchSalCfgFromDB(null);
-
-    var liveFields = [
-        ['empCodeInput','err_emp_code'],['empTypeSelect','err_emp_type'],
-        ['empFirstName','err_first_name'],['empLastName','err_last_name'],['empMobile','err_mobile']
-    ];
-    liveFields.forEach(function(pair) {
-        var el = document.getElementById(pair[0]);
-        if (!el) return;
-        var evt = el.tagName === 'SELECT' ? 'change' : 'input';
-        el.addEventListener(evt, function() {
-            el.classList.remove('field-error');
-            var em = document.getElementById(pair[1]);
-            if (em) em.classList.remove('show');
-        });
-    });
-});
 (function loadQRLib(){var s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js';s.onload=function(){initQR();};s.onerror=function(){var s2=document.createElement('script');s2.src='https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js';s2.onload=function(){initQR();};document.head.appendChild(s2);};document.head.appendChild(s);})();
 var qrObj=null,qrReady=false,qrPending=null;
 function initQR(){
@@ -618,88 +541,7 @@ function capturePhoto(){
   setPhoto(canvas.toDataURL('image/jpeg',0.60));
   closeCamera();
 }
-// Cached components from DB
-var _salComps = null;
-
-function _fetchCompsAndCalc(ctcA) {
-    if (_salComps) { _doAutoCalc(ctcA, _salComps); return; }
-    fetch('/hr/salary-components', {headers:{'X-Requested-With':'XMLHttpRequest'}})
-    .then(function(r){ return r.json(); })
-    .then(function(d){
-        if (d.ok) { _salComps = d.components; }
-        _doAutoCalc(ctcA, _salComps || []);
-    })
-    .catch(function(){ _doAutoCalc(ctcA, []); });
-}
-
-function _doAutoCalc(ctcA, comps) {
-    var monthly = Math.round(ctcA / 12);
-    // Find basic % from components (default 40)
-    var basicComp = comps.find(function(c){ return c.code === 'basic'; });
-    var basicPct  = basicComp ? basicComp.value : 40;
-    var basic     = Math.round(monthly * basicPct / 100);
-    var gross     = monthly;
-    var results   = { basic: basic };
-
-    // Calculate each earning
-    var earnSum = basic;
-    comps.filter(function(c){ return c.is_active && c.component_type==='earning' && c.code!=='basic' && c.calc_type!=='balance'; }).forEach(function(c){
-        var v = _calcComp(c, basic, gross, monthly);
-        results[c.code] = v; earnSum += v;
-    });
-    // Balance
-    var balComp = comps.find(function(c){ return c.is_active && c.component_type==='earning' && c.calc_type==='balance'; });
-    if (balComp) { results[balComp.code] = Math.max(0, monthly - earnSum); }
-
-    // Deductions
-    var dedSum = 0;
-    comps.filter(function(c){ return c.is_active && c.component_type==='deduction'; }).forEach(function(c){
-        if (c.apply_if_gross_lte && gross > c.apply_if_gross_lte) { results[c.code]=0; return; }
-        var v = _calcComp(c, basic, gross, monthly);
-        results[c.code] = v; dedSum += v;
-    });
-    // Employer
-    comps.filter(function(c){ return c.is_active && c.component_type==='employer_contrib'; }).forEach(function(c){
-        if (c.apply_if_gross_lte && gross > c.apply_if_gross_lte) { results[c.code]=0; return; }
-        results[c.code] = _calcComp(c, basic, gross, monthly);
-    });
-
-    var net = Math.round(gross - dedSum);
-
-    // Set known fixed fields
-    var fieldMap = {
-        basic:'salBasic', hra:'salHra', da:'salDa', ta:'salTa',
-        medical:'salMed', special:'salSpecial',
-        pf_emp:'salPfEmp', pf_er:'salPfEr',
-        esic_emp:'salEsicEmp', esic_er:'salEsicEr', pt:'salPt'
-    };
-    Object.keys(fieldMap).forEach(function(code){
-        var el = document.getElementById(fieldMap[code]);
-        if (el && results[code] !== undefined) el.value = Math.round(results[code]);
-    });
-    document.getElementById('salNet').value = net;
-    updateSalSummary(ctcA, earnSum, dedSum, net);
-}
-
-function _calcComp(c, basic, gross, monthly) {
-    var v = 0;
-    switch(c.calc_type) {
-        case 'pct_of_basic':        v = basic   * c.value / 100; break;
-        case 'pct_of_gross':        v = gross   * c.value / 100; break;
-        case 'pct_of_ctc':          v = monthly * c.value / 100; break;
-        case 'fixed':               v = c.value; break;
-        case 'pct_of_basic_capped': v = basic   * c.value / 100;
-            if (c.cap_amount) v = Math.min(v, c.cap_amount); break;
-    }
-    return Math.round(v * 100) / 100;
-}
-
-function autoCalcSalary() {
-    var ctcA = parseFloat(document.getElementById('salCtc').value) || 0;
-    if (ctcA <= 0) return;
-    _fetchCompsAndCalc(ctcA);
-}
-
+function autoCalcSalary(){var ctcA=parseFloat(document.getElementById('salCtc').value)||0;if(ctcA<=0)return;var monthly=Math.round(ctcA/12);var basic=Math.round(monthly*0.40);var hra=Math.round(basic*0.50);var da=Math.round(basic*0.10);var ta=1600;var med=1250;var pf=Math.round(basic*0.12);var gross=basic+hra+da+ta+med;var esicGross=gross;var esicEmp=esicGross<=21000?Math.round(esicGross*0.0075):0;var esicEr=esicGross<=21000?Math.round(esicGross*0.0325):0;var pt=200;var special=Math.max(0,monthly-basic-hra-da-ta-med);var totalEarn=basic+hra+da+ta+med+special;var deduct=pf+esicEmp+pt;var net=totalEarn-deduct;document.getElementById('salBasic').value=basic;document.getElementById('salHra').value=hra;document.getElementById('salDa').value=da;document.getElementById('salTa').value=ta;document.getElementById('salMed').value=med;document.getElementById('salSpecial').value=special;document.getElementById('salPfEmp').value=pf;document.getElementById('salPfEr').value=pf;document.getElementById('salEsicEmp').value=esicEmp;document.getElementById('salEsicEr').value=esicEr;document.getElementById('salPt').value=pt;document.getElementById('salNet').value=net;updateSalSummary(ctcA,totalEarn,deduct,net);}
 function recalcNet(){var earn=['salBasic','salHra','salDa','salTa','salMed','salSpecial'].reduce((s,id)=>s+(parseFloat(document.getElementById(id).value)||0),0);var deduct=['salPfEmp','salEsicEmp','salPt','salTds'].reduce((s,id)=>s+(parseFloat(document.getElementById(id).value)||0),0);var net=Math.round(earn-deduct);document.getElementById('salNet').value=net;updateSalSummary(parseFloat(document.getElementById('salCtc').value)||0,earn,deduct,net);}
 function updateSalSummary(ctcA,gross,deduct,net){document.getElementById('salSummary').innerHTML='<div style="display:flex;flex-direction:column;gap:.4rem;font-size:.8rem;"><div style="display:flex;justify-content:space-between;padding:.3rem 0;border-bottom:1px solid #f1f5f9;"><span style="color:var(--text2);">CTC (Annual)</span><strong>₹'+Number(ctcA).toLocaleString('en-IN')+'</strong></div><div style="display:flex;justify-content:space-between;padding:.3rem 0;"><span style="color:var(--text2);">Gross Monthly</span><strong>₹'+Math.round(gross).toLocaleString('en-IN')+'</strong></div><div style="display:flex;justify-content:space-between;padding:.3rem 0;"><span style="color:#dc2626;">Total Deductions</span><strong style="color:#dc2626;">- ₹'+Math.round(deduct).toLocaleString('en-IN')+'</strong></div><div style="display:flex;justify-content:space-between;padding:.5rem .6rem;background:#dcfce7;border-radius:7px;margin-top:.2rem;"><span style="color:#16a34a;font-weight:800;">Net Take Home</span><strong style="color:#16a34a;font-size:1rem;">₹'+Math.round(net).toLocaleString('en-IN')+'</strong></div></div>';}
 var currentDocType='',docFiles=[];
@@ -880,11 +722,6 @@ function ajaxSaveCurrentTab(){
             _showSaveMsg('⚠️ Pehle Basic Info save karo!',false);
             if(btn){btn.disabled=false;_updateSaveBtn();}return;
         }
-        // Run full validation first
-        if(!validateBasicTab()){
-            _showSaveMsg('⚠️ Required fields bharo!',false);
-            if(btn){btn.disabled=false;_updateSaveBtn();}return;
-        }
         var data=_collectTab('basic');
         if(!data.employee_code){
             _showSaveMsg('⚠️ Employee Code required',false);
@@ -932,6 +769,4 @@ document.addEventListener('DOMContentLoaded',function(){
     _updateSaveBtn();
     if(_empId){var d=document.getElementById('btnDone');if(d)d.style.display='inline-flex';}
 });
-</script>
-
 {% endblock %}

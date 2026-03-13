@@ -265,6 +265,151 @@ with app.app_context():
     ok(f"{added} columns added to other tables") if added else ok("Other tables: all columns already exist")
 
     # ══════════════════════════════════════════════════════
+    # STEP 5B — Soft Delete columns (is_deleted + deleted_at)
+    # ══════════════════════════════════════════════════════
+    step("STEP 5B: Soft Delete columns add kar raha hai...")
+    soft_delete_cols = [
+        ('leads',          'is_deleted', 'TINYINT(1) NOT NULL DEFAULT 0'),
+        ('leads',          'deleted_at', 'DATETIME NULL'),
+        ('client_masters', 'is_deleted', 'TINYINT(1) NOT NULL DEFAULT 0'),
+        ('client_masters', 'deleted_at', 'DATETIME NULL'),
+        ('employees',      'is_deleted', 'TINYINT(1) NOT NULL DEFAULT 0'),
+        ('employees',      'deleted_at', 'DATETIME NULL'),
+        ('contractors',    'is_deleted', 'TINYINT(1) NOT NULL DEFAULT 0'),
+        ('contractors',    'deleted_at', 'DATETIME NULL'),
+    ]
+    sd_added = sum(1 for t, c, d in soft_delete_cols if safe_add(t, c, d))
+    ok(f"Soft delete: {sd_added} columns added") if sd_added else ok("Soft delete: all columns already exist")
+
+    # Indexes for soft delete (fast trash queries)
+    soft_indexes = [
+        ('leads',          'idx_leads_is_deleted',   'is_deleted'),
+        ('client_masters', 'idx_clients_is_deleted',  'is_deleted'),
+        ('employees',      'idx_emp_is_deleted',      'is_deleted'),
+        ('contractors',    'idx_contractors_is_deleted','is_deleted'),
+    ]
+    for tbl, idx_name, col in soft_indexes:
+        if table_exists(tbl) and col_exists(tbl, col):
+            try:
+                cur.execute(f"CREATE INDEX {idx_name} ON `{tbl}`(`{col}`)")
+                raw.commit()
+                print(f"     + Index {idx_name}")
+            except:
+                pass  # already exists — skip silently
+    ok("Soft delete indexes ready")
+
+    # ══════════════════════════════════════════════════════
+    # STEP 5C — Salary Config table + default seed
+    # ══════════════════════════════════════════════════════
+    step("STEP 5C: salary_config table create kar raha hai...")
+    if not table_exists('salary_config'):
+        cur.execute("""
+            CREATE TABLE salary_config (
+                id         INT AUTO_INCREMENT PRIMARY KEY,
+                `key`      VARCHAR(50) NOT NULL UNIQUE,
+                value      VARCHAR(50) NOT NULL,
+                label      VARCHAR(100),
+                updated_by VARCHAR(100),
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        """)
+        raw.commit()
+        ok("salary_config table created")
+    else:
+        ok("salary_config table already exists")
+
+    # Seed default values (INSERT IGNORE — won't overwrite existing)
+    salary_defaults = [
+        ('basic_pct',    '40',    'Basic Salary % of Monthly CTC'),
+        ('hra_pct',      '50',    'HRA % of Basic'),
+        ('da_pct',       '10',    'DA % of Basic'),
+        ('ta_fixed',     '1600',  'Transport Allow. Fixed Rs'),
+        ('med_fixed',    '1250',  'Medical Allow. Fixed Rs'),
+        ('pf_emp_pct',   '12',    'PF Employee % of Basic'),
+        ('pf_er_pct',    '12',    'PF Employer % of Basic'),
+        ('esic_emp_pct', '0.75',  'ESIC Employee % of Gross'),
+        ('esic_er_pct',  '3.25',  'ESIC Employer % of Gross'),
+        ('esic_limit',   '21000', 'ESIC Applicable Gross Limit Rs'),
+        ('pt_fixed',     '200',   'Professional Tax Fixed Rs/month'),
+    ]
+    seeded = 0
+    for key, value, label in salary_defaults:
+        cur.execute("SELECT COUNT(*) FROM salary_config WHERE `key`=%s", (key,))
+        if cur.fetchone()[0] == 0:
+            cur.execute(
+                "INSERT INTO salary_config (`key`, value, label) VALUES (%s, %s, %s)",
+                (key, value, label)
+            )
+            seeded += 1
+    raw.commit()
+    ok(f"Salary config: {seeded} defaults seeded") if seeded else ok("Salary config: defaults already seeded")
+
+    # ══════════════════════════════════════════════════════
+    # STEP 5D — Salary Components table + default components
+    # ══════════════════════════════════════════════════════
+    step("STEP 5D: salary_components table create kar raha hai...")
+    if not table_exists('salary_components'):
+        cur.execute("""
+            CREATE TABLE salary_components (
+                id                 INT AUTO_INCREMENT PRIMARY KEY,
+                name               VARCHAR(100) NOT NULL,
+                code               VARCHAR(30)  NOT NULL UNIQUE,
+                component_type     VARCHAR(20)  NOT NULL COMMENT 'earning/deduction/employer_contrib',
+                calc_type          VARCHAR(30)  NOT NULL COMMENT 'pct_of_basic/pct_of_gross/pct_of_ctc/fixed/pct_of_basic_capped',
+                value              DECIMAL(10,4) DEFAULT 0,
+                cap_amount         DECIMAL(10,2) NULL,
+                apply_if_gross_lte DECIMAL(10,2) NULL,
+                sort_order         INT DEFAULT 0,
+                is_active          TINYINT(1) NOT NULL DEFAULT 1,
+                is_system          TINYINT(1) NOT NULL DEFAULT 0,
+                description        VARCHAR(255),
+                updated_by         VARCHAR(100),
+                updated_at         DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                created_at         DATETIME DEFAULT CURRENT_TIMESTAMP
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        """)
+        raw.commit()
+        ok("salary_components table created")
+    else:
+        ok("salary_components table already exists")
+
+    # Seed default components (system components — is_system=1)
+    # Columns: code, name, component_type, calc_type, value, cap_amount, apply_if_gross_lte, sort_order, is_system, description
+    default_components = [
+        # code, name, component_type, calc_type, value, cap_amount, apply_if_gross_lte, sort_order, is_system, description
+        ('basic',    'Basic Salary',        'earning',          'pct_of_ctc',          40,    None,  None,  1, 1, 'Basic salary - % of monthly CTC'),
+        ('hra',      'HRA',                 'earning',          'pct_of_basic',         50,    None,  None,  2, 1, 'House Rent Allowance - % of Basic'),
+        ('da',       'DA',                  'earning',          'pct_of_basic',         10,    None,  None,  3, 1, 'Dearness Allowance - % of Basic'),
+        ('ta',       'Transport Allowance', 'earning',          'fixed',              1600,    None,  None,  4, 1, 'Fixed transport allowance per month'),
+        ('medical',  'Medical Allowance',   'earning',          'fixed',              1250,    None,  None,  5, 1, 'Fixed medical allowance per month'),
+        ('special',  'Special Allowance',   'earning',          'balance',               0,    None,  None,  6, 1, 'Auto-calculated remaining CTC after other earnings'),
+        ('pf_emp',   'PF (Employee)',        'deduction',        'pct_of_basic_capped',  12,    1800,  None,  1, 1, 'Provident Fund - 12% of Basic, max Rs 1800'),
+        ('esic_emp', 'ESIC (Employee)',      'deduction',        'pct_of_gross',       0.75,    None, 21000,  2, 1, 'ESIC 0.75% of Gross - only if gross <= Rs 21000'),
+        ('pt',       'Professional Tax',    'deduction',        'fixed',               200,    None,  None,  3, 1, 'Professional Tax - fixed Rs 200/month'),
+        ('pf_er',    'PF (Employer)',        'employer_contrib', 'pct_of_basic_capped',  12,    1800,  None,  1, 1, 'Employer PF - 12% of Basic, max Rs 1800'),
+        ('esic_er',  'ESIC (Employer)',      'employer_contrib', 'pct_of_gross',       3.25,    None, 21000,  2, 1, 'Employer ESIC 3.25% of Gross - only if gross <= Rs 21000'),
+    ]
+
+    comp_seeded = 0
+    for code, name, comp_type, calc_type, value, cap, gross_lte, sort, is_sys, desc in default_components:
+        try:
+            cur.execute(
+                "INSERT IGNORE INTO salary_components (code,name,component_type,calc_type,value,cap_amount,apply_if_gross_lte,sort_order,is_system,description,updated_by) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+                (code, name, comp_type, calc_type,
+                 float(value),
+                 float(cap) if cap is not None else None,
+                 float(gross_lte) if gross_lte is not None else None,
+                 int(sort), int(is_sys), str(desc), 'System (migrate)')
+            )
+            if cur.rowcount > 0:
+                comp_seeded += 1
+            raw.commit()
+        except Exception as ex:
+            raw.rollback()
+            warn(f"Component '{code}' skip: {ex}")
+    ok(f"Salary components: {comp_seeded} seeded") if comp_seeded else ok("Salary components: already seeded")
+
+    # ══════════════════════════════════════════════════════
     # STEP 6 — Seed: Admin user
     # ══════════════════════════════════════════════════════
     step("STEP 6: Admin user seed kar raha hai...")

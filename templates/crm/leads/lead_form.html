@@ -4,9 +4,6 @@
 {% block bread %}CRM / Leads / {{ 'Edit' if lead else 'Add' }}{% endblock %}
 
 {% block extra_css %}
-.team-chip{display:inline-flex;align-items:center;gap:5px;padding:5px 12px;border:1.5px solid var(--border);border-radius:20px;cursor:pointer;font-size:.8rem;font-weight:500;transition:all .15s;user-select:none;background:#fff;}
-.team-chip:has(input:checked){background:#eff6ff;border-color:var(--blue);color:var(--blue);font-weight:600;}
-.team-chip input{accent-color:var(--blue);width:13px;height:13px;}
 .tag-input-wrap{display:flex;flex-wrap:wrap;align-items:center;gap:5px;min-height:40px;padding:5px 10px;border:1.5px solid var(--border);border-radius:9px;background:#fff;cursor:text;transition:border-color .2s;}
 .tag-input-wrap:focus-within{border-color:var(--blue);box-shadow:0 0 0 3px rgba(59,130,246,.1);}
 .tag-chip{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:20px;font-size:.78rem;font-weight:600;color:#1e40af;white-space:nowrap;}
@@ -14,7 +11,6 @@
 .tag-chip .tag-x:hover{color:#dc2626;}
 .tag-typer{border:none;outline:none;background:transparent;font-family:'Inter',sans-serif;font-size:.85rem;color:var(--text);flex:1;min-width:120px;padding:2px 0;}
 .select-with-add{display:flex;gap:6px;align-items:stretch;}
-.select-with-add .sd-wrap{flex:1;min-width:0;}
 .quick-add-btn{padding:0 11px;background:#f0fdf4;border:1.5px solid #86efac;border-radius:9px;color:#16a34a;font-size:1rem;font-weight:800;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:all .15s;line-height:1;}
 .quick-add-btn:hover{background:#dcfce7;}
 .qa-popup{display:none;position:fixed;z-index:99999;background:#fff;border:1.5px solid var(--border);border-radius:12px;padding:1rem;width:280px;box-shadow:0 8px 30px rgba(0,0,0,.18);}
@@ -25,33 +21,40 @@
 .qa-popup-add{padding:7px 14px;background:var(--blue);color:#fff;border:none;border-radius:8px;font-size:.82rem;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;white-space:nowrap;}
 .qa-popup-add:hover{background:#1d4ed8;}
 .qa-popup-close{position:absolute;top:8px;right:10px;font-size:.9rem;color:var(--text3);cursor:pointer;font-weight:700;}
+.req-star{color:#dc2626;font-weight:700;margin-left:2px;}
+.fi.field-error{border-color:#dc2626 !important;background:#fff8f8 !important;}
+.fi.field-error:focus{box-shadow:0 0 0 3px rgba(220,38,38,.1) !important;}
+.ms-wrap.field-error .ms-trigger{border-color:#dc2626 !important;background:#fff8f8 !important;}
+.field-err-msg{font-size:.72rem;color:#dc2626;font-weight:600;margin-top:3px;display:none;}
+.field-err-msg.show{display:block;}
+.val-toast{position:fixed;top:20px;left:50%;transform:translateX(-50%) translateY(-100px);background:#dc2626;color:#fff;padding:11px 22px;border-radius:10px;font-size:.83rem;font-weight:600;z-index:999999;transition:transform .3s cubic-bezier(.34,1.56,.64,1);box-shadow:0 4px 20px rgba(220,38,38,.35);display:flex;align-items:center;gap:8px;white-space:nowrap;}
+.val-toast.show{transform:translateX(-50%) translateY(0);}
+.ck-editor-wrap{border:1.5px solid var(--border);border-radius:9px;overflow:hidden;transition:border-color .2s;}
+.ck-editor-wrap:focus-within{border-color:var(--blue);box-shadow:0 0 0 3px rgba(59,130,246,.1);}
+.ck-editor-wrap.field-error{border-color:#dc2626 !important;}
+.ck-editor-wrap .ck.ck-editor__top .ck-sticky-panel .ck-toolbar{border:none;border-bottom:1px solid var(--border);border-radius:0;background:var(--bg2);}
+.ck-editor-wrap .ck.ck-editor__main .ck-editor__editable{border:none !important;border-radius:0;min-height:140px;font-size:.88rem;font-family:'Inter',sans-serif;box-shadow:none !important;padding:.6rem .9rem;}
+.ck-editor-wrap .ck.ck-editor__main .ck-editor__editable:focus{box-shadow:none !important;}
+@keyframes spin { to { transform: rotate(360deg); } }
 {% endblock %}
 
 {% block content %}
 <div class="fp-wrap fp-wide">
 
   <div class="fp-header">
-    <div class="fp-header-top">
-      <span class="fp-brand">CRM &bull; Leads</span>
-      <div class="fp-hdr-actions">
-        <a href="{{ url_for('crm.leads') }}" class="fp-hbtn">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>Back
-        </a>
-      </div>
+    <div class="fp-hdr-actions">
+      <a href="{{ url_for('crm.leads') }}" class="fp-hbtn">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>Back
+      </a>
     </div>
     <div class="fp-title-row">
-      <span class="fp-title-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></span>
       <span class="fp-title-text">{{ 'Edit Lead' if lead else 'Add New Lead' }}</span>
-      {% if lead %}<span class="fp-record-badge">#{{ lead.id }}</span>{% endif %}
-    <span style="font-size:11px;color:#94a3b8;font-weight:500;margin-left:4px;">{{ 'Update lead information below' if lead else 'Fill in the details to add a new lead' }}</span></div>
-    <div class="fp-tab-bar" style="padding-bottom:0;">
-      <span class="fp-tab active"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>Lead Form</span>
-      {% if lead %}<span class="fp-status-badge">{{ lead.status|upper if lead.status else 'OPEN' }}</span>{% endif %}
     </div>
   </div>
 
-  <form method="POST" id="leadForm">
+  <form method="POST" id="leadForm" novalidate>
 
+    <!-- SECTION 1: Lead Settings -->
     <div class="fp-section">
       <div class="fp-sec-hdr">
         <div class="fp-sec-title">
@@ -61,68 +64,227 @@
       </div>
       <div class="fp-sec-body">
         <div class="fgrid-4">
-          <div class="fg"><label class="fl">Status</label><div class="select-with-add"><select name="status" id="sel_status" class="fi sd"><option value="">Select Status</option>{% for s in lead_statuses %}<option value="{{ s.name }}" {{ 'selected' if lead and lead.status==s.name }} data-color="{{ s.color }}">{{ s.icon }} {{ s.name }}</option>{% endfor %}{% if not lead_statuses %}<option value="open" {{ 'selected' if not lead or lead.status=='open' }}>🔵 Open</option><option value="in_process" {{ 'selected' if lead and lead.status=='in_process' }}>🟡 In Process</option><option value="close" {{ 'selected' if lead and lead.status=='close' }}>🟢 Close</option><option value="cancel" {{ 'selected' if lead and lead.status=='cancel' }}>🔴 Cancel</option>{% endif %}</select><button type="button" class="quick-add-btn" onclick="openQA('status',this)" title="Add new status">＋</button></div></div>
-          <div class="fg"><label class="fl">Source</label><div class="select-with-add"><select name="source" id="sel_source" class="fi sd"><option value="">Select Source</option>{% for s in lead_sources %}<option value="{{ s.name }}" {{ 'selected' if lead and lead.source==s.name }}>{{ s.icon }} {{ s.name }}</option>{% endfor %}{% if not lead_sources %}{% for s in ['HCP Website','Pharma Hopper','Just Dial','India Mart','Trade India','Referral','Cold Call','Exhibition','Social Media','WhatsApp','Email','Other'] %}<option value="{{ s }}" {{ 'selected' if lead and lead.source==s }}>{{ s }}</option>{% endfor %}{% endif %}</select><button type="button" class="quick-add-btn" onclick="openQA('source',this)" title="Add new source">＋</button></div></div>
-          <div class="fg"><label class="fl">Tags</label><input type="hidden" name="tags" id="tagsHidden" value="{{ lead.tags if lead else '' }}"><div class="tag-input-wrap" id="tagWrap" onclick="document.getElementById('tagTyper').focus()"><div id="tagChips"></div><input type="text" id="tagTyper" class="tag-typer" placeholder="Type + Enter..."></div></div>
-          <div class="fg"><label class="fl">Team Members</label><div style="display:flex;flex-wrap:wrap;gap:.35rem;padding-top:4px;">{% for u in all_users %}<label class="team-chip"><input type="checkbox" name="team_members[]" value="{{ u.id }}" {% if lead and u.id in lead.get_team_member_ids() %}checked{% endif %}>{{ u.full_name }}</label>{% endfor %}</div></div>
+
+          <div class="fg">
+            <label class="fl">Status <span class="req-star">*</span></label>
+            <div class="select-with-add">
+              <select name="status" id="sel_status" class="fi sd">
+                <option value="">Select Status</option>
+                {% for s in lead_statuses %}<option value="{{ s.name }}" {{ 'selected' if lead and lead.status==s.name }} data-color="{{ s.color }}">{{ s.icon }} {{ s.name }}</option>{% endfor %}
+                {% if not lead_statuses %}<option value="open" {{ 'selected' if not lead or lead.status=='open' }}>&#x1F535; Open</option><option value="in_process" {{ 'selected' if lead and lead.status=='in_process' }}>&#x1F7E1; In Process</option><option value="close" {{ 'selected' if lead and lead.status=='close' }}>&#x1F7E2; Close</option><option value="cancel" {{ 'selected' if lead and lead.status=='cancel' }}>&#x1F534; Cancel</option>{% endif %}
+              </select>
+              <button type="button" class="quick-add-btn" onclick="openQA('status',this)" title="Add new status">&#xff0b;</button>
+            </div>
+            <div class="field-err-msg" id="err_status">Status is required</div>
+          </div>
+
+          <div class="fg">
+            <label class="fl">Source <span class="req-star">*</span></label>
+            <div class="select-with-add">
+              <select name="source" id="sel_source" class="fi sd">
+                <option value="">Select Source</option>
+                {% for s in lead_sources %}<option value="{{ s.name }}" {{ 'selected' if lead and lead.source==s.name }}>{{ s.icon }} {{ s.name }}</option>{% endfor %}
+                {% if not lead_sources %}{% for s in ['HCP Website','Pharma Hopper','Just Dial','India Mart','Trade India','Referral','Cold Call','Exhibition','Social Media','WhatsApp','Email','Other'] %}<option value="{{ s }}" {{ 'selected' if lead and lead.source==s }}>{{ s }}</option>{% endfor %}{% endif %}
+              </select>
+              <button type="button" class="quick-add-btn" onclick="openQA('source',this)" title="Add new source">&#xff0b;</button>
+            </div>
+            <div class="field-err-msg" id="err_source">Source is required</div>
+          </div>
+
+          <div class="fg">
+            <label class="fl">Tags</label>
+            <input type="hidden" name="tags" id="tagsHidden" value="{{ lead.tags if lead else '' }}">
+            <div class="tag-input-wrap" id="tagWrap" onclick="document.getElementById('tagTyper').focus()">
+              <div id="tagChips"></div>
+              <input type="text" id="tagTyper" class="tag-typer" placeholder="Type + Enter...">
+            </div>
+          </div>
+
+          <div class="fg">
+            <label class="fl">Team Members <span class="req-star">*</span></label>
+            <div class="ms-wrap" id="ms_team" style="max-width:100%;">
+              <div class="ms-trigger" onclick="toggleMsLocal('ms_team')" style="min-height:38px;">
+                <span class="ms-label" id="ms_team_lbl">{{ 'Select Members' if not (lead and lead.get_team_member_ids()) else (lead.get_team_member_ids()|length|string + ' selected') }}</span>
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+              </div>
+              <div class="ms-dropdown" style="min-width:100%;">
+                <div class="ms-search"><input type="text" placeholder="Search members..." oninput="msSearchLocal(this,'ms_team_opts')"></div>
+                <div class="ms-options" id="ms_team_opts">
+                  {% for u in all_users %}
+                  <label class="ms-opt">
+                    <input type="checkbox" name="team_members[]" value="{{ u.id }}" {% if lead and u.id in lead.get_team_member_ids() %}checked{% endif %} onchange="updateTeamLabel()">
+                    <span>{{ u.full_name }}</span>
+                  </label>
+                  {% endfor %}
+                </div>
+                <div class="ms-footer">
+                  <button type="button" onclick="selectAllTeam()">Select All</button>
+                  <button type="button" onclick="clearTeam()">Deselect All</button>
+                  <button type="button" class="ms-apply" onclick="toggleMsLocal('ms_team')">Done</button>
+                </div>
+              </div>
+            </div>
+            <div class="field-err-msg" id="err_team">At least 1 Team Member is required</div>
+          </div>
+
         </div>
       </div>
     </div>
 
-    <div class="form-panels">
-      <div>
-        <div class="fp-section">
-          <div class="fp-sec-hdr">
-            <div class="fp-sec-title"><div class="fp-sec-icon blue"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>Lead Information</div>
-            <span class="fp-sec-badge blue">Contact</span>
-          </div>
-          <div class="fp-sec-body">
-            <div class="fp-subsec">Contact Details</div>
-            <div class="fgrid-2" style="margin-bottom:.7rem;">
-              <div class="fg"><label class="fl">Name *</label><input type="text" name="name" class="fi" required value="{{ lead.contact_name if lead else '' }}" placeholder="Contact person name"></div>
-              <div class="fg"><label class="fl">Position</label><input type="text" name="position" class="fi" value="{{ lead.position if lead else '' }}" placeholder="CEO, Manager..."></div>
-              <div class="fg"><label class="fl">Mobile *</label><input type="text" name="mobile" class="fi" value="{{ lead.phone if lead else '' }}" placeholder="9999999999"></div>
-              <div class="fg"><label class="fl">Alt. Mobile</label><input type="text" name="alternate_mobile" class="fi" value="{{ lead.alternate_mobile if lead else '' }}" placeholder="Alternate number"></div>
-              <div class="fg"><label class="fl">Email</label><input type="email" name="email" class="fi" value="{{ lead.email if lead else '' }}" placeholder="email@company.com"></div>
-              <div class="fg"><label class="fl">Website</label><input type="text" name="website" class="fi" value="{{ lead.website if lead else '' }}" placeholder="www.company.com"></div>
-            </div>
-            <div class="fp-subsec">Company &amp; Address</div>
-            <div class="frow"><label class="fl">Company Name</label><input type="text" name="company" class="fi" value="{{ lead.company_name if lead else '' }}" placeholder="Company name"></div>
-            <div class="frow"><label class="fl">Address</label><textarea name="address" class="fi" rows="2" placeholder="Street address">{{ lead.address if lead else '' }}</textarea></div>
-            <div class="fgrid-2" style="margin-bottom:.7rem;">
-              <div class="fg"><label class="fl">City</label><input type="text" name="city" class="fi" value="{{ lead.city if lead else '' }}" placeholder="City"></div>
-              <div class="fg"><label class="fl">State</label><input type="text" name="state" class="fi" value="{{ lead.state if lead else '' }}" placeholder="State"></div>
-              <div class="fg"><label class="fl">Country</label><input type="text" name="country" class="fi" value="{{ lead.country if lead else 'India' }}"></div>
-              <div class="fg"><label class="fl">Zip Code</label><input type="text" name="zip_code" class="fi" value="{{ lead.zip_code if lead else '' }}" placeholder="Pincode"></div>
-            </div>
-            <div class="fp-subsec">Other</div>
-            <div class="fgrid-2">
-              <div class="fg"><label class="fl">Average Cost (₹)</label><input type="number" name="average_cost" class="fi" step="0.01" value="{{ lead.average_cost if lead else '' }}" placeholder="0.00"></div>
-              <div class="fg"><label class="fl">Link to Client Master</label><select name="client_id" id="sel_client" class="fi sd"><option value="">— No client linked —</option>{% for c in clients %}<option value="{{ c.id }}" {{ 'selected' if lead and lead.client_id==c.id }}>{{ c.contact_name }}{% if c.company_name %} — {{ c.company_name }}{% endif %}</option>{% endfor %}</select></div>
-            </div>
-          </div>
+    <!-- SECTION 2: Contact Information -->
+    <div class="fp-section">
+      <div class="fp-sec-hdr">
+        <div class="fp-sec-title">
+          <div class="fp-sec-icon blue"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>
+          Contact Information
         </div>
+        <span class="fp-sec-badge blue">Contact</span>
       </div>
+      <div class="fp-sec-body">
 
-      <div>
-        <div class="fp-section">
-          <div class="fp-sec-hdr">
-            <div class="fp-sec-title"><div class="fp-sec-icon green"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg></div>Requirement Information</div>
-            <span class="fp-sec-badge green">Product</span>
+        <div class="fp-subsec">Contact Details</div>
+        <div class="fgrid-2">
+          <div class="fg">
+            <label class="fl">Name <span class="req-star">*</span></label>
+            <input type="text" name="name" id="fi_name" class="fi" value="{{ lead.contact_name if lead else '' }}" placeholder="Contact person name">
+            <div class="field-err-msg" id="err_name">Name is required</div>
           </div>
-          <div class="fp-sec-body">
-            <div class="fp-subsec">Product Details</div>
-            <div class="frow"><label class="fl">Product Name</label><input type="text" name="product_name" class="fi" value="{{ lead.product_name if lead else '' }}" placeholder="Product name"></div>
-            <div class="fgrid-2" style="margin-bottom:.7rem;">
-              <div class="fg"><label class="fl">Category</label><div class="select-with-add"><select name="category" id="sel_category" class="fi sd"><option value="">Select Category</option>{% for cat in lead_categories %}<option value="{{ cat.name }}" {{ 'selected' if lead and lead.category==cat.name }}>{{ cat.icon }} {{ cat.name }}</option>{% endfor %}{% if not lead_categories %}{% for cat in ['Skin Care','Hair Care','Body Care','Oral Care','Baby Care','Cosmetics','Pharmaceuticals','Other'] %}<option value="{{ cat }}" {{ 'selected' if lead and lead.category==cat }}>{{ cat }}</option>{% endfor %}{% endif %}</select><button type="button" class="quick-add-btn" onclick="openQA('category',this)" title="Add new category">＋</button></div></div>
-              <div class="fg"><label class="fl">Product Range</label><div class="select-with-add"><select name="product_range" id="sel_range" class="fi sd"><option value="">Select Range</option>{% for r in product_ranges %}<option value="{{ r.name }}" {{ 'selected' if lead and lead.product_range==r.name }}>{{ r.icon }} {{ r.name }}</option>{% endfor %}{% if not product_ranges %}{% for r in ['Economy','Standard','Premium','Luxury'] %}<option value="{{ r }}" {{ 'selected' if lead and lead.product_range==r }}>{{ r }}</option>{% endfor %}{% endif %}</select><button type="button" class="quick-add-btn" onclick="openQA('range',this)" title="Add new range">＋</button></div></div>
-            </div>
-            <div class="frow"><label class="fl">Order Quantity</label><input type="text" name="order_quantity" class="fi" value="{{ lead.order_quantity if lead else '' }}" placeholder="e.g. 500 units, 1000 pcs"></div>
-            <div class="fp-subsec">Specifications</div>
-            <div class="frow"><label class="fl">Requirement Specification</label><textarea name="requirement_spec" class="fi" rows="5" placeholder="Describe product requirements in detail...">{{ lead.requirement_spec if lead else '' }}</textarea></div>
-            <div class="frow"><label class="fl">Remark</label><textarea name="remark" class="fi" rows="3" placeholder="Additional remarks, special instructions...">{{ lead.remark if lead else '' }}</textarea></div>
+          <div class="fg">
+            <label class="fl">Position</label>
+            <input type="text" name="position" class="fi" value="{{ lead.position if lead else '' }}" placeholder="CEO, Manager...">
+          </div>
+          <div class="fg">
+            <label class="fl">Mobile <span class="req-star">*</span></label>
+            <input type="text" name="mobile" id="fi_mobile" class="fi" value="{{ lead.phone if lead else '' }}" placeholder="9999999999">
+            <div class="field-err-msg" id="err_mobile">Mobile number is required</div>
+          </div>
+          <div class="fg">
+            <label class="fl">Alt. Mobile</label>
+            <input type="text" name="alternate_mobile" class="fi" value="{{ lead.alternate_mobile if lead else '' }}" placeholder="Alternate number">
+          </div>
+          <div class="fg">
+            <label class="fl">Email Address <span class="req-star">*</span></label>
+            <input type="text" name="email" id="fi_email" class="fi" value="{{ lead.email if lead else '' }}" placeholder="email@company.com">
+            <div class="field-err-msg" id="err_email">Valid email address is required</div>
+          </div>
+          <div class="fg">
+            <label class="fl">Website</label>
+            <input type="text" name="website" class="fi" value="{{ lead.website if lead else '' }}" placeholder="www.company.com">
           </div>
         </div>
+
+        <div class="fp-subsec">Company &amp; Address</div>
+        <div class="fgrid-2">
+          <div class="fg" style="grid-column:1/-1;">
+            <label class="fl">Company Name</label>
+            <input type="text" name="company" class="fi" value="{{ lead.company_name if lead else '' }}" placeholder="Company name">
+          </div>
+          <div class="fg" style="grid-column:1/-1;">
+            <label class="fl">Address</label>
+            <textarea name="address" class="fi" rows="2" placeholder="Street address">{{ lead.address if lead else '' }}</textarea>
+          </div>
+          <div class="fg">
+            <label class="fl">City <span class="req-star">*</span></label>
+            <input type="text" name="city" id="fi_city" class="fi" value="{{ lead.city if lead else '' }}" placeholder="City">
+            <div class="field-err-msg" id="err_city">City is required</div>
+          </div>
+          <div class="fg">
+            <label class="fl">State <span class="req-star">*</span></label>
+            <input type="text" name="state" id="fi_state" class="fi" value="{{ lead.state if lead else '' }}" placeholder="State">
+            <div class="field-err-msg" id="err_state">State is required</div>
+          </div>
+          <div class="fg">
+            <label class="fl">Country <span class="req-star">*</span></label>
+            <input type="text" name="country" id="fi_country" class="fi" value="{{ lead.country if lead else 'India' }}">
+            <div class="field-err-msg" id="err_country">Country is required</div>
+          </div>
+          <div class="fg">
+            <label class="fl">ZIP / Pin Code</label>
+            <input type="text" name="zip_code" class="fi" value="{{ lead.zip_code if lead else '' }}" placeholder="Pincode">
+          </div>
+        </div>
+
+        <div class="fp-subsec">Other</div>
+        <div class="fgrid-2">
+          <div class="fg">
+            <label class="fl">Average Cost (&#x20B9;)</label>
+            <input type="number" name="average_cost" class="fi" step="0.01" value="{{ lead.average_cost if lead else '' }}" placeholder="0.00">
+          </div>
+          <div class="fg">
+            <label class="fl">Link to Client Master</label>
+            <select name="client_id" id="sel_client" class="fi sd">
+              <option value="">&#x2014; No client linked &#x2014;</option>
+              {% for c in clients %}<option value="{{ c.id }}" {{ 'selected' if lead and lead.client_id==c.id }}>{{ c.contact_name }}{% if c.company_name %} &#x2014; {{ c.company_name }}{% endif %}</option>{% endfor %}
+            </select>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- SECTION 3: Requirement Information -->
+    <div class="fp-section">
+      <div class="fp-sec-hdr">
+        <div class="fp-sec-title">
+          <div class="fp-sec-icon green"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg></div>
+          Requirement Information
+        </div>
+        <span class="fp-sec-badge green">Product</span>
+      </div>
+      <div class="fp-sec-body">
+
+        <div class="fp-subsec">Product Details</div>
+        <div class="fgrid-2">
+          <div class="fg" style="grid-column:1/-1;">
+            <label class="fl">Product Name <span class="req-star">*</span></label>
+            <input type="text" name="product_name" id="fi_product_name" class="fi" value="{{ lead.product_name if lead else '' }}" placeholder="Product name">
+            <div class="field-err-msg" id="err_product_name">Product name is required</div>
+          </div>
+          <div class="fg">
+            <label class="fl">Category <span class="req-star">*</span></label>
+            <div class="select-with-add">
+              <select name="category" id="sel_category" class="fi sd">
+                <option value="">Select Category</option>
+                {% for cat in lead_categories %}<option value="{{ cat.name }}" {{ 'selected' if lead and lead.category==cat.name }}>{{ cat.icon }} {{ cat.name }}</option>{% endfor %}
+                {% if not lead_categories %}{% for cat in ['Skin Care','Hair Care','Body Care','Oral Care','Baby Care','Cosmetics','Pharmaceuticals','Other'] %}<option value="{{ cat }}" {{ 'selected' if lead and lead.category==cat }}>{{ cat }}</option>{% endfor %}{% endif %}
+              </select>
+              <button type="button" class="quick-add-btn" onclick="openQA('category',this)" title="Add new category">&#xff0b;</button>
+            </div>
+            <div class="field-err-msg" id="err_category">Category is required</div>
+          </div>
+          <div class="fg">
+            <label class="fl">Product Range <span class="req-star">*</span></label>
+            <div class="select-with-add">
+              <select name="product_range" id="sel_range" class="fi sd">
+                <option value="">Select Range</option>
+                {% for r in product_ranges %}<option value="{{ r.name }}" {{ 'selected' if lead and lead.product_range==r.name }}>{{ r.icon }} {{ r.name }}</option>{% endfor %}
+                {% if not product_ranges %}{% for r in ['Economy','Standard','Premium','Luxury'] %}<option value="{{ r }}" {{ 'selected' if lead and lead.product_range==r }}>{{ r }}</option>{% endfor %}{% endif %}
+              </select>
+              <button type="button" class="quick-add-btn" onclick="openQA('range',this)" title="Add new range">&#xff0b;</button>
+            </div>
+            <div class="field-err-msg" id="err_range">Product Range is required</div>
+          </div>
+          <div class="fg">
+            <label class="fl">Order Quantity</label>
+            <input type="text" name="order_quantity" class="fi" value="{{ lead.order_quantity if lead else '' }}" placeholder="e.g. 500 units, 1000 pcs">
+          </div>
+        </div>
+
+        <div class="fp-subsec">Specifications</div>
+        <div class="fgrid-2">
+          <div class="fg" style="grid-column:1/-1;">
+            <label class="fl">Requirement Specification <span class="req-star">*</span></label>
+            <div class="ck-editor-wrap" id="ck_req_spec_wrap"></div>
+            <textarea name="requirement_spec" id="fi_req_spec" style="display:none;">{{ lead.requirement_spec if lead else '' }}</textarea>
+            <div class="field-err-msg" id="err_req_spec">Requirement Specification is required</div>
+          </div>
+          <div class="fg" style="grid-column:1/-1;">
+            <label class="fl">Remark</label>
+            <div class="ck-editor-wrap" id="ck_remark_wrap"></div>
+            <textarea name="remark" id="fi_remark" style="display:none;">{{ lead.remark if lead else '' }}</textarea>
+          </div>
+        </div>
+
       </div>
     </div>
 
@@ -133,26 +295,163 @@
   </form>
 </div>
 
-<div class="qa-popup" id="qaPopup"><span class="qa-popup-close" onclick="closeQA()">✕</span><h4 id="qaTitle">Add New Item</h4><div class="qa-popup-row"><input type="text" id="qaIcon" class="fi" style="width:52px;padding:6px 8px;font-size:.9rem;" placeholder="🔵" maxlength="4"><input type="text" id="qaName" class="fi" placeholder="Name..." style="flex:1;"><button type="button" class="qa-popup-add" onclick="submitQA()">Add</button></div><p id="qaError" style="color:#dc2626;font-size:.75rem;margin-top:6px;display:none;"></p></div>
+<div class="val-toast" id="valToast">
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+  <span id="valToastMsg"></span>
+</div>
 
+<div class="qa-popup" id="qaPopup">
+  <span class="qa-popup-close" onclick="closeQA()">&#x2715;</span>
+  <h4 id="qaTitle">Add New Item</h4>
+  <div class="qa-popup-row">
+    <input type="text" id="qaIcon" class="fi" style="width:52px;padding:6px 8px;font-size:.9rem;" placeholder="&#x1F535;" maxlength="4">
+    <input type="text" id="qaName" class="fi" placeholder="Name..." style="flex:1;">
+    <button type="button" class="qa-popup-add" onclick="submitQA()">Add</button>
+  </div>
+  <p id="qaError" style="color:#dc2626;font-size:.75rem;margin-top:6px;display:none;"></p>
+</div>
+
+<script src="https://cdn.ckeditor.com/ckeditor5/41.4.2/classic/ckeditor.js"></script>
 <script>
-const tagHidden=document.getElementById('tagsHidden'),tagChips=document.getElementById('tagChips'),tagTyper=document.getElementById('tagTyper');let tags=[];
+var ckReqSpec=null, ckRemark=null;
+
+ClassicEditor.create(document.getElementById('fi_req_spec'),{
+  toolbar:['heading','|','bold','italic','underline','strikethrough','|','bulletedList','numberedList','|','blockQuote','insertTable','|','undo','redo'],
+  placeholder:'Describe product requirements in detail...'
+}).then(function(editor){
+  ckReqSpec=editor;
+  document.getElementById('ck_req_spec_wrap').appendChild(editor.ui.element);
+}).catch(console.error);
+
+ClassicEditor.create(document.getElementById('fi_remark'),{
+  toolbar:['bold','italic','underline','|','bulletedList','numberedList','|','undo','redo'],
+  placeholder:'Additional remarks, special instructions...'
+}).then(function(editor){
+  ckRemark=editor;
+  document.getElementById('ck_remark_wrap').appendChild(editor.ui.element);
+}).catch(console.error);
+
+function showValToast(msg){var t=document.getElementById('valToast');document.getElementById('valToastMsg').textContent=msg;t.classList.add('show');setTimeout(function(){t.classList.remove('show');},3500);}
+function isValidEmail(v){return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());}
+
+function validateLeadForm(){
+  document.querySelectorAll('.field-error').forEach(function(e){e.classList.remove('field-error');});
+  document.querySelectorAll('.field-err-msg.show').forEach(function(e){e.classList.remove('show');});
+  var errors=[];
+  var status=document.getElementById('sel_status');
+  if(!status.value){status.classList.add('field-error');document.getElementById('err_status').classList.add('show');errors.push('Status');}
+  var source=document.getElementById('sel_source');
+  if(!source.value){source.classList.add('field-error');document.getElementById('err_source').classList.add('show');errors.push('Source');}
+  var teamChecked=document.querySelectorAll('#ms_team_opts input:checked');
+  if(teamChecked.length===0){document.getElementById('ms_team').classList.add('field-error');document.getElementById('err_team').classList.add('show');errors.push('Team Members');}
+  var name=document.getElementById('fi_name');
+  if(!name.value.trim()){name.classList.add('field-error');document.getElementById('err_name').classList.add('show');errors.push('Name');}
+  var mobile=document.getElementById('fi_mobile');
+  if(!mobile.value.trim()){mobile.classList.add('field-error');document.getElementById('err_mobile').classList.add('show');errors.push('Mobile');}
+  var email=document.getElementById('fi_email');
+  var errEmailEl=document.getElementById('err_email');
+  if(!email.value.trim()){email.classList.add('field-error');errEmailEl.textContent='Email address is required';errEmailEl.classList.add('show');errors.push('Email');}
+  else if(!isValidEmail(email.value)){email.classList.add('field-error');errEmailEl.textContent='Enter a valid email (e.g. name@domain.com)';errEmailEl.classList.add('show');errors.push('Valid Email');}
+  var city=document.getElementById('fi_city');
+  if(!city.value.trim()){city.classList.add('field-error');document.getElementById('err_city').classList.add('show');errors.push('City');}
+  var state=document.getElementById('fi_state');
+  if(!state.value.trim()){state.classList.add('field-error');document.getElementById('err_state').classList.add('show');errors.push('State');}
+  var country=document.getElementById('fi_country');
+  if(!country.value.trim()){country.classList.add('field-error');document.getElementById('err_country').classList.add('show');errors.push('Country');}
+  var pname=document.getElementById('fi_product_name');
+  if(!pname.value.trim()){pname.classList.add('field-error');document.getElementById('err_product_name').classList.add('show');errors.push('Product Name');}
+  var cat=document.getElementById('sel_category');
+  if(!cat.value){cat.classList.add('field-error');document.getElementById('err_category').classList.add('show');errors.push('Category');}
+  var range=document.getElementById('sel_range');
+  if(!range.value){range.classList.add('field-error');document.getElementById('err_range').classList.add('show');errors.push('Product Range');}
+  var specContent=ckReqSpec?ckReqSpec.getData().replace(/<[^>]*>/g,'').trim():'';
+  if(!specContent){document.getElementById('ck_req_spec_wrap').classList.add('field-error');document.getElementById('err_req_spec').classList.add('show');errors.push('Requirement Specification');}
+  if(errors.length>0){
+    var msg=errors.length===1?errors[0]+' is required':errors[0]+' and '+(errors.length-1)+' more field'+(errors.length>2?'s':'')+' required';
+    showValToast(msg);
+    var firstErr=document.querySelector('.field-error');
+    if(firstErr)firstErr.scrollIntoView({behavior:'smooth',block:'center'});
+    return false;
+  }
+  return true;
+}
+
+document.getElementById('leadForm').addEventListener('submit',function(e){
+  e.preventDefault();
+  if(ckReqSpec)document.getElementById('fi_req_spec').value=ckReqSpec.getData();
+  if(ckRemark)document.getElementById('fi_remark').value=ckRemark.getData();
+  document.getElementById('fi_req_spec').style.display='';
+  document.getElementById('fi_remark').style.display='';
+  if(!validateLeadForm()){
+    document.getElementById('fi_req_spec').style.display='none';
+    document.getElementById('fi_remark').style.display='none';
+    return;
+  }
+  var btn=document.querySelector('.fp-btn-save');
+  var origHtml=btn.innerHTML;
+  btn.disabled=true;
+  btn.innerHTML='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="animation:spin .7s linear infinite"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Saving...';
+  var formData=new FormData(document.getElementById('leadForm'));
+  fetch(window.location.href,{method:'POST',headers:{'X-Requested-With':'XMLHttpRequest'},body:formData})
+  .then(function(res){return res.json();})
+  .then(function(data){
+    btn.disabled=false;btn.innerHTML=origHtml;
+    document.getElementById('fi_req_spec').style.display='none';
+    document.getElementById('fi_remark').style.display='none';
+    if(data.success){showToast(data.message||'Lead saved successfully!','success',5000);if(data.redirect)setTimeout(function(){window.location.href=data.redirect;},1200);}
+    else{showToast(data.message||'Something went wrong.','danger',5000);}
+  })
+  .catch(function(){
+    btn.disabled=false;btn.innerHTML=origHtml;
+    document.getElementById('fi_req_spec').style.display='none';
+    document.getElementById('fi_remark').style.display='none';
+    showToast('Network error. Please check your connection.','danger',5000);
+  });
+});
+
+['fi_name','fi_mobile','fi_email','fi_city','fi_state','fi_country','fi_product_name'].forEach(function(id){
+  var el=document.getElementById(id);if(!el)return;
+  el.addEventListener('input',function(){el.classList.remove('field-error');var em=document.getElementById('err_'+id.replace('fi_',''));if(em)em.classList.remove('show');});
+});
+['sel_status','sel_source','sel_category','sel_range'].forEach(function(id){
+  var el=document.getElementById(id);if(!el)return;
+  el.addEventListener('change',function(){el.classList.remove('field-error');var em=document.getElementById('err_'+id.replace('sel_',''));if(em)em.classList.remove('show');});
+});
+
+function toggleMsLocal(wrapId){document.getElementById(wrapId).classList.toggle('open');}
+function msSearchLocal(inp,optId){var q=inp.value.toLowerCase();document.querySelectorAll('#'+optId+' .ms-opt').forEach(function(opt){opt.style.display=opt.querySelector('span').textContent.toLowerCase().includes(q)?'':' none';});}
+function updateTeamLabel(){
+  var checked=Array.from(document.querySelectorAll('#ms_team_opts input:checked'));
+  var lbl=document.getElementById('ms_team_lbl');
+  if(checked.length===0){lbl.textContent='Select Members';lbl.classList.remove('has-val');}
+  else if(checked.length===1){lbl.textContent=checked[0].closest('.ms-opt').querySelector('span').textContent.trim();lbl.classList.add('has-val');}
+  else{lbl.textContent=checked.length+' selected';lbl.classList.add('has-val');}
+  if(checked.length>0){document.getElementById('ms_team').classList.remove('field-error');var em=document.getElementById('err_team');if(em)em.classList.remove('show');}
+}
+function selectAllTeam(){document.querySelectorAll('#ms_team_opts input').forEach(function(c){c.checked=true;});updateTeamLabel();}
+function clearTeam(){document.querySelectorAll('#ms_team_opts input').forEach(function(c){c.checked=false;});updateTeamLabel();}
+document.addEventListener('click',function(e){var wrap=document.getElementById('ms_team');if(wrap&&wrap.classList.contains('open')&&!wrap.contains(e.target))wrap.classList.remove('open');});
+updateTeamLabel();
+
+const tagHidden=document.getElementById('tagsHidden'),tagChips=document.getElementById('tagChips'),tagTyper=document.getElementById('tagTyper');
+let tags=[];
 function initTags(){const val=tagHidden.value.trim();if(val)val.split(',').forEach(t=>{const s=t.trim();if(s)tags.push(s);});renderTags();}
-function renderTags(){tagChips.innerHTML=tags.map((t,i)=>`<span class="tag-chip">${t}<span class="tag-x" onclick="removeTag(${i})">×</span></span>`).join('');tagHidden.value=tags.join(',');}
+function renderTags(){tagChips.innerHTML=tags.map((t,i)=>`<span class="tag-chip">${t}<span class="tag-x" onclick="removeTag(${i})">&#215;</span></span>`).join('');tagHidden.value=tags.join(',');}
 function addTag(val){const s=val.trim().replace(/,+$/,'');if(s&&!tags.includes(s)){tags.push(s);renderTags();}tagTyper.value='';}
 function removeTag(i){tags.splice(i,1);renderTags();tagTyper.focus();}
 tagTyper.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===','){e.preventDefault();addTag(tagTyper.value);}else if(e.key==='Backspace'&&tagTyper.value===''&&tags.length){tags.pop();renderTags();}});
 tagTyper.addEventListener('blur',()=>{if(tagTyper.value.trim())addTag(tagTyper.value);});
 tagTyper.addEventListener('paste',e=>{e.preventDefault();(e.clipboardData||window.clipboardData).getData('text').split(/[,\n]+/).forEach(t=>addTag(t));});
 initTags();
+
 let qaType='',qaSelectId='';
 const selMap={status:'sel_status',source:'sel_source',category:'sel_category',range:'sel_range'};
 const labelMap={status:'Lead Status',source:'Lead Source',category:'Lead Category',range:'Product Range'};
-function openQA(type,btn){qaType=type;qaSelectId=selMap[type];document.getElementById('qaTitle').textContent='＋ Add '+labelMap[type];document.getElementById('qaName').value='';document.getElementById('qaIcon').value='';document.getElementById('qaError').style.display='none';const popup=document.getElementById('qaPopup');popup.classList.add('show');const r=btn.getBoundingClientRect();popup.style.top=(r.bottom+window.scrollY+6)+'px';popup.style.left=Math.min(r.left+window.scrollX,window.innerWidth-300)+'px';setTimeout(()=>document.getElementById('qaName').focus(),50);}
+function openQA(type,btn){qaType=type;qaSelectId=selMap[type];document.getElementById('qaTitle').textContent='+ Add '+labelMap[type];document.getElementById('qaName').value='';document.getElementById('qaIcon').value='';document.getElementById('qaError').style.display='none';const popup=document.getElementById('qaPopup');popup.classList.add('show');const r=btn.getBoundingClientRect();popup.style.top=(r.bottom+window.scrollY+6)+'px';popup.style.left=Math.min(r.left+window.scrollX,window.innerWidth-300)+'px';setTimeout(()=>document.getElementById('qaName').focus(),50);}
 function closeQA(){document.getElementById('qaPopup').classList.remove('show');}
 async function submitQA(){const name=document.getElementById('qaName').value.trim();const icon=document.getElementById('qaIcon').value.trim();if(!name){showQAError('Please enter a name');return;}try{const res=await fetch('/masters/quick-add',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type:qaType,name,icon})});const data=await res.json();if(data.success){const sel=document.getElementById(qaSelectId);const displayText=(icon?icon+' ':'')+name;const opt=document.createElement('option');opt.value=name;opt.text=displayText;sel.appendChild(opt);if(sel._sdRefresh)sel._sdRefresh(name,displayText);closeQA();}else{showQAError(data.error||'Error adding item');}}catch(e){showQAError('Network error');}}
 function showQAError(msg){const el=document.getElementById('qaError');el.textContent=msg;el.style.display='block';}
-document.addEventListener('click',e=>{const popup=document.getElementById('qaPopup');if(popup.classList.contains('show')&&!popup.contains(e.target)&&!e.target.classList.contains('quick-add-btn'))closeQA();});
+document.addEventListener('click',e=>{const popup=document.getElementById('qaPopup');if(popup&&popup.classList.contains('show')&&!popup.contains(e.target)&&!e.target.classList.contains('quick-add-btn'))closeQA();});
 document.getElementById('qaName').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();submitQA();}});
 </script>
 {% endblock %}

@@ -64,6 +64,11 @@ class Lead(db.Model):
     client_id        = db.Column(db.Integer, db.ForeignKey('client_masters.id'))
     client_attachment = db.Column(db.String(300))
 
+    # Soft Delete
+    is_deleted       = db.Column(db.Boolean, default=False, nullable=False,
+                                 server_default='0')
+    deleted_at       = db.Column(db.DateTime, nullable=True)
+
     # Audit
     created_by       = db.Column(db.Integer, db.ForeignKey('users.id'))
     created_at       = db.Column(db.DateTime, default=datetime.now)

@@ -39,6 +39,20 @@ EMP_COLS_ALL = {
     'qr':             'QR Code',
 }
 
+CTR_COLS_DEFAULT = ['contract_id','company_name','supply','contact_person','contact_no','email_address','pancard','gstno','status']
+CTR_COLS_ALL = {
+    'contract_id':    'Contract ID',
+    'company_name':   'Company',
+    'supply':         'Supply',
+    'contact_person': 'Contact Person',
+    'contact_no':     'Mobile',
+    'email_address':  'Email',
+    'pancard':        'PAN',
+    'gstno':          'GST No',
+    'remarks':        'Remarks',
+    'status':         'Status',
+}
+
 
 # ══════════════════════════════════════
 # EMPLOYEE
@@ -51,36 +65,44 @@ def employees():
     if not perm or not perm.can_view:
         flash('Access denied.', 'error'); return redirect(url_for('dashboard'))
 
-    search  = request.args.get('search', '')
-    dept    = request.args.get('dept', '')
-    status  = request.args.get('status', '')
-    emptype = request.args.get('emptype', '')
+    search     = request.args.get('search', '')
+    dept       = request.args.get('dept', '')
+    status     = request.args.get('status', '')
+    emptype    = request.args.get('emptype', '')
+    em_status_f= request.args.get('status_f', '')
+    show_trash = request.args.get('trash', '') == '1'
 
-    q = Employee.query
-    if search:
-        q = q.filter(
-            Employee.first_name.ilike(f'%{search}%') |
-            Employee.last_name.ilike(f'%{search}%') |
-            Employee.employee_code.ilike(f'%{search}%') |
-            Employee.mobile.ilike(f'%{search}%') |
-            Employee.email.ilike(f'%{search}%')
-        )
-    if dept:    q = q.filter_by(department=dept)
-    if status:  q = q.filter_by(status=status)
-    if emptype: q = q.filter_by(employee_type=emptype)
+    # Trash view: sirf deleted, Normal view: sirf non-deleted
+    q = Employee.query.filter_by(is_deleted=True) if show_trash         else Employee.query.filter_by(is_deleted=False)
+
+    if not show_trash:
+        if search:
+            q = q.filter(
+                Employee.first_name.ilike(f'%{search}%') |
+                Employee.last_name.ilike(f'%{search}%') |
+                Employee.employee_code.ilike(f'%{search}%') |
+                Employee.mobile.ilike(f'%{search}%') |
+                Employee.email.ilike(f'%{search}%')
+            )
+        if dept:    q = q.filter_by(department=dept)
+        if status:  q = q.filter_by(status=status)
+        if emptype: q = q.filter_by(employee_type=emptype)
 
     sort_by  = request.args.get('sort_by', 'created_at')
     sort_dir = request.args.get('sort_dir', 'desc')
     sort_col = getattr(Employee, sort_by, Employee.created_at)
     emps = q.order_by(sort_col.asc() if sort_dir == 'asc' else sort_col.desc()).all()
 
-    all_depts = [r[0] for r in db.session.query(Employee.department).distinct().all() if r[0]]
-    grid_cols = get_grid_columns('employees', EMP_COLS_DEFAULT, list(EMP_COLS_ALL.keys()))
+    all_depts     = [r[0] for r in db.session.query(Employee.department).distinct().all() if r[0]]
+    grid_cols     = get_grid_columns('employees', EMP_COLS_DEFAULT, list(EMP_COLS_ALL.keys()))
+    deleted_count = Employee.query.filter_by(is_deleted=True).count()
 
     return render_template('hr/employees/index.html',
         employees=emps, perm=perm, active_page='hr_employees',
         search=search, dept=dept, status=status, emptype=emptype,
+        em_status_f=em_status_f,
         sort_by=sort_by, sort_dir=sort_dir,
+        show_trash=show_trash, deleted_count=deleted_count,
         all_depts=all_depts, grid_cols=grid_cols, all_cols=EMP_COLS_ALL)
 
 
@@ -388,14 +410,13 @@ def emp_grid_config():
     return jsonify(success=True)
 
 
-
 @hr.route('/contractors/grid-config', methods=['POST'])
 @login_required
 def contractor_grid_config():
-    data = request.get_json() or {}
-    cols = data.get('cols', [])
+    cols = request.json.get('cols', [])
     save_grid_columns('contractors', cols)
-    return jsonify(ok=True)
+    return jsonify(success=True)
+
 
 @hr.route('/employees/save-qr', methods=['POST'])
 @login_required
@@ -893,10 +914,25 @@ def emp_delete(id):
         flash('Access denied.', 'error'); return redirect(url_for('hr.employees'))
     e = Employee.query.get_or_404(id)
     name = e.full_name
-    db.session.delete(e)
+    e.is_deleted = True
+    e.deleted_at = datetime.utcnow()
     db.session.commit()
-    flash(f'Employee "{name}" deleted.', 'success')
+    flash(f'Employee "{name}" moved to trash.', 'warning')
     return redirect(url_for('hr.employees'))
+
+
+@hr.route('/employees/<int:id>/restore', methods=['POST'])
+@login_required
+def emp_restore(id):
+    perm = get_perm('hr_employees')
+    if not perm or not perm.can_delete:
+        flash('Access denied.', 'error'); return redirect(url_for('hr.employees'))
+    e = Employee.query.get_or_404(id)
+    e.is_deleted = False
+    e.deleted_at = None
+    db.session.commit()
+    flash(f'Employee "{e.full_name}" restored successfully!', 'success')
+    return redirect(url_for('hr.employees', trash=1))
 
 
 @hr.route('/employees/<int:id>/regenerate-qr', methods=['POST'])
@@ -946,27 +982,43 @@ def contractors():
     if not perm or not perm.can_view:
         flash('Access denied.', 'error'); return redirect(url_for('dashboard'))
 
-    search = request.args.get('search', '')
-    status = request.args.get('status', '')
-    q = Contractor.query.filter_by(is_deleted=0)
-    if search:
-        q = q.filter(
-            Contractor.company_name.ilike(f'%{search}%') |
-            Contractor.contact_person.ilike(f'%{search}%') |
-            Contractor.contract_id.ilike(f'%{search}%') |
-            Contractor.contact_no.ilike(f'%{search}%')
-        )
-    if status != '':
-        q = q.filter_by(status=int(status))
+    search      = request.args.get('search', '')
+    ct_status_f = request.args.get('status_f', '')
+    ct_supply_f = request.args.get('supply_f', '')
+    show_trash  = request.args.get('trash', '') == '1'
+
+    # Trash view: sirf deleted, Normal view: sirf non-deleted
+    q = Contractor.query.filter_by(is_deleted=True) if show_trash         else Contractor.query.filter_by(is_deleted=False)
+
+    if not show_trash:
+        if search:
+            q = q.filter(
+                Contractor.company_name.ilike(f'%{search}%') |
+                Contractor.contact_person.ilike(f'%{search}%') |
+                Contractor.contract_id.ilike(f'%{search}%') |
+                Contractor.contact_no.ilike(f'%{search}%')
+            )
+        if ct_status_f != '':
+            q = q.filter_by(status=int(ct_status_f))
+        if ct_supply_f:
+            q = q.filter_by(supply=ct_supply_f)
 
     sort_by  = request.args.get('sort_by', 'created_date')
     sort_dir = request.args.get('sort_dir', 'desc')
     sort_col = getattr(Contractor, sort_by, Contractor.created_date)
     ctrs = q.order_by(sort_col.asc() if sort_dir == 'asc' else sort_col.desc()).all()
+
+    all_supplies  = [r[0] for r in db.session.query(Contractor.supply).distinct().all() if r[0]]
+    deleted_count = Contractor.query.filter_by(is_deleted=True).count()
+    grid_cols     = get_grid_columns('contractors', CTR_COLS_DEFAULT, list(CTR_COLS_ALL.keys()))
+
     return render_template('hr/contractors/index.html',
         contractors=ctrs, perm=perm, active_page='hr_contractors',
-        search=search, status=status,
-        sort_by=sort_by, sort_dir=sort_dir)
+        search=search, ct_status_f=ct_status_f, ct_supply_f=ct_supply_f,
+        sort_by=sort_by, sort_dir=sort_dir,
+        show_trash=show_trash, deleted_count=deleted_count,
+        all_supplies=all_supplies,
+        grid_cols=grid_cols, all_cols=CTR_COLS_ALL)
 
 
 @hr.route('/contractors/add', methods=['GET', 'POST'])
@@ -1038,11 +1090,27 @@ def contractor_delete(id):
     if not perm or not perm.can_delete:
         flash('Access denied.', 'error'); return redirect(url_for('hr.contractors'))
     c = Contractor.query.get_or_404(id)
-    c.is_deleted = 1
+    c.is_deleted = True
+    c.deleted_at = datetime.utcnow()
     c.modified_by = current_user.full_name or current_user.username
     db.session.commit()
-    flash(f'Contractor "{c.company_name}" deleted.', 'success')
+    flash(f'Contractor "{c.company_name}" moved to trash.', 'warning')
     return redirect(url_for('hr.contractors'))
+
+
+@hr.route('/contractors/<int:id>/restore', methods=['POST'])
+@login_required
+def contractor_restore(id):
+    perm = get_perm('hr_contractors')
+    if not perm or not perm.can_delete:
+        flash('Access denied.', 'error'); return redirect(url_for('hr.contractors'))
+    c = Contractor.query.get_or_404(id)
+    c.is_deleted = False
+    c.deleted_at = None
+    c.modified_by = current_user.full_name or current_user.username
+    db.session.commit()
+    flash(f'Contractor "{c.company_name}" restored successfully!', 'success')
+    return redirect(url_for('hr.contractors', trash=1))
 
 
 
@@ -1915,10 +1983,12 @@ def salary_config_page():
     return render_template('hr/salary_config.html', cfg=cfg, components=comps_raw, components_json=components_dict, active_page='salary_config')
 
 
+# ── Salary Components CRUD ────────────────────────────────────────────────────
+
 @hr.route('/salary-components', methods=['GET'])
 @login_required
 def salary_components_list():
-    """Return all active components as JSON."""
+    """Return all components as JSON (for employee form)."""
     comps = SalaryComponent.get_all_active()
     return jsonify(ok=True, components=[c.to_dict() for c in comps])
 
@@ -1928,9 +1998,11 @@ def salary_components_list():
 def salary_component_add():
     try:
         d = request.get_json() or {}
+        # Validate required
         for f in ('name', 'code', 'component_type', 'calc_type'):
             if not d.get(f):
                 return jsonify(ok=False, error=f'{f} required'), 400
+        # Check duplicate code
         if SalaryComponent.query.filter_by(code=d['code'].strip().lower()).first():
             return jsonify(ok=False, error='Code already exists'), 400
         comp = SalaryComponent(

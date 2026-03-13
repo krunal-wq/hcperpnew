@@ -29,6 +29,12 @@ class ClientMaster(db.Model):
     zip_code         = db.Column(db.String(10))
 
     notes            = db.Column(db.Text)
+
+    # Soft Delete
+    is_deleted       = db.Column(db.Boolean, default=False, nullable=False,
+                                 server_default='0')
+    deleted_at       = db.Column(db.DateTime, nullable=True)
+
     created_by       = db.Column(db.Integer, db.ForeignKey('users.id'))
     created_at       = db.Column(db.DateTime, default=datetime.now)
     modified_by      = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)

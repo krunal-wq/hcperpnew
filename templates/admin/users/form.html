@@ -5,25 +5,18 @@
 {% block content %}
 <div class="fp-wrap fp-narrow">
 
-  <div class="fp-header">
-    <div class="fp-header-top">
-      <span class="fp-brand">Admin &bull; Users</span>
-      <div class="fp-hdr-actions">
-        <a href="{{ url_for('users_bp.users') }}" class="fp-hbtn"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>Back</a>
-      </div>
+      <div class="fp-header">
+    <div class="fp-hdr-actions">
+      <a href="{{ url_for('admin.users') }}" class="fp-hbtn">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>Back
+      </a>
     </div>
     <div class="fp-title-row">
-      <span class="fp-title-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span>
-      <span class="fp-title-text">{{ 'Edit User' if user else 'Add User' }}</span>
-      {% if user %}<span class="fp-record-badge">{{ user.username }}</span>{% endif %}
-    </div>
-    <div class="fp-tab-bar" style="padding-bottom:0;">
-      <span class="fp-tab active"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>User Details</span>
-      {% if user %}<span class="fp-status-badge">{{ 'ACTIVE' if user.is_active else 'INACTIVE' }}</span>{% endif %}
+      <span class="fp-title-text">{{ 'Edit User' if user else 'Add New User' }}</span>
     </div>
   </div>
 
-  <form method="POST">
+  <form method="POST" id="userForm">
     <div class="fp-section">
       <div class="fp-sec-hdr">
         <div class="fp-sec-title"><div class="fp-sec-icon blue"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>User Information</div>

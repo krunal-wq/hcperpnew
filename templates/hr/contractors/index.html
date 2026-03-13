@@ -3,132 +3,522 @@
 {% block title %}Contractors{% endblock %}
 {% block page_title %}Contractors{% endblock %}
 {% block bread %}HR / Contractors{% endblock %}
-{% block content %}
-<div class="page-hdr">
-    <div>
-        <h1 style="font-size:1.2rem;">🤝 Contractors</h1>
-        <p style="font-size:.78rem;color:var(--text3);">{{ contractors|length }} contractors</p>
-    </div>
-    <div style="display:flex;gap:.5rem;flex-wrap:wrap;">
-        <button type="button" onclick="doExport('ct')" class="btn-outline" style="font-size:.8rem;">📤 Export</button>
-        {% if perm.can_add %}
-        <a href="{{ url_for('hr.contractor_add') }}" class="btn-primary" style="font-size:.82rem;">＋ Add Contractor</a>
-        {% endif %}
-    </div>
-</div>
 
-{% set _ctfc = [search,status]|select|list|length %}
-<div class="fs-panel" style="margin-bottom:1rem;">
-  <div style="display:flex;gap:6px;align-items:center;">
-    <button id="fsTabFilter" class="fs-tab" onclick="toggleFsTab('filter','ct')">
-      🔍 Filter{% if _ctfc > 0 %} <span class="fs-badge">{{ _ctfc }}</span>{% endif %}
-    </button>
-    {% if _ctfc > 0 %}<a href="{{ url_for('hr.contractors') }}" class="fs-clear">✕ Clear All</a>{% endif %}
+{% block extra_css %}
+.ct-grid { width:100%; border-collapse:collapse; font-size:.83rem; }
+.ct-grid th { text-align:left; padding:.55rem .9rem; font-size:.7rem; font-weight:700; color:var(--text3); text-transform:uppercase; letter-spacing:.06em; border-bottom:2px solid var(--border); background:#f8fafc; white-space:nowrap; }
+.ct-grid td { padding:.6rem .9rem; border-bottom:1px solid #f1f5f9; vertical-align:middle; }
+.ct-grid tr:hover td { background:#f8fafc; }
+.ct-grid tr:last-child td { border-bottom:none; }
+
+/* ── Inline Edit ── */
+.ie-cell { cursor:pointer; position:relative; }
+.ie-cell:hover { background:rgba(37,99,235,.04); }
+.ie-view { display:flex; align-items:center; gap:5px; min-height:22px; }
+.ie-pencil { opacity:0; font-size:11px; color:#94a3b8; transition:opacity .15s; }
+.ie-cell:hover .ie-pencil { opacity:1; }
+.ie-input-wrap { display:none; align-items:center; gap:4px; }
+.ie-input, .ie-select { padding:3px 7px; border:1.5px solid #2563eb; border-radius:5px; font-size:.8rem; background:#fff; outline:none; min-width:80px; max-width:180px; box-shadow:0 0 0 3px rgba(37,99,235,.1); }
+.ie-ok  { padding:3px 8px; border-radius:5px; border:none; background:#2563eb; color:#fff; font-size:.72rem; font-weight:700; cursor:pointer; }
+.ie-esc { padding:3px 7px; border-radius:5px; border:1px solid var(--border); background:#f8fafc; color:var(--text2); font-size:.72rem; cursor:pointer; }
+.ie-cell.ie-saving .ie-view { opacity:.4; }
+.ie-cell.ie-saved  { animation: ie-flash .5s ease; }
+@keyframes ie-flash { 0%,100%{background:transparent} 40%{background:rgba(16,185,129,.12)} }
+/* Trash styles */
+.trash-tab { color:#dc2626 !important; }
+.trash-tab.active { color:#dc2626 !important; background:#fef2f2 !important; }
+.trash-badge { display:inline-block; background:#dc2626; color:#fff; font-size:.6rem; font-weight:800; padding:1px 5px; border-radius:10px; margin-left:3px; vertical-align:middle; }
+.trash-banner { background:#fef3c7; border-bottom:1px solid #fcd34d; padding:8px 14px; font-size:.8rem; color:#92400e; display:flex; align-items:center; gap:8px; }
+.ra-btn.restore-btn { color:#059669; border-color:#a7f3d0; background:#ecfdf5; display:flex; align-items:center; gap:4px; padding:3px 9px; border-radius:6px; border:1px solid; font-size:.73rem; font-weight:700; cursor:pointer; white-space:nowrap; }
+.ra-btn.restore-btn:hover { background:#d1fae5; }
+{% endblock %}
+
+{% block content %}
+{% set _ctfc = [search, ct_status_f, ct_supply_f]|select|list|length %}
+
+{% if show_trash %}
+<div class="trash-banner" style="margin-bottom:.5rem;border-radius:10px;">
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+  Showing <strong>{{ contractors|length }}</strong> deleted contractor{{ 's' if contractors|length != 1 else '' }} — records can be restored.
+  <a href="{{ url_for('hr.contractors') }}" style="color:#92400e;font-weight:700;text-decoration:underline;">← Back to Contractors</a>
+</div>
+{% endif %}
+<div class="grid-card" style="overflow:visible;">
+
+  <!-- Trash / Status Tabs -->
+  <div class="grid-filter-tabs" style="padding:0 14px;border-bottom:1px solid var(--border);background:#fafbfc;">
+    <a href="{{ url_for('hr.contractors') }}" class="gft {{ 'active' if not show_trash }}">All</a>
+    <a href="{{ url_for('hr.contractors', trash=1) }}" class="gft trash-tab {{ 'active' if show_trash }}">
+      🗑 Deleted{% if deleted_count %} <span class="trash-badge">{{ deleted_count }}</span>{% endif %}
+    </a>
   </div>
 
-  <div id="fsPanelFilter_ct" class="fs-pane" style="display:none;">
-    <div class="fs-grid" style="max-width:520px;">
-      <div class="fs-field">
-        <label>🔍 Search</label>
-        <input type="text" id="ct_search" value="{{ search }}" placeholder="Company, contract ID, contact…" oninput="fsDebounce('ct')">
-      </div>
-      <div class="fs-field">
-        <label>✅ Status</label>
-        <select id="ct_status" onchange="fsSubmit('ct')">
-          <option value="">All</option>
-          <option value="1" {{ 'selected' if status=='1' }}>Active</option>
-          <option value="0" {{ 'selected' if status=='0' }}>Inactive</option>
-        </select>
-      </div>
+  <!-- ── Toolbar ── -->
+  <div class="grid-toolbar">
+    {% if perm.can_add and not show_trash %}
+    <a href="{{ url_for('hr.contractor_add') }}" class="btn-add-new">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Add Contractor
+    </a>
+    {% endif %}
+    <div class="grid-search-wrap">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="text" class="grid-search-input" id="gSearchInput" placeholder="Global Search..." oninput="gridGlobalSearch(this.value)">
     </div>
-    {% if search or status %}
-    <div style="display:flex;flex-wrap:wrap;gap:.35rem;margin-top:.65rem;align-items:center;">
-      <span style="font-size:.7rem;color:var(--text3);font-weight:600;">Active:</span>
-      {% if search %}<span class="fs-chip">Search: {{ search }}<a onclick="fsClear('ct_search','ct')">×</a></span>{% endif %}
-      {% if status %}<span class="fs-chip">Status: {{ 'Active' if status=='1' else 'Inactive' }}<a onclick="fsClear('ct_status','ct')">×</a></span>{% endif %}
+    <div class="grid-toolbar-right">
+
+      <!-- Filter -->
+      <button id="fsTabFilter_ct" class="btn-grid-action {{ 'active' if _ctfc > 0 }}"
+        onclick="toggleFsTab('filter')"
+        style="{{ 'background:#eff6ff;color:#2563eb;border-color:#bfdbfe;' if _ctfc > 0 }}">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+        Filter{% if _ctfc > 0 %}<span style="background:#2563eb;color:#fff;font-size:.65rem;font-weight:800;padding:1px 5px;border-radius:10px;margin-left:2px;">{{ _ctfc }}</span>{% endif %}
+      </button>
+
+      <!-- Sort -->
+      <button id="fsTabSort_ct" class="btn-grid-action {{ 'active' if sort_by or sort_dir == 'asc' }}"
+        onclick="toggleFsTab('sort')"
+        style="{{ 'background:#eff6ff;color:#2563eb;border-color:#bfdbfe;' if sort_by or sort_dir == 'asc' }}">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>
+        Sort
+      </button>
+
+      <div style="width:1px;height:18px;background:var(--border);margin:0 2px;"></div>
+
+      <!-- Columns -->
+      <div style="position:relative;">
+        <button class="btn-grid-action" onclick="toggleColPanel(event)">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+          Columns
+        </button>
+        <div id="colPanel" style="display:none;position:absolute;top:calc(100% + 6px);right:0;z-index:300;background:#fff;border-radius:10px;box-shadow:0 8px 32px rgba(0,0,0,.15);border:1px solid var(--border);padding:.9rem;width:220px;">
+          <div style="font-size:.75rem;font-weight:800;color:var(--text2);margin-bottom:.5rem;">Select Columns</div>
+          <div style="display:flex;flex-direction:column;gap:.3rem;max-height:260px;overflow-y:auto;">
+            {% for key, label in [
+              ('contract_id','Contract ID'),('company_name','Company'),('supply','Supply / Category'),
+              ('contact_person','Contact Person'),('contact_no','Contact No'),('email_address','Email'),
+              ('pancard','PAN'),('gstno','GST No'),('status','Status')
+            ] %}
+            <label style="display:flex;align-items:center;gap:7px;font-size:.79rem;cursor:pointer;padding:2px 0;">
+              <input type="checkbox" value="{{ key }}" {{ 'checked' if key in (grid_cols or ['contract_id','company_name','supply','contact_person','contact_no','email_address','pancard','gstno','status']) }} style="accent-color:#2563eb;">
+              {{ label }}
+            </label>
+            {% endfor %}
+          </div>
+          <div style="margin-top:.65rem;display:flex;gap:.4rem;">
+            <button onclick="saveCtCols()" style="flex:1;padding:5px;border-radius:7px;background:#2563eb;color:#fff;border:none;font-size:.77rem;font-weight:700;cursor:pointer;">Apply</button>
+            <button onclick="document.getElementById('colPanel').style.display='none'" style="padding:5px 10px;border-radius:7px;background:#f1f5f9;border:1px solid var(--border);font-size:.77rem;cursor:pointer;">✕</button>
+          </div>
+        </div>
+      </div>
+
+      <div style="width:1px;height:18px;background:var(--border);margin:0 2px;"></div>
+
+      <button class="btn-grid-action" onclick="window.location.href='{{ url_for('hr.contractors') }}?export=1'">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Export
+      </button>
+    </div>
+  </div>
+
+  <!-- ── Filter Panel ── -->
+  <div id="fsPanelFilter_ct" style="display:{% if _ctfc > 0 %}block{% else %}none{% endif %};padding:12px 14px;border-bottom:0.5px solid var(--border);background:#fafbfc;overflow:visible;">
+    <div class="fs-grid" style="overflow:visible;">
+
+      <div class="fs-field">
+        <label>Search</label>
+        <input type="text" id="ct_search" value="{{ search }}" placeholder="Company, contract ID, contact…" oninput="fsDebounce()">
+      </div>
+
+      <!-- Status ms-wrap -->
+      <div class="fs-field">
+        <label>Status</label>
+        <div class="ms-wrap" id="ms_ct_status">
+          <div class="ms-trigger" onclick="toggleMs('ms_ct_status')">
+            <span class="ms-label {{ 'has-val' if ct_status_f }}" id="ms_ct_status_lbl">{{ 'Active' if ct_status_f=='1' else 'Inactive' if ct_status_f=='0' else 'All Status' }}</span>
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+          </div>
+          <div class="ms-dropdown">
+            <div class="ms-options">
+              <label class="ms-opt"><input type="checkbox" value="1" {{ 'checked' if ct_status_f=='1' }} onchange="msChange('ms_ct_status','ct_status_val','All Status')"><span>Active</span></label>
+              <label class="ms-opt"><input type="checkbox" value="0" {{ 'checked' if ct_status_f=='0' }} onchange="msChange('ms_ct_status','ct_status_val','All Status')"><span>Inactive</span></label>
+            </div>
+            <div class="ms-footer">
+              <button type="button" onclick="msClearAll('ms_ct_status','ct_status_val','All Status')">Clear</button>
+              <button type="button" class="ms-apply" onclick="closeMs('ms_ct_status')">Done</button>
+            </div>
+          </div>
+        </div>
+        <input type="hidden" id="ct_status_val" value="{{ ct_status_f }}">
+      </div>
+
+      <!-- Supply ms-wrap -->
+      {% if all_supplies %}
+      <div class="fs-field">
+        <label>Supply / Category</label>
+        <div class="ms-wrap" id="ms_ct_supply">
+          <div class="ms-trigger" onclick="toggleMs('ms_ct_supply')">
+            <span class="ms-label {{ 'has-val' if ct_supply_f }}" id="ms_ct_supply_lbl">{{ ct_supply_f if ct_supply_f else 'All Categories' }}</span>
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+          </div>
+          <div class="ms-dropdown">
+            <div class="ms-search"><input type="text" placeholder="Search…" oninput="msSearch(this,'ms_ct_supply')"></div>
+            <div class="ms-options">
+              {% for s in all_supplies %}
+              <label class="ms-opt">
+                <input type="checkbox" value="{{ s }}" {{ 'checked' if s in (ct_supply_f or '').split(',') and ct_supply_f }} onchange="msChange('ms_ct_supply','ct_supply_val','All Categories')">
+                <span>{{ s }}</span>
+              </label>
+              {% endfor %}
+            </div>
+            <div class="ms-footer">
+              <button type="button" onclick="msClearAll('ms_ct_supply','ct_supply_val','All Categories')">Clear</button>
+              <button type="button" class="ms-apply" onclick="closeMs('ms_ct_supply')">Done</button>
+            </div>
+          </div>
+        </div>
+        <input type="hidden" id="ct_supply_val" value="{{ ct_supply_f }}">
+      </div>
+      {% endif %}
+
+    </div>
+
+    <!-- Active chips -->
+    {% if search or ct_status_f or ct_supply_f %}
+    <div style="display:flex;flex-wrap:wrap;gap:.3rem;margin-top:.6rem;align-items:center;">
+      <span style="font-size:.68rem;color:var(--text3);font-weight:600;">Active:</span>
+      {% if search %}<span class="fs-chip">Search: {{ search }}<a onclick="chipClear('ct_search')">×</a></span>{% endif %}
+      {% if ct_status_f %}<span class="fs-chip">Status: {{ 'Active' if ct_status_f=='1' else 'Inactive' }}<a onclick="msClearAll('ms_ct_status','ct_status_val','All Status')">×</a></span>{% endif %}
+      {% if ct_supply_f %}{% for v in ct_supply_f.split(',') %}<span class="fs-chip">Supply: {{ v }}<a onclick="msRemoveOne('ms_ct_supply','ct_supply_val','{{ v }}','All Categories')">×</a></span>{% endfor %}{% endif %}
+      <a href="{{ url_for('hr.contractors') }}" class="fs-chip" style="background:#fee2e2;color:#dc2626;border-color:#fca5a5;">✕ Clear All</a>
     </div>
     {% endif %}
   </div>
-</div>
 
-<form id="fsForm_ct" method="GET" style="display:none;">
-  <input type="hidden" id="ct_h_search" name="search" value="{{ search }}">
-  <input type="hidden" id="ct_h_status" name="status" value="{{ status }}">
-</form>
-
-
-<div class="card" style="margin-bottom:.5rem;">
-    <div style="padding:.6rem 1rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem;">
-        <div style="display:flex;align-items:center;gap:.75rem;">
-            <label style="font-size:0.82rem;color:var(--text2);">Show
-                    <select id="rowCount_contractorTable" onchange="changeRows_contractorTable(this.value)" style="padding:4px 8px;border:1.5px solid var(--border);border-radius:7px;font-size:0.82rem;margin-left:4px;">
-                        <option value="10">10</option>
-                        <option value="25">25</option>
-                        <option value="50">50</option>
-                        <option value="9999">All</option>
-                    </select>
-                    rows
-                </label>
+  <!-- ── Sort Panel ── -->
+  <div id="fsPanelSort_ct" style="display:none;padding:10px 14px;border-bottom:0.5px solid var(--border);">
+    <div class="fs-grid" style="max-width:480px;">
+      <div class="fs-field">
+        <label>Sort By</label>
+        <select id="ct_sort_by" onchange="fsSubmit()">
+          <option value="id"           {{ 'selected' if sort_by=='id' or not sort_by }}>Created Date</option>
+          <option value="company_name" {{ 'selected' if sort_by=='company_name' }}>Company Name</option>
+          <option value="contract_id"  {{ 'selected' if sort_by=='contract_id' }}>Contract ID</option>
+          <option value="contact_person" {{ 'selected' if sort_by=='contact_person' }}>Contact Person</option>
+        </select>
+      </div>
+      <div class="fs-field">
+        <label>Direction</label>
+        <div style="display:flex;gap:.4rem;">
+          <button id="ct_sortDirDesc" onclick="fsSetDir('desc')" class="sort-dir-btn {{ 'active' if sort_dir=='desc' or not sort_dir }}">↓ Newest</button>
+          <button id="ct_sortDirAsc"  onclick="fsSetDir('asc')"  class="sort-dir-btn {{ 'active' if sort_dir=='asc' }}">↑ Oldest</button>
         </div>
-        <span id="pagCountLabel_contractorTable" style="font-size:.8rem;color:var(--text3);"></span>
+      </div>
     </div>
+  </div>
+
+  <!-- Hidden form -->
+  <form id="fsForm_ct" method="GET" style="display:none;">
+    <input type="hidden" id="ct_h_search"    name="search"    value="{{ search }}">
+    <input type="hidden" id="ct_h_status"    name="status_f"  value="{{ ct_status_f }}">
+    <input type="hidden" id="ct_h_supply"    name="supply_f"  value="{{ ct_supply_f }}">
+    <input type="hidden" id="ct_h_sort_by"   name="sort_by"   value="{{ sort_by }}">
+    <input type="hidden" id="ct_h_sort_dir"  name="sort_dir"  value="{{ sort_dir }}">
+  </form>
+
+  <!-- ── Table ── -->
+  <div class="tbl-wrap">
+    <table class="ct-grid" id="contractorTable">
+      <thead>
+        <tr>
+          <th style="width:40px;color:#94a3b8;">#</th>
+          <th>Contract ID</th>
+          <th>Company</th>
+          <th class="ct-col-supply">Supply</th>
+          <th>Contact Person</th>
+          <th class="ct-col-contact_no">Contact No</th>
+          <th class="ct-col-email_address">Email</th>
+          <th class="ct-col-pancard">PAN</th>
+          <th class="ct-col-gstno">GST No</th>
+          <th>Status</th>
+          <th style="width:90px;">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for c in contractors %}
+        <tr class="c-row" data-search="{{ [c.company_name or '', c.contract_id or '', c.contact_person or '', c.contact_no or '', c.email_address or '', c.supply or '']|join(' ')|lower }}" data-id="{{ c.id }}">
+          <td style="color:var(--text3);font-size:.75rem;">{{ loop.index }}</td>
+
+          <!-- Contract ID -->
+          <td><span style="font-family:monospace;font-weight:700;color:var(--blue);font-size:.82rem;">{{ c.contract_id }}</span></td>
+
+          <!-- Company - inline edit -->
+          <td class="ie-cell" data-id="{{ c.id }}" data-field="company_name" data-val="{{ c.company_name or '' }}" data-type="text" onclick="ieActivate(this)">
+            <div class="ie-view"><span class="ie-text">{{ c.company_name or '—' }}</span><span class="ie-pencil">✏</span></div>
+            <div class="ie-input-wrap"></div>
+          </td>
+
+          <!-- Supply - inline edit -->
+          <td class="ie-cell ct-col-supply" data-id="{{ c.id }}" data-field="supply" data-val="{{ c.supply or '' }}" data-type="text" onclick="ieActivate(this)">
+            <div class="ie-view"><span class="ie-text">{{ c.supply or '—' }}</span><span class="ie-pencil">✏</span></div>
+            <div class="ie-input-wrap"></div>
+          </td>
+
+          <!-- Contact Person - inline edit -->
+          <td class="ie-cell" data-id="{{ c.id }}" data-field="contact_person" data-val="{{ c.contact_person or '' }}" data-type="text" onclick="ieActivate(this)">
+            <div class="ie-view"><span class="ie-text">{{ c.contact_person or '—' }}</span><span class="ie-pencil">✏</span></div>
+            <div class="ie-input-wrap"></div>
+          </td>
+
+          <!-- Contact No - inline edit -->
+          <td class="ie-cell ct-col-contact_no" data-id="{{ c.id }}" data-field="contact_no" data-val="{{ c.contact_no or '' }}" data-type="text" onclick="ieActivate(this)">
+            <div class="ie-view"><span class="ie-text">{{ c.contact_no or '—' }}</span><span class="ie-pencil">✏</span></div>
+            <div class="ie-input-wrap"></div>
+          </td>
+
+          <!-- Email - inline edit -->
+          <td class="ie-cell ct-col-email_address" data-id="{{ c.id }}" data-field="email_address" data-val="{{ c.email_address or '' }}" data-type="text" onclick="ieActivate(this)">
+            <div class="ie-view"><span class="ie-text" style="font-size:.78rem;color:var(--text2);">{{ c.email_address or '—' }}</span><span class="ie-pencil">✏</span></div>
+            <div class="ie-input-wrap"></div>
+          </td>
+
+          <!-- PAN - inline edit -->
+          <td class="ie-cell ct-col-pancard" data-id="{{ c.id }}" data-field="pancard" data-val="{{ c.pancard or '' }}" data-type="text" onclick="ieActivate(this)">
+            <div class="ie-view"><span class="ie-text" style="font-size:.78rem;">{{ c.pancard or '—' }}</span><span class="ie-pencil">✏</span></div>
+            <div class="ie-input-wrap"></div>
+          </td>
+
+          <!-- GST - inline edit -->
+          <td class="ie-cell ct-col-gstno" data-id="{{ c.id }}" data-field="gstno" data-val="{{ c.gstno or '' }}" data-type="text" onclick="ieActivate(this)">
+            <div class="ie-view"><span class="ie-text" style="font-size:.78rem;">{{ c.gstno or '—' }}</span><span class="ie-pencil">✏</span></div>
+            <div class="ie-input-wrap"></div>
+          </td>
+
+          <!-- Status - inline edit select -->
+          <td class="ie-cell" data-id="{{ c.id }}" data-field="status" data-val="{{ '1' if c.status==1 else '0' }}" data-type="select" data-opts="1:Active||0:Inactive" onclick="ieActivate(this)">
+            <div class="ie-view">
+              <span class="ie-text">
+                <span style="padding:3px 10px;border-radius:20px;font-size:.7rem;font-weight:700;background:{{ '#dcfce7' if c.status==1 else '#fee2e2' }};color:{{ '#16a34a' if c.status==1 else '#dc2626' }};">
+                  {{ 'Active' if c.status==1 else 'Inactive' }}
+                </span>
+              </span>
+              <span class="ie-pencil">✏</span>
+            </div>
+            <div class="ie-input-wrap"></div>
+          </td>
+
+          <!-- Actions -->
+          <td>
+            <div class="row-actions">
+              {% if show_trash %}
+                <form method="POST" action="{{ url_for('hr.contractor_restore', id=c.id) }}" style="display:inline;" data-no-review>
+                  <button type="submit" class="ra-btn restore-btn" title="Restore">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.63"/></svg>
+                    Restore
+                  </button>
+                </form>
+              {% else %}
+                {% if perm.can_edit %}
+                <a href="{{ url_for('hr.contractor_edit', id=c.id) }}" class="ra-btn" title="Edit">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                </a>
+                {% endif %}
+                {% if perm.can_delete %}
+                <form method="POST" action="{{ url_for('hr.contractor_delete', id=c.id) }}" style="display:inline;" data-no-review>
+                  <button type="submit" class="ra-btn danger" title="Move to Trash">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
+                  </button>
+                </form>
+                {% endif %}
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="11" style="text-align:center;padding:2rem;color:var(--text3);">No contractors found.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="grid-footer">
+    <div class="rows-selector">Show <select id="rowCountSel" onchange="changeRowCount(this.value)"><option value="10">10</option><option value="25" selected>25</option><option value="50">50</option><option value="9999">All</option></select> rows &nbsp;·&nbsp; <span id="rowInfo" style="color:var(--text3);"></span></div>
+    <div id="gridPgn" class="grid-pgn"></div>
+  </div>
 </div>
 
-<div class="card" style="overflow-x:auto;">
-    <table id="contractorTable" style="width:100%;border-collapse:collapse;font-size:.83rem;">
-        <thead>
-            <tr>
-                {% for h in ['#','Contract ID','Company','Supply','Contact Person','Contact No','Email','PAN','GST','Status','Actions'] %}
-                <th style="text-align:left;padding:.55rem .9rem;font-size:.7rem;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;border-bottom:2px solid var(--border);background:#f8fafc;white-space:nowrap;">{{ h }}</th>
-                {% endfor %}
-            </tr>
-        </thead>
-        <tbody>
-            {% for c in contractors %}
-            <tr class="c-row" style="{% if not loop.last %}border-bottom:1px solid #f1f5f9;{% endif %}">
-                <td style="padding:.6rem .9rem;color:var(--text3);">{{ loop.index }}</td>
-                <td style="padding:.6rem .9rem;"><span style="font-family:monospace;font-weight:700;color:var(--blue);">{{ c.contract_id }}</span></td>
-                <td style="padding:.6rem .9rem;font-weight:700;">{{ c.company_name }}</td>
-                <td style="padding:.6rem .9rem;color:var(--text2);">{{ c.supply or '—' }}</td>
-                <td style="padding:.6rem .9rem;">{{ c.contact_person }}</td>
-                <td style="padding:.6rem .9rem;">{{ c.contact_no or '—' }}</td>
-                <td style="padding:.6rem .9rem;color:var(--text2);font-size:.78rem;">{{ c.email_address or '—' }}</td>
-                <td style="padding:.6rem .9rem;font-size:.78rem;">{{ c.pancard or '—' }}</td>
-                <td style="padding:.6rem .9rem;font-size:.78rem;">{{ c.gstno or '—' }}</td>
-                <td style="padding:.6rem .9rem;">
-                    <span style="padding:3px 10px;border-radius:20px;font-size:.7rem;font-weight:700;background:{{ '#dcfce7' if c.status==1 else '#fee2e2' }};color:{{ '#16a34a' if c.status==1 else '#dc2626' }};">
-                        {{ 'Active' if c.status==1 else 'Inactive' }}
-                    </span>
-                </td>
-                <td style="padding:.6rem .9rem;">
-                    <div style="display:flex;gap:4px;">
-                        {% if perm.can_edit %}
-                        <a href="{{ url_for('hr.contractor_edit', id=c.id) }}"
-                           style="padding:3px 8px;border-radius:6px;background:#eff6ff;color:#1d4ed8;font-size:.72rem;font-weight:700;text-decoration:none;border:1.5px solid #bfdbfe;">✏️ Edit</a>
-                        {% endif %}
-                        {% if perm.can_delete %}
-                        <form method="POST" action="{{ url_for('hr.contractor_delete', id=c.id) }}" style="display:inline;" onsubmit="return confirm('Delete {{ c.company_name }}?')">
-                            <button type="submit" style="padding:3px 8px;border-radius:6px;background:#fee2e2;color:#dc2626;font-size:.72rem;font-weight:700;border:1.5px solid #fecaca;cursor:pointer;">🗑️</button>
-                        </form>
-                        {% endif %}
-                    </div>
-                </td>
-            </tr>
-            {% else %}
-            <tr><td colspan="11" style="text-align:center;padding:2rem;color:var(--text3);">No contractors found.</td></tr>
-            {% endfor %}
-        </tbody>
-    </table>
-    {{ render_pagination('contractorTable', '#contractorTable .c-row', contractors|length, 'contractors') }}
-</div>
 {% block extra_js %}
 <script>
-function changeRows_contractorTable(val) {
-    pagSetSize('contractorTable', '#contractorTable .c-row', val);
-    var ps = document.getElementById('pagSize_contractorTable');
-    if(ps) ps.value = val;
+// ── Pagination ───────────────────────────────────
+var _allRows, _page=1, _pageSize=25;
+document.addEventListener('DOMContentLoaded', function(){
+  _allRows = Array.from(document.querySelectorAll('#contractorTable tbody tr.c-row'));
+  renderPage();
+  initMsLabels();
+});
+function renderPage(){
+  var visible = _allRows.filter(function(r){ return !r.classList.contains('search-hidden'); });
+  var total = visible.length, pages = Math.max(1, Math.ceil(total / _pageSize));
+  _page = Math.min(_page, pages);
+  visible.forEach(function(r, i){ r.style.display = (i >= (_page-1)*_pageSize && i < _page*_pageSize) ? 'table-row' : 'none'; });
+  var start = Math.min((_page-1)*_pageSize+1, total), end = Math.min(_page*_pageSize, total);
+  document.getElementById('rowInfo').textContent = total ? 'Showing '+start+'–'+end+' of '+total : 'No records';
+  var pgn = document.getElementById('gridPgn'); pgn.innerHTML = '';
+  if(pages <= 1) return;
+  function addBtn(label, pg, active, disabled){ var b = document.createElement('button'); b.className = 'pgn-btn'+(active?' active':''); b.disabled = disabled; b.textContent = label; if(!disabled && !active) b.onclick = function(){ _page=pg; renderPage(); }; pgn.appendChild(b); }
+  addBtn('‹', _page-1, false, _page===1);
+  var s2=Math.max(1,_page-2), e2=Math.min(pages,_page+2);
+  if(s2>1){ addBtn('1',1,false,false); if(s2>2){ var sp=document.createElement('span'); sp.textContent='…'; sp.style.cssText='padding:0 4px;color:var(--text3);font-size:12px;'; pgn.appendChild(sp); } }
+  for(var p=s2;p<=e2;p++) addBtn(p,p,p===_page,false);
+  if(e2<pages){ if(e2<pages-1){ var sp2=document.createElement('span'); sp2.textContent='…'; sp2.style.cssText='padding:0 4px;color:var(--text3);font-size:12px;'; pgn.appendChild(sp2); } addBtn(pages,pages,false,false); }
+  addBtn('›', _page+1, false, _page===pages);
 }
-document.addEventListener('DOMContentLoaded', function(){ pagInit('contractorTable', '#contractorTable .c-row', 10); });
+function changeRowCount(v){ _pageSize = parseInt(v); _page = 1; renderPage(); }
+
+// ── Global search ─────────────────────────────────
+function gridGlobalSearch(q){
+  var lq = q.toLowerCase();
+  _allRows.forEach(function(r){ var m = !lq || (r.dataset.search||'').includes(lq); r.classList.toggle('search-hidden', !m); r.style.display = m ? 'table-row' : 'none'; });
+  _page = 1; renderPage();
+}
+
+// ── Filter/Sort panel toggle ──────────────────────
+function toggleFsTab(tab){
+  var fp = document.getElementById('fsPanelFilter_ct'), sp = document.getElementById('fsPanelSort_ct');
+  var fb = document.getElementById('fsTabFilter_ct'), sb = document.getElementById('fsTabSort_ct');
+  if(tab === 'filter'){
+    var open = fp && fp.style.display !== 'none';
+    if(fp) fp.style.display = open ? 'none' : 'block';
+    if(sp) sp.style.display = 'none';
+    if(fb) fb.classList.toggle('active', !open);
+    if(sb) sb.classList.remove('active');
+  } else {
+    var open2 = sp && sp.style.display !== 'none';
+    if(sp) sp.style.display = open2 ? 'none' : 'block';
+    if(fp) fp.style.display = 'none';
+    if(sb) sb.classList.toggle('active', !open2);
+    if(fb) fb.classList.remove('active');
+  }
+}
+
+// ── Filter submit ─────────────────────────────────
+var _fsTimer = null;
+function fsDebounce(){ clearTimeout(_fsTimer); _fsTimer = setTimeout(fsSubmit, 400); }
+function fsSubmit(){
+  var params = new URLSearchParams();
+  var s = document.getElementById('ct_search'); if(s && s.value.trim()) params.set('search', s.value.trim());
+  var st = document.getElementById('ct_status_val'); if(st && st.value !== '') params.set('status_f', st.value);
+  var su = document.getElementById('ct_supply_val'); if(su && su.value) params.set('supply_f', su.value);
+  var sb = document.getElementById('ct_sort_by'); if(sb && sb.value) params.set('sort_by', sb.value);
+  var sd = document.getElementById('ct_h_sort_dir'); if(sd && sd.value) params.set('sort_dir', sd.value);
+  window.location.href = window.location.pathname + (params.toString() ? '?' + params.toString() : '');
+}
+function fsSetDir(dir){
+  document.getElementById('ct_h_sort_dir').value = dir;
+  document.querySelectorAll('.sort-dir-btn').forEach(function(b){ b.classList.remove('active'); });
+  var btn = document.getElementById('ct_sortDir' + dir.charAt(0).toUpperCase() + dir.slice(1));
+  if(btn) btn.classList.add('active');
+  fsSubmit();
+}
+function chipClear(fieldId){ var el = document.getElementById(fieldId); if(el) el.value = ''; fsSubmit(); }
+
+// ── ms-wrap helpers ───────────────────────────────
+function toggleMs(wrapId){
+  document.querySelectorAll('.ms-wrap.open').forEach(function(w){ if(w.id !== wrapId) w.classList.remove('open'); });
+  document.getElementById(wrapId).classList.toggle('open');
+}
+function msSearch(inp, wrapId){ var q = inp.value.toLowerCase(); document.querySelectorAll('#'+wrapId+' .ms-opt').forEach(function(o){ o.style.display = o.querySelector('span').textContent.toLowerCase().includes(q) ? '' : 'none'; }); }
+function msChange(wrapId, hiddenId, defaultLabel){
+  var checked = Array.from(document.querySelectorAll('#'+wrapId+' .ms-options input:checked'));
+  var vals = checked.map(function(c){ return c.value; });
+  var h = document.getElementById(hiddenId); if(h) h.value = vals.join(',');
+  var lbl = document.getElementById(wrapId+'_lbl');
+  if(lbl){ if(!vals.length){ lbl.textContent = defaultLabel; lbl.classList.remove('has-val'); } else if(vals.length===1){ lbl.textContent = checked[0].closest('.ms-opt').querySelector('span').textContent.trim(); lbl.classList.add('has-val'); } else { lbl.textContent = vals.length+' selected'; lbl.classList.add('has-val'); } }
+}
+function msClearAll(wrapId, hiddenId, defaultLabel){ document.querySelectorAll('#'+wrapId+' .ms-options input').forEach(function(c){ c.checked=false; }); var h=document.getElementById(hiddenId); if(h) h.value=''; var lbl=document.getElementById(wrapId+'_lbl'); if(lbl){ lbl.textContent=defaultLabel; lbl.classList.remove('has-val'); } fsSubmit(); }
+function closeMs(wrapId){ document.getElementById(wrapId).classList.remove('open'); fsSubmit(); }
+function msRemoveOne(wrapId, hiddenId, val, defaultLabel){ var cb=document.querySelector('#'+wrapId+' .ms-options input[value="'+val+'"]'); if(cb) cb.checked=false; msChange(wrapId, hiddenId, defaultLabel); fsSubmit(); }
+document.addEventListener('click', function(e){ if(!e.target.closest('.ms-wrap')) document.querySelectorAll('.ms-wrap.open').forEach(function(w){ w.classList.remove('open'); }); });
+function initMsLabels(){
+  [['ms_ct_status','ct_status_val','All Status'],['ms_ct_supply','ct_supply_val','All Categories']].forEach(function(item){
+    var h = document.getElementById(item[1]); if(!h || !h.value) return;
+    var vals = h.value.split(',').filter(Boolean);
+    var lbl = document.getElementById(item[0]+'_lbl');
+    if(lbl){ lbl.textContent = vals.length===1 ? vals[0] : vals.length+' selected'; lbl.classList.add('has-val'); }
+    vals.forEach(function(v){ var cb=document.querySelector('#'+item[0]+' .ms-options input[value="'+v+'"]'); if(cb) cb.checked=true; });
+  });
+}
+
+// ── Columns panel ─────────────────────────────────
+function toggleColPanel(e){ e.stopPropagation(); var p=document.getElementById('colPanel'); p.style.display = p.style.display==='none' ? 'block' : 'none'; }
+document.addEventListener('click', function(e){ var p=document.getElementById('colPanel'); if(p && p.style.display!=='none' && !p.contains(e.target) && !e.target.closest('[onclick*="toggleColPanel"]')) p.style.display='none'; });
+function saveCtCols(){
+  var cols = Array.from(document.querySelectorAll('#colPanel input[type=checkbox]:checked')).map(function(c){ return c.value; });
+  if(!cols.length){ alert('Select at least 1 column.'); return; }
+  fetch('/hr/contractors/grid-config', { method:'POST', headers:{'Content-Type':'application/json','X-Requested-With':'XMLHttpRequest'}, body: JSON.stringify({cols:cols}) })
+    .then(function(r){ return r.json(); }).then(function(d){ if(d.success) location.reload(); });
+}
+
+// ── Inline Edit ───────────────────────────────────
+var _ieActive = null;
+function ieActivate(cell){
+  if(_ieActive && _ieActive !== cell) ieCancel(_ieActive);
+  if(cell.classList.contains('ie-editing')) return;
+  var field = cell.dataset.field, val = cell.dataset.val, type = cell.dataset.type, opts = cell.dataset.opts || '';
+  var view = cell.querySelector('.ie-view'), wrap = cell.querySelector('.ie-input-wrap');
+  if(wrap.childElementCount === 0){
+    if(type === 'select'){
+      var sel = document.createElement('select'); sel.className = 'ie-select';
+      opts.split('||').forEach(function(o){ var p=o.split(':'); var op=document.createElement('option'); op.value=p[0]; op.textContent=p.slice(1).join(':'); if(p[0]===val) op.selected=true; sel.appendChild(op); });
+      wrap.appendChild(sel);
+    } else {
+      var inp = document.createElement('input'); inp.className = 'ie-input'; inp.type = 'text'; inp.value = val;
+      inp.onkeydown = function(e){ if(e.key==='Enter') ieSave(cell); if(e.key==='Escape') ieCancel(cell); };
+      wrap.appendChild(inp);
+    }
+    var ok = document.createElement('button'); ok.className='ie-ok'; ok.textContent='✓'; ok.onclick=function(e){ e.stopPropagation(); ieSave(cell); }; wrap.appendChild(ok);
+    var esc = document.createElement('button'); esc.className='ie-esc'; esc.textContent='✕'; esc.onclick=function(e){ e.stopPropagation(); ieCancel(cell); }; wrap.appendChild(esc);
+  }
+  view.style.display = 'none'; wrap.style.display = 'flex';
+  var input = wrap.querySelector('input,select'); if(input){ input.focus(); if(input.select) input.select(); }
+  cell.classList.add('ie-editing'); _ieActive = cell;
+}
+function ieCancel(cell){
+  var view=cell.querySelector('.ie-view'), wrap=cell.querySelector('.ie-input-wrap');
+  view.style.display='flex'; wrap.style.display='none';
+  cell.classList.remove('ie-editing'); if(_ieActive===cell) _ieActive=null;
+}
+function ieSave(cell){
+  var id = cell.dataset.id, field = cell.dataset.field, type = cell.dataset.type;
+  var input = cell.querySelector('.ie-input-wrap').querySelector('input,select');
+  var newVal = input ? input.value.trim() : '';
+  cell.classList.add('ie-saving');
+  fetch('/hr/contractors/'+id+'/inline-edit', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({field: field, value: newVal})
+  }).then(function(r){ return r.json(); }).then(function(d){
+    cell.classList.remove('ie-saving');
+    if(d.success){
+      cell.dataset.val = newVal;
+      ieUpdateView(cell, field, newVal);
+      ieCancel(cell);
+      cell.classList.add('ie-saved');
+      setTimeout(function(){ cell.classList.remove('ie-saved'); }, 600);
+      if(typeof showToast === 'function') showToast('Saved', 'success', 1800);
+    } else {
+      if(typeof showToast === 'function') showToast(d.error || 'Save failed', 'error', 2500);
+      ieCancel(cell);
+    }
+  }).catch(function(){ cell.classList.remove('ie-saving'); ieCancel(cell); if(typeof showToast==='function') showToast('Network error','error',2500); });
+}
+function ieUpdateView(cell, field, val){
+  var text = cell.querySelector('.ie-text');
+  if(field === 'status'){
+    var isActive = val==='1' || val===1;
+    text.innerHTML = '<span style="padding:3px 10px;border-radius:20px;font-size:.7rem;font-weight:700;background:'+(isActive?'#dcfce7':'#fee2e2')+';color:'+(isActive?'#16a34a':'#dc2626')+';">'+(isActive?'Active':'Inactive')+'</span>';
+  } else {
+    text.textContent = val || '—';
+  }
+}
+document.addEventListener('click', function(e){ if(_ieActive && !_ieActive.contains(e.target)) ieCancel(_ieActive); });
 </script>
 {% endblock %}
 {% endblock %}

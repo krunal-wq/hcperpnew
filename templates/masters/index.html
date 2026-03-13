@@ -48,7 +48,7 @@
     padding: .75rem 1rem; background: #f8fafc;
     border-top: 1.5px dashed var(--border);
 }
-.add-form-row { display: flex; gap: .5rem; align-items: flex-end; flex-wrap: wrap; }
+.add-form-row { display: flex; gap: .5rem; align-items: flex-start; flex-wrap: wrap; }
 .add-form-row .fi { height: 36px; padding: 6px 10px; font-size: .83rem; flex: 1; min-width: 100px; }
 .add-form-row .fi-sm { width: 60px; flex: unset; }
 .add-form-row .fi-color { width: 50px; height: 36px; padding: 2px; flex: unset; cursor: pointer; }
@@ -56,9 +56,31 @@
     padding: 7px 16px; background: var(--blue); color: #fff;
     border: none; border-radius: 9px; font-size: .82rem;
     font-weight: 700; cursor: pointer; font-family: 'Plus Jakarta Sans', sans-serif;
-    white-space: nowrap; height: 36px;
+    white-space: nowrap; height: 36px; margin-top: 0;
 }
 .add-form-submit:hover { background: #1d4ed8; }
+
+/* Validation styles */
+.fi.v-error {
+    border-color: #ef4444 !important;
+    background: #fff5f5 !important;
+    box-shadow: 0 0 0 3px rgba(239,68,68,.12) !important;
+    animation: vShake .35s ease;
+}
+@keyframes vShake {
+    0%,100%{transform:translateX(0)}
+    20%{transform:translateX(-5px)}
+    40%{transform:translateX(5px)}
+    60%{transform:translateX(-3px)}
+    80%{transform:translateX(3px)}
+}
+.v-msg {
+    font-size: .7rem; color: #dc2626; font-weight: 700;
+    margin-top: 3px; display: flex; align-items: center; gap: 3px;
+    animation: vFade .2s ease;
+}
+@keyframes vFade { from{opacity:0;transform:translateY(-4px)} to{opacity:1;transform:none} }
+.fi.v-ok { border-color: #22c55e !important; }
 
 /* Edit modal */
 .edit-modal-overlay {
@@ -134,18 +156,21 @@
 
     <!-- Add new form -->
     <div class="add-form-wrap">
-        <form method="POST" action="{{ url_for('masters.add', mtype=mtype) }}">
+        <form method="POST" action="{{ url_for('masters.add', mtype=mtype) }}" novalidate onsubmit="return validateAddForm(this)">
             <div class="add-form-row">
-                <input type="text" name="name" class="fi" placeholder="Add new {{ labels[mtype] }}..." required>
-                <input type="text" name="icon" class="fi fi-sm" placeholder="🔵" maxlength="4">
+                <div style="flex:1;min-width:100px;">
+                    <input type="text" name="name" class="fi" placeholder="Add new {{ labels[mtype] }}..." style="width:100%;box-sizing:border-box;" autocomplete="off">
+                    <div class="v-msg" style="display:none;">⚠ Name is required</div>
+                </div>
+                <input type="text" name="icon" class="fi fi-sm" placeholder="🔵" maxlength="4" style="margin-top:0;">
                 {% if mtype == 'status' %}
                 <input type="color" name="color" class="fi fi-color" value="#6b7280" title="Status color">
                 {% endif %}
                 <input type="number" name="sort_order" class="fi fi-sm" placeholder="0" value="0" min="0">
-                <label style="display:flex;align-items:center;gap:4px;font-size:.78rem;font-weight:600;cursor:pointer;">
+                <label style="display:flex;align-items:center;gap:4px;font-size:.78rem;font-weight:600;cursor:pointer;margin-top:8px;">
                     <input type="checkbox" name="is_active" checked> Active
                 </label>
-                <button type="submit" class="add-form-submit">＋ Add</button>
+                <button type="submit" class="add-form-submit" style="margin-top:0;">＋ Add</button>
             </div>
         </form>
     </div>
@@ -158,10 +183,11 @@
 <div class="edit-modal-overlay" id="editModal" onclick="if(event.target===this)closeEdit()">
     <div class="edit-modal">
         <h3>✏️ Edit <span id="editModalTitle"></span></h3>
-        <form id="editForm" method="POST">
+        <form id="editForm" method="POST" novalidate onsubmit="return validateEditForm(this)">
             <div class="fg">
-                <label class="fl">Name *</label>
-                <input type="text" name="name" id="editName" class="fi" required>
+                <label class="fl">Name <span style="color:#ef4444;">*</span></label>
+                <input type="text" name="name" id="editName" class="fi" placeholder="Enter name..." autocomplete="off">
+                <div class="v-msg" id="editNameErr" style="display:none;">⚠ Name is required</div>
             </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:.6rem;">
                 <div class="fg">
@@ -184,30 +210,117 @@
             </div>
             <div class="edit-modal-actions">
                 <button type="button" class="btn-outline" onclick="closeEdit()">Cancel</button>
-                <button type="submit" class="btn-primary">💾 Save</button>
+                <button type="submit" class="btn-primary">💾 Save Changes</button>
             </div>
         </form>
     </div>
 </div>
 
 <script>
+// ── Validation Helpers ────────────────────────────────────────────────
+function vSetError(input, msgEl, msg) {
+    input.classList.add('v-error');
+    input.classList.remove('v-ok');
+    if (msgEl) { msgEl.textContent = '⚠ ' + msg; msgEl.style.display = 'flex'; }
+    input.focus();
+}
+function vClearError(input, msgEl) {
+    input.classList.remove('v-error');
+    if (msgEl) msgEl.style.display = 'none';
+}
+function vSetOk(input) {
+    input.classList.remove('v-error');
+    input.classList.add('v-ok');
+}
+
+// Clear error on input
+document.addEventListener('input', function(e) {
+    var inp = e.target;
+    if (!inp.classList.contains('v-error')) return;
+    if (inp.value.trim()) {
+        inp.classList.remove('v-error');
+        inp.classList.add('v-ok');
+        var msg = inp.closest('.fg, div') && inp.closest('.fg, div').querySelector('.v-msg');
+        if (msg) msg.style.display = 'none';
+    }
+});
+
+// ── Add Form Validation ───────────────────────────────────────────────
+function validateAddForm(form) {
+    var nameInput = form.querySelector('input[name="name"]');
+    var msgEl     = form.querySelector('.v-msg');
+    var val = nameInput ? nameInput.value.trim() : '';
+
+    if (!val) {
+        vSetError(nameInput, msgEl, 'Name is required');
+        // shake the button too
+        var btn = form.querySelector('.add-form-submit');
+        if (btn) { btn.style.animation = 'none'; btn.offsetHeight; btn.style.animation = 'vShake .35s ease'; }
+        return false;
+    }
+
+    // Check duplicate within same card list
+    var card = form.closest('.master-card');
+    if (card) {
+        var existing = Array.from(card.querySelectorAll('.master-name'))
+                           .map(function(el){ return el.textContent.trim().toLowerCase(); });
+        if (existing.includes(val.toLowerCase())) {
+            vSetError(nameInput, msgEl, '"' + val + '" already exists');
+            return false;
+        }
+    }
+
+    vSetOk(nameInput);
+    return true;   // allow submit
+}
+
+// ── Edit Modal Validation ─────────────────────────────────────────────
+function validateEditForm(form) {
+    var nameInput = document.getElementById('editName');
+    var msgEl     = document.getElementById('editNameErr');
+    var val = nameInput ? nameInput.value.trim() : '';
+
+    if (!val) {
+        vSetError(nameInput, msgEl, 'Name is required');
+        return false;
+    }
+    vSetOk(nameInput);
+    return true;
+}
+
+// ── Modal Open/Close ──────────────────────────────────────────────────
 function openEdit(mtype, id, name, icon, order, color, isActive) {
     document.getElementById('editModalTitle').textContent =
         {status:'Lead Status',source:'Lead Source',category:'Lead Category',range:'Product Range'}[mtype];
-    document.getElementById('editForm').action = `/masters/${mtype}/${id}/edit`;
-    document.getElementById('editName').value  = name;
+    document.getElementById('editForm').action = '/masters/' + mtype + '/' + id + '/edit';
+
+    var nameEl = document.getElementById('editName');
+    nameEl.value = name;
+    nameEl.classList.remove('v-error','v-ok');
+    document.getElementById('editNameErr').style.display = 'none';
+
     document.getElementById('editIcon').value  = icon;
     document.getElementById('editOrder').value = order;
     document.getElementById('editActive').checked = isActive;
-    const colorRow = document.getElementById('editColorRow');
+
+    var colorRow = document.getElementById('editColorRow');
     if (mtype === 'status') {
         colorRow.style.display = 'block';
         document.getElementById('editColor').value = color || '#6b7280';
-    } else { colorRow.style.display = 'none'; }
+    } else {
+        colorRow.style.display = 'none';
+    }
     document.getElementById('editModal').classList.add('show');
+    setTimeout(function(){ nameEl.focus(); nameEl.select(); }, 120);
 }
+
 function closeEdit() {
     document.getElementById('editModal').classList.remove('show');
 }
+
+// Close modal on ESC
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') closeEdit();
+});
 </script>
 {% endblock %}

@@ -205,3 +205,98 @@ class WishLog(db.Model):
     __table_args__ = (
         db.UniqueConstraint('sender_id','target_emp_id','wish_type','wish_date', name='uq_wish_once_per_day'),
     )
+
+
+# ── Salary Config ─────────────────────────────────────────────────────────────
+
+class SalaryConfig(db.Model):
+    """Key-value store for salary calculation config (shared across all employees)."""
+    __tablename__ = 'salary_config'
+    id         = db.Column(db.Integer, primary_key=True)
+    key        = db.Column(db.String(50), unique=True, nullable=False)
+    value      = db.Column(db.String(100), nullable=False)
+    updated_by = db.Column(db.String(100))
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    _DEFAULTS = {
+        'basic_pct':    '40',
+        'hra_pct':      '50',
+        'da_pct':       '10',
+        'ta_fixed':     '1600',
+        'med_fixed':    '1250',
+        'pf_emp_pct':   '12',
+        'pf_er_pct':    '12',
+        'esic_emp_pct': '0.75',
+        'esic_er_pct':  '3.25',
+        'esic_limit':   '21000',
+        'pt_fixed':     '200',
+    }
+
+    @classmethod
+    def get_config(cls):
+        rows = {r.key: r.value for r in cls.query.all()}
+        result = {}
+        for k, default in cls._DEFAULTS.items():
+            try:
+                result[k] = float(rows.get(k, default))
+            except (ValueError, TypeError):
+                result[k] = float(default)
+        return result
+
+    @classmethod
+    def save_config(cls, data, updated_by='System'):
+        for k, v in data.items():
+            row = cls.query.filter_by(key=k).first()
+            if row:
+                row.value      = str(v)
+                row.updated_by = updated_by
+                row.updated_at = datetime.utcnow()
+            else:
+                db.session.add(cls(key=k, value=str(v), updated_by=updated_by))
+        db.session.commit()
+
+
+# ── Salary Component ──────────────────────────────────────────────────────────
+
+class SalaryComponent(db.Model):
+    """Dynamic salary components — earnings, deductions, employer contributions."""
+    __tablename__ = 'salary_components'
+
+    id                 = db.Column(db.Integer, primary_key=True)
+    name               = db.Column(db.String(100), nullable=False)
+    code               = db.Column(db.String(50),  unique=True, nullable=False)
+    component_type     = db.Column(db.String(30),  nullable=False)   # earning / deduction / employer_contrib
+    calc_type          = db.Column(db.String(30),  nullable=False)   # pct_of_basic / pct_of_gross / pct_of_ctc / fixed / pct_of_basic_capped / balance
+    value              = db.Column(db.Float,  default=0)
+    cap_amount         = db.Column(db.Float,  nullable=True)
+    apply_if_gross_lte = db.Column(db.Float,  nullable=True)
+    sort_order         = db.Column(db.Integer, default=0)
+    is_active          = db.Column(db.Boolean, default=True)
+    is_system          = db.Column(db.Boolean, default=False)
+    description        = db.Column(db.String(255))
+    updated_by         = db.Column(db.String(100))
+    updated_at         = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at         = db.Column(db.DateTime, default=datetime.utcnow)
+
+    @classmethod
+    def get_all_active(cls):
+        return cls.query.filter_by(is_active=True).order_by(
+            cls.component_type, cls.sort_order
+        ).all()
+
+    def to_dict(self):
+        return {
+            'id':                 self.id,
+            'name':               self.name,
+            'code':               self.code,
+            'component_type':     self.component_type,
+            'calc_type':          self.calc_type,
+            'value':              self.value,
+            'cap_amount':         self.cap_amount,
+            'apply_if_gross_lte': self.apply_if_gross_lte,
+            'sort_order':         self.sort_order,
+            'is_active':          self.is_active,
+            'is_system':          self.is_system,
+            'description':        self.description,
+            'updated_by':         self.updated_by,
+        }

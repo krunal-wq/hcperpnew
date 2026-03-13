@@ -6,10 +6,10 @@ from .lead       import (Lead, LeadDiscussion, LeadAttachment,
                          LeadReminder, LeadNote, LeadActivityLog)
 from .legacy     import Customer, CustomerAddress
 from .master     import LeadStatus, LeadSource, LeadCategory, ProductRange
-from .employee   import Employee, Contractor, WishLog
+from .employee   import Employee, Contractor, WishLog, SalaryConfig, SalaryComponent
 from .permission import Module, RolePermission, UserGridConfig
 from .approval import ApprovalRequest, ApprovalLevel
-
+ 
 __all__ = [
     'db',
     'User', 'LoginLog',
@@ -18,7 +18,8 @@ __all__ = [
     'LeadReminder', 'LeadNote', 'LeadActivityLog',
     'Customer', 'CustomerAddress',
     'LeadStatus', 'LeadSource', 'LeadCategory', 'ProductRange',
-    'Employee', 'Contractor',
+    'Employee', 'Contractor', 'WishLog', 'SalaryConfig', 'SalaryComponent',
     'Module', 'RolePermission', 'UserGridConfig',
     'AuditLog',
 ]
+ 

@@ -6,40 +6,71 @@
 <div class="fp-wrap">
 
   <div class="fp-header">
-    <div class="fp-header-top">
-      <span class="fp-brand">HR &bull; Contractors</span>
-      <div class="fp-hdr-actions">
-        <a href="{{ url_for('hr.contractors') }}" class="fp-hbtn"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>Back</a>
-      </div>
+    <div class="fp-hdr-actions">
+      <a href="{{ url_for('hr.contractors') }}" class="fp-hbtn">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>Back
+      </a>
     </div>
     <div class="fp-title-row">
-      <span class="fp-title-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg></span>
-      <span class="fp-title-text">{{ 'Edit Contractor' if contractor else 'Add Contractor' }}</span>
-      {% if contractor %}<span class="fp-record-badge">{{ contractor.contract_id }}</span>{% endif %}
-    </div>
-    <div class="fp-tab-bar" style="padding-bottom:0;">
-      <span class="fp-tab active"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>Contractor Details</span>
-      {% if contractor %}<span class="fp-status-badge">{{ 'ACTIVE' if contractor.status==1 else 'INACTIVE' }}</span>{% endif %}
+      <span class="fp-title-text">{{ 'Edit Contractor' if contractor else 'Add New Contractor' }}</span>
     </div>
   </div>
 
-  <form method="POST">
+  <!-- Validation error banner -->
+  <div id="valBanner" style="display:none;background:#fef2f2;border:1.5px solid #fca5a5;border-radius:10px;padding:.65rem 1rem;margin-bottom:1rem;font-size:.82rem;color:#dc2626;font-weight:600;">
+    ⚠️ <span id="valBannerMsg">Please fill all required fields.</span>
+  </div>
+
+  <form method="POST" id="contractorForm" novalidate>
     <div class="fp-section">
       <div class="fp-sec-hdr">
-        <div class="fp-sec-title"><div class="fp-sec-icon purple"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#5b21b6" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg></div>Contractor Information</div>
+        <div class="fp-sec-title">
+          <div class="fp-sec-icon purple">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#5b21b6" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+          </div>Contractor Information
+        </div>
         <span class="fp-sec-badge purple">Details</span>
       </div>
       <div class="fp-sec-body">
         <div class="fgrid-2" style="margin-bottom:.7rem;">
-          <div class="fg"><label class="fl">Company Name *</label><input type="text" name="company_name" class="fi" required value="{{ contractor.company_name if contractor else '' }}" placeholder="Company name"></div>
-          <div class="fg"><label class="fl">Supply / Service</label><input type="text" name="supply" class="fi" value="{{ contractor.supply if contractor else '' }}" placeholder="Type of supply/service"></div>
-          <div class="fg"><label class="fl">Contact Person *</label><input type="text" name="contact_person" class="fi" required value="{{ contractor.contact_person if contractor else '' }}" placeholder="Contact person name"></div>
-          <div class="fg"><label class="fl">Contact No</label><input type="text" name="contact_no" class="fi" value="{{ contractor.contact_no if contractor else '' }}" placeholder="9999999999"></div>
-          <div class="fg"><label class="fl">Email Address</label><input type="email" name="email_address" class="fi" value="{{ contractor.email_address if contractor else '' }}" placeholder="email@company.com"></div>
-          <div class="fg"><label class="fl">PAN Card</label><input type="text" name="pancard" class="fi" value="{{ contractor.pancard if contractor else '' }}" placeholder="ABCDE1234F" style="text-transform:uppercase;"></div>
-          <div class="fg"><label class="fl">GST No</label><input type="text" name="gstno" class="fi" value="{{ contractor.gstno if contractor else '' }}" placeholder="22AAAAA0000A1Z5"></div>
+          <div class="fg">
+            <label class="fl">Company Name <span style="color:#ef4444;">*</span></label>
+            <input type="text" name="company_name" id="company_name" class="fi" value="{{ contractor.company_name if contractor else '' }}" placeholder="Company name">
+            <div class="fi-err" id="err_company_name" style="display:none;font-size:.72rem;color:#dc2626;margin-top:3px;">⚠️ Company Name required</div>
+          </div>
+          <div class="fg">
+            <label class="fl">Supply / Service</label>
+            <input type="text" name="supply" class="fi" value="{{ contractor.supply if contractor else '' }}" placeholder="Type of supply/service">
+          </div>
+          <div class="fg">
+            <label class="fl">Contact Person <span style="color:#ef4444;">*</span></label>
+            <input type="text" name="contact_person" id="contact_person" class="fi" value="{{ contractor.contact_person if contractor else '' }}" placeholder="Contact person name">
+            <div class="fi-err" id="err_contact_person" style="display:none;font-size:.72rem;color:#dc2626;margin-top:3px;">⚠️ Contact Person required</div>
+          </div>
+          <div class="fg">
+            <label class="fl">Contact No</label>
+            <input type="text" name="contact_no" class="fi" value="{{ contractor.contact_no if contractor else '' }}" placeholder="9999999999">
+          </div>
+          <div class="fg">
+            <label class="fl">Email Address</label>
+            <input type="email" name="email_address" class="fi" value="{{ contractor.email_address if contractor else '' }}" placeholder="email@company.com">
+          </div>
+          <div class="fg">
+            <label class="fl">PAN Card</label>
+            <input type="text" name="pancard" class="fi" value="{{ contractor.pancard if contractor else '' }}" placeholder="ABCDE1234F" style="text-transform:uppercase;">
+          </div>
+          <div class="fg">
+            <label class="fl">GST No</label>
+            <input type="text" name="gstno" class="fi" value="{{ contractor.gstno if contractor else '' }}" placeholder="22AAAAA0000A1Z5">
+          </div>
           {% if contractor %}
-          <div class="fg"><label class="fl">Status</label><select name="status" class="fi"><option value="1" {{ 'selected' if contractor.status==1 }}>✅ Active</option><option value="0" {{ 'selected' if contractor.status==0 }}>⛔ Inactive</option></select></div>
+          <div class="fg">
+            <label class="fl">Status</label>
+            <select name="status" class="fi">
+              <option value="1" {{ 'selected' if contractor.status==1 }}>✅ Active</option>
+              <option value="0" {{ 'selected' if contractor.status==0 }}>⛔ Inactive</option>
+            </select>
+          </div>
           {% endif %}
         </div>
         <div class="frow"><label class="fl">Address</label><textarea name="address" class="fi" rows="3" placeholder="Full address">{{ contractor.address if contractor else '' }}</textarea></div>
@@ -48,9 +79,72 @@
     </div>
 
     <div class="fp-footer">
-      <a href="{{ url_for('hr.contractors') }}" class="fp-btn fp-btn-close"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>Cancel</a>
-      <button type="submit" class="fp-btn fp-btn-save"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>{{ 'Update' if contractor else 'Save Contractor' }}</button>
+      <a href="{{ url_for('hr.contractors') }}" class="fp-btn fp-btn-close">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>Cancel
+      </a>
+      <button type="button" onclick="submitContractorForm()" class="fp-btn fp-btn-save">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+        {{ 'Update' if contractor else 'Save Contractor' }}
+      </button>
     </div>
   </form>
 </div>
+
+<script>
+var REQUIRED_FIELDS = [
+  { id: 'company_name',   label: 'Company Name' },
+  { id: 'contact_person', label: 'Contact Person' },
+];
+
+function _setErr(id, show) {
+  var inp = document.getElementById(id);
+  var err = document.getElementById('err_' + id);
+  if (!inp) return;
+  if (show) {
+    inp.style.borderColor = '#ef4444';
+    inp.style.background  = '#fff5f5';
+    if (err) err.style.display = 'block';
+  } else {
+    inp.style.borderColor = '';
+    inp.style.background  = '';
+    if (err) err.style.display = 'none';
+  }
+}
+
+// Clear error on input
+REQUIRED_FIELDS.forEach(function(f) {
+  var el = document.getElementById(f.id);
+  if (el) el.addEventListener('input', function() { _setErr(f.id, false); });
+});
+
+function submitContractorForm() {
+  var errors = [];
+  REQUIRED_FIELDS.forEach(function(f) {
+    var el = document.getElementById(f.id);
+    if (!el || !el.value.trim()) {
+      _setErr(f.id, true);
+      errors.push(f.label);
+    } else {
+      _setErr(f.id, false);
+    }
+  });
+
+  if (errors.length) {
+    var banner = document.getElementById('valBanner');
+    document.getElementById('valBannerMsg').textContent =
+      'Please fill required fields: ' + errors.join(', ');
+    banner.style.display = 'block';
+    // Scroll to first error
+    var firstErr = document.getElementById(REQUIRED_FIELDS.find(function(f){
+      return errors.indexOf(f.label) >= 0;
+    }).id);
+    if (firstErr) firstErr.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    firstErr.focus();
+    return;
+  }
+
+  document.getElementById('valBanner').style.display = 'none';
+  document.getElementById('contractorForm').submit();
+}
+</script>
 {% endblock %}

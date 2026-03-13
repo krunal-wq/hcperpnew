@@ -1,0 +1,549 @@
+{% extends "base.html" %}
+{% block title %}Salary Configuration{% endblock %}
+{% block page_title %}Salary Configuration{% endblock %}
+{% block bread %}HR / Salary Configuration{% endblock %}
+
+{% block extra_css %}
+.sc-wrap { max-width: 980px; margin: 0 auto; }
+
+.sc-card { background:var(--card); border:1px solid var(--border); border-radius:12px; overflow:hidden; margin-bottom:1.4rem; box-shadow:0 1px 4px rgba(0,0,0,.05); }
+.sc-card-hdr { padding:.75rem 1.2rem; background:#f8fafc; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; }
+.sc-card-hdr-l { display:flex; align-items:center; gap:.5rem; }
+.sc-card-hdr h3 { font-size:.85rem; font-weight:700; color:var(--text1); margin:0; }
+.sc-card-hdr span { font-size:.75rem; color:var(--text3); }
+
+.sc-grid { display:grid; grid-template-columns:1fr 1fr; }
+.sc-field { padding:.85rem 1.2rem; border-bottom:1px solid #f1f5f9; display:flex; align-items:center; gap:1rem; }
+.sc-field:nth-child(odd){ border-right:1px solid #f1f5f9; }
+.sc-field:last-child,.sc-field:nth-last-child(2):nth-child(odd){ border-bottom:none; }
+@media(max-width:600px){ .sc-grid{grid-template-columns:1fr} .sc-field:nth-child(odd){border-right:none} }
+.sc-field label { flex:1; font-size:.8rem; color:var(--text2); font-weight:500; line-height:1.3; }
+.sc-field label small { display:block; font-size:.7rem; color:var(--text3); font-weight:400; margin-top:1px; }
+.sc-inp-wrap { display:flex; align-items:center; gap:4px; }
+.sc-inp { width:88px; text-align:right; padding:.38rem .55rem; border:1.5px solid var(--border); border-radius:7px; font-size:.85rem; font-weight:600; color:var(--text1); background:#fff; transition:border-color .15s; }
+.sc-inp:focus { outline:none; border-color:var(--primary); box-shadow:0 0 0 3px rgba(99,102,241,.12); }
+.sc-inp.changed { border-color:#f59e0b; background:#fffbeb; }
+.sc-unit { font-size:.78rem; color:var(--text3); min-width:22px; }
+
+.comp-tbl { width:100%; border-collapse:collapse; }
+.comp-tbl th { padding:.5rem .9rem; font-size:.68rem; font-weight:700; color:var(--text3); text-transform:uppercase; letter-spacing:.05em; border-bottom:2px solid var(--border); background:#f8fafc; text-align:left; white-space:nowrap; }
+.comp-tbl td { padding:.6rem .9rem; border-bottom:1px solid #f1f5f9; font-size:.8rem; vertical-align:middle; }
+.comp-tbl tr:hover td { background:#f8fafc; }
+.comp-tbl tr:last-child td { border-bottom:none; }
+.sys-badge { font-size:.64rem; background:#f1f5f9; color:#64748b; border-radius:4px; padding:1px 5px; margin-left:3px; }
+.inactive-row td { opacity:.42; }
+.badge-on  { font-size:.7rem; background:#d1fae5; color:#065f46; border-radius:99px; padding:2px 8px; font-weight:700; }
+.badge-off { font-size:.7rem; background:#f1f5f9; color:#64748b; border-radius:99px; padding:2px 8px; }
+.btn-edit-sm { background:#eff6ff; color:#1d4ed8; border:1.5px solid #bfdbfe; padding:3px 9px; border-radius:6px; font-size:.72rem; font-weight:600; cursor:pointer; }
+.btn-edit-sm:hover { background:#dbeafe; }
+.btn-del-sm  { background:#fff; color:#dc2626; border:1.5px solid #fca5a5; padding:3px 9px; border-radius:6px; font-size:.72rem; font-weight:600; cursor:pointer; }
+.btn-del-sm:hover { background:#fee2e2; }
+
+.sc-preview { background:linear-gradient(135deg,#1e3a5f 0%,#2d5a9e 100%); border-radius:12px; padding:1.3rem 1.5rem; color:#fff; margin-bottom:1.4rem; }
+.sc-preview h3 { font-size:.78rem; font-weight:700; opacity:.7; letter-spacing:.06em; text-transform:uppercase; margin:0 0 .8rem; }
+.sc-prev-ctc { display:flex; align-items:center; gap:.6rem; margin-bottom:.9rem; }
+.sc-prev-ctc label { font-size:.78rem; opacity:.8; white-space:nowrap; }
+.sc-prev-ctc input { width:130px; padding:.32rem .6rem; border:1.5px solid rgba(255,255,255,.3); border-radius:7px; background:rgba(255,255,255,.12); color:#fff; font-size:.88rem; font-weight:700; text-align:right; }
+.sc-prev-ctc input:focus { outline:none; border-color:rgba(255,255,255,.7); }
+.sc-prev-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:.4rem .8rem; }
+@media(max-width:600px){ .sc-prev-grid{grid-template-columns:1fr 1fr} }
+.sc-prev-item label { font-size:.67rem; opacity:.6; display:block; margin-bottom:1px; }
+.sc-prev-item .val { font-size:.85rem; font-weight:700; }
+.sc-prev-item.hi .val { color:#86efac; font-size:.95rem; }
+.sc-prev-divider { grid-column:1/-1; border-top:1px solid rgba(255,255,255,.15); margin:.1rem 0; }
+
+/* Modal */
+.cmo { position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:9000; display:none; align-items:center; justify-content:center; padding:1rem; }
+.cmo.show { display:flex !important; }
+.cmo-box { background:#fff; border-radius:14px; width:100%; max-width:540px; box-shadow:0 24px 80px rgba(0,0,0,.28); overflow:hidden; max-height:92vh; display:flex; flex-direction:column; }
+.cmo-hdr { padding:1rem 1.3rem; border-bottom:1px solid #e2e8f0; display:flex; align-items:center; justify-content:space-between; flex-shrink:0; background:#fff; }
+.cmo-hdr h3 { font-size:.95rem; font-weight:700; margin:0; color:#1e293b; }
+.cmo-body { padding:1.1rem 1.3rem; display:grid; grid-template-columns:1fr 1fr; gap:.7rem 1rem; overflow-y:auto; flex:1; background:#fff; }
+.cmo-body .full { grid-column:1/-1; }
+.fld { display:flex; flex-direction:column; }
+.fld > label { font-size:.74rem; font-weight:600; color:#475569; display:block; margin-bottom:4px !important; padding:0 !important; }
+.fld > input, .fld > select {
+  width:100% !important; box-sizing:border-box !important;
+  padding:.42rem .65rem !important;
+  border:1.5px solid #cbd5e1 !important;
+  border-radius:7px !important;
+  font-size:.83rem !important;
+  color:#1e293b !important;
+  background:#fff !important;
+  font-family:inherit !important;
+  height:auto !important;
+  line-height:1.4 !important;
+}
+.fld > input:focus, .fld > select:focus { outline:none !important; border-color:#6366f1 !important; box-shadow:0 0 0 3px rgba(99,102,241,.12) !important; }
+.fld > input[readonly] { background:#f8fafc !important; color:#94a3b8 !important; cursor:default; }
+.fld .hint { font-size:.7rem; color:#94a3b8; margin-top:3px; }
+.fld-check { display:flex !important; flex-direction:row !important; align-items:center; gap:.5rem; padding:.4rem 0; }
+.fld-check input[type=checkbox] { width:16px !important; height:16px !important; margin:0 !important; flex-shrink:0; cursor:pointer; accent-color:#6366f1; }
+.fld-check label { font-size:.82rem !important; color:#374151 !important; margin:0 !important; cursor:pointer; font-weight:500 !important; }
+.cmo-ftr { padding:.85rem 1.3rem; border-top:1px solid #e2e8f0; display:flex; justify-content:flex-end; gap:.6rem; background:#f8fafc; flex-shrink:0; }
+
+.sc-info { background:#eff6ff; border:1px solid #bfdbfe; border-radius:9px; padding:.65rem 1rem; font-size:.78rem; color:#1e40af; margin-bottom:1.1rem; display:flex; gap:.5rem; }
+.sc-footer { display:flex; align-items:center; justify-content:space-between; gap:1rem; padding:1rem 0; flex-wrap:wrap; }
+.sc-footer .left { font-size:.78rem; color:var(--text3); }
+.sc-footer .left strong { color:var(--text2); }
+
+.sc-toast { position:fixed; top:1.2rem; right:1.2rem; z-index:9999; padding:.65rem 1.1rem; border-radius:9px; font-size:.83rem; font-weight:600; display:none; align-items:center; gap:.4rem; box-shadow:0 4px 18px rgba(0,0,0,.13); animation:scSlideIn .25s ease; }
+@keyframes scSlideIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
+.sc-toast.success{background:#d1fae5;color:#065f46;border:1px solid #6ee7b7;display:flex}
+.sc-toast.error{background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;display:flex}
+{% endblock %}
+
+{% block content %}
+<div class="sc-wrap">
+
+  <div class="page-hdr">
+    <div>
+      <h1 style="font-size:1.2rem;">⚙️ Salary Configuration</h1>
+      <p style="font-size:.78rem;color:var(--text3);">Salary percentages aur components — sabhi employees ke liye apply honge</p>
+    </div>
+    <div style="display:flex;gap:.5rem;">
+      <button type="button" class="btn-outline" style="font-size:.8rem;" onclick="resetDefaults()">↩️ Reset Defaults</button>
+      <button type="button" class="btn-primary" style="font-size:.82rem;" onclick="saveCoreConfig()" id="saveBtn">💾 Save Config</button>
+    </div>
+  </div>
+
+  <div class="sc-info">
+    ℹ️ <span>Config <strong>database mein save hoti hai</strong> — ek baar set karo, sabhi employees ki salary calculation automatically isi se hogi.</span>
+  </div>
+
+  <!-- Live Preview -->
+  <div class="sc-preview">
+    <h3>📊 Live Preview</h3>
+    <div class="sc-prev-ctc">
+      <label>Annual CTC (₹)</label>
+      <input type="number" id="prevCtc" value="600000" oninput="updatePreview()">
+    </div>
+    <div class="sc-prev-grid">
+      <div class="sc-prev-item"><label>Monthly CTC</label><span class="val" id="pv_monthly">—</span></div>
+      <div id="prevEarningRows"></div>
+      <div class="sc-prev-divider"></div>
+      <div id="prevDeductRows"></div>
+      <div class="sc-prev-divider"></div>
+      <div class="sc-prev-item hi"><label>Net Take Home</label><span class="val" id="pv_net">—</span></div>
+      <div class="sc-prev-item hi"><label>Cost to Company</label><span class="val" id="pv_ctc_total">—</span></div>
+    </div>
+  </div>
+
+  <!-- Core Config -->
+  <div class="sc-card">
+    <div class="sc-card-hdr">
+      <div class="sc-card-hdr-l"><h3>🔢 Core Configuration</h3></div>
+    </div>
+    <div class="sc-grid">
+      <div class="sc-field">
+        <label>Basic Salary <small>% of Monthly CTC — used as base for all % calculations</small></label>
+        <div class="sc-inp-wrap">
+          <input type="number" class="sc-inp" id="cfg_basic" value="{{ cfg.basic_pct }}" min="0" max="100" step="0.1" oninput="markChanged(this);updatePreview()">
+          <span class="sc-unit">%</span>
+        </div>
+      </div>
+      <div class="sc-field">
+        <label>ESIC Applicable Limit <small>Gross &le; this → ESIC components apply honge</small></label>
+        <div class="sc-inp-wrap">
+          <input type="number" class="sc-inp" style="width:105px" id="cfg_esic_limit" value="{{ cfg.esic_limit }}" min="0" step="500" oninput="markChanged(this);updatePreview()">
+          <span class="sc-unit">₹</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Earning Components -->
+  <div class="sc-card">
+    <div class="sc-card-hdr">
+      <div class="sc-card-hdr-l">
+        <h3>💰 Earning Components</h3>
+        <span>{{ components|selectattr('component_type','eq','earning')|list|length }} components</span>
+      </div>
+      <button class="btn-primary" style="font-size:.76rem;padding:.3rem .8rem;" onclick="openAddModal('earning')">＋ Add Earning</button>
+    </div>
+    <div style="overflow-x:auto;">
+      <table class="comp-tbl">
+        <thead><tr><th>Name</th><th>Calc Type</th><th>Value</th><th>Cap / Limit</th><th>Status</th><th></th></tr></thead>
+        <tbody>
+        {% for c in components if c.component_type == 'earning' %}
+          <tr id="cr{{ c.id }}" {% if not c.is_active %}class="inactive-row"{% endif %}>
+            <td>
+              <strong>{{ c.name }}</strong>{% if c.is_system %}<span class="sys-badge">system</span>{% endif %}
+              {% if c.description %}<div style="font-size:.7rem;color:var(--text3)">{{ c.description }}</div>{% endif %}
+            </td>
+            <td><code style="font-size:.72rem;background:#f1f5f9;padding:2px 6px;border-radius:4px;">{{ c.calc_type }}</code></td>
+            <td style="font-weight:700;">{% if 'pct' in c.calc_type %}{{ c.value }}%{% elif c.calc_type == 'balance' %}Auto{% else %}₹{{ c.value|int }}{% endif %}</td>
+            <td style="color:var(--text3);font-size:.76rem;">{% if c.cap_amount %}Cap ₹{{ c.cap_amount|int }}{% endif %}{% if c.apply_if_gross_lte %} Limit ₹{{ c.apply_if_gross_lte|int }}{% endif %}{% if not c.cap_amount and not c.apply_if_gross_lte %}—{% endif %}</td>
+            <td>{% if c.is_active %}<span class="badge-on">Active</span>{% else %}<span class="badge-off">Inactive</span>{% endif %}</td>
+            <td><div style="display:flex;gap:4px;">
+              <button class="btn-edit-sm" onclick="openEditModal({{ c.id }})">✏️ Edit</button>
+              {% if not c.is_system %}<button class="btn-del-sm" onclick="deleteComp({{ c.id }},'{{ c.name }}')">🗑</button>{% endif %}
+            </div></td>
+          </tr>
+        {% else %}
+          <tr><td colspan="6" style="text-align:center;padding:1.5rem;color:var(--text3);font-size:.8rem;">No earning components — Add one ↑</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Deduction Components -->
+  <div class="sc-card">
+    <div class="sc-card-hdr">
+      <div class="sc-card-hdr-l">
+        <h3>📉 Deduction Components</h3>
+        <span>{{ components|selectattr('component_type','eq','deduction')|list|length }} components</span>
+      </div>
+      <button class="btn-primary" style="font-size:.76rem;padding:.3rem .8rem;" onclick="openAddModal('deduction')">＋ Add Deduction</button>
+    </div>
+    <div style="overflow-x:auto;">
+      <table class="comp-tbl">
+        <thead><tr><th>Name</th><th>Calc Type</th><th>Value</th><th>Cap / Limit</th><th>Status</th><th></th></tr></thead>
+        <tbody>
+        {% for c in components if c.component_type == 'deduction' %}
+          <tr id="cr{{ c.id }}" {% if not c.is_active %}class="inactive-row"{% endif %}>
+            <td>
+              <strong>{{ c.name }}</strong>{% if c.is_system %}<span class="sys-badge">system</span>{% endif %}
+              {% if c.description %}<div style="font-size:.7rem;color:var(--text3)">{{ c.description }}</div>{% endif %}
+            </td>
+            <td><code style="font-size:.72rem;background:#f1f5f9;padding:2px 6px;border-radius:4px;">{{ c.calc_type }}</code></td>
+            <td style="font-weight:700;">{% if 'pct' in c.calc_type %}{{ c.value }}%{% else %}₹{{ c.value|int }}{% endif %}</td>
+            <td style="color:var(--text3);font-size:.76rem;">{% if c.cap_amount %}Cap ₹{{ c.cap_amount|int }}{% endif %}{% if c.apply_if_gross_lte %} Limit ₹{{ c.apply_if_gross_lte|int }}{% endif %}{% if not c.cap_amount and not c.apply_if_gross_lte %}—{% endif %}</td>
+            <td>{% if c.is_active %}<span class="badge-on">Active</span>{% else %}<span class="badge-off">Inactive</span>{% endif %}</td>
+            <td><div style="display:flex;gap:4px;">
+              <button class="btn-edit-sm" onclick="openEditModal({{ c.id }})">✏️ Edit</button>
+              {% if not c.is_system %}<button class="btn-del-sm" onclick="deleteComp({{ c.id }},'{{ c.name }}')">🗑</button>{% endif %}
+            </div></td>
+          </tr>
+        {% else %}
+          <tr><td colspan="6" style="text-align:center;padding:1.5rem;color:var(--text3);font-size:.8rem;">No deduction components</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Employer Contributions -->
+  <div class="sc-card">
+    <div class="sc-card-hdr">
+      <div class="sc-card-hdr-l">
+        <h3>🏢 Employer Contributions</h3>
+        <span>Employee se deduct nahi — CTC mein add hote hain</span>
+      </div>
+      <button class="btn-primary" style="font-size:.76rem;padding:.3rem .8rem;" onclick="openAddModal('employer_contrib')">＋ Add</button>
+    </div>
+    <div style="overflow-x:auto;">
+      <table class="comp-tbl">
+        <thead><tr><th>Name</th><th>Calc Type</th><th>Value</th><th>Cap / Limit</th><th>Status</th><th></th></tr></thead>
+        <tbody>
+        {% for c in components if c.component_type == 'employer_contrib' %}
+          <tr id="cr{{ c.id }}" {% if not c.is_active %}class="inactive-row"{% endif %}>
+            <td>
+              <strong>{{ c.name }}</strong>{% if c.is_system %}<span class="sys-badge">system</span>{% endif %}
+              {% if c.description %}<div style="font-size:.7rem;color:var(--text3)">{{ c.description }}</div>{% endif %}
+            </td>
+            <td><code style="font-size:.72rem;background:#f1f5f9;padding:2px 6px;border-radius:4px;">{{ c.calc_type }}</code></td>
+            <td style="font-weight:700;">{% if 'pct' in c.calc_type %}{{ c.value }}%{% else %}₹{{ c.value|int }}{% endif %}</td>
+            <td style="color:var(--text3);font-size:.76rem;">{% if c.cap_amount %}Cap ₹{{ c.cap_amount|int }}{% endif %}{% if c.apply_if_gross_lte %} Limit ₹{{ c.apply_if_gross_lte|int }}{% endif %}{% if not c.cap_amount and not c.apply_if_gross_lte %}—{% endif %}</td>
+            <td>{% if c.is_active %}<span class="badge-on">Active</span>{% else %}<span class="badge-off">Inactive</span>{% endif %}</td>
+            <td><div style="display:flex;gap:4px;">
+              <button class="btn-edit-sm" onclick="openEditModal({{ c.id }})">✏️ Edit</button>
+              {% if not c.is_system %}<button class="btn-del-sm" onclick="deleteComp({{ c.id }},'{{ c.name }}')">🗑</button>{% endif %}
+            </div></td>
+          </tr>
+        {% else %}
+          <tr><td colspan="6" style="text-align:center;padding:1.5rem;color:var(--text3);font-size:.8rem;">No employer contributions</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="sc-footer">
+    <div class="left">
+      {% if cfg.updated_by %}Last saved by <strong>{{ cfg.updated_by }}</strong>{% if cfg.updated_at %} on <strong>{{ cfg.updated_at }}</strong>{% endif %}
+      {% else %}<span style="color:#f59e0b;">⚠️ Default values use ho rahi hain — save karo</span>{% endif %}
+    </div>
+    <div style="display:flex;gap:.5rem;">
+      <button type="button" class="btn-outline" style="font-size:.8rem;" onclick="resetDefaults()">↩️ Reset</button>
+      <button type="button" class="btn-primary" style="font-size:.82rem;" onclick="saveCoreConfig()">💾 Save Config</button>
+    </div>
+  </div>
+
+</div>
+
+<!-- Component Modal -->
+<div class="cmo" id="compModal">
+  <div class="cmo-box">
+    <div class="cmo-hdr">
+      <h3 id="modalTitle">Add Component</h3>
+      <button onclick="closeModal()" style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:var(--text3);">✕</button>
+    </div>
+    <div class="cmo-body">
+      <input type="hidden" id="mId">
+      <div class="fld">
+        <label>Name *</label>
+        <input type="text" id="mName" placeholder="e.g. Night Shift Allowance">
+      </div>
+      <div class="fld">
+        <label>Code * <span style="font-weight:400;color:var(--text3)">(unique, no spaces)</span></label>
+        <input type="text" id="mCode" placeholder="e.g. night_shift">
+      </div>
+      <div class="fld">
+        <label>Component Type *</label>
+        <select id="mType">
+          <option value="earning">💰 Earning</option>
+          <option value="deduction">📉 Deduction</option>
+          <option value="employer_contrib">🏢 Employer Contribution</option>
+        </select>
+      </div>
+      <div class="fld">
+        <label>Calculation Type *</label>
+        <select id="mCalcType" onchange="toggleCalcFields()">
+          <option value="pct_of_ctc">% of Monthly CTC</option>
+          <option value="pct_of_basic">% of Basic</option>
+          <option value="pct_of_gross">% of Gross Salary</option>
+          <option value="pct_of_basic_capped">% of Basic (with max cap)</option>
+          <option value="fixed">Fixed ₹ per month</option>
+          <option value="balance">Auto Balance (remaining CTC)</option>
+        </select>
+      </div>
+      <div class="fld" id="fldVal">
+        <label id="valLbl">Value *</label>
+        <input type="number" id="mValue" placeholder="0" step="0.01" min="0">
+        <div class="hint" id="valHint"></div>
+      </div>
+      <div class="fld" id="fldCap" style="display:none">
+        <label>Max Cap (₹)</label>
+        <input type="number" id="mCap" placeholder="e.g. 1800">
+        <div class="hint">Leave blank = no cap</div>
+      </div>
+      <div class="fld">
+        <label>Apply only if Gross ≤ (₹) <span style="font-weight:400;color:var(--text3)">optional</span></label>
+        <input type="number" id="mLimit" placeholder="e.g. 21000">
+        <div class="hint">Leave blank = always apply</div>
+      </div>
+      <div class="fld">
+        <label>Sort Order</label>
+        <input type="number" id="mSort" value="10" min="0">
+      </div>
+      <div class="fld full">
+        <label>Description <span style="font-weight:400;color:var(--text3)">optional</span></label>
+        <input type="text" id="mDesc" placeholder="Short note for reference">
+      </div>
+      <div class="fld-check full">
+        <input type="checkbox" id="mActive" checked>
+        <label for="mActive">✅ Active — calculation mein include karo</label>
+      </div>
+    </div>
+    <div class="cmo-ftr">
+      <button type="button" class="btn-outline" style="font-size:.82rem;" onclick="closeModal()">Cancel</button>
+      <button type="button" class="btn-primary" style="font-size:.82rem;" id="mSaveBtn" onclick="saveComponent()">💾 Save</button>
+    </div>
+  </div>
+</div>
+
+<div class="sc-toast" id="scToast"></div>
+
+<script>
+var COMPS = {{ components_json | tojson }};
+var CORE_DEF = { basic_pct: 40, esic_limit: 21000 };
+
+function r2(v){ return Math.round(v*100)/100; }
+function fmt(v){ return '₹' + Math.round(v).toLocaleString('en-IN'); }
+
+function showToast(msg, type){
+  var t = document.getElementById('scToast');
+  t.textContent = msg; t.className = 'sc-toast ' + type;
+  setTimeout(function(){ t.className = 'sc-toast'; }, 3500);
+}
+function markChanged(el){ el.classList.add('changed'); }
+
+// ── Calculation engine (uses live component data) ──
+function calcPreview(ctcAnnual){
+  var monthly   = r2(ctcAnnual / 12);
+  var basic_pct = parseFloat(document.getElementById('cfg_basic').value) || 40;
+  var basic     = r2(monthly * basic_pct / 100);
+  var active    = COMPS.filter(function(c){ return c.is_active; });
+  var res = { monthly: monthly, basic: basic };
+
+  // Earnings (excluding basic itself which is already calculated)
+  var earn_sum = basic;
+  active.filter(function(c){ return c.component_type==='earning' && c.code!=='basic' && c.calc_type!=='balance'; }).forEach(function(c){
+    var v = _calcOne(c, basic, monthly, 0);
+    res[c.code] = v; earn_sum += v;
+  });
+  // Balance component
+  var bal = active.find(function(c){ return c.component_type==='earning' && c.calc_type==='balance'; });
+  if(bal){ var b = r2(monthly - earn_sum); res[bal.code] = b > 0 ? b : 0; }
+
+  var gross = monthly; // gross = monthly CTC
+
+  // Deductions
+  var ded_sum = 0;
+  active.filter(function(c){ return c.component_type==='deduction'; }).forEach(function(c){
+    if(c.apply_if_gross_lte && gross > c.apply_if_gross_lte){ res[c.code]=0; return; }
+    var v = _calcOne(c, basic, gross, monthly);
+    res[c.code] = v; ded_sum += v;
+  });
+
+  // Employer
+  var er_sum = 0;
+  active.filter(function(c){ return c.component_type==='employer_contrib'; }).forEach(function(c){
+    if(c.apply_if_gross_lte && gross > c.apply_if_gross_lte){ res[c.code]=0; return; }
+    var v = _calcOne(c, basic, gross, monthly);
+    res[c.code] = v; er_sum += v;
+  });
+
+  res.net       = r2(gross - ded_sum);
+  res.ctc_total = r2(monthly + er_sum);
+  return res;
+}
+
+function _calcOne(c, basic, gross, monthly){
+  var v = 0;
+  switch(c.calc_type){
+    case 'pct_of_basic':        v = r2(basic   * c.value / 100); break;
+    case 'pct_of_gross':        v = r2(gross   * c.value / 100); break;
+    case 'pct_of_ctc':          v = r2(monthly * c.value / 100); break;
+    case 'fixed':               v = r2(c.value); break;
+    case 'pct_of_basic_capped': v = r2(basic   * c.value / 100);
+      if(c.cap_amount) v = Math.min(v, c.cap_amount); break;
+  }
+  return v;
+}
+
+function updatePreview(){
+  var ctc = parseFloat(document.getElementById('prevCtc').value) || 0;
+  if(!ctc) return;
+  var res = calcPreview(ctc);
+  document.getElementById('pv_monthly').textContent = fmt(res.monthly);
+
+  var eHtml = '', dHtml = '';
+  COMPS.filter(function(c){ return c.is_active && c.component_type==='earning'; }).forEach(function(c){
+    eHtml += '<div class="sc-prev-item"><label>'+c.name+'</label><span class="val">'+fmt(res[c.code]||0)+'</span></div>';
+  });
+  COMPS.filter(function(c){ return c.is_active && (c.component_type==='deduction'||c.component_type==='employer_contrib'); }).forEach(function(c){
+    var v = res[c.code]||0;
+    var lbl = c.name + (c.component_type==='employer_contrib' ? ' <span style="opacity:.55;font-size:.6rem">(er)</span>' : '');
+    dHtml += '<div class="sc-prev-item"><label>'+lbl+'</label><span class="val">'+(v>0?fmt(v):'—')+'</span></div>';
+  });
+  document.getElementById('prevEarningRows').innerHTML = eHtml;
+  document.getElementById('prevDeductRows').innerHTML  = dHtml;
+  document.getElementById('pv_net').textContent       = fmt(res.net);
+  document.getElementById('pv_ctc_total').textContent = fmt(res.ctc_total);
+}
+
+// ── Core config save ──
+function saveCoreConfig(){
+  var cfg = {
+    basic_pct:  parseFloat(document.getElementById('cfg_basic').value)||40,
+    esic_limit: parseFloat(document.getElementById('cfg_esic_limit').value)||21000,
+  };
+  var btn = document.getElementById('saveBtn');
+  btn.disabled=true; btn.textContent='⏳ Saving…';
+  fetch('/hr/salary-config',{
+    method:'POST', headers:{'Content-Type':'application/json','X-Requested-With':'XMLHttpRequest'},
+    body:JSON.stringify(cfg)
+  }).then(function(r){return r.json();}).then(function(d){
+    btn.disabled=false; btn.textContent='💾 Save Config';
+    if(d.ok){ showToast('✅ Saved!','success'); document.querySelectorAll('.sc-inp.changed').forEach(function(e){e.classList.remove('changed');}); setTimeout(function(){location.reload();},1000); }
+    else showToast('❌ '+(d.error||'Failed'),'error');
+  }).catch(function(){ btn.disabled=false; btn.textContent='💾 Save Config'; showToast('❌ Network error','error'); });
+}
+
+function resetDefaults(){
+  if(!confirm('Core config reset karna chahte ho?')) return;
+  document.getElementById('cfg_basic').value = CORE_DEF.basic_pct;
+  document.getElementById('cfg_esic_limit').value = CORE_DEF.esic_limit;
+  document.querySelectorAll('.sc-inp').forEach(function(e){ e.classList.add('changed'); });
+  updatePreview();
+}
+
+// ── Component modal ──
+function toggleCalcFields(){
+  var ct = document.getElementById('mCalcType').value;
+  var lbls = { pct_of_ctc:'% of Monthly CTC *', pct_of_basic:'% of Basic *', pct_of_gross:'% of Gross *', pct_of_basic_capped:'% of Basic (capped) *', fixed:'Fixed ₹ Amount *', balance:'—' };
+  document.getElementById('valLbl').textContent = lbls[ct]||'Value *';
+  document.getElementById('fldVal').style.display  = ct==='balance'?'none':'';
+  document.getElementById('fldCap').style.display  = ct==='pct_of_basic_capped'?'':'none';
+}
+
+function openAddModal(type){
+  document.getElementById('modalTitle').textContent='Add Component';
+  document.getElementById('mId').value='';
+  ['mName','mCode','mValue','mCap','mLimit','mDesc'].forEach(function(id){document.getElementById(id).value='';});
+  document.getElementById('mType').value='earning'; if(type) document.getElementById('mType').value=type;
+  document.getElementById('mCalcType').value='fixed';
+  document.getElementById('mSort').value='10';
+  document.getElementById('mActive').checked=true;
+  document.getElementById('mCode').readOnly=false;
+  toggleCalcFields();
+  document.getElementById('compModal').classList.add('show');
+}
+
+function openEditModal(id){
+  var c = COMPS.find(function(x){return x.id===id;});
+  if(!c) return;
+  document.getElementById('modalTitle').textContent='Edit — '+c.name;
+  document.getElementById('mId').value           = id;
+  document.getElementById('mName').value         = c.name;
+  document.getElementById('mCode').value         = c.code;
+  document.getElementById('mCode').readOnly      = true;
+  document.getElementById('mType').value         = c.component_type;
+  document.getElementById('mCalcType').value     = c.calc_type;
+  document.getElementById('mValue').value        = c.value;
+  document.getElementById('mCap').value          = c.cap_amount||'';
+  document.getElementById('mLimit').value        = c.apply_if_gross_lte||'';
+  document.getElementById('mSort').value         = c.sort_order;
+  document.getElementById('mDesc').value         = c.description||'';
+  document.getElementById('mActive').checked     = c.is_active;
+  toggleCalcFields();
+  document.getElementById('compModal').classList.add('show');
+}
+
+function closeModal(){ document.getElementById('compModal').classList.remove('show'); }
+
+function saveComponent(){
+  var id  = document.getElementById('mId').value;
+  var ct  = document.getElementById('mCalcType').value;
+  var data = {
+    name:               document.getElementById('mName').value.trim(),
+    code:               document.getElementById('mCode').value.trim().toLowerCase().replace(/\s+/g,'_'),
+    component_type:     document.getElementById('mType').value,
+    calc_type:          ct,
+    value:              ct==='balance' ? 0 : (parseFloat(document.getElementById('mValue').value)||0),
+    cap_amount:         document.getElementById('mCap').value||null,
+    apply_if_gross_lte: document.getElementById('mLimit').value||null,
+    sort_order:         parseInt(document.getElementById('mSort').value)||0,
+    description:        document.getElementById('mDesc').value,
+    is_active:          document.getElementById('mActive').checked,
+  };
+  if(!data.name){ showToast('❌ Name required','error'); return; }
+  if(!id && !data.code){ showToast('❌ Code required','error'); return; }
+
+  var url  = id ? '/hr/salary-components/'+id : '/hr/salary-components/add';
+  var btn  = document.getElementById('mSaveBtn');
+  btn.disabled=true; btn.textContent='⏳ Saving…';
+  fetch(url,{method:'POST',headers:{'Content-Type':'application/json','X-Requested-With':'XMLHttpRequest'},body:JSON.stringify(data)})
+  .then(function(r){return r.json();}).then(function(d){
+    btn.disabled=false; btn.textContent='💾 Save';
+    if(d.ok){ showToast('✅ Saved!','success'); closeModal(); setTimeout(function(){location.reload();},600); }
+    else showToast('❌ '+(d.error||'Failed'),'error');
+  }).catch(function(){ btn.disabled=false; btn.textContent='💾 Save'; showToast('❌ Network error','error'); });
+}
+
+function deleteComp(id, name){
+  if(!confirm('"'+name+'" delete karna chahte ho?')) return;
+  fetch('/hr/salary-components/'+id+'/delete',{method:'POST',headers:{'X-Requested-With':'XMLHttpRequest'}})
+  .then(function(r){return r.json();}).then(function(d){
+    if(d.ok){ var row=document.getElementById('cr'+id); if(row) row.remove(); COMPS=COMPS.filter(function(c){return c.id!==id;}); showToast('🗑 Deleted','success'); }
+    else showToast('❌ '+(d.error||'Cannot delete'),'error');
+  });
+}
+
+document.getElementById('compModal').addEventListener('click',function(e){ if(e.target===this) closeModal(); });
+document.addEventListener('DOMContentLoaded', updatePreview);
+</script>
+{% endblock %}
