@@ -4,105 +4,209 @@
 {% block bread %}Home{% endblock %}
 
 {% block extra_css %}
+/* Welcome card */
 .welcome-card {
     background: linear-gradient(135deg, #1e2d5e 0%, #2563eb 60%, #0d9488 100%);
-    border-radius: 16px; padding: 1.75rem 2rem; color: #fff;
+    border-radius: 16px; padding: 1.6rem 2rem; color: #fff;
     display: flex; align-items: center; justify-content: space-between;
-    flex-wrap: wrap; gap: 1rem; margin-bottom: 1.5rem;
+    flex-wrap: wrap; gap: 1rem; margin-bottom: 1.25rem;
     position: relative; overflow: hidden;
 }
 .welcome-card::before { content:''; position:absolute; top:-40px; right:-40px; width:200px; height:200px; background:rgba(255,255,255,.05); border-radius:50%; }
 .welcome-card::after  { content:''; position:absolute; bottom:-60px; right:100px; width:150px; height:150px; background:rgba(255,255,255,.04); border-radius:50%; }
-.wc-title { font-size:1.4rem; font-weight:800; margin-bottom:4px; }
-.wc-sub   { font-size:.85rem; opacity:.8; }
-.wc-date  { font-size:.75rem; opacity:.6; margin-top:4px; }
+.wc-title { font-size:1.35rem; font-weight:800; margin-bottom:3px; }
+.wc-sub   { font-size:.83rem; opacity:.8; }
+.wc-date  { font-size:.73rem; opacity:.6; margin-top:3px; }
 .wc-btns  { display:flex; gap:.6rem; flex-wrap:wrap; z-index:1; }
-.wc-btn   { padding:9px 18px; border-radius:9px; font-size:.83rem; font-weight:600; text-decoration:none; transition:all .15s; white-space:nowrap; }
+.wc-btn   { padding:8px 18px; border-radius:9px; font-size:.82rem; font-weight:600; text-decoration:none; transition:all .15s; white-space:nowrap; }
 .wc-btn-white { background:#fff; color:#1e2d5e; }
 .wc-btn-white:hover { background:#f0f4ff; transform:translateY(-1px); }
 .wc-btn-ghost { background:rgba(255,255,255,.15); color:#fff; border:1px solid rgba(255,255,255,.3); }
 .wc-btn-ghost:hover { background:rgba(255,255,255,.25); }
 
-.sec-lbl { font-size:.72rem; font-weight:700; color:var(--text3); text-transform:uppercase; letter-spacing:.07em; margin-bottom:.75rem; }
-
-.kpi-grid4 { display:grid; grid-template-columns:repeat(4,1fr); gap:1rem; margin-bottom:1.5rem; }
-.kpi-box {
-    background:#fff; border:1.5px solid var(--border); border-radius:14px;
-    padding:1.1rem 1.25rem; display:flex; align-items:center; gap:.9rem;
-    text-decoration:none; color:var(--text); transition:transform .15s,box-shadow .15s;
-    position:relative; overflow:hidden;
+/* Section label — exact like screenshot */
+.sec-lbl {
+    font-size:.72rem; font-weight:800; color:var(--text2);
+    text-transform:uppercase; letter-spacing:.09em;
+    margin-bottom:.65rem; display:flex; align-items:center; gap:6px;
 }
-.kpi-box:hover { transform:translateY(-2px); box-shadow:0 6px 20px rgba(0,0,0,.08); }
-.kpi-box::after { content:''; position:absolute; top:0; right:0; width:4px; height:100%; border-radius:0 14px 14px 0; }
-.kpi-box.c-blue::after  { background:var(--blue); }
-.kpi-box.c-green::after { background:var(--green); }
-.kpi-box.c-amber::after { background:var(--amber); }
-.kpi-box.c-purple::after{ background:var(--purple); }
-.kpi-ico { width:48px; height:48px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:1.4rem; flex-shrink:0; }
-.kpi-ico.c-blue   { background:#eff6ff; }
-.kpi-ico.c-green  { background:#f0fdf4; }
-.kpi-ico.c-amber  { background:#fffbeb; }
-.kpi-ico.c-purple { background:#f5f3ff; }
-.kpi-lbl { font-size:.7rem; font-weight:600; color:var(--text3); text-transform:uppercase; letter-spacing:.05em; }
-.kpi-num { font-size:1.75rem; font-weight:800; line-height:1.1; }
-.kpi-hint{ font-size:.7rem; color:var(--text3); margin-top:1px; }
+.sec-lbl-dot {
+    width:8px; height:8px; border-radius:50%; flex-shrink:0;
+    background:var(--blue);
+}
 
-.modules-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:1rem; margin-bottom:1.5rem; }
+/* ═══ QUICK OVERVIEW — exactly like screenshot ═══ */
+.qo-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0;
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    overflow: hidden;
+    margin-bottom: 1.25rem;
+}
+.qo-card {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 18px 22px;
+    text-decoration: none;
+    color: var(--text);
+    transition: background .15s;
+    border-right: 1px solid #e2e8f0;
+    position: relative;
+}
+.qo-card:last-child { border-right: none; }
+.qo-card:hover { background: #f8fafc; }
+
+/* Colored RIGHT border stripe */
+.qo-card::after {
+    content: ''; position: absolute;
+    top: 0; right: 0; width: 4px; height: 100%;
+}
+.qo-card.c-blue::after   { background: #3b82f6; }
+.qo-card.c-purple::after { background: #8b5cf6; }
+.qo-card.c-green::after  { background: #10b981; }
+.qo-card.c-amber::after  { background: #f59e0b; }
+
+/* Icon box */
+.qo-icon {
+    width: 44px; height: 44px;
+    border-radius: 11px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.3rem;
+}
+.qo-icon.c-blue   { background: #eff6ff; }
+.qo-icon.c-purple { background: #f5f3ff; }
+.qo-icon.c-green  { background: #f0fdf4; }
+.qo-icon.c-amber  { background: #fffbeb; }
+
+/* Text */
+.qo-lbl {
+    font-size: 10px; font-weight: 800; letter-spacing: .08em;
+    text-transform: uppercase; color: var(--text3); margin-bottom: 2px;
+}
+.qo-num {
+    font-size: 1.7rem; font-weight: 900; line-height: 1;
+    letter-spacing: -0.03em;
+}
+.qo-num.c-blue   { color: #2563eb; }
+.qo-num.c-purple { color: #7c3aed; }
+.qo-num.c-green  { color: #059669; }
+.qo-num.c-amber  { color: #d97706; }
+.qo-hint { font-size: 11.5px; color: var(--text3); margin-top: 3px; }
+
+/* ═══ ERP MODULES — exact screenshot ═══ */
+.modules-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 1.25rem;
+}
 .mod-card {
-    background:#fff; border:1.5px solid var(--border); border-radius:14px;
-    padding:1.25rem 1rem; text-align:center; text-decoration:none; color:var(--text);
-    transition:all .15s;
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    padding: 22px 16px 18px;
+    text-align: center;
+    text-decoration: none;
+    color: var(--text);
+    transition: border-color .15s, box-shadow .15s, transform .15s;
+    cursor: pointer;
 }
-.mod-card:hover { border-color:var(--blue); box-shadow:0 4px 16px rgba(37,99,235,.1); transform:translateY(-2px); }
-.mod-card.mod-active { border-color:var(--blue); background:#eff6ff; }
-.mod-icon { font-size:1.9rem; margin-bottom:.5rem; }
-.mod-name { font-size:.85rem; font-weight:700; margin-bottom:2px; }
-.mod-desc { font-size:.7rem; color:var(--text3); }
-.mod-pill { display:inline-block; margin-top:.35rem; padding:2px 8px; border-radius:100px; font-size:.62rem; font-weight:700; background:var(--blue); color:#fff; }
+.mod-card:hover {
+    border-color: #93c5fd;
+    box-shadow: 0 4px 16px rgba(37,99,235,.1);
+    transform: translateY(-2px);
+}
+.mod-card.mod-active {
+    border: 2px solid #2563eb;
+    background: #eff6ff;
+}
+.mod-icon {
+    font-size: 2rem;
+    margin-bottom: 8px;
+    display: block;
+    line-height: 1;
+}
+.mod-name { font-size: .88rem; font-weight: 700; color: #0f172a; margin-bottom: 3px; }
+.mod-desc { font-size: .72rem; color: var(--text3); }
+.mod-pill {
+    display: inline-block; margin-top: 6px;
+    padding: 2px 10px; border-radius: 100px;
+    font-size: .63rem; font-weight: 800;
+    background: #2563eb; color: #fff; letter-spacing: .03em;
+}
 
-.status-row { display:grid; grid-template-columns:repeat(4,1fr); gap:1rem; margin-bottom:1.5rem; }
-.spill { border-radius:12px; padding:1rem 1.1rem; display:flex; align-items:center; gap:.7rem; text-decoration:none; transition:transform .15s; }
-.spill:hover { transform:translateY(-2px); }
-.spill-open       { background:#e8eaf0; color:#374151; }
-.spill-in_process { background:#1e2d5e; color:#fff; }
-.spill-close      { background:#0d9488; color:#fff; }
-.spill-cancel     { background:#ef4444; color:#fff; }
-.spill-ic  { font-size:1.3rem; }
-.spill-lbl { font-size:.68rem; font-weight:700; opacity:.8; text-transform:uppercase; letter-spacing:.05em; }
-.spill-num { font-size:1.5rem; font-weight:800; line-height:1; }
+/* ═══ LEAD STATUS — exact screenshot colored cards ═══ */
+.lead-status-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 1.25rem;
+}
+.ls-card {
+    border-radius: 12px;
+    padding: 16px 20px;
+    display: flex; align-items: center; gap: 12px;
+    text-decoration: none;
+    transition: transform .15s, box-shadow .15s;
+}
+.ls-card:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,.12); }
 
+.ls-card {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-left: 4px solid transparent;
+    color: var(--text);
+}
+.ls-card.open       { border-left-color: #6366f1; }
+.ls-card.in_process { border-left-color: #1e2d5e; }
+.ls-card.close      { border-left-color: #0d9488; }
+.ls-card.cancel     { border-left-color: #ef4444; }
+
+.ls-icon { font-size: 1.3rem; flex-shrink: 0; }
+.ls-lbl  {
+    font-size: .65rem; font-weight: 800;
+    text-transform: uppercase; letter-spacing: .08em;
+    color: var(--text3); margin-bottom: 2px;
+}
+.ls-num  { font-size: 1.65rem; font-weight: 900; line-height: 1; letter-spacing: -0.03em; color: var(--text); }
+
+/* Bottom grid */
 .bottom-grid { display:grid; grid-template-columns:1.5fr 1fr; gap:1rem; }
-.icard { background:#fff; border:1.5px solid var(--border); border-radius:14px; overflow:hidden; }
-.icard-hdr { padding:.85rem 1.1rem; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; }
-.icard-ttl { font-size:.88rem; font-weight:700; }
-.icard-lnk { font-size:.77rem; color:var(--blue); text-decoration:none; font-weight:600; }
+.icard { background:#fff; border:1px solid #e2e8f0; border-radius:14px; overflow:hidden; }
+.icard-hdr { padding:.85rem 1.1rem; border-bottom:1px solid #f1f5f9; display:flex; align-items:center; justify-content:space-between; }
+.icard-ttl { font-size:.87rem; font-weight:700; color:var(--text); }
+.icard-lnk { font-size:.77rem; color:#2563eb; text-decoration:none; font-weight:600; }
 .icard-lnk:hover { text-decoration:underline; }
 .icard-body { padding:.75rem 1.1rem; }
 
-.lead-item { display:flex; align-items:center; gap:.7rem; padding:.6rem 0; border-bottom:1px solid var(--border); }
+.lead-item { display:flex; align-items:center; gap:.65rem; padding:.55rem 0; border-bottom:1px solid #f1f5f9; }
 .lead-item:last-child { border-bottom:none; }
-.li-av { width:32px; height:32px; border-radius:50%; flex-shrink:0; background:linear-gradient(135deg,#667eea,#764ba2); display:flex; align-items:center; justify-content:center; font-size:.7rem; font-weight:700; color:#fff; }
-.li-name { font-size:.84rem; font-weight:600; color:var(--blue); text-decoration:none; flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.li-av { width:30px; height:30px; border-radius:50%; flex-shrink:0; background:linear-gradient(135deg,#667eea,#764ba2); display:flex; align-items:center; justify-content:center; font-size:.65rem; font-weight:700; color:#fff; }
+.li-name { font-size:.83rem; font-weight:600; color:#2563eb; text-decoration:none; flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .li-name:hover { text-decoration:underline; }
-.li-co   { font-size:.76rem; color:var(--text2); min-width:80px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.li-dt   { font-size:.71rem; color:var(--text3); white-space:nowrap; }
+.li-co   { font-size:.74rem; color:var(--text2); }
 
-.rem-item { display:flex; align-items:flex-start; gap:.6rem; padding:.6rem 0; border-bottom:1px solid var(--border); }
+.rem-item { display:flex; align-items:flex-start; gap:.6rem; padding:.55rem 0; border-bottom:1px solid #f1f5f9; }
 .rem-item:last-child { border-bottom:none; }
 .rem-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; margin-top:5px; }
-.rem-ttl { font-size:.84rem; font-weight:600; }
-.rem-dt  { font-size:.72rem; color:var(--text3); }
+.rem-ttl { font-size:.83rem; font-weight:600; color:var(--text); }
+.rem-dt  { font-size:.71rem; color:var(--text3); }
 
 @media(max-width:1100px) {
-    .kpi-grid4 { grid-template-columns:repeat(2,1fr); }
+    .qo-grid { grid-template-columns:repeat(2,1fr); }
     .modules-grid { grid-template-columns:repeat(2,1fr); }
-    .status-row { grid-template-columns:repeat(2,1fr); }
+    .lead-status-grid { grid-template-columns:repeat(2,1fr); }
     .bottom-grid { grid-template-columns:1fr; }
 }
 @media(max-width:600px) {
-    .kpi-grid4 { grid-template-columns:repeat(2,1fr); }
+    .qo-grid { grid-template-columns:1fr 1fr; }
+    .qo-card { padding:14px 16px; }
     .modules-grid { grid-template-columns:repeat(2,1fr); }
-    .status-row { grid-template-columns:repeat(2,1fr); }
+    .lead-status-grid { grid-template-columns:repeat(2,1fr); }
     .welcome-card { padding:1.25rem; }
     .wc-title { font-size:1.1rem; }
 }
@@ -123,83 +227,132 @@
     </div>
 </div>
 
-<!-- KPI -->
-<div class="sec-lbl">📈 Quick Overview</div>
-<div class="kpi-grid4">
-    <a href="/crm/leads" class="kpi-box c-blue">
-        <div class="kpi-ico c-blue">📋</div>
+<!-- ═══ QUICK OVERVIEW ═══ -->
+<div class="sec-lbl">
+    <span class="sec-lbl-dot" style="background:#3b82f6;"></span>
+    Quick Overview
+</div>
+<div class="qo-grid">
+    <a href="/crm/leads" class="qo-card c-blue">
+        <div class="qo-icon c-blue">📋</div>
         <div>
-            <div class="kpi-lbl">Total Leads</div>
-            <div class="kpi-num" style="color:var(--blue);">{{ lead_counts.total }}</div>
-            <div class="kpi-hint">{{ lead_counts.open }} open</div>
+            <div class="qo-lbl">Total Leads</div>
+            <div class="qo-num c-blue">{{ lead_counts.total }}</div>
+            <div class="qo-hint">{{ lead_counts.open }} open</div>
         </div>
     </a>
-    <a href="/crm/clients" class="kpi-box c-purple">
-        <div class="kpi-ico c-purple">👥</div>
+    <a href="/crm/clients" class="qo-card c-purple">
+        <div class="qo-icon c-purple">👥</div>
         <div>
-            <div class="kpi-lbl">Clients</div>
-            <div class="kpi-num" style="color:var(--purple);">{{ total_clients }}</div>
-            <div class="kpi-hint">Client master</div>
+            <div class="qo-lbl">Clients</div>
+            <div class="qo-num c-purple">{{ total_clients }}</div>
+            <div class="qo-hint">Client master</div>
         </div>
     </a>
-    <a href="/crm/leads?status=close" class="kpi-box c-green">
-        <div class="kpi-ico c-green">✅</div>
+    <a href="/crm/leads?status=close" class="qo-card c-green">
+        <div class="qo-icon c-green">✅</div>
         <div>
-            <div class="kpi-lbl">Closed</div>
-            <div class="kpi-num" style="color:var(--green);">{{ lead_counts.close }}</div>
-            <div class="kpi-hint">{% if lead_counts.total > 0 %}{{ ((lead_counts.close/lead_counts.total)*100)|round(1) }}%{% else %}0%{% endif %} conversion</div>
+            <div class="qo-lbl">Closed</div>
+            <div class="qo-num c-green">{{ lead_counts.close }}</div>
+            <div class="qo-hint">{% if lead_counts.total > 0 %}{{ ((lead_counts.close/lead_counts.total)*100)|round(1) }}%{% else %}0%{% endif %} conversion</div>
         </div>
     </a>
-    <a href="/crm/leads?status=in_process" class="kpi-box c-amber">
-        <div class="kpi-ico c-amber">⚙️</div>
+    <a href="/crm/leads?status=in_process" class="qo-card c-amber">
+        <div class="qo-icon c-amber">⚙️</div>
         <div>
-            <div class="kpi-lbl">In Process</div>
-            <div class="kpi-num" style="color:var(--amber);">{{ lead_counts.in_process }}</div>
-            <div class="kpi-hint">Active pipeline</div>
+            <div class="qo-lbl">In Process</div>
+            <div class="qo-num c-amber">{{ lead_counts.in_process }}</div>
+            <div class="qo-hint">Active pipeline</div>
         </div>
     </a>
 </div>
 
-<!-- Modules -->
-<div class="sec-lbl">🏢 ERP Modules</div>
+<!-- ═══ ERP MODULES ═══ -->
+<div class="sec-lbl">
+    <span class="sec-lbl-dot" style="background:#6366f1;"></span>
+    ERP Modules
+</div>
 <div class="modules-grid">
     <a href="/crm/dashboard" class="mod-card mod-active">
-        <div class="mod-icon">📊</div>
+        <span class="mod-icon">📊</span>
         <div class="mod-name">CRM</div>
         <div class="mod-desc">Leads & Clients</div>
         <div class="mod-pill">Active</div>
     </a>
-    <a href="#" class="mod-card"><div class="mod-icon">📦</div><div class="mod-name">Inventory</div><div class="mod-desc">Stock Management</div></a>
-    <a href="#" class="mod-card"><div class="mod-icon">🏭</div><div class="mod-name">Production</div><div class="mod-desc">Manufacturing</div></a>
-    <a href="#" class="mod-card"><div class="mod-icon">🛒</div><div class="mod-name">Purchase</div><div class="mod-desc">Procurement</div></a>
-    <a href="#" class="mod-card"><div class="mod-icon">📤</div><div class="mod-name">Sales</div><div class="mod-desc">Order Management</div></a>
-    <a href="#" class="mod-card"><div class="mod-icon">💰</div><div class="mod-name">Accounts</div><div class="mod-desc">Finance & GST</div></a>
-    <a href="#" class="mod-card"><div class="mod-icon">👥</div><div class="mod-name">HR & Payroll</div><div class="mod-desc">Employee Mgmt</div></a>
-    <a href="#" class="mod-card"><div class="mod-icon">📋</div><div class="mod-name">Reports</div><div class="mod-desc">Analytics</div></a>
+    <a href="#" class="mod-card">
+        <span class="mod-icon">📦</span>
+        <div class="mod-name">Inventory</div>
+        <div class="mod-desc">Stock Management</div>
+    </a>
+    <a href="#" class="mod-card">
+        <span class="mod-icon">🏭</span>
+        <div class="mod-name">Production</div>
+        <div class="mod-desc">Manufacturing</div>
+    </a>
+    <a href="#" class="mod-card">
+        <span class="mod-icon">🛒</span>
+        <div class="mod-name">Purchase</div>
+        <div class="mod-desc">Procurement</div>
+    </a>
+    <a href="#" class="mod-card">
+        <span class="mod-icon">📤</span>
+        <div class="mod-name">Sales</div>
+        <div class="mod-desc">Order Management</div>
+    </a>
+    <a href="#" class="mod-card">
+        <span class="mod-icon">💰</span>
+        <div class="mod-name">Accounts</div>
+        <div class="mod-desc">Finance & GST</div>
+    </a>
+    <a href="/hr/employees" class="mod-card">
+        <span class="mod-icon">👥</span>
+        <div class="mod-name">HR & Payroll</div>
+        <div class="mod-desc">Employee Mgmt</div>
+    </a>
+    <a href="#" class="mod-card">
+        <span class="mod-icon">📋</span>
+        <div class="mod-name">Reports</div>
+        <div class="mod-desc">Analytics</div>
+    </a>
 </div>
 
-<!-- Status -->
-<div class="sec-lbl">🎯 Lead Status</div>
-<div class="status-row">
-    <a href="/crm/leads" class="spill spill-open">
-        <span class="spill-ic">✉️</span>
-        <div><div class="spill-lbl">Open</div><div class="spill-num">{{ lead_counts.open }}</div></div>
+<!-- ═══ LEAD STATUS ═══ -->
+<div class="sec-lbl">
+    <span class="sec-lbl-dot" style="background:#f59e0b;"></span>
+    Lead Status
+</div>
+<div class="lead-status-grid">
+    <a href="/crm/leads" class="ls-card open">
+        <span class="ls-icon">✉️</span>
+        <div>
+            <div class="ls-lbl">Open</div>
+            <div class="ls-num">{{ lead_counts.open }}</div>
+        </div>
     </a>
-    <a href="/crm/leads?status=in_process" class="spill spill-in_process">
-        <span class="spill-ic">⚙️</span>
-        <div><div class="spill-lbl">In Process</div><div class="spill-num">{{ lead_counts.in_process }}</div></div>
+    <a href="/crm/leads?status=in_process" class="ls-card in_process">
+        <span class="ls-icon">⚙️</span>
+        <div>
+            <div class="ls-lbl">In Process</div>
+            <div class="ls-num">{{ lead_counts.in_process }}</div>
+        </div>
     </a>
-    <a href="/crm/leads?status=close" class="spill spill-close">
-        <span class="spill-ic">✅</span>
-        <div><div class="spill-lbl">Closed</div><div class="spill-num">{{ lead_counts.close }}</div></div>
+    <a href="/crm/leads?status=close" class="ls-card close">
+        <span class="ls-icon">✅</span>
+        <div>
+            <div class="ls-lbl">Closed</div>
+            <div class="ls-num">{{ lead_counts.close }}</div>
+        </div>
     </a>
-    <a href="/crm/leads?status=cancel" class="spill spill-cancel">
-        <span class="spill-ic">❌</span>
-        <div><div class="spill-lbl">Cancelled</div><div class="spill-num">{{ lead_counts.cancel }}</div></div>
+    <a href="/crm/leads?status=cancel" class="ls-card cancel">
+        <span class="ls-icon">❌</span>
+        <div>
+            <div class="ls-lbl">Cancelled</div>
+            <div class="ls-num">{{ lead_counts.cancel }}</div>
+        </div>
     </a>
 </div>
 
-<!-- Bottom -->
+<!-- ═══ BOTTOM — Recent Leads + Reminders ═══ -->
 <div class="bottom-grid">
     <div class="icard">
         <div class="icard-hdr">
@@ -215,16 +368,16 @@
                         <a href="/crm/leads/{{ l.id }}" class="li-name">{{ l.contact_name }}</a>
                         <div class="li-co">{{ l.company_name or '—' }}</div>
                     </div>
-                    {% if l.status=='open' %}<span class="badge" style="background:#e8eaf0;color:#374151;white-space:nowrap;">Open</span>
-                    {% elif l.status=='in_process' %}<span class="badge" style="background:#1e2d5e;color:#fff;white-space:nowrap;">In Process</span>
-                    {% elif l.status=='close' %}<span class="badge" style="background:#0d9488;color:#fff;white-space:nowrap;">Close</span>
-                    {% elif l.status=='cancel' %}<span class="badge" style="background:#ef4444;color:#fff;white-space:nowrap;">Cancel</span>
+                    {% if l.status=='open' %}<span class="sbadge open">Open</span>
+                    {% elif l.status=='in_process' %}<span class="sbadge in-process">In Process</span>
+                    {% elif l.status=='close' %}<span class="sbadge submitted">Close</span>
+                    {% elif l.status=='cancel' %}<span class="sbadge cancel">Cancel</span>
                     {% endif %}
-                    <div class="li-dt">{{ l.created_at.strftime('%d %b') }}</div>
+                    <div style="font-size:.7rem;color:var(--text3);white-space:nowrap;margin-left:4px;">{{ l.created_at.strftime('%d %b') }}</div>
                 </div>
                 {% endfor %}
             {% else %}
-            <div style="text-align:center;padding:2rem;color:var(--text3);">No leads yet. <a href="/crm/leads/add" style="color:var(--blue);">Add first →</a></div>
+            <div style="text-align:center;padding:2rem;color:var(--text3);font-size:.82rem;">No leads yet. <a href="/crm/leads/add" style="color:#2563eb;font-weight:600;">Add first →</a></div>
             {% endif %}
         </div>
     </div>
@@ -239,7 +392,7 @@
                 {% for r in upcoming_reminders %}
                 {% set ov = r.remind_at < now %}
                 <div class="rem-item">
-                    <div class="rem-dot" style="background:{{ '#ef4444' if ov else 'var(--blue)' }};"></div>
+                    <div class="rem-dot" style="background:{{ '#ef4444' if ov else '#2563eb' }};"></div>
                     <div>
                         <div class="rem-ttl">{{ r.title }}</div>
                         <div class="rem-dt">{{ r.remind_at.strftime('%d %b, %H:%M') }}{% if ov %} <span style="color:#ef4444;font-weight:700;">· Overdue</span>{% endif %}</div>
@@ -247,9 +400,10 @@
                 </div>
                 {% endfor %}
             {% else %}
-            <div style="text-align:center;padding:2rem;color:var(--text3);">No upcoming reminders.</div>
+            <div style="text-align:center;padding:2rem;color:var(--text3);font-size:.82rem;">No upcoming reminders.</div>
             {% endif %}
         </div>
     </div>
 </div>
+
 {% endblock %}

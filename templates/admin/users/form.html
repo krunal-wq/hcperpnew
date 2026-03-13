@@ -3,55 +3,59 @@
 {% block page_title %}{{ 'Edit' if user else 'Add' }} User{% endblock %}
 {% block bread %}Admin / Users / {{ 'Edit' if user else 'Add' }}{% endblock %}
 {% block content %}
-<div class="page-hdr">
-    <div><h1 style="font-size:1.2rem;">{{ '✏️ Edit User' if user else '➕ Add User' }}</h1></div>
-    <a href="{{ url_for('users_bp.users') }}" class="btn-outline" style="font-size:.82rem;">← Back</a>
-</div>
-<form method="POST" style="max-width:580px;">
-    <div class="card" style="margin-bottom:.9rem;">
-        <div style="padding:.7rem 1rem;border-bottom:1px solid var(--border);font-size:.83rem;font-weight:800;">👤 User Details</div>
-        <div style="padding:1rem;">
-            <div class="fgrid-2" style="margin-bottom:.7rem;">
-                <div class="fg">
-                    <label class="fl">Full Name *</label>
-                    <input type="text" name="full_name" class="fi" required value="{{ user.full_name if user else '' }}" placeholder="John Doe">
-                </div>
-                <div class="fg">
-                    <label class="fl">Username *</label>
-                    <input type="text" name="username" class="fi" value="{{ user.username if user else '' }}" {{ 'readonly style=background:#f8fafc;color:var(--text3)' if user else 'required' }} placeholder="johndoe">
-                    {% if user %}<p style="font-size:.7rem;color:var(--text3);margin-top:2px;">Cannot change username</p>{% endif %}
-                </div>
-                <div class="fg">
-                    <label class="fl">Email *</label>
-                    <input type="email" name="email" class="fi" required value="{{ user.email if user else '' }}" placeholder="john@company.com">
-                </div>
-                <div class="fg">
-                    <label class="fl">Role</label>
-                    <select name="role" class="fi sd">
-                        {% for r,l in [('user','👤 User'),('hr','👔 HR'),('manager','📊 Manager'),('admin','🔑 Admin')] %}
-                        <option value="{{ r }}" {{ 'selected' if user and user.role==r or (not user and r=='user') }}>{{ l }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-            </div>
-            <div class="frow">
-                <label class="fl">{{ 'New Password' if user else 'Password' }} <span style="font-size:.72rem;color:var(--text3);">{{ '(leave blank to keep)' if user else '(default: HCP@123)' }}</span></label>
-                <div style="position:relative;">
-                    <input type="password" name="password" id="pwField" class="fi" {{ 'required' if not user else '' }} placeholder="{{ 'Leave blank = no change' if user else 'HCP@123' }}" style="padding-right:40px;">
-                    <button type="button" onclick="document.getElementById('pwField').type = document.getElementById('pwField').type==='password'?'text':'password'" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text3);">👁️</button>
-                </div>
-            </div>
-            <div class="frow" style="margin-top:.75rem;">
-                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:.84rem;font-weight:600;">
-                    <input type="checkbox" name="is_active" style="accent-color:var(--blue);width:15px;height:15px;" {{ 'checked' if not user or user.is_active }}>
-                    Active — can login
-                </label>
-            </div>
+<div class="fp-wrap fp-narrow">
+
+  <div class="fp-header">
+    <div class="fp-header-top">
+      <span class="fp-brand">Admin &bull; Users</span>
+      <div class="fp-hdr-actions">
+        <a href="{{ url_for('users_bp.users') }}" class="fp-hbtn"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>Back</a>
+      </div>
+    </div>
+    <div class="fp-title-row">
+      <span class="fp-title-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span>
+      <span class="fp-title-text">{{ 'Edit User' if user else 'Add User' }}</span>
+      {% if user %}<span class="fp-record-badge">{{ user.username }}</span>{% endif %}
+    </div>
+    <div class="fp-tab-bar" style="padding-bottom:0;">
+      <span class="fp-tab active"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>User Details</span>
+      {% if user %}<span class="fp-status-badge">{{ 'ACTIVE' if user.is_active else 'INACTIVE' }}</span>{% endif %}
+    </div>
+  </div>
+
+  <form method="POST">
+    <div class="fp-section">
+      <div class="fp-sec-hdr">
+        <div class="fp-sec-title"><div class="fp-sec-icon blue"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>User Information</div>
+        <span class="fp-sec-badge blue">Account</span>
+      </div>
+      <div class="fp-sec-body">
+        <div class="fgrid-2" style="margin-bottom:.7rem;">
+          <div class="fg"><label class="fl">Full Name *</label><input type="text" name="full_name" class="fi" required value="{{ user.full_name if user else '' }}" placeholder="John Doe"></div>
+          <div class="fg"><label class="fl">Username *</label><input type="text" name="username" class="fi" value="{{ user.username if user else '' }}" {{ 'readonly style=background:#f8fafc;color:var(--text3)' if user else 'required' }} placeholder="johndoe">{% if user %}<p style="font-size:.7rem;color:var(--text3);margin-top:2px;">Cannot change username</p>{% endif %}</div>
+          <div class="fg"><label class="fl">Email *</label><input type="email" name="email" class="fi" required value="{{ user.email if user else '' }}" placeholder="john@company.com"></div>
+          <div class="fg"><label class="fl">Role</label><select name="role" class="fi sd">{% for r,l in [('user','👤 User'),('hr','👔 HR'),('manager','📊 Manager'),('admin','🔑 Admin')] %}<option value="{{ r }}" {{ 'selected' if user and user.role==r or (not user and r=='user') }}>{{ l }}</option>{% endfor %}</select></div>
         </div>
+        <div class="frow">
+          <label class="fl">{{ 'New Password' if user else 'Password' }} <span style="font-size:.72rem;color:var(--text3);">{{ '(leave blank to keep)' if user else '(default: HCP@123)' }}</span></label>
+          <div style="position:relative;">
+            <input type="password" name="password" id="pwField" class="fi" {{ 'required' if not user else '' }} placeholder="{{ 'Leave blank = no change' if user else 'HCP@123' }}" style="padding-right:40px;">
+            <button type="button" onclick="var f=document.getElementById('pwField');f.type=f.type==='password'?'text':'password'" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text3);">👁️</button>
+          </div>
+        </div>
+        <div class="frow" style="margin-top:.75rem;">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:.84rem;font-weight:600;">
+            <input type="checkbox" name="is_active" style="accent-color:var(--blue);width:15px;height:15px;" {{ 'checked' if not user or user.is_active }}>
+            Active — can login
+          </label>
+        </div>
+      </div>
     </div>
-    <div class="form-actions">
-        <button type="submit" class="btn-primary" style="padding:10px 26px;">{{ '💾 Update' if user else '✅ Create' }}</button>
-        <a href="{{ url_for('users_bp.users') }}" class="btn-outline">Cancel</a>
+
+    <div class="fp-footer">
+      <a href="{{ url_for('users_bp.users') }}" class="fp-btn fp-btn-close"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>Cancel</a>
+      <button type="submit" class="fp-btn fp-btn-save"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>{{ 'Update User' if user else 'Create User' }}</button>
     </div>
-</form>
+  </form>
+</div>
 {% endblock %}

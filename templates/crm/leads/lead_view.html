@@ -384,7 +384,7 @@
                             {% if r.description %}<div style="font-size:0.82rem;color:var(--text2);margin-top:4px;">{{ r.description }}</div>{% endif %}
                         </div>
                         <form method="POST" action="{{ url_for('crm.lead_reminder_delete', rid=r.id) }}" onsubmit="return confirm('Delete this reminder?')" style="margin:0;">
-                            <button type="submit" class="btn-danger" style="padding:4px 8px;font-size:0.75rem;">🗑️</button>
+                            <button type="submit" class="ra-btn danger">🗑️</button>
                         </form>
                     </div>
                     {% endfor %}

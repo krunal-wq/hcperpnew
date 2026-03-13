@@ -4,458 +4,187 @@
 {% block bread %}CRM / Clients / {{ 'Edit' if client else 'Add' }}{% endblock %}
 
 {% block extra_css %}
-/* ── Address Sections ── */
-.addr-section-card { overflow: hidden; }
-
-.addr-section-hdr {
-    display: flex; align-items: center; gap: 0.6rem;
-    padding: 0.75rem 1rem; border-bottom: 2px solid transparent;
-}
-.billing-hdr  { background: #eff6ff; border-color: #bfdbfe; }
-.shipping-hdr { background: #f0fdf4; border-color: #86efac; }
-
-.addr-section-icon { font-size: 1rem; }
-.addr-section-label {
-    font-size: .88rem; font-weight: 800;
-    color: var(--text);
-}
-.billing-hdr  .addr-section-label { color: #1e40af; }
-.shipping-hdr .addr-section-label { color: #166534; }
-
-.addr-section-sub {
-    font-size: .72rem; color: var(--text3); flex: 1;
-}
-
-.same-bill-toggle {
-    display: flex; align-items: center; gap: 5px;
-    font-size: .78rem; font-weight: 600; color: #166534;
-    cursor: pointer; background: #dcfce7;
-    padding: 4px 10px; border-radius: 20px;
-    border: 1px solid #86efac; white-space: nowrap;
-}
-.same-bill-toggle input { accent-color: #16a34a; cursor: pointer; }
-
-/* Address entries within each section */
-.addr-entry {
-    border-radius: 10px; margin-bottom: 0.75rem;
-    padding: 0.75rem 0.85rem;
-    border: 1.5px solid var(--border);
-}
-.billing-entry  { background: #f8fbff; border-color: #dbeafe; }
-.shipping-entry { background: #f8fffe; border-color: #d1fae5; }
-
-.addr-entry-hdr {
-    display: flex; align-items: center; gap: 0.6rem;
-    margin-bottom: 0.75rem;
-}
-.addr-entry-num {
-    width: 22px; height: 22px; border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
-    font-size: .72rem; font-weight: 800; flex-shrink: 0;
-}
-.billing-entry  .addr-entry-num { background: #bfdbfe; color: #1e40af; }
-.shipping-entry .addr-entry-num { background: #a7f3d0; color: #065f46; }
-
-.addr-title-input {
-    flex: 1; border: 1.5px solid var(--border); background: #fff;
-    border-radius: 8px; padding: 6px 10px;
-    font-family: 'Plus Jakarta Sans', sans-serif;
-    font-size: .83rem; font-weight: 700; color: var(--text);
-    outline: none; min-width: 0; transition: border-color .15s;
-}
-.addr-title-input:focus { border-color: var(--blue); }
-.addr-title-input::placeholder { color: var(--text3); font-weight: 500; }
-
-.addr-rm-btn {
-    padding: 5px 10px; background: #fee2e2;
-    border: 1px solid #fecaca; border-radius: 7px;
-    color: #dc2626; cursor: pointer; font-size: .75rem;
-    font-weight: 600; flex-shrink: 0; transition: all .15s;
-}
-.addr-rm-btn:hover { background: #fecaca; }
-
-.add-entry-btn {
-    display: inline-flex; align-items: center; gap: 5px;
-    padding: 6px 14px; border-radius: 8px;
-    font-size: .8rem; font-weight: 600; cursor: pointer;
-    transition: all .15s; border: 1.5px dashed;
-    font-family: 'Plus Jakarta Sans', sans-serif; margin-top: 0.2rem;
-}
-.billing-add  { background: #eff6ff; color: #1d4ed8; border-color: #93c5fd; }
-.billing-add:hover  { background: #dbeafe; }
-.shipping-add { background: #f0fdf4; color: #166534; border-color: #86efac; }
-.shipping-add:hover { background: #dcfce7; }
-
-/* ── Brands ── */
-.brand-row {
-    display: grid; grid-template-columns: 1fr auto;
-    gap: .6rem; align-items: end; padding: .65rem .85rem;
-    background: #f8fafc; border: 1.5px solid var(--border);
-    border-radius: 10px; margin-bottom: .5rem;
-}
-.brand-row:first-child { background: #eff6ff; border-color: #bfdbfe; }
-.rm-btn {
-    padding: 7px 10px; background: #fee2e2;
-    border: 1.5px solid #fecaca; border-radius: 8px;
-    color: #dc2626; cursor: pointer; font-size: .78rem;
-    font-weight: 600; transition: all .15s;
-}
-.rm-btn:hover { background: #fecaca; }
-.add-brand-btn {
-    display: inline-flex; align-items: center; gap: 6px;
-    padding: 7px 16px; background: #f0fdf4;
-    border: 1.5px dashed #86efac; border-radius: 9px;
-    color: #16a34a; font-size: .82rem; font-weight: 600;
-    cursor: pointer; transition: all .15s; margin-top: .3rem;
-}
-.add-brand-btn:hover { background: #dcfce7; }
-
-.card-hdr-sm { padding: .7rem 1rem; border-bottom: 1px solid var(--border); display: flex; align-items: center; }
-.card-body-sm { padding: .85rem 1rem; }
-
-.addr-fields { }
-
-@media(max-width:700px){
-    .brand-row { grid-template-columns: 1fr 1fr; }
-    .same-bill-toggle { display: none; }
-}
+.addr-section-card{overflow:hidden;}
+.addr-section-hdr{display:flex;align-items:center;gap:.6rem;padding:.75rem 1rem;border-bottom:2px solid transparent;}
+.billing-hdr{background:#eff6ff;border-color:#bfdbfe;}
+.shipping-hdr{background:#f0fdf4;border-color:#86efac;}
+.addr-section-icon{font-size:1rem;}
+.addr-section-label{font-size:.88rem;font-weight:800;color:var(--text);}
+.billing-hdr .addr-section-label{color:#1e40af;}
+.shipping-hdr .addr-section-label{color:#166534;}
+.addr-section-sub{font-size:.72rem;color:var(--text3);flex:1;}
+.same-bill-toggle{display:flex;align-items:center;gap:5px;font-size:.78rem;font-weight:600;color:#166534;cursor:pointer;background:#dcfce7;padding:4px 10px;border-radius:20px;border:1px solid #86efac;white-space:nowrap;}
+.same-bill-toggle input{accent-color:#16a34a;cursor:pointer;}
+.addr-entry{border-radius:10px;margin-bottom:.75rem;padding:.75rem .85rem;border:1.5px solid var(--border);}
+.billing-entry{background:#f8fbff;border-color:#dbeafe;}
+.shipping-entry{background:#f8fffe;border-color:#d1fae5;}
+.addr-entry-hdr{display:flex;align-items:center;gap:.6rem;margin-bottom:.75rem;}
+.addr-entry-num{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.72rem;font-weight:800;flex-shrink:0;}
+.billing-entry .addr-entry-num{background:#bfdbfe;color:#1e40af;}
+.shipping-entry .addr-entry-num{background:#a7f3d0;color:#065f46;}
+.addr-title-input{flex:1;border:1.5px solid var(--border);background:#fff;border-radius:8px;padding:6px 10px;font-family:'Inter',sans-serif;font-size:.83rem;font-weight:700;color:var(--text);outline:none;min-width:0;transition:border-color .15s;}
+.addr-title-input:focus{border-color:var(--blue);}
+.addr-title-input::placeholder{color:var(--text3);font-weight:500;}
+.addr-rm-btn{padding:5px 10px;background:#fee2e2;border:1px solid #fecaca;border-radius:7px;color:#dc2626;cursor:pointer;font-size:.75rem;font-weight:600;flex-shrink:0;transition:all .15s;}
+.addr-rm-btn:hover{background:#fecaca;}
+.add-entry-btn{display:inline-flex;align-items:center;gap:5px;padding:6px 14px;border-radius:8px;font-size:.8rem;font-weight:600;cursor:pointer;transition:all .15s;border:1.5px dashed;font-family:'Inter',sans-serif;margin-top:.2rem;}
+.billing-add{background:#eff6ff;color:#1d4ed8;border-color:#93c5fd;}
+.billing-add:hover{background:#dbeafe;}
+.shipping-add{background:#f0fdf4;color:#166534;border-color:#86efac;}
+.shipping-add:hover{background:#dcfce7;}
+.brand-row{display:grid;grid-template-columns:1fr auto;gap:.6rem;align-items:end;padding:.65rem .85rem;background:#f8fafc;border:1.5px solid var(--border);border-radius:10px;margin-bottom:.5rem;}
+.brand-row:first-child{background:#eff6ff;border-color:#bfdbfe;}
+.rm-btn{padding:7px 10px;background:#fee2e2;border:1.5px solid #fecaca;border-radius:8px;color:#dc2626;cursor:pointer;font-size:.78rem;font-weight:600;transition:all .15s;}
+.rm-btn:hover{background:#fecaca;}
+.add-brand-btn{display:inline-flex;align-items:center;gap:6px;padding:7px 16px;background:#f0fdf4;border:1.5px dashed #86efac;border-radius:9px;color:#16a34a;font-size:.82rem;font-weight:600;cursor:pointer;transition:all .15s;margin-top:.3rem;}
+.add-brand-btn:hover{background:#dcfce7;}
 {% endblock %}
 
 {% block content %}
-<div class="page-hdr">
-    <div>
-        <h1 style="font-size:1.2rem;">{{ '✏️ Edit Client' if client else '➕ Add New Client' }}</h1>
-        <p style="font-size:.78rem;color:var(--text3);margin-top:2px;">{{ 'Update client information' if client else 'Add a new client to master list' }}</p>
+<div class="fp-wrap fp-wide">
+
+  <div class="fp-header">
+    <div class="fp-header-top">
+      <span class="fp-brand">CRM &bull; Clients</span>
+      <div class="fp-hdr-actions">
+        <a href="{{ url_for('crm.clients') }}" class="fp-hbtn"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>Back</a>
+      </div>
     </div>
-    <a href="{{ url_for('crm.clients') }}" class="btn-outline" style="font-size:.82rem;">← Back</a>
+    <div class="fp-title-row">
+      <span class="fp-title-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
+      <span class="fp-title-text">{{ 'Edit Client' if client else 'Add New Client' }}</span>
+      {% if client %}<span class="fp-record-badge">#{{ client.id }}</span>{% endif %}
+    <span style="font-size:11px;color:#94a3b8;font-weight:500;margin-left:4px;">{{ 'Update client information' if client else 'Add a new client to master list' }}</span></div>
+    <div class="fp-tab-bar" style="padding-bottom:0;">
+      <span class="fp-tab active"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>Client Form</span>
+      {% if client %}<span class="fp-status-badge">{{ client.status|upper if client.status else 'ACTIVE' }}</span>{% endif %}
+    </div>
+  </div>
+
+  <form method="POST" id="clientForm">
+
+    <div class="fp-section">
+      <div class="fp-sec-hdr">
+        <div class="fp-sec-title"><div class="fp-sec-icon slate"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#475569" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg></div>Client Settings</div>
+      </div>
+      <div class="fp-sec-body">
+        <div class="fgrid-3">
+          <div class="fg"><label class="fl">Client Type</label><select name="client_type" class="fi"><option value="regular" {{ 'selected' if not client or client.client_type=='regular' }}>Regular</option><option value="vip" {{ 'selected' if client and client.client_type=='vip' }}>⭐ VIP</option><option value="dealer" {{ 'selected' if client and client.client_type=='dealer' }}>🏪 Dealer</option><option value="distributor" {{ 'selected' if client and client.client_type=='distributor' }}>🚚 Distributor</option></select></div>
+          <div class="fg"><label class="fl">Status</label><select name="status" class="fi"><option value="active" {{ 'selected' if not client or client.status=='active' }}>✅ Active</option><option value="inactive" {{ 'selected' if client and client.status=='inactive' }}>⛔ Inactive</option></select></div>
+          <div class="fg"><label class="fl">GSTIN</label><input type="text" name="gstin" class="fi" value="{{ client.gstin if client else '' }}" placeholder="27ABCDE1234F1Z5"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-panels">
+      <div>
+        <div class="fp-section">
+          <div class="fp-sec-hdr">
+            <div class="fp-sec-title"><div class="fp-sec-icon blue"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>Contact Information</div>
+            <span class="fp-sec-badge blue">Contact</span>
+          </div>
+          <div class="fp-sec-body">
+            <div class="fp-subsec">Primary Contact</div>
+            <div class="fgrid-2" style="margin-bottom:.7rem;">
+              <div class="fg"><label class="fl">Contact Name *</label><input type="text" name="contact_name" class="fi" required value="{{ client.contact_name if client else '' }}" placeholder="Full name"></div>
+              <div class="fg"><label class="fl">Position</label><input type="text" name="position" class="fi" value="{{ client.position if client else '' }}" placeholder="CEO, Manager..."></div>
+              <div class="fg"><label class="fl">Mobile *</label><input type="text" name="mobile" class="fi" value="{{ client.mobile if client else '' }}" placeholder="9999999999"></div>
+              <div class="fg"><label class="fl">Alt. Mobile</label><input type="text" name="alternate_mobile" class="fi" value="{{ client.alternate_mobile if client else '' }}" placeholder="Alternate number"></div>
+              <div class="fg"><label class="fl">Email</label><input type="email" name="email" class="fi" value="{{ client.email if client else '' }}" placeholder="email@company.com"></div>
+              <div class="fg"><label class="fl">Website</label><input type="text" name="website" class="fi" value="{{ client.website if client else '' }}" placeholder="www.company.com"></div>
+            </div>
+            <div class="fp-subsec">Company</div>
+            <div class="frow"><label class="fl">Company Name</label><input type="text" name="company_name" class="fi" value="{{ client.company_name if client else '' }}" placeholder="Company / Firm name"></div>
+            <div class="frow"><label class="fl">Notes</label><textarea name="notes" class="fi" rows="3" placeholder="Payment terms, preferences, special instructions...">{{ client.notes if client else '' }}</textarea></div>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:1rem;">
+        <div class="fp-section addr-section-card billing-section">
+          <div class="addr-section-hdr billing-hdr">
+            <span class="addr-section-icon">🏢</span>
+            <span class="addr-section-label">Billing Address</span>
+            <span class="addr-section-sub">Invoice / GST address</span>
+          </div>
+          <div class="fp-sec-body" id="billingWrap">
+            {% set billing_addrs = client.addresses | selectattr('addr_type','in',['billing','both']) | list if client and client.addresses else [] %}
+            {% if billing_addrs %}{% for a in billing_addrs %}
+            <div class="addr-entry billing-entry">
+              <div class="addr-entry-hdr"><span class="addr-entry-num">{{ loop.index }}</span><input type="text" name="addr_title[]" class="addr-title-input" value="{{ a.title }}" placeholder="e.g. Head Office, Registered Office..."><input type="hidden" name="addr_type[]" value="{{ a.addr_type }}">{% if not loop.first %}<button type="button" class="addr-rm-btn" onclick="rmEntry(this)">✕</button>{% endif %}</div>
+              <div class="frow"><label class="fl">Street / Building</label><textarea name="addr_street[]" class="fi" rows="2" placeholder="Building, Street, Area, Landmark...">{{ a.address or '' }}</textarea></div>
+              <div class="fgrid-2"><div class="fg"><label class="fl">City</label><input type="text" name="addr_city[]" class="fi" value="{{ a.city or '' }}" placeholder="City"></div><div class="fg"><label class="fl">State</label><input type="text" name="addr_state[]" class="fi" value="{{ a.state or '' }}" placeholder="State"></div><div class="fg"><label class="fl">Country</label><input type="text" name="addr_country[]" class="fi" value="{{ a.country or 'India' }}"></div><div class="fg"><label class="fl">Pincode</label><input type="text" name="addr_zip[]" class="fi" value="{{ a.zip_code or '' }}" placeholder="400001"></div></div>
+            </div>
+            {% endfor %}{% else %}
+            <div class="addr-entry billing-entry">
+              <div class="addr-entry-hdr"><span class="addr-entry-num">1</span><input type="text" name="addr_title[]" class="addr-title-input" value="Head Office" placeholder="e.g. Head Office, Registered Office..."><input type="hidden" name="addr_type[]" value="billing"></div>
+              <div class="frow"><label class="fl">Street / Building</label><textarea name="addr_street[]" class="fi" rows="2" placeholder="Building, Street, Area, Landmark..."></textarea></div>
+              <div class="fgrid-2"><div class="fg"><label class="fl">City</label><input type="text" name="addr_city[]" class="fi" placeholder="City"></div><div class="fg"><label class="fl">State</label><input type="text" name="addr_state[]" class="fi" placeholder="State"></div><div class="fg"><label class="fl">Country</label><input type="text" name="addr_country[]" class="fi" value="India"></div><div class="fg"><label class="fl">Pincode</label><input type="text" name="addr_zip[]" class="fi" placeholder="400001"></div></div>
+            </div>
+            {% endif %}
+            <button type="button" class="add-entry-btn billing-add" onclick="addEntry('billing','billingWrap')">＋ Add Billing Address</button>
+          </div>
+        </div>
+
+        <div class="fp-section addr-section-card shipping-section">
+          <div class="addr-section-hdr shipping-hdr">
+            <span class="addr-section-icon">🚚</span>
+            <span class="addr-section-label">Shipping Address</span>
+            <span class="addr-section-sub">Delivery / warehouse address</span>
+            <label class="same-bill-toggle" id="sameBillToggle"><input type="checkbox" id="sameBillCb" onchange="toggleSameBill(this)"> Same as Billing</label>
+          </div>
+          <div class="fp-sec-body" id="shippingWrap">
+            {% set ship_addrs = client.addresses | selectattr('addr_type','in',['shipping','both']) | list if client and client.addresses else [] %}
+            {% if ship_addrs %}{% for a in ship_addrs %}
+            <div class="addr-entry shipping-entry">
+              <div class="addr-entry-hdr"><span class="addr-entry-num ship-num">{{ loop.index }}</span><input type="text" name="addr_title[]" class="addr-title-input" value="{{ a.title }}" placeholder="e.g. Warehouse, Factory, Depot..."><input type="hidden" name="addr_type[]" value="shipping">{% if not loop.first %}<button type="button" class="addr-rm-btn" onclick="rmEntry(this)">✕</button>{% endif %}</div>
+              <div class="frow"><label class="fl">Street / Building</label><textarea name="addr_street[]" class="fi" rows="2" placeholder="Building, Street, Area, Landmark...">{{ a.address or '' }}</textarea></div>
+              <div class="fgrid-2"><div class="fg"><label class="fl">City</label><input type="text" name="addr_city[]" class="fi" value="{{ a.city or '' }}" placeholder="City"></div><div class="fg"><label class="fl">State</label><input type="text" name="addr_state[]" class="fi" value="{{ a.state or '' }}" placeholder="State"></div><div class="fg"><label class="fl">Country</label><input type="text" name="addr_country[]" class="fi" value="{{ a.country or 'India' }}"></div><div class="fg"><label class="fl">Pincode</label><input type="text" name="addr_zip[]" class="fi" value="{{ a.zip_code or '' }}" placeholder="400001"></div></div>
+            </div>
+            {% endfor %}{% else %}
+            <div class="addr-entry shipping-entry">
+              <div class="addr-entry-hdr"><span class="addr-entry-num ship-num">1</span><input type="text" name="addr_title[]" class="addr-title-input" value="Warehouse" placeholder="e.g. Warehouse, Factory, Depot..."><input type="hidden" name="addr_type[]" value="shipping"></div>
+              <div class="frow"><label class="fl">Street / Building</label><textarea name="addr_street[]" class="fi" rows="2" placeholder="Building, Street, Area, Landmark..."></textarea></div>
+              <div class="fgrid-2"><div class="fg"><label class="fl">City</label><input type="text" name="addr_city[]" class="fi" placeholder="City"></div><div class="fg"><label class="fl">State</label><input type="text" name="addr_state[]" class="fi" placeholder="State"></div><div class="fg"><label class="fl">Country</label><input type="text" name="addr_country[]" class="fi" value="India"></div><div class="fg"><label class="fl">Pincode</label><input type="text" name="addr_zip[]" class="fi" placeholder="400001"></div></div>
+            </div>
+            {% endif %}
+            <button type="button" class="add-entry-btn shipping-add" onclick="addEntry('shipping','shippingWrap')">＋ Add Shipping Address</button>
+          </div>
+        </div>
+
+        <div class="fp-section">
+          <div class="fp-sec-hdr">
+            <div class="fp-sec-title"><div class="fp-sec-icon amber"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#92400e" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg></div>Brands</div>
+            <span style="font-size:.72rem;color:var(--text3);">Client's product brands</span>
+          </div>
+          <div class="fp-sec-body">
+            <div id="brandsWrap">
+              {% set blist = brands if brands else (client.brands if client else []) %}
+              {% if blist %}{% for b in blist %}
+              <div class="brand-row"><div class="fg"><label class="fl">Brand Name</label><input type="text" name="brand_name[]" class="fi" value="{{ b.brand_name }}" placeholder="Brand name"></div><button type="button" class="rm-btn" onclick="rmBrand(this)">✕</button></div>
+              {% endfor %}{% else %}
+              <div class="brand-row"><div class="fg"><label class="fl">Brand Name</label><input type="text" name="brand_name[]" class="fi" placeholder="Brand name"></div><button type="button" class="rm-btn" onclick="rmBrand(this)">✕</button></div>
+              {% endif %}
+            </div>
+            <button type="button" class="add-brand-btn" onclick="addBrand()">＋ Add Brand</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="fp-footer">
+      <a href="{{ url_for('crm.clients') }}" class="fp-btn fp-btn-close"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>Cancel</a>
+      <button type="submit" class="fp-btn fp-btn-save"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>{{ 'Update Client' if client else 'Save Client' }}</button>
+    </div>
+  </form>
 </div>
 
-<form method="POST" id="clientForm">
-
-    <!-- Settings strip -->
-    <div class="card" style="margin-bottom:.9rem;">
-        <div class="card-hdr-sm"><span class="card-title" style="font-size:.83rem;">⚙️ Client Settings</span></div>
-        <div class="card-body-sm">
-            <div class="fgrid-3">
-                <div class="fg">
-                    <label class="fl">Client Type</label>
-                    <select name="client_type" class="fi">
-                        <option value="regular"     {{ 'selected' if not client or client.client_type=='regular' }}>Regular</option>
-                        <option value="vip"         {{ 'selected' if client and client.client_type=='vip' }}>⭐ VIP</option>
-                        <option value="dealer"      {{ 'selected' if client and client.client_type=='dealer' }}>🏪 Dealer</option>
-                        <option value="distributor" {{ 'selected' if client and client.client_type=='distributor' }}>🚚 Distributor</option>
-                    </select>
-                </div>
-                <div class="fg">
-                    <label class="fl">Status</label>
-                    <select name="status" class="fi">
-                        <option value="active"   {{ 'selected' if not client or client.status=='active' }}>✅ Active</option>
-                        <option value="inactive" {{ 'selected' if client and client.status=='inactive' }}>⛔ Inactive</option>
-                    </select>
-                </div>
-                <div class="fg">
-                    <label class="fl">GSTIN</label>
-                    <input type="text" name="gstin" class="fi"
-                        value="{{ client.gstin if client else '' }}" placeholder="27ABCDE1234F1Z5">
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- 2-column -->
-    <div class="form-panels">
-
-        <!-- LEFT: Contact Info -->
-        <div class="card">
-            <div class="card-hdr-sm"><span class="card-title" style="font-size:.83rem;">👤 Contact Information</span></div>
-            <div class="card-body-sm">
-                <div class="fsec">Primary Contact</div>
-                <div class="fgrid-2" style="margin-bottom:.7rem;">
-                    <div class="fg">
-                        <label class="fl">Contact Name *</label>
-                        <input type="text" name="contact_name" class="fi" required
-                            value="{{ client.contact_name if client else '' }}" placeholder="Full name">
-                    </div>
-                    <div class="fg">
-                        <label class="fl">Position</label>
-                        <input type="text" name="position" class="fi"
-                            value="{{ client.position if client else '' }}" placeholder="CEO, Manager...">
-                    </div>
-                    <div class="fg">
-                        <label class="fl">Mobile *</label>
-                        <input type="text" name="mobile" class="fi"
-                            value="{{ client.mobile if client else '' }}" placeholder="9999999999">
-                    </div>
-                    <div class="fg">
-                        <label class="fl">Alt. Mobile</label>
-                        <input type="text" name="alternate_mobile" class="fi"
-                            value="{{ client.alternate_mobile if client else '' }}" placeholder="Alternate number">
-                    </div>
-                    <div class="fg">
-                        <label class="fl">Email</label>
-                        <input type="email" name="email" class="fi"
-                            value="{{ client.email if client else '' }}" placeholder="email@company.com">
-                    </div>
-                    <div class="fg">
-                        <label class="fl">Website</label>
-                        <input type="text" name="website" class="fi"
-                            value="{{ client.website if client else '' }}" placeholder="www.company.com">
-                    </div>
-                </div>
-                <div class="fsec">Company</div>
-                <div class="frow">
-                    <label class="fl">Company Name</label>
-                    <input type="text" name="company_name" class="fi"
-                        value="{{ client.company_name if client else '' }}" placeholder="Company / Firm name">
-                </div>
-                <div class="frow">
-                    <label class="fl">Notes</label>
-                    <textarea name="notes" class="fi" rows="3"
-                        placeholder="Payment terms, preferences, special instructions...">{{ client.notes if client else '' }}</textarea>
-                </div>
-            </div>
-        </div>
-
-        <!-- RIGHT: Addresses + Brands -->
-        <div style="display:flex;flex-direction:column;gap:1rem;">
-
-            <!-- Billing Address Card — always visible -->
-            <div class="card addr-section-card billing-section">
-                <div class="addr-section-hdr billing-hdr">
-                    <span class="addr-section-icon">🏢</span>
-                    <span class="addr-section-label">Billing Address</span>
-                    <span class="addr-section-sub">Invoice / GST address</span>
-                </div>
-                <div class="card-body-sm" id="billingWrap">
-                    {% set billing_addrs = client.addresses | selectattr('addr_type','in',['billing','both']) | list if client and client.addresses else [] %}
-                    {% if billing_addrs %}
-                        {% for a in billing_addrs %}
-                        <div class="addr-entry billing-entry">
-                            <div class="addr-entry-hdr">
-                                <span class="addr-entry-num">{{ loop.index }}</span>
-                                <input type="text" name="addr_title[]" class="addr-title-input"
-                                    value="{{ a.title }}" placeholder="e.g. Head Office, Registered Office...">
-                                <input type="hidden" name="addr_type[]" value="{{ a.addr_type }}">
-                                {% if not loop.first %}<button type="button" class="addr-rm-btn" onclick="rmEntry(this)">✕</button>{% endif %}
-                            </div>
-                            <div class="addr-fields">
-                                <div class="frow"><label class="fl">Street / Building</label>
-                                    <textarea name="addr_street[]" class="fi" rows="2" placeholder="Building, Street, Area, Landmark...">{{ a.address or '' }}</textarea></div>
-                                <div class="fgrid-2">
-                                    <div class="fg"><label class="fl">City</label><input type="text" name="addr_city[]" class="fi" value="{{ a.city or '' }}" placeholder="City"></div>
-                                    <div class="fg"><label class="fl">State</label><input type="text" name="addr_state[]" class="fi" value="{{ a.state or '' }}" placeholder="State"></div>
-                                    <div class="fg"><label class="fl">Country</label><input type="text" name="addr_country[]" class="fi" value="{{ a.country or 'India' }}"></div>
-                                    <div class="fg"><label class="fl">Pincode</label><input type="text" name="addr_zip[]" class="fi" value="{{ a.zip_code or '' }}" placeholder="400001"></div>
-                                </div>
-                            </div>
-                        </div>
-                        {% endfor %}
-                    {% else %}
-                    <div class="addr-entry billing-entry">
-                        <div class="addr-entry-hdr">
-                            <span class="addr-entry-num">1</span>
-                            <input type="text" name="addr_title[]" class="addr-title-input" value="Head Office" placeholder="e.g. Head Office, Registered Office...">
-                            <input type="hidden" name="addr_type[]" value="billing">
-                        </div>
-                        <div class="addr-fields">
-                            <div class="frow"><label class="fl">Street / Building</label>
-                                <textarea name="addr_street[]" class="fi" rows="2" placeholder="Building, Street, Area, Landmark..."></textarea></div>
-                            <div class="fgrid-2">
-                                <div class="fg"><label class="fl">City</label><input type="text" name="addr_city[]" class="fi" placeholder="City"></div>
-                                <div class="fg"><label class="fl">State</label><input type="text" name="addr_state[]" class="fi" placeholder="State"></div>
-                                <div class="fg"><label class="fl">Country</label><input type="text" name="addr_country[]" class="fi" value="India"></div>
-                                <div class="fg"><label class="fl">Pincode</label><input type="text" name="addr_zip[]" class="fi" placeholder="400001"></div>
-                            </div>
-                        </div>
-                    </div>
-                    {% endif %}
-                    <button type="button" class="add-entry-btn billing-add" onclick="addEntry('billing','billingWrap')">＋ Add Billing Address</button>
-                </div>
-            </div>
-
-            <!-- Shipping Address Card — always visible -->
-            <div class="card addr-section-card shipping-section">
-                <div class="addr-section-hdr shipping-hdr">
-                    <span class="addr-section-icon">🚚</span>
-                    <span class="addr-section-label">Shipping Address</span>
-                    <span class="addr-section-sub">Delivery / warehouse address</span>
-                    <label class="same-bill-toggle" id="sameBillToggle">
-                        <input type="checkbox" id="sameBillCb" onchange="toggleSameBill(this)"> Same as Billing
-                    </label>
-                </div>
-                <div class="card-body-sm" id="shippingWrap">
-                    {% set ship_addrs = client.addresses | selectattr('addr_type','in',['shipping','both']) | list if client and client.addresses else [] %}
-                    {% if ship_addrs %}
-                        {% for a in ship_addrs %}
-                        <div class="addr-entry shipping-entry">
-                            <div class="addr-entry-hdr">
-                                <span class="addr-entry-num ship-num">{{ loop.index }}</span>
-                                <input type="text" name="addr_title[]" class="addr-title-input"
-                                    value="{{ a.title }}" placeholder="e.g. Warehouse, Factory, Depot...">
-                                <input type="hidden" name="addr_type[]" value="shipping">
-                                {% if not loop.first %}<button type="button" class="addr-rm-btn" onclick="rmEntry(this)">✕</button>{% endif %}
-                            </div>
-                            <div class="addr-fields">
-                                <div class="frow"><label class="fl">Street / Building</label>
-                                    <textarea name="addr_street[]" class="fi" rows="2" placeholder="Building, Street, Area, Landmark...">{{ a.address or '' }}</textarea></div>
-                                <div class="fgrid-2">
-                                    <div class="fg"><label class="fl">City</label><input type="text" name="addr_city[]" class="fi" value="{{ a.city or '' }}" placeholder="City"></div>
-                                    <div class="fg"><label class="fl">State</label><input type="text" name="addr_state[]" class="fi" value="{{ a.state or '' }}" placeholder="State"></div>
-                                    <div class="fg"><label class="fl">Country</label><input type="text" name="addr_country[]" class="fi" value="{{ a.country or 'India' }}"></div>
-                                    <div class="fg"><label class="fl">Pincode</label><input type="text" name="addr_zip[]" class="fi" value="{{ a.zip_code or '' }}" placeholder="400001"></div>
-                                </div>
-                            </div>
-                        </div>
-                        {% endfor %}
-                    {% else %}
-                    <div class="addr-entry shipping-entry">
-                        <div class="addr-entry-hdr">
-                            <span class="addr-entry-num ship-num">1</span>
-                            <input type="text" name="addr_title[]" class="addr-title-input" value="Warehouse" placeholder="e.g. Warehouse, Factory, Depot...">
-                            <input type="hidden" name="addr_type[]" value="shipping">
-                        </div>
-                        <div class="addr-fields">
-                            <div class="frow"><label class="fl">Street / Building</label>
-                                <textarea name="addr_street[]" class="fi" rows="2" placeholder="Building, Street, Area, Landmark..."></textarea></div>
-                            <div class="fgrid-2">
-                                <div class="fg"><label class="fl">City</label><input type="text" name="addr_city[]" class="fi" placeholder="City"></div>
-                                <div class="fg"><label class="fl">State</label><input type="text" name="addr_state[]" class="fi" placeholder="State"></div>
-                                <div class="fg"><label class="fl">Country</label><input type="text" name="addr_country[]" class="fi" value="India"></div>
-                                <div class="fg"><label class="fl">Pincode</label><input type="text" name="addr_zip[]" class="fi" placeholder="400001"></div>
-                            </div>
-                        </div>
-                    </div>
-                    {% endif %}
-                    <button type="button" class="add-entry-btn shipping-add" onclick="addEntry('shipping','shippingWrap')">＋ Add Shipping Address</button>
-                </div>
-            </div>
-
-            <!-- Brands Card -->
-            <div class="card">
-                <div class="card-hdr-sm" style="justify-content:space-between;">
-                    <span class="card-title" style="font-size:.83rem;">🏷️ Brands</span>
-                    <span style="font-size:.72rem;color:var(--text3);">Client's product brands</span>
-                </div>
-                <div class="card-body-sm">
-                    <div id="brandsWrap">
-                        {% set blist = brands if brands else (client.brands if client else []) %}
-                        {% if blist %}
-                            {% for b in blist %}
-                            <div class="brand-row">
-                                <div class="fg"><label class="fl">Brand Name</label><input type="text" name="brand_name[]" class="fi" value="{{ b.brand_name }}" placeholder="Brand name"></div>
-                                <button type="button" class="rm-btn" onclick="rmBrand(this)">✕</button>
-                            </div>
-                            {% endfor %}
-                        {% else %}
-                        <div class="brand-row">
-                            <div class="fg"><label class="fl">Brand Name</label><input type="text" name="brand_name[]" class="fi" placeholder="Brand name"></div>
-                            <button type="button" class="rm-btn" onclick="rmBrand(this)">✕</button>
-                        </div>
-                        {% endif %}
-                    </div>
-                    <button type="button" class="add-brand-btn" onclick="addBrand()">＋ Add Brand</button>
-                </div>
-            </div>
-
-        </div><!-- /right -->
-    </div><!-- /form-panels -->
-
-    <div class="form-actions">
-        <button type="submit" class="btn-primary" style="padding:10px 26px;">
-            {{ '💾 Update Client' if client else '✅ Save Client' }}
-        </button>
-        <a href="{{ url_for('crm.clients') }}" class="btn-outline">Cancel</a>
-    </div>
-</form>
-
 <script>
-// Add new billing or shipping entry
-function addEntry(type, wrapId) {
-    const wrap = document.getElementById(wrapId);
-    const count = wrap.querySelectorAll('.addr-entry').length + 1;
-    const isBill = type === 'billing';
-    const cls   = isBill ? 'billing-entry' : 'shipping-entry';
-    const ph    = isBill ? 'e.g. Head Office, Registered Office...' : 'e.g. Warehouse, Factory, Depot...';
-
-    const div = document.createElement('div');
-    div.className = `addr-entry ${cls}`;
-    div.innerHTML = `
-        <div class="addr-entry-hdr">
-            <span class="addr-entry-num">${count}</span>
-            <input type="text" name="addr_title[]" class="addr-title-input" placeholder="${ph}">
-            <input type="hidden" name="addr_type[]" value="${type}">
-            <button type="button" class="addr-rm-btn" onclick="rmEntry(this)">✕ Remove</button>
-        </div>
-        <div class="addr-fields">
-            <div class="frow"><label class="fl">Street / Building</label>
-                <textarea name="addr_street[]" class="fi" rows="2" placeholder="Building, Street, Area, Landmark..."></textarea></div>
-            <div class="fgrid-2">
-                <div class="fg"><label class="fl">City</label><input type="text" name="addr_city[]" class="fi" placeholder="City"></div>
-                <div class="fg"><label class="fl">State</label><input type="text" name="addr_state[]" class="fi" placeholder="State"></div>
-                <div class="fg"><label class="fl">Country</label><input type="text" name="addr_country[]" class="fi" value="India"></div>
-                <div class="fg"><label class="fl">Pincode</label><input type="text" name="addr_zip[]" class="fi" placeholder="400001"></div>
-            </div>
-        </div>`;
-
-    // Insert before the add button
-    const btn = wrap.querySelector('.add-entry-btn');
-    wrap.insertBefore(div, btn);
-    renumberEntries(wrap);
-}
-
-function rmEntry(btn) {
-    const entry = btn.closest('.addr-entry');
-    const wrap  = entry.closest('.card-body-sm');
-    const entries = wrap.querySelectorAll('.addr-entry');
-    if (entries.length > 1) {
-        entry.remove();
-        renumberEntries(wrap);
-    }
-}
-
-function renumberEntries(wrap) {
-    wrap.querySelectorAll('.addr-entry-num').forEach((el, i) => el.textContent = i + 1);
-}
-
-// Same as billing toggle
-function toggleSameBill(cb) {
-    const shipWrap = document.getElementById('shippingWrap');
-    if (cb.checked) {
-        // Copy first billing entry fields into first shipping entry
-        const bFields = document.querySelector('#billingWrap .addr-entry .addr-fields');
-        const sFields = document.querySelector('#shippingWrap .addr-entry .addr-fields');
-        if (!bFields || !sFields) return;
-        const bInputs = bFields.querySelectorAll('input[type=text], textarea');
-        const sInputs = sFields.querySelectorAll('input[type=text], textarea');
-        bInputs.forEach((el, i) => { if (sInputs[i]) sInputs[i].value = el.value; });
-        sInputs.forEach(el => el.disabled = true);
-        // Keep in sync
-        bInputs.forEach((el, i) => {
-            el._syncFn = () => { if (sInputs[i]) sInputs[i].value = el.value; };
-            el.addEventListener('input', el._syncFn);
-        });
-    } else {
-        const sInputs = document.querySelectorAll('#shippingWrap .addr-entry .addr-fields input[type=text], #shippingWrap .addr-entry .addr-fields textarea');
-        sInputs.forEach(el => { el.disabled = false; });
-        const bInputs = document.querySelectorAll('#billingWrap .addr-entry .addr-fields input[type=text], #billingWrap .addr-entry .addr-fields textarea');
-        bInputs.forEach(el => { if (el._syncFn) { el.removeEventListener('input', el._syncFn); el._syncFn = null; } });
-    }
-}
-
-// Brands
-function addBrand() {
-    const w = document.getElementById('brandsWrap');
-    const div = document.createElement('div');
-    div.className = 'brand-row';
-    div.innerHTML = `
-        <div class="fg"><label class="fl">Brand Name</label><input type="text" name="brand_name[]" class="fi" placeholder="Brand name"></div>
-        <button type="button" class="rm-btn" onclick="rmBrand(this)">✕</button>`;
-    w.appendChild(div);
-}
-function rmBrand(btn) {
-    const w = document.getElementById('brandsWrap');
-    if (w.querySelectorAll('.brand-row').length > 1) btn.closest('.brand-row').remove();
-    else btn.closest('.brand-row').querySelectorAll('input').forEach(i => i.value = '');
-}
+function addEntry(type,wrapId){const wrap=document.getElementById(wrapId);const count=wrap.querySelectorAll('.addr-entry').length+1;const isBill=type==='billing';const cls=isBill?'billing-entry':'shipping-entry';const ph=isBill?'e.g. Head Office, Registered Office...':'e.g. Warehouse, Factory, Depot...';const div=document.createElement('div');div.className=`addr-entry ${cls}`;div.innerHTML=`<div class="addr-entry-hdr"><span class="addr-entry-num">${count}</span><input type="text" name="addr_title[]" class="addr-title-input" placeholder="${ph}"><input type="hidden" name="addr_type[]" value="${type}"><button type="button" class="addr-rm-btn" onclick="rmEntry(this)">✕ Remove</button></div><div class="frow"><label class="fl">Street / Building</label><textarea name="addr_street[]" class="fi" rows="2" placeholder="Building, Street, Area, Landmark..."></textarea></div><div class="fgrid-2"><div class="fg"><label class="fl">City</label><input type="text" name="addr_city[]" class="fi" placeholder="City"></div><div class="fg"><label class="fl">State</label><input type="text" name="addr_state[]" class="fi" placeholder="State"></div><div class="fg"><label class="fl">Country</label><input type="text" name="addr_country[]" class="fi" value="India"></div><div class="fg"><label class="fl">Pincode</label><input type="text" name="addr_zip[]" class="fi" placeholder="400001"></div></div>`;const btn=wrap.querySelector('.add-entry-btn');wrap.insertBefore(div,btn);renumberEntries(wrap);}
+function rmEntry(btn){const entry=btn.closest('.addr-entry');const wrap=entry.closest('.fp-sec-body,.card-body-sm');const entries=wrap.querySelectorAll('.addr-entry');if(entries.length>1){entry.remove();renumberEntries(wrap);}}
+function renumberEntries(wrap){wrap.querySelectorAll('.addr-entry-num').forEach((el,i)=>el.textContent=i+1);}
+function toggleSameBill(cb){const shipWrap=document.getElementById('shippingWrap');if(cb.checked){const bFields=document.querySelector('#billingWrap .addr-entry .addr-fields,.addr-entry');const sFields=document.querySelector('#shippingWrap .addr-entry');if(!sFields)return;const bInputs=document.querySelectorAll('#billingWrap .addr-entry input[type=text],#billingWrap .addr-entry textarea');const sInputs=sFields.querySelectorAll('input[type=text],textarea');bInputs.forEach((el,i)=>{if(sInputs[i])sInputs[i].value=el.value;});sInputs.forEach(el=>el.disabled=true);bInputs.forEach((el,i)=>{el._syncFn=()=>{if(sInputs[i])sInputs[i].value=el.value;};el.addEventListener('input',el._syncFn);});}else{const sInputs=document.querySelectorAll('#shippingWrap .addr-entry input[type=text],#shippingWrap .addr-entry textarea');sInputs.forEach(el=>{el.disabled=false;});const bInputs=document.querySelectorAll('#billingWrap .addr-entry input[type=text],#billingWrap .addr-entry textarea');bInputs.forEach(el=>{if(el._syncFn){el.removeEventListener('input',el._syncFn);el._syncFn=null;}});}}
+function addBrand(){const w=document.getElementById('brandsWrap');const div=document.createElement('div');div.className='brand-row';div.innerHTML='<div class="fg"><label class="fl">Brand Name</label><input type="text" name="brand_name[]" class="fi" placeholder="Brand name"></div><button type="button" class="rm-btn" onclick="rmBrand(this)">✕</button>';w.appendChild(div);}
+function rmBrand(btn){const w=document.getElementById('brandsWrap');if(w.querySelectorAll('.brand-row').length>1)btn.closest('.brand-row').remove();else btn.closest('.brand-row').querySelectorAll('input').forEach(i=>i.value='');}
 </script>
 {% endblock %}

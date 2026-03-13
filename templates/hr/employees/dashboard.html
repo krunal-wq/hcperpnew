@@ -4,24 +4,96 @@
 {% block bread %}HR / Employee Dashboard{% endblock %}
 
 {% block extra_css %}
-/* ── KPI Cards ── */
-.kpi-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:.85rem; margin-bottom:1.1rem; }
-.kpi-card { background:#fff; border:1.5px solid var(--border); border-radius:14px; padding:1rem 1.15rem; display:flex; align-items:center; gap:.85rem; transition:.15s; cursor:default; position:relative; overflow:hidden; }
-.kpi-card::after { content:''; position:absolute; top:0; right:0; width:4px; height:100%; border-radius:0 14px 14px 0; }
-.kpi-card.blue::after  { background:#3b82f6; } .kpi-card.green::after { background:#10b981; }
-.kpi-card.amber::after { background:#f59e0b; } .kpi-card.red::after   { background:#ef4444; }
-.kpi-card.purple::after{ background:#8b5cf6; } .kpi-card.teal::after  { background:#14b8a6; }
-.kpi-card.pink::after  { background:#ec4899; } .kpi-card.indigo::after{ background:#6366f1; }
-.kpi-card:hover { box-shadow:0 4px 18px rgba(0,0,0,.08); transform:translateY(-1px); }
-.kpi-icon { width:46px; height:46px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:1.35rem; flex-shrink:0; }
-.kpi-icon.blue   { background:#eff6ff; } .kpi-icon.green  { background:#f0fdf4; }
-.kpi-icon.amber  { background:#fffbeb; } .kpi-icon.red    { background:#fef2f2; }
-.kpi-icon.purple { background:#f5f3ff; } .kpi-icon.teal   { background:#f0fdfa; }
-.kpi-icon.pink   { background:#fdf2f8; } .kpi-icon.indigo { background:#eef2ff; }
-.kpi-val { font-size:1.6rem; font-weight:900; color:var(--text); line-height:1; }
-.kpi-lbl { font-size:.72rem; color:var(--text3); font-weight:600; margin-top:2px; }
-.kpi-sub { font-size:.68rem; color:var(--text3); margin-top:3px; }
-.kpi-up   { color:#16a34a; } .kpi-down { color:#dc2626; }
+/* ══ KPI Cards — exact screenshot match ══ */
+.kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+    margin-bottom: 14px;
+}
+
+/* Card base — RIGHT colored border accent (as in screenshot) */
+.kpi-card {
+    background: #fff;
+    border: 1px solid #e8edf2;
+    border-radius: 14px;
+    padding: 18px 20px 16px 18px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    position: relative;
+    overflow: hidden;
+    transition: box-shadow .18s, transform .18s;
+    cursor: default;
+}
+.kpi-card:hover {
+    box-shadow: 0 6px 24px rgba(0,0,0,.08);
+    transform: translateY(-2px);
+}
+/* RIGHT border stripe — exact like screenshot */
+.kpi-card::after {
+    content: '';
+    position: absolute;
+    top: 0; right: 0;
+    width: 4px; height: 100%;
+    border-radius: 0 14px 14px 0;
+}
+.kpi-card.blue::after   { background: #3b82f6; }
+.kpi-card.green::after  { background: #10b981; }
+.kpi-card.amber::after  { background: #f59e0b; }
+.kpi-card.red::after    { background: #ef4444; }
+.kpi-card.purple::after { background: #8b5cf6; }
+.kpi-card.teal::after   { background: #0ea5e9; }
+.kpi-card.indigo::after { background: #6366f1; }
+.kpi-card.pink::after   { background: #ec4899; }
+
+/* Icon box */
+.kpi-icon {
+    width: 46px; height: 46px;
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.4rem;
+    flex-shrink: 0;
+}
+.kpi-icon.blue   { background: #eff6ff; }
+.kpi-icon.green  { background: #f0fdf4; }
+.kpi-icon.amber  { background: #fffbeb; }
+.kpi-icon.red    { background: #fef2f2; }
+.kpi-icon.purple { background: #f5f3ff; }
+.kpi-icon.teal   { background: #f0f9ff; }
+.kpi-icon.indigo { background: #eef2ff; }
+.kpi-icon.pink   { background: #fdf2f8; }
+
+/* Big number */
+.kpi-val {
+    font-size: 1.75rem;
+    font-weight: 900;
+    color: var(--text);
+    line-height: 1;
+    letter-spacing: -0.03em;
+    white-space: nowrap;
+}
+/* Bold uppercase label */
+.kpi-lbl {
+    font-size: 10.5px;
+    font-weight: 800;
+    color: var(--text2);
+    text-transform: uppercase;
+    letter-spacing: .07em;
+    margin-top: 3px;
+}
+/* Muted subtitle */
+.kpi-sub {
+    font-size: 11.5px;
+    color: var(--text3);
+    margin-top: 4px;
+    font-weight: 500;
+}
+.kpi-up   { color: #16a34a; font-weight: 700; }
+.kpi-down { color: #dc2626; font-weight: 700; }
+
+@media (max-width: 900px) { .kpi-grid { grid-template-columns: repeat(2,1fr); } }
+@media (max-width: 500px) { .kpi-grid { grid-template-columns: 1fr; } }
 
 /* ── Section header ── */
 .dash-sec { font-size:.72rem; font-weight:800; color:var(--text3); text-transform:uppercase; letter-spacing:.07em; margin:1rem 0 .6rem; padding-bottom:.3rem; border-bottom:2px solid #f1f5f9; }
