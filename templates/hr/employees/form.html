@@ -12,7 +12,7 @@
 .tab-btn.tab-saved{color:#16a34a !important;}
 .tab-btn.tab-saved::after{content:' ✓';font-size:.7rem;}
 .tab-pane{display:none;}.tab-pane.active{display:block;}
-.card-hdr-sm{padding:.65rem 1.1rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:linear-gradient(135deg,#f8fafc 0%,#f1f5f9 100%);border-radius:12px 12px 0 0;}
+.card-hdr-sm{padding:.65rem 1.1rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:var(--bg);}
 .card-hdr-sm .card-title{font-size:.82rem;font-weight:800;color:var(--text);letter-spacing:.01em;}
 .card-body-sm{padding:1.1rem 1.25rem;}
 .sec-hdr{font-size:.72rem;font-weight:800;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;margin:1.1rem 0 .6rem;padding-bottom:.3rem;border-bottom:2px solid #e2e8f0;}
@@ -51,12 +51,23 @@
 {% endblock %}
 
 {% block content %}
-<div class="page-hdr">
-    <div>
-        <h1 style="font-size:1.2rem;">{{ '✏️ Edit Employee' if employee else '➕ Add Employee' }}</h1>
-        {% if employee %}<p style="font-size:.78rem;color:var(--text3);">Code: <strong>{{ employee.employee_code or '—' }}</strong></p>{% endif %}
+<div class="fp-header" style="margin-bottom:1.1rem;">
+  <div class="fp-header-top">
+    <span class="fp-brand">HR &bull; Employees</span>
+    <div class="fp-hdr-actions">
+      <a href="{{ url_for('hr.employees') }}" class="fp-hbtn"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>Back</a>
     </div>
-    <a href="{{ url_for('hr.employees') }}" class="btn-outline" style="font-size:.82rem;">← Back</a>
+  </div>
+  <div class="fp-title-row">
+    <span class="fp-title-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></span>
+    <span class="fp-title-text">{{ 'Edit Employee' if employee else 'Add Employee' }}</span>
+    {% if employee %}<span class="fp-record-badge">{{ employee.employee_code or '#' + employee.id|string }}</span>{% endif %}
+  </div>
+  {% if employee %}<div class="fp-subtitle">Code: {{ employee.employee_code or '—' }}</div>{% endif %}
+  <div class="fp-tab-bar" style="padding-bottom:0;">
+    <span class="fp-tab active"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>Employee Form</span>
+    {% if employee %}<span class="fp-status-badge">{{ employee.status|upper if employee.status else 'ACTIVE' }}</span>{% endif %}
+  </div>
 </div>
 
 <form method="POST" id="empForm" novalidate>
@@ -439,12 +450,11 @@
 </div>
 </div>
 
-<div class="form-actions" id="formActions">
-    <!-- Shown dynamically per tab by JS -->
-    <button type="button" class="btn-primary" id="btnSaveTab" onclick="ajaxSaveCurrentTab()" style="padding:10px 28px;font-size:.88rem;">💾 Save Tab</button>
-    <a href="{{ url_for('hr.employees') }}" class="btn-outline" id="btnDone" style="padding:10px 20px;font-size:.88rem;display:none;">✅ Done</a>
-    <a href="{{ url_for('hr.employees') }}" class="btn-outline" style="padding:10px 20px;font-size:.88rem;">← Cancel</a>
-    <span id="ajaxSaveMsg" style="font-size:.8rem;margin-left:auto;font-weight:600;padding:6px 14px;border-radius:8px;display:none;"></span>
+<div class="fp-footer" id="formActions">
+    <a href="{{ url_for('hr.employees') }}" class="fp-btn fp-btn-close"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>Cancel</a>
+    <a href="{{ url_for('hr.employees') }}" class="fp-btn fp-btn-close" id="btnDone" style="display:none;color:#16a34a;border-color:#86efac;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Done</a>
+    <span id="ajaxSaveMsg" style="font-size:.8rem;font-weight:600;padding:6px 14px;border-radius:8px;display:none;"></span>
+    <button type="button" class="fp-btn fp-btn-save" id="btnSaveTab" onclick="ajaxSaveCurrentTab()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>Save Tab</button>
 </div>
 </form>
 

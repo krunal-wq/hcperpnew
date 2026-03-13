@@ -24,29 +24,39 @@
 {% endblock %}
 
 {% block content %}
-<div class="page-hdr">
-    <div>
-        <h1>👥 Client Master</h1>
-        <p>Manage all clients with their brands</p>
+<div class="page-hdr" style="margin-bottom:.6rem;">
+  <div><h1>Client Master</h1><p>{{ clients|length }} clients · Manage billing, brands, contacts</p></div>
+</div>
+<div class="grid-card" style="margin-bottom:.75rem;">
+  <div class="grid-toolbar">
+    <a href="{{ url_for('crm.client_add') }}" class="btn-add-new"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Add Client</a>
+    <div class="grid-search-wrap"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input type="text" class="grid-search-input" id="gSearchInput" placeholder="Global Search..." oninput="gridGlobalSearch(this.value)"></div>
+    <div class="grid-filter-tabs">
+      <a href="{{ url_for('crm.clients') }}" class="gft {{ 'active' if not status_f }}">All</a>
+      <a href="{{ url_for('crm.clients', status_f='active') }}" class="gft {{ 'active' if status_f=='active' }}">Active</a>
+      <a href="{{ url_for('crm.clients', status_f='inactive') }}" class="gft {{ 'active' if status_f=='inactive' }}">Inactive</a>
     </div>
-    <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
-        <a href="{{ url_for('crm.client_add') }}" class="btn-primary">+ Add Client</a>
-        <a href="{{ url_for('crm.client_import') }}" class="btn-outline">📥 Import</a>
-        <button class="btn-outline" onclick="doExport('cl')">📤 Export</button>
+    <div class="grid-toolbar-right">
+      <button class="btn-grid-action danger" id="bulkDeleteBtn" style="display:none;" onclick="bulkDelete()"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>Delete</button>
+      <button class="btn-grid-action" onclick="doExport('cl')"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Export</button>
+      <a href="{{ url_for('crm.client_import') }}" class="btn-grid-action"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>Import</a>
     </div>
+  </div>
 </div>
 
 <!-- Filter Panel -->
 {% set _cfc = [search,city,state,client_type,status_f]|select|list|length %}
-<div class="fs-panel" style="margin-bottom:1rem;">
-  <div style="display:flex;gap:6px;align-items:center;">
-    <button id="fsTabFilter" class="fs-tab" onclick="toggleFsTab('filter','cl')">
-      🔍 Filter{% if _cfc > 0 %} <span class="fs-badge">{{ _cfc }}</span>{% endif %}
+<div class="grid-card" style="margin-bottom:.75rem;">
+  <div style="padding:8px 14px;border-bottom:0.5px solid var(--border);display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+    <button id="fsTabFilter" class="fs-tab {{ 'active' if _cfc > 0 }}" onclick="toggleFsTab('filter','cl')">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+      Filter {% if _cfc > 0 %}<span class="fs-badge">{{ _cfc }}</span>{% endif %}
     </button>
     <button id="fsTabSort" class="fs-tab" onclick="toggleFsTab('sort','cl')">
-      ↕️ Sort{% if sort_by != 'created_at' or sort_dir != 'desc' %} <span class="fs-badge">•</span>{% endif %}
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>
+      Sort
     </button>
-    {% if _cfc > 0 %}<a href="{{ url_for('crm.clients') }}" class="fs-clear">✕ Clear All</a>{% endif %}
+    {% if _cfc > 0 %}<a href="{{ url_for('crm.clients') }}" class="fs-clear">✕ Clear Filters</a>{% endif %}
   </div>
 
   <div id="fsPanelFilter_cl" class="fs-pane" style="display:none;">
@@ -117,6 +127,7 @@
     </div>
   </div>
 </div>
+</div>
 
 <form id="fsForm_cl" method="GET" style="display:none;">
   <input type="hidden" id="cl_h_search"      name="search"      value="{{ search }}">
@@ -129,122 +140,70 @@
 </form>
 
 <!-- Table -->
-<div class="card">
-    <div class="card-body" style="border-bottom:1px solid var(--border);padding:0.75rem 1rem;">
-        <div style="display:flex;align-items:center;justify-content:space-between;">
-            <label style="font-size:0.82rem;color:var(--text2);">Show
-                <select id="rowCount" onchange="changeRows(this.value)" style="padding:4px 8px;border:1.5px solid var(--border);border-radius:7px;font-size:0.82rem;margin:0 4px;">
-                    <option value="10">10</option>
-                    <option value="25">25</option>
-                    <option value="50">50</option>
-                    <option value="9999">All</option>
-                </select>
-                rows
-            </label>
-            <span style="font-size:0.82rem;color:var(--text3);">Total: <strong>{{ clients|length }}</strong> clients</span>
-        </div>
-    </div>
-
-    <div class="tbl-wrap">
-        <table id="clientsTable">
-            <thead>
-                <tr>
-                    <th>#</th>
-                    <th>Code</th>
-                    <th class="sort-th" onclick="sortTable(2)">Contact Name <span class="sort-ic" id="ic2">↕</span></th>
-                    <th class="sort-th" onclick="sortTable(3)">Company <span class="sort-ic" id="ic3">↕</span></th>
-                    <th>Mobile</th>
-                    <th>Email</th>
-                    <th class="sort-th" onclick="sortTable(6)">City <span class="sort-ic" id="ic6">↕</span></th>
-                    <th>Brands</th>
-                    <th class="sort-th" onclick="sortTable(8)">Type <span class="sort-ic" id="ic8">↕</span></th>
-                    <th class="sort-th" onclick="sortTable(9)">Status <span class="sort-ic" id="ic9">↕</span></th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for c in clients %}
-                <tr class="client-row">
-                    <td style="color:var(--text3);">{{ loop.index }}</td>
-                    <td><code style="font-size:0.77rem;color:var(--blue);">{{ c.code }}</code></td>
-                    <td><a href="{{ url_for('crm.client_view', id=c.id) }}" class="client-link">{{ c.contact_name }}</a></td>
-                    <td>{{ c.company_name or '—' }}</td>
-                    <td>{{ c.mobile or '—' }}</td>
-                    <td style="font-size:0.82rem;">{{ c.email or '—' }}</td>
-                    <td>{{ c.city or '—' }}</td>
-                    <td>
-                        {% for b in c.brands %}
-                            <span class="brand-chip">{{ b.brand_name }}</span>
-                        {% else %}
-                            <span style="color:var(--text3);font-size:0.8rem;">—</span>
-                        {% endfor %}
-                    </td>
-                    <td><span class="badge" style="background:#f1f5f9;color:var(--text2);">{{ c.client_type|capitalize }}</span></td>
-                    <td>
-                        {% if c.status == 'active' %}
-                            <span class="badge badge-success">Active</span>
-                        {% else %}
-                            <span class="badge badge-grey">Inactive</span>
-                        {% endif %}
-                    </td>
-                    <td>
-                        <div style="display:flex;gap:3px;">
-                            <a href="{{ url_for('crm.client_view', id=c.id) }}" class="btn-outline" style="padding:4px 7px;font-size:0.72rem;">👁️</a>
-                            <a href="{{ url_for('crm.client_edit', id=c.id) }}" class="btn-outline" style="padding:4px 7px;font-size:0.72rem;">✏️</a>
-                            <form method="POST" action="{{ url_for('crm.client_delete', id=c.id) }}" onsubmit="return confirm('Delete this client?')">
-                                <button type="submit" class="btn-danger" style="padding:4px 7px;font-size:0.72rem;">🗑️</button>
-                            </form>
-                        </div>
-                    </td>
-                </tr>
-                {% else %}
-                <tr><td colspan="11" style="text-align:center;padding:2rem;color:var(--text3);">
-                    No clients found.
-                    <a href="{{ url_for('crm.client_add') }}" style="color:var(--blue);">Add first client →</a> or
-                    <a href="{{ url_for('crm.client_import') }}" style="color:var(--blue);">import from CSV →</a>
-                </td></tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-    {{ render_pagination('clientsTable', '#clientsTable .client-row', clients|length, 'clients') }}
+<div class="grid-card">
+  <div class="tbl-wrap">
+    <table id="clientsTable">
+      <thead>
+        <tr>
+          <th class="row-check"><input type="checkbox" class="row-cb" id="checkAll" onchange="toggleAll(this)"></th>
+          <th style="width:40px;color:#94a3b8;">#</th>
+          <th class="sortable" onclick="colSort(this,2)">Code <span class="sort-ic"></span></th>
+          <th class="sortable" onclick="colSort(this,3)">Contact Name <span class="sort-ic"></span></th>
+          <th class="sortable" onclick="colSort(this,4)">Company <span class="sort-ic"></span></th>
+          <th>Mobile</th>
+          <th>Email</th>
+          <th class="sortable" onclick="colSort(this,7)">City <span class="sort-ic"></span></th>
+          <th>Brands</th>
+          <th>Type</th>
+          <th>Status</th>
+          <th style="width:90px;">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for c in clients %}
+        <tr class="client-row" data-search="{{ [c.contact_name, c.company_name or '', c.mobile or '', c.email or '', c.city or '']|join(' ')|lower }}">
+          <td class="row-check"><input type="checkbox" class="row-cb row-check-item" value="{{ c.id }}" onchange="updateBulkBtn()"></td>
+          <td style="color:#94a3b8;font-size:11px;font-weight:600;">{{ loop.index }}</td>
+          <td><code style="font-size:11px;color:#2563eb;font-weight:700;background:#eff6ff;padding:2px 6px;border-radius:4px;">{{ c.code }}</code></td>
+          <td><a href="{{ url_for('crm.client_view', id=c.id) }}" class="entity-link">{{ c.contact_name }}</a></td>
+          <td style="font-size:12.5px;">{{ c.company_name or '—' }}</td>
+          <td style="font-size:12.5px;">{{ c.mobile or '—' }}</td>
+          <td style="font-size:12px;color:var(--text2);">{{ c.email or '—' }}</td>
+          <td style="font-size:12px;">{{ c.city or '—' }}</td>
+          <td>{% for b in c.brands %}<span style="display:inline-block;padding:2px 7px;background:#eff6ff;color:#1e40af;border-radius:20px;font-size:10.5px;font-weight:600;margin:1px;">{{ b.brand_name }}</span>{% else %}<span style="color:var(--text3);">—</span>{% endfor %}</td>
+          <td><span class="sbadge slate" style="background:#f1f5f9;color:#475569;">{{ c.client_type|capitalize if c.client_type else '—' }}</span></td>
+          <td>{% if c.status == 'active' %}<span class="sbadge active">Active</span>{% else %}<span class="sbadge inactive">Inactive</span>{% endif %}</td>
+          <td>
+            <div class="row-actions">
+              <a href="{{ url_for('crm.client_view', id=c.id) }}" class="ra-btn" title="View"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></a>
+              <a href="{{ url_for('crm.client_edit', id=c.id) }}" class="ra-btn" title="Edit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></a>
+              <form method="POST" action="{{ url_for('crm.client_delete', id=c.id) }}" onsubmit="return confirm('Delete this client?')" style="display:inline;"><button type="submit" class="ra-btn danger" title="Delete"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg></button></form>
+            </div>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="12"><div class="grid-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg><p>No clients found. <a href="{{ url_for('crm.client_add') }}">Add first client →</a></p></div></td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div class="grid-footer">
+    <div class="rows-selector">Show <select id="rowCountSel" onchange="changeRowCount(this.value)"><option value="10">10</option><option value="25">25</option><option value="50">50</option><option value="9999">All</option></select> rows &nbsp;·&nbsp; <span id="rowInfo"></span></div>
+    <div id="gridPgn" class="grid-pgn"></div>
+  </div>
 </div>
 
 <script>
-let rowLimit = 10;
-let sortDir = {};
-
-function changeRows(val) {
-    pagSetSize('clientsTable', '#clientsTable .client-row', val);
-    document.getElementById('pagSize_clientsTable').value = val;
-}
-function sortTable(col) {
-    const tbl = document.getElementById('clientsTable').tBodies[0];
-    const rows = Array.from(tbl.querySelectorAll('tr.client-row'));
-    const asc = !sortDir[col];
-    sortDir[col] = asc;
-    document.querySelectorAll('.sort-ic').forEach(ic => { ic.textContent='↕'; ic.classList.remove('active'); });
-    const ic = document.getElementById('ic' + col);
-    if (ic) { ic.textContent = asc ? '↑' : '↓'; ic.classList.add('active'); }
-    rows.sort((a,b) => {
-        const av = a.cells[col].innerText.trim().toLowerCase();
-        const bv = b.cells[col].innerText.trim().toLowerCase();
-        return asc ? av.localeCompare(bv) : bv.localeCompare(av);
-    });
-    rows.forEach(r => tbl.appendChild(r));
-    pagRender('clientsTable', '#clientsTable .client-row');
-}
-function doExport(ns) {
-    var form = document.getElementById('fsForm_' + ns);
-    var params = new URLSearchParams();
-    if (form) {
-        form.querySelectorAll('input[type=hidden]').forEach(function(h) {
-            if (h.value) params.set(h.name, h.value);
-        });
-    }
-    var urlMap = { cl: '/crm/clients/export', em: '/hr/employees/export', ct: '/hr/contractors/export' };
-    window.location.href = (urlMap[ns] || '#') + '?' + params.toString();
-}
-document.addEventListener('DOMContentLoaded', function(){ pagInit('clientsTable', '#clientsTable .client-row', 10); });
+var _allRows,_page=1,_pageSize=10;
+document.addEventListener('DOMContentLoaded',function(){_allRows=Array.from(document.querySelectorAll('#clientsTable tbody tr.client-row'));renderPage();});
+function renderPage(){var visible=_allRows.filter(r=>r.style.display!=='none'&&!r.classList.contains('search-hidden'));var total=visible.length,pages=Math.max(1,Math.ceil(total/_pageSize));_page=Math.min(_page,pages);visible.forEach((r,i)=>{r.style.display=(i>=(_page-1)*_pageSize&&i<_page*_pageSize)?'':'none';});var start=Math.min((_page-1)*_pageSize+1,total),end=Math.min(_page*_pageSize,total);document.getElementById('rowInfo').textContent=total?`Showing ${start}–${end} of ${total}`:'No records';var pgn=document.getElementById('gridPgn');pgn.innerHTML='';if(pages<=1)return;var addBtn=function(label,pg,active,disabled){var b=document.createElement('button');b.className='pgn-btn'+(active?' active':'');b.disabled=disabled;b.textContent=label;if(!disabled&&!active)b.onclick=function(){_page=pg;renderPage();};pgn.appendChild(b);};addBtn('‹',_page-1,false,_page===1);var s2=Math.max(1,_page-2),e2=Math.min(pages,_page+2);if(s2>1){addBtn('1',1,false,false);if(s2>2)pgn.appendChild(Object.assign(document.createElement('span'),{textContent:'…',style:'padding:0 4px;color:var(--text3);font-size:12px;'}));}for(var p=s2;p<=e2;p++)addBtn(p,p,p===_page,false);if(e2<pages){if(e2<pages-1)pgn.appendChild(Object.assign(document.createElement('span'),{textContent:'…',style:'padding:0 4px;color:var(--text3);font-size:12px;'}));addBtn(pages,pages,false,false);}addBtn('›',_page+1,false,_page===pages);}
+function changeRowCount(v){_pageSize=parseInt(v);_page=1;renderPage();}
+function gridGlobalSearch(q){var lq=q.toLowerCase();_allRows.forEach(r=>{var m=!lq||r.dataset.search.includes(lq);r.classList.toggle('search-hidden',!m);r.style.display=m?'':'none';});_page=1;renderPage();}
+var _sortDir={};
+function colSort(th,col){var asc=_sortDir[col]!==true;_sortDir[col]=asc;document.querySelectorAll('th.sortable').forEach(t=>{t.classList.remove('sort-asc','sort-desc');});th.classList.add(asc?'sort-asc':'sort-desc');var rows=Array.from(document.querySelectorAll('#clientsTable tbody tr.client-row'));rows.sort((a,b)=>{var av=(a.cells[col]?.innerText||'').trim(),bv=(b.cells[col]?.innerText||'').trim();return asc?av.localeCompare(bv,undefined,{numeric:true}):bv.localeCompare(av,undefined,{numeric:true});});var tb=document.querySelector('#clientsTable tbody');rows.forEach(r=>tb.appendChild(r));_page=1;renderPage();}
+function toggleAll(cb){document.querySelectorAll('.row-check-item').forEach(c=>c.checked=cb.checked);updateBulkBtn();}
+function updateBulkBtn(){var n=document.querySelectorAll('.row-check-item:checked').length;document.getElementById('bulkDeleteBtn').style.display=n>0?'':'none';}
+function bulkDelete(){var ids=Array.from(document.querySelectorAll('.row-check-item:checked')).map(c=>c.value);if(!ids.length)return;if(!confirm('Delete '+ids.length+' clients?'))return;fetch('/crm/clients/bulk-delete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ids:ids})}).then(()=>location.reload());}
+function doExport(ns){var form=document.getElementById('fsForm_'+ns);var params=new URLSearchParams();if(form)form.querySelectorAll('input[type=hidden]').forEach(function(h){if(h.value)params.set(h.name,h.value);});var urlMap={cl:'/crm/clients/export',em:'/hr/employees/export',ct:'/hr/contractors/export'};window.location.href=(urlMap[ns]||'#')+'?'+params.toString();}
 </script>
 {% endblock %}

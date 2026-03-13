@@ -4,156 +4,209 @@
 {% block bread %}CRM / Dashboard{% endblock %}
 
 {% block extra_css %}
-.sec-lbl { font-size:.72rem; font-weight:700; color:var(--text3); text-transform:uppercase; letter-spacing:.07em; margin-bottom:.75rem; }
-
-/* Action Row - buttons above grids */
-.action-row { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:.75rem; margin-bottom:1.25rem; }
-.action-row-title { font-size:1.1rem; font-weight:800; color:var(--text); }
-.action-btns { display:flex; gap:.5rem; flex-wrap:wrap; }
-
-/* Status Cards */
-.status-cards { display:grid; grid-template-columns:repeat(4,1fr); gap:1rem; margin-bottom:1.5rem; }
-.sc {
-    border-radius:14px; padding:1.1rem 1.25rem;
-    display:flex; align-items:center; gap:.9rem;
-    text-decoration:none; transition:transform .15s,box-shadow .15s;
-    cursor:pointer;
+.sec-lbl {
+    font-size: .7rem; font-weight: 800; color: var(--text3);
+    text-transform: uppercase; letter-spacing: .09em;
+    margin-bottom: .65rem; margin-top: .1rem;
 }
-.sc:hover { transform:translateY(-2px); box-shadow:0 6px 20px rgba(0,0,0,.14); }
-.sc-open       { background:#e8eaf0; color:#374151; }
-.sc-in_process { background:#1e2d5e; color:#fff; }
-.sc-close      { background:#0d9488; color:#fff; }
-.sc-cancel     { background:#ef4444; color:#fff; }
-.sc-icon { font-size:1.7rem; }
-.sc-lbl  { font-size:.68rem; font-weight:700; text-transform:uppercase; letter-spacing:.06em; opacity:.8; }
-.sc-num  { font-size:2rem; font-weight:800; line-height:1; }
 
-/* KPI Row */
-.kpi4 { display:grid; grid-template-columns:repeat(4,1fr); gap:1rem; margin-bottom:1.5rem; }
-.kpi-b {
-    background:#fff; border:1.5px solid var(--border); border-radius:14px;
-    padding:1rem 1.2rem; display:flex; align-items:center; gap:.8rem;
-    text-decoration:none; color:var(--text); transition:transform .15s,box-shadow .15s;
+/* ── Action Row ── */
+.crm-hdr {
+    display: flex; align-items: center; justify-content: space-between;
+    flex-wrap: wrap; gap: .75rem; margin-bottom: 1.1rem;
 }
-.kpi-b:hover { transform:translateY(-2px); box-shadow:0 4px 16px rgba(0,0,0,.07); }
-.kpi-bi { width:44px; height:44px; border-radius:11px; display:flex; align-items:center; justify-content:center; font-size:1.2rem; flex-shrink:0; }
-.kpi-bl { font-size:.68rem; font-weight:600; color:var(--text3); text-transform:uppercase; letter-spacing:.05em; }
-.kpi-bn { font-size:1.6rem; font-weight:800; line-height:1.1; }
-.kpi-bh { font-size:.68rem; color:var(--text3); margin-top:1px; }
+.crm-hdr-title { font-size: 1.1rem; font-weight: 800; color: var(--text); }
+.crm-hdr-sub   { font-size: .77rem; color: var(--text3); margin-top: 2px; }
+.crm-hdr-btns  { display: flex; gap: .45rem; flex-wrap: wrap; align-items: center; }
+
+/* ── LEAD STATUS — full color cards (exact screenshot) ── */
+.ls-grid {
+    display: grid;
+    grid-template-columns: repeat(4,1fr);
+    gap: 12px;
+    margin-bottom: 1.1rem;
+}
+.ls-card {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-left: 4px solid transparent;
+    border-radius: 13px;
+    padding: 20px 24px;
+    display: flex; align-items: center; gap: 16px;
+    text-decoration: none; color: var(--text);
+    transition: transform .15s, box-shadow .15s;
+    cursor: pointer; min-height: 82px;
+}
+.ls-card:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,.08); }
+.ls-open       { background: #fff; border-left-color: #6366f1; }
+.ls-in_process { background: #fff; border-left-color: #1e2d5e; }
+.ls-close      { background: #fff; border-left-color: #0d9488; }
+.ls-cancel     { background: #fff; border-left-color: #ef4444; }
+
+.ls-lbl  { font-size: .63rem; font-weight: 800; text-transform: uppercase; letter-spacing: .09em; color: var(--text3); margin-bottom: 4px; }
+.ls-num  { font-size: 2.1rem; font-weight: 900; line-height: 1; letter-spacing: -0.03em; color: var(--text); }
+
+/* ── KEY METRICS — white cards with right border (exact screenshot) ── */
+.km-grid {
+    display: grid;
+    grid-template-columns: repeat(4,1fr);
+    gap: 12px;
+    margin-bottom: 1.1rem;
+}
+.km-card {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    padding: 16px 18px;
+    display: flex; align-items: center; gap: 13px;
+    text-decoration: none; color: var(--text);
+    transition: transform .15s, box-shadow .15s;
+    position: relative; overflow: hidden;
+}
+.km-card:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,.08); }
+/* right border accent */
+.km-card::after {
+    content: ''; position: absolute;
+    top: 0; right: 0; width: 4px; height: 100%;
+    border-radius: 0 14px 14px 0;
+}
+.km-card.c-blue::after   { background: #3b82f6; }
+.km-card.c-purple::after { background: #8b5cf6; }
+.km-card.c-green::after  { background: #10b981; }
+.km-card.c-red::after    { background: #ef4444; }
+
+.km-icon {
+    width: 44px; height: 44px; border-radius: 11px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.25rem; flex-shrink: 0;
+}
+.km-icon.c-blue   { background: #eff6ff; }
+.km-icon.c-purple { background: #f5f3ff; }
+.km-icon.c-green  { background: #f0fdf4; }
+.km-icon.c-red    { background: #fff7ed; }
+
+.km-lbl { font-size: .65rem; font-weight: 800; color: var(--text3); text-transform: uppercase; letter-spacing: .08em; margin-bottom: 2px; }
+.km-num { font-size: 1.65rem; font-weight: 900; line-height: 1; letter-spacing: -0.03em; }
+.km-num.c-blue   { color: #2563eb; }
+.km-num.c-purple { color: #7c3aed; }
+.km-num.c-green  { color: #059669; }
+.km-num.c-red    { color: #ea580c; }
+.km-hint { font-size: 11.5px; color: var(--text3); margin-top: 3px; }
 
 /* Charts */
 .charts-row1 { display:grid; grid-template-columns:2fr 1fr; gap:1rem; margin-bottom:1rem; }
-.charts-row2 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:1rem; margin-bottom:1.5rem; }
-.chart-card { background:#fff; border:1.5px solid var(--border); border-radius:14px; padding:1.25rem; }
-.chart-ttl { font-size:.88rem; font-weight:700; color:var(--text); margin-bottom:.9rem; }
+.charts-row2 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:1rem; margin-bottom:1.1rem; }
+.chart-card  { background:#fff; border:1px solid #e2e8f0; border-radius:14px; padding:1.1rem 1.25rem; }
+.chart-ttl   { font-size:.85rem; font-weight:700; color:var(--text); margin-bottom:.85rem; }
 
-/* Recent + Reminders */
+/* Bottom */
 .bottom-grid { display:grid; grid-template-columns:1.5fr 1fr; gap:1rem; }
-.icard { background:#fff; border:1.5px solid var(--border); border-radius:14px; overflow:hidden; }
-.icard-hdr { padding:.85rem 1.1rem; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; }
-.icard-ttl { font-size:.88rem; font-weight:700; }
-.icard-lnk { font-size:.77rem; color:var(--blue); text-decoration:none; font-weight:600; }
-.icard-body { padding:.75rem 1.1rem; }
-.lead-item { display:flex; align-items:center; gap:.7rem; padding:.55rem 0; border-bottom:1px solid var(--border); }
+.icard { background:#fff; border:1px solid #e2e8f0; border-radius:14px; overflow:hidden; }
+.icard-hdr { padding:.8rem 1.1rem; border-bottom:1px solid #f1f5f9; display:flex; align-items:center; justify-content:space-between; }
+.icard-ttl { font-size:.86rem; font-weight:700; color:var(--text); }
+.icard-lnk { font-size:.76rem; color:#2563eb; text-decoration:none; font-weight:600; }
+.icard-lnk:hover { text-decoration:underline; }
+.icard-body { padding:.7rem 1.1rem; }
+
+.lead-item { display:flex; align-items:center; gap:.65rem; padding:.5rem 0; border-bottom:1px solid #f8fafc; }
 .lead-item:last-child { border-bottom:none; }
-.li-av { width:30px; height:30px; border-radius:50%; flex-shrink:0; background:linear-gradient(135deg,#667eea,#764ba2); display:flex; align-items:center; justify-content:center; font-size:.68rem; font-weight:700; color:#fff; }
-.li-name { font-size:.83rem; font-weight:600; color:var(--blue); text-decoration:none; flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.li-co   { font-size:.75rem; color:var(--text2); min-width:80px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.li-dt   { font-size:.7rem; color:var(--text3); white-space:nowrap; }
-.rem-item { display:flex; align-items:flex-start; gap:.6rem; padding:.55rem 0; border-bottom:1px solid var(--border); }
+.li-av { width:30px; height:30px; border-radius:50%; flex-shrink:0; background:linear-gradient(135deg,#667eea,#764ba2); display:flex; align-items:center; justify-content:center; font-size:.65rem; font-weight:700; color:#fff; }
+.li-name { font-size:.82rem; font-weight:600; color:#2563eb; text-decoration:none; flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.li-name:hover { text-decoration:underline; }
+.li-co { font-size:.73rem; color:var(--text2); }
+.li-dt { font-size:.69rem; color:var(--text3); white-space:nowrap; }
+
+.rem-item { display:flex; align-items:flex-start; gap:.6rem; padding:.5rem 0; border-bottom:1px solid #f8fafc; }
 .rem-item:last-child { border-bottom:none; }
 .rem-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; margin-top:5px; }
-.rem-ttl { font-size:.83rem; font-weight:600; }
-.rem-dt  { font-size:.71rem; color:var(--text3); }
+.rem-ttl { font-size:.82rem; font-weight:600; color:var(--text); }
+.rem-dt  { font-size:.7rem; color:var(--text3); }
 
 /* Responsive */
 @media(max-width:1100px) {
-    .status-cards,.kpi4 { grid-template-columns:repeat(2,1fr); }
+    .ls-grid,.km-grid { grid-template-columns:repeat(2,1fr); }
     .charts-row1,.charts-row2,.bottom-grid { grid-template-columns:1fr; }
 }
 @media(max-width:600px) {
-    .status-cards { grid-template-columns:repeat(2,1fr); }
-    .kpi4 { grid-template-columns:repeat(2,1fr); }
-    .action-row { flex-direction:column; align-items:flex-start; }
+    .ls-grid,.km-grid { grid-template-columns:repeat(2,1fr); }
+    .crm-hdr { flex-direction:column; align-items:flex-start; }
 }
 {% endblock %}
 
 {% block content %}
 
-<!-- Action Row: Title + Buttons ABOVE grid -->
-<div class="action-row">
+<!-- ── Header ── -->
+<div class="crm-hdr">
     <div>
-        <div class="action-row-title">📊 CRM Dashboard</div>
-        <div style="font-size:.8rem;color:var(--text3);margin-top:2px;">{{ now.strftime('%A, %d %B %Y') }} — CRM Overview</div>
-    </div>
-    <div class="action-btns">
-        <a href="/crm/leads/add"    class="btn-primary"  style="font-size:.82rem;">+ New Lead</a>
-        <a href="/crm/clients/add"  class="btn-outline"  style="font-size:.82rem;">+ New Client</a>
-        <a href="/crm/leads/import" class="btn-outline"  style="font-size:.82rem;">📥 Import</a>
+        <div class="crm-hdr-title">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;margin-right:6px;"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+            CRM Dashboard
+        </div>
+        <div class="crm-hdr-sub">{{ now.strftime('%A, %d %B %Y') }} — CRM Overview</div>
     </div>
 </div>
 
-<!-- Status Cards -->
+<!-- ── LEAD STATUS ── -->
 <div class="sec-lbl">Lead Status</div>
-<div class="status-cards">
-    <a href="/crm/leads" class="sc sc-open">
-        <span class="sc-icon">✉️</span>
-        <div><div class="sc-lbl">Open</div><div class="sc-num">{{ lead_counts.open }}</div></div>
+<div class="ls-grid">
+    <a href="/crm/leads" class="ls-card ls-open">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="opacity:.6;flex-shrink:0;"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+        <div><div class="ls-lbl">Open</div><div class="ls-num">{{ lead_counts.open }}</div></div>
     </a>
-    <a href="/crm/leads?status=in_process" class="sc sc-in_process">
-        <span class="sc-icon">⚙️</span>
-        <div><div class="sc-lbl">In Process</div><div class="sc-num">{{ lead_counts.in_process }}</div></div>
+    <a href="/crm/leads?status=in_process" class="ls-card ls-in_process">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="opacity:.7;flex-shrink:0;"><path d="M12 22C6.477 22 2 17.523 2 12S6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/><path d="M12 6v6l4 2"/></svg>
+        <div><div class="ls-lbl">In Process</div><div class="ls-num">{{ lead_counts.in_process }}</div></div>
     </a>
-    <a href="/crm/leads?status=close" class="sc sc-close">
-        <span class="sc-icon">✅</span>
-        <div><div class="sc-lbl">Close</div><div class="sc-num">{{ lead_counts.close }}</div></div>
+    <a href="/crm/leads?status=close" class="ls-card ls-close">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="opacity:.7;flex-shrink:0;"><polyline points="20 6 9 17 4 12"/></svg>
+        <div><div class="ls-lbl">Close</div><div class="ls-num">{{ lead_counts.close }}</div></div>
     </a>
-    <a href="/crm/leads?status=cancel" class="sc sc-cancel">
-        <span class="sc-icon">❌</span>
-        <div><div class="sc-lbl">Cancel</div><div class="sc-num">{{ lead_counts.cancel }}</div></div>
+    <a href="/crm/leads?status=cancel" class="ls-card ls-cancel">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="opacity:.7;flex-shrink:0;"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        <div><div class="ls-lbl">Cancel</div><div class="ls-num">{{ lead_counts.cancel }}</div></div>
     </a>
 </div>
 
-<!-- KPI Row -->
+<!-- ── KEY METRICS ── -->
 <div class="sec-lbl">Key Metrics</div>
-<div class="kpi4">
-    <a href="/crm/leads" class="kpi-b">
-        <div class="kpi-bi" style="background:#eff6ff;">📋</div>
+<div class="km-grid">
+    <a href="/crm/leads" class="km-card c-blue">
+        <div class="km-icon c-blue">📋</div>
         <div>
-            <div class="kpi-bl">Total Leads</div>
-            <div class="kpi-bn" style="color:var(--blue);">{{ lead_counts.total }}</div>
-            <div class="kpi-bh">All time</div>
+            <div class="km-lbl">Total Leads</div>
+            <div class="km-num c-blue">{{ lead_counts.total }}</div>
+            <div class="km-hint">All time</div>
         </div>
     </a>
-    <a href="/crm/clients" class="kpi-b">
-        <div class="kpi-bi" style="background:#f5f3ff;">👥</div>
+    <a href="/crm/clients" class="km-card c-purple">
+        <div class="km-icon c-purple">👥</div>
         <div>
-            <div class="kpi-bl">Clients</div>
-            <div class="kpi-bn" style="color:var(--purple);">{{ total_clients }}</div>
-            <div class="kpi-bh">Active</div>
+            <div class="km-lbl">Clients</div>
+            <div class="km-num c-purple">{{ total_clients }}</div>
+            <div class="km-hint">Active</div>
         </div>
     </a>
-    <a href="/crm/leads?status=close" class="kpi-b">
-        <div class="kpi-bi" style="background:#f0fdf4;">✅</div>
+    <a href="/crm/leads?status=close" class="km-card c-green">
+        <div class="km-icon c-green">✅</div>
         <div>
-            <div class="kpi-bl">Conversion</div>
-            <div class="kpi-bn" style="color:var(--green);">
+            <div class="km-lbl">Conversion</div>
+            <div class="km-num c-green">
                 {% if lead_counts.total > 0 %}{{ ((lead_counts.close/lead_counts.total)*100)|round(1) }}%{% else %}0%{% endif %}
             </div>
-            <div class="kpi-bh">{{ lead_counts.close }} closed</div>
+            <div class="km-hint">{{ lead_counts.close }} closed</div>
         </div>
     </a>
-    <a href="/crm/leads?status=cancel" class="kpi-b">
-        <div class="kpi-bi" style="background:#fff7ed;">❌</div>
+    <a href="/crm/leads?status=cancel" class="km-card c-red">
+        <div class="km-icon c-red">❌</div>
         <div>
-            <div class="kpi-bl">Cancelled</div>
-            <div class="kpi-bn" style="color:#ea580c;">{{ lead_counts.cancel }}</div>
-            <div class="kpi-bh">Lost leads</div>
+            <div class="km-lbl">Cancelled</div>
+            <div class="km-num c-red">{{ lead_counts.cancel }}</div>
+            <div class="km-hint">Lost leads</div>
         </div>
     </a>
 </div>
 
-<!-- Charts Row 1 -->
+<!-- ── Analytics ── -->
 <div class="sec-lbl">Analytics</div>
 <div class="charts-row1">
     <div class="chart-card">
@@ -165,8 +218,6 @@
         <canvas id="statusDonut" height="160"></canvas>
     </div>
 </div>
-
-<!-- Charts Row 2 -->
 <div class="charts-row2">
     <div class="chart-card">
         <div class="chart-ttl">📡 Source Wise</div>
@@ -182,7 +233,7 @@
     </div>
 </div>
 
-<!-- Recent + Reminders -->
+<!-- ── Activity ── -->
 <div class="sec-lbl">Activity</div>
 <div class="bottom-grid">
     <div class="icard">
@@ -199,16 +250,16 @@
                         <a href="/crm/leads/{{ l.id }}" class="li-name">{{ l.contact_name }}</a>
                         <div class="li-co">{{ l.company_name or '—' }}</div>
                     </div>
-                    {% if l.status=='open' %}<span class="badge" style="background:#e8eaf0;color:#374151;white-space:nowrap;">Open</span>
-                    {% elif l.status=='in_process' %}<span class="badge" style="background:#1e2d5e;color:#fff;white-space:nowrap;">In Process</span>
-                    {% elif l.status=='close' %}<span class="badge" style="background:#0d9488;color:#fff;white-space:nowrap;">Close</span>
-                    {% elif l.status=='cancel' %}<span class="badge" style="background:#ef4444;color:#fff;white-space:nowrap;">Cancel</span>
+                    {% if l.status=='open' %}<span class="sbadge open">Open</span>
+                    {% elif l.status=='in_process' %}<span class="sbadge in-process">In Process</span>
+                    {% elif l.status=='close' %}<span class="sbadge submitted">Close</span>
+                    {% elif l.status=='cancel' %}<span class="sbadge cancel">Cancel</span>
                     {% endif %}
-                    <div class="li-dt">{{ l.created_at.strftime('%d %b') }}</div>
+                    <div class="li-dt" style="margin-left:4px;">{{ l.created_at.strftime('%d %b') }}</div>
                 </div>
                 {% endfor %}
             {% else %}
-            <div style="text-align:center;padding:2rem;color:var(--text3);">No leads yet.</div>
+            <div style="text-align:center;padding:2rem;color:var(--text3);font-size:.82rem;">No leads yet.</div>
             {% endif %}
         </div>
     </div>
@@ -222,7 +273,7 @@
                 {% for r in upcoming_reminders %}
                 {% set ov = r.remind_at < now %}
                 <div class="rem-item">
-                    <div class="rem-dot" style="background:{{ '#ef4444' if ov else 'var(--blue)' }};"></div>
+                    <div class="rem-dot" style="background:{{ '#ef4444' if ov else '#2563eb' }};margin-top:5px;"></div>
                     <div>
                         <div class="rem-ttl">{{ r.title }}</div>
                         <div class="rem-dt">{{ r.remind_at.strftime('%d %b, %H:%M') }}{% if ov %} <span style="color:#ef4444;font-weight:700;">· Overdue</span>{% endif %}</div>
@@ -230,7 +281,7 @@
                 </div>
                 {% endfor %}
             {% else %}
-            <div style="text-align:center;padding:2rem;color:var(--text3);">No reminders.</div>
+            <div style="text-align:center;padding:2rem;color:var(--text3);font-size:.82rem;">No upcoming reminders.</div>
             {% endif %}
         </div>
     </div>
@@ -245,28 +296,26 @@ async function loadCharts() {
     try {
         const res = await fetch('/crm/api/dashboard-stats');
         const d   = await res.json();
+        const clrs = ['#2563eb','#0d9488','#7c3aed','#ea580c','#dc2626','#0891b2','#65a30d','#d97706'];
 
         new Chart(document.getElementById('monthlyChart'), {
             type: 'line',
-            data: {
-                labels: d.monthly.map(x => x.month),
-                datasets: [{ label:'Leads', data: d.monthly.map(x => x.count),
+            data: { labels: d.monthly.map(x=>x.month),
+                datasets:[{ label:'Leads', data:d.monthly.map(x=>x.count),
                     borderColor:'#2563eb', backgroundColor:'rgba(37,99,235,.08)',
                     borderWidth:2.5, pointRadius:4, pointBackgroundColor:'#2563eb',
-                    fill:true, tension:.4 }]
-            },
+                    fill:true, tension:.4 }]},
             options: { responsive:true, plugins:{legend:{display:false}},
-                scales:{ y:{beginAtZero:true,grid:{color:'#f1f5f9'}}, x:{grid:{display:false}} } }
+                scales:{ y:{beginAtZero:true,grid:{color:'#f1f5f9'}}, x:{grid:{display:false}} }}
         });
 
         new Chart(document.getElementById('statusDonut'), {
-            type: 'doughnut',
-            data: { labels: d.status.map(x=>x.label),
-                datasets:[{ data:d.status.map(x=>x.value), backgroundColor:d.status.map(x=>x.color), borderWidth:2, borderColor:'#fff' }] },
-            options: { responsive:true, cutout:'65%', plugins:{legend:{position:'bottom',labels:{padding:10,font:{size:11}}}} }
+            type:'doughnut',
+            data:{ labels:d.status.map(x=>x.label),
+                datasets:[{data:d.status.map(x=>x.value), backgroundColor:d.status.map(x=>x.color), borderWidth:2, borderColor:'#fff'}]},
+            options:{ responsive:true, cutout:'65%', plugins:{legend:{position:'bottom',labels:{padding:10,font:{size:11}}}} }
         });
 
-        const clrs = ['#2563eb','#0d9488','#7c3aed','#ea580c','#dc2626','#0891b2','#65a30d','#d97706'];
         new Chart(document.getElementById('sourceChart'), {
             type:'bar', data:{ labels:d.sources.map(x=>x.label),
                 datasets:[{data:d.sources.map(x=>x.value), backgroundColor:d.sources.map((_,i)=>clrs[i%clrs.length]), borderRadius:6}]},

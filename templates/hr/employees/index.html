@@ -60,32 +60,43 @@
 {% endblock %}
 
 {% block content %}
-<div class="page-hdr">
-    <div>
-        <h1 style="font-size:1.2rem;">🪪 Employees</h1>
-        <p style="font-size:.78rem;color:var(--text3);">{{ employees|length }} employees found</p>
+<div class="page-hdr" style="margin-bottom:.6rem;">
+  <div><h1>Employees</h1><p>{{ employees|length }} employees found</p></div>
+</div>
+<div class="grid-card" style="margin-bottom:.75rem;">
+  <div class="grid-toolbar">
+    {% if perm.can_add %}
+    <a href="{{ url_for('hr.emp_add') }}" class="btn-add-new"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Add Employee</a>
+    {% endif %}
+    <div class="grid-search-wrap"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input type="text" class="grid-search-input" id="gSearchInput" placeholder="Global Search..." oninput="gridGlobalSearch(this.value)"></div>
+    <div class="grid-filter-tabs">
+      <a href="{{ url_for('hr.employees') }}" class="gft {{ 'active' if not status }}">All</a>
+      <a href="{{ url_for('hr.employees', status='active') }}" class="gft {{ 'active' if status=='active' }}">Active</a>
+      <a href="{{ url_for('hr.employees', status='inactive') }}" class="gft {{ 'active' if status=='inactive' }}">Inactive</a>
+      <a href="{{ url_for('hr.employees', status='terminated') }}" class="gft {{ 'active' if status=='terminated' }}">Terminated</a>
     </div>
-    <div style="display:flex;gap:.5rem;flex-wrap:wrap;">
-        <button type="button" onclick="toggleCustomizer()" class="btn-outline" style="font-size:.8rem;">⚙️ Columns</button>
-        <button type="button" onclick="doExport('em')" class="btn-outline" style="font-size:.8rem;">📤 Export</button>
-        {% if perm.can_add %}
-        <a href="{{ url_for('hr.emp_import') }}" class="btn-outline" style="font-size:.8rem;">📥 Import</a>
-        <a href="{{ url_for('hr.emp_dashboard') }}" class="btn-outline" style="font-size:.82rem;">📊 Dashboard</a>
-        <a href="{{ url_for('hr.emp_add') }}" class="btn-primary" style="font-size:.82rem;">＋ Add Employee</a>
-        {% endif %}
+    <div class="grid-toolbar-right">
+      <button class="btn-grid-action" onclick="doExport('em')"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Export</button>
+      {% if perm.can_add %}
+      <a href="{{ url_for('hr.emp_import') }}" class="btn-grid-action"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>Import</a>
+      <a href="{{ url_for('hr.emp_dashboard') }}" class="btn-grid-action"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>Dashboard</a>
+      {% endif %}
     </div>
+  </div>
 </div>
 
 {% set _efc = [search,dept,status,emptype]|select|list|length %}
-<div class="fs-panel" style="margin-bottom:1rem;">
-  <div style="display:flex;gap:6px;align-items:center;">
-    <button id="fsTabFilter" class="fs-tab" onclick="toggleFsTab('filter','em')">
-      🔍 Filter{% if _efc > 0 %} <span class="fs-badge">{{ _efc }}</span>{% endif %}
+<div class="grid-card" style="margin-bottom:.75rem;">
+  <div style="padding:8px 14px;border-bottom:0.5px solid var(--border);display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+    <button id="fsTabFilter" class="fs-tab {{ 'active' if _efc > 0 }}" onclick="toggleFsTab('filter','em')">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+      Filter {% if _efc > 0 %}<span class="fs-badge">{{ _efc }}</span>{% endif %}
     </button>
     <button id="fsTabSort" class="fs-tab" onclick="toggleFsTab('sort','em')">
-      ↕️ Sort
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>
+      Sort
     </button>
-    {% if _efc > 0 %}<a href="{{ url_for('hr.employees') }}" class="fs-clear">✕ Clear All</a>{% endif %}
+    {% if _efc > 0 %}<a href="{{ url_for('hr.employees') }}" class="fs-clear">✕ Clear Filters</a>{% endif %}
   </div>
 
   <div id="fsPanelFilter_em" class="fs-pane" style="display:none;">
@@ -151,6 +162,7 @@
       </div>
     </div>
   </div>
+</div>
 </div>
 
 <form id="fsForm_em" method="GET" style="display:none;">
