@@ -79,6 +79,14 @@
           </div>
 
           <div class="fg">
+            <label class="fl">Lead Type</label>
+            <select name="lead_type" class="fi">
+              <option value="Quality"     {{ 'selected' if lead and lead.lead_type=='Quality'     or not lead }}>✅ Quality</option>
+              <option value="Non-Quality" {{ 'selected' if lead and lead.lead_type=='Non-Quality' }}>❌ Non-Quality</option>
+            </select>
+          </div>
+
+          <div class="fg">
             <label class="fl">Source <span class="req-star">*</span></label>
             <div class="select-with-add">
               <select name="source" id="sel_source" class="fi sd">

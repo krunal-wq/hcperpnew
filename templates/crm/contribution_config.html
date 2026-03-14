@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% block title %}Points Config{% endblock %}
+{% block page_title %}Contribution Points Config{% endblock %}
+{% block bread %}CRM / Points Config{% endblock %}
+
+{% block extra_css %}
+.cfg-row { display:grid; grid-template-columns:40px 1fr 2fr 130px; gap:1rem; align-items:center; padding:0.85rem 1rem; border-bottom:1px solid #f1f5f9; transition:background .12s; }
+.cfg-row:hover { background:#fafafa; }
+.cfg-label { font-weight:700; font-size:0.88rem; color:var(--text); }
+.cfg-code  { font-size:0.7rem; color:var(--text3); font-family:monospace; margin-top:1px; }
+.cfg-desc  { font-size:0.8rem; color:var(--text3); }
+.pts-input { width:70px; text-align:center; font-size:1rem; font-weight:700; padding:6px 8px; border:1.5px solid #e2e8f0; border-radius:8px; outline:none; transition:border-color .15s; }
+.pts-input:focus { border-color:#1e3a5f; }
+.sec-divider { background:#f8fafc; padding:8px 1rem; font-size:0.7rem; font-weight:800; color:var(--text3); text-transform:uppercase; letter-spacing:.09em; border-bottom:1px solid #e2e8f0; border-top:1px solid #e2e8f0; }
+{% endblock %}
+
+{% block content %}
+<form method="POST" action="{{ url_for('crm.contribution_config_save') }}">
+<div style="display:grid;grid-template-columns:1fr 300px;gap:1rem;align-items:start;">
+
+    <!-- LEFT -->
+    <div class="card">
+        <div class="card-hdr">
+            <div class="card-title">⭐ Contribution Points Configuration</div>
+            <div style="font-size:0.78rem;color:var(--text3);">Har action pe kitne points milenge woh set karo</div>
+        </div>
+        <div class="card-body" style="padding:0;">
+
+            <!-- Close Slabs -->
+            <div class="sec-divider">⚡ Close Points — Slab wise (Active members mein divide honge)</div>
+            {% set slabs = [
+                ('close_slab1', '1–7 days',   '#0d9488', '🟢'),
+                ('close_slab2', '8–14 days',  '#2563eb', '🔵'),
+                ('close_slab3', '15–21 days', '#7c3aed', '🟣'),
+                ('close_slab4', '22–28 days', '#d97706', '🟡'),
+                ('close_slab5', '29+ days',   '#94a3b8', '⚪'),
+            ] %}
+            {% for at, label, color, dot in slabs %}
+            {% set cfg = configs | selectattr('action_type','eq',at) | first | default(none) %}
+            <div class="cfg-row">
+                <div style="font-size:1.1rem;text-align:center;">{{ dot }}</div>
+                <div>
+                    <div class="cfg-label" style="color:{{ color }};">{{ label }}</div>
+                    <div class="cfg-code">{{ at }}</div>
+                </div>
+                <div class="cfg-desc">Lead {{ label }} mein close ho to — active members mein divide</div>
+                <div style="display:flex;align-items:center;gap:5px;">
+                    <input type="number" class="pts-input" name="pts_{{ at }}"
+                           value="{{ cfg.points if cfg else 0 }}" min="0" max="100"
+                           style="color:{{ color }};">
+                    <span style="font-size:0.75rem;color:var(--text3);">pts</span>
+                </div>
+            </div>
+            {% endfor %}
+
+            <!-- Regular Actions -->
+            <div class="sec-divider">📋 Regular Actions</div>
+            {% set regular = [
+                ('comment',       '💬', 'Comment Added',    '#2563eb', 'Discussion board mein comment karne pe'),
+                ('edit',          '✏️', 'Lead Edited',       '#7c3aed', 'Lead record update karne pe'),
+                ('status_change', '🔄', 'Status Changed',   '#6366f1', 'Status change karne pe (siwa close/cancel)'),
+                ('follow_up',     '📅', 'Follow Up Set',    '#d97706', 'Follow up date set karne pe'),
+                ('reminder',      '🔔', 'Reminder Added',   '#0891b2', 'Reminder add karne pe'),
+                ('cancel',        '❌', 'Lead Cancelled',   '#ef4444', 'Lead cancel karne pe'),
+            ] %}
+            {% for at, icon, label, color, desc in regular %}
+            {% set cfg = configs | selectattr('action_type','eq',at) | first | default(none) %}
+            <div class="cfg-row">
+                <div style="font-size:1.1rem;text-align:center;">{{ icon }}</div>
+                <div>
+                    <div class="cfg-label">{{ label }}</div>
+                    <div class="cfg-code">{{ at }}</div>
+                </div>
+                <div class="cfg-desc">{{ desc }}</div>
+                <div style="display:flex;align-items:center;gap:5px;">
+                    <input type="number" class="pts-input" name="pts_{{ at }}"
+                           value="{{ cfg.points if cfg else 0 }}" min="0" max="100"
+                           style="color:{{ color }};">
+                    <span style="font-size:0.75rem;color:var(--text3);">pts</span>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- RIGHT: Info + Save -->
+    <div style="position:sticky;top:1rem;">
+        <div class="card" style="margin-bottom:1rem;">
+            <div class="card-hdr"><div class="card-title">📊 Current Slabs</div></div>
+            <div class="card-body">
+                {% for at, label, color, dot in slabs %}
+                {% set cfg = configs | selectattr('action_type','eq',at) | first | default(none) %}
+                <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 10px;margin-bottom:4px;background:#f8fafc;border-radius:8px;border-left:3px solid {{ color }};">
+                    <span style="font-size:0.82rem;color:{{ color }};font-weight:600;">{{ dot }} {{ label }}</span>
+                    <span style="font-size:1rem;font-weight:900;color:{{ color }};">{{ cfg.points if cfg else 0 }} pts</span>
+                </div>
+                {% endfor %}
+                <div style="margin-top:0.85rem;font-size:0.78rem;color:var(--text2);line-height:1.65;background:#eff6ff;border-radius:8px;padding:0.75rem;">
+                    👥 <strong>Shared:</strong> Close points active members mein divide.<br>
+                    ⚡ <strong>Active:</strong> Pehle comment/edit/status karna zaroori.<br>
+                    📐 <strong>Example:</strong> 2 members + 10pts = <strong>5 pts each</strong>
+                </div>
+            </div>
+        </div>
+        <div class="card">
+            <div class="card-body">
+                <button type="submit" class="btn-primary" style="width:100%;font-size:0.88rem;padding:10px;">💾 Save Configuration</button>
+            </div>
+        </div>
+    </div>
+
+</div>
+</form>
+{% endblock %}

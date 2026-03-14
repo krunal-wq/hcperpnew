@@ -1,0 +1,194 @@
+{% extends "base.html" %}
+{% block title %}Edit Template — {{ t.name }}{% endblock %}
+{% block page_title %}Edit Mail Template{% endblock %}
+{% block bread %}Masters / Mail Templates / {{ t.name }}{% endblock %}
+
+{% block extra_css %}
+.var-chip { display:inline-block; background:#eff6ff; color:#1e3a5f; border:1px solid #bfdbfe; border-radius:6px; padding:3px 10px; font-size:0.78rem; font-family:monospace; font-weight:700; cursor:pointer; margin:3px; transition:background .12s; }
+.var-chip:hover { background:#dbeafe; }
+.editor-wrap { border:1.5px solid var(--border); border-radius:10px; overflow:hidden; }
+#bodyEditor { min-height:500px; padding:1rem; font-size:0.88rem; line-height:1.6; outline:none; }
+.toolbar-btn { background:#f8fafc; border:1px solid #e5e7eb; border-radius:6px; padding:4px 10px; font-size:0.82rem; cursor:pointer; color:var(--text); transition:background .1s; }
+.toolbar-btn:hover { background:#e5e7eb; }
+{% endblock %}
+
+{% block content %}
+<form method="POST" id="editForm">
+<div style="display:grid;grid-template-columns:1fr 320px;gap:1rem;align-items:start;">
+
+    <!-- LEFT: Main Edit -->
+    <div>
+        <div class="card">
+            <div class="card-hdr">
+                <div class="card-title">✉️ {{ t.name }}</div>
+                <span style="font-family:monospace;font-size:0.75rem;color:var(--text3);background:#f1f5f9;padding:3px 10px;border-radius:6px;">{{ t.code }}</span>
+            </div>
+            <div class="card-body">
+
+                <!-- Template Name -->
+                <div class="fg" style="margin-bottom:0.85rem;">
+                    <label class="fl">Template Name</label>
+                    <input type="text" name="name" value="{{ t.name }}" class="fi" required>
+                </div>
+
+                <!-- From -->
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:0.85rem;">
+                    <div class="fg">
+                        <label class="fl">From Email</label>
+                        <input type="email" name="from_email" value="{{ t.from_email }}" class="fi">
+                    </div>
+                    <div class="fg">
+                        <label class="fl">From Name</label>
+                        <input type="text" name="from_name" value="{{ t.from_name }}" class="fi">
+                    </div>
+                </div>
+
+                <!-- Subject -->
+                <div class="fg" style="margin-bottom:0.85rem;">
+                    <label class="fl">Subject</label>
+                    <input type="text" name="subject" id="subjectInput" value="{{ t.subject }}" class="fi" required>
+                    <div style="font-size:0.75rem;color:var(--text3);margin-top:4px;">Variables use kar sakte hain: {client_name}, {company}, etc.</div>
+                </div>
+
+                <!-- Body Editor -->
+                <div class="fg" style="margin-bottom:0.85rem;">
+                    <label class="fl" style="margin-bottom:0.5rem;">Email Body</label>
+
+                    <!-- Toolbar -->
+                    <div style="display:flex;gap:4px;flex-wrap:wrap;padding:8px;background:#f8fafc;border:1.5px solid var(--border);border-bottom:none;border-radius:10px 10px 0 0;">
+                        <button type="button" class="toolbar-btn" onclick="fmt('bold')"><b>B</b></button>
+                        <button type="button" class="toolbar-btn" onclick="fmt('italic')"><i>I</i></button>
+                        <button type="button" class="toolbar-btn" onclick="fmt('underline')"><u>U</u></button>
+                        <div style="width:1px;background:#e5e7eb;margin:0 4px;"></div>
+                        <button type="button" class="toolbar-btn" onclick="insertTag('h3')">H3</button>
+                        <button type="button" class="toolbar-btn" onclick="insertTag('p')">P</button>
+                        <button type="button" class="toolbar-btn" onclick="insertTag('br')">BR</button>
+                        <div style="width:1px;background:#e5e7eb;margin:0 4px;"></div>
+                        <button type="button" class="toolbar-btn" onclick="switchView('visual')" id="btnVisual" style="background:#1e3a5f;color:#fff;">Visual</button>
+                        <button type="button" class="toolbar-btn" onclick="switchView('html')" id="btnHtml">HTML</button>
+                    </div>
+
+                    <!-- Visual Editor -->
+                    <div class="editor-wrap">
+                        <div id="bodyEditor" contenteditable="true">{{ t.body|safe }}</div>
+                    </div>
+
+                    <!-- HTML Source (hidden by default) -->
+                    <textarea id="bodyHtml" name="body" style="display:none;width:100%;min-height:500px;font-family:monospace;font-size:0.82rem;padding:1rem;border:1.5px solid var(--border);border-top:none;border-radius:0 0 10px 10px;resize:vertical;box-sizing:border-box;outline:none;">{{ t.body }}</textarea>
+                </div>
+
+                <!-- Status -->
+                <div class="fg" style="margin-bottom:1rem;">
+                    <label class="fl">Status</label>
+                    <select name="is_active" class="fi">
+                        <option value="1" {{ 'selected' if t.is_active }}>Active</option>
+                        <option value="0" {{ 'selected' if not t.is_active }}>Inactive</option>
+                    </select>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- RIGHT: Variables Helper -->
+    <div>
+        <div class="card" style="position:sticky;top:1rem;">
+            <div class="card-hdr"><div class="card-title">📌 Variables</div></div>
+            <div class="card-body">
+                <p style="font-size:0.8rem;color:var(--text2);margin-bottom:0.75rem;">Click karein to insert at cursor:</p>
+                {% for var, desc in [
+                    ('{client_name}', 'Contact Name'),
+                    ('{company}',     'Company Name'),
+                    ('{email}',       'Email'),
+                    ('{phone}',       'Phone'),
+                    ('{product}',     'Product Name'),
+                    ('{city}',        'City'),
+                    ('{lead_code}',   'Lead Code'),
+                ] %}
+                <span class="var-chip" onclick="insertVar('{{ var }}')">{{ var }}</span>
+                <span style="font-size:0.75rem;color:var(--text3);"> {{ desc }}</span><br>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="card" style="margin-top:1rem;">
+            <div class="card-body">
+                <button type="submit" class="btn-primary" style="width:100%;margin-bottom:0.5rem;">💾 Save Template</button>
+                <a href="{{ url_for('mail.mail_master') }}" class="btn-outline" style="width:100%;display:block;text-align:center;box-sizing:border-box;">Cancel</a>
+            </div>
+        </div>
+    </div>
+
+</div>
+</form>
+
+<script>
+let _viewMode = 'visual';
+
+function fmt(cmd) {
+    if (_viewMode === 'visual') {
+        document.execCommand(cmd, false, null);
+        document.getElementById('bodyEditor').focus();
+    }
+}
+
+function insertTag(tag) {
+    if (_viewMode === 'visual') {
+        if (tag === 'br') { document.execCommand('insertHTML', false, '<br>'); }
+        else { document.execCommand('insertHTML', false, `<${tag}></${tag}>`); }
+    } else {
+        const ta = document.getElementById('bodyHtml');
+        const s = ta.selectionStart, e = ta.selectionEnd;
+        const sel = ta.value.substring(s, e);
+        ta.value = ta.value.substring(0,s) + `<${tag}>${sel}</${tag}>` + ta.value.substring(e);
+    }
+}
+
+function insertVar(v) {
+    if (_viewMode === 'visual') {
+        document.getElementById('bodyEditor').focus();
+        document.execCommand('insertText', false, v);
+    } else {
+        const ta = document.getElementById('bodyHtml');
+        const s = ta.selectionStart;
+        ta.value = ta.value.substring(0,s) + v + ta.value.substring(s);
+        ta.selectionStart = ta.selectionEnd = s + v.length;
+        ta.focus();
+    }
+}
+
+function switchView(mode) {
+    _viewMode = mode;
+    const editor  = document.getElementById('bodyEditor');
+    const html    = document.getElementById('bodyHtml');
+    const btnV    = document.getElementById('btnVisual');
+    const btnH    = document.getElementById('btnHtml');
+
+    if (mode === 'html') {
+        html.value = editor.innerHTML;
+        editor.style.display = 'none';
+        html.style.display   = 'block';
+        html.name = 'body';
+        editor.removeAttribute('name');
+        btnH.style.background = '#1e3a5f'; btnH.style.color = '#fff';
+        btnV.style.background = ''; btnV.style.color = '';
+    } else {
+        editor.innerHTML = html.value;
+        html.style.display   = 'none';
+        editor.style.display = 'block';
+        editor.setAttribute('name','_body_visual');
+        html.name = 'body';
+        btnV.style.background = '#1e3a5f'; btnV.style.color = '#fff';
+        btnH.style.background = ''; btnH.style.color = '';
+    }
+}
+
+// On submit — sync visual editor content to textarea
+document.getElementById('editForm').addEventListener('submit', function() {
+    if (_viewMode === 'visual') {
+        document.getElementById('bodyHtml').value = document.getElementById('bodyEditor').innerHTML;
+        document.getElementById('bodyHtml').name  = 'body';
+    }
+});
+</script>
+{% endblock %}

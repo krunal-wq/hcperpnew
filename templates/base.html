@@ -1288,7 +1288,7 @@
         {# ── Determine active module from active_page ── #}
         {% set _pg = active_page | default('') %}
         {% set _mod = 'dashboard' %}
-        {% if _pg in ('crm_dashboard','leads','clients','lead_import','client_import','masters') %}
+        {% if _pg in ('crm_dashboard','leads','clients','lead_import','client_import','masters','sample_orders','mail_master','contribution_config','leaderboard') %}
             {% set _mod = 'crm' %}
         {% elif _pg in ('hr_emp_dashboard','hr_employees','hr_contractors','hierarchy','salary_config') %}
             {% set _mod = 'hr' %}
@@ -1348,6 +1348,18 @@
             </a>
             <a class="nav-a {% if _pg == 'clients' %}active{% endif %}" href="/crm/clients">
                 <span class="nav-ic">👥</span><span class="nav-txt">Client Master</span>
+            </a>
+            <a class="nav-a {% if _pg == 'sample_orders' %}active{% endif %}" href="/crm/sample-orders">
+                <span class="nav-ic">📋</span><span class="nav-txt">Sample Orders</span>
+            </a>
+            <a class="nav-a {% if _pg == 'mail_master' %}active{% endif %}" href="/mail/master">
+                <span class="nav-ic">✉️</span><span class="nav-txt">Mail Master</span>
+            </a>
+            <a class="nav-a {% if _pg == 'contribution_config' %}active{% endif %}" href="/crm/contribution-config">
+                <span class="nav-ic">⭐</span><span class="nav-txt">Points Config</span>
+            </a>
+            <a class="nav-a {% if _pg == 'leaderboard' %}active{% endif %}" href="/crm/leaderboard">
+                <span class="nav-ic">🏆</span><span class="nav-txt">Leaderboard</span>
             </a>
             {% if role in ('admin','manager') %}
             <a class="nav-a {% if _pg == 'lead_import' %}active{% endif %}" href="/crm/leads/import">
@@ -1654,6 +1666,137 @@ document.addEventListener('DOMContentLoaded',function(){setTimeout(_celPoll,3500
 window._testCelebrations=function(){fetch('/hr/api/celebrations').then(function(r){return r.json();}).then(function(d){console.log('[Celebrations] Count:',d.count,'| Today:',d.today_count);if(d.celebrations)d.celebrations.forEach(function(c){console.log(' -',c.name,c.type_label,'| days:',c.days,'| self:',c.is_self,'| wished:',c.already_wished);});});};
 window._testReminders=function(){fetch('/crm/api/due-reminders').then(function(r){return r.json();}).then(function(d){console.log('[Reminders] Server time (IST):',d.server_time);console.log('[Reminders] Count:',d.reminders?d.reminders.length:0);if(d.reminders)d.reminders.forEach(function(r){console.log('  -',r.lead_code,r.title,'| mins_left:',r.mins_left,'| overdue:',r.overdue);});});};
 document.addEventListener('DOMContentLoaded',function(){setTimeout(_remPoll,2000);setInterval(_remPoll,_remPollInterval);});
+
+// ── Stale Leads Notification ──
+var _staleLatest   = [];
+var _staleActive   = false; // ek card show ho raha hai kya
+var STALE_COOLDOWN = 4 * 60 * 60 * 1000; // 4 hours in ms
+var STALE_STORAGE_KEY = 'stale_dismissed';
+
+function _staleGetDismissed() {
+    try { return JSON.parse(localStorage.getItem(STALE_STORAGE_KEY) || '{}'); } catch(e) { return {}; }
+}
+function _staleSaveDismissed(obj) {
+    try { localStorage.setItem(STALE_STORAGE_KEY, JSON.stringify(obj)); } catch(e) {}
+}
+
+function _staleDismiss(leadId) {
+    // Record dismiss time — 4 hours baad wapas aayega
+    var dismissed = _staleGetDismissed();
+    dismissed['stale_' + leadId] = Date.now();
+    _staleSaveDismissed(dismissed);
+    var c = document.getElementById('stalecard_' + leadId);
+    if (c) { c.style.opacity='0'; c.style.transition='opacity .3s'; setTimeout(function(){ if(c&&c.parentNode) c.parentNode.removeChild(c); }, 300); }
+    _staleActive = false;
+    // Show next stale lead after small delay
+    setTimeout(_staleShowNext, 500);
+}
+
+function _staleShowNext() {
+    if (_staleActive) return;
+    var dismissed = _staleGetDismissed();
+    var now = Date.now();
+
+    for (var i = 0; i < _staleLatest.length; i++) {
+        var l = _staleLatest[i];
+        var key = 'stale_' + l.id;
+        var lastDismissed = dismissed[key] || 0;
+        // Skip if dismissed within 4 hours
+        if (now - lastDismissed < STALE_COOLDOWN) continue;
+        // Show this one
+        _staleShowCard(l);
+        return;
+    }
+}
+
+function _staleShowCard(l) {
+    var container = document.getElementById('remCardContainer') || document.getElementById('celContainer');
+    if (!container) return;
+    // Remove any existing stale card
+    var existing = container.querySelector('.stale-notif-card');
+    if (existing) existing.remove();
+
+    _staleActive = true;
+    var cid = 'stalecard_' + l.id;
+    var card = document.createElement('div');
+    card.className = 'rem-card stale-notif-card';
+    card.id = cid;
+    card.style.cssText = 'background:#fff;border:2px solid #f59e0b;border-radius:14px;padding:14px 16px;margin-bottom:10px;box-shadow:0 6px 24px rgba(245,158,11,.25);max-width:320px;position:relative;animation:slideIn .3s ease;';
+
+    var closeBtn = document.createElement('button');
+    closeBtn.innerHTML = '✕';
+    closeBtn.title = 'Dismiss (4 hours ke liye band)';
+    closeBtn.style.cssText = 'position:absolute;top:8px;right:10px;background:none;border:none;font-size:1rem;cursor:pointer;color:#94a3b8;';
+    (function(lid){ closeBtn.onclick = function(){ _staleDismiss(lid); }; })(l.id);
+
+    card.innerHTML =
+        '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">' +
+        '<span style="font-size:1.3rem;">⚠️</span>' +
+        '<div style="font-size:0.82rem;font-weight:800;color:#d97706;">Followup Nahi Liya!</div>' +
+        '</div>' +
+        '<div style="font-size:0.85rem;font-weight:700;color:#1e293b;">' + _remEsc(l.name) + (l.company ? ' — ' + _remEsc(l.company) : '') + '</div>' +
+        '<div style="font-size:0.75rem;color:#64748b;margin-top:2px;">' + l.code + ' · <strong style="color:#dc2626;">' + l.age + ' days open</strong></div>' +
+        '<div style="display:flex;gap:6px;margin-top:10px;">' +
+        '<a href="' + l.lead_url + '" style="flex:1;text-align:center;background:#f59e0b;color:#fff;padding:6px 10px;border-radius:7px;font-size:0.75rem;font-weight:700;text-decoration:none;">📌 Followup Lo</a>' +
+        '<a href="' + l.lead_url + '?tab=reminder" style="flex:1;text-align:center;background:#eff6ff;color:#1e3a5f;padding:6px 10px;border-radius:7px;font-size:0.75rem;font-weight:700;text-decoration:none;">🔔 Set Reminder</a>' +
+        '</div>' +
+        '<div style="font-size:0.68rem;color:#94a3b8;margin-top:6px;text-align:center;">✕ band karo — 4 ghante baad wapas aayega</div>';
+
+    card.appendChild(closeBtn);
+    container.appendChild(card);
+}
+
+function _stalePoll() {
+    fetch('/crm/api/stale-leads').then(function(r){ return r.json(); }).then(function(data) {
+        if (!data.stale_leads) return;
+        _staleLatest = data.stale_leads;
+
+        // Update bell count
+        var totalCount = (_remLatest ? _remLatest.length : 0) + data.count;
+        _remUpdateBell(totalCount);
+
+        // Show one card if none active
+        if (!_staleActive) _staleShowNext();
+
+        // Update bell panel
+        if (_remPanelOpen) _staleRenderBellSection();
+    }).catch(function(e){ console.warn('[Stale Leads] Poll error:', e); });
+}
+
+function _staleRenderBellSection() {
+    var body = document.getElementById('bellPanelBody');
+    if (!body || !_staleLatest.length) return;
+
+    var html = '<div style="font-size:.68rem;font-weight:800;color:#d97706;text-transform:uppercase;letter-spacing:.06em;padding:.4rem .75rem .2rem;background:#fffbeb;">⚠️ Followup Pending (' + _staleLatest.length + ')</div>';
+    _staleLatest.forEach(function(l) {
+        html += '<a href="' + l.lead_url + '" class="bp-item" style="display:block;text-decoration:none;color:inherit;border-left:3px solid #f59e0b;">' +
+            '<div class="bp-title">⚠️ ' + _remEsc(l.name) + (l.company ? ' — ' + _remEsc(l.company) : '') + '</div>' +
+            '<div class="bp-sub">' + l.code + ' · ' + l.age + ' days old</div>' +
+            '<div class="bp-time"><span style="color:#d97706;font-weight:700;">Followup nahi liya! Created: ' + l.created + '</span></div>' +
+            '</a>';
+    });
+
+    var existing = body.innerHTML;
+    var sep = '<div style="border-top:2px solid #f1f5f9;margin:.25rem 0;"></div>';
+    if (existing.indexOf('bp-empty') >= 0 || existing.indexOf('Loading') >= 0) {
+        body.innerHTML = html;
+    } else {
+        body.innerHTML = html + sep + existing;
+    }
+}
+
+// Poll stale leads every 5 minutes, first check after 10 seconds
+document.addEventListener('DOMContentLoaded', function() {
+    setTimeout(_stalePoll, 10000);
+    setInterval(_stalePoll, 5 * 60 * 1000);
+});
+
+// Patch toggleReminderPanel to also show stale leads
+var _origToggle = toggleReminderPanel;
+toggleReminderPanel = function() {
+    _origToggle();
+    if (_remPanelOpen) setTimeout(_staleRenderBellSection, 100);
+};
 </script>
 {% endif %}
 

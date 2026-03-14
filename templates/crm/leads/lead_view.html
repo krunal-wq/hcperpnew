@@ -143,11 +143,39 @@
             </div>
         </div>
         <div class="lead-actions-row">
-            <a href="{{ url_for('crm.lead_edit', id=lead.id) }}" class="btn-primary" style="font-size:0.83rem;">✏️ Edit Lead</a>
-            <button onclick="document.getElementById('statusModal').style.display='flex'" class="btn-outline" style="font-size:0.83rem;">🔄 Change Status</button>
-            <form method="POST" action="{{ url_for('crm.lead_delete', id=lead.id) }}" onsubmit="return confirm('Delete this lead permanently?')" style="display:inline;">
-                <button type="submit" class="btn-danger" style="font-size:0.83rem;">🗑️ Delete</button>
-            </form>
+            <!-- WhatsApp Button -->
+            <button onclick="openWaModal()" style="background:#25D366;color:#fff;border:none;border-radius:8px;padding:7px 14px;cursor:pointer;display:flex;align-items:center;gap:6px;font-size:0.85rem;font-weight:600;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                WhatsApp
+            </button>
+
+            <div style="position:relative;" id="leadActionMenu">
+                <button onclick="toggleLeadMenu()" style="background:#fff;border:1.5px solid #d1d5db;border-radius:8px;padding:7px 12px;cursor:pointer;display:flex;align-items:center;gap:6px;font-size:0.85rem;font-weight:600;color:#374151;">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+                    Actions
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+                </button>
+                <div id="leadActionDropdown" style="display:none;position:absolute;right:0;top:calc(100% + 6px);background:#fff;border:1.5px solid #e5e7eb;border-radius:10px;box-shadow:0 8px 30px rgba(0,0,0,0.12);min-width:190px;z-index:200;overflow:hidden;">
+                    <a href="{{ url_for('crm.lead_edit', id=lead.id) }}" style="display:flex;align-items:center;gap:10px;padding:10px 14px;font-size:0.85rem;color:#374151;text-decoration:none;transition:background .12s;">
+                        <span style="width:20px;text-align:center;">✏️</span> Edit Lead
+                    </a>
+                    <button onclick="document.getElementById('sampleOrderModal').style.display='flex';toggleLeadMenu();" style="width:100%;display:flex;align-items:center;gap:10px;padding:10px 14px;font-size:0.85rem;color:#374151;background:none;border:none;cursor:pointer;text-align:left;transition:background .12s;">
+                        <span style="width:20px;text-align:center;">📋</span> Sample Order
+                    </button>
+                    <button onclick="openNpdModal();toggleLeadMenu();" style="width:100%;display:flex;align-items:center;gap:10px;padding:10px 14px;font-size:0.85rem;color:#374151;background:none;border:none;cursor:pointer;text-align:left;transition:background .12s;">
+                        <span style="width:20px;text-align:center;">✉️</span> Send NPD Project
+                    </button>
+                    <button onclick="document.getElementById('statusModal').style.display='flex';toggleLeadMenu();" style="width:100%;display:flex;align-items:center;gap:10px;padding:10px 14px;font-size:0.85rem;color:#374151;background:none;border:none;cursor:pointer;text-align:left;transition:background .12s;">
+                        <span style="width:20px;text-align:center;">🔄</span> Change Status
+                    </button>
+                    <div style="border-top:1px solid #f1f5f9;margin:2px 0;"></div>
+                    <form method="POST" action="{{ url_for('crm.lead_delete', id=lead.id) }}" onsubmit="return confirm('Delete this lead permanently?')">
+                        <button type="submit" style="width:100%;display:flex;align-items:center;gap:10px;padding:10px 14px;font-size:0.85rem;color:#dc2626;background:none;border:none;cursor:pointer;text-align:left;transition:background .12s;">
+                            <span style="width:20px;text-align:center;">🗑️</span> Delete Lead
+                        </button>
+                    </form>
+                </div>
+            </div>
         </div>
     </div>
 </div>
@@ -170,6 +198,16 @@
             <div class="card-hdr"><div class="card-title">Lead Information</div></div>
             <div class="card-body">
                 <div class="info-row"><span class="info-lbl">Name</span><span class="info-val">{{ lead.name }}</span></div>
+                <div class="info-row">
+                    <span class="info-lbl">Lead Type</span>
+                    <span class="info-val">
+                        {% if lead.lead_type == 'Non-Quality' %}
+                            <span style="background:#fee2e2;color:#dc2626;padding:2px 12px;border-radius:100px;font-size:0.82rem;font-weight:700;">❌ Non-Quality</span>
+                        {% else %}
+                            <span style="background:#dcfce7;color:#166634;padding:2px 12px;border-radius:100px;font-size:0.82rem;font-weight:700;">✅ Quality</span>
+                        {% endif %}
+                    </span>
+                </div>
                 <div class="info-row"><span class="info-lbl">Position</span><span class="info-val">{{ lead.position or 'N/A' }}</span></div>
                 <div class="info-row"><span class="info-lbl">Email Address</span><span class="info-val"><a href="mailto:{{ lead.email }}" style="color:var(--blue);">{{ lead.email or 'N/A' }}</a></span></div>
                 <div class="info-row"><span class="info-lbl">Website</span><span class="info-val">{% if lead.website %}<a href="{{ lead.website }}" target="_blank" style="color:var(--blue);">{{ lead.website }}</a>{% else %}N/A{% endif %}</span></div>
@@ -200,6 +238,22 @@
                 <div class="info-row"><span class="info-lbl">Source</span><span class="info-val">{{ lead.source or 'N/A' }}</span></div>
                 <div class="info-row"><span class="info-lbl">Created Date</span><span class="info-val">{{ lead.created_at.strftime('%d-%m-%Y %I:%M:%S %p') }}</span></div>
                 <div class="info-row"><span class="info-lbl">Last Contact</span><span class="info-val">{% if lead.last_contact %}{{ lead.last_contact.strftime('%d-%m-%Y') }}{% else %}N/A{% endif %}</span></div>
+                <div class="info-row">
+                    <span class="info-lbl">Lead Age</span>
+                    <span class="info-val">
+                        {% set age = lead.lead_age %}
+                        {% if lead.status in ('close','cancel') %}
+                            <span style="background:#dcfce7;color:#166534;padding:2px 10px;border-radius:100px;font-size:0.82rem;font-weight:700;">{{ age }} days (Closed)</span>
+                            {% if lead.closed_at %}<span style="font-size:0.78rem;color:var(--text3);margin-left:6px;">Closed on {{ lead.closed_at.strftime('%d-%m-%Y') }}</span>{% endif %}
+                        {% elif age > 30 %}
+                            <span style="background:#fee2e2;color:#dc2626;padding:2px 10px;border-radius:100px;font-size:0.82rem;font-weight:700;">{{ age }} days 🔴</span>
+                        {% elif age > 15 %}
+                            <span style="background:#fef9c3;color:#92400e;padding:2px 10px;border-radius:100px;font-size:0.82rem;font-weight:700;">{{ age }} days 🟡</span>
+                        {% else %}
+                            <span style="background:#eff6ff;color:#1d4ed8;padding:2px 10px;border-radius:100px;font-size:0.82rem;font-weight:700;">{{ age }} days 🟢</span>
+                        {% endif %}
+                    </span>
+                </div>
                 <div class="info-row"><span class="info-lbl">Followup Date</span><span class="info-val">{% if lead.follow_up_date %}{{ lead.follow_up_date.strftime('%d-%m-%Y') }}{% else %}N/A{% endif %}</span></div>
                 <div class="info-row">
                     <span class="info-lbl">Team Member</span>
@@ -233,6 +287,17 @@
         </div>
     </div>
     {% endif %}
+
+    <!-- Contributors -->
+    <div class="card" style="margin-top:1rem;">
+        <div class="card-hdr">
+            <div class="card-title">🏆 Lead Contributors</div>
+            <div style="font-size:0.75rem;color:var(--text3);">Points: Comment=1 · Edit=1 · Status Change=2 · Cancel=2 · Close=5</div>
+        </div>
+        <div class="card-body" id="contribBody">
+            <div style="text-align:center;color:var(--text3);padding:1rem;font-size:0.82rem;">Loading...</div>
+        </div>
+    </div>
 </div>
 
 <!-- TAB 2: DISCUSSION BOARD -->
@@ -457,6 +522,251 @@
     </div>
 </div>
 
+<!-- NPD Send Modal -->
+<div id="npdModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:1000;align-items:center;justify-content:center;padding:1rem;">
+    <div style="background:#fff;border-radius:12px;width:100%;max-width:700px;max-height:92vh;overflow-y:auto;box-shadow:0 25px 80px rgba(0,0,0,0.25);">
+        <!-- Header -->
+        <div style="background:#1e3a5f;color:#fff;padding:0.9rem 1.5rem;border-radius:12px 12px 0 0;display:flex;align-items:center;justify-content:space-between;">
+            <div>
+                <div style="font-size:1rem;font-weight:700;">✉️ Send NPD Project Email</div>
+                <div style="font-size:0.78rem;opacity:0.75;" id="npdLeadInfo">{{ lead.name }}{% if lead.company_name %} — {{ lead.company_name }}{% endif %}</div>
+            </div>
+            <button onclick="document.getElementById('npdModal').style.display='none'" style="background:rgba(255,255,255,0.15);border:none;color:#fff;width:28px;height:28px;border-radius:50%;font-size:1rem;cursor:pointer;">✕</button>
+        </div>
+
+        <!-- Loading state -->
+        <div id="npdLoading" style="padding:3rem;text-align:center;color:var(--text3);">
+            <div style="font-size:1.5rem;margin-bottom:0.5rem;">⏳</div>
+            Loading template...
+        </div>
+
+        <!-- Form (shown after load) -->
+        <form method="POST" action="{{ url_for('mail.lead_send_npd', id=lead.id) }}" id="npdForm" style="display:none;">
+            <div style="padding:1.25rem 1.5rem;">
+
+                <!-- To & From -->
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:0.85rem;">
+                    <div>
+                        <label style="font-size:0.8rem;font-weight:600;color:#374151;display:block;margin-bottom:3px;">To (Email) *</label>
+                        <input type="email" name="to_email" id="npdToEmail" class="fi" style="font-size:0.85rem;" required>
+                    </div>
+                    <div>
+                        <label style="font-size:0.8rem;font-weight:600;color:#374151;display:block;margin-bottom:3px;">From Name</label>
+                        <input type="text" name="from_name" id="npdFromName" class="fi" style="font-size:0.85rem;">
+                    </div>
+                </div>
+                <div style="margin-bottom:0.85rem;">
+                    <label style="font-size:0.8rem;font-weight:600;color:#374151;display:block;margin-bottom:3px;">From Email</label>
+                    <input type="email" name="from_email" id="npdFromEmail" class="fi" style="font-size:0.85rem;">
+                </div>
+
+                <!-- Subject -->
+                <div style="margin-bottom:0.85rem;">
+                    <label style="font-size:0.8rem;font-weight:600;color:#374151;display:block;margin-bottom:3px;">Subject *</label>
+                    <input type="text" name="subject" id="npdSubject" class="fi" style="font-size:0.85rem;" required>
+                </div>
+
+                <!-- Body Preview -->
+                <div style="margin-bottom:0.85rem;">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+                        <label style="font-size:0.8rem;font-weight:600;color:#374151;">Email Body</label>
+                        <div style="display:flex;gap:4px;">
+                            <button type="button" onclick="npdSwitchView('preview')" id="npdBtnPreview" style="background:#1e3a5f;color:#fff;border:none;padding:3px 10px;border-radius:5px;font-size:0.75rem;cursor:pointer;">Preview</button>
+                            <button type="button" onclick="npdSwitchView('html')" id="npdBtnHtml" style="background:#f1f5f9;color:#374151;border:none;padding:3px 10px;border-radius:5px;font-size:0.75rem;cursor:pointer;">HTML</button>
+                        </div>
+                    </div>
+                    <!-- Preview -->
+                    <div id="npdBodyPreview" style="border:1.5px solid #e5e7eb;border-radius:8px;padding:1rem;max-height:300px;overflow-y:auto;font-size:0.85rem;line-height:1.6;background:#fafafa;"></div>
+                    <!-- HTML edit -->
+                    <textarea name="body" id="npdBodyHtml" style="display:none;width:100%;min-height:300px;font-family:monospace;font-size:0.78rem;padding:0.75rem;border:1.5px solid #e5e7eb;border-radius:8px;resize:vertical;box-sizing:border-box;outline:none;"></textarea>
+                </div>
+
+                <div style="font-size:0.78rem;color:#6b7280;background:#fffbeb;border:1px solid #fde68a;border-radius:6px;padding:8px 12px;">
+                    ⚠️ SMTP password <code>config.py</code> mein set karna hoga. Template edit karne ke liye: <a href="{{ url_for('mail.mail_master') }}" target="_blank" style="color:#1e3a5f;font-weight:600;">Mail Master →</a>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div style="padding:1rem 1.5rem;border-top:1px solid #e5e7eb;display:flex;justify-content:flex-end;gap:0.5rem;background:#f9fafb;border-radius:0 0 12px 12px;">
+                <button type="button" onclick="document.getElementById('npdModal').style.display='none'" class="btn-outline" style="font-size:0.83rem;">Cancel</button>
+                <button type="submit" style="background:#1e3a5f;color:#fff;border:none;padding:8px 22px;border-radius:8px;font-size:0.83rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                    Send Email
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Sample Order Modal -->
+<div id="sampleOrderModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:1000;align-items:center;justify-content:center;padding:1rem;">
+    <div style="background:#fff;border-radius:12px;width:100%;max-width:860px;max-height:92vh;overflow-y:auto;box-shadow:0 25px 80px rgba(0,0,0,0.25);">
+
+        <!-- Modal Header -->
+        <div style="background:#1e3a5f;color:#fff;padding:0.9rem 1.5rem;border-radius:12px 12px 0 0;display:flex;align-items:center;justify-content:space-between;">
+            <div style="font-size:1rem;font-weight:700;">📋 Sample Order</div>
+            <button onclick="document.getElementById('sampleOrderModal').style.display='none'" style="background:rgba(255,255,255,0.15);border:none;color:#fff;width:28px;height:28px;border-radius:50%;font-size:1rem;cursor:pointer;">✕</button>
+        </div>
+
+        <form method="POST" action="{{ url_for('crm.lead_sample_order', id=lead.id) }}" target="_blank" id="soForm">
+            <div style="padding:1.5rem;">
+
+                <!-- TOP SECTION: Logo + Address + Order Info -->
+                <div style="display:grid;grid-template-columns:1fr 1px 1fr;gap:1.5rem;margin-bottom:1.5rem;padding-bottom:1.25rem;border-bottom:1.5px dashed #d1d5db;">
+
+                    <!-- LEFT: Billing Address -->
+                    <div>
+                        <div style="font-size:0.7rem;font-weight:700;letter-spacing:0.08em;color:#6b7280;text-transform:uppercase;margin-bottom:0.75rem;">Billing Address</div>
+                        <input type="text" name="bill_company" value="{{ lead.company_name or '' }}" placeholder="Company Name" class="fi" style="font-size:0.85rem;margin-bottom:0.4rem;font-weight:600;">
+                        <textarea name="bill_address" class="fi" rows="2" placeholder="Address" style="font-size:0.83rem;resize:none;margin-bottom:0.4rem;">{{ ((lead.address or '') + (', ' + lead.city if lead.city else '') + (', ' + lead.state if lead.state else '') + (' - ' + lead.zip_code if lead.zip_code else '')) | trim(', ') }}</textarea>
+                        <input type="text" name="bill_phone" value="{{ lead.phone or '' }}" placeholder="Phone" class="fi" style="font-size:0.83rem;margin-bottom:0.4rem;">
+                        <input type="text" name="bill_email" value="{{ lead.email or '' }}" placeholder="Email" class="fi" style="font-size:0.83rem;margin-bottom:0.4rem;">
+                        <input type="text" name="bill_gst" value="" placeholder="GST Number" class="fi" style="font-size:0.83rem;">
+                    </div>
+
+                    <!-- Divider -->
+                    <div style="background:#e5e7eb;"></div>
+
+                    <!-- RIGHT: Order Details -->
+                    <div>
+                        <div style="font-size:0.7rem;font-weight:700;letter-spacing:0.08em;color:#6b7280;text-transform:uppercase;margin-bottom:0.75rem;">Order Details</div>
+                        <div style="display:grid;grid-template-columns:auto 1fr;gap:0.5rem 1rem;align-items:center;">
+                            <label style="font-size:0.83rem;color:#374151;font-weight:500;white-space:nowrap;">Date :</label>
+                            <input type="date" name="so_date" id="soDate" class="fi" style="font-size:0.83rem;" required>
+
+                            <label style="font-size:0.83rem;color:#374151;font-weight:500;white-space:nowrap;">Order ID :</label>
+                            <input type="text" name="so_number" value="HCPSMPL{{ lead.id }}{{ lead.code[-4:] if lead.code else '0001' }}" class="fi" style="font-size:0.83rem;background:#f8fafc;" required>
+
+                            <input type="hidden" name="so_category" value="Sample Order">
+                            <label style="font-size:0.83rem;color:#374151;font-weight:500;white-space:nowrap;">GST % :</label>
+                            <select name="so_gst_pct" id="soGstPct" class="fi" style="font-size:0.83rem;" onchange="soCalcTotal()">
+                                <option value="0">0% (No GST)</option>
+                                <option value="5">5%</option>
+                                <option value="12">12%</option>
+                                <option value="18" selected>18%</option>
+                                <option value="28">28%</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ITEMS TABLE -->
+                <table style="width:100%;border-collapse:collapse;margin-bottom:0.5rem;" id="soItemsTable">
+                    <thead>
+                        <tr style="background:#f1f5f9;">
+                            <th style="padding:9px 10px;text-align:left;font-size:0.82rem;font-weight:700;color:#374151;border:1px solid #e2e8f0;width:45%;">Product Name</th>
+                            <th style="padding:9px 10px;text-align:right;font-size:0.82rem;font-weight:700;color:#374151;border:1px solid #e2e8f0;width:18%;">Rate (₹)</th>
+                            <th style="padding:9px 10px;text-align:center;font-size:0.82rem;font-weight:700;color:#374151;border:1px solid #e2e8f0;width:15%;">Quantity</th>
+                            <th style="padding:9px 10px;text-align:right;font-size:0.82rem;font-weight:700;color:#374151;border:1px solid #e2e8f0;width:18%;">Amount (₹)</th>
+                            <th style="border:1px solid #e2e8f0;width:4%;"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="soItems">
+                        <!-- rows added by JS -->
+                    </tbody>
+                </table>
+
+                <!-- Add Item Button -->
+                <button type="button" onclick="soAddRow()" style="background:#fff;color:#1e3a5f;border:1.5px solid #1e3a5f;padding:5px 16px;border-radius:6px;font-size:0.82rem;font-weight:600;cursor:pointer;margin-bottom:1.25rem;">+ Add Item</button>
+
+                <!-- TOTALS -->
+                <div style="display:flex;justify-content:flex-end;">
+                    <div style="width:300px;">
+                        <div style="display:flex;justify-content:space-between;padding:7px 12px;font-size:0.85rem;border-bottom:1px solid #e5e7eb;">
+                            <span style="color:#6b7280;">Sub Total</span>
+                            <span id="soSubTotal" style="font-weight:600;">0.00</span>
+                        </div>
+                        <div style="display:flex;justify-content:space-between;padding:7px 12px;font-size:0.85rem;border-bottom:1px solid #e5e7eb;">
+                            <span style="color:#6b7280;">GST (<span id="soGstLabel">18</span>%)</span>
+                            <span id="soGstAmt" style="font-weight:600;">0.00</span>
+                        </div>
+                        <div style="display:flex;justify-content:space-between;padding:9px 12px;font-size:0.9rem;font-weight:700;background:#f0f4ff;border-radius:0 0 8px 8px;">
+                            <span style="color:#1e3a5f;">Total Amount</span>
+                            <span id="soTotal" style="color:#1e3a5f;">0.00</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Terms (hidden in form, used in PDF) -->
+                <input type="hidden" name="terms" value="Payment: Advance&#10;Delivery: 7-10 working days&#10;Samples are for evaluation purpose only.">
+            </div>
+
+            <!-- Modal Footer -->
+            <div style="padding:1rem 1.5rem;border-top:1px solid #e5e7eb;display:flex;justify-content:flex-end;gap:0.5rem;background:#f9fafb;border-radius:0 0 12px 12px;">
+                <button type="button" onclick="document.getElementById('sampleOrderModal').style.display='none'" class="btn-outline" style="font-size:0.83rem;">Cancel</button>
+                <button type="submit" style="background:#1e3a5f;color:#fff;border:none;padding:8px 22px;border-radius:8px;font-size:0.83rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+                    SEND
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- WhatsApp Modal -->
+<div id="waModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:1000;align-items:center;justify-content:center;padding:1rem;">
+    <div style="background:#fff;border-radius:14px;width:100%;max-width:520px;box-shadow:0 25px 80px rgba(0,0,0,0.2);overflow:hidden;">
+        <!-- Header -->
+        <div style="background:#25D366;color:#fff;padding:1rem 1.5rem;display:flex;align-items:center;justify-content:space-between;">
+            <div style="display:flex;align-items:center;gap:10px;">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                <span style="font-size:1rem;font-weight:700;">WhatsApp Share</span>
+            </div>
+            <button onclick="document.getElementById('waModal').style.display='none'" style="background:rgba(255,255,255,0.2);border:none;color:#fff;width:28px;height:28px;border-radius:50%;font-size:1rem;cursor:pointer;">✕</button>
+        </div>
+
+        <div style="padding:1.25rem 1.5rem;">
+
+            <!-- Message Preview -->
+            <div style="margin-bottom:1rem;">
+                <label style="font-size:0.8rem;font-weight:600;color:#374151;display:block;margin-bottom:6px;">Message Preview</label>
+                <textarea id="waMessage" rows="10" style="width:100%;border:1.5px solid #e5e7eb;border-radius:8px;padding:10px 12px;font-size:0.82rem;font-family:monospace;resize:vertical;outline:none;box-sizing:border-box;line-height:1.5;background:#f9fafb;">{{ lead.code }} - {{ lead.contact_name }}
+🏢 {{ lead.company_name or 'N/A' }}
+📞 {{ lead.phone or 'N/A' }}
+✉️ {{ lead.email or 'N/A' }}
+📍 {{ lead.city or '' }}{% if lead.state %}, {{ lead.state }}{% endif %}
+
+🛒 Product: {{ lead.product_name or 'N/A' }}
+📦 Category: {{ lead.category or 'N/A' }}
+📊 Qty: {{ lead.order_quantity or 'N/A' }}
+💰 Avg Cost: {{ lead.average_cost or 'N/A' }}
+
+📋 Status: {{ lead.status|replace('_',' ')|title }}
+🏷️ Type: {{ lead.lead_type or 'Quality' }}
+{% if lead.requirement_spec %}📝 Spec: {{ lead.requirement_spec[:100] }}{% endif %}
+{% if lead.remark %}💬 Remark: {{ lead.remark[:80] }}{% endif %}
+
+🔗 Lead URL: {{ request.host_url }}crm/leads/{{ lead.id }}</textarea>
+            </div>
+
+            <!-- 3 Options -->
+            <div style="display:flex;flex-direction:column;gap:0.6rem;">
+
+                <!-- Option 1: Direct to lead's phone -->
+                {% if lead.phone %}
+                <a href="https://wa.me/91{{ lead.phone|replace(' ','')|replace('-','') }}?text={{ (lead.code ~ ' - ' ~ lead.contact_name ~ '%0A🏢 ' ~ (lead.company_name or '') ~ '%0A📞 ' ~ lead.phone ~ '%0A%0A🛒 Product: ' ~ (lead.product_name or 'N/A') ~ '%0A📋 Status: ' ~ lead.status)|urlencode }}" target="_blank"
+                   style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:#dcfce7;border:1.5px solid #86efac;border-radius:8px;text-decoration:none;color:#166534;font-weight:600;font-size:0.85rem;">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="#25D366"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                    📲 Send to Lead: {{ lead.phone }}
+                </a>
+                {% endif %}
+
+                <!-- Option 2: Copy message (for group paste) -->
+                <button onclick="copyWaMessage()" style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:8px;cursor:pointer;color:#1d4ed8;font-weight:600;font-size:0.85rem;width:100%;text-align:left;">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+                    <span id="waCopyBtnText">📋 Copy Message — Paste in "KruKi - Krunal Kiran" Group</span>
+                </button>
+
+                <!-- Option 3: WhatsApp Web share -->
+                <button onclick="openWaWeb()" style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:#f0fdf4;border:1.5px solid #86efac;border-radius:8px;cursor:pointer;color:#166534;font-weight:600;font-size:0.85rem;width:100%;text-align:left;">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                    🌐 Open WhatsApp Web with Message
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Status Change Modal -->
 <div id="statusModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:1000;align-items:center;justify-content:center;">
     <div style="background:#fff;border-radius:16px;padding:1.5rem;min-width:300px;box-shadow:0 20px 60px rgba(0,0,0,0.2);">
@@ -573,9 +883,219 @@ function fileIcon(name) {
     return '📎';
 }
 
+// ── WhatsApp Modal ──
+document.getElementById('waModal').addEventListener('click', function(e) {
+    if (e.target === this) this.style.display = 'none';
+});
+
+function openWaModal() {
+    document.getElementById('waModal').style.display = 'flex';
+}
+
+function copyWaMessage() {
+    const msg = document.getElementById('waMessage').value;
+    navigator.clipboard.writeText(msg).then(() => {
+        const btn = document.getElementById('waCopyBtnText');
+        btn.textContent = '✅ Copied! Now open WhatsApp and paste in "KruKi - Krunal Kiran" group';
+        setTimeout(() => {
+            btn.textContent = '📋 Copy Message — Paste in "KruKi - Krunal Kiran" Group';
+        }, 3000);
+    }).catch(() => {
+        // Fallback for older browsers
+        const ta = document.getElementById('waMessage');
+        ta.select();
+        document.execCommand('copy');
+        alert('Copied! Paste it in your WhatsApp group.');
+    });
+}
+
+function openWaWeb() {
+    const msg = encodeURIComponent(document.getElementById('waMessage').value);
+    window.open('https://web.whatsapp.com/send?text=' + msg, '_blank');
+}
+
+// ── Load Contributors ──
+fetch('/crm/api/lead/{{ lead.id }}/contributions')
+    .then(r => r.json())
+    .then(d => {
+        const el = document.getElementById('contribBody');
+        if (!d.contributions || !d.contributions.length) {
+            el.innerHTML = '<div style="text-align:center;color:var(--text3);padding:1rem;font-size:0.82rem;">No contributions recorded yet.</div>';
+            return;
+        }
+        const colors = ['#f59e0b','#94a3b8','#cd7c3a'];
+        const medals = ['🥇','🥈','🥉'];
+        el.innerHTML = d.contributions.map((c, i) => `
+            <div style="display:flex;align-items:center;gap:0.75rem;padding:8px 0;border-bottom:1px solid #f1f5f9;">
+                <div style="font-size:1.2rem;width:28px;text-align:center;">${medals[i] || (i+1)+'.'}</div>
+                <div style="width:36px;height:36px;border-radius:50%;background:#1e3a5f;color:#fff;display:flex;align-items:center;justify-content:center;font-size:0.78rem;font-weight:700;flex-shrink:0;">
+                    ${c.name.substring(0,2).toUpperCase()}
+                </div>
+                <div style="flex:1;">
+                    <div style="font-weight:600;font-size:0.88rem;">${c.name}</div>
+                    <div style="font-size:0.75rem;color:var(--text3);">${c.actions} actions</div>
+                </div>
+                <div style="text-align:right;">
+                    <div style="font-size:1.1rem;font-weight:900;color:${colors[i]||'#64748b'};">${c.points} pts</div>
+                    <div style="font-size:0.68rem;color:var(--text3);">score</div>
+                </div>
+            </div>`).join('');
+    }).catch(() => {
+        document.getElementById('contribBody').innerHTML = '<div style="color:var(--text3);font-size:0.82rem;">Could not load contributors.</div>';
+    });
+
+// ── Lead Action Dropdown ──
+function toggleLeadMenu() {
+    const dd = document.getElementById('leadActionDropdown');
+    dd.style.display = dd.style.display === 'none' ? 'block' : 'none';
+}
+// Hover effect on dropdown items
+document.querySelectorAll('#leadActionDropdown a, #leadActionDropdown button[type!="submit"]').forEach(el => {
+    el.addEventListener('mouseenter', () => el.style.background = '#f8fafc');
+    el.addEventListener('mouseleave', () => el.style.background = '');
+});
+// Close on outside click
+document.addEventListener('click', function(e) {
+    const menu = document.getElementById('leadActionMenu');
+    if (menu && !menu.contains(e.target)) {
+        document.getElementById('leadActionDropdown').style.display = 'none';
+    }
+});
+
+// ── NPD Modal ──
+document.getElementById('npdModal').addEventListener('click', function(e) {
+    if (e.target === this) this.style.display = 'none';
+});
+
+let _npdView = 'preview';
+
+function openNpdModal() {
+    document.getElementById('npdModal').style.display = 'flex';
+    document.getElementById('npdLoading').style.display = 'block';
+    document.getElementById('npdForm').style.display = 'none';
+
+    fetch('{{ url_for("mail.lead_npd_preview", id=lead.id) }}')
+        .then(r => r.json())
+        .then(data => {
+            document.getElementById('npdToEmail').value   = data.to_email;
+            document.getElementById('npdFromEmail').value = data.from_email;
+            document.getElementById('npdFromName').value  = data.from_name;
+            document.getElementById('npdSubject').value   = data.subject;
+            document.getElementById('npdBodyPreview').innerHTML = data.body;
+            document.getElementById('npdBodyHtml').value        = data.body;
+            document.getElementById('npdLoading').style.display = 'none';
+            document.getElementById('npdForm').style.display    = 'block';
+        })
+        .catch(() => {
+            document.getElementById('npdLoading').innerHTML = '❌ Template load failed. Reload karein.';
+        });
+}
+
+function npdSwitchView(mode) {
+    _npdView = mode;
+    const preview = document.getElementById('npdBodyPreview');
+    const html    = document.getElementById('npdBodyHtml');
+    const btnP    = document.getElementById('npdBtnPreview');
+    const btnH    = document.getElementById('npdBtnHtml');
+    if (mode === 'html') {
+        preview.style.display = 'none';
+        html.style.display    = 'block';
+        btnH.style.background = '#1e3a5f'; btnH.style.color = '#fff';
+        btnP.style.background = '#f1f5f9'; btnP.style.color = '#374151';
+    } else {
+        html.style.display    = 'none';
+        preview.style.display = 'block';
+        preview.innerHTML     = html.value;
+        btnP.style.background = '#1e3a5f'; btnP.style.color = '#fff';
+        btnH.style.background = '#f1f5f9'; btnH.style.color = '#374151';
+    }
+}
+
+// Sync html textarea to body on submit
+document.getElementById('npdForm').addEventListener('submit', function() {
+    if (_npdView === 'preview') {
+        document.getElementById('npdBodyHtml').value = document.getElementById('npdBodyPreview').innerHTML;
+    }
+});
+
 // Close modal on outside click
 document.getElementById('statusModal').addEventListener('click', function(e) {
     if (e.target === this) this.style.display = 'none';
 });
+document.getElementById('sampleOrderModal').addEventListener('click', function(e) {
+    if (e.target === this) this.style.display = 'none';
+});
+
+// ── Sample Order JS ──
+// Set today's date
+document.getElementById('soDate').value = new Date().toISOString().split('T')[0];
+
+function soAddRow(name='', rate='', qty='0', amount='') {
+    const tbody = document.getElementById('soItems');
+    const idx   = tbody.querySelectorAll('.so-row').length;
+    const bg    = idx % 2 === 0 ? '#fff' : '#f8fafc';
+    const tr    = document.createElement('tr');
+    tr.className = 'so-row';
+    tr.style.background = bg;
+    tr.innerHTML = `
+        <td style="padding:6px 8px;border:1px solid #e2e8f0;">
+            <input type="text" name="item_name[]" value="${name}" placeholder="Product Name" class="fi" style="font-size:0.83rem;padding:5px 8px;" required oninput="soCalcTotal()">
+            <input type="hidden" name="item_desc[]" value="">
+            <input type="hidden" name="item_unit[]" value="pcs">
+        </td>
+        <td style="padding:6px 8px;border:1px solid #e2e8f0;">
+            <input type="number" name="item_rate[]" value="${rate}" min="0" step="any" placeholder="0.00" class="fi so-rate" style="font-size:0.83rem;padding:5px 8px;text-align:right;" oninput="soCalcRow(this)">
+        </td>
+        <td style="padding:6px 8px;border:1px solid #e2e8f0;">
+            <input type="number" name="item_qty[]" value="${qty}" min="0" step="any" class="fi so-qty" style="font-size:0.83rem;padding:5px 8px;text-align:center;" oninput="soCalcRow(this)">
+        </td>
+        <td style="padding:6px 8px;border:1px solid #e2e8f0;text-align:right;">
+            <input type="text" class="fi so-amt" value="${amount || '0.00'}" readonly style="font-size:0.83rem;padding:5px 8px;text-align:right;background:#f8fafc;cursor:default;">
+        </td>
+        <td style="padding:6px 8px;border:1px solid #e2e8f0;text-align:center;">
+            <button type="button" onclick="this.closest('tr').remove();soCalcTotal();" style="background:#fee2e2;color:#dc2626;border:none;width:24px;height:24px;border-radius:5px;font-size:0.8rem;cursor:pointer;line-height:1;">✕</button>
+        </td>
+    `;
+    tbody.appendChild(tr);
+    soCalcTotal();
+}
+
+function soCalcRow(input) {
+    const tr   = input.closest('tr');
+    const qty  = parseFloat(tr.querySelector('.so-qty')?.value) || 0;
+    const rate = parseFloat(tr.querySelector('.so-rate')?.value) || 0;
+    const amt  = qty * rate;
+    tr.querySelector('.so-amt').value = amt.toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2});
+    soCalcTotal();
+}
+
+function soCalcTotal() {
+    let subTotal = 0;
+    document.querySelectorAll('.so-row').forEach(tr => {
+        const q = parseFloat(tr.querySelector('.so-qty')?.value) || 0;
+        const r = parseFloat(tr.querySelector('.so-rate')?.value) || 0;
+        subTotal += q * r;
+    });
+    const gstPct = parseFloat(document.getElementById('soGstPct')?.value) || 0;
+    const gstAmt = subTotal * gstPct / 100;
+    const total  = subTotal + gstAmt;
+    const fmt    = v => v.toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2});
+    document.getElementById('soSubTotal').textContent = fmt(subTotal);
+    document.getElementById('soGstAmt').textContent   = fmt(gstAmt);
+    document.getElementById('soTotal').textContent    = fmt(total);
+    document.getElementById('soGstLabel').textContent = gstPct;
+}
+
+// GST dropdown change
+document.getElementById('soGstPct')?.addEventListener('change', soCalcTotal);
+
+// Pre-fill with lead data
+(function() {
+    {% if lead.product_name %}
+    soAddRow('{{ lead.product_name | e }}', '', '{{ lead.order_quantity or "0" }}', '');
+    {% else %}
+    soAddRow();
+    {% endif %}
+})();
 </script>
 {% endblock %}

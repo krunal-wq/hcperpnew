@@ -6,13 +6,14 @@ from werkzeug.utils import secure_filename
 from models import (db, User, ClientMaster, ClientBrand, ClientAddress,
                     Lead, LeadDiscussion, LeadAttachment,
                     LeadReminder, LeadNote, LeadActivityLog,
+                    SampleOrder, LeadContribution, ContributionConfig,
                     Customer, CustomerAddress,
                     LeadStatus, LeadSource, LeadCategory, ProductRange)
 
 from permissions import get_perm, get_grid_columns, save_grid_columns
 from audit_helper import audit, snapshot, diff
 
-LEAD_COLS_DEFAULT = ['code','created_at','name','company','email','mobile','product','team','status','last_contact']
+LEAD_COLS_DEFAULT = ['code','created_at','name','company','email','mobile','product','team','status','lead_type','last_contact','lead_age']
 LEAD_COLS_ALL = {
     'code':          'Lead Code',
     'created_at':    'Created Date',
@@ -28,9 +29,11 @@ LEAD_COLS_ALL = {
     'team':          'Team',
     'follow_up':     'Follow Up Date',
     'status':        'Status',
+    'lead_type':     'Lead Type',
     'last_contact':  'Last Contact',
     'priority':      'Priority',
     'expected_value':'Expected Value',
+    'lead_age':      'Days (Age)',
 }
 
 CLIENT_COLS_DEFAULT = ['code','created_at','contact_name','company_name','mobile','email','city','brands','client_type','status']
@@ -69,6 +72,100 @@ def gen_code(model, prefix):
 def log_activity(lead_id, action, user_id=None):
     uid = user_id or (current_user.id if current_user.is_authenticated else None)
     db.session.add(LeadActivityLog(lead_id=lead_id, user_id=uid, action=action))
+
+
+def add_contribution(lead_id, action_type, user_id=None, note=''):
+    """Track contribution points for a user on a lead."""
+    uid = user_id or (current_user.id if current_user.is_authenticated else None)
+    if not uid: return
+
+    # Read points from DB config, fallback to defaults
+    DEFAULT_POINTS = {
+        'comment': 1, 'status_change': 2, 'close_fast': 8,
+        'close_slow': 0, 'cancel': 0, 'follow_up': 1, 'reminder': 1, 'edit': 1,
+    }
+    try:
+        cfg = ContributionConfig.query.filter_by(action_type=action_type).first()
+        pts = cfg.points if cfg else DEFAULT_POINTS.get(action_type, 1)
+    except Exception:
+        pts = DEFAULT_POINTS.get(action_type, 1)
+
+    db.session.add(LeadContribution(
+        lead_id=lead_id, user_id=uid,
+        action_type=action_type, points=pts, note=note
+    ))
+
+
+def _handle_close_contribution(lead):
+    """
+    Smart close contribution with 5 slabs:
+    Slab 1: 1-7 days
+    Slab 2: 8-14 days
+    Slab 3: 15-21 days
+    Slab 4: 22-28 days
+    Slab 5: 29+ days
+    Points divided among active members only.
+    """
+    try:
+        age = lead.lead_age
+
+        # Determine slab
+        if   age <=  7: slab = 'close_slab1'
+        elif age <= 14: slab = 'close_slab2'
+        elif age <= 21: slab = 'close_slab3'
+        elif age <= 28: slab = 'close_slab4'
+        else:           slab = 'close_slab5'
+
+        # Get points for this slab from DB
+        SLAB_DEFAULTS = {
+            'close_slab1': 10, 'close_slab2': 8,
+            'close_slab3': 6,  'close_slab4': 4, 'close_slab5': 0
+        }
+        cfg = ContributionConfig.query.filter_by(action_type=slab).first()
+        base_pts = cfg.points if cfg else SLAB_DEFAULTS.get(slab, 0)
+
+        if base_pts == 0:
+            return  # No points for this slab
+
+        # Find active members — who had prior activity on this lead
+        active_users = db.session.query(LeadContribution.user_id).filter(
+            LeadContribution.lead_id == lead.id,
+            LeadContribution.action_type.in_(['comment', 'edit', 'status_change', 'follow_up', 'reminder'])
+        ).distinct().all()
+        active_ids = [r[0] for r in active_users]
+
+        # Add current closer if not in active list
+        current_uid = current_user.id if current_user.is_authenticated else None
+        if current_uid and current_uid not in active_ids:
+            active_ids.append(current_uid)
+
+        if not active_ids:
+            return
+
+        # Divide equally (minimum 1 per active member)
+        pts_each = max(1, round(base_pts / len(active_ids)))
+
+        slab_labels = {
+            'close_slab1':'1-7d', 'close_slab2':'8-14d',
+            'close_slab3':'15-21d', 'close_slab4':'22-28d', 'close_slab5':'29+d'
+        }
+
+        for uid in active_ids:
+            db.session.add(LeadContribution(
+                lead_id     = lead.id,
+                user_id     = uid,
+                action_type = slab,
+                points      = pts_each,
+                note        = f'Closed in {age}d ({slab_labels[slab]}) — {pts_each}pts/{len(active_ids)} members'
+            ))
+
+    except Exception as e:
+        # Fallback — give default points to closer
+        if current_user.is_authenticated:
+            db.session.add(LeadContribution(
+                lead_id=lead.id, user_id=current_user.id,
+                action_type='close_slab5', points=0, note='Lead closed (fallback)'
+            ))
 
 
 # ══════════════════════════════════════
@@ -308,12 +405,60 @@ def leads():
     city     = request.args.get('city', '')
     date_from= request.args.get('date_from', '')
     date_to  = request.args.get('date_to', '')
+    # Performance dashboard filters
+    assigned_to_filter = request.args.get('assigned_to_filter', '')
+    perf_period        = request.args.get('perf_period', '')
     # Sorting
     sort_by  = request.args.get('sort_by', 'created_at')
     sort_dir = request.args.get('sort_dir', 'desc')
 
     show_trash = request.args.get('trash', '') == '1'
     query = Lead.query.filter_by(is_deleted=True) if show_trash else Lead.query.filter_by(is_deleted=False)
+
+    # ── Performance period filter ──
+    if perf_period and not date_from and not date_to:
+        from datetime import date as _date
+        today = datetime.now().date()
+        if perf_period == 'today':
+            pf = datetime.combine(today, datetime.min.time())
+            pt = datetime.combine(today, datetime.max.time())
+        elif perf_period == 'this_week':
+            pf = datetime.combine(today - timedelta(days=today.weekday()), datetime.min.time())
+            pt = datetime.combine(today, datetime.max.time())
+        elif perf_period == 'this_month':
+            pf = datetime(today.year, today.month, 1)
+            pt = datetime.combine(today, datetime.max.time())
+        elif perf_period == 'last_month':
+            first = today.replace(day=1)
+            last_prev = first - timedelta(days=1)
+            pf = datetime(last_prev.year, last_prev.month, 1)
+            pt = datetime.combine(last_prev, datetime.max.time())
+        elif perf_period == 'last_3_months':
+            pf = datetime.combine(today - timedelta(days=90), datetime.min.time())
+            pt = datetime.combine(today, datetime.max.time())
+        elif perf_period == 'last_6_months':
+            pf = datetime.combine(today - timedelta(days=180), datetime.min.time())
+            pt = datetime.combine(today, datetime.max.time())
+        elif perf_period == 'this_year':
+            pf = datetime(today.year, 1, 1)
+            pt = datetime.combine(today, datetime.max.time())
+        else:
+            pf = pt = None
+        if pf and pt:
+            query = query.filter(Lead.created_at >= pf, Lead.created_at <= pt)
+
+    # ── Assigned to filter (from performance dashboard) ──
+    if assigned_to_filter:
+        try:
+            uid = int(assigned_to_filter)
+            query = query.filter(
+                db.or_(
+                    Lead.assigned_to == uid,
+                    Lead.team_members.like(f'%{uid}%')
+                )
+            )
+        except ValueError:
+            pass
 
     if not show_trash:
         if status:   query = query.filter_by(status=status)
@@ -516,6 +661,7 @@ def leads_export():
         ("Order Quantity",   lambda l: _s(l,'order_quantity')),
         ("Requirement Spec", lambda l: _s(l,'requirement_spec')),
         ("Status",           lambda l: _s(l,'status','').replace('_',' ').title()),
+        ("Lead Type",        lambda l: _s(l,'lead_type','Quality')),
         ("Priority",         lambda l: _s(l,'priority','').title()),
         ("Expected Value",   lambda l: _f(l,'expected_value')),
         ("Average Cost",     lambda l: _f(l,'average_cost')),
@@ -528,6 +674,8 @@ def leads_export():
         ("Last Contact",     lambda l: _d(l,'last_contact','%d-%m-%Y %H:%M')),
         ("Created By",       lambda l: users.get(l.created_by,'') if getattr(l,'created_by',None) else ''),
         ("Created At",       lambda l: _d(l,'created_at','%d-%m-%Y %H:%M')),
+        ("Closed At",        lambda l: _d(l,'closed_at','%d-%m-%Y %H:%M')),
+        ("Lead Age (Days)",  lambda l: l.lead_age),
         ("Updated At",       lambda l: _d(l,'updated_at','%d-%m-%Y %H:%M')),
     ]
 
@@ -834,6 +982,7 @@ def lead_add():
             remark           = request.form.get('remark', '').strip(),
             source           = request.form.get('source', '').strip(),
             status           = request.form.get('status', 'open'),
+            lead_type        = request.form.get('lead_type', 'Quality'),
             follow_up_date   = datetime.strptime(request.form['follow_up_date'], '%Y-%m-%d').date()
                                if request.form.get('follow_up_date') else None,
             team_members     = team_str,
@@ -895,12 +1044,14 @@ def lead_edit(id):
         l.remark           = request.form.get('remark', '').strip()
         l.source           = request.form.get('source', '').strip()
         l.status           = request.form.get('status', 'open')
+        l.lead_type        = request.form.get('lead_type', 'Quality')
         l.follow_up_date   = None  # removed from form
         l.team_members     = team_str
         l.client_id        = request.form.get('client_id') or None
         l.updated_at       = datetime.utcnow()
 
         log_activity(l.id, f'Lead Record Updated')
+        add_contribution(l.id, 'edit', note='Lead record updated')
         db.session.commit()
         is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
         if is_ajax:
@@ -1007,6 +1158,7 @@ def lead_discussion_add(id):
     # Update last contact
     l.last_contact = datetime.utcnow()
     log_activity(id, 'New Comment Added in Lead')
+    add_contribution(id, 'comment', note='Added comment')
     db.session.commit()
     audit('leads','DISCUSSION', id, f'Lead #{id}', f'Comment added by {current_user.username}')
     flash('Comment added!', 'success')
@@ -1039,6 +1191,7 @@ def lead_reminder_add(id):
     )
     db.session.add(r)
     log_activity(id, f'Reminder set: {title}')
+    add_contribution(id, 'reminder', note=f'Reminder: {title}')
     db.session.commit()
     audit('leads','REMINDER', id, f'Lead #{id}', f'Reminder set: {title}')
     flash('Reminder added!', 'success')
@@ -1105,7 +1258,19 @@ def lead_status_change(id):
     if new_status in ['open', 'in_process', 'close', 'cancel']:
         old = l.status
         l.status = new_status
+        if new_status in ('close', 'cancel') and not l.closed_at:
+            l.closed_at = datetime.now()
+        elif new_status in ('open', 'in_process'):
+            l.closed_at = None  # reopen hone pe reset
         log_activity(id, f'Status changed: {old} → {new_status}')
+
+        if new_status == 'close':
+            _handle_close_contribution(l)
+        elif new_status == 'cancel':
+            add_contribution(id, 'cancel', note=f'Status: {old} → cancel')
+        else:
+            add_contribution(id, 'status_change', note=f'Status: {old} → {new_status}')
+
         db.session.commit()
     return redirect(url_for('crm.lead_view', id=id))
 
@@ -1129,6 +1294,213 @@ def customer_add():
 # ══════════════════════════════════════
 # DASHBOARD API (JSON for Charts)
 # ══════════════════════════════════════
+
+@crm.route('/api/emp-leads-list')
+@login_required
+def emp_leads_list():
+    """Return filtered leads as JSON for popup modal."""
+    from datetime import timedelta as _td2
+    emp_id  = request.args.get('emp_id', '')
+    period  = request.args.get('period', 'this_month')
+    status  = request.args.get('status', '')
+    today   = datetime.now().date()
+
+    if period == 'today':
+        pf = datetime.combine(today, datetime.min.time())
+        pt = datetime.combine(today, datetime.max.time())
+    elif period == 'this_week':
+        pf = datetime.combine(today - _td2(days=today.weekday()), datetime.min.time())
+        pt = datetime.combine(today, datetime.max.time())
+    elif period == 'this_month':
+        pf = datetime(today.year, today.month, 1)
+        pt = datetime.combine(today, datetime.max.time())
+    elif period == 'last_month':
+        first = today.replace(day=1); lp = first - _td2(days=1)
+        pf = datetime(lp.year, lp.month, 1); pt = datetime.combine(lp, datetime.max.time())
+    elif period == 'last_3_months':
+        pf = datetime.combine(today - _td2(days=90), datetime.min.time())
+        pt = datetime.combine(today, datetime.max.time())
+    elif period == 'last_6_months':
+        pf = datetime.combine(today - _td2(days=180), datetime.min.time())
+        pt = datetime.combine(today, datetime.max.time())
+    elif period == 'this_year':
+        pf = datetime(today.year, 1, 1); pt = datetime.combine(today, datetime.max.time())
+    elif period == 'last_year':
+        pf = datetime(today.year - 1, 1, 1); pt = datetime(today.year - 1, 12, 31, 23, 59, 59)
+    else:
+        pf = datetime(today.year, today.month, 1); pt = datetime.combine(today, datetime.max.time())
+
+    q = Lead.query.filter(Lead.is_deleted == False, Lead.created_at >= pf, Lead.created_at <= pt)
+
+    if emp_id:
+        try:
+            uid = int(emp_id)
+            q = q.filter(db.or_(Lead.assigned_to == uid, Lead.team_members.like(f'%{uid}%')))
+        except ValueError: pass
+
+    if status:
+        q = q.filter(Lead.status == status)
+
+    leads = q.distinct().order_by(Lead.created_at.desc()).all()
+
+    status_labels = {'open':'Open','in_process':'In Process','close':'Close','cancel':'Cancel'}
+    result = []
+    for l in leads:
+        result.append({
+            'id':       l.id,
+            'code':     l.code or '',
+            'name':     l.contact_name or '',
+            'company':  l.company_name or '',
+            'mobile':   l.phone or '',
+            'email':    l.email or '',
+            'product':  l.product_name or '',
+            'status':   l.status or 'open',
+            'status_label': status_labels.get(l.status, l.status),
+            'lead_type': l.lead_type or 'Quality',
+            'age':      l.lead_age,
+            'created':  l.created_at.strftime('%d-%m-%Y') if l.created_at else '',
+            'city':     l.city or '',
+        })
+
+    return jsonify(leads=result, total=len(result))
+
+
+@crm.route('/api/emp-dashboard-stats')
+@login_required
+def emp_dashboard_stats():
+    """Dashboard stats filtered by employee + period — for Employee Performance tab."""
+    from sqlalchemy import func, extract
+    from datetime import timedelta as _td
+
+    emp_id  = request.args.get('emp_id', '')
+    period  = request.args.get('period', 'this_month')
+    today   = datetime.now().date()
+
+    # ── Period date range ──
+    if period == 'today':
+        pf = datetime.combine(today, datetime.min.time())
+        pt = datetime.combine(today, datetime.max.time())
+    elif period == 'this_week':
+        pf = datetime.combine(today - _td(days=today.weekday()), datetime.min.time())
+        pt = datetime.combine(today, datetime.max.time())
+    elif period == 'this_month':
+        pf = datetime(today.year, today.month, 1)
+        pt = datetime.combine(today, datetime.max.time())
+    elif period == 'last_month':
+        first = today.replace(day=1)
+        lp = first - _td(days=1)
+        pf = datetime(lp.year, lp.month, 1)
+        pt = datetime.combine(lp, datetime.max.time())
+    elif period == 'last_3_months':
+        pf = datetime.combine(today - _td(days=90), datetime.min.time())
+        pt = datetime.combine(today, datetime.max.time())
+    elif period == 'last_6_months':
+        pf = datetime.combine(today - _td(days=180), datetime.min.time())
+        pt = datetime.combine(today, datetime.max.time())
+    elif period == 'this_year':
+        pf = datetime(today.year, 1, 1)
+        pt = datetime.combine(today, datetime.max.time())
+    elif period == 'last_year':
+        pf = datetime(today.year - 1, 1, 1)
+        pt = datetime(today.year - 1, 12, 31, 23, 59, 59)
+    else:
+        pf = datetime(today.year, today.month, 1)
+        pt = datetime.combine(today, datetime.max.time())
+
+    # ── Base query with employee + period filter ──
+    def base_q():
+        q = Lead.query.filter(
+            Lead.is_deleted == False,
+            Lead.created_at >= pf,
+            Lead.created_at <= pt,
+        )
+        if emp_id:
+            try:
+                uid = int(emp_id)
+                q = q.filter(db.or_(
+                    Lead.assigned_to == uid,
+                    Lead.team_members.like(f'%{uid}%')
+                ))
+            except ValueError:
+                pass
+        return q
+
+    # ── Status counts ──
+    all_leads = base_q().distinct().all()
+    counts = {'open':0,'in_process':0,'close':0,'cancel':0}
+    for l in all_leads:
+        s = l.status or 'open'
+        if s in counts: counts[s] += 1
+    total = len(all_leads)
+
+    # ── Monthly trend (last 6 months within period) ──
+    monthly = []
+    for i in range(5, -1, -1):
+        dt = (today.replace(day=1) - _td(days=i*30))
+        m, y = dt.month, dt.year
+        q = Lead.query.filter(
+            Lead.is_deleted == False,
+            extract('month', Lead.created_at) == m,
+            extract('year', Lead.created_at) == y,
+        )
+        if emp_id:
+            try:
+                uid = int(emp_id)
+                q = q.filter(db.or_(Lead.assigned_to == uid, Lead.team_members.like(f'%{uid}%')))
+            except: pass
+        monthly.append({'month': dt.strftime('%b %Y'), 'count': q.count()})
+
+    # ── Status distribution ──
+    status_data = [
+        {'label':'Open',       'value': counts['open'],       'color':'#94a3b8'},
+        {'label':'In Process', 'value': counts['in_process'], 'color':'#1e2d5e'},
+        {'label':'Close',      'value': counts['close'],      'color':'#0d9488'},
+        {'label':'Cancel',     'value': counts['cancel'],     'color':'#ef4444'},
+    ]
+
+    # ── Source wise ──
+    src = {}
+    for l in all_leads:
+        k = l.source or 'Unknown'
+        src[k] = src.get(k, 0) + 1
+    source_data = [{'label':k,'value':v} for k,v in sorted(src.items(), key=lambda x:-x[1])[:8]]
+
+    # ── Category wise ──
+    cat = {}
+    for l in all_leads:
+        k = l.category or 'N/A'
+        cat[k] = cat.get(k, 0) + 1
+    cat_data = [{'label':k,'value':v} for k,v in sorted(cat.items(), key=lambda x:-x[1])[:8]]
+
+    # ── Last 7 days ──
+    week_data = []
+    for i in range(6, -1, -1):
+        d = today - _td(days=i)
+        q = Lead.query.filter(
+            Lead.is_deleted == False,
+            func.date(Lead.created_at) == d
+        )
+        if emp_id:
+            try:
+                uid = int(emp_id)
+                q = q.filter(db.or_(Lead.assigned_to == uid, Lead.team_members.like(f'%{uid}%')))
+            except: pass
+        week_data.append({'day': d.strftime('%a'), 'count': q.count()})
+
+    # ── Conversion rate ──
+    conv = round((counts['close']/total*100), 1) if total > 0 else 0
+
+    # ── Quality breakdown ──
+    quality     = sum(1 for l in all_leads if (l.lead_type or 'Quality') == 'Quality')
+    non_quality = total - quality
+
+    return jsonify(
+        total=total, counts=counts, conversion=conv,
+        quality=quality, non_quality=non_quality,
+        monthly=monthly, status=status_data,
+        sources=source_data, categories=cat_data, week=week_data,
+    )
+
 
 @crm.route('/api/dashboard-stats')
 @login_required
@@ -1243,6 +1615,8 @@ def lead_import():
                         product_range    = row.get('product_range') or row.get('Product Range') or '',
                         source           = row.get('source') or row.get('Source') or '',
                         status           = row.get('status') or row.get('Status') or 'open',
+                        lead_type        = row.get('lead_type') or row.get('Lead Type') or 'Quality',
+                        order_quantity   = row.get('order_quantity') or row.get('Order Quantity') or '',
                         requirement_spec = row.get('requirement_spec') or row.get('Requirement Specification') or '',
                         remark           = row.get('remark') or row.get('Remark') or '',
                         tags             = row.get('tags') or row.get('Tags') or '',
@@ -1251,6 +1625,9 @@ def lead_import():
                     # Validate status
                     if l.status.lower() not in ['open','in_process','close','cancel']:
                         l.status = 'open'
+                    # Validate lead_type
+                    if l.lead_type not in ['Quality', 'Non-Quality']:
+                        l.lead_type = 'Quality'
                     db.session.add(l)
                     db.session.flush()
                     log_activity(l.id, 'Lead Imported via CSV/Excel')
@@ -1276,21 +1653,150 @@ def lead_import():
 @crm.route('/leads/import/template')
 @login_required
 def lead_import_template():
-    import csv, io
-    from flask import Response
-    output = io.StringIO()
-    writer = csv.writer(output)
-    writer.writerow(['name','position','email','mobile','alternate_mobile','company','website',
-                     'city','state','country','zip_code','product_name','category',
-                     'product_range','source','status','requirement_spec','remark','tags'])
-    writer.writerow(['John Doe','CEO','john@example.com','9999999999','','ABC Corp','www.abc.com',
-                     'Mumbai','Maharashtra','India','400001','Face Wash','Skin Care','Premium',
-                     'HCP Website','open','Vitamin C face wash 500ml','Premium product needed','skincare'])
-    return Response(
-        output.getvalue(),
-        mimetype='text/csv',
-        headers={'Content-Disposition': 'attachment; filename=lead_import_template.csv'}
+    import io, sys, subprocess
+    try:
+        import openpyxl
+        from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+        from openpyxl.utils import get_column_letter
+        from openpyxl.worksheet.datavalidation import DataValidation
+    except ImportError:
+        subprocess.run([sys.executable, '-m', 'pip', 'install', 'openpyxl', '--quiet'], check=True)
+        import openpyxl
+        from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+        from openpyxl.utils import get_column_letter
+        from openpyxl.worksheet.datavalidation import DataValidation
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = 'Lead Import'
+
+    # ── Styles ──
+    hdr_font  = Font(bold=True, color='FFFFFF', size=10)
+    hdr_fill  = PatternFill('solid', fgColor='1E3A5F')
+    hdr_align = Alignment(horizontal='center', vertical='center', wrap_text=True)
+    req_fill  = PatternFill('solid', fgColor='FFE4E4')  # light red for required
+    opt_fill  = PatternFill('solid', fgColor='F0F4FF')  # light blue for optional
+    data_align= Alignment(vertical='center')
+    thin      = Side(style='thin', color='D1D5DB')
+    border    = Border(left=thin, right=thin, top=thin, bottom=thin)
+
+    # ── Columns: (header, width, required, example, note) ──
+    columns = [
+        ('name',             18, True,  'John Doe',              'Contact full name'),
+        ('position',         15, False, 'CEO',                   'Job title / designation'),
+        ('email',            22, False, 'john@abc.com',          'Email address'),
+        ('mobile',           15, False, '9999999999',            'Primary mobile'),
+        ('alternate_mobile', 15, False, '8888888888',            'Alternate mobile'),
+        ('company',          22, False, 'ABC Corp',              'Company / firm name'),
+        ('website',          22, False, 'www.abc.com',           'Website URL'),
+        ('city',             14, False, 'Mumbai',                'City'),
+        ('state',            14, False, 'Maharashtra',           'State'),
+        ('country',          14, False, 'India',                 'Country'),
+        ('zip_code',         10, False, '400001',                'PIN / ZIP code'),
+        ('product_name',     20, False, 'Face Wash',             'Product name'),
+        ('category',         16, False, 'Skin Care',             'Product category'),
+        ('product_range',    16, False, 'Premium',               'Product range'),
+        ('order_quantity',   15, False, '500 units',             'Required quantity'),
+        ('source',           16, False, 'HCP Website',           'Lead source'),
+        ('status',           14, False, 'open',                  'open / in_process / close / cancel'),
+        ('lead_type',        14, False, 'Quality',               'Quality / Non-Quality'),
+        ('requirement_spec', 28, False, 'Vitamin C 500ml',       'Product specification'),
+        ('remark',           22, False, 'Urgent requirement',    'Remarks / notes'),
+        ('tags',             18, False, 'skincare,premium',      'Comma-separated tags'),
+    ]
+
+    # ── Header row (row 1) ──
+    ws.row_dimensions[1].height = 36
+    for col_idx, (col_name, width, required, example, note) in enumerate(columns, 1):
+        cell = ws.cell(row=1, column=col_idx, value=col_name)
+        cell.font      = hdr_font
+        cell.fill      = hdr_fill
+        cell.alignment = hdr_align
+        cell.border    = border
+        ws.column_dimensions[get_column_letter(col_idx)].width = width
+        # Comment/note on header
+        from openpyxl.comments import Comment
+        comment = Comment(f'{"REQUIRED" if required else "Optional"}\n{note}', 'HCP ERP')
+        comment.width  = 160
+        comment.height = 50
+        cell.comment   = comment
+
+    # ── Example row (row 2) ──
+    ws.row_dimensions[2].height = 22
+    example_data = [col[3] for col in columns]
+    for col_idx, value in enumerate(example_data, 1):
+        required = columns[col_idx-1][2]
+        cell = ws.cell(row=2, column=col_idx, value=value)
+        cell.fill      = req_fill if required else opt_fill
+        cell.alignment = data_align
+        cell.border    = border
+        cell.font      = Font(size=9, italic=True, color='6B7280')
+
+    # ── Data rows 3-101 styling ──
+    for row in range(3, 102):
+        ws.row_dimensions[row].height = 20
+        for col_idx in range(1, len(columns)+1):
+            cell = ws.cell(row=row, column=col_idx)
+            cell.border    = border
+            cell.alignment = data_align
+            cell.font      = Font(size=9)
+
+    # ── Data Validations ──
+    # status dropdown
+    dv_status = DataValidation(
+        type='list', formula1='"open,in_process,close,cancel"',
+        allow_blank=True, showDropDown=False,
+        error='Use: open, in_process, close, cancel',
+        errorTitle='Invalid Status', showErrorMessage=True
     )
+    status_col = get_column_letter([c[0] for c in columns].index('status') + 1)
+    dv_status.sqref = f'{status_col}3:{status_col}101'
+    ws.add_data_validation(dv_status)
+
+    # lead_type dropdown
+    dv_type = DataValidation(
+        type='list', formula1='"Quality,Non-Quality"',
+        allow_blank=True, showDropDown=False,
+        error='Use: Quality or Non-Quality',
+        errorTitle='Invalid Lead Type', showErrorMessage=True
+    )
+    type_col = get_column_letter([c[0] for c in columns].index('lead_type') + 1)
+    dv_type.sqref = f'{type_col}3:{type_col}101'
+    ws.add_data_validation(dv_type)
+
+    # ── Freeze header row ──
+    ws.freeze_panes = 'A3'
+
+    # ── Info sheet ──
+    ws2 = wb.create_sheet('Instructions')
+    instructions = [
+        ('LEAD IMPORT INSTRUCTIONS', True),
+        ('', False),
+        ('1. Fill data from Row 3 onwards (Row 1 = Headers, Row 2 = Example)', False),
+        ('2. "name" column is REQUIRED — all other fields are optional', False),
+        ('3. status values: open, in_process, close, cancel', False),
+        ('4. lead_type values: Quality OR Non-Quality (default: Quality)', False),
+        ('5. Dropdown available for status and lead_type columns', False),
+        ('6. Max file size: 5MB', False),
+        ('', False),
+        ('FIELD DESCRIPTIONS:', True),
+    ]
+    for col_name, width, required, example, note in columns:
+        instructions.append((f'  {col_name} — {"[REQUIRED]" if required else "[Optional]"} — {note} — Example: {example}', False))
+
+    for i, (text, bold) in enumerate(instructions, 1):
+        cell = ws2.cell(row=i, column=1, value=text)
+        if bold:
+            cell.font = Font(bold=True, size=11, color='1E3A5F')
+        else:
+            cell.font = Font(size=9)
+    ws2.column_dimensions['A'].width = 80
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    return send_file(buf, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                     as_attachment=True, download_name='lead_import_template.xlsx')
 
 
 # ══════════════════════════════════════
@@ -1418,18 +1924,124 @@ def crm_dashboard():
         LeadReminder.remind_at >= datetime.utcnow()
     ).order_by(LeadReminder.remind_at).limit(5).all()
 
+    # Users who have leads assigned
+    all_users = User.query.filter_by(is_active=True).order_by(User.full_name).all()
+
     return render_template('crm/dashboard/index.html',
         active_page='crm_dashboard',
         lead_counts=lead_counts,
         total_clients=total_clients,
         recent_leads=recent_leads,
         upcoming_reminders=upcoming_reminders,
+        all_users=all_users,
         now=datetime.utcnow())
 
 
 # ══════════════════════════════════════
 # NOTIFICATION API — Reminder Alerts
 # ══════════════════════════════════════
+
+@crm.route('/api/employee-performance')
+@login_required
+def api_employee_performance():
+    """Employee performance stats for CRM dashboard."""
+    emp_id  = request.args.get('emp_id', '')
+    period  = request.args.get('period', 'this_month')
+
+    today = datetime.now().date()
+
+    # ── Period calculation ──
+    if period == 'today':
+        date_from = datetime.combine(today, datetime.min.time())
+        date_to   = datetime.combine(today, datetime.max.time())
+        label     = 'Today'
+    elif period == 'this_week':
+        start = today - timedelta(days=today.weekday())
+        date_from = datetime.combine(start, datetime.min.time())
+        date_to   = datetime.combine(today, datetime.max.time())
+        label     = 'This Week'
+    elif period == 'this_month':
+        date_from = datetime(today.year, today.month, 1)
+        date_to   = datetime.combine(today, datetime.max.time())
+        label     = today.strftime('%B %Y')
+    elif period == 'last_month':
+        first_this = today.replace(day=1)
+        last_prev  = first_this - timedelta(days=1)
+        date_from  = datetime(last_prev.year, last_prev.month, 1)
+        date_to    = datetime.combine(last_prev, datetime.max.time())
+        label      = last_prev.strftime('%B %Y')
+    elif period == 'last_3_months':
+        date_from = datetime.combine(today - timedelta(days=90), datetime.min.time())
+        date_to   = datetime.combine(today, datetime.max.time())
+        label     = 'Last 3 Months'
+    elif period == 'last_6_months':
+        date_from = datetime.combine(today - timedelta(days=180), datetime.min.time())
+        date_to   = datetime.combine(today, datetime.max.time())
+        label     = 'Last 6 Months'
+    elif period == 'this_year':
+        date_from = datetime(today.year, 1, 1)
+        date_to   = datetime.combine(today, datetime.max.time())
+        label     = str(today.year)
+    else:
+        date_from = datetime(today.year, today.month, 1)
+        date_to   = datetime.combine(today, datetime.max.time())
+        label     = today.strftime('%B %Y')
+
+    # ── Base query ──
+    q = Lead.query.filter(
+        Lead.is_deleted == False,
+        Lead.created_at >= date_from,
+        Lead.created_at <= date_to,
+    )
+
+    if emp_id:
+        try:
+            uid = int(emp_id)
+            q = q.filter(
+                db.or_(
+                    Lead.assigned_to == uid,
+                    Lead.team_members.like(f'%{uid}%')
+                )
+            )
+        except ValueError:
+            pass
+
+    leads = q.distinct().all()
+
+    # ── Count by status ──
+    counts = {'open': 0, 'in_process': 0, 'close': 0, 'cancel': 0}
+    for l in leads:
+        s = l.status or 'open'
+        if s in counts:
+            counts[s] += 1
+
+    total = len(leads)
+
+    # ── Lead type breakdown ──
+    quality     = sum(1 for l in leads if (l.lead_type or 'Quality') == 'Quality')
+    non_quality = total - quality
+
+    # ── Recent leads (last 5) ──
+    recent = []
+    for l in sorted(leads, key=lambda x: x.created_at or datetime.min, reverse=True)[:5]:
+        recent.append({
+            'id':      l.id,
+            'code':    l.code or '',
+            'name':    l.contact_name or '',
+            'company': l.company_name or '',
+            'status':  l.status or 'open',
+            'age':     l.lead_age,
+        })
+
+    return jsonify(
+        period_label = label,
+        total        = total,
+        counts       = counts,
+        quality      = quality,
+        non_quality  = non_quality,
+        recent       = recent,
+    )
+
 
 @crm.route('/api/due-reminders')
 @login_required
@@ -1497,6 +2109,62 @@ def api_due_reminders():
     return jsonify(reminders=results, server_time=now.strftime('%d-%m-%Y %H:%M:%S IST'))
 
 
+@crm.route('/api/stale-leads')
+@login_required
+def api_stale_leads():
+    """
+    Returns open leads created 2+ days ago with no followup taken.
+    Used for bell notification — "Yeh lead ka followup nahi liya!"
+    """
+    from datetime import timedelta, timezone
+    from config import Config
+
+    IST = timezone(timedelta(hours=5, minutes=30))
+    now = datetime.now(IST).replace(tzinfo=None)
+
+    # Get configurable days threshold (default 2)
+    stale_days = 2
+
+    cutoff = now - timedelta(days=stale_days)
+
+    # Find open leads older than cutoff
+    q = Lead.query.filter(
+        Lead.is_deleted == False,
+        Lead.status == 'open',
+        Lead.created_at <= cutoff,
+    )
+
+    # Non-admin sees only their leads
+    if current_user.role != 'admin':
+        uid_str = str(current_user.id)
+        q = q.filter(
+            db.or_(
+                Lead.assigned_to == current_user.id,
+                Lead.team_members.like(f'%{uid_str}%'),
+                Lead.created_by == current_user.id,
+            )
+        )
+
+    stale = q.order_by(Lead.created_at.asc()).limit(20).all()
+
+    results = []
+    for l in stale:
+        age = l.lead_age
+        results.append({
+            'id':       l.id,
+            'code':     l.code or '',
+            'name':     l.contact_name or '',
+            'company':  l.company_name or '',
+            'age':      age,
+            'created':  l.created_at.strftime('%d-%m-%Y') if l.created_at else '',
+            'lead_url': f'/crm/leads/{l.id}',
+            'has_followup': bool(l.follow_up_date),
+            'followup_date': l.follow_up_date.strftime('%d-%m-%Y') if l.follow_up_date else None,
+        })
+
+    return jsonify(stale_leads=results, count=len(results), threshold_days=stale_days)
+
+
 @crm.route('/api/reminder/<int:rid>/snooze', methods=['POST'])
 @login_required
 def api_reminder_snooze(rid):
@@ -1516,3 +2184,697 @@ def api_reminder_mark_done(rid):
     r.is_done = True
     db.session.commit()
     return jsonify(success=True)
+
+
+# ══════════════════════════════════════
+# SAMPLE ORDER PDF
+# ══════════════════════════════════════
+
+@crm.route('/leads/<int:id>/sample-order', methods=['POST'])
+@login_required
+def lead_sample_order(id):
+    """Generate Sample Order PDF for a Lead"""
+    import io, base64
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib import colors
+    from reportlab.lib.units import mm
+    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, HRFlowable, Image
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
+
+    lead = Lead.query.get_or_404(id)
+
+    # ── Form data ──
+    so_number    = request.form.get('so_number', f'HCPSMPL{lead.id}')
+    so_date      = request.form.get('so_date', date.today().strftime('%d-%m-%Y'))
+    so_category  = request.form.get('so_category', 'Sample Order')
+    gst_pct      = float(request.form.get('so_gst_pct', '18') or '0')
+    bill_company = request.form.get('bill_company', lead.company_name or '')
+    bill_address = request.form.get('bill_address', '')
+    bill_phone   = request.form.get('bill_phone', lead.phone or '')
+    bill_email   = request.form.get('bill_email', lead.email or '')
+    bill_gst     = request.form.get('bill_gst', '')
+    items_raw    = request.form.getlist('item_name[]')
+    qtys         = request.form.getlist('item_qty[]')
+    units        = request.form.getlist('item_unit[]')
+    rates        = request.form.getlist('item_rate[]')
+    descs        = request.form.getlist('item_desc[]')
+    terms        = request.form.get('terms', 'Payment: Advance\nDelivery: 7-10 working days\nSamples are for evaluation purpose only.')
+
+    # ── Build PDF ──
+    buf = io.BytesIO()
+    doc = SimpleDocTemplate(buf, pagesize=A4,
+                            leftMargin=15*mm, rightMargin=15*mm,
+                            topMargin=12*mm, bottomMargin=15*mm)
+    W = A4[0] - 30*mm  # usable width
+
+    styles = getSampleStyleSheet()
+    def S(name, **kw):
+        return ParagraphStyle(name, parent=styles['Normal'], **kw)
+
+    title_style   = S('T', fontSize=18, fontName='Helvetica-Bold', textColor=colors.HexColor('#1e3a5f'), spaceAfter=2)
+    sub_style     = S('Sub', fontSize=8.5, textColor=colors.HexColor('#6b7280'), spaceAfter=0)
+    h2_style      = S('H2', fontSize=10, fontName='Helvetica-Bold', textColor=colors.HexColor('#1e3a5f'), spaceBefore=6, spaceAfter=3)
+    normal_style  = S('N', fontSize=9, leading=13)
+    small_style   = S('Sm', fontSize=8, textColor=colors.HexColor('#6b7280'), leading=11)
+    right_style   = S('R', fontSize=9, alignment=TA_RIGHT)
+    center_style  = S('C', fontSize=9, alignment=TA_CENTER)
+
+    story = []
+
+    # ── HEADER: Logo left, Company info right ──
+    logo_path = os.path.join(os.path.dirname(__file__), 'static', 'images', 'icons', 'hcp-logo.png')
+    company_info = (
+        '<b>HCP Wellness Pvt. Ltd.</b><br/>'
+        '403, Maruti Vertex Elanza,<br/>'
+        'Opp. Global Hospital, Sindhu Bhavan Road, Bodakdev,<br/>'
+        'Ahmedabad-380054, Gujarat, India.<br/>'
+        '<b>GST :</b> 24AAFCH7246H1ZK'
+    )
+    if os.path.exists(logo_path):
+        logo = Image(logo_path, width=40*mm, height=18*mm, kind='proportional')
+        hdr_left = logo
+    else:
+        hdr_left = Paragraph('<b style="font-size:16px;color:#1e3a5f;">HCP</b>', title_style)
+
+    hdr_tbl = Table([[hdr_left, Paragraph(company_info, S('CI', fontSize=8.5, alignment=TA_RIGHT, leading=13))]],
+                    colWidths=[W*0.35, W*0.65])
+    hdr_tbl.setStyle(TableStyle([
+        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+        ('ALIGN', (1,0), (1,0), 'RIGHT'),
+        ('TOPPADDING', (0,0), (-1,-1), 6),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 6),
+    ]))
+    story.append(hdr_tbl)
+    story.append(HRFlowable(width='100%', thickness=1.5, color=colors.HexColor('#1e3a5f'), spaceAfter=5))
+
+    # ── BILLING ADDRESS + ORDER INFO ──
+    bill_lines = []
+    if bill_company: bill_lines.append(f'<b>{bill_company}</b>')
+    if bill_address: bill_lines.append(bill_address.replace('\n', '<br/>'))
+    if bill_phone:   bill_lines.append(bill_phone)
+    if bill_email:   bill_lines.append(bill_email)
+    if bill_gst:     bill_lines.append(f'GST: {bill_gst}')
+    bill_txt = (
+        f'<font size="7.5" color="#6b7280"><b>BILLING ADDRESS</b></font><br/>'
+        + '<br/>'.join(bill_lines)
+    )
+    order_info_txt = (
+        f'<font size="7.5" color="#6b7280">Date</font><br/>'
+        f'<b>{so_date}</b><br/><br/>'
+        f'<font size="7.5" color="#6b7280">Order ID</font><br/>'
+        f'<b>{so_number}</b><br/><br/>'
+        f'<font size="7.5" color="#6b7280">Category</font><br/>'
+        f'<b>{so_category}</b>'
+    )
+    addr_tbl = Table([
+        [Paragraph(bill_txt, S('BT', fontSize=9, leading=14)),
+         Paragraph(order_info_txt, S('OI', fontSize=9, leading=13, alignment=TA_RIGHT))]
+    ], colWidths=[W*0.55, W*0.45])
+    addr_tbl.setStyle(TableStyle([
+        ('VALIGN', (0,0), (-1,-1), 'TOP'),
+        ('TOPPADDING', (0,0), (-1,-1), 8),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 8),
+        ('LEFTPADDING', (0,0), (0,-1), 0),
+        ('RIGHTPADDING', (-1,0), (-1,-1), 0),
+        ('LINEBELOW', (0,0), (-1,-1), 0.5, colors.HexColor('#e5e7eb')),
+    ]))
+    story.append(addr_tbl)
+    story.append(Spacer(1, 5*mm))
+
+    # ── ITEMS TABLE ──
+    tbl_header = [
+        Paragraph('<b>Product Name</b>', S('TH', fontSize=9, fontName='Helvetica-Bold')),
+        Paragraph('<b>Rate (₹)</b>', S('THR', fontSize=9, fontName='Helvetica-Bold', alignment=TA_RIGHT)),
+        Paragraph('<b>Quantity</b>', S('THC', fontSize=9, fontName='Helvetica-Bold', alignment=TA_CENTER)),
+        Paragraph('<b>Amount (₹)</b>', S('THA', fontSize=9, fontName='Helvetica-Bold', alignment=TA_RIGHT)),
+    ]
+    tbl_data    = [tbl_header]
+    sub_total   = 0.0
+    for i, name in enumerate(items_raw):
+        if not name.strip():
+            continue
+        try: qty  = float(qtys[i])  if i < len(qtys)  else 0
+        except: qty  = 0
+        try: rate = float(rates[i]) if i < len(rates) else 0
+        except: rate = 0
+        amount    = qty * rate
+        sub_total += amount
+        tbl_data.append([
+            Paragraph(name, normal_style),
+            Paragraph(f'{rate:,.2f}', right_style),
+            Paragraph(str(int(qty) if qty == int(qty) else qty), center_style),
+            Paragraph(f'{amount:,.2f}', right_style),
+        ])
+
+    col_w = [W*0.45, W*0.18, W*0.15, W*0.22]
+    items_tbl = Table(tbl_data, colWidths=col_w, repeatRows=1)
+    items_tbl.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#f1f5f9')),
+        ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0,0), (-1,-1), 9),
+        ('TOPPADDING', (0,0), (-1,-1), 7),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 7),
+        ('LEFTPADDING', (0,0), (-1,-1), 8),
+        ('RIGHTPADDING', (0,0), (-1,-1), 8),
+        ('ROWBACKGROUNDS', (0,1), (-1,-1), [colors.white, colors.HexColor('#f8fafc')]),
+        ('GRID', (0,0), (-1,-1), 0.4, colors.HexColor('#e2e8f0')),
+        ('BOX', (0,0), (-1,-1), 1, colors.HexColor('#cbd5e1')),
+        ('ALIGN', (1,0), (1,-1), 'RIGHT'),
+        ('ALIGN', (2,0), (2,-1), 'CENTER'),
+        ('ALIGN', (3,0), (3,-1), 'RIGHT'),
+    ]))
+    story.append(items_tbl)
+    story.append(Spacer(1, 4*mm))
+
+    # ── TOTALS ──
+    gst_amt   = sub_total * gst_pct / 100
+    total_amt = sub_total + gst_amt
+    totals_data = [
+        [Paragraph('Sub Total', S('TL', fontSize=9, textColor=colors.HexColor('#6b7280'))),
+         Paragraph(f'{sub_total:,.2f}', right_style)],
+        [Paragraph(f'GST ({int(gst_pct) if gst_pct == int(gst_pct) else gst_pct}%)', S('TL2', fontSize=9, textColor=colors.HexColor('#6b7280'))),
+         Paragraph(f'{gst_amt:,.2f}', right_style)],
+        [Paragraph('<b>Total Amount</b>', S('TLB', fontSize=10, fontName='Helvetica-Bold', textColor=colors.HexColor('#1e3a5f'))),
+         Paragraph(f'<b>{total_amt:,.2f}</b>', S('TRB', fontSize=10, fontName='Helvetica-Bold', alignment=TA_RIGHT, textColor=colors.HexColor('#1e3a5f')))],
+    ]
+    totals_tbl = Table(totals_data, colWidths=[W*0.6, W*0.4])
+    totals_tbl.setStyle(TableStyle([
+        ('ALIGN', (1,0), (1,-1), 'RIGHT'),
+        ('TOPPADDING', (0,0), (-1,-1), 5),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 5),
+        ('LEFTPADDING', (0,0), (-1,-1), 8),
+        ('RIGHTPADDING', (0,0), (-1,-1), 8),
+        ('LINEBELOW', (0,0), (-1,1), 0.5, colors.HexColor('#e5e7eb')),
+        ('BACKGROUND', (0,2), (-1,2), colors.HexColor('#e8f0fe')),
+        ('BOX', (0,2), (-1,2), 0.5, colors.HexColor('#c7d2fe')),
+    ]))
+    story.append(totals_tbl)
+    story.append(Spacer(1, 5*mm))
+
+    # ── TERMS & SIGNATURE ──
+    terms_sign = Table([
+        [Paragraph(f'<b>Terms & Conditions:</b><br/>{terms.replace(chr(10),"<br/>")}', small_style),
+         Paragraph('<br/><br/><br/>________________________<br/><b>Authorised Signature</b>', S('Sig', fontSize=9, alignment=TA_CENTER))]
+    ], colWidths=[W*0.6, W*0.4])
+    terms_sign.setStyle(TableStyle([
+        ('VALIGN', (0,0), (-1,-1), 'TOP'),
+        ('TOPPADDING', (0,0), (-1,-1), 4),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 4),
+        ('ALIGN', (1,0), (1,0), 'CENTER'),
+    ]))
+    story.append(terms_sign)
+    story.append(Spacer(1, 3*mm))
+    story.append(HRFlowable(width='100%', thickness=0.5, color=colors.HexColor('#d1d5db')))
+    story.append(Paragraph(f'<i>Generated by ERP Demo · {datetime.now().strftime("%d-%m-%Y %H:%M")} · {current_user.full_name}</i>',
+                           S('Footer', fontSize=7.5, textColor=colors.HexColor('#9ca3af'), alignment=TA_CENTER, spaceBefore=3)))
+
+    doc.build(story)
+    buf.seek(0)
+    filename = f'SampleOrder_{lead.code}_{so_number}.pdf'
+
+    # ── Save to DB ──
+    import json as _json
+    items_list = []
+    for i, name in enumerate(items_raw):
+        if not name.strip(): continue
+        try: qty  = float(qtys[i])  if i < len(qtys)  else 0
+        except: qty = 0
+        try: rate = float(rates[i]) if i < len(rates) else 0
+        except: rate = 0
+        items_list.append({'name': name, 'qty': qty, 'rate': rate, 'amount': qty*rate})
+
+    try:
+        so_date_obj = datetime.strptime(so_date, '%Y-%m-%d').date()
+    except Exception:
+        so_date_obj = date.today()
+
+    so_rec = SampleOrder(
+        order_number = so_number,
+        lead_id      = id,
+        order_date   = so_date_obj,
+        category     = so_category,
+        bill_company = bill_company,
+        bill_address = bill_address,
+        bill_phone   = bill_phone,
+        bill_email   = bill_email,
+        bill_gst     = bill_gst,
+        gst_pct      = gst_pct,
+        sub_total    = sub_total,
+        gst_amount   = gst_amt,
+        total_amount = total_amt,
+        items_json   = _json.dumps(items_list),
+        terms        = terms,
+        created_by   = current_user.id,
+    )
+    db.session.add(so_rec)
+    log_activity(id, f'Sample Order generated: {so_number}')
+    db.session.commit()
+
+    return send_file(buf, mimetype='application/pdf',
+                     as_attachment=True, download_name=filename)
+
+
+# ══════════════════════════════════════
+# SAMPLE ORDERS — LIST & VIEW
+# ══════════════════════════════════════
+
+@crm.route('/sample-orders')
+@login_required
+def sample_orders_list():
+    search   = request.args.get('search', '')
+    page     = request.args.get('page', 1, type=int)
+    per_page = 20
+
+    q = SampleOrder.query.join(Lead, SampleOrder.lead_id == Lead.id)
+    if search:
+        q = q.filter(
+            SampleOrder.order_number.ilike(f'%{search}%') |
+            SampleOrder.bill_company.ilike(f'%{search}%') |
+            Lead.contact_name.ilike(f'%{search}%') |
+            Lead.company_name.ilike(f'%{search}%')
+        )
+    q = q.order_by(SampleOrder.created_at.desc())
+    pagination = q.paginate(page=page, per_page=per_page, error_out=False)
+    orders = pagination.items
+
+    return render_template('crm/sample_orders/list.html',
+        orders=orders, pagination=pagination,
+        search=search, active_page='sample_orders')
+
+
+@crm.route('/sample-orders/<int:id>/reprint', methods=['POST'])
+@login_required
+def sample_order_reprint(id):
+    """Re-generate PDF for an existing sample order"""
+    import io, json as _json
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib import colors
+    from reportlab.lib.units import mm
+    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, HRFlowable, Image
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
+
+    so = SampleOrder.query.get_or_404(id)
+    lead = so.lead
+
+    buf = io.BytesIO()
+    doc = SimpleDocTemplate(buf, pagesize=A4,
+                            leftMargin=15*mm, rightMargin=15*mm,
+                            topMargin=12*mm, bottomMargin=15*mm)
+    W = A4[0] - 30*mm
+
+    styles = getSampleStyleSheet()
+    def S(name, **kw):
+        return ParagraphStyle(name, parent=styles['Normal'], **kw)
+
+    normal_style = S('N', fontSize=9, leading=13)
+    small_style  = S('Sm', fontSize=8, textColor=colors.HexColor('#6b7280'), leading=11)
+    right_style  = S('R', fontSize=9, alignment=TA_RIGHT)
+    center_style = S('C', fontSize=9, alignment=TA_CENTER)
+
+    story = []
+
+    # Header
+    logo_path = os.path.join(os.path.dirname(__file__), 'static', 'images', 'icons', 'hcp-logo.png')
+    company_info = ('<b>HCP Wellness Pvt. Ltd.</b><br/>403, Maruti Vertex Elanza,<br/>'
+                    'Opp. Global Hospital, Sindhu Bhavan Road, Bodakdev,<br/>'
+                    'Ahmedabad-380054, Gujarat, India.<br/><b>GST :</b> 24AAFCH7246H1ZK')
+    hdr_left = Image(logo_path, width=40*mm, height=18*mm, kind='proportional') if os.path.exists(logo_path) else Paragraph('<b>HCP</b>', normal_style)
+    hdr_tbl = Table([[hdr_left, Paragraph(company_info, S('CI', fontSize=8.5, alignment=TA_RIGHT, leading=13))]],
+                    colWidths=[W*0.35, W*0.65])
+    hdr_tbl.setStyle(TableStyle([('VALIGN',(0,0),(-1,-1),'MIDDLE'),('ALIGN',(1,0),(1,0),'RIGHT'),
+                                  ('TOPPADDING',(0,0),(-1,-1),6),('BOTTOMPADDING',(0,0),(-1,-1),6)]))
+    story.append(hdr_tbl)
+    story.append(HRFlowable(width='100%', thickness=1.5, color=colors.HexColor('#1e3a5f'), spaceAfter=5))
+
+    # Billing + Order info
+    bill_lines = []
+    if so.bill_company: bill_lines.append(f'<b>{so.bill_company}</b>')
+    if so.bill_address: bill_lines.append(so.bill_address.replace('\n','<br/>'))
+    if so.bill_phone:   bill_lines.append(so.bill_phone)
+    if so.bill_email:   bill_lines.append(so.bill_email)
+    if so.bill_gst:     bill_lines.append(f'GST: {so.bill_gst}')
+    bill_txt  = '<font size="7.5" color="#6b7280"><b>BILLING ADDRESS</b></font><br/>' + '<br/>'.join(bill_lines)
+    order_txt = (f'<font size="7.5" color="#6b7280">Date</font><br/><b>{so.order_date.strftime("%d-%m-%Y")}</b><br/><br/>'
+                 f'<font size="7.5" color="#6b7280">Order ID</font><br/><b>{so.order_number}</b>')
+    addr_tbl = Table([[Paragraph(bill_txt, S('BT',fontSize=9,leading=14)),
+                       Paragraph(order_txt, S('OI',fontSize=9,leading=13,alignment=TA_RIGHT))]],
+                     colWidths=[W*0.55, W*0.45])
+    addr_tbl.setStyle(TableStyle([('VALIGN',(0,0),(-1,-1),'TOP'),('TOPPADDING',(0,0),(-1,-1),8),
+                                   ('BOTTOMPADDING',(0,0),(-1,-1),8),('LEFTPADDING',(0,0),(0,-1),0),
+                                   ('RIGHTPADDING',(-1,0),(-1,-1),0),('LINEBELOW',(0,0),(-1,-1),0.5,colors.HexColor('#e5e7eb'))]))
+    story.append(addr_tbl)
+    story.append(Spacer(1, 5*mm))
+
+    # Items
+    items = _json.loads(so.items_json or '[]')
+    tbl_data = [[Paragraph('<b>Product Name</b>', S('TH',fontSize=9,fontName='Helvetica-Bold')),
+                 Paragraph('<b>Rate (₹)</b>', S('THR',fontSize=9,fontName='Helvetica-Bold',alignment=TA_RIGHT)),
+                 Paragraph('<b>Quantity</b>', S('THC',fontSize=9,fontName='Helvetica-Bold',alignment=TA_CENTER)),
+                 Paragraph('<b>Amount (₹)</b>', S('THA',fontSize=9,fontName='Helvetica-Bold',alignment=TA_RIGHT))]]
+    for item in items:
+        tbl_data.append([Paragraph(item.get('name',''), normal_style),
+                         Paragraph(f"{float(item.get('rate',0)):,.2f}", right_style),
+                         Paragraph(str(int(item.get('qty',0)) if float(item.get('qty',0))==int(float(item.get('qty',0))) else item.get('qty',0)), center_style),
+                         Paragraph(f"{float(item.get('amount',0)):,.2f}", right_style)])
+    col_w = [W*0.45, W*0.18, W*0.15, W*0.22]
+    items_tbl = Table(tbl_data, colWidths=col_w, repeatRows=1)
+    items_tbl.setStyle(TableStyle([('BACKGROUND',(0,0),(-1,0),colors.HexColor('#f1f5f9')),
+                                    ('FONTNAME',(0,0),(-1,0),'Helvetica-Bold'),('FONTSIZE',(0,0),(-1,-1),9),
+                                    ('TOPPADDING',(0,0),(-1,-1),7),('BOTTOMPADDING',(0,0),(-1,-1),7),
+                                    ('LEFTPADDING',(0,0),(-1,-1),8),('RIGHTPADDING',(0,0),(-1,-1),8),
+                                    ('ROWBACKGROUNDS',(0,1),(-1,-1),[colors.white,colors.HexColor('#f8fafc')]),
+                                    ('GRID',(0,0),(-1,-1),0.4,colors.HexColor('#e2e8f0')),
+                                    ('BOX',(0,0),(-1,-1),1,colors.HexColor('#cbd5e1')),
+                                    ('ALIGN',(1,0),(1,-1),'RIGHT'),('ALIGN',(2,0),(2,-1),'CENTER'),('ALIGN',(3,0),(3,-1),'RIGHT')]))
+    story.append(items_tbl)
+    story.append(Spacer(1, 4*mm))
+
+    # Totals
+    gst_pct = float(so.gst_pct or 0)
+    totals_data = [
+        [Paragraph('Sub Total', S('TL',fontSize=9,textColor=colors.HexColor('#6b7280'))), Paragraph(f'{float(so.sub_total):,.2f}', right_style)],
+        [Paragraph(f'GST ({int(gst_pct) if gst_pct==int(gst_pct) else gst_pct}%)', S('TL2',fontSize=9,textColor=colors.HexColor('#6b7280'))), Paragraph(f'{float(so.gst_amount):,.2f}', right_style)],
+        [Paragraph('<b>Total Amount</b>', S('TLB',fontSize=10,fontName='Helvetica-Bold',textColor=colors.HexColor('#1e3a5f'))),
+         Paragraph(f'<b>{float(so.total_amount):,.2f}</b>', S('TRB',fontSize=10,fontName='Helvetica-Bold',alignment=TA_RIGHT,textColor=colors.HexColor('#1e3a5f')))],
+    ]
+    totals_tbl = Table(totals_data, colWidths=[W*0.6, W*0.4])
+    totals_tbl.setStyle(TableStyle([('ALIGN',(1,0),(1,-1),'RIGHT'),('TOPPADDING',(0,0),(-1,-1),5),
+                                     ('BOTTOMPADDING',(0,0),(-1,-1),5),('LEFTPADDING',(0,0),(-1,-1),8),
+                                     ('RIGHTPADDING',(0,0),(-1,-1),8),('LINEBELOW',(0,0),(-1,1),0.5,colors.HexColor('#e5e7eb')),
+                                     ('BACKGROUND',(0,2),(-1,2),colors.HexColor('#e8f0fe')),
+                                     ('BOX',(0,2),(-1,2),0.5,colors.HexColor('#c7d2fe'))]))
+    story.append(totals_tbl)
+    story.append(Spacer(1, 5*mm))
+
+    terms = so.terms or ''
+    story.append(Paragraph(f'<b>Terms & Conditions:</b><br/>{terms.replace(chr(10),"<br/>")}', small_style))
+    story.append(Spacer(1, 3*mm))
+    story.append(HRFlowable(width='100%', thickness=0.5, color=colors.HexColor('#d1d5db')))
+    story.append(Paragraph(f'<i>Generated by ERP Demo · {datetime.now().strftime("%d-%m-%Y %H:%M")} · {current_user.full_name}</i>',
+                           S('Footer', fontSize=7.5, textColor=colors.HexColor('#9ca3af'), alignment=TA_RIGHT, spaceBefore=3)))
+
+    doc.build(story)
+    buf.seek(0)
+    return send_file(buf, mimetype='application/pdf',
+                     as_attachment=True, download_name=f'{so.order_number}.pdf')
+
+
+# ══════════════════════════════════════
+# CONTRIBUTION API
+# ══════════════════════════════════════
+
+@crm.route('/api/lead/<int:id>/contributions')
+@login_required
+def lead_contributions(id):
+    """Get contribution scores for a lead."""
+    from sqlalchemy import func
+    rows = db.session.query(
+        LeadContribution.user_id,
+        func.sum(LeadContribution.points).label('total_pts'),
+        func.count(LeadContribution.id).label('actions')
+    ).filter_by(lead_id=id).group_by(LeadContribution.user_id).order_by(func.sum(LeadContribution.points).desc()).all()
+
+    users = {u.id: u.full_name for u in User.query.all()}
+    result = []
+    for row in rows:
+        result.append({
+            'user_id':   row.user_id,
+            'name':      users.get(row.user_id, 'Unknown'),
+            'points':    int(row.total_pts),
+            'actions':   int(row.actions),
+        })
+    return jsonify(contributions=result)
+
+
+@crm.route('/api/emp-contribution-stats')
+@login_required
+def emp_contribution_stats():
+    """Employee contribution leaderboard for performance dashboard."""
+    from sqlalchemy import func
+    from datetime import timedelta as _td3
+
+    period = request.args.get('period', 'this_month')
+    today  = datetime.now().date()
+
+    if period == 'today':
+        pf = datetime.combine(today, datetime.min.time())
+        pt = datetime.combine(today, datetime.max.time())
+    elif period == 'this_week':
+        pf = datetime.combine(today - _td3(days=today.weekday()), datetime.min.time())
+        pt = datetime.combine(today, datetime.max.time())
+    elif period == 'this_month':
+        pf = datetime(today.year, today.month, 1)
+        pt = datetime.combine(today, datetime.max.time())
+    elif period == 'last_month':
+        first = today.replace(day=1); lp = first - _td3(days=1)
+        pf = datetime(lp.year, lp.month, 1); pt = datetime.combine(lp, datetime.max.time())
+    elif period == 'last_3_months':
+        pf = datetime.combine(today - _td3(days=90), datetime.min.time())
+        pt = datetime.combine(today, datetime.max.time())
+    elif period == 'last_6_months':
+        pf = datetime.combine(today - _td3(days=180), datetime.min.time())
+        pt = datetime.combine(today, datetime.max.time())
+    elif period == 'this_year':
+        pf = datetime(today.year, 1, 1)
+        pt = datetime.combine(today, datetime.max.time())
+    elif period == 'last_year':
+        pf = datetime(today.year - 1, 1, 1)
+        pt = datetime(today.year - 1, 12, 31, 23, 59, 59)
+    else:
+        pf = datetime(today.year, today.month, 1)
+        pt = datetime.combine(today, datetime.max.time())
+
+    rows = db.session.query(
+        LeadContribution.user_id,
+        func.sum(LeadContribution.points).label('total_pts'),
+        func.count(LeadContribution.id).label('actions'),
+        func.sum(func.IF(LeadContribution.action_type == 'close', 1, 0)).label('closes'),
+        func.sum(func.IF(LeadContribution.action_type == 'comment', 1, 0)).label('comments'),
+    ).filter(
+        LeadContribution.created_at >= pf,
+        LeadContribution.created_at <= pt,
+    ).group_by(LeadContribution.user_id).order_by(func.sum(LeadContribution.points).desc()).all()
+
+    users = {u.id: u.full_name for u in User.query.all()}
+    result = []
+    for i, row in enumerate(rows):
+        result.append({
+            'rank':     i + 1,
+            'user_id':  row.user_id,
+            'name':     users.get(row.user_id, 'Unknown'),
+            'points':   int(row.total_pts or 0),
+            'actions':  int(row.actions or 0),
+            'closes':   int(row.closes or 0),
+            'comments': int(row.comments or 0),
+        })
+    return jsonify(leaderboard=result)
+
+
+# ══════════════════════════════════════
+# CONTRIBUTION POINTS CONFIG
+# ══════════════════════════════════════
+
+DEFAULT_CONTRIB_CONFIG = [
+    ('comment',       'Comment Added',         1,  'Discussion board mein comment karne pe'),
+    ('edit',          'Lead Edited',            1,  'Lead record update karne pe'),
+    ('status_change', 'Status Changed',         2,  'Lead status change karne pe (except close/cancel)'),
+    ('close_slab1',   'Close: 1-7 days',       10,  'Lead 1-7 din mein close (active members mein divide)'),
+    ('close_slab2',   'Close: 8-14 days',       8,  'Lead 8-14 din mein close (active members mein divide)'),
+    ('close_slab3',   'Close: 15-21 days',      6,  'Lead 15-21 din mein close (active members mein divide)'),
+    ('close_slab4',   'Close: 22-28 days',      4,  'Lead 22-28 din mein close (active members mein divide)'),
+    ('close_slab5',   'Close: 29+ days',        0,  'Lead 29+ din baad close (default 0 points)'),
+    ('cancel',        'Lead Cancelled',          0,  'Lead cancel karne pe'),
+    ('follow_up',     'Follow Up Set',           1,  'Follow up date set karne pe'),
+    ('reminder',      'Reminder Added',          1,  'Reminder add karne pe'),
+]
+
+
+@crm.route('/contribution-config', methods=['GET'])
+@login_required
+def contribution_config():
+    """View contribution points configuration."""
+    _seed_contrib_config()
+    configs = ContributionConfig.query.order_by(ContributionConfig.id).all()
+    return render_template('crm/contribution_config.html',
+        configs=configs, active_page='contribution_config')
+
+
+@crm.route('/contribution-config/save', methods=['POST'])
+@login_required
+def contribution_config_save():
+    """Save contribution points configuration."""
+    _seed_contrib_config()
+    for action_type, label, default_pts, desc in DEFAULT_CONTRIB_CONFIG:
+        pts_str = request.form.get(f'pts_{action_type}', str(default_pts))
+        try:
+            pts = max(0, int(pts_str))
+        except ValueError:
+            pts = default_pts
+        cfg = ContributionConfig.query.filter_by(action_type=action_type).first()
+        if cfg:
+            cfg.points     = pts
+            cfg.updated_by = current_user.id
+            cfg.updated_at = datetime.utcnow()
+    db.session.commit()
+    flash('✅ Contribution points updated successfully!', 'success')
+    return redirect(url_for('crm.contribution_config'))
+
+
+def _seed_contrib_config():
+    """Ensure all default configs exist in DB."""
+    for action_type, label, default_pts, desc in DEFAULT_CONTRIB_CONFIG:
+        if not ContributionConfig.query.filter_by(action_type=action_type).first():
+            db.session.add(ContributionConfig(
+                action_type=action_type, label=label,
+                points=default_pts, description=desc
+            ))
+    db.session.commit()
+
+
+# ══════════════════════════════════════
+# EMPLOYEE RANK / LEADERBOARD PAGE
+# ══════════════════════════════════════
+
+@crm.route('/leaderboard')
+@login_required
+def leaderboard():
+    all_users = User.query.filter_by(is_active=True).order_by(User.full_name).all()
+    return render_template('crm/leaderboard.html',
+        all_users=all_users, active_page='leaderboard')
+
+
+@crm.route('/api/leaderboard-data')
+@login_required
+def leaderboard_data():
+    """Detailed leaderboard with slab breakdown, lead list per employee."""
+    from sqlalchemy import func
+    from datetime import timedelta as _tdl
+
+    period   = request.args.get('period', 'this_month')
+    emp_id   = request.args.get('emp_id', '')
+    today    = datetime.now().date()
+
+    # ── Period ──
+    if period == 'today':
+        pf = datetime.combine(today, datetime.min.time())
+        pt = datetime.combine(today, datetime.max.time())
+        plabel = 'Today'
+    elif period == 'this_week':
+        pf = datetime.combine(today - _tdl(days=today.weekday()), datetime.min.time())
+        pt = datetime.combine(today, datetime.max.time())
+        plabel = 'This Week'
+    elif period == 'this_month':
+        pf = datetime(today.year, today.month, 1)
+        pt = datetime.combine(today, datetime.max.time())
+        plabel = today.strftime('%B %Y')
+    elif period == 'last_month':
+        first = today.replace(day=1); lp = first - _tdl(days=1)
+        pf = datetime(lp.year, lp.month, 1); pt = datetime.combine(lp, datetime.max.time())
+        plabel = lp.strftime('%B %Y')
+    elif period == 'last_3_months':
+        pf = datetime.combine(today - _tdl(days=90), datetime.min.time())
+        pt = datetime.combine(today, datetime.max.time())
+        plabel = 'Last 3 Months'
+    elif period == 'last_6_months':
+        pf = datetime.combine(today - _tdl(days=180), datetime.min.time())
+        pt = datetime.combine(today, datetime.max.time())
+        plabel = 'Last 6 Months'
+    elif period == 'this_year':
+        pf = datetime(today.year, 1, 1)
+        pt = datetime.combine(today, datetime.max.time())
+        plabel = str(today.year)
+    elif period == 'last_year':
+        pf = datetime(today.year - 1, 1, 1)
+        pt = datetime(today.year - 1, 12, 31, 23, 59, 59)
+        plabel = str(today.year - 1)
+    else:
+        pf = datetime(today.year, today.month, 1)
+        pt = datetime.combine(today, datetime.max.time())
+        plabel = today.strftime('%B %Y')
+
+    users_map = {u.id: u.full_name for u in User.query.filter_by(is_active=True).all()}
+
+    # ── All contributions in period ──
+    q = db.session.query(
+        LeadContribution.user_id,
+        LeadContribution.action_type,
+        func.sum(LeadContribution.points).label('pts'),
+        func.count(LeadContribution.id).label('cnt'),
+    ).filter(
+        LeadContribution.created_at >= pf,
+        LeadContribution.created_at <= pt,
+    )
+    if emp_id:
+        try: q = q.filter(LeadContribution.user_id == int(emp_id))
+        except: pass
+
+    rows = q.group_by(LeadContribution.user_id, LeadContribution.action_type).all()
+
+    # Build per-user stats
+    stats = {}
+    for row in rows:
+        uid = row.user_id
+        if uid not in stats:
+            stats[uid] = {
+                'user_id': uid,
+                'name': users_map.get(uid, 'Unknown'),
+                'total_pts': 0, 'total_actions': 0,
+                'comments': 0, 'edits': 0, 'status_changes': 0,
+                'closes': 0, 'close_pts': 0,
+                'slab1': 0, 'slab2': 0, 'slab3': 0, 'slab4': 0, 'slab5': 0,
+                'reminders': 0, 'follow_ups': 0,
+            }
+        s = stats[uid]
+        pts = int(row.pts or 0)
+        cnt = int(row.cnt or 0)
+        s['total_pts']     += pts
+        s['total_actions'] += cnt
+        at = row.action_type
+        if at == 'comment':       s['comments']      += cnt
+        elif at == 'edit':        s['edits']         += cnt
+        elif at == 'status_change': s['status_changes'] += cnt
+        elif at == 'reminder':    s['reminders']     += cnt
+        elif at == 'follow_up':   s['follow_ups']    += cnt
+        elif at.startswith('close_slab'):
+            s['closes']    += cnt
+            s['close_pts'] += pts
+            slab_num = at[-1]
+            s[f'slab{slab_num}'] = cnt
+
+    # Sort by total points desc
+    leaderboard = sorted(stats.values(), key=lambda x: x['total_pts'], reverse=True)
+    for i, emp in enumerate(leaderboard):
+        emp['rank'] = i + 1
+
+    # ── Per-employee closed leads (for drill-down) ──
+    if emp_id:
+        try:
+            uid = int(emp_id)
+            closed_leads = Lead.query.filter(
+                Lead.is_deleted == False,
+                Lead.closed_at >= pf,
+                Lead.closed_at <= pt,
+                db.or_(Lead.assigned_to == uid, Lead.team_members.like(f'%{uid}%'))
+            ).order_by(Lead.closed_at.desc()).all()
+
+            leads_data = [{
+                'id':      l.id,
+                'code':    l.code or '',
+                'name':    l.contact_name or '',
+                'company': l.company_name or '',
+                'age':     l.lead_age,
+                'closed':  l.closed_at.strftime('%d-%m-%Y') if l.closed_at else '',
+                'status':  l.status,
+            } for l in closed_leads]
+        except:
+            leads_data = []
+    else:
+        leads_data = []
+
+    return jsonify(
+        leaderboard=leaderboard,
+        period_label=plabel,
+        leads=leads_data,
+    )

@@ -10,6 +10,7 @@ from master_routes import masters
 from hr_routes   import hr
 from user_routes import users_bp
 from approval_routes import approval_bp
+from mail_routes import mail_bp
 
 app = Flask(__name__)
 app.config.from_object(Config)
@@ -47,6 +48,7 @@ app.register_blueprint(masters)
 app.register_blueprint(hr)
 app.register_blueprint(users_bp)
 app.register_blueprint(approval_bp)
+app.register_blueprint(mail_bp)
 
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'

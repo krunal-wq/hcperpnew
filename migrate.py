@@ -213,7 +213,8 @@ with app.app_context():
     step("STEP 4: leads table — missing columns add kar raha hai...")
     lead_cols = [
         ('code',              'VARCHAR(20)'),
-        ('title',             'VARCHAR(200)'),
+        ('title',             'VARCHAR(200) NULL DEFAULT NULL'),
+        ('lead_type',         "VARCHAR(20) DEFAULT 'Quality'"),
         ('position',          'VARCHAR(100)'),
         ('alternate_mobile',  'VARCHAR(20)'),
         ('address',           'TEXT'),
@@ -243,9 +244,15 @@ with app.app_context():
         ('last_contact',      'DATETIME'),
         ('modified_by',       'INT'),
         ('updated_at',        'DATETIME'),
+        ('closed_at',         'DATETIME NULL'),
     ]
     added = sum(1 for col, defn in lead_cols if safe_add('leads', col, defn))
     ok(f"leads: {added} new columns added") if added else ok("leads: all columns already exist")
+
+    # Fix: title column NULL allowed karo (import ke liye zaruri)
+    step("STEP 4B: leads.title column NULL fix kar raha hai...")
+    safe_modify('leads', 'title', 'VARCHAR(200) NULL DEFAULT NULL')
+    ok("leads.title → NULL allowed (import fix)")
 
     # ══════════════════════════════════════════════════════
     # STEP 5 — Missing columns: users & other tables
@@ -299,8 +306,63 @@ with app.app_context():
     ok("Soft delete indexes ready")
 
     # ══════════════════════════════════════════════════════
-    # STEP 5C — Salary Config table + default seed
+    # STEP 5E — created_at / created_by / updated_at / updated_by
+    #           Har table mein yeh standard audit columns hone chahiye
     # ══════════════════════════════════════════════════════
+    step("STEP 5E: Standard audit columns (created_at/by, updated_at/by) add kar raha hai...")
+    audit_cols = [
+        # table                col               definition
+        # ── leads ──
+        ('leads',              'created_at',      'DATETIME DEFAULT CURRENT_TIMESTAMP'),
+        ('leads',              'created_by',      'INT NULL'),
+        ('leads',              'updated_at',      'DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP'),
+        ('leads',              'updated_by',      'INT NULL'),
+        # ── client_masters ──
+        ('client_masters',     'created_at',      'DATETIME DEFAULT CURRENT_TIMESTAMP'),
+        ('client_masters',     'created_by',      'INT NULL'),
+        ('client_masters',     'updated_at',      'DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP'),
+        ('client_masters',     'updated_by',      'INT NULL'),
+        # ── employees ──
+        ('employees',          'created_at',      'DATETIME DEFAULT CURRENT_TIMESTAMP'),
+        ('employees',          'created_by',      'INT NULL'),
+        ('employees',          'updated_by',      'INT NULL'),
+        # ── contractors ──
+        ('contractors',        'created_at',      'DATETIME DEFAULT CURRENT_TIMESTAMP'),
+        ('contractors',        'created_by',      'INT NULL'),
+        ('contractors',        'updated_by',      'INT NULL'),
+        # ── users ──
+        ('users',              'created_at',      'DATETIME DEFAULT CURRENT_TIMESTAMP'),
+        ('users',              'created_by',      'INT NULL'),
+        ('users',              'updated_by',      'INT NULL'),
+        # ── sample_orders ──
+        ('sample_orders',      'updated_at',      'DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP'),
+        ('sample_orders',      'updated_by',      'INT NULL'),
+        # ── email_templates ──
+        ('email_templates',    'created_by',      'INT NULL'),
+        # ── lead_discussions ──
+        ('lead_discussions',   'updated_at',      'DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP'),
+        ('lead_discussions',   'updated_by',      'INT NULL'),
+        # ── lead_reminders ──
+        ('lead_reminders',     'updated_at',      'DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP'),
+        ('lead_reminders',     'created_by',      'INT NULL'),
+        # ── lead_notes ──
+        ('lead_notes',         'created_by',      'INT NULL'),
+        # ── lead_activity_logs ──
+        ('lead_activity_logs', 'updated_at',      'DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP'),
+        # ── approval_requests ──
+        ('approval_requests',  'created_at',      'DATETIME DEFAULT CURRENT_TIMESTAMP'),
+        ('approval_requests',  'created_by',      'INT NULL'),
+        ('approval_requests',  'updated_by',      'INT NULL'),
+        # ── salary_components ──
+        ('salary_components',  'created_by',      'INT NULL'),
+        ('salary_components',  'updated_by',      'INT NULL'),
+        # ── salary_config ──
+        ('salary_config',      'created_at',      'DATETIME DEFAULT CURRENT_TIMESTAMP'),
+        ('salary_config',      'created_by',      'INT NULL'),
+        ('salary_config',      'updated_by',      'INT NULL'),
+    ]
+    audit_added = sum(1 for t, c, d in audit_cols if safe_add(t, c, d))
+    ok(f"Audit columns: {audit_added} added") if audit_added else ok("Audit columns: already exist in all tables")
     step("STEP 5C: salary_config table create kar raha hai...")
     if not table_exists('salary_config'):
         cur.execute("""
@@ -521,7 +583,137 @@ with app.app_context():
     # ══════════════════════════════════════════════════════
     # STEP 9 — Indexes
     # ══════════════════════════════════════════════════════
+    # ══════════════════════════════════════════════════════
+    # STEP 8B — Sample Orders table
+    # ══════════════════════════════════════════════════════
+    step("STEP 8B: sample_orders table create kar raha hai...")
+    if not table_exists('sample_orders'):
+        cur.execute("""
+            CREATE TABLE sample_orders (
+                id           INT AUTO_INCREMENT PRIMARY KEY,
+                order_number VARCHAR(50) NOT NULL UNIQUE,
+                lead_id      INT NOT NULL,
+                order_date   DATE NOT NULL,
+                category     VARCHAR(50) DEFAULT 'Sample Order',
+                bill_company VARCHAR(200),
+                bill_address TEXT,
+                bill_phone   VARCHAR(20),
+                bill_email   VARCHAR(150),
+                bill_gst     VARCHAR(20),
+                gst_pct      DECIMAL(5,2) DEFAULT 18,
+                sub_total    DECIMAL(12,2) DEFAULT 0,
+                gst_amount   DECIMAL(12,2) DEFAULT 0,
+                total_amount DECIMAL(12,2) DEFAULT 0,
+                items_json   TEXT,
+                terms        TEXT,
+                created_by   INT,
+                created_at   DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (lead_id) REFERENCES leads(id),
+                FOREIGN KEY (created_by) REFERENCES users(id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        """)
+        raw.commit()
+        ok("sample_orders table created")
+    else:
+        ok("sample_orders table already exists")
+
+    # ══════════════════════════════════════════════════════
+    # STEP 8C — Email Templates table
+    # ══════════════════════════════════════════════════════
+    # ══════════════════════════════════════════════════════
+    # STEP 8D — Lead Contributions table
+    # ══════════════════════════════════════════════════════
+    # ══════════════════════════════════════════════════════
+    # STEP 8E — Contribution Config table
+    # ══════════════════════════════════════════════════════
+    step("STEP 8E: contribution_config table create kar raha hai...")
+    if not table_exists('contribution_config'):
+        cur.execute("""
+            CREATE TABLE contribution_config (
+                id          INT AUTO_INCREMENT PRIMARY KEY,
+                action_type VARCHAR(30) NOT NULL UNIQUE,
+                label       VARCHAR(100) NOT NULL,
+                points      INT DEFAULT 0,
+                description VARCHAR(200),
+                updated_by  INT,
+                updated_at  DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        """)
+        # Seed defaults
+        defaults = [
+            ('comment',       'Comment Added',       1,  'Discussion board mein comment karne pe'),
+            ('edit',          'Lead Edited',          1,  'Lead record update karne pe'),
+            ('status_change', 'Status Changed',       2,  'Lead status change karne pe'),
+            ('close_slab1',   'Close: 1-7 days',     10, 'Lead 1-7 din mein close'),
+            ('close_slab2',   'Close: 8-14 days',     8, 'Lead 8-14 din mein close'),
+            ('close_slab3',   'Close: 15-21 days',    6, 'Lead 15-21 din mein close'),
+            ('close_slab4',   'Close: 22-28 days',    4, 'Lead 22-28 din mein close'),
+            ('close_slab5',   'Close: 29+ days',      0, 'Lead 29+ din baad close'),
+            ('cancel',        'Lead Cancelled',        0, 'Lead cancel karne pe'),
+            ('follow_up',     'Follow Up Set',         1, 'Follow up date set karne pe'),
+            ('reminder',      'Reminder Added',        1, 'Reminder add karne pe'),
+        ]
+        for at, lbl, pts, desc in defaults:
+            cur.execute("INSERT INTO contribution_config (action_type,label,points,description) VALUES (%s,%s,%s,%s)",
+                       (at, lbl, pts, desc))
+        raw.commit()
+        ok("contribution_config table created + seeded")
+    else:
+        ok("contribution_config table already exists")
+
+    step("STEP 8D: lead_contributions table create kar raha hai...")
+    if not table_exists('lead_contributions'):
+        cur.execute("""
+            CREATE TABLE lead_contributions (
+                id          INT AUTO_INCREMENT PRIMARY KEY,
+                lead_id     INT NOT NULL,
+                user_id     INT NOT NULL,
+                action_type VARCHAR(30) NOT NULL,
+                points      INT DEFAULT 0,
+                note        VARCHAR(200),
+                created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (lead_id) REFERENCES leads(id),
+                FOREIGN KEY (user_id) REFERENCES users(id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        """)
+        raw.commit()
+        ok("lead_contributions table created")
+    else:
+        ok("lead_contributions table already exists")
+
+    step("STEP 8C: email_templates table create kar raha hai...")
+    if not table_exists('email_templates'):
+        cur.execute("""
+            CREATE TABLE email_templates (
+                id          INT AUTO_INCREMENT PRIMARY KEY,
+                code        VARCHAR(50) NOT NULL UNIQUE,
+                name        VARCHAR(200) NOT NULL,
+                subject     VARCHAR(500) NOT NULL,
+                body        MEDIUMTEXT NOT NULL,
+                from_email  VARCHAR(150) DEFAULT 'info@hcpwellness.in',
+                from_name   VARCHAR(150) DEFAULT 'HCP Wellness Pvt. Ltd.',
+                is_active   TINYINT(1) DEFAULT 1,
+                updated_by  INT,
+                updated_at  DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (updated_by) REFERENCES users(id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        """)
+        raw.commit()
+        ok("email_templates table created")
+    else:
+        ok("email_templates table already exists")
+
     step("STEP 9: Indexes add kar raha hai...")
+    indexes = [
+        ("employees", "idx_emp_status",   "status"),
+        ("employees", "idx_emp_dept",     "department"),
+        ("employees", "idx_emp_code",     "employee_code"),
+        ("leads",     "idx_leads_status", "status"),
+        ("leads",     "idx_leads_created","created_by"),
+        ("wish_logs", "idx_wish_date",    "wish_date"),
+        ("audit_logs","idx_audit_module", "module"),
+    ]
     indexes = [
         ("employees", "idx_emp_status",   "status"),
         ("employees", "idx_emp_dept",     "department"),

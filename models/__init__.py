@@ -3,7 +3,8 @@ from .audit      import AuditLog
 from .user       import User, LoginLog
 from .client     import ClientMaster, ClientBrand, ClientAddress
 from .lead       import (Lead, LeadDiscussion, LeadAttachment,
-                         LeadReminder, LeadNote, LeadActivityLog)
+                         LeadReminder, LeadNote, LeadActivityLog,
+                         SampleOrder, EmailTemplate, LeadContribution, ContributionConfig)
 from .legacy     import Customer, CustomerAddress
 from .master     import LeadStatus, LeadSource, LeadCategory, ProductRange
 from .employee   import Employee, Contractor, WishLog, SalaryConfig, SalaryComponent
@@ -15,7 +16,7 @@ __all__ = [
     'User', 'LoginLog',
     'ClientMaster', 'ClientBrand', 'ClientAddress',
     'Lead', 'LeadDiscussion', 'LeadAttachment',
-    'LeadReminder', 'LeadNote', 'LeadActivityLog',
+    'LeadReminder', 'LeadNote', 'LeadActivityLog', 'SampleOrder', 'EmailTemplate', 'LeadContribution', 'ContributionConfig',
     'Customer', 'CustomerAddress',
     'LeadStatus', 'LeadSource', 'LeadCategory', 'ProductRange',
     'Employee', 'Contractor', 'WishLog', 'SalaryConfig', 'SalaryComponent',

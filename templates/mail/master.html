@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}Mail Master{% endblock %}
+{% block page_title %}Mail Master{% endblock %}
+{% block bread %}Masters / Mail Templates{% endblock %}
+
+{% block extra_css %}
+.tpl-card { background:#fff; border:1.5px solid var(--border); border-radius:12px; padding:1rem 1.25rem; margin-bottom:0.75rem; display:flex; align-items:center; justify-content:space-between; gap:1rem; transition:box-shadow .15s; }
+.tpl-card:hover { box-shadow:0 4px 16px rgba(0,0,0,0.07); }
+.tpl-icon { width:40px; height:40px; border-radius:10px; background:#eff6ff; display:flex; align-items:center; justify-content:center; font-size:1.2rem; flex-shrink:0; }
+.tpl-info { flex:1; min-width:0; }
+.tpl-name { font-weight:700; font-size:0.92rem; color:var(--text); }
+.tpl-code { font-size:0.75rem; color:var(--text3); font-family:monospace; margin-top:1px; }
+.tpl-subject { font-size:0.82rem; color:var(--text2); margin-top:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:500px; }
+.tpl-badge-active   { background:#dcfce7; color:#166534; padding:2px 10px; border-radius:100px; font-size:0.72rem; font-weight:700; }
+.tpl-badge-inactive { background:#fee2e2; color:#dc2626; padding:2px 10px; border-radius:100px; font-size:0.72rem; font-weight:700; }
+{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-hdr">
+        <div class="card-title">✉️ Mail Templates</div>
+        <div style="font-size:0.8rem;color:var(--text3);">Yahan se email templates customize karein</div>
+    </div>
+    <div class="card-body">
+        {% if templates %}
+            {% for t in templates %}
+            <div class="tpl-card">
+                <div class="tpl-icon">✉️</div>
+                <div class="tpl-info">
+                    <div class="tpl-name">{{ t.name }}</div>
+                    <div class="tpl-code">code: {{ t.code }}</div>
+                    <div class="tpl-subject">Subject: {{ t.subject[:80] }}{% if t.subject|length > 80 %}...{% endif %}</div>
+                </div>
+                <div style="display:flex;align-items:center;gap:0.75rem;flex-shrink:0;">
+                    <span class="{{ 'tpl-badge-active' if t.is_active else 'tpl-badge-inactive' }}">
+                        {{ 'Active' if t.is_active else 'Inactive' }}
+                    </span>
+                    {% if t.updated_at %}
+                    <span style="font-size:0.75rem;color:var(--text3);">
+                        Updated: {{ t.updated_at.strftime('%d-%m-%Y') }}
+                    </span>
+                    {% endif %}
+                    <a href="{{ url_for('mail.mail_template_edit', code=t.code) }}" class="btn-primary" style="font-size:0.8rem;padding:6px 14px;">✏️ Edit</a>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <p style="text-align:center;color:var(--text3);padding:2rem;">No templates found.</p>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card" style="margin-top:1rem;">
+    <div class="card-hdr"><div class="card-title">📌 Template Variables</div></div>
+    <div class="card-body">
+        <p style="font-size:0.85rem;color:var(--text2);margin-bottom:0.75rem;">Subject aur Body mein yeh variables use kar sakte hain — automatically lead data se replace ho jaayenge:</p>
+        <div style="display:flex;flex-wrap:wrap;gap:0.5rem;">
+            {% for var, desc in [
+                ('{client_name}', 'Contact name'),
+                ('{company}',     'Company name'),
+                ('{email}',       'Email address'),
+                ('{phone}',       'Phone number'),
+                ('{product}',     'Product name'),
+                ('{city}',        'City'),
+                ('{lead_code}',   'Lead code'),
+            ] %}
+            <div style="background:#f1f5f9;border-radius:8px;padding:6px 12px;font-size:0.82rem;">
+                <code style="color:#1e3a5f;font-weight:700;">{{ var }}</code>
+                <span style="color:var(--text2);margin-left:6px;">→ {{ desc }}</span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}

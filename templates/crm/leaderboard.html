@@ -1,0 +1,250 @@
+{% extends "base.html" %}
+{% block title %}Employee Leaderboard{% endblock %}
+{% block page_title %}Employee Leaderboard{% endblock %}
+{% block bread %}CRM / Leaderboard{% endblock %}
+
+{% block extra_css %}
+.lb-filters { display:flex; align-items:center; gap:0.75rem; flex-wrap:wrap; margin-bottom:1.25rem; }
+.lb-select { font-size:0.83rem; padding:7px 14px; border:1.5px solid #e2e8f0; border-radius:8px; outline:none; background:#fff; color:var(--text); }
+.lb-card { background:#fff; border:1.5px solid #e2e8f0; border-radius:14px; padding:1rem 1.25rem; margin-bottom:0.75rem; transition:all .15s; cursor:pointer; }
+.lb-card:hover { box-shadow:0 4px 16px rgba(0,0,0,.08); transform:translateY(-1px); }
+.lb-card.rank-1 { border-color:#fbbf24; background:linear-gradient(135deg,#fffbeb,#fff); }
+.lb-card.rank-2 { border-color:#94a3b8; background:linear-gradient(135deg,#f8fafc,#fff); }
+.lb-card.rank-3 { border-color:#cd7c3a; background:linear-gradient(135deg,#fff7ed,#fff); }
+.lb-rank { font-size:2rem; width:50px; text-align:center; flex-shrink:0; }
+.lb-avatar { width:46px; height:46px; border-radius:50%; background:#1e3a5f; color:#fff; display:flex; align-items:center; justify-content:center; font-size:0.9rem; font-weight:700; flex-shrink:0; }
+.lb-name { font-size:0.95rem; font-weight:800; color:var(--text); }
+.lb-pts { font-size:1.8rem; font-weight:900; line-height:1; }
+.stat-pill { background:#f1f5f9; border-radius:6px; padding:4px 10px; font-size:0.75rem; font-weight:600; color:var(--text2); }
+.slab-bar { height:6px; border-radius:3px; margin-bottom:2px; }
+/* Leads table */
+.leads-tbl { width:100%; border-collapse:collapse; font-size:0.83rem; }
+.leads-tbl th { background:#f8fafc; padding:8px 12px; text-align:left; font-size:0.72rem; font-weight:700; color:#64748b; border-bottom:1.5px solid #e2e8f0; }
+.leads-tbl td { padding:8px 12px; border-bottom:1px solid #f1f5f9; }
+.leads-tbl tr:hover td { background:#f8fafc; }
+{% endblock %}
+
+{% block content %}
+<!-- Filters -->
+<div class="lb-filters">
+    <select id="periodSel" class="lb-select" onchange="loadLeaderboard()">
+        <option value="today">Today</option>
+        <option value="this_week">This Week</option>
+        <option value="this_month" selected>This Month</option>
+        <option value="last_month">Last Month</option>
+        <option value="last_3_months">Last 3 Months</option>
+        <option value="last_6_months">Last 6 Months</option>
+        <option value="this_year">This Year</option>
+        <option value="last_year">Last Year</option>
+    </select>
+    <select id="empSel" class="lb-select" onchange="loadLeaderboard()">
+        <option value="">👥 All Employees</option>
+        {% for u in all_users %}
+        <option value="{{ u.id }}">{{ u.full_name }}</option>
+        {% endfor %}
+    </select>
+    <div id="periodLabel" style="font-size:0.78rem;color:var(--text3);background:#f1f5f9;padding:5px 12px;border-radius:6px;font-weight:600;"></div>
+    <div style="flex:1;"></div>
+    <div id="totalBadge" style="font-size:0.82rem;color:var(--text2);"></div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 380px;gap:1.25rem;align-items:start;">
+
+    <!-- LEFT: Leaderboard -->
+    <div>
+        <div id="lbLoading" style="text-align:center;padding:3rem;color:var(--text3);">⏳ Loading...</div>
+        <div id="lbList" style="display:none;"></div>
+        <div id="lbEmpty" style="display:none;text-align:center;padding:3rem;color:var(--text3);">
+            <div style="font-size:2rem;margin-bottom:0.5rem;">🏆</div>
+            <div>No contribution data yet.<br>Start working on leads!</div>
+        </div>
+    </div>
+
+    <!-- RIGHT: Selected Employee Detail -->
+    <div id="empDetail" style="display:none;position:sticky;top:1rem;">
+        <div class="card">
+            <div class="card-hdr">
+                <div class="card-title" id="detailName">Employee Detail</div>
+                <button onclick="closeDetail()" style="background:none;border:none;font-size:1rem;cursor:pointer;color:var(--text3);">✕</button>
+            </div>
+            <div class="card-body" style="padding:0;">
+                <!-- Score breakdown -->
+                <div style="padding:1rem;border-bottom:1px solid #f1f5f9;">
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;margin-bottom:0.75rem;">
+                        <div style="background:#f5f3ff;border-radius:8px;padding:10px;text-align:center;">
+                            <div style="font-size:0.65rem;font-weight:700;color:#6366f1;text-transform:uppercase;">Total Points</div>
+                            <div id="d_pts" style="font-size:1.6rem;font-weight:900;color:#6366f1;">0</div>
+                        </div>
+                        <div style="background:#f0fdf4;border-radius:8px;padding:10px;text-align:center;">
+                            <div style="font-size:0.65rem;font-weight:700;color:#0d9488;text-transform:uppercase;">Leads Closed</div>
+                            <div id="d_closes" style="font-size:1.6rem;font-weight:900;color:#0d9488;">0</div>
+                        </div>
+                    </div>
+                    <!-- Action breakdown -->
+                    <div style="font-size:0.72rem;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;">Action Breakdown</div>
+                    <div id="d_breakdown" style="display:flex;flex-wrap:wrap;gap:5px;"></div>
+                </div>
+                <!-- Slab breakdown -->
+                <div style="padding:1rem;border-bottom:1px solid #f1f5f9;">
+                    <div style="font-size:0.72rem;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;">Close Slab Distribution</div>
+                    <div id="d_slabs"></div>
+                </div>
+                <!-- Closed leads list -->
+                <div style="padding:1rem;">
+                    <div style="font-size:0.72rem;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;">Closed Leads</div>
+                    <div id="d_leads" style="max-height:300px;overflow-y:auto;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+let _lbData = null;
+
+async function loadLeaderboard() {
+    const period = document.getElementById('periodSel').value;
+    const empId  = document.getElementById('empSel').value;
+    const url    = `/crm/api/leaderboard-data?period=${period}&emp_id=${empId}`;
+
+    document.getElementById('lbLoading').style.display = 'block';
+    document.getElementById('lbList').style.display    = 'none';
+    document.getElementById('lbEmpty').style.display   = 'none';
+
+    try {
+        const res = await fetch(url);
+        const d   = await res.json();
+        _lbData   = d;
+
+        document.getElementById('periodLabel').textContent = d.period_label;
+        document.getElementById('totalBadge').textContent  = d.leaderboard.length + ' employees';
+        document.getElementById('lbLoading').style.display = 'none';
+
+        if (!d.leaderboard.length) {
+            document.getElementById('lbEmpty').style.display = 'block';
+            return;
+        }
+
+        const medals = ['🥇','🥈','🥉'];
+        const rankClass = ['rank-1','rank-2','rank-3'];
+        const ptColors  = ['#d97706','#64748b','#b45309'];
+
+        document.getElementById('lbList').innerHTML = d.leaderboard.map(e => `
+            <div class="lb-card ${rankClass[e.rank-1]||''}" onclick="showDetail(${e.user_id})">
+                <div style="display:flex;align-items:center;gap:0.85rem;">
+                    <div class="lb-rank">${medals[e.rank-1] || e.rank}</div>
+                    <div class="lb-avatar">${e.name.substring(0,2).toUpperCase()}</div>
+                    <div style="flex:1;min-width:0;">
+                        <div class="lb-name">${e.name}</div>
+                        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:5px;">
+                            <span class="stat-pill">💬 ${e.comments} comments</span>
+                            <span class="stat-pill">✅ ${e.closes} closes</span>
+                            <span class="stat-pill">🔄 ${e.status_changes} status</span>
+                            <span class="stat-pill">📋 ${e.total_actions} actions</span>
+                        </div>
+                        <!-- Slab mini bars -->
+                        <div style="display:flex;gap:3px;margin-top:6px;align-items:center;">
+                            ${['slab1','slab2','slab3','slab4','slab5'].map((s,i) => {
+                                const cols = ['#0d9488','#2563eb','#7c3aed','#d97706','#94a3b8'];
+                                const cnt = e[s] || 0;
+                                return cnt > 0 ? `<span style="background:${cols[i]};color:#fff;font-size:0.65rem;font-weight:700;padding:1px 6px;border-radius:4px;">${['1-7','8-14','15-21','22-28','29+'][i]}d: ${cnt}</span>` : '';
+                            }).join('')}
+                        </div>
+                    </div>
+                    <div style="text-align:right;flex-shrink:0;">
+                        <div class="lb-pts" style="color:${ptColors[e.rank-1]||'#1e3a5f'};">${e.total_pts}</div>
+                        <div style="font-size:0.65rem;color:var(--text3);font-weight:600;">POINTS</div>
+                    </div>
+                </div>
+            </div>`).join('');
+
+        document.getElementById('lbList').style.display = 'block';
+
+        // If single employee selected, show detail
+        if (empId && d.leaderboard.length === 1) {
+            showDetail(d.leaderboard[0].user_id);
+        }
+
+    } catch(e) { console.error(e); }
+}
+
+function showDetail(userId) {
+    if (!_lbData) return;
+    const emp = _lbData.leaderboard.find(e => e.user_id === userId);
+    if (!emp) return;
+
+    document.getElementById('empDetail').style.display = 'block';
+    document.getElementById('detailName').textContent  = '👤 ' + emp.name;
+    document.getElementById('d_pts').textContent       = emp.total_pts;
+    document.getElementById('d_closes').textContent    = emp.closes;
+
+    // Action breakdown pills
+    const pills = [
+        {icon:'💬', label:'Comments',  val: emp.comments,       color:'#2563eb'},
+        {icon:'✏️', label:'Edits',     val: emp.edits,          color:'#7c3aed'},
+        {icon:'🔄', label:'Status',    val: emp.status_changes, color:'#6366f1'},
+        {icon:'📅', label:'Follow Up', val: emp.follow_ups,     color:'#d97706'},
+        {icon:'🔔', label:'Reminders', val: emp.reminders,      color:'#0891b2'},
+    ];
+    document.getElementById('d_breakdown').innerHTML = pills.map(p =>
+        `<div style="background:${p.color}15;border:1px solid ${p.color}30;border-radius:7px;padding:5px 10px;text-align:center;">
+            <div style="font-size:0.9rem;">${p.icon}</div>
+            <div style="font-size:0.72rem;font-weight:700;color:${p.color};">${p.val}</div>
+            <div style="font-size:0.62rem;color:var(--text3);">${p.label}</div>
+        </div>`
+    ).join('');
+
+    // Slab distribution
+    const slabs = [
+        {key:'slab1', label:'1–7 days',   color:'#0d9488'},
+        {key:'slab2', label:'8–14 days',  color:'#2563eb'},
+        {key:'slab3', label:'15–21 days', color:'#7c3aed'},
+        {key:'slab4', label:'22–28 days', color:'#d97706'},
+        {key:'slab5', label:'29+ days',   color:'#94a3b8'},
+    ];
+    const maxSlab = Math.max(...slabs.map(s => emp[s.key]||0), 1);
+    document.getElementById('d_slabs').innerHTML = slabs.map(s => {
+        const cnt = emp[s.key] || 0;
+        const pct = Math.round((cnt/maxSlab)*100);
+        return `<div style="margin-bottom:6px;">
+            <div style="display:flex;justify-content:space-between;font-size:0.75rem;margin-bottom:2px;">
+                <span style="color:${s.color};font-weight:600;">${s.label}</span>
+                <span style="font-weight:700;color:var(--text);">${cnt} close${cnt!==1?'s':''}</span>
+            </div>
+            <div style="background:#f1f5f9;border-radius:4px;height:7px;overflow:hidden;">
+                <div style="background:${s.color};width:${pct}%;height:100%;border-radius:4px;transition:width .4s;"></div>
+            </div>
+        </div>`;
+    }).join('');
+
+    // Closed leads
+    const leads = _lbData.leads.filter(l => true); // all leads for selected emp
+    const leadsEl = document.getElementById('d_leads');
+    if (!leads.length) {
+        leadsEl.innerHTML = '<div style="color:var(--text3);font-size:0.82rem;text-align:center;padding:1rem;">No closed leads in this period</div>';
+    } else {
+        leadsEl.innerHTML = `<table class="leads-tbl">
+            <thead><tr>
+                <th>Lead</th><th>Company</th><th>Days</th><th>Closed</th><th></th>
+            </tr></thead>
+            <tbody>${leads.map(l => `
+                <tr>
+                    <td><div style="font-weight:600;">${l.name||'—'}</div><div style="font-size:0.72rem;color:var(--text3);">${l.code}</div></td>
+                    <td style="color:var(--text2);">${l.company||'—'}</td>
+                    <td><span style="font-weight:700;color:${l.age<=7?'#0d9488':l.age<=14?'#2563eb':l.age<=21?'#7c3aed':l.age<=28?'#d97706':'#94a3b8'};">${l.age}d</span></td>
+                    <td style="font-size:0.78rem;color:var(--text3);">${l.closed}</td>
+                    <td><a href="/crm/leads/${l.id}" target="_blank" style="font-size:0.72rem;font-weight:600;color:#1e3a5f;background:#eff6ff;padding:3px 8px;border-radius:5px;text-decoration:none;">View</a></td>
+                </tr>`).join('')}
+            </tbody></table>`;
+    }
+}
+
+function closeDetail() {
+    document.getElementById('empDetail').style.display = 'none';
+}
+
+// Load on page ready
+loadLeaderboard();
+</script>
+{% endblock %}

@@ -416,7 +416,7 @@
           {% for l in leads %}
           <tr class="lead-row" data-id="{{ l.id }}"
               data-search="{{ [l.contact_name, l.company or '', l.product_name or '', l.source or '', l.city or '', l.email or '', l.phone or '']|join(' ')|lower }}"
-              data-exp="{{ '||'.join([l.code or '', l.created_at.strftime('%d-%m-%Y') if l.created_at else '', l.contact_name or '', l.position or '', l.company or '', l.email or '', l.phone or '', l.alt_phone or '', l.website or '', l.city or '', l.state or '', l.source or '', l.product_name or '', l.category or '', l.product_range or '', (l.order_quantity or ''), (l.expected_value|string if l.expected_value else ''), l.priority or '', l.status or '', (l.follow_up_date.strftime('%d-%m-%Y') if l.follow_up_date else ''), (l.last_contact.strftime('%d-%m-%Y') if l.last_contact else ''), l.tags or '']) }}">
+              data-exp="{{ '||'.join([l.code or '', l.created_at.strftime('%d-%m-%Y') if l.created_at else '', l.contact_name or '', l.position or '', l.company or '', l.email or '', l.phone or '', l.alt_phone or '', l.website or '', l.city or '', l.state or '', l.source or '', l.product_name or '', l.category or '', l.product_range or '', (l.order_quantity or ''), (l.expected_value|string if l.expected_value else ''), l.priority or '', l.status or '', (l.follow_up_date.strftime('%d-%m-%Y') if l.follow_up_date else ''), (l.last_contact.strftime('%d-%m-%Y') if l.last_contact else ''), l.tags or '', l.lead_type or 'Quality', l.lead_age|string]) }}">
             <td class="row-check"><input type="checkbox" class="row-cb row-check-item" value="{{ l.id }}" onchange="updateBulkBtn()"></td>
             <td style="color:#94a3b8;font-size:11px;font-weight:600;">{{ loop.index }}</td>
             {% for col in grid_cols %}
@@ -481,6 +481,27 @@
             </td>
             {% elif col == 'last_contact' %}
             <td style="font-size:12px;color:var(--text2);">{% if l.last_contact %}{{ l.last_contact.strftime('%d-%m-%Y') }}{% elif l.updated_at %}{{ l.updated_at.strftime('%d-%m-%Y') }}{% else %}—{% endif %}</td>
+            {% elif col == 'lead_age' %}
+            <td style="text-align:center;">
+              {% set age = l.lead_age %}
+              {% if l.status in ('close','cancel') %}
+                <span style="background:#dcfce7;color:#166534;padding:2px 8px;border-radius:100px;font-size:0.75rem;font-weight:700;">{{ age }}d ✓</span>
+              {% elif age > 30 %}
+                <span style="background:#fee2e2;color:#dc2626;padding:2px 8px;border-radius:100px;font-size:0.75rem;font-weight:700;">{{ age }}d</span>
+              {% elif age > 15 %}
+                <span style="background:#fef9c3;color:#92400e;padding:2px 8px;border-radius:100px;font-size:0.75rem;font-weight:700;">{{ age }}d</span>
+              {% else %}
+                <span style="background:#eff6ff;color:#1d4ed8;padding:2px 8px;border-radius:100px;font-size:0.75rem;font-weight:700;">{{ age }}d</span>
+              {% endif %}
+            </td>
+            {% elif col == 'lead_type' %}
+            <td style="text-align:center;">
+              {% if l.lead_type == 'Non-Quality' %}
+                <span style="background:#fee2e2;color:#dc2626;padding:2px 10px;border-radius:100px;font-size:0.75rem;font-weight:700;">❌ Non-Quality</span>
+              {% else %}
+                <span style="background:#dcfce7;color:#166534;padding:2px 10px;border-radius:100px;font-size:0.75rem;font-weight:700;">✅ Quality</span>
+              {% endif %}
+            </td>
             {% elif col == 'assigned_to' %}
             <td style="font-size:12px;">{{ l.assigned_to or '—' }}</td>
             {% endif %}
@@ -894,11 +915,11 @@ function doExport(pfx){
 async function _doExportXLSX(){
   var headers = [
     'Code','Company','Contact Name','Position','Email',
-    'Mobile','Alt Mobile','Website','GSTIN',
+    'Mobile','Alt Mobile','Website',
     'City','State','Country',
     'Source','Product Name','Category','Product Range','Order Quantity',
-    'Expected Value','Priority','Status',
-    'Follow Up Date','Last Contact','Tags','Notes'
+    'Expected Value','Priority','Status','Lead Type',
+    'Follow Up Date','Last Contact','Tags','Lead Age (Days)'
   ];
 
   var rows = [];
@@ -906,13 +927,20 @@ async function _doExportXLSX(){
     var exp = tr.getAttribute('data-exp');
     if(!exp) return;
     var v = exp.split('||');
+    // v[0]=code, v[1]=created_at, v[2]=name, v[3]=position, v[4]=company
+    // v[5]=email, v[6]=mobile, v[7]=alt_mobile, v[8]=website
+    // v[9]=city, v[10]=state, v[11]=source, v[12]=product_name
+    // v[13]=category, v[14]=product_range, v[15]=order_qty
+    // v[16]=expected_value, v[17]=priority, v[18]=status
+    // v[19]=follow_up, v[20]=last_contact, v[21]=tags
+    // v[22]=lead_type, v[23]=lead_age
     rows.push([
-      v[0]||'', v[4]||'', v[2]||'', v[3]||'', v[5]||'',
-      v[6]||'', v[7]||'', v[8]||'', '',
-      v[9]||'', v[10]||'', '',
-      v[11]||'',v[12]||'',v[13]||'',v[14]||'',v[15]||'',
-      v[16]||'',v[17]||'',v[18]||'',
-      v[19]||'',v[20]||'',v[21]||'',''
+      v[0]||'',  v[4]||'',  v[2]||'',  v[3]||'',  v[5]||'',
+      v[6]||'',  v[7]||'',  v[8]||'',
+      v[9]||'',  v[10]||'', '',
+      v[11]||'', v[12]||'', v[13]||'', v[14]||'', v[15]||'',
+      v[16]||'', v[17]||'', v[18]||'', v[22]||'Quality',
+      v[19]||'', v[20]||'', v[21]||'', v[23]||'0'
     ]);
   });
 
@@ -927,7 +955,7 @@ async function _doExportXLSX(){
   });
 
   // Column widths
-  var colWidths = [10,24,20,16,34,14,14,24,16,14,16,12,18,24,18,18,14,16,12,14,14,14,22,22];
+  var colWidths = [10,24,20,16,34,14,14,24,14,16,12,18,24,18,18,14,16,12,14,14,14,14,22,12];
   ws.columns = headers.map(function(h,i){
     return { header: h, key: 'c'+i, width: colWidths[i] || 14 };
   });
@@ -969,11 +997,18 @@ async function _doExportXLSX(){
       // Code column (1) — navy bold
       if(colNum === 1){ fg = 'FF1B3A6B'; bold = true; }
 
-      // Status column (20)
-      if(colNum === 20 && statusFill[statusVal]){
+      // Status column (19)
+      if(colNum === 19 && statusFill[statusVal]){
         bg   = statusFill[statusVal].bg;
         fg   = statusFill[statusVal].fg;
         bold = true;
+      }
+
+      // Lead Type column (20)
+      if(colNum === 20){
+        var lt = (rowData[19]||'').toLowerCase();
+        if(lt === 'non-quality'){ bg='FFFEE2E2'; fg='FF991B1B'; bold=true; }
+        else { bg='FFD1FAE5'; fg='FF065F46'; bold=true; }
       }
 
       cell.fill   = { type:'pattern', pattern:'solid', fgColor:{ argb: bg } };
