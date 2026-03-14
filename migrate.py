@@ -380,6 +380,9 @@ with app.app_context():
     else:
         ok("salary_config table already exists")
 
+    # Ensure label column exists (purani table mein nahi hoga)
+    safe_add('salary_config', 'label', 'VARCHAR(100)')
+
     # Seed default values (INSERT IGNORE — won't overwrite existing)
     salary_defaults = [
         ('basic_pct',    '40',    'Basic Salary % of Monthly CTC'),
