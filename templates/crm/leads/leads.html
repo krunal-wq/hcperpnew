@@ -420,9 +420,7 @@
             <td class="row-check"><input type="checkbox" class="row-cb row-check-item" value="{{ l.id }}" onchange="updateBulkBtn()"></td>
             <td style="color:#94a3b8;font-size:11px;font-weight:600;">{{ loop.index }}</td>
             {% for col in grid_cols %}
-            {% if col == 'code' %}
-            <td><code style="font-size:11px;color:#2563eb;font-weight:700;background:#eff6ff;padding:2px 6px;border-radius:4px;">{{ l.code or '—' }}</code></td>
-            {% elif col == 'created_at' %}
+            {% if col == 'created_at' %}
             <td style="font-size:12px;color:var(--text2);white-space:nowrap;">{{ l.created_at.strftime('%d-%m-%Y') if l.created_at else '—' }}</td>
             {% elif col == 'name' %}
             <td class="ie-cell" data-field="contact_name" data-val="{{ l.contact_name or '' }}" data-type="text" onclick="ieActivate(this)">

@@ -18,7 +18,6 @@ class ClientMaster(db.Model):
     mobile           = db.Column(db.String(20))
     alternate_mobile = db.Column(db.String(20))
     gstin            = db.Column(db.String(20))
-    client_type      = db.Column(db.String(50), default='regular')
     status           = db.Column(db.String(20), default='active')
 
     # These columns already exist in DB — keeping them
@@ -53,8 +52,9 @@ class ClientMaster(db.Model):
 class ClientAddress(db.Model):
     __tablename__ = 'client_addresses'
 
-    id         = db.Column(db.Integer, primary_key=True)
-    client_id  = db.Column(db.Integer, db.ForeignKey('client_masters.id'), nullable=False)
+    id          = db.Column(db.Integer, primary_key=True)
+    client_id   = db.Column(db.Integer, db.ForeignKey('client_masters.id'), nullable=False)
+    brand_index = db.Column(db.Integer, default=0)   # 0=brand1, 1=brand2, etc.
     title      = db.Column(db.String(100), nullable=False, default='Address')
     addr_type  = db.Column(db.String(20), default='billing')   # billing / shipping / both
     address    = db.Column(db.Text)

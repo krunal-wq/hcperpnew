@@ -18,7 +18,6 @@ class Lead(db.Model):
     __tablename__ = 'leads'
 
     id               = db.Column(db.Integer, primary_key=True)
-    code             = db.Column(db.String(20), unique=True)
 
     # ── Existing DB columns (matching your original database) ──
     title            = db.Column(db.String(200))

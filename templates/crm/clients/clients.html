@@ -45,7 +45,7 @@
   <div><h1>Client Master</h1><p>Manage billing, brands, contacts</p></div>
 </div>
 
-{% set _fc = [search,city,state,client_type,status_f]|select|list|length %}
+{% set _fc = [search,city,state,status_f]|select|list|length %}
 
 <div class="grid-card" style="overflow:visible;">
 
@@ -201,34 +201,6 @@
         </div>
         <input type="hidden" id="cl_state" value="{{ state }}">
       </div>
-
-      <!-- Client Type multi-select -->
-      <div class="fs-field">
-        <label>Client Type</label>
-        <div class="ms-wrap" id="ms_cl_ctype">
-          <div class="ms-trigger" onclick="toggleMs('ms_cl_ctype')">
-            <span class="ms-label {{ 'has-val' if client_type }}" id="ms_cl_ctype_lbl">
-              {%- if client_type -%}{{ client_type|capitalize }}{%- else -%}All Types{%- endif -%}
-            </span>
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
-          </div>
-          <div class="ms-dropdown">
-            <div class="ms-options">
-              {% for val,lbl in [('regular','Regular'),('vip','⭐ VIP'),('dealer','🏪 Dealer'),('distributor','🚚 Distributor')] %}
-              <label class="ms-opt">
-                <input type="checkbox" value="{{ val }}" {{ 'checked' if val in (client_type or '').split(',') and client_type }} onchange="msChange('ms_cl_ctype','cl_client_type','All Types')">
-                <span>{{ lbl }}</span>
-              </label>
-              {% endfor %}
-            </div>
-            <div class="ms-footer">
-              <button type="button" onclick="msSelectAll('ms_cl_ctype','cl_client_type','All Types')">Select All</button>
-              <button type="button" onclick="msClearAll('ms_cl_ctype','cl_client_type','All Types')">Clear</button>
-              <button type="button" class="ms-apply" onclick="closeMs('ms_cl_ctype')">Done</button>
-            </div>
-          </div>
-        </div>
-        <input type="hidden" id="cl_client_type" value="{{ client_type }}">
       </div>
 
       <!-- Status multi-select -->
@@ -258,13 +230,12 @@
     </div>
 
     <!-- Active filter chips -->
-    {% if search or city or state or client_type or status_f %}
+    {% if search or city or state or status_f %}
     <div style="display:flex;flex-wrap:wrap;gap:.3rem;margin-top:.6rem;align-items:center;">
       <span style="font-size:.68rem;color:var(--text3);font-weight:600;">Active:</span>
       {% if search %}<span class="fs-chip">Search: {{ search }}<a onclick="chipClear('cl_search')">×</a></span>{% endif %}
       {% if city %}{% for v in city.split(',') %}<span class="fs-chip">City: {{ v }}<a onclick="msRemoveOne('ms_cl_city','cl_city','{{ v }}','All Cities')">×</a></span>{% endfor %}{% endif %}
       {% if state %}{% for v in state.split(',') %}<span class="fs-chip">State: {{ v }}<a onclick="msRemoveOne('ms_cl_state','cl_state','{{ v }}','All States')">×</a></span>{% endfor %}{% endif %}
-      {% if client_type %}{% for v in client_type.split(',') %}<span class="fs-chip">Type: {{ v|capitalize }}<a onclick="msRemoveOne('ms_cl_ctype','cl_client_type','{{ v }}','All Types')">×</a></span>{% endfor %}{% endif %}
       {% if status_f %}{% for v in status_f.split(',') %}<span class="fs-chip">Status: {{ v|capitalize }}<a onclick="msRemoveOne('ms_cl_sf','cl_status_f','{{ v }}','All Status')">×</a></span>{% endfor %}{% endif %}
       <a href="{{ url_for('crm.clients') }}" class="fs-chip" style="background:#fee2e2;color:#dc2626;border-color:#fca5a5;">✕ Clear All</a>
     </div>
@@ -281,7 +252,6 @@
           <option value="contact_name" {{ 'selected' if sort_by=='contact_name' }}>Contact Name</option>
           <option value="company_name" {{ 'selected' if sort_by=='company_name' }}>Company</option>
           <option value="city" {{ 'selected' if sort_by=='city' }}>City</option>
-          <option value="client_type" {{ 'selected' if sort_by=='client_type' }}>Client Type</option>
           <option value="status" {{ 'selected' if sort_by=='status' }}>Status</option>
         </select>
       </div>
@@ -300,7 +270,6 @@
     <input type="hidden" id="cl_h_search"      name="search"      value="{{ search }}">
     <input type="hidden" id="cl_h_city"         name="city"        value="{{ city }}">
     <input type="hidden" id="cl_h_state"        name="state"       value="{{ state }}">
-    <input type="hidden" id="cl_h_client_type"  name="client_type" value="{{ client_type }}">
     <input type="hidden" id="cl_h_status_f"     name="status_f"    value="{{ status_f }}">
     <input type="hidden" id="cl_h_sort_by"      name="sort_by"     value="{{ sort_by }}">
     <input type="hidden" id="cl_h_sort_dir"     name="sort_dir"    value="{{ sort_dir }}">
@@ -363,14 +332,15 @@
             <div class="ie-view">{% if c.website %}<a href="{{ c.website }}" target="_blank" style="color:#2563eb;text-decoration:none;font-size:12px;" onclick="event.stopPropagation()">{{ c.website|truncate(24) }}</a>{% else %}<span style="font-size:12px;">—</span>{% endif %}<span class="ie-pencil">✎</span></div>
           </td>
           {% elif col == 'brands' %}
-          <td>{% for b in c.brands %}<span style="display:inline-block;padding:2px 7px;background:#eff6ff;color:#1e40af;border-radius:20px;font-size:10.5px;font-weight:600;margin:1px;">{{ b.brand_name }}</span>{% else %}<span style="color:var(--text3);">—</span>{% endfor %}</td>
-          {% elif col == 'client_type' %}
-          <td class="ie-cell" data-field="client_type" data-val="{{ c.client_type or '' }}" data-type="select" data-opts="regular||vip||dealer||distributor" onclick="ieActivate(this)">
-            <div class="ie-view"><span class="sbadge slate" style="background:#f1f5f9;color:#475569;">{{ c.client_type|capitalize if c.client_type else '—' }}</span><span class="ie-pencil">✎</span></div>
+          <td>{% for b in c.brands %}<span style="display:inline-block;padding:2px 7px;background:#eff6ff;color:#1e40af;border-radius:20px;font-size:10.5px;font-weight:600;margin:1px;">{{ b.brand_name }}</span>{% else %}<span style="color:var(--text3);">—</span>{% endfor %}</td><span class="ie-pencil">✎</span></div>
           </td>
           {% elif col == 'status' %}
-          <td class="ie-cell" data-field="status" data-val="{{ c.status or 'active' }}" data-type="select" data-opts="active||inactive" onclick="ieActivate(this)">
-            <div class="ie-view">{% if c.status == 'active' %}<span class="sbadge active">Active</span>{% else %}<span class="sbadge inactive">Inactive</span>{% endif %}<span class="ie-pencil">✎</span></div>
+          <td>
+            {% if c.status == 'active' %}
+              <span style="display:inline-flex;align-items:center;gap:4px;padding:3px 10px;background:#dcfce7;color:#16a34a;border-radius:20px;font-size:11px;font-weight:700;">✅ Active</span>
+            {% else %}
+              <span style="display:inline-flex;align-items:center;gap:4px;padding:3px 10px;background:#fee2e2;color:#dc2626;border-radius:20px;font-size:11px;font-weight:700;">⛔ Inactive</span>
+            {% endif %}
           </td>
           {% endif %}
           {% endfor %}
@@ -486,7 +456,7 @@ var _fsTimer=null;
 function fsDebounce(){ clearTimeout(_fsTimer); _fsTimer=setTimeout(fsSubmit,400); }
 function fsSubmit(){
   var params=new URLSearchParams();
-  var map={search:'cl_search',city:'cl_city',state:'cl_state',client_type:'cl_client_type',status_f:'cl_status_f',sort_by:'cl_sort_by',sort_dir:'cl_h_sort_dir'};
+  var map={search:'cl_search',city:'cl_city',state:'cl_state',status_f:'cl_status_f',sort_by:'cl_sort_by',sort_dir:'cl_h_sort_dir'};
   Object.keys(map).forEach(function(k){
     var el=document.getElementById(map[k]);
     if(el&&el.value&&el.value.trim()) params.set(k,el.value.trim());
@@ -553,7 +523,6 @@ function initMsLabels(){
   var cfg=[
     ['ms_cl_city','cl_city','All Cities'],
     ['ms_cl_state','cl_state','All States'],
-    ['ms_cl_ctype','cl_client_type','All Types'],
     ['ms_cl_sf','cl_status_f','All Status']
   ];
   cfg.forEach(function(item){
@@ -661,9 +630,6 @@ function ieUpdateView(cell, field, val) {
     var cls=val==='active'?'active':'inactive', lbl=val?val.charAt(0).toUpperCase()+val.slice(1):'—';
     view.innerHTML='<span class="sbadge '+cls+'">'+lbl+'</span><span class="ie-pencil">✎</span>'; return;
   }
-  if(field==='client_type'){
-    view.innerHTML='<span class="sbadge slate" style="background:#f1f5f9;color:#475569;">'+(val?val.charAt(0).toUpperCase()+val.slice(1):'—')+'</span><span class="ie-pencil">✎</span>'; return;
-  }
   if(field==='contact_name'){
     var lnk=view.querySelector('a.entity-link'); if(lnk) lnk.textContent=val||'—'; return;
   }
@@ -678,7 +644,7 @@ document.addEventListener('click',function(e){
 // ── Export ──────────────────────────────────────────────────────
 function doExport(){
   var p=new URLSearchParams();
-  var map={search:'cl_search',city:'cl_city',state:'cl_state',client_type:'cl_client_type',status_f:'cl_status_f'};
+  var map={search:'cl_search',city:'cl_city',state:'cl_state',status_f:'cl_status_f'};
   Object.keys(map).forEach(function(k){var el=document.getElementById(map[k]);if(el&&el.value)p.set(k,el.value);});
   window.location.href='/crm/clients/export?'+p.toString();
 }

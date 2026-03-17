@@ -131,6 +131,29 @@
         .nav-a.nav-back:hover { background: none; color: var(--blue); }
         .nav-a.nav-back .nav-ic { font-style: normal; font-size: 13px; }
         .nav-badge { font-size: 10px; font-weight: 800; padding: 2px 7px; border-radius: 100px; background: var(--red); color: #fff; flex-shrink: 0; }
+
+        /* ═══ COLLAPSIBLE SUBMENU ═══ */
+        .nav-group-toggle {
+            display: flex; align-items: center; gap: 10px;
+            padding: 9px 12px; border-radius: var(--r-md);
+            color: var(--sb-text); font-size: 13.5px; font-weight: 500;
+            cursor: pointer; margin-bottom: 2px;
+            transition: all 0.15s; user-select: none;
+            background: none; border: none; width: 100%;
+            font-family: 'Inter', sans-serif;
+        }
+        .nav-group-toggle:hover { background: var(--sb-hover); color: var(--text); }
+        .nav-group-toggle.open  { color: var(--text); font-weight: 600; }
+        .nav-group-toggle .nav-ic { font-size: 15px; width: 22px; text-align: center; flex-shrink: 0; }
+        .nav-group-toggle .nav-txt { flex: 1; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .nav-group-arrow { font-size: 10px; color: var(--text3); transition: transform 0.25s ease; flex-shrink: 0; }
+        .nav-group-toggle.open .nav-group-arrow { transform: rotate(90deg); }
+        .nav-submenu { overflow: hidden; max-height: 0; transition: max-height 0.3s ease; padding-left: 10px; }
+        .nav-submenu.open { max-height: 500px; }
+        .nav-submenu .nav-a { font-size: 13px; padding: 8px 12px; border-left: 2px solid var(--border); border-radius: 0 var(--r-md) var(--r-md) 0; margin-bottom: 1px; }
+        .nav-submenu .nav-a:hover { border-left-color: var(--blue); }
+        .nav-submenu .nav-a.active { border-left-color: var(--blue); background: var(--sb-active-bg); color: var(--sb-active-text); }
+        .nav-submenu .nav-a.active::before { display: none; }
         .nav-badge.blue { background: var(--blue); }
         .sb-foot { padding: 10px; border-top: 1px solid var(--sb-border); flex-shrink: 0; }
         .user-row {
@@ -1352,26 +1375,48 @@
             <a class="nav-a {% if _pg == 'sample_orders' %}active{% endif %}" href="/crm/sample-orders">
                 <span class="nav-ic">📋</span><span class="nav-txt">Sample Orders</span>
             </a>
-            <a class="nav-a {% if _pg == 'mail_master' %}active{% endif %}" href="/mail/master">
-                <span class="nav-ic">✉️</span><span class="nav-txt">Mail Master</span>
-            </a>
-            <a class="nav-a {% if _pg == 'contribution_config' %}active{% endif %}" href="/crm/contribution-config">
-                <span class="nav-ic">⭐</span><span class="nav-txt">Points Config</span>
-            </a>
+
+            {# ── Leaderboard — directly visible ── #}
             <a class="nav-a {% if _pg == 'leaderboard' %}active{% endif %}" href="/crm/leaderboard">
                 <span class="nav-ic">🏆</span><span class="nav-txt">Leaderboard</span>
             </a>
+
+            {# ── Import Group (collapsible) ── #}
             {% if role in ('admin','manager') %}
-            <a class="nav-a {% if _pg == 'lead_import' %}active{% endif %}" href="/crm/leads/import">
-                <span class="nav-ic">📥</span><span class="nav-txt">Import Leads</span>
-            </a>
-            <a class="nav-a {% if _pg == 'client_import' %}active{% endif %}" href="/crm/clients/import">
-                <span class="nav-ic">📥</span><span class="nav-txt">Import Clients</span>
-            </a>
+            {% set _in_import = _pg in ('lead_import','client_import') %}
+            <button class="nav-group-toggle {% if _in_import %}open{% endif %}" onclick="toggleNavGroup(this)">
+                <span class="nav-ic">📥</span>
+                <span class="nav-txt">Import</span>
+                <span class="nav-group-arrow">▶</span>
+            </button>
+            <div class="nav-submenu {% if _in_import %}open{% endif %}">
+                <a class="nav-a {% if _pg == 'lead_import' %}active{% endif %}" href="/crm/leads/import">
+                    <span class="nav-ic">📋</span><span class="nav-txt">Import Leads</span>
+                </a>
+                <a class="nav-a {% if _pg == 'client_import' %}active{% endif %}" href="/crm/clients/import">
+                    <span class="nav-ic">👥</span><span class="nav-txt">Import Clients</span>
+                </a>
+            </div>
             {% endif %}
-            <a class="nav-a {% if _pg == 'masters' %}active{% endif %}" href="/masters/">
-                <span class="nav-ic">🏷️</span><span class="nav-txt">Lead Masters</span>
-            </a>
+
+            {# ── Settings Group (collapsible) ── #}
+            {% set _in_settings = _pg in ('mail_master','contribution_config','masters') %}
+            <button class="nav-group-toggle {% if _in_settings %}open{% endif %}" onclick="toggleNavGroup(this)">
+                <span class="nav-ic">⚙️</span>
+                <span class="nav-txt">Settings</span>
+                <span class="nav-group-arrow">▶</span>
+            </button>
+            <div class="nav-submenu {% if _in_settings %}open{% endif %}">
+                <a class="nav-a {% if _pg == 'mail_master' %}active{% endif %}" href="/mail/master">
+                    <span class="nav-ic">✉️</span><span class="nav-txt">Mail Master</span>
+                </a>
+                <a class="nav-a {% if _pg == 'contribution_config' %}active{% endif %}" href="/crm/contribution-config">
+                    <span class="nav-ic">⭐</span><span class="nav-txt">Points Config</span>
+                </a>
+                <a class="nav-a {% if _pg == 'masters' %}active{% endif %}" href="/masters/">
+                    <span class="nav-ic">🏷️</span><span class="nav-txt">Lead Masters</span>
+                </a>
+            </div>
         </div>
 
         {# ════ HR MODULE ════ #}
@@ -2434,6 +2479,16 @@ document.addEventListener('keydown',function(e){
 
 })();
 // ════════════════════════════════════════════════════════════════════════
+</script>
+
+<script>
+// ── Sidebar Collapsible Group Toggle ────────────────────────────────────
+function toggleNavGroup(btn) {
+  var submenu = btn.nextElementSibling;
+  var isOpen  = btn.classList.contains('open');
+  btn.classList.toggle('open', !isOpen);
+  if (submenu) submenu.classList.toggle('open', !isOpen);
+}
 </script>
 
 </body>

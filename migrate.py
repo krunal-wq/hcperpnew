@@ -621,6 +621,41 @@ with app.app_context():
         ok("sample_orders table already exists")
 
     # ══════════════════════════════════════════════════════
+    # STEP 8B2 — client_addresses: brand_index column
+    # ══════════════════════════════════════════════════════
+    step("STEP 8B2: client_addresses — brand_index column add kar raha hai...")
+    safe_add('client_addresses', 'brand_index', 'INT DEFAULT 0 AFTER `client_id`')
+    ok("client_addresses.brand_index ready")
+
+    # ══════════════════════════════════════════════════════
+    # STEP 8B3 — client_masters: client_type column drop
+    # ══════════════════════════════════════════════════════
+    step("STEP 8B3: client_masters — client_type column drop kar raha hai...")
+    if table_exists('client_masters') and col_exists('client_masters', 'client_type'):
+        try:
+            cur.execute("ALTER TABLE `client_masters` DROP COLUMN `client_type`")
+            raw.commit()
+            ok("client_type column dropped!")
+        except Exception as e:
+            warn(f"client_type drop skip: {e}")
+    else:
+        ok("client_type column already removed")
+
+    # ══════════════════════════════════════════════════════
+    # STEP 8B4 — leads: code column drop
+    # ══════════════════════════════════════════════════════
+    step("STEP 8B4: leads — code column drop kar raha hai...")
+    if table_exists('leads') and col_exists('leads', 'code'):
+        try:
+            cur.execute("ALTER TABLE `leads` DROP COLUMN `code`")
+            raw.commit()
+            ok("leads.code column dropped!")
+        except Exception as e:
+            warn(f"leads.code drop skip: {e}")
+    else:
+        ok("leads.code column already removed")
+
+    # ══════════════════════════════════════════════════════
     # STEP 8C — Email Templates table
     # ══════════════════════════════════════════════════════
     # ══════════════════════════════════════════════════════

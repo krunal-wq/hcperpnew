@@ -13,9 +13,8 @@ from models import (db, User, ClientMaster, ClientBrand, ClientAddress,
 from permissions import get_perm, get_grid_columns, save_grid_columns
 from audit_helper import audit, snapshot, diff
 
-LEAD_COLS_DEFAULT = ['code','created_at','name','company','email','mobile','product','team','status','lead_type','last_contact','lead_age']
+LEAD_COLS_DEFAULT = ['created_at','name','company','email','mobile','product','team','status','lead_type','last_contact','lead_age']
 LEAD_COLS_ALL = {
-    'code':          'Lead Code',
     'created_at':    'Created Date',
     'name':          'Name',
     'company':       'Company',
@@ -36,7 +35,7 @@ LEAD_COLS_ALL = {
     'lead_age':      'Days (Age)',
 }
 
-CLIENT_COLS_DEFAULT = ['code','created_at','contact_name','company_name','mobile','email','city','brands','client_type','status']
+CLIENT_COLS_DEFAULT = ['code','created_at','contact_name','company_name','mobile','email','city','brands','status']
 CLIENT_COLS_ALL = {
     'code':          'Client Code',
     'created_at':    'Created Date',
@@ -49,7 +48,6 @@ CLIENT_COLS_ALL = {
     'gstin':         'GSTIN',
     'website':       'Website',
     'brands':        'Brands',
-    'client_type':   'Client Type',
     'status':        'Status',
 }
 
@@ -178,7 +176,6 @@ def clients():
     search      = request.args.get('search', '')
     city        = request.args.get('city', '')
     state       = request.args.get('state', '')
-    client_type = request.args.get('client_type', '')
     status_f    = request.args.get('status_f', '')
     sort_by     = request.args.get('sort_by', 'created_at')
     sort_dir    = request.args.get('sort_dir', 'desc')
@@ -195,7 +192,6 @@ def clients():
         )
     if city:        query = query.filter(ClientMaster.city.ilike(f'%{city}%'))
     if state:       query = query.filter(ClientMaster.state.ilike(f'%{state}%'))
-    if client_type: query = query.filter_by(client_type=client_type)
     if status_f:    query = query.filter_by(status=status_f)
 
     sort_col = getattr(ClientMaster, sort_by, ClientMaster.created_at)
@@ -215,7 +211,7 @@ def clients():
     return render_template('crm/clients/clients.html',
         clients=all_clients, search=search, show_trash=show_trash,
         deleted_count=deleted_count,
-        city=city, state=state, client_type=client_type, status_f=status_f,
+        city=city, state=state, status_f=status_f,
         sort_by=sort_by, sort_dir=sort_dir,
         all_cities=all_cities, all_states=all_states,
         grid_cols=grid_cols, all_cols=CLIENT_COLS_ALL,
@@ -236,7 +232,6 @@ def client_add():
             mobile           = request.form.get('mobile', '').strip(),
             alternate_mobile = request.form.get('alternate_mobile', '').strip(),
             gstin            = request.form.get('gstin', '').strip().upper(),
-            client_type      = request.form.get('client_type', 'regular'),
             status           = request.form.get('status', 'active'),
             notes            = request.form.get('notes', '').strip(),
             created_by       = current_user.id
@@ -303,7 +298,6 @@ def client_edit(id):
         c.mobile           = request.form.get('mobile', '').strip()
         c.alternate_mobile = request.form.get('alternate_mobile', '').strip()
         c.gstin            = request.form.get('gstin', '').strip().upper()
-        c.client_type      = request.form.get('client_type', 'regular')
         c.status           = request.form.get('status', 'active')
         c.notes            = request.form.get('notes', '').strip()
         c.updated_at       = datetime.utcnow()
@@ -494,8 +488,7 @@ def leads():
             Lead.notes.ilike(s)           |
             Lead.lost_reason.ilike(s)     |
             Lead.requirement_spec.ilike(s)|
-            Lead.order_quantity.ilike(s)  |
-            Lead.code.ilike(s)
+            Lead.order_quantity.ilike(s)
         )
 
     # Sort
@@ -601,8 +594,7 @@ def leads_export():
             Lead.position.ilike(s)        | Lead.title.ilike(s)           |
             Lead.tags.ilike(s)            | Lead.remark.ilike(s)          |
             Lead.notes.ilike(s)           | Lead.lost_reason.ilike(s)     |
-            Lead.requirement_spec.ilike(s)| Lead.order_quantity.ilike(s)  |
-            Lead.code.ilike(s)
+            Lead.requirement_spec.ilike(s)| Lead.order_quantity.ilike(s)
         )
     sort_map = {'name': 'contact_name', 'mobile': 'phone', 'company': 'company_name'}
     actual_sort = sort_map.get(sort_by, sort_by)
@@ -640,7 +632,6 @@ def leads_export():
         return float(v) if v else ''
 
     COLUMNS = [
-        ("Lead Code",        lambda l: _s(l,'code')),
         ("Title",            lambda l: _s(l,'title')),
         ("Contact Name",     lambda l: _s(l,'contact_name')),
         ("Company",          lambda l: _s(l,'company_name')),
@@ -808,7 +799,6 @@ def clients_export():
     search      = request.args.get('search', '')
     city        = request.args.get('city', '')
     state       = request.args.get('state', '')
-    client_type = request.args.get('client_type', '')
     status_f    = request.args.get('status_f', '')
     sort_by     = request.args.get('sort_by', 'created_at')
     sort_dir    = request.args.get('sort_dir', 'desc')
@@ -821,7 +811,6 @@ def clients_export():
                      ClientMaster.city.ilike(s)|ClientMaster.gstin.ilike(s))
     if city:        q = q.filter(ClientMaster.city.ilike(f'%{city}%'))
     if state:       q = q.filter(ClientMaster.state.ilike(f'%{state}%'))
-    if client_type: q = q.filter_by(client_type=client_type)
     if status_f:    q = q.filter_by(status=status_f)
     sort_col = getattr(ClientMaster, sort_by, ClientMaster.created_at)
     q = q.order_by(sort_col.asc() if sort_dir=='asc' else sort_col.desc())
@@ -831,7 +820,7 @@ def clients_export():
     users = {u.id: u.full_name for u in UserModel.query.all()}
 
     headers = ["Code","Company","Contact Name","Position","Email","Mobile","Alt Mobile",
-               "GSTIN","Client Type","Status","Address","City","State","Country","Zip Code",
+               "GSTIN","Status","Address","City","State","Country","Zip Code",
                "Notes","Brands","Created By","Created At","Updated At"]
 
     rows = []
@@ -840,7 +829,7 @@ def clients_export():
         rows.append([
             cl.code or '', cl.company_name or '', cl.contact_name or '', cl.position or '',
             cl.email or '', cl.mobile or '', cl.alternate_mobile or '', cl.gstin or '',
-            (cl.client_type or '').title(), (cl.status or '').title(),
+(cl.status or '').title(),
             cl.address or '', cl.city or '', cl.state or '', cl.country or '', cl.zip_code or '',
             cl.notes or '', brands,
             users.get(cl.created_by,'') if cl.created_by else '',
@@ -857,7 +846,6 @@ def clients_export():
         ("Exported At", datetime.now().strftime('%d-%m-%Y %H:%M')),
         ("Total",       len(clients)),
         ("Search",      search or '—'), ("City", city or '—'),
-        ("State",       state or '—'), ("Type", client_type or 'All'),
         ("Status",      status_f or 'All'),
     ], 1):
         from openpyxl.styles import Font as F2
@@ -899,7 +887,7 @@ def lead_update_status(id):
     lead.status = new_status
     lead.updated_at = datetime.now()
     log_activity(id, f'Status changed: {old_status} → {new_status}')
-    audit('leads','KANBAN', id, f'{lead.code} / {lead.contact_name}', f'Kanban: {old_status} → {new_status}')
+    audit('leads','KANBAN', id, f'{lead.contact_name}', f'Kanban: {old_status} → {new_status}')
     lead.modified_by = current_user.id
     db.session.commit()
     return jsonify(success=True, id=id, status=new_status)
@@ -938,7 +926,7 @@ def client_inline_edit(id):
     value = data.get('value','')
     allowed = {
         'contact_name','company_name','mobile','alternate_mobile',
-        'email','website','city','state','gstin','client_type','status','notes'
+        'email','website','city','state','gstin','status','notes'
     }
     if field not in allowed:
         return jsonify(success=False, error='Field not allowed'), 400
@@ -995,8 +983,8 @@ def lead_add():
         db.session.commit()
         is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
         if is_ajax:
-            return jsonify(success=True, message=f'Lead {l.code} added successfully!', redirect=url_for('crm.lead_view', id=l.id))
-        flash(f'Lead {l.code} added!', 'success')
+            return jsonify(success=True, message=f'Lead {l.contact_name} added successfully!', redirect=url_for('crm.lead_view', id=l.id))
+        flash(f'Lead {l.contact_name} added!', 'success')
         return redirect(url_for('crm.lead_view', id=l.id))
 
     clients      = ClientMaster.query.filter_by(status='active').order_by(ClientMaster.contact_name).all()
@@ -1106,7 +1094,7 @@ def lead_view(id):
     attachments = LeadAttachment.query.filter_by(lead_id=id).order_by(LeadAttachment.created_at.desc()).all()
     team_members = l.get_team_member_objects()
     all_users   = User.query.filter_by(is_active=True).all()
-    audit('leads','VIEW', id, f'{l.code} / {l.contact_name}', obj=l)
+    audit('leads','VIEW', id, f'{l.contact_name}', obj=l)
     return render_template('crm/leads/lead_view.html',
         lead=l, tab=tab,
         discussions=discussions, reminders=reminders,
@@ -1348,7 +1336,6 @@ def emp_leads_list():
     for l in leads:
         result.append({
             'id':       l.id,
-            'code':     l.code or '',
             'name':     l.contact_name or '',
             'company':  l.company_name or '',
             'mobile':   l.phone or '',
@@ -1854,7 +1841,6 @@ def client_import():
                         country          = row.get('country') or row.get('Country') or 'India',
                         zip_code         = row.get('zip_code') or row.get('Zip Code') or '',
                         gstin            = row.get('gstin') or row.get('GSTIN') or '',
-                        client_type      = row.get('client_type') or row.get('Client Type') or 'regular',
                         status           = 'active',
                         created_by       = current_user.id
                     )
@@ -1891,7 +1877,7 @@ def client_import_template():
     output = io.StringIO()
     writer = csv.writer(output)
     writer.writerow(['contact_name','position','company_name','email','mobile','alternate_mobile',
-                     'website','gstin','city','state','country','zip_code','client_type','brands'])
+                     'website','gstin','city','state','country','zip_code','brands'])
     writer.writerow(['Jane Doe','CEO','ABC Corp','jane@abc.com','9999999999','','www.abc.com',
                      '27ABCDE1234F1Z5','Mumbai','Maharashtra','India','400001','regular','Brand A|Brand B'])
     return Response(
@@ -2026,7 +2012,6 @@ def api_employee_performance():
     for l in sorted(leads, key=lambda x: x.created_at or datetime.min, reverse=True)[:5]:
         recent.append({
             'id':      l.id,
-            'code':    l.code or '',
             'name':    l.contact_name or '',
             'company': l.company_name or '',
             'status':  l.status or 'open',
@@ -2097,7 +2082,6 @@ def api_due_reminders():
             results.append({
                 'id':        r.id,
                 'title':     r.title,
-                'lead_code': lead.code or '',
                 'lead_name': lead.contact_name or '',
                 'company':   lead.company_name or '',
                 'remind_at': r.remind_at.strftime('%d %b %Y %I:%M %p'),
@@ -2152,7 +2136,6 @@ def api_stale_leads():
         age = l.lead_age
         results.append({
             'id':       l.id,
-            'code':     l.code or '',
             'name':     l.contact_name or '',
             'company':  l.company_name or '',
             'age':      age,
@@ -2391,7 +2374,7 @@ def lead_sample_order(id):
 
     doc.build(story)
     buf.seek(0)
-    filename = f'SampleOrder_{lead.code}_{so_number}.pdf'
+    filename = f'SampleOrder_{lead.id}_{so_number}.pdf'
 
     # ── Save to DB ──
     import json as _json
@@ -2861,8 +2844,7 @@ def leaderboard_data():
 
             leads_data = [{
                 'id':      l.id,
-                'code':    l.code or '',
-                'name':    l.contact_name or '',
+                    'name':    l.contact_name or '',
                 'company': l.company_name or '',
                 'age':     l.lead_age,
                 'closed':  l.closed_at.strftime('%d-%m-%Y') if l.closed_at else '',
