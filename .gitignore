@@ -1,50 +1,38 @@
-# ── Python ──
+# Python cache
 __pycache__/
 *.py[cod]
 *.pyo
-*.pyd
-.Python
+*.pyc
+*.cpython-*.pyc
 
-# ── Virtual Environment ──
+# Virtual environment
 venv/
 env/
-.venv/
-.env/
-
-# ── Flask / App ──
-instance/
 .env
-*.env
-config_local.py
+.venv/
 
-# ── Database ──
+# Flask / App
+instance/
 *.db
-*.sqlite
 *.sqlite3
 
-# ── Uploads (user files) ──
+# Uploads (user files)
 static/uploads/
-static/qrcodes/
 
-# ── Logs ──
+# Logs
 *.log
 logs/
 
-# ── IDE ──
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
 .vscode/
 .idea/
 *.suo
 *.user
 
-# ── OS ──
-.DS_Store
-Thumbs.db
-desktop.ini
-
-# ── Distribution ──
-dist/
-build/
-*.egg-info/
-
-# ── Migrations (optional - remove if you want to track) ──
-# migrations/
+# Sensitive config
+config.py
