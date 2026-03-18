@@ -4,15 +4,24 @@ Blueprint: masters at /masters
 """
 from flask import Blueprint, render_template, redirect, url_for, request, flash, jsonify
 from flask_login import login_required
-from models import db, LeadStatus, LeadSource, LeadCategory, ProductRange
+from models import db, LeadStatus, LeadSource, LeadCategory, ProductRange, CategoryMaster, UOMMaster, HSNCode
+from flask_login import current_user
+from datetime import datetime
 
 masters = Blueprint('masters', __name__, url_prefix='/masters')
 
 MASTER_MAP = {
-    'status':   {'model': LeadStatus,   'label': 'Lead Status',    'icon': '🔵'},
-    'source':   {'model': LeadSource,   'label': 'Lead Source',    'icon': '📌'},
-    'category': {'model': LeadCategory, 'label': 'Lead Category',  'icon': '🏷️'},
-    'range':    {'model': ProductRange, 'label': 'Product Range',  'icon': '📦'},
+    'status':   {'model': LeadStatus,    'label': 'Lead Status',    'icon': '🔵'},
+    'source':   {'model': LeadSource,    'label': 'Lead Source',    'icon': '📌'},
+    'category': {'model': LeadCategory,  'label': 'Lead Category',  'icon': '🏷️'},
+    'range':    {'model': ProductRange,  'label': 'Product Range',  'icon': '📦'},
+}
+
+# Separate map for new full-featured masters
+FULL_MASTER_MAP = {
+    'cat_master': {'model': CategoryMaster, 'label': 'Category Master', 'icon': '🗂️'},
+    'uom':        {'model': UOMMaster,      'label': 'UOM Master',      'icon': '📐'},
+    'hsn':        {'model': HSNCode,        'label': 'HSN Code Master', 'icon': '🔢'},
 }
 
 # ── List page (all 4 masters on one page) ──
@@ -123,3 +132,185 @@ def options(mtype):
     return jsonify([{'id': o.id, 'name': o.name,
                      'icon': getattr(o,'icon',''),
                      'color': getattr(o,'color','')} for o in items])
+
+
+# ══════════════════════════════════════
+# CATEGORY MASTER — Full CRUD
+# ══════════════════════════════════════
+
+@masters.route('/category-master')
+@login_required
+def category_master_list():
+    search = request.args.get('search','')
+    q = CategoryMaster.query.filter_by(is_deleted=False)
+    if search:
+        q = q.filter(CategoryMaster.name.ilike(f'%{search}%'))
+    items = q.order_by(CategoryMaster.name).all()
+    return render_template('masters/category_master.html', items=items, search=search, active_page='cat_master')
+
+@masters.route('/category-master/add', methods=['POST'])
+@login_required
+def category_master_add():
+    name = request.form.get('name','').strip()
+    if not name:
+        flash('Name required', 'danger'); return redirect(url_for('masters.category_master_list'))
+    if CategoryMaster.query.filter_by(name=name, is_deleted=False).first():
+        flash(f'"{name}" already exists', 'warning'); return redirect(url_for('masters.category_master_list'))
+    obj = CategoryMaster(name=name, status=True, created_by=current_user.id)
+    db.session.add(obj); db.session.commit()
+    flash(f'Category "{name}" added!', 'success')
+    return redirect(url_for('masters.category_master_list'))
+
+@masters.route('/category-master/<int:id>/edit', methods=['POST'])
+@login_required
+def category_master_edit(id):
+    obj = CategoryMaster.query.get_or_404(id)
+    obj.name        = request.form.get('name', obj.name).strip()
+    obj.status      = request.form.get('status') == '1'
+    obj.modified_by = current_user.id
+    obj.modified_at = datetime.now()
+    db.session.commit(); flash('Updated!', 'success')
+    return redirect(url_for('masters.category_master_list'))
+
+@masters.route('/category-master/<int:id>/delete', methods=['POST'])
+@login_required
+def category_master_delete(id):
+    obj = CategoryMaster.query.get_or_404(id)
+    obj.is_deleted = True; obj.modified_by = current_user.id; obj.modified_at = datetime.now()
+    db.session.commit(); flash(f'"{obj.name}" deleted', 'success')
+    return redirect(url_for('masters.category_master_list'))
+
+@masters.route('/category-master/<int:id>/toggle', methods=['POST'])
+@login_required
+def category_master_toggle(id):
+    obj = CategoryMaster.query.get_or_404(id)
+    obj.status = not obj.status; obj.modified_by = current_user.id; obj.modified_at = datetime.now()
+    db.session.commit(); return jsonify(success=True, status=obj.status)
+
+
+# ══════════════════════════════════════
+# UOM MASTER — Full CRUD
+# ══════════════════════════════════════
+
+@masters.route('/uom-master')
+@login_required
+def uom_master_list():
+    search = request.args.get('search','')
+    q = UOMMaster.query.filter_by(is_deleted=False)
+    if search:
+        q = q.filter(UOMMaster.name.ilike(f'%{search}%') | UOMMaster.code.ilike(f'%{search}%'))
+    items = q.order_by(UOMMaster.name).all()
+    return render_template('masters/uom_master.html', items=items, search=search, active_page='uom_master')
+
+@masters.route('/uom-master/add', methods=['POST'])
+@login_required
+def uom_master_add():
+    code = request.form.get('code','').strip().upper()
+    name = request.form.get('name','').strip()
+    if not code or not name:
+        flash('Code and Name both required', 'danger'); return redirect(url_for('masters.uom_master_list'))
+    if UOMMaster.query.filter_by(code=code, is_deleted=False).first():
+        flash(f'Code "{code}" already exists', 'warning'); return redirect(url_for('masters.uom_master_list'))
+    obj = UOMMaster(code=code, name=name, status=True, created_by=current_user.id)
+    db.session.add(obj); db.session.commit()
+    flash(f'UOM "{code} - {name}" added!', 'success')
+    return redirect(url_for('masters.uom_master_list'))
+
+@masters.route('/uom-master/<int:id>/edit', methods=['POST'])
+@login_required
+def uom_master_edit(id):
+    obj = UOMMaster.query.get_or_404(id)
+    obj.code        = request.form.get('code', obj.code).strip().upper()
+    obj.name        = request.form.get('name', obj.name).strip()
+    obj.status      = request.form.get('status') == '1'
+    obj.modified_by = current_user.id
+    obj.modified_at = datetime.now()
+    db.session.commit(); flash('Updated!', 'success')
+    return redirect(url_for('masters.uom_master_list'))
+
+@masters.route('/uom-master/<int:id>/delete', methods=['POST'])
+@login_required
+def uom_master_delete(id):
+    obj = UOMMaster.query.get_or_404(id)
+    obj.is_deleted = True; obj.modified_by = current_user.id; obj.modified_at = datetime.now()
+    db.session.commit(); flash(f'"{obj.name}" deleted', 'success')
+    return redirect(url_for('masters.uom_master_list'))
+
+@masters.route('/uom-master/<int:id>/toggle', methods=['POST'])
+@login_required
+def uom_master_toggle(id):
+    obj = UOMMaster.query.get_or_404(id)
+    obj.status = not obj.status; obj.modified_by = current_user.id; obj.modified_at = datetime.now()
+    db.session.commit(); return jsonify(success=True, status=obj.status)
+
+
+# ══════════════════════════════════════
+# HSN CODE MASTER — Full CRUD
+# ══════════════════════════════════════
+
+@masters.route('/hsn-master')
+@login_required
+def hsn_master_list():
+    search = request.args.get('search','')
+    q = HSNCode.query.filter_by(is_deleted=False)
+    if search:
+        q = q.filter(HSNCode.hsn_code.ilike(f'%{search}%') | HSNCode.description.ilike(f'%{search}%'))
+    items = q.order_by(HSNCode.hsn_code).all()
+    return render_template('masters/hsn_master.html', items=items, search=search, active_page='hsn_master')
+
+@masters.route('/hsn-master/add', methods=['POST'])
+@login_required
+def hsn_master_add():
+    hsn_code = request.form.get('hsn_code','').strip()
+    if not hsn_code:
+        flash('HSN Code required', 'danger'); return redirect(url_for('masters.hsn_master_list'))
+    if HSNCode.query.filter_by(hsn_code=hsn_code, is_deleted=False).first():
+        flash(f'HSN "{hsn_code}" already exists', 'warning'); return redirect(url_for('masters.hsn_master_list'))
+    gst = float(request.form.get('gst_rate','0') or 0)
+    obj = HSNCode(
+        hsn_code    = hsn_code,
+        description = request.form.get('description','').strip(),
+        gst_rate    = gst,
+        cgst        = round(gst/2, 2),
+        sgst        = round(gst/2, 2),
+        igst        = gst,
+        cess        = float(request.form.get('cess','0') or 0),
+        status      = True,
+        created_by  = current_user.id,
+    )
+    db.session.add(obj); db.session.commit()
+    flash(f'HSN Code "{hsn_code}" added!', 'success')
+    return redirect(url_for('masters.hsn_master_list'))
+
+@masters.route('/hsn-master/<int:id>/edit', methods=['POST'])
+@login_required
+def hsn_master_edit(id):
+    obj = HSNCode.query.get_or_404(id)
+    gst = float(request.form.get('gst_rate', obj.gst_rate) or 0)
+    obj.hsn_code    = request.form.get('hsn_code', obj.hsn_code).strip()
+    obj.description = request.form.get('description', obj.description or '').strip()
+    obj.gst_rate    = gst
+    obj.cgst        = round(gst/2, 2)
+    obj.sgst        = round(gst/2, 2)
+    obj.igst        = gst
+    obj.cess        = float(request.form.get('cess', obj.cess or 0) or 0)
+    obj.status      = request.form.get('status') == '1'
+    obj.modified_by = current_user.id
+    obj.modified_at = datetime.now()
+    db.session.commit(); flash('Updated!', 'success')
+    return redirect(url_for('masters.hsn_master_list'))
+
+@masters.route('/hsn-master/<int:id>/delete', methods=['POST'])
+@login_required
+def hsn_master_delete(id):
+    obj = HSNCode.query.get_or_404(id)
+    obj.is_deleted = True; obj.modified_by = current_user.id; obj.modified_at = datetime.now()
+    db.session.commit(); flash(f'HSN "{obj.hsn_code}" deleted', 'success')
+    return redirect(url_for('masters.hsn_master_list'))
+
+@masters.route('/hsn-master/<int:id>/toggle', methods=['POST'])
+@login_required
+def hsn_master_toggle(id):
+    obj = HSNCode.query.get_or_404(id)
+    obj.status = not obj.status; obj.modified_by = current_user.id; obj.modified_at = datetime.now()
+    db.session.commit(); return jsonify(success=True, status=obj.status)

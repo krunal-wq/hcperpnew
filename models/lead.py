@@ -270,6 +270,7 @@ class SampleOrder(db.Model):
     total_amount = db.Column(db.Numeric(12,2), default=0)
     items_json   = db.Column(db.Text)   # JSON list of items
     terms        = db.Column(db.Text)
+    invoice_file = db.Column(db.String(300))   # uploaded invoice filename
     created_by   = db.Column(db.Integer, db.ForeignKey('users.id'))
     created_at   = db.Column(db.DateTime, default=datetime.utcnow)
 
@@ -279,6 +280,45 @@ class SampleOrder(db.Model):
 
     def __repr__(self):
         return f'<SampleOrder {self.order_number}>'
+
+
+# ──────────────────────────────────────
+# Quotation
+# ──────────────────────────────────────
+
+class Quotation(db.Model):
+    __tablename__ = 'quotations'
+
+    id             = db.Column(db.Integer, primary_key=True)
+    quot_number    = db.Column(db.String(50), unique=True, nullable=False)
+    lead_id        = db.Column(db.Integer, db.ForeignKey('leads.id'), nullable=False)
+    quot_date      = db.Column(db.Date, nullable=False)
+    valid_until    = db.Column(db.Date)
+    subject        = db.Column(db.String(300))
+    bill_company   = db.Column(db.String(200))
+    bill_address   = db.Column(db.Text)
+    bill_phone     = db.Column(db.String(20))
+    bill_email     = db.Column(db.String(150))
+    bill_gst       = db.Column(db.String(20))
+    gst_pct        = db.Column(db.Numeric(5,2), default=18)
+    sub_total      = db.Column(db.Numeric(12,2), default=0)
+    gst_amount     = db.Column(db.Numeric(12,2), default=0)
+    total_amount   = db.Column(db.Numeric(12,2), default=0)
+    items_json     = db.Column(db.Text)
+    terms          = db.Column(db.Text)
+    notes          = db.Column(db.Text)
+    status         = db.Column(db.String(20), default='draft')  # draft / sent / accepted / rejected
+    email_sent_at  = db.Column(db.DateTime)
+    email_sent_to  = db.Column(db.String(150))
+    created_by     = db.Column(db.Integer, db.ForeignKey('users.id'))
+    created_at     = db.Column(db.DateTime, default=datetime.utcnow)
+
+    lead    = db.relationship('Lead', backref='quotations', lazy=True)
+    creator = db.relationship('User', backref='quotations', lazy=True,
+                               foreign_keys=[created_by])
+
+    def __repr__(self):
+        return f'<Quotation {self.quot_number}>'
 
 
 # ──────────────────────────────────────

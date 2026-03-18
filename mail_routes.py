@@ -103,7 +103,7 @@ def _render_template_vars(text, lead):
         .replace('{phone}',        lead.phone         or '')
         .replace('{product}',      lead.product_name  or '')
         .replace('{city}',         lead.city          or '')
-        .replace('{lead_code}',    lead.code          or '')
+        .replace('{lead_code}',    getattr(lead, 'code', '') or '')
     )
 
 

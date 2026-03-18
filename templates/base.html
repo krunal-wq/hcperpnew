@@ -1288,6 +1288,45 @@
             .tb-date { display: inline-block; }
             .content { padding: 14px; }
         }
+
+    /* ── Sidebar Accordion ── */
+    .sb-accordion { padding: 0; margin: 2px 0; }
+    .sb-acc-hdr {
+        width: 100%; display: flex; align-items: center; gap: 10px;
+        padding: 9px 16px; background: none; border: none;
+        cursor: pointer; text-align: left; border-radius: 10px;
+        transition: background .15s; color: var(--sb-text);
+        font-family: inherit; font-size: 0.85rem; font-weight: 700;
+    }
+    .sb-acc-hdr:hover { background: var(--sb-hover); }
+    .sb-acc-hdr.open  { background: var(--sb-hover); }
+    .sb-acc-ic  { font-size: 1rem; width: 22px; text-align: center; flex-shrink: 0; }
+    .sb-acc-lbl { flex: 1; letter-spacing: 0.01em; }
+    .sb-acc-arrow {
+        font-size: 0.6rem; opacity: 0.5;
+        transition: transform .25s ease;
+        transform: rotate(0deg);
+    }
+    .sb-acc-hdr.open .sb-acc-arrow { transform: rotate(90deg); }
+    .sb-acc-body {
+        max-height: 0; overflow: hidden;
+        transition: max-height .3s ease, opacity .25s ease;
+        opacity: 0;
+        padding-left: 12px;
+    }
+    .sb-acc-body.open {
+        max-height: 400px;
+        opacity: 1;
+    }
+    .sb-acc-body .nav-a {
+        padding: 7px 12px 7px 14px;
+        font-size: 0.82rem;
+        border-left: 2px solid transparent;
+    }
+    .sb-acc-body .nav-a:hover,
+    .sb-acc-body .nav-a.active {
+        border-left-color: var(--blue);
+    }
     </style>
 </head>
 <body>
@@ -1311,8 +1350,10 @@
         {# ── Determine active module from active_page ── #}
         {% set _pg = active_page | default('') %}
         {% set _mod = 'dashboard' %}
-        {% if _pg in ('crm_dashboard','leads','clients','lead_import','client_import','masters','sample_orders','mail_master','contribution_config','leaderboard') %}
+        {% if _pg in ('crm_dashboard','leads','clients','lead_import','client_import','sample_orders','mail_master','contribution_config','leaderboard','quotations') %}
             {% set _mod = 'crm' %}
+        {% elif _pg in ('cat_master','uom_master','hsn_master','masters') %}
+            {% set _mod = 'masters' %}
         {% elif _pg in ('hr_emp_dashboard','hr_employees','hr_contractors','hierarchy','salary_config') %}
             {% set _mod = 'hr' %}
         {% elif _pg in ('approvals','permissions','audit_logs','users','admin_profile') %}
@@ -1321,36 +1362,71 @@
 
         {% set role = current_user.role if current_user.is_authenticated else '' %}
 
-        {# ════ DASHBOARD — show all modules overview ════ #}
+        {# ════ DASHBOARD — show all modules overview (Accordion style) ════ #}
         {% if _mod == 'dashboard' %}
         <div class="sb-sec">
-            <div class="sb-sec-lbl">Overview</div>
             <a class="nav-a {% if _pg == 'dashboard' %}active{% endif %}" href="{{ url_for('dashboard') }}">
                 <span class="nav-ic">🏠</span><span class="nav-txt">Dashboard</span>
             </a>
         </div>
-        {% if role in ('admin','manager','user') %}
-        <div class="sb-sec">
-            <div class="sb-sec-lbl">CRM</div>
-            <a class="nav-a" href="/crm/dashboard"><span class="nav-ic">📊</span><span class="nav-txt">CRM Dashboard</span></a>
-            <a class="nav-a" href="/crm/leads"><span class="nav-ic">📋</span><span class="nav-txt">Leads</span></a>
-            <a class="nav-a" href="/crm/clients"><span class="nav-ic">👥</span><span class="nav-txt">Client Master</span></a>
+
+        {% if role in ('admin','manager','user','sales') %}
+        <div class="sb-sec sb-accordion">
+            <button class="sb-acc-hdr" onclick="toggleAccordion(this)">
+                <span class="sb-acc-ic">📋</span>
+                <span class="sb-acc-lbl">CRM</span>
+                <span class="sb-acc-arrow">▶</span>
+            </button>
+            <div class="sb-acc-body">
+                <a class="nav-a" href="/crm/dashboard"><span class="nav-ic">📊</span><span class="nav-txt">CRM Dashboard</span></a>
+                <a class="nav-a" href="/crm/leads"><span class="nav-ic">📋</span><span class="nav-txt">Leads</span></a>
+                <a class="nav-a" href="/crm/clients"><span class="nav-ic">👥</span><span class="nav-txt">Client Master</span></a>
+                <a class="nav-a" href="/crm/sample-orders"><span class="nav-ic">🧾</span><span class="nav-txt">Sample Orders</span></a>
+                <a class="nav-a" href="/crm/quotations"><span class="nav-ic">📄</span><span class="nav-txt">Quotations</span></a>
+            </div>
         </div>
         {% endif %}
+
         {% if role in ('admin','manager','hr') %}
-        <div class="sb-sec">
-            <div class="sb-sec-lbl">HR</div>
-            <a class="nav-a" href="/hr/employees/dashboard"><span class="nav-ic">📊</span><span class="nav-txt">Dashboard</span></a>
-            <a class="nav-a" href="/hr/employees"><span class="nav-ic">🪪</span><span class="nav-txt">Employees</span></a>
-            <a class="nav-a" href="/hr/contractors"><span class="nav-ic">🤝</span><span class="nav-txt">Contractors</span></a>
+        <div class="sb-sec sb-accordion">
+            <button class="sb-acc-hdr" onclick="toggleAccordion(this)">
+                <span class="sb-acc-ic">👥</span>
+                <span class="sb-acc-lbl">HR</span>
+                <span class="sb-acc-arrow">▶</span>
+            </button>
+            <div class="sb-acc-body">
+                <a class="nav-a" href="/hr/employees/dashboard"><span class="nav-ic">📊</span><span class="nav-txt">Dashboard</span></a>
+                <a class="nav-a" href="/hr/employees"><span class="nav-ic">🪪</span><span class="nav-txt">Employees</span></a>
+                <a class="nav-a" href="/hr/contractors"><span class="nav-ic">🤝</span><span class="nav-txt">Contractors</span></a>
+            </div>
         </div>
         {% endif %}
+
         {% if role == 'admin' %}
-        <div class="sb-sec">
-            <div class="sb-sec-lbl">Administration</div>
-            <a class="nav-a" href="/approvals"><span class="nav-ic">✅</span><span class="nav-txt">Approvals</span></a>
-            <a class="nav-a" href="/admin/permissions"><span class="nav-ic">🔐</span><span class="nav-txt">Permissions</span></a>
-            <a class="nav-a" href="/admin/audit-logs"><span class="nav-ic">🔍</span><span class="nav-txt">Audit Logs</span></a>
+        <div class="sb-sec sb-accordion">
+            <button class="sb-acc-hdr" onclick="toggleAccordion(this)">
+                <span class="sb-acc-ic">🗂️</span>
+                <span class="sb-acc-lbl">Masters</span>
+                <span class="sb-acc-arrow">▶</span>
+            </button>
+            <div class="sb-acc-body">
+                <a class="nav-a" href="/masters/category-master"><span class="nav-ic">🗂️</span><span class="nav-txt">Category Master</span></a>
+                <a class="nav-a" href="/masters/uom-master"><span class="nav-ic">📐</span><span class="nav-txt">UOM Master</span></a>
+                <a class="nav-a" href="/masters/hsn-master"><span class="nav-ic">🔢</span><span class="nav-txt">HSN Code Master</span></a>
+            </div>
+        </div>
+
+        <div class="sb-sec sb-accordion">
+            <button class="sb-acc-hdr" onclick="toggleAccordion(this)">
+                <span class="sb-acc-ic">🔐</span>
+                <span class="sb-acc-lbl">Administration</span>
+                <span class="sb-acc-arrow">▶</span>
+            </button>
+            <div class="sb-acc-body">
+                <a class="nav-a" href="/approvals"><span class="nav-ic">✅</span><span class="nav-txt">Approvals</span></a>
+                <a class="nav-a" href="/admin/permissions"><span class="nav-ic">🔐</span><span class="nav-txt">Permissions</span></a>
+                <a class="nav-a" href="/admin/audit-logs"><span class="nav-ic">🔍</span><span class="nav-txt">Audit Logs</span></a>
+            </div>
         </div>
         {% endif %}
 
@@ -1374,6 +1450,9 @@
             </a>
             <a class="nav-a {% if _pg == 'sample_orders' %}active{% endif %}" href="/crm/sample-orders">
                 <span class="nav-ic">📋</span><span class="nav-txt">Sample Orders</span>
+            </a>
+            <a class="nav-a {% if _pg == 'quotations' %}active{% endif %}" href="/crm/quotations">
+                <span class="nav-ic">📄</span><span class="nav-txt">Quotations</span>
             </a>
 
             {# ── Leaderboard — directly visible ── #}
@@ -1451,6 +1530,29 @@
         {% endif %}
 
         {# ════ ADMIN MODULE ════ #}
+        {# ════ MASTERS MODULE ════ #}
+        {% elif _mod == 'masters' %}
+        <div class="sb-sec">
+            <a class="nav-a nav-back" href="{{ url_for('dashboard') }}">
+                <span class="nav-ic">←</span><span class="nav-txt">Main Dashboard</span>
+            </a>
+        </div>
+        <div class="sb-sec">
+            <div class="sb-sec-lbl">Masters</div>
+            <a class="nav-a {% if _pg == 'cat_master' %}active{% endif %}" href="/masters/category-master">
+                <span class="nav-ic">🗂️</span><span class="nav-txt">Category Master</span>
+            </a>
+            <a class="nav-a {% if _pg == 'uom_master' %}active{% endif %}" href="/masters/uom-master">
+                <span class="nav-ic">📐</span><span class="nav-txt">UOM Master</span>
+            </a>
+            <a class="nav-a {% if _pg == 'hsn_master' %}active{% endif %}" href="/masters/hsn-master">
+                <span class="nav-ic">🔢</span><span class="nav-txt">HSN Code Master</span>
+            </a>
+            <a class="nav-a {% if _pg == 'masters' %}active{% endif %}" href="/masters/">
+                <span class="nav-ic">🏷️</span><span class="nav-txt">Lead Masters</span>
+            </a>
+        </div>
+
         {% elif _mod == 'admin' %}
         <div class="sb-sec">
             <a class="nav-a nav-back" href="{{ url_for('dashboard') }}">
@@ -2489,6 +2591,40 @@ function toggleNavGroup(btn) {
   btn.classList.toggle('open', !isOpen);
   if (submenu) submenu.classList.toggle('open', !isOpen);
 }
+</script>
+
+
+<script>
+function toggleAccordion(btn) {
+    const body = btn.nextElementSibling;
+    const isOpen = btn.classList.contains('open');
+    // Close all others in same sidebar
+    document.querySelectorAll('.sb-acc-hdr.open').forEach(b => {
+        if (b !== btn) {
+            b.classList.remove('open');
+            b.nextElementSibling.classList.remove('open');
+        }
+    });
+    btn.classList.toggle('open', !isOpen);
+    body.classList.toggle('open', !isOpen);
+    // Save state
+    try { localStorage.setItem('acc_' + btn.querySelector('.sb-acc-lbl').textContent.trim(), !isOpen ? '1' : '0'); } catch(e){}
+}
+
+// Restore accordion state on page load
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.sb-acc-hdr').forEach(btn => {
+        const lbl = btn.querySelector('.sb-acc-lbl')?.textContent.trim();
+        const saved = localStorage.getItem('acc_' + lbl);
+        // Auto-open if current page is inside this accordion
+        const body = btn.nextElementSibling;
+        const hasActive = body && body.querySelector('.nav-a.active');
+        if (hasActive || saved === '1') {
+            btn.classList.add('open');
+            body.classList.add('open');
+        }
+    });
+});
 </script>
 
 </body>

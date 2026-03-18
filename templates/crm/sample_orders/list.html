@@ -8,10 +8,16 @@
 .so-table th { background:#f1f5f9; padding:10px 12px; text-align:left; font-size:0.8rem; font-weight:700; color:#374151; border-bottom:2px solid #e2e8f0; white-space:nowrap; }
 .so-table td { padding:10px 12px; font-size:0.85rem; color:var(--text); border-bottom:1px solid #f1f5f9; vertical-align:middle; }
 .so-table tr:hover td { background:#f8fafc; }
-.so-badge { display:inline-block; padding:2px 10px; border-radius:100px; font-size:0.75rem; font-weight:700; }
-.so-badge-so   { background:#eff6ff; color:#1d4ed8; }
-.so-badge-po   { background:#f0fdf4; color:#166534; }
 .so-empty { text-align:center; padding:3rem; color:var(--text3); }
+.inv-upload-btn  { background:#fdf4ff; color:#7c3aed; border:1px dashed #c4b5fd; padding:5px 10px; border-radius:6px; font-size:0.78rem; font-weight:600; cursor:pointer; display:inline-block; }
+.inv-upload-btn:hover { background:#ede9fe; }
+.inv-dl-btn      { background:#eff6ff; color:#1d4ed8; border:none; padding:5px 10px; border-radius:6px; font-size:0.78rem; font-weight:600; cursor:pointer; text-decoration:none; display:inline-block; }
+.inv-dl-btn:hover{ background:#dbeafe; }
+.inv-change-btn  { background:#fff7ed; color:#c2410c; border:none; padding:5px 10px; border-radius:6px; font-size:0.78rem; font-weight:600; cursor:pointer; display:inline-block; }
+.inv-change-btn:hover { background:#ffedd5; }
+.inv-del-btn     { background:#fef2f2; color:#dc2626; border:none; padding:4px 7px; border-radius:6px; font-size:0.78rem; font-weight:700; cursor:pointer; }
+.inv-del-btn:hover{ background:#fee2e2; }
+.inv-filename    { font-size:0.72rem; color:var(--text3); display:block; margin-top:3px; max-width:130px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 {% endblock %}
 
 {% block content %}
@@ -42,6 +48,7 @@
                         <th style="text-align:right;">Total</th>
                         <th>Created By</th>
                         <th>Actions</th>
+                        <th>Invoice</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -77,13 +84,56 @@
                             </form>
                             <a href="{{ url_for('crm.lead_view', id=so.lead_id) }}" title="View Lead" style="background:#f0fdf4;color:#166534;border:none;padding:5px 10px;border-radius:6px;font-size:0.78rem;font-weight:600;cursor:pointer;text-decoration:none;display:inline-block;margin-left:4px;">👁 Lead</a>
                         </td>
+
+                        {# ── Invoice column ── #}
+                        <td style="min-width:160px;">
+                            {% if so.invoice_file %}
+                                <div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;">
+                                    <a href="{{ url_for('crm.sample_order_invoice_download', id=so.id) }}"
+                                       class="inv-dl-btn" title="Invoice download karo">
+                                        ⬇ Download
+                                    </a>
+                                    <label class="inv-change-btn" title="Galat invoice? Replace karo"
+                                           for="inv-change-{{ so.id }}">
+                                        🔄 Change
+                                    </label>
+                                    <form method="POST"
+                                          action="{{ url_for('crm.sample_order_invoice_delete', id=so.id) }}"
+                                          style="display:inline;"
+                                          onsubmit="return confirm('Invoice delete karein?');">
+                                        <button type="submit" class="inv-del-btn" title="Delete invoice">✕</button>
+                                    </form>
+                                </div>
+                                {# Hidden Change form — auto-submits on file pick #}
+                                <form method="POST"
+                                      action="{{ url_for('crm.sample_order_invoice_upload', id=so.id) }}"
+                                      enctype="multipart/form-data"
+                                      style="display:none;">
+                                    <input type="file" id="inv-change-{{ so.id }}" name="invoice_file"
+                                           accept=".pdf,.jpg,.jpeg,.png"
+                                           onchange="this.form.submit()">
+                                </form>
+                                <span class="inv-filename" title="{{ so.invoice_file }}">📎 {{ so.invoice_file }}</span>
+                            {% else %}
+                                <label class="inv-upload-btn" for="inv-upload-{{ so.id }}" title="Invoice upload karo (PDF/JPG/PNG)">
+                                    ⬆ Invoice Upload
+                                </label>
+                                <form method="POST"
+                                      action="{{ url_for('crm.sample_order_invoice_upload', id=so.id) }}"
+                                      enctype="multipart/form-data"
+                                      style="display:none;">
+                                    <input type="file" id="inv-upload-{{ so.id }}" name="invoice_file"
+                                           accept=".pdf,.jpg,.jpeg,.png"
+                                           onchange="this.form.submit()">
+                                </form>
+                            {% endif %}
+                        </td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
 
-        <!-- Pagination -->
         {% if pagination.pages > 1 %}
         <div style="display:flex;justify-content:center;align-items:center;gap:0.5rem;padding:1rem;">
             {% if pagination.has_prev %}

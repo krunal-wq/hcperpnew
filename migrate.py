@@ -589,6 +589,190 @@ with app.app_context():
     # ══════════════════════════════════════════════════════
     # STEP 8B — Sample Orders table
     # ══════════════════════════════════════════════════════
+    # ══════════════════════════════════════════════════════
+    # STEP 8A — Quotations table
+    # ══════════════════════════════════════════════════════
+    # ══════════════════════════════════════════════════════
+    # STEP 7B — Category Master, UOM Master, HSN Code Master
+    # ══════════════════════════════════════════════════════
+    step("STEP 7B: Category Master table create kar raha hai...")
+    if not table_exists('category_masters'):
+        cur.execute("""
+            CREATE TABLE category_masters (
+                id          INT AUTO_INCREMENT PRIMARY KEY,
+                name        VARCHAR(150) NOT NULL UNIQUE,
+                status      TINYINT(1) NOT NULL DEFAULT 1,
+                is_deleted  TINYINT(1) NOT NULL DEFAULT 0,
+                created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
+                created_by  INT NULL,
+                modified_at DATETIME NULL,
+                modified_by INT NULL
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        """)
+        raw.commit()
+        ok("category_masters table created")
+    else:
+        ok("category_masters table already exists")
+
+    step("STEP 7C: UOM Master table create kar raha hai...")
+    if not table_exists('uom_masters'):
+        cur.execute("""
+            CREATE TABLE uom_masters (
+                id          INT AUTO_INCREMENT PRIMARY KEY,
+                code        VARCHAR(30) NOT NULL UNIQUE,
+                name        VARCHAR(100) NOT NULL,
+                status      TINYINT(1) NOT NULL DEFAULT 1,
+                is_deleted  TINYINT(1) NOT NULL DEFAULT 0,
+                created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
+                created_by  INT NULL,
+                modified_at DATETIME NULL,
+                modified_by INT NULL
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        """)
+        raw.commit()
+        ok("uom_masters table created")
+        # Seed default UOMs
+        default_uoms = [
+            ('ML',  'Millilitre'),
+            ('L',   'Litre'),
+            ('GM',  'Gram'),
+            ('KG',  'Kilogram'),
+            ('PCS', 'Pieces'),
+            ('BOX', 'Box'),
+            ('SET', 'Set'),
+            ('MTR', 'Metre'),
+            ('NOS', 'Numbers'),
+        ]
+        for code, name in default_uoms:
+            cur.execute("INSERT IGNORE INTO uom_masters (code, name) VALUES (%s, %s)", (code, name))
+        raw.commit()
+        ok(f"UOM defaults seeded ({len(default_uoms)} records)")
+    else:
+        ok("uom_masters table already exists")
+
+    step("STEP 7D: HSN Code Master table create kar raha hai...")
+    if not table_exists('hsn_codes'):
+        cur.execute("""
+            CREATE TABLE hsn_codes (
+                id          INT AUTO_INCREMENT PRIMARY KEY,
+                hsn_code    VARCHAR(20) NOT NULL UNIQUE,
+                description TEXT NULL,
+                gst_rate    DECIMAL(5,2) DEFAULT 0,
+                cgst        DECIMAL(5,2) DEFAULT 0,
+                sgst        DECIMAL(5,2) DEFAULT 0,
+                igst        DECIMAL(5,2) DEFAULT 0,
+                cess        DECIMAL(5,2) DEFAULT 0,
+                status      TINYINT(1) NOT NULL DEFAULT 1,
+                is_deleted  TINYINT(1) NOT NULL DEFAULT 0,
+                created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
+                created_by  INT NULL,
+                modified_at DATETIME NULL,
+                modified_by INT NULL
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        """)
+        raw.commit()
+        ok("hsn_codes table created")
+        # Seed common cosmetic HSN codes
+        hsn_defaults = [
+            ('33049910', 'Face creams, lotions and similar preparations', 18, 9, 9, 18, 0),
+            ('33049920', 'Skin care preparations nes',                    18, 9, 9, 18, 0),
+            ('33051000', 'Shampoos',                                       18, 9, 9, 18, 0),
+            ('33059010', 'Hair oils',                                      18, 9, 9, 18, 0),
+            ('33061000', 'Dentifrice / Toothpaste',                        12, 6, 6, 12, 0),
+            ('33072000', 'Personal deodorants and antiperspirants',        18, 9, 9, 18, 0),
+            ('30049099', 'Medicaments nes',                                12, 6, 6, 12, 0),
+            ('21069099', 'Food preparations / Nutraceuticals nes',         18, 9, 9, 18, 0),
+        ]
+        for hc, desc, gst, cgst, sgst, igst, cess in hsn_defaults:
+            cur.execute(
+                "INSERT IGNORE INTO hsn_codes (hsn_code, description, gst_rate, cgst, sgst, igst, cess) VALUES (%s,%s,%s,%s,%s,%s,%s)",
+                (hc, desc, gst, cgst, sgst, igst, cess)
+            )
+        raw.commit()
+        ok(f"HSN defaults seeded ({len(hsn_defaults)} records)")
+    else:
+        ok("hsn_codes table already exists")
+
+    step("STEP 8A: quotations table create kar raha hai...")
+    if not table_exists('quotations'):
+        cur.execute("""
+            CREATE TABLE quotations (
+                id             INT AUTO_INCREMENT PRIMARY KEY,
+                quot_number    VARCHAR(50) NOT NULL UNIQUE,
+                lead_id        INT NOT NULL,
+                quot_date      DATE NOT NULL,
+                valid_until    DATE,
+                subject        VARCHAR(300),
+                bill_company   VARCHAR(200),
+                bill_address   TEXT,
+                bill_phone     VARCHAR(20),
+                bill_email     VARCHAR(150),
+                bill_gst       VARCHAR(20),
+                gst_pct        DECIMAL(5,2) DEFAULT 18,
+                sub_total      DECIMAL(12,2) DEFAULT 0,
+                gst_amount     DECIMAL(12,2) DEFAULT 0,
+                total_amount   DECIMAL(12,2) DEFAULT 0,
+                items_json     TEXT,
+                terms          TEXT,
+                notes          TEXT,
+                status         VARCHAR(20) DEFAULT 'draft',
+                email_sent_at  DATETIME,
+                email_sent_to  VARCHAR(150),
+                created_by     INT,
+                created_at     DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (lead_id) REFERENCES leads(id),
+                FOREIGN KEY (created_by) REFERENCES users(id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        """)
+        raw.commit()
+        ok("quotations table created")
+    else:
+        ok("quotations table already exists")
+
+    # Purani quotations table mein missing columns add karo (safe to run multiple times)
+    quot_cols = [
+        ('quot_number',   'VARCHAR(50)'),
+        ('lead_id',       'INT'),
+        ('quot_date',     'DATE'),
+        ('valid_until',   'DATE'),
+        ('subject',       'VARCHAR(300)'),
+        ('bill_company',  'VARCHAR(200)'),
+        ('bill_address',  'TEXT'),
+        ('bill_phone',    'VARCHAR(20)'),
+        ('bill_email',    'VARCHAR(150)'),
+        ('bill_gst',      'VARCHAR(20)'),
+        ('gst_pct',       'DECIMAL(5,2) DEFAULT 18'),
+        ('sub_total',     'DECIMAL(12,2) DEFAULT 0'),
+        ('gst_amount',    'DECIMAL(12,2) DEFAULT 0'),
+        ('total_amount',  'DECIMAL(12,2) DEFAULT 0'),
+        ('items_json',    'TEXT'),
+        ('terms',         'TEXT'),
+        ('notes',         'TEXT'),
+        ('status',        "VARCHAR(20) DEFAULT 'draft'"),
+        ('email_sent_at', 'DATETIME'),
+        ('email_sent_to', 'VARCHAR(150)'),
+        ('created_by',    'INT'),
+        ('created_at',    'DATETIME DEFAULT CURRENT_TIMESTAMP'),
+    ]
+    q_added = sum(1 for col, defn in quot_cols if safe_add('quotations', col, defn))
+    ok(f"quotations: {q_added} missing columns added") if q_added else ok("quotations: all columns already exist")
+
+    # customer_id → lead_id migrate karo (agar purana data hai)
+    if col_exists('quotations', 'customer_id') and col_exists('quotations', 'lead_id'):
+        try:
+            cur.execute("UPDATE quotations SET lead_id = customer_id WHERE lead_id IS NULL AND customer_id IS NOT NULL")
+            raw.commit()
+            ok("quotations: customer_id → lead_id data migrated")
+        except: pass
+
+    # quot_date NULL fix
+    if col_exists('quotations', 'quot_date') and col_exists('quotations', 'created_at'):
+        try:
+            cur.execute("UPDATE quotations SET quot_date = DATE(created_at) WHERE quot_date IS NULL")
+            raw.commit()
+            ok("quotations: quot_date NULL values fixed")
+        except: pass
+
     step("STEP 8B: sample_orders table create kar raha hai...")
     if not table_exists('sample_orders'):
         cur.execute("""
@@ -609,6 +793,7 @@ with app.app_context():
                 total_amount DECIMAL(12,2) DEFAULT 0,
                 items_json   TEXT,
                 terms        TEXT,
+                invoice_file VARCHAR(300),
                 created_by   INT,
                 created_at   DATETIME DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (lead_id) REFERENCES leads(id),
@@ -619,6 +804,9 @@ with app.app_context():
         ok("sample_orders table created")
     else:
         ok("sample_orders table already exists")
+
+    # invoice_file column — purani table ke liye (safe to run multiple times)
+    safe_add('sample_orders', 'invoice_file', 'VARCHAR(300)')
 
     # ══════════════════════════════════════════════════════
     # STEP 8B2 — client_addresses: brand_index column

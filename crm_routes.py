@@ -6,7 +6,7 @@ from werkzeug.utils import secure_filename
 from models import (db, User, ClientMaster, ClientBrand, ClientAddress,
                     Lead, LeadDiscussion, LeadAttachment,
                     LeadReminder, LeadNote, LeadActivityLog,
-                    SampleOrder, LeadContribution, ContributionConfig,
+                    SampleOrder, Quotation, LeadContribution, ContributionConfig,
                     Customer, CustomerAddress,
                     LeadStatus, LeadSource, LeadCategory, ProductRange)
 
@@ -2446,6 +2446,75 @@ def sample_orders_list():
         search=search, active_page='sample_orders')
 
 
+INVOICE_UPLOAD_FOLDER = os.path.join(os.path.dirname(__file__), 'static', 'uploads', 'invoices')
+INVOICE_ALLOWED_EXT  = {'pdf', 'jpg', 'jpeg', 'png'}
+
+def allowed_invoice(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in INVOICE_ALLOWED_EXT
+
+
+@crm.route('/sample-orders/<int:id>/invoice-upload', methods=['POST'])
+@login_required
+def sample_order_invoice_upload(id):
+    """Upload or replace invoice file for a sample order"""
+    so = SampleOrder.query.get_or_404(id)
+    f  = request.files.get('invoice_file')
+    if not f or not f.filename:
+        flash('Koi file select nahi ki.', 'danger')
+        return redirect(url_for('crm.sample_orders_list'))
+
+    if not allowed_invoice(f.filename):
+        flash('Sirf PDF, JPG, JPEG ya PNG allowed hai.', 'danger')
+        return redirect(url_for('crm.sample_orders_list'))
+
+    os.makedirs(INVOICE_UPLOAD_FOLDER, exist_ok=True)
+
+    # Delete old file if exists
+    if so.invoice_file:
+        old_path = os.path.join(INVOICE_UPLOAD_FOLDER, so.invoice_file)
+        if os.path.exists(old_path):
+            os.remove(old_path)
+
+    ext   = f.filename.rsplit('.', 1)[1].lower()
+    fname = secure_filename(f'{so.order_number}_invoice.{ext}')
+    f.save(os.path.join(INVOICE_UPLOAD_FOLDER, fname))
+
+    so.invoice_file = fname
+    db.session.commit()
+    flash('Invoice successfully upload ho gayi!', 'success')
+    return redirect(url_for('crm.sample_orders_list'))
+
+
+@crm.route('/sample-orders/<int:id>/invoice-download')
+@login_required
+def sample_order_invoice_download(id):
+    """Download the uploaded invoice file"""
+    so = SampleOrder.query.get_or_404(id)
+    if not so.invoice_file:
+        flash('Koi invoice upload nahi hui hai.', 'warning')
+        return redirect(url_for('crm.sample_orders_list'))
+    fpath = os.path.join(INVOICE_UPLOAD_FOLDER, so.invoice_file)
+    if not os.path.exists(fpath):
+        flash('File server pe nahi mili.', 'danger')
+        return redirect(url_for('crm.sample_orders_list'))
+    return send_file(fpath, as_attachment=True, download_name=so.invoice_file)
+
+
+@crm.route('/sample-orders/<int:id>/invoice-delete', methods=['POST'])
+@login_required
+def sample_order_invoice_delete(id):
+    """Remove uploaded invoice file"""
+    so = SampleOrder.query.get_or_404(id)
+    if so.invoice_file:
+        fpath = os.path.join(INVOICE_UPLOAD_FOLDER, so.invoice_file)
+        if os.path.exists(fpath):
+            os.remove(fpath)
+        so.invoice_file = None
+        db.session.commit()
+        flash('Invoice delete ho gayi.', 'success')
+    return redirect(url_for('crm.sample_orders_list'))
+
+
 @crm.route('/sample-orders/<int:id>/reprint', methods=['POST'])
 @login_required
 def sample_order_reprint(id):
@@ -2860,3 +2929,443 @@ def leaderboard_data():
         period_label=plabel,
         leads=leads_data,
     )
+
+
+# ══════════════════════════════════════════════════════
+# QUOTATION — CREATE / LIST / REPRINT / EMAIL SEND
+# ══════════════════════════════════════════════════════
+
+QUOT_FOLDER = os.path.join(os.path.dirname(__file__), 'static', 'uploads', 'quotations')
+
+
+def _build_quotation_pdf(quot, lead):
+    """Build HCP-style Quotation PDF — Product Name / Size / Code / UOM / Cost / MOQ / PM Spec / PM Cost / FG Cost / Category / Final Cost."""
+    import io, json as _json
+    from reportlab.lib.pagesizes import A4, landscape
+    from reportlab.lib import colors
+    from reportlab.lib.units import mm
+    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, HRFlowable, Image
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
+
+    buf = io.BytesIO()
+    # Use landscape A4 for wide table
+    doc = SimpleDocTemplate(buf, pagesize=landscape(A4),
+                            leftMargin=12*mm, rightMargin=12*mm,
+                            topMargin=10*mm, bottomMargin=12*mm)
+    W = landscape(A4)[0] - 24*mm   # usable width ~258mm
+
+    def S(name, **kw):
+        base = getSampleStyleSheet()['Normal']
+        return ParagraphStyle(name, parent=base, **kw)
+
+    normal  = S('N',  fontSize=8, leading=11)
+    small   = S('Sm', fontSize=7.5, textColor=colors.HexColor('#6b7280'), leading=10)
+    center  = S('C',  fontSize=8, alignment=TA_CENTER, leading=11)
+    right   = S('R',  fontSize=8, alignment=TA_RIGHT,  leading=11)
+    th      = S('TH', fontSize=8, fontName='Helvetica-Bold', alignment=TA_CENTER, leading=11)
+    story   = []
+
+    # ── HEADER ──
+    logo_path = os.path.join(os.path.dirname(__file__), 'static', 'images', 'icons', 'hcp-logo.png')
+    company_info = ('<b>HCP Wellness Pvt. Ltd.</b><br/>'
+                    '403, Maruti Vertex Elanza, Opp. Global Hospital,<br/>'
+                    'Sindhu Bhavan Road, Bodakdev, Ahmedabad-380054, Gujarat.<br/>'
+                    '<b>GST:</b> 24AAFCH7246H1ZK &nbsp;|&nbsp; ✉ info@hcpwellness.in &nbsp;|&nbsp; 🌐 www.hcpwellness.in')
+    hdr_left = Image(logo_path, width=38*mm, height=16*mm, kind='proportional') if os.path.exists(logo_path) else Paragraph('<b>HCP</b>', normal)
+    hdr_tbl  = Table([[hdr_left, Paragraph(company_info, S('CI', fontSize=8, alignment=TA_RIGHT, leading=12))]],
+                     colWidths=[W*0.3, W*0.7])
+    hdr_tbl.setStyle(TableStyle([('VALIGN',(0,0),(-1,-1),'MIDDLE'),
+                                  ('TOPPADDING',(0,0),(-1,-1),4),('BOTTOMPADDING',(0,0),(-1,-1),4)]))
+    story.append(hdr_tbl)
+    story.append(HRFlowable(width='100%', thickness=2, color=colors.HexColor('#1e3a5f'), spaceAfter=4))
+
+    # ── TITLE ──
+    story.append(Paragraph('<b>QUOTATION</b>',
+        S('QT', fontSize=14, fontName='Helvetica-Bold', textColor=colors.HexColor('#1e3a5f'),
+          alignment=TA_CENTER, spaceBefore=2, spaceAfter=2)))
+    if quot.subject:
+        story.append(Paragraph(quot.subject,
+            S('QS', fontSize=8.5, textColor=colors.HexColor('#6b7280'), alignment=TA_CENTER, spaceAfter=4)))
+    story.append(HRFlowable(width='100%', thickness=0.5, color=colors.HexColor('#e2e8f0'), spaceAfter=5))
+
+    # ── TO + META ──
+    bill_lines = []
+    if quot.bill_company: bill_lines.append(f'<b>{quot.bill_company}</b>')
+    if quot.bill_address: bill_lines.append(quot.bill_address.replace('\n','<br/>'))
+    if quot.bill_phone:   bill_lines.append(f'📞 {quot.bill_phone}')
+    if quot.bill_email:   bill_lines.append(f'✉ {quot.bill_email}')
+    if quot.bill_gst:     bill_lines.append(f'GST: {quot.bill_gst}')
+    bill_txt = '<font size="7" color="#6b7280"><b>TO</b></font><br/>' + '<br/>'.join(bill_lines)
+
+    valid_str = quot.valid_until.strftime('%d-%m-%Y') if quot.valid_until else '—'
+    meta_txt  = (f'<font size="7" color="#6b7280">Quotation No.</font><br/><b>{quot.quot_number}</b><br/><br/>'
+                 f'<font size="7" color="#6b7280">Date</font><br/><b>{quot.quot_date.strftime("%d-%m-%Y")}</b><br/><br/>'
+                 f'<font size="7" color="#6b7280">Valid Until</font><br/><b>{valid_str}</b>')
+    meta_tbl = Table([[Paragraph(bill_txt, S('BT', fontSize=8, leading=13)),
+                       Paragraph(meta_txt, S('MT', fontSize=8, leading=12, alignment=TA_RIGHT))]],
+                     colWidths=[W*0.6, W*0.4])
+    meta_tbl.setStyle(TableStyle([('VALIGN',(0,0),(-1,-1),'TOP'),
+                                   ('TOPPADDING',(0,0),(-1,-1),4),('BOTTOMPADDING',(0,0),(-1,-1),6),
+                                   ('LINEBELOW',(0,0),(-1,-1),0.5,colors.HexColor('#e5e7eb'))]))
+    story.append(meta_tbl)
+    story.append(Spacer(1, 4*mm))
+
+    # ── ITEMS TABLE ──
+    items = _json.loads(quot.items_json or '[]')
+
+    # Column headers
+    HDR_BG   = colors.HexColor('#1e3a5f')
+    HDR_FG   = colors.white
+    ALT_BG   = colors.HexColor('#f8fafc')
+
+    headers = [
+        Paragraph('<b>Product Name</b>',   S('H0', fontSize=8, fontName='Helvetica-Bold', textColor=HDR_FG)),
+        Paragraph('<b>Size</b>',            S('H1', fontSize=8, fontName='Helvetica-Bold', textColor=HDR_FG, alignment=TA_CENTER)),
+        Paragraph('<b>Product Code</b>',    S('H2', fontSize=8, fontName='Helvetica-Bold', textColor=HDR_FG, alignment=TA_CENTER)),
+        Paragraph('<b>UOM</b>',             S('H3', fontSize=8, fontName='Helvetica-Bold', textColor=HDR_FG, alignment=TA_CENTER)),
+        Paragraph('<b>Cost (INR)</b>',      S('H4', fontSize=8, fontName='Helvetica-Bold', textColor=HDR_FG, alignment=TA_RIGHT)),
+        Paragraph('<b>MOQ</b>',             S('H5', fontSize=8, fontName='Helvetica-Bold', textColor=HDR_FG, alignment=TA_CENTER)),
+        Paragraph('<b>PM Specification</b>',S('H6', fontSize=8, fontName='Helvetica-Bold', textColor=HDR_FG)),
+        Paragraph('<b>PM Cost</b>',         S('H7', fontSize=8, fontName='Helvetica-Bold', textColor=HDR_FG, alignment=TA_RIGHT)),
+        Paragraph('<b>FG Cost</b>',         S('H8', fontSize=8, fontName='Helvetica-Bold', textColor=HDR_FG, alignment=TA_RIGHT)),
+        Paragraph('<b>Category</b>',        S('H9', fontSize=8, fontName='Helvetica-Bold', textColor=HDR_FG, alignment=TA_CENTER)),
+        Paragraph('<b>Final Cost (INR)</b>',S('H10',fontSize=8, fontName='Helvetica-Bold', textColor=HDR_FG, alignment=TA_RIGHT)),
+    ]
+
+    tbl_data = [headers]
+    for item in items:
+        def fmt(v):
+            try: return f"{float(v):,.2f}" if v and float(v)!=0 else "—"
+            except: return str(v) if v else "—"
+        def sv(k): return str(item.get(k,'')) or '—'
+        tbl_data.append([
+            Paragraph(item.get('name',''),       normal),
+            Paragraph(sv('size'),                center),
+            Paragraph(sv('code'),                center),
+            Paragraph(sv('uom'),                 center),
+            Paragraph(fmt(item.get('cost',0)),   right),
+            Paragraph(fmt(item.get('moq',0)),    center),
+            Paragraph(item.get('pm_spec','') or '—', S('PS', fontSize=7.5, leading=10)),
+            Paragraph(fmt(item.get('pm_cost',0)),right),
+            Paragraph(fmt(item.get('fg_cost',0)),right),
+            Paragraph(sv('category'),            center),
+            Paragraph(f"<b>{fmt(item.get('final_cost',0))}</b>",
+                      S('FC', fontSize=8, fontName='Helvetica-Bold', alignment=TA_RIGHT)),
+        ])
+
+    # Col widths for landscape A4 (~258mm usable)
+    col_w = [W*0.15, W*0.055, W*0.10, W*0.05, W*0.07,
+             W*0.055, W*0.175, W*0.07, W*0.07, W*0.07, W*0.085]
+
+    items_tbl = Table(tbl_data, colWidths=col_w, repeatRows=1)
+    items_tbl.setStyle(TableStyle([
+        ('BACKGROUND',(0,0),(-1,0), HDR_BG),
+        ('TEXTCOLOR',(0,0),(-1,0),  HDR_FG),
+        ('FONTSIZE',(0,0),(-1,-1),  8),
+        ('TOPPADDING',(0,0),(-1,-1),5),('BOTTOMPADDING',(0,0),(-1,-1),5),
+        ('LEFTPADDING',(0,0),(-1,-1),5),('RIGHTPADDING',(0,0),(-1,-1),5),
+        ('ROWBACKGROUNDS',(0,1),(-1,-1),[colors.white, ALT_BG]),
+        ('GRID',(0,0),(-1,-1), 0.4, colors.HexColor('#d1d5db')),
+        ('BOX',(0,0),(-1,-1),  1,   colors.HexColor('#94a3b8')),
+        ('VALIGN',(0,0),(-1,-1),'TOP'),
+        ('ALIGN',(1,0),(1,-1),'CENTER'),('ALIGN',(2,0),(2,-1),'CENTER'),
+        ('ALIGN',(3,0),(3,-1),'CENTER'),('ALIGN',(4,0),(4,-1),'RIGHT'),
+        ('ALIGN',(5,0),(5,-1),'CENTER'),('ALIGN',(7,0),(7,-1),'RIGHT'),
+        ('ALIGN',(8,0),(8,-1),'RIGHT'),('ALIGN',(9,0),(9,-1),'CENTER'),
+        ('ALIGN',(10,0),(10,-1),'RIGHT'),
+    ]))
+    story.append(items_tbl)
+    story.append(Spacer(1, 5*mm))
+
+    # ── KEY HIGHLIGHTS (like email format) ──
+    highlights = [
+        '<b>Exclusions:</b> The quoted price does not include <b>GST and transportation charges.</b> These will be billed separately.',
+        f'<b>Validity:</b> This quotation remains valid for 30 days from the date of this quotation.',
+        '<b>Note:</b> We have considered PM rates based upon specs shared. Any change in specs will lead to change in PM rates which eventually leads to change in final rates.',
+    ]
+    story.append(Paragraph('<b>Key Highlights of the Quotation:</b>',
+        S('KH', fontSize=8.5, fontName='Helvetica-Bold', textColor=colors.HexColor('#1e3a5f'), spaceBefore=2, spaceAfter=3)))
+    for h in highlights:
+        story.append(Paragraph(f'• &nbsp; {h}', S('HL', fontSize=8, leading=12, leftIndent=8, spaceAfter=2)))
+
+    # ── TERMS & NOTES + SIGNATURE ──
+    story.append(Spacer(1, 4*mm))
+    terms_txt = (quot.terms or '').replace('\n','<br/>')
+    notes_txt = quot.notes or ''
+    left_col  = f'<b>Terms &amp; Conditions:</b><br/>{terms_txt}'
+    if notes_txt:
+        left_col += f'<br/><br/><b>Notes:</b><br/>{notes_txt.replace(chr(10),"<br/>")}'
+    left_col += ('<br/><br/>Let me know in case of any query. Looking forward for your valuable order.<br/><br/>'
+                 '<b>Warm Regards</b><br/>' + (quot.creator.full_name if quot.creator else 'HCP Wellness'))
+    ts_tbl = Table([[Paragraph(left_col, S('TC', fontSize=8, leading=12)),
+                     Paragraph('<br/><br/><br/>________________________<br/><b>Authorised Signature</b><br/>HCP Wellness Pvt. Ltd.',
+                               S('Sig', fontSize=8, alignment=TA_CENTER))]],
+                   colWidths=[W*0.65, W*0.35])
+    ts_tbl.setStyle(TableStyle([('VALIGN',(0,0),(-1,-1),'TOP'),
+                                 ('TOPPADDING',(0,0),(-1,-1),4),('ALIGN',(1,0),(1,0),'CENTER')]))
+    story.append(ts_tbl)
+    story.append(Spacer(1, 3*mm))
+    story.append(HRFlowable(width='100%', thickness=0.5, color=colors.HexColor('#d1d5db')))
+    story.append(Paragraph(
+        f'<i>Computer-generated quotation &nbsp;·&nbsp; {datetime.now().strftime("%d-%m-%Y %H:%M")} &nbsp;·&nbsp; {quot.creator.full_name if quot.creator else "System"}</i>',
+        S('Ft', fontSize=7, textColor=colors.HexColor('#9ca3af'), alignment=TA_CENTER, spaceBefore=2)
+    ))
+    doc.build(story)
+    buf.seek(0)
+    return buf
+
+
+@crm.route('/leads/<int:id>/quotation', methods=['POST'])
+@login_required
+def lead_create_quotation(id):
+    """Generate Quotation PDF, save to DB and return as download."""
+    import json as _json
+    lead = Lead.query.get_or_404(id)
+
+    quot_number  = request.form.get('quot_number', f'HCPQT{lead.id}')
+    quot_date_s  = request.form.get('quot_date', date.today().strftime('%Y-%m-%d'))
+    valid_until_s= request.form.get('valid_until', '')
+    subject      = request.form.get('quot_subject', '')
+    bill_company = request.form.get('bill_company', lead.company_name or '')
+    bill_address = request.form.get('bill_address', '')
+    bill_phone   = request.form.get('bill_phone', lead.phone or '')
+    bill_email   = request.form.get('bill_email', lead.email or '')
+    bill_gst     = request.form.get('bill_gst', '')
+    terms        = request.form.get('terms', 'Payment: Advance\nDelivery: 7-10 working days\nQuotation valid as mentioned above.')
+    notes        = request.form.get('notes', '')
+
+    # New HCP-style fields per row
+    item_names    = request.form.getlist('item_name[]')
+    item_sizes    = request.form.getlist('item_size[]')
+    item_codes    = request.form.getlist('item_code[]')
+    item_uoms     = request.form.getlist('item_uom[]')
+    item_costs    = request.form.getlist('item_cost[]')
+    item_moqs     = request.form.getlist('item_moq[]')
+    item_pm_specs = request.form.getlist('item_pm_spec[]')
+    item_pm_costs = request.form.getlist('item_pm_cost[]')
+    item_fg_costs = request.form.getlist('item_fg_cost[]')
+    item_cats     = request.form.getlist('item_category[]')
+    item_finals   = request.form.getlist('item_final_cost[]')
+
+    items_list = []
+    sub_total  = 0.0
+    for i, name in enumerate(item_names):
+        if not name.strip(): continue
+        def _f(lst, idx): 
+            try: return float(lst[idx]) if idx < len(lst) and lst[idx].strip() else 0.0
+            except: return 0.0
+        def _s(lst, idx): return lst[idx] if idx < len(lst) else ''
+        final_cost = _f(item_finals, i)
+        moq        = _f(item_moqs, i)
+        sub_total += final_cost * moq
+        items_list.append({
+            'name':     name,
+            'size':     _s(item_sizes, i),
+            'code':     _s(item_codes, i),
+            'uom':      _s(item_uoms, i),
+            'cost':     _f(item_costs, i),
+            'moq':      moq,
+            'pm_spec':  _s(item_pm_specs, i),
+            'pm_cost':  _f(item_pm_costs, i),
+            'fg_cost':  _f(item_fg_costs, i),
+            'category': _s(item_cats, i),
+            'final_cost': final_cost,
+        })
+
+    # No GST for HCP-style quotation (price quoted exclusive)
+    gst_pct      = 0.0
+    gst_amount   = 0.0
+    total_amount = sub_total
+
+    try:    quot_date_obj   = datetime.strptime(quot_date_s, '%Y-%m-%d').date()
+    except: quot_date_obj   = date.today()
+    try:    valid_until_obj = datetime.strptime(valid_until_s, '%Y-%m-%d').date() if valid_until_s else None
+    except: valid_until_obj = None
+
+    quot = Quotation(
+        quot_number  = quot_number,
+        lead_id      = id,
+        quot_date    = quot_date_obj,
+        valid_until  = valid_until_obj,
+        subject      = subject,
+        bill_company = bill_company,
+        bill_address = bill_address,
+        bill_phone   = bill_phone,
+        bill_email   = bill_email,
+        bill_gst     = bill_gst,
+        gst_pct      = gst_pct,
+        sub_total    = sub_total,
+        gst_amount   = gst_amount,
+        total_amount = total_amount,
+        items_json   = _json.dumps(items_list),
+        terms        = terms,
+        notes        = notes,
+        status       = 'draft',
+        created_by   = current_user.id,
+    )
+    db.session.add(quot)
+    log_activity(id, f'Quotation generated: {quot_number}')
+    db.session.commit()
+
+    buf = _build_quotation_pdf(quot, lead)
+    filename = f'Quotation_{quot_number}.pdf'
+    return send_file(buf, mimetype='application/pdf', as_attachment=True, download_name=filename)
+
+
+@crm.route('/quotations')
+@login_required
+def quotations_list():
+    search   = request.args.get('search', '')
+    page     = request.args.get('page', 1, type=int)
+    per_page = 20
+    q = Quotation.query.join(Lead, Quotation.lead_id == Lead.id)
+    if search:
+        q = q.filter(
+            Quotation.quot_number.ilike(f'%{search}%') |
+            Quotation.bill_company.ilike(f'%{search}%') |
+            Lead.contact_name.ilike(f'%{search}%') |
+            Lead.company_name.ilike(f'%{search}%')
+        )
+    q = q.order_by(Quotation.created_at.desc())
+    pagination = q.paginate(page=page, per_page=per_page, error_out=False)
+    return render_template('crm/quotations/list.html',
+        quotations=pagination.items, pagination=pagination,
+        search=search, active_page='quotations')
+
+
+@crm.route('/quotations/<int:id>/reprint', methods=['POST'])
+@login_required
+def quotation_reprint(id):
+    """Re-download PDF for an existing quotation."""
+    quot = Quotation.query.get_or_404(id)
+    buf  = _build_quotation_pdf(quot, quot.lead)
+    return send_file(buf, mimetype='application/pdf',
+                     as_attachment=True, download_name=f'Quotation_{quot.quot_number}.pdf')
+
+
+@crm.route('/quotations/<int:id>/send-email', methods=['POST'])
+@login_required
+def quotation_send_email(id):
+    """Send quotation PDF as email attachment to client."""
+    import smtplib
+    from email.mime.multipart import MIMEMultipart
+    from email.mime.text      import MIMEText
+    from email.mime.base      import MIMEBase
+    from email                import encoders
+
+    quot     = Quotation.query.get_or_404(id)
+    to_email = request.form.get('to_email', quot.bill_email or '').strip()
+    subject  = request.form.get('subject',  f'Quotation {quot.quot_number} — HCP Wellness Pvt. Ltd.').strip()
+    body_txt = request.form.get('body', '').strip()
+
+    if not to_email:
+        flash('❌ Email address required!', 'danger')
+        return redirect(url_for('crm.quotations_list'))
+
+    if not body_txt:
+        import json as _jmail
+        items = _jmail.loads(quot.items_json or '[]')
+        rows_html = ''
+        for it in items:
+            def _fc(k):
+                try: v=float(it.get(k,0)); return f'{v:,.2f} INR' if v else '—'
+                except: return '—'
+            rows_html += (
+                f'<tr>'
+                f'<td style="border:1px solid #ccc;padding:6px 10px;">{it.get("name","—")}</td>'
+                f'<td style="border:1px solid #ccc;padding:6px 10px;text-align:center;">{it.get("size","—")}</td>'
+                f'<td style="border:1px solid #ccc;padding:6px 10px;">{it.get("code","—")}</td>'
+                f'<td style="border:1px solid #ccc;padding:6px 10px;text-align:center;">{int(it.get("moq",0)) if it.get("moq") else "—"}</td>'
+                f'<td style="border:1px solid #ccc;padding:6px 10px;text-align:right;"><b>{_fc("final_cost")}</b></td>'
+                f'</tr>'
+            )
+        valid_line = (f'Valid Until: <b>{quot.valid_until.strftime("%d-%m-%Y")}</b><br/>' if quot.valid_until else '')
+        creator_name = quot.creator.full_name if quot.creator else 'HCP Wellness'
+        body_txt = f'''Dear {quot.bill_company or 'Sir/Madam'},<br/><br/>
+Hope this email finds you well.<br/><br/>
+Kindly find below the <b>final cost</b> for quote for {quot.subject or quot.bill_company or 'your requirement'}.<br/><br/>
+<table style="border-collapse:collapse;font-size:14px;font-family:Arial,sans-serif;">
+  <thead>
+    <tr style="background:#1e3a5f;color:#fff;">
+      <th style="border:1px solid #ccc;padding:8px 12px;text-align:left;">Product Name</th>
+      <th style="border:1px solid #ccc;padding:8px 12px;">Size</th>
+      <th style="border:1px solid #ccc;padding:8px 12px;">Product Code</th>
+      <th style="border:1px solid #ccc;padding:8px 12px;">Moq</th>
+      <th style="border:1px solid #ccc;padding:8px 12px;">Final Cost (INR)</th>
+    </tr>
+  </thead>
+  <tbody>{rows_html}</tbody>
+</table>
+<br/>
+<b>Key highlights of the quotation:</b>
+<ul>
+  <li><b>Exclusions:</b> The quoted price does not include <b>GST, and transportation charges.</b> These will be billed separately.</li>
+  <li><b>Validity:</b> This quotation remains valid for 30 days from the date of this email.</li>
+  <li><b>Note:-</b> We have considered PM rates based upon specs shared, any change in specs will lead to change in PM rates which eventually leads to change in final rates.</li>
+</ul>
+Let me know in case of any query. Looking forward for your valuable order.<br/><br/>
+<b>Warm Regards</b><br/>
+<b>{creator_name}</b><br/>
+<b>HCP Wellness Pvt. Ltd.</b><br/>
+📱 <a href="https://wa.me/+919723455627">+91 97234 55627</a> &nbsp;|&nbsp; ✉ info@hcpwellness.in &nbsp;|&nbsp; 🌐 www.hcpwellness.in
+<br/><br/>
+<hr style="border:none;border-top:1px solid #ccc;margin:12px 0;">
+<span style="font-size:11px;color:#c00;"><b>IMPORTANT NOTICE:</b> This email and any attachments may contain information that is confidential and privileged. It is intended to be received only by persons entitled to receive the information. If you are not the intended recipient, please delete it from your system and notify the sender.</span>
+'''
+
+    try:
+        cfg = current_app.config
+        msg = MIMEMultipart('mixed')
+        msg['Subject'] = subject
+        msg['From']    = f'HCP Wellness Pvt. Ltd. <{cfg.get("MAIL_USERNAME","info@hcpwellness.in")}>'
+        msg['To']      = to_email
+        msg['Reply-To']= cfg.get('MAIL_USERNAME', 'info@hcpwellness.in')
+
+        # HTML body
+        html_body = f'''<html><body style="font-family:Arial,sans-serif;font-size:14px;color:#333;">
+        {body_txt}
+        </body></html>'''
+        msg.attach(MIMEText(html_body, 'html', 'utf-8'))
+
+        # PDF attachment
+        pdf_buf  = _build_quotation_pdf(quot, quot.lead)
+        att      = MIMEBase('application', 'octet-stream')
+        att.set_payload(pdf_buf.read())
+        encoders.encode_base64(att)
+        att.add_header('Content-Disposition', 'attachment',
+                       filename=f'Quotation_{quot.quot_number}.pdf')
+        msg.attach(att)
+
+        server = smtplib.SMTP(cfg['MAIL_SERVER'], cfg['MAIL_PORT'], timeout=15)
+        server.ehlo()
+        if cfg.get('MAIL_USE_TLS'): server.starttls()
+        if cfg.get('MAIL_USERNAME') and cfg.get('MAIL_PASSWORD'):
+            server.login(cfg['MAIL_USERNAME'], cfg['MAIL_PASSWORD'])
+        server.sendmail(msg['From'], [to_email], msg.as_string())
+        server.quit()
+
+        # Update status & log
+        quot.status        = 'sent'
+        quot.email_sent_at = datetime.utcnow()
+        quot.email_sent_to = to_email
+        db.session.commit()
+        log_activity(quot.lead_id, f'Quotation {quot.quot_number} emailed to {to_email}')
+        flash(f'✅ Quotation successfully sent to {to_email}!', 'success')
+
+    except Exception as e:
+        flash(f'❌ Email failed: {e}', 'danger')
+
+    return redirect(url_for('crm.quotations_list'))
+
+
+@crm.route('/quotations/<int:id>/status', methods=['POST'])
+@login_required
+def quotation_status_update(id):
+    """Update quotation status (accepted / rejected / draft)."""
+    quot = Quotation.query.get_or_404(id)
+    quot.status = request.form.get('status', quot.status)
+    db.session.commit()
+    flash('Quotation status updated.', 'success')
+    return redirect(url_for('crm.quotations_list'))
+

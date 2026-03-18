@@ -57,3 +57,58 @@ class ProductRange(db.Model):
     modified_by = db.Column(db.Integer, nullable=True)
     modified_at = db.Column(db.DateTime, nullable=True)
     def __repr__(self): return f'<ProductRange {self.name}>'
+
+
+# ──────────────────────────────────────
+# Category Master
+# ──────────────────────────────────────
+class CategoryMaster(db.Model):
+    __tablename__ = 'category_masters'
+    id          = db.Column(db.Integer, primary_key=True)
+    name        = db.Column(db.String(150), nullable=False, unique=True)
+    status      = db.Column(db.Boolean, default=True)
+    is_deleted  = db.Column(db.Boolean, default=False)
+    created_at  = db.Column(db.DateTime, default=datetime.now)
+    created_by  = db.Column(db.Integer, nullable=True)
+    modified_at = db.Column(db.DateTime, nullable=True)
+    modified_by = db.Column(db.Integer, nullable=True)
+    def __repr__(self): return f'<CategoryMaster {self.name}>'
+
+
+# ──────────────────────────────────────
+# UOM Master
+# ──────────────────────────────────────
+class UOMMaster(db.Model):
+    __tablename__ = 'uom_masters'
+    id          = db.Column(db.Integer, primary_key=True)
+    code        = db.Column(db.String(30), nullable=False, unique=True)
+    name        = db.Column(db.String(100), nullable=False)
+    status      = db.Column(db.Boolean, default=True)
+    is_deleted  = db.Column(db.Boolean, default=False)
+    created_at  = db.Column(db.DateTime, default=datetime.now)
+    created_by  = db.Column(db.Integer, nullable=True)
+    modified_at = db.Column(db.DateTime, nullable=True)
+    modified_by = db.Column(db.Integer, nullable=True)
+    def __repr__(self): return f'<UOMMaster {self.code}>'
+
+
+# ──────────────────────────────────────
+# HSN Code Master
+# ──────────────────────────────────────
+class HSNCode(db.Model):
+    __tablename__ = 'hsn_codes'
+    id          = db.Column(db.Integer, primary_key=True)
+    hsn_code    = db.Column(db.String(20), nullable=False, unique=True)
+    description = db.Column(db.Text, nullable=True)
+    gst_rate    = db.Column(db.Numeric(5,2), default=0)   # e.g. 18.00
+    cgst        = db.Column(db.Numeric(5,2), default=0)   # half of gst
+    sgst        = db.Column(db.Numeric(5,2), default=0)   # half of gst
+    igst        = db.Column(db.Numeric(5,2), default=0)   # full gst for inter-state
+    cess        = db.Column(db.Numeric(5,2), default=0)
+    status      = db.Column(db.Boolean, default=True)
+    is_deleted  = db.Column(db.Boolean, default=False)
+    created_at  = db.Column(db.DateTime, default=datetime.now)
+    created_by  = db.Column(db.Integer, nullable=True)
+    modified_at = db.Column(db.DateTime, nullable=True)
+    modified_by = db.Column(db.Integer, nullable=True)
+    def __repr__(self): return f'<HSNCode {self.hsn_code}>'
