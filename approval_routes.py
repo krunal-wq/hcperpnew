@@ -1,6 +1,7 @@
 """
 approval_routes.py — Hierarchy Management + Approval Workflow
 """
+from audit_helper import audit
 from flask import Blueprint, render_template, redirect, url_for, request, flash, jsonify
 from flask_login import login_required, current_user
 from datetime import datetime
@@ -77,6 +78,7 @@ def set_manager():
             return jsonify(success=False, error='Circular hierarchy detected'), 400
 
     emp.reports_to = manager_id if manager_id else None
+    audit('approvals','SET_MANAGER', emp_id, emp.full_name, f'Manager set by {current_user.username}: {emp.full_name} → {manager_id if manager_id else "None"}')
     db.session.commit()
     mgr = Employee.query.get(manager_id) if manager_id else None
     return jsonify(success=True, manager_name=mgr.full_name if mgr else 'None')
@@ -141,6 +143,7 @@ def request_approval():
     )
     db.session.add(ar)
     db.session.commit()
+    audit('approvals','REQUEST', ar.id, ar.request_type, f'Approval request submitted by {current_user.username}: {ar.request_type}')
     flash('Approval request submitted.', 'success')
     return redirect(request.referrer or url_for('approval.approvals'))
 
@@ -167,6 +170,7 @@ def approval_action(ar_id):
     ar.remarks     = remarks
     db.session.commit()
 
+    audit('approvals','ACTION', ar.id, ar.request_type, f'Approval {action}d by {current_user.username}: {ar.request_type}')
     flash(f'Request {"approved" if action=="approve" else "rejected"}.', 'success')
     return redirect(url_for('approval.approvals'))
 
@@ -202,8 +206,9 @@ def approval_config():
             else:
                 db.session.add(ApprovalLevel(module=mod, label=_, levels=levels, is_active=active))
         db.session.commit()
-        flash('Approval config saved.', 'success')
-        return redirect(url_for('approval.approval_config'))
+        audit('approvals','CONFIG_UPDATE', None, '', f'Approval config updated by {current_user.username}')
+    flash('Approval config saved.', 'success')
+    return redirect(url_for('approval.approval_config'))
 
     config = {al.module: al for al in ApprovalLevel.query.all()}
     return render_template('approval/config.html',

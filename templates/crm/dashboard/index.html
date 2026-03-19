@@ -154,7 +154,7 @@
     </button>
     <button id="tab-emp" onclick="switchDashTab('emp')" style="padding:10px 22px;font-size:0.88rem;font-weight:700;color:#64748b;background:transparent;border:none;border-bottom:2.5px solid transparent;margin-bottom:-2px;cursor:pointer;display:flex;align-items:center;gap:6px;">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-        Employee Performance
+        <span id="empTabTitle">Employee Performance</span>
     </button>
 </div>
 <div id="dashTab-main">
@@ -306,6 +306,9 @@
 <!-- ══ TAB 2: EMPLOYEE PERFORMANCE ══ -->
 <div id="dashTab-emp" style="display:none;">
 
+<!-- Big Heading -->
+<h2 id="empDashHeading" style="font-size:1.6rem;font-weight:800;color:var(--text);margin:0 0 1rem 0;">Employee Performance</h2>
+
 <!-- Filters Row -->
 <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.5rem;margin-bottom:1rem;">
     <div style="font-size:0.78rem;color:var(--text3);">Select employee and period to view performance</div>
@@ -326,6 +329,18 @@
             <option value="this_year">This Year</option>
             <option value="last_year">Last Year</option>
         </select>
+    </div>
+</div>
+
+<!-- Leaderboard -->
+<div class="sec-lbl" style="margin-top:0.5rem;">🏆 Contribution Leaderboard</div>
+<div style="background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:1rem 1.25rem;margin-bottom:1rem;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.85rem;" id="lbPointsRow">
+        <div style="font-size:0.85rem;font-weight:700;color:var(--text);">Points: Comment=1 · Edit=1 · Status=2 · Cancel=2 · Close=5</div>
+        <div id="lbPeriodLabel" style="font-size:0.75rem;color:var(--text3);background:#f1f5f9;padding:3px 10px;border-radius:6px;"></div>
+    </div>
+    <div id="lbBody">
+        <div style="text-align:center;color:var(--text3);padding:1.5rem;font-size:0.85rem;">Select period to view leaderboard</div>
     </div>
 </div>
 
@@ -378,17 +393,6 @@
 </div>
 
 
-<!-- Leaderboard -->
-<div class="sec-lbl" style="margin-top:1rem;">🏆 Contribution Leaderboard</div>
-<div style="background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:1rem 1.25rem;margin-bottom:1rem;">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.85rem;">
-        <div style="font-size:0.85rem;font-weight:700;color:var(--text);">Points: Comment=1 · Edit=1 · Status=2 · Cancel=2 · Close=5</div>
-        <div id="lbPeriodLabel" style="font-size:0.75rem;color:var(--text3);background:#f1f5f9;padding:3px 10px;border-radius:6px;"></div>
-    </div>
-    <div id="lbBody">
-        <div style="text-align:center;color:var(--text3);padding:1.5rem;font-size:0.85rem;">Select period to view leaderboard</div>
-    </div>
-</div>
 
 </div><!-- /dashTab-emp -->
 
@@ -424,8 +428,19 @@ Chart.defaults.color = '#64748b';
 let _empCharts = {};
 
 async function loadEmpDash() {
-    const empId  = document.getElementById('empSelect').value;
-    const period = document.getElementById('periodSelect').value;
+    const empId   = document.getElementById('empSelect').value;
+    const period  = document.getElementById('periodSelect').value;
+    // Update tab title
+    const empSel  = document.getElementById('empSelect');
+    const empName = empSel.options[empSel.selectedIndex].text;
+    const titleEl = document.getElementById('empTabTitle');
+    if (titleEl) {
+        titleEl.textContent = empId ? empName + ' Dashboard' : 'Employee Performance';
+    }
+    const headingEl = document.getElementById('empDashHeading');
+    if (headingEl) {
+        headingEl.textContent = empId ? empName + ' Dashboard' : 'Employee Performance';
+    }
     const url    = `/crm/api/emp-dashboard-stats?emp_id=${empId}&period=${period}`;
     const clrs   = ['#2563eb','#0d9488','#7c3aed','#ea580c','#dc2626','#0891b2','#65a30d','#d97706'];
 
@@ -492,29 +507,59 @@ async function loadEmpDash() {
     } catch(e) { console.error('EmpDash error:', e); }
 
     // ── Leaderboard ──
-    fetch(`/crm/api/emp-contribution-stats?period=${period}`)
+    const isSpecific = !!empId;
+    fetch(`/crm/api/emp-contribution-stats?period=${period}${empId ? '&emp_id='+empId : ''}`)
         .then(r => r.json())
         .then(d => {
             const el = document.getElementById('lbBody');
             document.getElementById('lbPeriodLabel').textContent = document.getElementById('periodSelect').options[document.getElementById('periodSelect').selectedIndex].text;
+            const lbPointsRow = document.getElementById('lbPointsRow');
             if (!d.leaderboard || !d.leaderboard.length) {
-                el.innerHTML = '<div style="text-align:center;color:var(--text3);padding:1.5rem;font-size:0.85rem;">No contribution data yet. Start adding comments and closing leads!</div>';
+                if (lbPointsRow) lbPointsRow.style.display = 'none';
+                el.innerHTML = '<div style="text-align:center;color:var(--text3);padding:1.5rem;font-size:0.85rem;">No contribution data yet.</div>';
                 return;
             }
-            const medals = ['🥇','🥈','🥉'];
-            const bg = ['#fffbeb','#f8fafc','#fff7ed'];
-            el.innerHTML = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:0.75rem;">` +
-                d.leaderboard.map((r,i) => `
-                <div style="background:${bg[i]||'#fff'};border:1.5px solid ${i===0?'#fbbf24':i===1?'#94a3b8':i===2?'#cd7c3a':'#e2e8f0'};border-radius:12px;padding:0.85rem 1rem;text-align:center;">
-                    <div style="font-size:1.8rem;">${medals[i]||'#'+r.rank}</div>
-                    <div style="width:44px;height:44px;border-radius:50%;background:#1e3a5f;color:#fff;display:flex;align-items:center;justify-content:center;font-size:0.85rem;font-weight:700;margin:0.35rem auto;">${r.name.substring(0,2).toUpperCase()}</div>
-                    <div style="font-weight:700;font-size:0.88rem;color:var(--text);margin-bottom:4px;">${r.name}</div>
-                    <div style="font-size:1.5rem;font-weight:900;color:${i===0?'#d97706':i===1?'#64748b':'#b45309'};">${r.points} pts</div>
-                    <div style="display:flex;justify-content:center;gap:0.75rem;margin-top:6px;font-size:0.72rem;color:var(--text3);">
-                        <span>✅ ${r.closes} closed</span>
-                        <span>💬 ${r.comments} comments</span>
-                    </div>
-                </div>`).join('') + `</div>`;
+            if (lbPointsRow) lbPointsRow.style.display = 'flex';
+            const medals  = ['🥇','🥈','🥉'];
+            const borderClr = (i) => i===0?'#fbbf24':i===1?'#94a3b8':i===2?'#cd7c3a':'#e2e8f0';
+            const bgClr     = (i) => i===0?'#fffbeb':i===1?'#f8fafc':i===2?'#fff7ed':'#fff';
+            const ptClr     = (i) => i===0?'#d97706':i===1?'#64748b':i===2?'#b45309':'#1e3a5f';
+
+            if (isSpecific) {
+                // ── Specific employee: horizontal row design ──
+                el.innerHTML = `<div style="display:flex;flex-direction:column;gap:0.6rem;">` +
+                    d.leaderboard.map((r,i) => `
+                    <div style="display:flex;align-items:center;gap:1rem;background:${bgClr(i)};border:1.5px solid ${borderClr(i)};border-radius:12px;padding:0.75rem 1.25rem;">
+                        <div style="font-size:1.6rem;min-width:28px;text-align:center;">${medals[i]||('<span style="font-size:0.85rem;font-weight:700;color:#94a3b8;">#'+r.rank+'</span>')}</div>
+                        <div style="width:40px;height:40px;border-radius:50%;background:#1e3a5f;color:#fff;display:flex;align-items:center;justify-content:center;font-size:0.82rem;font-weight:700;flex-shrink:0;">${r.name.substring(0,2).toUpperCase()}</div>
+                        <div style="flex:1;min-width:0;">
+                            <div style="font-weight:700;font-size:0.92rem;color:var(--text);">${r.name}</div>
+                            <div style="display:flex;gap:0.75rem;margin-top:4px;flex-wrap:wrap;">
+                                <span style="font-size:0.75rem;color:#64748b;">💬 ${r.comments} comments</span>
+                                <span style="font-size:0.75rem;color:#16a34a;">✅ ${r.closes} closes</span>
+                                <span style="font-size:0.75rem;color:#2563eb;">🔄 ${r.actions - r.closes - r.comments} status</span>
+                                <span style="font-size:0.75rem;color:#7c3aed;">📋 ${r.actions} actions</span>
+                            </div>
+                        </div>
+                        <div style="font-size:1.8rem;font-weight:900;color:${ptClr(i)};text-align:right;min-width:60px;">
+                            ${r.points}<div style="font-size:0.62rem;font-weight:600;color:#94a3b8;letter-spacing:1px;">POINTS</div>
+                        </div>
+                    </div>`).join('') + `</div>`;
+            } else {
+                // ── All employees: boxes grid ──
+                el.innerHTML = `<div style="display:flex;flex-direction:row;gap:0.75rem;overflow-x:auto;padding-bottom:0.5rem;flex-wrap:nowrap;">` +
+                    d.leaderboard.map((r,i) => `
+                    <div style="background:${bgClr(i)};border:1.5px solid ${borderClr(i)};border-radius:12px;padding:0.85rem 1rem;text-align:center;min-width:180px;flex-shrink:0;">
+                        <div style="font-size:1.8rem;">${medals[i]||'#'+r.rank}</div>
+                        <div style="width:44px;height:44px;border-radius:50%;background:#1e3a5f;color:#fff;display:flex;align-items:center;justify-content:center;font-size:0.85rem;font-weight:700;margin:0.35rem auto;">${r.name.substring(0,2).toUpperCase()}</div>
+                        <div style="font-weight:700;font-size:0.88rem;color:var(--text);margin-bottom:4px;">${r.name}</div>
+                        <div style="font-size:1.5rem;font-weight:900;color:${ptClr(i)};">${r.points} pts</div>
+                        <div style="display:flex;justify-content:center;gap:0.5rem;margin-top:6px;font-size:0.72rem;color:var(--text3);flex-wrap:wrap;">
+                            <span>✅ ${r.closes} closed</span>
+                            <span>💬 ${r.comments} comments</span>
+                        </div>
+                    </div>`).join('') + `</div>`;
+            }
         }).catch(() => {});
 }
 

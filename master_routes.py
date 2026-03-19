@@ -138,6 +138,20 @@ def options(mtype):
 # CATEGORY MASTER — Full CRUD
 # ══════════════════════════════════════
 
+@masters.route('/uom-options')
+@login_required
+def uom_options():
+    items = UOMMaster.query.filter_by(status=True, is_deleted=False).order_by(UOMMaster.code).all()
+    return jsonify([{'id': u.id, 'code': u.code, 'name': u.name} for u in items])
+
+
+@masters.route('/category-options')
+@login_required
+def category_options():
+    items = CategoryMaster.query.filter_by(status=True, is_deleted=False).order_by(CategoryMaster.name).all()
+    return jsonify([{'id': ct.id, 'name': ct.name} for ct in items])
+
+
 @masters.route('/category-master')
 @login_required
 def category_master_list():

@@ -159,10 +159,10 @@
                     <a href="{{ url_for('crm.lead_edit', id=lead.id) }}" style="display:flex;align-items:center;gap:10px;padding:10px 14px;font-size:0.85rem;color:#374151;text-decoration:none;transition:background .12s;">
                         <span style="width:20px;text-align:center;">✏️</span> Edit Lead
                     </a>
-                    <button onclick="document.getElementById('sampleOrderModal').style.display='flex';toggleLeadMenu();" style="width:100%;display:flex;align-items:center;gap:10px;padding:10px 14px;font-size:0.85rem;color:#374151;background:none;border:none;cursor:pointer;text-align:left;transition:background .12s;">
+                    <button onclick="openSampleOrderModal();toggleLeadMenu();" style="width:100%;display:flex;align-items:center;gap:10px;padding:10px 14px;font-size:0.85rem;color:#374151;background:none;border:none;cursor:pointer;text-align:left;transition:background .12s;">
                         <span style="width:20px;text-align:center;">📋</span> Sample Order
                     </button>
-                    <button onclick="document.getElementById('quotationModal').style.display='flex';toggleLeadMenu();" style="width:100%;display:flex;align-items:center;gap:10px;padding:10px 14px;font-size:0.85rem;color:#374151;background:none;border:none;cursor:pointer;text-align:left;transition:background .12s;">
+                    <button onclick="openQuotationModal();toggleLeadMenu();" style="width:100%;display:flex;align-items:center;gap:10px;padding:10px 14px;font-size:0.85rem;color:#374151;background:none;border:none;cursor:pointer;text-align:left;transition:background .12s;">
                         <span style="width:20px;text-align:center;">📄</span> Create Quotation
                     </button>
                     <button onclick="openNpdModal();toggleLeadMenu();" style="width:100%;display:flex;align-items:center;gap:10px;padding:10px 14px;font-size:0.85rem;color:#374151;background:none;border:none;cursor:pointer;text-align:left;transition:background .12s;">
@@ -608,10 +608,10 @@
         <!-- Modal Header -->
         <div style="background:#1e3a5f;color:#fff;padding:0.9rem 1.5rem;border-radius:12px 12px 0 0;display:flex;align-items:center;justify-content:space-between;">
             <div style="font-size:1rem;font-weight:700;">📋 Sample Order</div>
-            <button onclick="document.getElementById('sampleOrderModal').style.display='none'" style="background:rgba(255,255,255,0.15);border:none;color:#fff;width:28px;height:28px;border-radius:50%;font-size:1rem;cursor:pointer;">✕</button>
+            <button onclick="closeSampleOrderModal()" style="background:rgba(255,255,255,0.15);border:none;color:#fff;width:28px;height:28px;border-radius:50%;font-size:1rem;cursor:pointer;">✕</button>
         </div>
 
-        <form method="POST" action="{{ url_for('crm.lead_sample_order', id=lead.id) }}" target="_blank" id="soForm">
+        <form method="POST" action="{{ url_for('crm.lead_sample_order', id=lead.id) }}" id="soForm">
             <div style="padding:1.5rem;">
 
                 <!-- TOP SECTION: Logo + Address + Order Info -->
@@ -638,7 +638,7 @@
                             <input type="date" name="so_date" id="soDate" class="fi" style="font-size:0.83rem;" required>
 
                             <label style="font-size:0.83rem;color:#374151;font-weight:500;white-space:nowrap;">Order ID :</label>
-                            <input type="text" name="so_number" value="HCPSMPL{{ lead.id }}" class="fi" style="font-size:0.83rem;background:#f8fafc;" required>
+                            <input type="text" name="so_number" id="soNumber" value="" class="fi" style="font-size:0.83rem;background:#f8fafc;" required>
 
                             <input type="hidden" name="so_category" value="Sample Order">
                             <label style="font-size:0.83rem;color:#374151;font-weight:500;white-space:nowrap;">GST % :</label>
@@ -696,7 +696,7 @@
 
             <!-- Modal Footer -->
             <div style="padding:1rem 1.5rem;border-top:1px solid #e5e7eb;display:flex;justify-content:flex-end;gap:0.5rem;background:#f9fafb;border-radius:0 0 12px 12px;">
-                <button type="button" onclick="document.getElementById('sampleOrderModal').style.display='none'" class="btn-outline" style="font-size:0.83rem;">Cancel</button>
+                <button type="button" onclick="closeSampleOrderModal()" class="btn-outline" style="font-size:0.83rem;">Cancel</button>
                 <button type="submit" style="background:#1e3a5f;color:#fff;border:none;padding:8px 22px;border-radius:8px;font-size:0.83rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
                     SEND
@@ -709,14 +709,14 @@
 
 <!-- Quotation Modal -->
 <div id="quotationModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:1000;align-items:center;justify-content:center;padding:1rem;">
-    <div style="background:#fff;border-radius:12px;width:100%;max-width:1100px;max-height:94vh;overflow-y:auto;box-shadow:0 25px 80px rgba(0,0,0,0.25);">
+    <div style="background:#fff;border-radius:12px;width:100%;max-width:1300px;max-height:97vh;overflow-y:auto;box-shadow:0 25px 80px rgba(0,0,0,0.25);">
 
         <div style="background:#1e3a5f;color:#fff;padding:0.9rem 1.5rem;border-radius:12px 12px 0 0;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10;">
             <div style="font-size:1rem;font-weight:700;">📄 Create Quotation</div>
-            <button onclick="document.getElementById('quotationModal').style.display='none'" style="background:rgba(255,255,255,0.15);border:none;color:#fff;width:28px;height:28px;border-radius:50%;font-size:1rem;cursor:pointer;">✕</button>
+            <button onclick="closeQuotationModal()" style="background:rgba(255,255,255,0.15);border:none;color:#fff;width:28px;height:28px;border-radius:50%;font-size:1rem;cursor:pointer;">✕</button>
         </div>
 
-        <form method="POST" action="{{ url_for('crm.lead_create_quotation', id=lead.id) }}" target="_blank" id="qtForm">
+        <form method="POST" action="{{ url_for('crm.lead_create_quotation', id=lead.id) }}" id="qtForm">
             <div style="padding:1.25rem 1.5rem;">
 
                 <!-- TOP: Billing + Details -->
@@ -734,7 +734,7 @@
                         <div style="font-size:0.7rem;font-weight:700;letter-spacing:.08em;color:#6b7280;text-transform:uppercase;margin-bottom:.6rem;">Quotation Details</div>
                         <div style="display:grid;grid-template-columns:auto 1fr;gap:.45rem .9rem;align-items:center;">
                             <label style="font-size:0.82rem;color:#374151;font-weight:500;white-space:nowrap;">Quot. No :</label>
-                            <input type="text" name="quot_number" value="HCPQT{{ lead.id }}" class="fi" style="font-size:0.82rem;background:#f8fafc;" required>
+                            <input type="text" name="quot_number" value="" id="qtNumber" class="fi" style="font-size:0.82rem;background:#f8fafc;" required>
                             <label style="font-size:0.82rem;color:#374151;font-weight:500;white-space:nowrap;">Date :</label>
                             <input type="date" name="quot_date" id="qtDate" class="fi" style="font-size:0.82rem;" required>
                             <label style="font-size:0.82rem;color:#374151;font-weight:500;white-space:nowrap;">Valid Until :</label>
@@ -747,28 +747,28 @@
 
                 <!-- ITEMS TABLE -->
                 <div style="font-size:0.7rem;font-weight:700;letter-spacing:.08em;color:#6b7280;text-transform:uppercase;margin-bottom:.5rem;">Products / Items</div>
-                <div style="overflow-x:auto;margin-bottom:.75rem;">
-                    <table style="width:100%;border-collapse:collapse;min-width:1050px;" id="qtItemsTable">
+                <div style="overflow-x:auto;margin-bottom:.75rem;border:1px solid #e2e8f0;border-radius:10px;">
+                    <table style="width:100%;border-collapse:collapse;min-width:1100px;" id="qtItemsTable">
                         <thead>
-                            <tr style="background:#1e3a5f;color:#fff;">
-                                <th style="padding:8px 7px;font-size:0.78rem;font-weight:700;text-align:left;white-space:nowrap;border:1px solid #2d5a8e;min-width:140px;">Product Name</th>
-                                <th style="padding:8px 7px;font-size:0.78rem;font-weight:700;text-align:center;border:1px solid #2d5a8e;min-width:70px;">Size</th>
-                                <th style="padding:8px 7px;font-size:0.78rem;font-weight:700;text-align:center;border:1px solid #2d5a8e;min-width:100px;">Product Code</th>
-                                <th style="padding:8px 7px;font-size:0.78rem;font-weight:700;text-align:center;border:1px solid #2d5a8e;min-width:60px;">UOM</th>
-                                <th style="padding:8px 7px;font-size:0.78rem;font-weight:700;text-align:right;border:1px solid #2d5a8e;min-width:80px;">Cost (INR)</th>
-                                <th style="padding:8px 7px;font-size:0.78rem;font-weight:700;text-align:center;border:1px solid #2d5a8e;min-width:70px;">MOQ</th>
-                                <th style="padding:8px 7px;font-size:0.78rem;font-weight:700;text-align:left;border:1px solid #2d5a8e;min-width:150px;">PM Specification</th>
-                                <th style="padding:8px 7px;font-size:0.78rem;font-weight:700;text-align:right;border:1px solid #2d5a8e;min-width:80px;">PM Cost</th>
-                                <th style="padding:8px 7px;font-size:0.78rem;font-weight:700;text-align:right;border:1px solid #2d5a8e;min-width:80px;">FG Cost</th>
-                                <th style="padding:8px 7px;font-size:0.78rem;font-weight:700;text-align:center;border:1px solid #2d5a8e;min-width:90px;">Category</th>
-                                <th style="padding:8px 7px;font-size:0.78rem;font-weight:700;text-align:right;border:1px solid #2d5a8e;min-width:90px;">Final Cost (INR)</th>
-                                <th style="border:1px solid #2d5a8e;width:30px;"></th>
+                            <tr style="background:linear-gradient(135deg,#1e3a5f,#2d5a8e);color:#fff;text-shadow:0 1px 2px rgba(0,0,0,0.3);">
+                                <th style="padding:10px 8px;font-size:0.72rem;font-weight:700;text-align:left;letter-spacing:.05em;text-transform:uppercase;color:#fff;border-right:1px solid rgba(255,255,255,.15);min-width:150px;">Product Name</th>
+                                <th style="padding:10px 6px;font-size:0.72rem;font-weight:700;text-align:center;letter-spacing:.05em;text-transform:uppercase;color:#fff;border-right:1px solid rgba(255,255,255,.15);width:60px;">Size</th>
+                                <th style="padding:10px 8px;font-size:0.72rem;font-weight:700;text-align:center;letter-spacing:.05em;text-transform:uppercase;color:#fff;border-right:1px solid rgba(255,255,255,.15);min-width:100px;">Product Code</th>
+                                <th style="padding:10px 8px;font-size:0.72rem;font-weight:700;text-align:center;letter-spacing:.05em;text-transform:uppercase;color:#fff;border-right:1px solid rgba(255,255,255,.15);width:110px;">UOM</th>
+                                <th style="padding:10px 8px;font-size:0.72rem;font-weight:700;text-align:right;letter-spacing:.05em;text-transform:uppercase;color:#fff;border-right:1px solid rgba(255,255,255,.15);width:90px;">Cost (₹)</th>
+                                <th style="padding:10px 8px;font-size:0.72rem;font-weight:700;text-align:center;letter-spacing:.05em;text-transform:uppercase;color:#fff;border-right:1px solid rgba(255,255,255,.15);width:80px;">MOQ</th>
+                                <th style="padding:10px 8px;font-size:0.72rem;font-weight:700;text-align:left;letter-spacing:.05em;text-transform:uppercase;color:#fff;border-right:1px solid rgba(255,255,255,.15);min-width:160px;">PM Spec.</th>
+                                <th style="padding:10px 8px;font-size:0.72rem;font-weight:700;text-align:right;letter-spacing:.05em;text-transform:uppercase;color:#fff;border-right:1px solid rgba(255,255,255,.15);width:85px;">PM Cost</th>
+                                <th style="padding:10px 8px;font-size:0.72rem;font-weight:700;text-align:right;letter-spacing:.05em;text-transform:uppercase;color:#fff;border-right:1px solid rgba(255,255,255,.15);width:85px;">FG Cost</th>
+                                <th style="padding:10px 8px;font-size:0.72rem;font-weight:700;text-align:center;letter-spacing:.05em;text-transform:uppercase;color:#fff;border-right:1px solid rgba(255,255,255,.15);width:130px;">Category</th>
+                                <th style="padding:10px 8px;font-size:0.72rem;font-weight:700;text-align:right;letter-spacing:.05em;text-transform:uppercase;color:#fff;border-right:1px solid rgba(255,255,255,.15);width:100px;">Final Cost</th>
+                                <th style="width:36px;"></th>
                             </tr>
                         </thead>
                         <tbody id="qtItems"></tbody>
                     </table>
                 </div>
-                <button type="button" onclick="qtAddRow()" style="background:#fff;color:#1e3a5f;border:1.5px solid #1e3a5f;padding:5px 16px;border-radius:6px;font-size:0.82rem;font-weight:600;cursor:pointer;margin-bottom:1.25rem;">+ Add Row</button>
+                <button type="button" onclick="qtAddRow()" style="background:#f0f4ff;color:#1e3a5f;border:1.5px solid #c7d7f5;padding:6px 18px;border-radius:7px;font-size:0.82rem;font-weight:600;cursor:pointer;margin-bottom:0.75rem;transition:.15s;" onmouseover="this.style.background='#dce8ff'" onmouseout="this.style.background='#f0f4ff'">+ Add Row</button>
 
                 <!-- Terms & Notes -->
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:.5rem;">
@@ -787,9 +787,9 @@ Quotation valid for 30 days from date of issue.</textarea>
             </div>
 
             <div style="padding:.9rem 1.5rem;border-top:1px solid #e5e7eb;display:flex;justify-content:space-between;align-items:center;background:#f9fafb;border-radius:0 0 12px 12px;">
-                <span style="font-size:0.8rem;color:#6b7280;">PDF (Landscape A4) download hogi — baad mein Quotations list se email bhi bhej sakte hain</span>
+                <span style="font-size:0.8rem;color:#6b7280;">PDF (A4) generate hogi — baad mein Quotations list se email bhi bhej sakte hain</span>
                 <div style="display:flex;gap:.5rem;">
-                    <button type="button" onclick="document.getElementById('quotationModal').style.display='none'" class="btn-outline" style="font-size:0.83rem;">Cancel</button>
+                    <button type="button" onclick="closeQuotationModal()" class="btn-outline" style="font-size:0.83rem;">Cancel</button>
                     <button type="submit" style="background:#1e3a5f;color:#fff;border:none;padding:8px 22px;border-radius:8px;font-size:0.83rem;font-weight:600;cursor:pointer;">
                         📥 Generate PDF
                     </button>
@@ -981,7 +981,7 @@ function fileIcon(name) {
 
 // ── WhatsApp Modal ──
 document.getElementById('waModal').addEventListener('click', function(e) {
-    if (e.target === this) this.style.display = 'none';
+    if (e.target === this) closeSampleOrderModal();
 });
 
 function openWaModal() {
@@ -1046,7 +1046,8 @@ function toggleLeadMenu() {
     dd.style.display = dd.style.display === 'none' ? 'block' : 'none';
 }
 // Hover effect on dropdown items
-document.querySelectorAll('#leadActionDropdown a, #leadActionDropdown button[type!="submit"]').forEach(el => {
+document.querySelectorAll('#leadActionDropdown a, #leadActionDropdown button').forEach(el => {
+    if (el.type === 'submit') return;
     el.addEventListener('mouseenter', () => el.style.background = '#f8fafc');
     el.addEventListener('mouseleave', () => el.style.background = '');
 });
@@ -1060,7 +1061,7 @@ document.addEventListener('click', function(e) {
 
 // ── NPD Modal ──
 document.getElementById('npdModal').addEventListener('click', function(e) {
-    if (e.target === this) this.style.display = 'none';
+    if (e.target === this) closeSampleOrderModal();
 });
 
 let _npdView = 'preview';
@@ -1116,10 +1117,10 @@ document.getElementById('npdForm').addEventListener('submit', function() {
 
 // Close modal on outside click
 document.getElementById('statusModal').addEventListener('click', function(e) {
-    if (e.target === this) this.style.display = 'none';
+    if (e.target === this) closeSampleOrderModal();
 });
 document.getElementById('sampleOrderModal').addEventListener('click', function(e) {
-    if (e.target === this) this.style.display = 'none';
+    if (e.target === this) closeSampleOrderModal();
 });
 
 // ── Sample Order JS ──
@@ -1194,71 +1195,248 @@ document.getElementById('soGstPct')?.addEventListener('change', soCalcTotal);
     {% endif %}
 })();
 
-// ── Quotation Modal JS ──
-document.getElementById('quotationModal').addEventListener('click', function(e) {
-    if (e.target === this) this.style.display = 'none';
-});
-document.getElementById('qtDate').value = new Date().toISOString().split('T')[0];
-(function(){ const d = new Date(); d.setDate(d.getDate()+30); document.getElementById('qtValidUntil').value = d.toISOString().split('T')[0]; })();
+// ── Quotation Modal: open with reset, close with reset ──
+function closeQuotationModal() {
+    document.getElementById('quotationModal').style.display = 'none';
+    // Reset items table - clear all rows
+    var tbody = document.getElementById('qtItems');
+    if (tbody) tbody.innerHTML = '';
+    // Reset quot number
+    var qtNum = document.getElementById('qtNumber');
+    if (qtNum) qtNum.value = '';
+    // Reset bill_gst
+    var gst = document.querySelector('#qtForm input[name="bill_gst"]');
+    if (gst) gst.value = '';
+    // Reset notes
+    var notes = document.querySelector('#qtForm textarea[name="notes"]');
+    if (notes) notes.value = '';
+    // Reset billing fields to lead defaults
+    var bc = document.querySelector('#qtForm input[name="bill_company"]');
+    if (bc) bc.value = '{{ lead.company_name or "" }}';
+    var bp = document.querySelector('#qtForm input[name="bill_phone"]');
+    if (bp) bp.value = '{{ lead.phone or "" }}';
+    var be = document.querySelector('#qtForm input[name="bill_email"]');
+    if (be) be.value = '{{ lead.email or "" }}';
+    var subj = document.querySelector('#qtForm input[name="quot_subject"]');
+    if (subj) subj.value = 'Quotation for {{ lead.company_name or "" }}';
+}
 
-function qtAddRow(name='', size='', code='', uom='ml', cost='', moq='10000', pmSpec='', pmCost='', fgCost='', cat='', finalCost='') {
+function openQuotationModal() {
+    // Reset first
+    closeQuotationModal();
+    // Show modal
+    document.getElementById('quotationModal').style.display = 'flex';
+    // Set today + valid until dates
+    var today = new Date().toISOString().split('T')[0];
+    var qtDate = document.getElementById('qtDate');
+    if (qtDate) qtDate.value = today;
+    var d30 = new Date(); d30.setDate(d30.getDate()+30);
+    var qtValid = document.getElementById('qtValidUntil');
+    if (qtValid) qtValid.value = d30.toISOString().split('T')[0];
+    // Fetch next quotation number
+    fetch('/crm/quotations/next-number')
+        .then(r => r.json())
+        .then(data => {
+            var f = document.getElementById('qtNumber');
+            if (f && data.quot_number) f.value = data.quot_number;
+        })
+        .catch(err => console.error('Quot number fetch failed:', err));
+    // Fetch UOM + Category options fresh, then add row
+    Promise.all([
+        fetch('/masters/uom-options').then(r => r.json()).catch(() => []),
+        fetch('/masters/category-options').then(r => r.json()).catch(() => [])
+    ]).then(function(results) {
+        window._qtUomOptions = results[0];
+        window._qtCatOptions = results[1];
+        qtAddRow();  // Add row after options loaded
+    });
+}
+
+document.getElementById('quotationModal').addEventListener('click', function(e) {
+    if (e.target === this) closeQuotationModal();
+});
+
+function qtAutoCalcFinal(input) {
+    var tr = input.closest('tr');
+    if (!tr) return;
+    var cost    = parseFloat(tr.querySelector('input[name="item_cost[]"]')?.value)    || 0;
+    var pmCost  = parseFloat(tr.querySelector('input[name="item_pm_cost[]"]')?.value) || 0;
+    var fgCost  = parseFloat(tr.querySelector('input[name="item_fg_cost[]"]')?.value) || 0;
+    var final   = cost + pmCost + fgCost;
+    var fcInput = tr.querySelector('input[name="item_final_cost[]"]');
+    if (fcInput) {
+        fcInput.value = final.toFixed(2);
+        fcInput.style.background = '#fffbe6';
+        setTimeout(function(){ fcInput.style.background = '#f0f6ff'; }, 600);
+    }
+    qtCalcTotal();
+}
+
+function qtCalcTotal() {
+    var rows = document.querySelectorAll('#qtItems .qt-row');
+    var subTotal = 0;
+    rows.forEach(function(tr) {
+        var fc = tr.querySelector('input[name="item_final_cost[]"]');
+        var moq = tr.querySelector('input[name="item_moq[]"]');
+        var cost = parseFloat(fc ? fc.value : 0) || 0;
+        var qty  = parseFloat(moq ? moq.value : 0) || 0;
+        subTotal += cost * qty;
+    });
+    var gstPct = parseFloat(document.getElementById('qtGstPct')?.value) || 0;
+    var gstAmt = subTotal * gstPct / 100;
+    var total  = subTotal + gstAmt;
+    var fmt = function(v) { return v.toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2}); };
+    var el = document.getElementById('qtSubTotal'); if(el) el.textContent = fmt(subTotal);
+    var el2 = document.getElementById('qtGstAmt');  if(el2) el2.textContent = fmt(gstAmt);
+    var el3 = document.getElementById('qtTotal');   if(el3) el3.textContent = fmt(total);
+    var el4 = document.getElementById('qtGstLabel');if(el4) el4.textContent = gstPct;
+}
+
+function qtAddRow(name='', size='', code='', uom='', cost='', moq='', pmSpec='', pmCost='', fgCost='', cat='', finalCost='') {
     const tbody = document.getElementById('qtItems');
     const idx   = tbody.querySelectorAll('.qt-row').length;
-    const bg    = idx % 2 === 0 ? '#fff' : '#f8fafc';
-    const fi    = 'width:100%;border:1px solid #e2e8f0;border-radius:4px;padding:4px 6px;font-size:0.8rem;background:transparent;';
+    const isFirst = idx === 0;
+    const bg    = idx % 2 === 0 ? '#fff' : '#f8faff';
+    const inp   = 'width:100%;border:1.5px solid #e8edf5;border-radius:6px;padding:5px 7px;font-size:0.81rem;background:transparent;outline:none;transition:.15s;';
     const tr    = document.createElement('tr');
     tr.className = 'qt-row';
-    tr.style.background = bg;
+    tr.style.cssText = `background:${bg};transition:.15s;`;
+    // Delete btn: first row gets a lock icon (disabled), rest get X
+    const delBtn = isFirst
+        ? `<button type="button" title="First row cannot be deleted" style="background:#f1f5f9;color:#94a3b8;border:none;width:24px;height:24px;border-radius:5px;font-size:0.75rem;cursor:not-allowed;" disabled>🔒</button>`
+        : `<button type="button" onclick="this.closest('tr').remove();" title="Remove row" style="background:#fee2e2;color:#dc2626;border:none;width:24px;height:24px;border-radius:5px;font-size:0.78rem;cursor:pointer;transition:.15s;" onmouseover="this.style.background='#fecaca'" onmouseout="this.style.background='#fee2e2'">✕</button>`;
     tr.innerHTML = `
-        <td style="padding:5px 6px;border:1px solid #e2e8f0;">
-            <input type="text" name="item_name[]" value="${name}" placeholder="Product Name" style="${fi}" required>
+        <td style="padding:5px 7px;border-bottom:1px solid #f1f5f9;border-right:1px solid #f1f5f9;">
+            <input type="text" name="item_name[]" value="${name}" placeholder="Enter product name" style="${inp}" required>
         </td>
-        <td style="padding:5px 6px;border:1px solid #e2e8f0;">
-            <input type="text" name="item_size[]" value="${size}" placeholder="20ml" style="${fi};text-align:center;">
+        <td style="padding:5px 5px;border-bottom:1px solid #f1f5f9;border-right:1px solid #f1f5f9;width:60px;">
+            <input type="number" name="item_size[]" value="${size}" placeholder="0.0" min="0" step="any" style="${inp};text-align:center;width:56px;">
         </td>
-        <td style="padding:5px 6px;border:1px solid #e2e8f0;">
-            <input type="text" name="item_code[]" value="${code}" placeholder="Code" style="${fi};text-align:center;">
+        <td style="padding:5px 7px;border-bottom:1px solid #f1f5f9;border-right:1px solid #f1f5f9;">
+            <input type="text" name="item_code[]" value="${code}" placeholder="Code" style="${inp};text-align:center;">
         </td>
-        <td style="padding:5px 6px;border:1px solid #e2e8f0;">
-            <input type="text" name="item_uom[]" value="${uom}" placeholder="ml" style="${fi};text-align:center;width:52px;">
+        <td style="padding:5px 6px;border-bottom:1px solid #f1f5f9;border-right:1px solid #f1f5f9;">
+            <select name="item_uom[]" class="qt-uom-sel" style="width:100%;border:1.5px solid #e8edf5;border-radius:6px;padding:5px 4px;font-size:0.81rem;background:#fff;outline:none;">
+                <option value="">-- UOM --</option>
+            </select>
         </td>
-        <td style="padding:5px 6px;border:1px solid #e2e8f0;">
-            <input type="number" name="item_cost[]" value="${cost}" placeholder="0.00" min="0" step="any" style="${fi};text-align:right;">
+        <td style="padding:5px 7px;border-bottom:1px solid #f1f5f9;border-right:1px solid #f1f5f9;">
+            <input type="number" name="item_cost[]" value="${cost}" placeholder="0.00" min="0" step="any" style="${inp};text-align:right;" oninput="qtAutoCalcFinal(this)">
         </td>
-        <td style="padding:5px 6px;border:1px solid #e2e8f0;">
-            <input type="number" name="item_moq[]" value="${moq}" placeholder="10000" min="0" step="1" style="${fi};text-align:center;">
+        <td style="padding:5px 7px;border-bottom:1px solid #f1f5f9;border-right:1px solid #f1f5f9;">
+            <input type="number" name="item_moq[]" value="${moq}" placeholder="Qty" min="0" step="1" style="${inp};text-align:center;" oninput="qtCalcTotal()">
         </td>
-        <td style="padding:5px 6px;border:1px solid #e2e8f0;">
-            <textarea name="item_pm_spec[]" placeholder="PM specification..." rows="2" style="${fi};resize:vertical;min-height:38px;">${pmSpec}</textarea>
+        <td style="padding:5px 7px;border-bottom:1px solid #f1f5f9;border-right:1px solid #f1f5f9;">
+            <textarea name="item_pm_spec[]" placeholder="PM specification..." rows="2" style="${inp};resize:vertical;min-height:36px;">${pmSpec}</textarea>
         </td>
-        <td style="padding:5px 6px;border:1px solid #e2e8f0;">
-            <input type="number" name="item_pm_cost[]" value="${pmCost}" placeholder="0.00" min="0" step="any" style="${fi};text-align:right;">
+        <td style="padding:5px 7px;border-bottom:1px solid #f1f5f9;border-right:1px solid #f1f5f9;">
+            <input type="number" name="item_pm_cost[]" value="${pmCost}" placeholder="0.00" min="0" step="any" style="${inp};text-align:right;" oninput="qtAutoCalcFinal(this)">
         </td>
-        <td style="padding:5px 6px;border:1px solid #e2e8f0;">
-            <input type="number" name="item_fg_cost[]" value="${fgCost}" placeholder="0.00" min="0" step="any" style="${fi};text-align:right;">
+        <td style="padding:5px 7px;border-bottom:1px solid #f1f5f9;border-right:1px solid #f1f5f9;">
+            <input type="number" name="item_fg_cost[]" value="${fgCost}" placeholder="0.00" min="0" step="any" style="${inp};text-align:right;" oninput="qtAutoCalcFinal(this)">
         </td>
-        <td style="padding:5px 6px;border:1px solid #e2e8f0;">
-            <input type="text" name="item_category[]" value="${cat}" placeholder="Category" style="${fi};text-align:center;">
+        <td style="padding:5px 6px;border-bottom:1px solid #f1f5f9;border-right:1px solid #f1f5f9;">
+            <select name="item_category[]" class="qt-cat-sel" style="width:100%;border:1.5px solid #e8edf5;border-radius:6px;padding:5px 4px;font-size:0.81rem;background:#fff;outline:none;">
+                <option value="">-- Category --</option>
+            </select>
         </td>
-        <td style="padding:5px 6px;border:1px solid #e2e8f0;">
+        <td style="padding:5px 7px;border-bottom:1px solid #f1f5f9;border-right:1px solid #f1f5f9;">
             <input type="number" name="item_final_cost[]" value="${finalCost}" placeholder="0.00" min="0" step="any"
-                   style="${fi};text-align:right;font-weight:700;background:#f0f4ff;" required>
+                   style="${inp};text-align:right;font-weight:700;background:#f0f6ff;border-color:#c7d7f5;" oninput="qtCalcTotal()" required>
         </td>
-        <td style="padding:5px 6px;border:1px solid #e2e8f0;text-align:center;">
-            <button type="button" onclick="this.closest('tr').remove();" style="background:#fee2e2;color:#dc2626;border:none;width:22px;height:22px;border-radius:4px;font-size:0.8rem;cursor:pointer;">✕</button>
+        <td style="padding:5px 6px;border-bottom:1px solid #f1f5f9;text-align:center;width:36px;">
+            ${delBtn}
         </td>
     `;
     tbody.appendChild(tr);
+    // Row hover effect
+    tr.addEventListener('mouseenter', function(){ if(this.style.background!='#fff') this.style.background='#f8faff'; else this.style.background='#f5f8ff'; });
+    tr.addEventListener('mouseleave', function(){ this.style.background = idx%2===0?'#fff':'#f8faff'; });
+    // Focus effects on inputs
+    tr.querySelectorAll('input,select,textarea').forEach(function(el){
+        el.addEventListener('focus', function(){ this.style.borderColor='#3b82f6'; this.style.boxShadow='0 0 0 3px rgba(59,130,246,.1)'; });
+        el.addEventListener('blur',  function(){ this.style.borderColor='#e8edf5'; this.style.boxShadow='none'; });
+    });
+    // Populate UOM dropdown
+    var uomSel = tr.querySelector('.qt-uom-sel');
+    if (uomSel && window._qtUomOptions) {
+        window._qtUomOptions.forEach(function(o) {
+            var opt = document.createElement('option');
+            opt.value = o.code;
+            opt.textContent = o.code + (o.name ? ' - ' + o.name : '');
+            if (uom && o.code === uom) opt.selected = true;
+            uomSel.appendChild(opt);
+        });
+    }
+    // Populate Category dropdown
+    var catSel = tr.querySelector('.qt-cat-sel');
+    if (catSel && window._qtCatOptions) {
+        window._qtCatOptions.forEach(function(o) {
+            var opt = document.createElement('option');
+            opt.value = o.name;
+            opt.textContent = o.name;
+            if (cat && o.name === cat) opt.selected = true;
+            catSel.appendChild(opt);
+        });
+    }
 }
 
-// Pre-fill first row from lead data
-(function(){
-    {% if lead.product_name %}
-    qtAddRow('{{ lead.product_name | e }}', '', '', 'ml', '', '{{ lead.order_quantity or "10000" }}');
-    {% else %}
-    qtAddRow();
-    {% endif %}
+// Load UOM + Category options once on page load
+window._qtUomOptions = [];
+window._qtCatOptions = [];
+(function() {
+    fetch('/masters/uom-options')
+        .then(r => r.json()).then(d => { window._qtUomOptions = d; })
+        .catch(e => console.warn('UOM load failed:', e));
+    fetch('/masters/category-options')
+        .then(r => r.json()).then(d => { window._qtCatOptions = d; })
+        .catch(e => console.warn('Category load failed:', e));
 })();
 
+
+// ── Sample Order Modal: open with reset, close with reset ──
+function closeSampleOrderModal() {
+    document.getElementById('sampleOrderModal').style.display = 'none';
+    // Reset items table
+    var tbody = document.getElementById('soItems');
+    if (tbody) tbody.innerHTML = '';
+    // Reset totals
+    ['soSubTotal','soGstAmt','soTotal'].forEach(function(id) {
+        var el = document.getElementById(id);
+        if (el) el.textContent = '0.00';
+    });
+    // Reset order number and GST
+    var soNum = document.getElementById('soNumber');
+    if (soNum) soNum.value = '';
+    var gstSel = document.getElementById('soGstPct');
+    if (gstSel) gstSel.value = '18';
+    // Reset bill_gst field
+    var billGst = document.querySelector('input[name="bill_gst"]');
+    if (billGst) billGst.value = '';
+}
+
+function openSampleOrderModal() {
+    // First reset everything
+    closeSampleOrderModal();
+    // Then open
+    document.getElementById('sampleOrderModal').style.display = 'flex';
+    // Set today date
+    var dateField = document.getElementById('soDate');
+    if (dateField) dateField.value = new Date().toISOString().split('T')[0];
+    // Fetch next order number
+    fetch('/crm/sample-orders/next-number')
+        .then(r => {
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            return r.json();
+        })
+        .then(data => {
+            var field = document.getElementById('soNumber')
+                     || document.querySelector('input[name="so_number"]');
+            if (field && data.order_number) {
+                field.value = data.order_number;
+            }
+        })
+        .catch(err => console.error('Order number fetch failed:', err));
+}
 </script>
 {% endblock %}

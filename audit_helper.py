@@ -96,8 +96,14 @@ def audit(module, action, record_id=None, record_label='', detail='',
         created_at   = datetime.now(),
     )
     db.session.add(log)
-    if commit:
+    # Always commit audit log immediately in its own transaction
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        # Try again with a fresh session
         try:
+            db.session.add(log)
             db.session.commit()
         except Exception:
             db.session.rollback()

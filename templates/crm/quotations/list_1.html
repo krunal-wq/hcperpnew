@@ -226,24 +226,15 @@
 function openEmailModal(qtId, toEmail, qtNumber, company, total) {
     document.getElementById('emailForm').action = '/crm/quotations/' + qtId + '/send-email';
     document.getElementById('emailTo').value      = toEmail;
-    document.getElementById('emailSubject').value = '';
-    document.getElementById('emailBody').value    = 'Loading...';
+    document.getElementById('emailSubject').value = 'Quotation ' + qtNumber + ' — HCP Wellness Pvt. Ltd.';
+    document.getElementById('emailBody').value =
+        'Dear ' + (company || 'Sir/Madam') + ',\n\n' +
+        'Please find attached our quotation <b>' + qtNumber + '</b> for your reference.\n\n' +
+        'Total Amount: <b>₹ ' + total + '</b>\n\n' +
+        'Please feel free to contact us for any queries.\n\n' +
+        'Regards,\n<b>HCP Wellness Pvt. Ltd.</b>\n' +
+        '📱 WhatsApp: +91 97234 55627 | ✉ info@hcpwellness.in | 🌐 www.hcpwellness.in';
     document.getElementById('emailModal').style.display = 'flex';
-
-    // Fetch template from Mail Master
-    fetch('/mail/quotations/' + qtId + '/preview')
-        .then(r => r.json())
-        .then(data => {
-            document.getElementById('emailSubject').value = data.subject || '';
-            document.getElementById('emailBody').value    = data.body    || '';
-            if (data.to_email && !document.getElementById('emailTo').value)
-                document.getElementById('emailTo').value = data.to_email;
-        })
-        .catch(function() {
-            // fallback if preview API fails
-            document.getElementById('emailSubject').value = 'Final Quote for ' + company + ' - ' + qtNumber;
-            document.getElementById('emailBody').value    = 'Dear ' + (company||'Sir/Madam') + ',\n\nKindly find the quotation attached.\n\nWarm Regards,\nHCP Wellness Pvt. Ltd.';
-        });
 }
 function closeEmailModal() { document.getElementById('emailModal').style.display = 'none'; }
 document.getElementById('emailModal').addEventListener('click', function(e) { if(e.target===this) closeEmailModal(); });

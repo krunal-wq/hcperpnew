@@ -84,6 +84,7 @@ def user_add():
         u.set_password(password)
         db.session.add(u)
         db.session.commit()
+        audit('users','INSERT', u.id, username, f'User created by {current_user.username}: {username} | Role: {u.role} | Email: {u.email}')
         flash(f'User "{full_name or username}" created! Default password: {password}','success')
         return redirect(url_for('users_bp.users'))
 
@@ -103,6 +104,7 @@ def user_edit(id):
         new_pw = request.form.get('password','').strip()
         if new_pw: u.set_password(new_pw)
         db.session.commit()
+        audit('users','UPDATE', u.id, u.username, f'User updated by {current_user.username}: {u.username} | Role: {u.role}')
         flash('User updated!','success')
         return redirect(url_for('users_bp.users'))
     return render_template('admin/users/form.html', user=u, active_page='user_mgmt')
@@ -118,6 +120,7 @@ def user_delete(id):
         return redirect(url_for('users_bp.users'))
     db.session.delete(u)
     db.session.commit()
+    audit('users','DELETE', id, '', f'User deleted by {current_user.username}')
     flash(f'User deleted.','success')
     return redirect(url_for('users_bp.users'))
 
@@ -179,6 +182,7 @@ def perm_save():
     # If disabling view, disable all others too
     if action == 'can_view' and not value:
         p.can_add = p.can_edit = p.can_delete = p.can_export = False
+    audit('users','PERMISSION_CHANGE', p.id, role, f'Permission updated by {current_user.username}: role={role} module={module_id} {action}={value}')
     db.session.commit()
     return jsonify(success=True)
 
@@ -219,6 +223,7 @@ def profile():
             else:
                 current_user.set_password(new_pw)
                 db.session.commit()
+                audit('users','PASSWORD_CHANGE', current_user.id, current_user.username, f'Password changed by {current_user.username}')
                 flash('Password changed successfully!', 'success')
         else:
             # Update user basic info
@@ -252,6 +257,7 @@ def profile():
                 emp.remark         = request.form.get('remark', '').strip()
 
             db.session.commit()
+            audit('users','PROFILE_UPDATE', current_user.id, current_user.username, f'Profile updated by {current_user.username}')
             flash('Profile updated successfully!', 'success')
         return redirect(url_for('users_bp.profile'))
 

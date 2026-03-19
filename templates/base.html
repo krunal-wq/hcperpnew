@@ -1350,7 +1350,7 @@
         {# ── Determine active module from active_page ── #}
         {% set _pg = active_page | default('') %}
         {% set _mod = 'dashboard' %}
-        {% if _pg in ('crm_dashboard','leads','clients','lead_import','client_import','sample_orders','mail_master','contribution_config','leaderboard','quotations') %}
+        {% if _pg in ('crm_dashboard','leads','clients','lead_import','client_import','sample_orders','mail_master','contribution_config','leaderboard','quotations','quotation_products') %}
             {% set _mod = 'crm' %}
         {% elif _pg in ('cat_master','uom_master','hsn_master','masters') %}
             {% set _mod = 'masters' %}
@@ -1383,6 +1383,7 @@
                 <a class="nav-a" href="/crm/clients"><span class="nav-ic">👥</span><span class="nav-txt">Client Master</span></a>
                 <a class="nav-a" href="/crm/sample-orders"><span class="nav-ic">🧾</span><span class="nav-txt">Sample Orders</span></a>
                 <a class="nav-a" href="/crm/quotations"><span class="nav-ic">📄</span><span class="nav-txt">Quotations</span></a>
+                <a class="nav-a" href="/crm/quotations/products"><span class="nav-ic">📋</span><span class="nav-txt">Quot. Product List</span></a>
             </div>
         </div>
         {% endif %}
@@ -1453,6 +1454,9 @@
             </a>
             <a class="nav-a {% if _pg == 'quotations' %}active{% endif %}" href="/crm/quotations">
                 <span class="nav-ic">📄</span><span class="nav-txt">Quotations</span>
+            </a>
+            <a class="nav-a {% if _pg == 'quotation_products' %}active{% endif %}" href="/crm/quotations/products">
+                <span class="nav-ic">📋</span><span class="nav-txt">Quot. Product List</span>
             </a>
 
             {# ── Leaderboard — directly visible ── #}

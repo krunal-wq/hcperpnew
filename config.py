@@ -16,3 +16,10 @@ class Config:
     SESSION_COOKIE_SECURE = False
     SESSION_COOKIE_HTTPONLY = True
     PERMANENT_SESSION_LIFETIME = 1800
+
+    # ── SMTP Mail Settings (Gmail) ──
+    MAIL_SERVER   = os.environ.get('MAIL_SERVER',   'smtp.gmail.com')
+    MAIL_PORT     = int(os.environ.get('MAIL_PORT', 587))
+    MAIL_USE_TLS  = True
+    MAIL_USERNAME = os.environ.get('MAIL_USERNAME', 'krunalchandi.hcp@gmail.com')
+    MAIL_PASSWORD = os.environ.get('MAIL_PASSWORD', 'qrcfnyawxvlwjgvk')

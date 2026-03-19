@@ -959,6 +959,64 @@ with app.app_context():
                 pass  # already exists — skip silently
     ok("Indexes ready")
 
+    # ══════════════════════════════════════════════════════
+    # STEP 10 — Fix customer_id NULL + UOM/Category seed data
+    # ══════════════════════════════════════════════════════
+    step("STEP 10: quotations.customer_id NULL fix + UOM/Category seed...")
+
+    # Fix customer_id NOT NULL → NULL
+    if col_exists('quotations', 'customer_id'):
+        try:
+            cur.execute("ALTER TABLE quotations MODIFY COLUMN customer_id INT NULL DEFAULT NULL")
+            raw.commit()
+            ok("quotations.customer_id → nullable")
+        except Exception as e:
+            ok(f"quotations.customer_id already nullable: {e}")
+    else:
+        ok("quotations.customer_id column not present — skipping")
+
+    # Seed UOM data (extra ones not already present)
+    uom_seed = [
+        ('ml',    'Milliliter'),
+        ('L',     'Liter'),
+        ('g',     'Gram'),
+        ('kg',    'Kilogram'),
+        ('mg',    'Milligram'),
+        ('pcs',   'Pieces'),
+        ('nos',   'Numbers'),
+        ('box',   'Box'),
+        ('pkt',   'Packet'),
+        ('btl',   'Bottle'),
+        ('tube',  'Tube'),
+        ('sachet','Sachet'),
+        ('strip', 'Strip'),
+        ('vial',  'Vial'),
+        ('pouch', 'Pouch'),
+    ]
+    uom_added = 0
+    for code, name in uom_seed:
+        try:
+            cur.execute("INSERT IGNORE INTO uom_masters (code, name, status, is_deleted) VALUES (%s, %s, 1, 0)", (code, name))
+            uom_added += cur.rowcount
+        except: pass
+    raw.commit()
+    ok(f"UOM data: {uom_added} new records added")
+
+    # Seed Category Master data
+    categories = [
+        'Skin Care', 'Hair Care', 'Body Care', 'Oral Care', 'Baby Care',
+        'Eye Care', 'Cosmetics', 'Pharma - OTC', 'Pharma - Prescription',
+        'Nutraceutical', 'Food Supplement', 'Veterinary', 'Ayurvedic / Herbal', 'Industrial',
+    ]
+    cat_added = 0
+    for name in categories:
+        try:
+            cur.execute("INSERT IGNORE INTO category_masters (name, status, is_deleted) VALUES (%s, 1, 0)", (name,))
+            cat_added += cur.rowcount
+        except: pass
+    raw.commit()
+    ok(f"Category data: {cat_added} new records added")
+
     raw.close()
 
     # ══════════════════════════════════════════════════════
