@@ -1,0 +1,351 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit' if edit else 'New' }} NPD Project{% endblock %}
+{% block page_title %}{{ 'Edit Project' if edit else 'New Product Development Project' }}{% endblock %}
+{% block bread %}NPD / Projects / {{ 'Edit' if edit else 'New' }}{% endblock %}
+
+{% block extra_css %}
+.form-card { background:#fff; border:1px solid var(--border); border-radius:var(--r-lg); padding:1.5rem; margin-bottom:1rem; }
+.form-section-title { font-size:.8rem; font-weight:800; color:var(--text3); text-transform:uppercase; letter-spacing:.08em; margin-bottom:1rem; padding-bottom:.5rem; border-bottom:1px solid var(--border); }
+.form-grid { display:grid; grid-template-columns:1fr 1fr; gap:1rem; }
+.form-grid-3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:1rem; }
+@media(max-width:640px){ .form-grid,.form-grid-3 { grid-template-columns:1fr; } }
+.form-group { display:flex; flex-direction:column; gap:.35rem; }
+.form-group label { font-size:.78rem; font-weight:600; color:var(--text2); }
+.form-group input, .form-group select, .form-group textarea {
+    padding:.5rem .75rem; border:1px solid var(--border); border-radius:var(--r-md);
+    font-size:.85rem; color:var(--text); background:#fff; font-family:inherit;
+}
+.form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+    outline:none; border-color:var(--blue); box-shadow:0 0 0 3px var(--blue-lt);
+}
+.form-group textarea { resize:vertical; min-height:80px; }
+.form-group.full { grid-column:1/-1; }
+
+.ms-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:.5rem; }
+@media(max-width:640px){ .ms-grid { grid-template-columns:1fr 1fr; } }
+.ms-check-item { display:flex; align-items:center; gap:.5rem; padding:.5rem .7rem; border:1px solid var(--border); border-radius:var(--r-md); cursor:pointer; font-size:.8rem; }
+.ms-check-item:has(input:checked) { border-color:var(--blue); background:var(--blue-lt); }
+.ms-check-item input { width:15px; height:15px; cursor:pointer; }
+
+.path-selector { display:grid; grid-template-columns:1fr 1fr; gap:.75rem; margin-bottom:1rem; }
+.path-card { border:2px solid var(--border); border-radius:var(--r-lg); padding:1rem; cursor:pointer; transition:.15s; }
+.path-card:has(input:checked) { border-color:var(--blue); background:var(--blue-lt); }
+.path-card.selected { border-color:var(--blue); background:var(--blue-lt); }
+.path-card input { display:none; }
+.path-card-title { font-weight:700; font-size:.9rem; margin-bottom:.3rem; }
+.path-card-sub { font-size:.78rem; color:var(--text3); }
+{% endblock %}
+
+{% block content %}
+{% if prefill_lead %}
+<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:var(--r-lg);padding:.75rem 1.1rem;margin-bottom:1rem;display:flex;align-items:center;gap:.6rem;font-size:.84rem;">
+    <span style="font-size:1.2rem;">🔗</span>
+    <span>Lead se create ho raha hai: <strong>{{ prefill_lead.contact_name }}{% if prefill_lead.company_name %} / {{ prefill_lead.company_name }}{% endif %}</strong> — Details pre-filled hain.</span>
+    <a href="{{ url_for('crm.lead_view', id=prefill_lead.id) }}" style="margin-left:auto;color:var(--blue);font-weight:600;white-space:nowrap;">← Back to Lead</a>
+</div>
+{% endif %}
+<form method="POST" enctype="multipart/form-data">
+{% if from_lead_id %}
+<input type="hidden" name="from_lead_id" value="{{ from_lead_id }}">
+{% endif %}
+
+<!-- Path Selection (new only) -->
+{% if not edit %}
+<div class="form-card">
+    <div class="form-section-title">📂 Project Path</div>
+    <div class="path-selector">
+        {% set _ptype = request.args.get('type', '') %}
+        {% if _ptype == 'npd' %}
+        {# NPD clicked — show only NPD selected #}
+        <label class="path-card selected" style="border-color:#7c3aed;background:#f5f3ff;">
+            <input type="radio" name="project_type" value="npd" checked>
+            <div class="path-card-title" style="color:#7c3aed;">🧪 NPD — New Product Development</div>
+            <div class="path-card-sub">Client pays ₹10,000 NPD fee. R&D creates formulation from scratch. Full sampling loop.</div>
+        </label>
+        <label class="path-card" style="opacity:.45;pointer-events:none;">
+            <input type="radio" name="project_type" value="existing" disabled>
+            <div class="path-card-title">📦 Existing Product Path</div>
+            <div class="path-card-sub">SC selects matching existing products. Samples sent to client.</div>
+        </label>
+        {% elif _ptype == 'existing' %}
+        {# EPD clicked — show only EPD selected #}
+        <label class="path-card" style="opacity:.45;pointer-events:none;">
+            <input type="radio" name="project_type" value="npd" disabled>
+            <div class="path-card-title">🧪 NPD — New Product Development</div>
+            <div class="path-card-sub">Client pays ₹10,000 NPD fee. R&D creates formulation from scratch.</div>
+        </label>
+        <label class="path-card selected" style="border-color:#059669;background:#f0fdf4;">
+            <input type="radio" name="project_type" value="existing" checked>
+            <div class="path-card-title" style="color:#059669;">📦 Existing Product Path</div>
+            <div class="path-card-sub">SC selects matching existing products. Samples sent to client. Faster path.</div>
+        </label>
+        {% else %}
+        {# No type — allow both choices #}
+        <label class="path-card">
+            <input type="radio" name="project_type" value="npd" checked>
+            <div class="path-card-title">🧪 NPD — New Product Development</div>
+            <div class="path-card-sub">Client pays ₹10,000 NPD fee. R&D creates formulation from scratch. Full sampling loop.</div>
+        </label>
+        <label class="path-card">
+            <input type="radio" name="project_type" value="existing">
+            <div class="path-card-title">📦 Existing Product Path</div>
+            <div class="path-card-sub">SC selects matching existing products. Samples sent to client. Faster path.</div>
+        </label>
+        {% endif %}
+    </div>
+</div>
+{% else %}
+<input type="hidden" name="project_type" value="{{ edit.project_type }}">
+{% endif %}
+
+<!-- Basic Info -->
+<div class="form-card">
+    <div class="form-section-title">📋 Product Information</div>
+    <div class="form-grid">
+        <div class="form-group full">
+            <label>Product Name <span style="color:red">*</span></label>
+            <input type="text" name="product_name" id="f_product_name"
+                value="{{ edit.product_name if edit else (prefill_lead.product_name if prefill_lead else '') }}"
+                placeholder="e.g. Vitamin C Serum 30ml" required>
+        </div>
+        <div class="form-group">
+            <label>Product Category</label>
+            <input type="text" name="product_category" id="f_category"
+                value="{{ edit.product_category if edit else (prefill_lead.category if prefill_lead else '') }}"
+                placeholder="e.g. Skin Care">
+        </div>
+        <div class="form-group">
+            <label>Product Range</label>
+            <input type="text" name="product_range" id="f_range"
+                value="{{ edit.product_range if edit else (prefill_lead.product_range if prefill_lead else '') }}"
+                placeholder="e.g. Premium">
+        </div>
+        <div class="form-group">
+            <label>Order Quantity</label>
+            <input type="text" name="order_quantity" id="f_order_qty"
+                value="{{ edit.order_quantity if edit else (prefill_lead.order_quantity if prefill_lead else '') }}"
+                placeholder="e.g. 5000 units">
+        </div>
+        <div class="form-group">
+            <label>Reference Product</label>
+            <input type="text" name="reference_product" value="{{ edit.reference_product if edit else '' }}" placeholder="Existing reference, if any">
+        </div>
+        <div class="form-group full">
+            <label>Requirement Specification</label>
+            <textarea name="requirement_spec" id="f_req_spec" placeholder="Detailed requirements, formulation needs, packaging specs...">{{ edit.requirement_spec if edit else (prefill_lead.requirement_spec if prefill_lead and prefill_lead.requirement_spec else (prefill_lead.notes if prefill_lead else '')) }}</textarea>
+        </div>
+        <div class="form-group" style="justify-content:flex-end;">
+            <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;">
+                <input type="checkbox" name="custom_formulation" {% if edit and edit.custom_formulation %}checked{% endif %}>
+                <span>Custom Formulation Required</span>
+            </label>
+        </div>
+    </div>
+</div>
+
+<!-- Client Info -->
+<div class="form-card">
+    <div class="form-section-title">👤 Client Information</div>
+    <div class="form-grid">
+        <div class="form-group">
+            <label>Client Name</label>
+            <input type="text" name="client_name" id="f_client_name"
+                value="{{ edit.client_name if edit else ((prefill_url.client_name if prefill_url and prefill_url.client_name else '') or (prefill_lead.contact_name if prefill_lead else '')) }}"
+                placeholder="Contact person">
+        </div>
+        <div class="form-group">
+            <label>Client Company</label>
+            <input type="text" name="client_company" id="f_client_company"
+                value="{{ edit.client_company if edit else ((prefill_url.client_company if prefill_url and prefill_url.client_company else '') or (prefill_lead.company_name if prefill_lead else '')) }}"
+                placeholder="Company name">
+        </div>
+        <div class="form-group">
+            <label>Email</label>
+            <input type="email" name="client_email" id="f_client_email"
+                value="{{ edit.client_email if edit else ((prefill_url.client_email if prefill_url and prefill_url.client_email else '') or (prefill_lead.email if prefill_lead else '')) }}"
+                placeholder="client@email.com">
+        </div>
+        <div class="form-group">
+            <label>Phone</label>
+            <input type="text" name="client_phone" id="f_client_phone"
+                value="{{ edit.client_phone if edit else ((prefill_url.client_phone if prefill_url and prefill_url.client_phone else '') or (prefill_lead.phone if prefill_lead else '')) }}"
+                placeholder="+91 99999 99999">
+        </div>
+        <div class="form-group full">
+            <label>Link to Existing Lead (optional)</label>
+            {% if prefill_lead %}
+            <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:var(--r-md);padding:.6rem .9rem;margin-bottom:.4rem;font-size:.82rem;display:flex;align-items:center;gap:.6rem;">
+                <span>🔗</span>
+                <span>Linked to Lead: <strong>{{ prefill_lead.code or prefill_lead.id }}</strong> — {{ prefill_lead.contact_name }}{% if prefill_lead.company_name %} / {{ prefill_lead.company_name }}{% endif %}</span>
+            </div>
+            {% endif %}
+            <select name="lead_id" id="lead_id_select" onchange="onLeadChange(this.value)">
+                <option value="">— Select Lead —</option>
+                {% for lead in leads %}
+                <option value="{{ lead.id }}"
+                    {% if prefill_lead and lead.id == prefill_lead.id %}selected
+                    {% elif edit and edit.lead_id==lead.id %}selected{% endif %}>
+                    {{ lead.code or lead.id }} — {{ lead.contact_name }} / {{ lead.company_name or '' }}
+                </option>
+                {% endfor %}
+            </select>
+            <div style="font-size:.72rem;color:var(--text3);margin-top:3px;">Selecting a lead will auto-fill client info below ↓</div>
+        </div>
+    </div>
+</div>
+
+<!-- Team Assignment -->
+<div class="form-card">
+    <div class="form-section-title">👥 Team Assignment</div>
+    <div class="form-grid-3">
+        <div class="form-group">
+            <label>Sales Coordinator (SC)</label>
+            <select name="assigned_sc">
+                <option value="">— Select SC —</option>
+                {% for u in users %}
+                <option value="{{ u.id }}"
+                    {% if edit and edit.assigned_sc==u.id %}selected
+                    {% elif not edit and prefill_lead and u.id == prefill_lead.assigned_to %}selected{% endif %}>
+                    {{ u.full_name }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group">
+            <label>R&D Person</label>
+            <select name="assigned_rd">
+                <option value="">— Select R&D —</option>
+                {% for u in users %}
+                <option value="{{ u.id }}" {% if edit and edit.assigned_rd==u.id %}selected{% endif %}>{{ u.full_name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group">
+            <label>NPD POC (Shital / Dipika)</label>
+            <select name="npd_poc">
+                <option value="">— Select POC —</option>
+                {% for u in users %}
+                <option value="{{ u.id }}" {% if edit and edit.npd_poc==u.id %}selected{% endif %}>{{ u.full_name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+</div>
+
+<!-- NPD Fee (shown for NPD type) -->
+<div class="form-card" id="npd-fee-section">
+    <div class="form-section-title">💰 NPD Fee (₹10,000)</div>
+    <div class="form-grid">
+        <div class="form-group">
+            <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;">
+                <input type="checkbox" name="npd_fee_paid" id="npd_fee_paid" {% if edit and edit.npd_fee_paid %}checked{% endif %}>
+                <span>NPD Fee Received</span>
+            </label>
+        </div>
+        <div class="form-group">
+            <label>Amount (₹)</label>
+            <input type="number" name="npd_fee_amount" value="{{ edit.npd_fee_amount if edit else 10000 }}" step="1">
+        </div>
+        <div class="form-group">
+            <label>Fee Receipt (upload)</label>
+            <input type="file" name="npd_fee_receipt" accept=".pdf,.jpg,.jpeg,.png">
+            {% if edit and edit.npd_fee_receipt %}
+            <span style="font-size:.72rem;color:var(--text3);">Current: {{ edit.npd_fee_receipt }}</span>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- TAT / Delay -->
+{% if edit %}
+<div class="form-card">
+    <div class="form-section-title">⏱️ TAT & Delay Tracking</div>
+    <div class="form-grid">
+        <div class="form-group">
+            <label>Target Sample Date</label>
+            <input type="date" name="target_sample_date" value="{{ edit.target_sample_date.strftime('%Y-%m-%d') if edit.target_sample_date else '' }}">
+        </div>
+        <div class="form-group full">
+            <label>Delay Reason (update weekly if delayed)</label>
+            <textarea name="delay_reason" placeholder="If sampling is delayed, update reason weekly...">{{ edit.delay_reason or '' }}</textarea>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Milestone Master Selection (new project only) -->
+{% if not edit %}
+<div class="form-card">
+    <div class="form-section-title">⚙️ Milestone Master — Select Applicable Milestones</div>
+    <p style="font-size:.8rem;color:var(--text3);margin-bottom:.75rem;">Select which milestones apply to this project. Only selected milestones will be tracked.</p>
+    <div class="ms-grid">
+        {% for tmpl in default_milestones %}
+        <label class="ms-check-item">
+            <input type="checkbox" name="milestones" value="{{ tmpl.milestone_type }}"
+                   {{ 'checked' if tmpl.default_selected else '' }}>
+            <span>{{ tmpl.icon if tmpl.icon else '' }} {{ tmpl.title }}</span>
+        </label>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<!-- Submit -->
+<div style="display:flex;gap:.5rem;justify-content:flex-end;">
+    <a href="{{ url_for('npd.project_view', pid=edit.id) if edit else url_for('npd.projects') }}" class="btn btn-outline">Cancel</a>
+    <button type="submit" class="btn btn-primary">
+        {{ '💾 Save Changes' if edit else '🚀 Create Project' }}
+    </button>
+</div>
+
+</form>
+
+<script>
+// ── Auto-fill from lead selection ──
+function onLeadChange(leadId) {
+    if (!leadId) return;
+    fetch(`/npd/api/lead/${leadId}/info`)
+        .then(r => r.json())
+        .then(d => {
+            setVal('f_client_name',    d.contact_name);
+            setVal('f_client_company', d.company_name);
+            setVal('f_client_email',   d.email);
+            setVal('f_client_phone',   d.phone);
+            setVal('f_product_name',   d.product_name);
+            setVal('f_category',       d.category);
+            setVal('f_range',          d.product_range);
+            setVal('f_order_qty',      d.order_qty);
+            setVal('f_req_spec',       d.requirement);
+            // Flash highlight on filled fields
+            ['f_client_name','f_client_company','f_client_email','f_client_phone',
+             'f_product_name','f_category','f_range','f_order_qty'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el && el.value) {
+                    el.style.borderColor = '#10b981';
+                    el.style.background  = '#f0fdf4';
+                    setTimeout(() => { el.style.borderColor = ''; el.style.background = ''; }, 2000);
+                }
+            });
+        }).catch(e => console.warn('Lead fetch failed:', e));
+}
+function setVal(id, val) {
+    const el = document.getElementById(id);
+    if (el && val) el.value = val;
+}
+
+// Show/hide NPD fee section based on project type
+document.querySelectorAll('input[name="project_type"]').forEach(r => {
+    r.addEventListener('change', function(){
+        document.getElementById('npd-fee-section').style.display =
+            this.value === 'npd' ? 'block' : 'none';
+    });
+});
+// Init on page load
+(function(){
+    var checked = document.querySelector('input[name="project_type"]:checked');
+    var sec = document.getElementById('npd-fee-section');
+    if(sec && checked && checked.value !== 'npd') sec.style.display = 'none';
+    if(sec && checked && checked.value === 'npd') sec.style.display = 'block';
+})();
+</script>
+{% endblock %}

@@ -16,6 +16,13 @@
 .ra-btn.restore-btn:hover { background:#d1fae5; }
 .sbadge.open::before { background:#6366f1; }
 .sbadge.in_process { background:#fef3c7; color:#92400e; }
+.sbadge.npd_project { background:#f3e8ff; color:#7c3aed; }
+.sbadge.existing_project { background:#d1fae5; color:#065f46; }
+
+/* Status Dropdown */
+.status-dd-item:hover { background:var(--bg) !important; }
+.status-dd-item.active { font-weight:700; }
+.status-dd-wrap .btn-grid-action { display:flex; align-items:center; gap:.35rem; white-space:nowrap; }
 .sbadge.in_process::before { background:#f59e0b; }
 .sbadge.close      { background:#d1fae5; color:#065f46; }
 .sbadge.close::before { background:#10b981; }
@@ -80,36 +87,67 @@
 .ie-cell.ie-saved  { animation: ie-flash .5s ease; }
 @keyframes ie-flash { 0%,100%{background:transparent} 40%{background:rgba(16,185,129,.12)} }
 
+/* ═══════════════════════════════════════
+   MOBILE LEAD CARDS  (< 768px only)
+   ═══════════════════════════════════════ */
+.ld-cards { display:none; padding:8px 12px 16px; gap:10px; flex-direction:column; }
+.ld-card { background:#fff; border:1.5px solid #e8edf5; border-radius:16px; overflow:hidden; box-shadow:0 3px 12px rgba(30,58,95,0.07); }
+.ld-card-hdr { background:linear-gradient(135deg,#1e3a5f,#2d5a8e); color:#fff; padding:13px 14px 11px; display:flex; align-items:flex-start; gap:10px; }
+.ld-card-hdr-chk { margin-top:2px; flex-shrink:0; }
+.ld-card-hdr-info { flex:1; min-width:0; }
+.ld-card-name { font-size:0.95rem; font-weight:800; }
+.ld-card-company { font-size:0.75rem; opacity:0.75; margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.ld-card-hdr-status { flex-shrink:0; }
+.ld-card-body { padding:12px 14px 4px; }
+.ld-card-grid { display:grid; grid-template-columns:1fr 1fr; gap:7px 14px; margin-bottom:10px; }
+.ld-card-field label { font-size:0.64rem; font-weight:700; color:#94a3b8; text-transform:uppercase; letter-spacing:.5px; display:block; margin-bottom:2px; }
+.ld-card-field span { font-size:0.81rem; color:#374151; font-weight:600; }
+.ld-card-product { background:#f0f9ff; border:1px solid #bae6fd; border-radius:8px; padding:8px 12px; margin-bottom:10px; }
+.ld-card-product label { font-size:0.64rem; font-weight:700; color:#0369a1; text-transform:uppercase; display:block; margin-bottom:2px; }
+.ld-card-product span { font-size:0.82rem; color:#0c4a6e; font-weight:700; }
+.ld-card-footer { display:flex; justify-content:space-between; align-items:center; padding:9px 14px; background:#f8fafc; border-top:1px solid #f1f5f9; }
+.ld-card-date { font-size:0.73rem; color:#94a3b8; }
+.ld-card-actions { display:flex; gap:6px; }
+.ld-card-actions a, .ld-card-actions button { width:34px; height:34px; border-radius:8px; display:flex; align-items:center; justify-content:center; border:none; cursor:pointer; text-decoration:none; }
+.ld-action-view  { background:#eff6ff; color:#1d4ed8; }
+.ld-action-edit  { background:#f0fdf4; color:#166534; }
+.ld-action-del   { background:#fef2f2; color:#dc2626; }
+
+/* Status mini badges for cards */
+.ld-sbadge { padding:3px 10px; border-radius:100px; font-size:0.72rem; font-weight:700; display:inline-block; }
+.ld-sbadge.open       { background:rgba(255,255,255,0.2); color:#fff; border:1px solid rgba(255,255,255,0.35); }
+.ld-sbadge.in_process { background:#fef3c7; color:#92400e; }
+.ld-sbadge.close      { background:#d1fae5; color:#065f46; }
+.ld-sbadge.cancel     { background:#fee2e2; color:#991b1b; }
+
+@media (max-width:767px) {
+    .ld-cards   { display:flex; }
+    #listViewWrap .tbl-wrap { display:none; }
+    #listViewWrap .grid-footer .rows-selector { display:none; }
+}
+
 {% endblock %}
 
 {% block content %}
 
-<!-- ── Stat Strip ── -->
-<div class="stat-strip cols-4">
-    <a href="{{ url_for('crm.leads') }}" class="stat-item blue {{ 'active blue' if not status }}">
-      <div class="stat-icon-box blue">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-      </div>
-      <div><div class="stat-num" id="scn_open">{{ counts.open }}</div><div class="stat-lbl">Open</div></div>
+<!-- ── Stat Strip — fully dynamic from DB ── -->
+<div class="stat-strip" style="grid-template-columns:repeat({{ lead_statuses|length + 1 }},1fr);">
+    <a href="{{ url_for('crm.leads') }}" class="stat-item blue {{ 'active blue' if not status and not show_trash }}"
+       style="border-left-color:#3b82f6;">
+      <div style="width:40px;height:40px;border-radius:10px;background:#dbeafe;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:1.2rem;">📋</div>
+      <div><div class="stat-num">{{ counts.values()|sum }}</div><div class="stat-lbl">All</div></div>
     </a>
-    <a href="{{ url_for('crm.leads', status='in_process') }}" class="stat-item amber {{ 'active amber' if status=='in_process' }}">
-      <div class="stat-icon-box amber">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+    {% for ls in lead_statuses %}
+    <a href="{{ url_for('crm.leads', status=ls.name) }}"
+       class="stat-item {{ 'active' if status==ls.name }}"
+       style="border-left-color:{{ ls.color }};{% if status==ls.name %}background:{{ ls.color }}0d;{% endif %}">
+      <div style="width:40px;height:40px;border-radius:10px;background:{{ ls.color }}18;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:1.25rem;">{{ ls.icon }}</div>
+      <div>
+        <div class="stat-num" style="color:{{ ls.color }};">{{ counts.get(ls.name, 0) }}</div>
+        <div class="stat-lbl">{{ ls.name.replace('_',' ')|title }}</div>
       </div>
-      <div><div class="stat-num" id="scn_in_process">{{ counts.in_process }}</div><div class="stat-lbl">In Process</div></div>
     </a>
-    <a href="{{ url_for('crm.leads', status='close') }}" class="stat-item green {{ 'active green' if status=='close' }}">
-      <div class="stat-icon-box green">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-      </div>
-      <div><div class="stat-num" id="scn_close">{{ counts.close }}</div><div class="stat-lbl">Close</div></div>
-    </a>
-    <a href="{{ url_for('crm.leads', status='cancel') }}" class="stat-item red {{ 'active red' if status=='cancel' }}">
-      <div class="stat-icon-box red">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
-      </div>
-      <div><div class="stat-num" id="scn_cancel">{{ counts.cancel }}</div><div class="stat-lbl">Cancel</div></div>
-    </a>
+    {% endfor %}
   </div>
 
 <!-- ── Grid Card ── -->
@@ -137,15 +175,44 @@
       <input type="text" class="grid-search-input" id="gSearchInput" placeholder="Global Search..." oninput="gridGlobalSearch(this.value)">
     </div>
 
-    <div class="grid-filter-tabs" id="statusTabs">
-      <a href="{{ url_for('crm.leads') }}" class="gft {{ 'active' if not status and not show_trash }}">All</a>
-      <a href="{{ url_for('crm.leads', status='open') }}" class="gft {{ 'active' if status=='open' }}">Open</a>
-      <a href="{{ url_for('crm.leads', status='in_process') }}" class="gft {{ 'active' if status=='in_process' }}">In Process</a>
-      <a href="{{ url_for('crm.leads', status='close') }}" class="gft {{ 'active' if status=='close' }}">Close</a>
-      <a href="{{ url_for('crm.leads', status='cancel') }}" class="gft {{ 'active' if status=='cancel' }}">Cancel</a>
-      <a href="{{ url_for('crm.leads', trash=1) }}" class="gft trash-tab {{ 'active' if show_trash }}">
-        🗑 Deleted{% if deleted_count %} <span class="trash-badge">{{ deleted_count }}</span>{% endif %}
-      </a>
+    <!-- Status Dropdown -->
+    <div class="status-dd-wrap" style="position:relative;display:inline-block;">
+      <button class="btn-grid-action {{ 'active' if status }}"
+              onclick="toggleStatusDd()"
+              id="statusDdBtn"
+              style="{{ 'background:#eff6ff;color:#2563eb;border-color:#bfdbfe;' if status }}">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        {% if status %}
+          {% set _cur_icon = '' %}{% set _cur_label = '' %}
+          {% for ls in lead_statuses if ls.name == status %}{% set _cur_icon = ls.icon %}{% set _cur_label = ls.name.replace('_',' ')|title %}{% endfor %}
+          {% if _cur_label %}{{ _cur_icon }} {{ _cur_label }}{% elif status %}{{ status.replace('_',' ')|title }}{% endif %}
+        {% else %}Status{% endif %}
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-left:3px;"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="status-dd-menu" id="statusDdMenu" style="display:none;position:absolute;top:calc(100% + 6px);left:0;background:#fff;border:1px solid var(--border);border-radius:var(--r-lg);box-shadow:0 8px 24px rgba(0,0,0,.12);min-width:190px;z-index:200;overflow:hidden;">
+        <a href="{{ url_for('crm.leads') }}" class="status-dd-item {{ 'active' if not status and not show_trash }}"
+           style="display:flex;align-items:center;gap:.5rem;padding:.55rem .9rem;font-size:.83rem;font-weight:600;color:var(--text);text-decoration:none;transition:background .1s;">
+          <span style="width:18px;text-align:center;">📋</span> All Leads
+          <span style="margin-left:auto;font-size:.75rem;color:var(--text3);">{{ counts.values()|sum }}</span>
+        </a>
+        <div style="height:1px;background:var(--border);margin:2px 0;"></div>
+        {% for ls in lead_statuses %}
+        <a href="{{ url_for('crm.leads', status=ls.name) }}"
+           class="status-dd-item {{ 'active' if status==ls.name }}"
+           style="display:flex;align-items:center;gap:.5rem;padding:.55rem .9rem;font-size:.83rem;font-weight:600;color:var(--text);text-decoration:none;transition:background .1s;{% if status==ls.name %}background:{{ ls.color }}15;{% endif %}">
+          <span style="width:18px;text-align:center;">{{ ls.icon }}</span>
+          <span style="{% if status==ls.name %}color:{{ ls.color }};{% endif %}">{{ ls.name.replace('_',' ')|title }}</span>
+          <span style="margin-left:auto;font-size:.75rem;font-weight:700;color:{{ ls.color }};">{{ counts.get(ls.name, 0) }}</span>
+        </a>
+        {% endfor %}
+        <div style="height:1px;background:var(--border);margin:2px 0;"></div>
+        <a href="{{ url_for('crm.leads', trash=1) }}"
+           class="status-dd-item {{ 'active' if show_trash }}"
+           style="display:flex;align-items:center;gap:.5rem;padding:.55rem .9rem;font-size:.83rem;font-weight:600;color:#dc2626;text-decoration:none;transition:background .1s;">
+          <span style="width:18px;text-align:center;">🗑️</span> Deleted
+          {% if deleted_count %}<span style="margin-left:auto;font-size:.75rem;font-weight:700;background:#fee2e2;color:#dc2626;padding:1px 6px;border-radius:10px;">{{ deleted_count }}</span>{% endif %}
+        </a>
+      </div>
     </div>
 
     <div class="grid-toolbar-right">
@@ -168,7 +235,7 @@
       <div style="width:1px;height:18px;background:var(--border);margin:0 2px;"></div>
 
       <div style="position:relative;">
-        <button class="btn-grid-action" onclick="toggleColPanel(event)">
+        <button class="btn-grid-action mobile-hide" onclick="toggleColPanel(event)">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
           Columns
         </button>
@@ -188,7 +255,7 @@
           </div>
         </div>
       </div>
-      <div class="view-toggle">
+      <div class="view-toggle mobile-hide">
         <button class="vt-btn active" id="btnList" onclick="switchView('list')">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
           List
@@ -198,11 +265,11 @@
           Kanban
         </button>
       </div>
-      <button class="btn-grid-action" onclick="doExport('ld')">
+      <button class="btn-grid-action mobile-hide" onclick="doExport('ld')">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
         Export
       </button>
-      <a href="{{ url_for('crm.lead_import') }}" class="btn-grid-action">
+      <a href="{{ url_for('crm.lead_import') }}" class="btn-grid-action mobile-hide">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
         Import
       </a>
@@ -397,6 +464,110 @@
     <input type="hidden" name="sort_by" id="ld_h_sort_by" value="{{ sort_by }}">
     <input type="hidden" name="sort_dir" id="ld_h_sort_dir" value="{{ sort_dir }}">
   </form>
+
+  <!-- ═══ MOBILE CARDS (hidden on desktop via CSS) ═══ -->
+  <div class="ld-cards" id="ldMobileCards">
+    <!-- Select All row -->
+    <div style="display:flex;align-items:center;gap:10px;padding:4px 2px 6px;">
+      <input type="checkbox" id="mobileCheckAll" style="width:18px;height:18px;accent-color:#1e3a5f;cursor:pointer;"
+        onchange="document.querySelectorAll('.row-check-item').forEach(c=>c.checked=this.checked); document.getElementById('checkAll').checked=this.checked; updateBulkBtn();">
+      <label for="mobileCheckAll" style="font-size:0.83rem;color:#64748b;font-weight:600;cursor:pointer;">Select All</label>
+      <span id="mobileLeadCount" style="font-size:0.78rem;color:#94a3b8;margin-left:auto;">{{ leads|length }} lead{{ 's' if leads|length != 1 }}</span>
+    </div>
+    {% for l in leads %}
+    <div class="ld-card" id="ldcard-{{ l.id }}">
+      <div class="ld-card-hdr">
+        <div class="ld-card-hdr-chk">
+          <input type="checkbox" class="row-cb row-check-item" value="{{ l.id }}"
+            style="width:17px;height:17px;accent-color:#fff;cursor:pointer;"
+            onchange="updateBulkBtn(); var all=document.querySelectorAll('.row-check-item'), chk=document.querySelectorAll('.row-check-item:checked'); var ma=document.getElementById('mobileCheckAll'); if(ma){ma.indeterminate=chk.length>0&&chk.length<all.length; ma.checked=chk.length===all.length;}">
+        </div>
+        <div class="ld-card-hdr-info">
+          <div class="ld-card-name">
+            <a href="{{ url_for('crm.lead_view', id=l.id) }}" style="color:#fff;text-decoration:none;">{{ l.contact_name }}</a>
+          </div>
+          {% if l.company %}<div class="ld-card-company">🏢 {{ l.company }}</div>{% endif %}
+        </div>
+        <div class="ld-card-hdr-status">
+          {% set _st_color = '' %}
+          {% set _st_icon = '' %}
+          {% for ls in lead_statuses if ls.name == l.status %}
+            {% set _st_color = ls.color %}
+            {% set _st_icon = ls.icon %}
+          {% endfor %}
+          <span class="ld-sbadge {{ (l.status or 'open')|replace(' ','_')|lower }}"
+            {% if l.status not in ('open','in_process','close','cancel') and _st_color %}
+            style="background:{{ _st_color }}22;color:{{ _st_color }};border:1px solid {{ _st_color }}44;"
+            {% endif %}>{{ _st_icon }} {{ (l.status or 'open')|replace('_',' ')|title }}</span>
+        </div>
+      </div>
+      <div class="ld-card-body">
+        <div class="ld-card-grid">
+          <div class="ld-card-field">
+            <label>Date</label>
+            <span>{{ l.created_at.strftime('%d-%m-%Y') if l.created_at else '—' }}</span>
+          </div>
+          <div class="ld-card-field">
+            <label>Mobile</label>
+            <span>{{ l.phone or '—' }}</span>
+          </div>
+          <div class="ld-card-field">
+            <label>Source</label>
+            <span>{{ l.source or '—' }}</span>
+          </div>
+          <div class="ld-card-field">
+            <label>Follow Up</label>
+            <span>{{ l.follow_up_date.strftime('%d-%m-%Y') if l.follow_up_date else '—' }}</span>
+          </div>
+        </div>
+        {% if l.product_name %}
+        <div class="ld-card-product">
+          <label>Product</label>
+          <span>{{ l.product_name }}{% if l.category %} · {{ l.category }}{% endif %}</span>
+        </div>
+        {% endif %}
+      </div>
+      <div class="ld-card-footer">
+        <span class="ld-card-date">
+          {% set age = l.lead_age %}
+          {% if l.status in ('close','cancel') %}
+            <span style="background:#dcfce7;color:#166534;padding:2px 8px;border-radius:100px;font-size:0.72rem;font-weight:700;">{{ age }}d ✓</span>
+          {% elif age > 30 %}
+            <span style="background:#fee2e2;color:#dc2626;padding:2px 8px;border-radius:100px;font-size:0.72rem;font-weight:700;">{{ age }}d</span>
+          {% elif age > 15 %}
+            <span style="background:#fef9c3;color:#92400e;padding:2px 8px;border-radius:100px;font-size:0.72rem;font-weight:700;">{{ age }}d</span>
+          {% else %}
+            <span style="background:#eff6ff;color:#1d4ed8;padding:2px 8px;border-radius:100px;font-size:0.72rem;font-weight:700;">{{ age }}d</span>
+          {% endif %}
+        </span>
+        <div class="ld-card-actions">
+          {% if show_trash %}
+          <form method="POST" action="{{ url_for('crm.lead_restore', id=l.id) }}" style="display:inline;">
+            <button type="submit" style="background:#ede9fe;color:#5b21b6;width:auto;padding:6px 12px;border-radius:8px;border:none;font-size:0.75rem;font-weight:700;cursor:pointer;">♻️ Restore</button>
+          </form>
+          {% else %}
+          <a href="{{ url_for('crm.lead_view', id=l.id) }}" class="ld-action-view" title="View">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          </a>
+          <a href="{{ url_for('crm.lead_edit', id=l.id) }}" class="ld-action-edit" title="Edit">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          </a>
+          <form method="POST" action="{{ url_for('crm.lead_delete', id=l.id) }}" style="display:inline;">
+            <button type="submit" class="ld-action-del" title="Delete">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+            </button>
+          </form>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+    {% else %}
+    <div style="text-align:center;padding:3rem;color:#94a3b8;">
+      <div style="font-size:2rem;margin-bottom:8px;">📋</div>
+      <div style="font-weight:600;">No leads found</div>
+    </div>
+    {% endfor %}
+  </div>
 
   <!-- LIST VIEW -->
   <div id="listViewWrap" style="display:block;">
@@ -1214,6 +1385,21 @@ function kbDragEnd(e){if(_kbClone&&_kbClone.parentNode)_kbClone.parentNode.remov
 function kbDragOver(e){e.preventDefault();e.currentTarget.classList.add('drag-over');}
 function kbDragLeave(e){if(!e.currentTarget.contains(e.relatedTarget))e.currentTarget.classList.remove('drag-over');}
 function kbDrop(e,newSt){e.preventDefault();e.currentTarget.classList.remove('drag-over');if(!_kbDrag)return;var card=_kbDrag,oldSt=card.dataset.status;if(oldSt===newSt)return;var id=card.dataset.id,tBody=document.getElementById('kbBody_'+newSt);card.style.opacity='0';setTimeout(function(){card.dataset.status=newSt;var emp=document.getElementById('kbEmpty_'+newSt);if(emp)emp.remove();tBody.insertBefore(card,tBody.firstChild);requestAnimationFrame(()=>{card.style.transition='opacity .2s';card.style.opacity='1';setTimeout(()=>card.style.transition='',220);});var ob=document.getElementById('kbBody_'+oldSt);if(ob&&!ob.querySelectorAll('.kb-card').length){var em=document.createElement('div');em.className='kb-empty';em.id='kbEmpty_'+oldSt;em.textContent='Drop leads here';ob.appendChild(em);}[{st:oldSt,d:-1},{st:newSt,d:1}].forEach(function(x){var kc=document.getElementById('kbCnt_'+x.st);if(kc)kc.textContent=parseInt(kc.textContent||0)+x.d;var sc=document.getElementById('scn_'+x.st);if(sc)sc.textContent=parseInt(sc.textContent||0)+x.d;});fetch('/crm/leads/'+id+'/update-status',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:newSt})}).then(r=>r.json()).then(d=>{if(!d.success)location.reload();}).catch(()=>location.reload());},140);}
+
+// ── Status Dropdown ──
+function toggleStatusDd() {
+    var menu = document.getElementById('statusDdMenu');
+    var isOpen = menu.style.display !== 'none';
+    menu.style.display = isOpen ? 'none' : 'block';
+}
+// Close on outside click
+document.addEventListener('click', function(e) {
+    var wrap = document.querySelector('.status-dd-wrap');
+    if (wrap && !wrap.contains(e.target)) {
+        var menu = document.getElementById('statusDdMenu');
+        if (menu) menu.style.display = 'none';
+    }
+});
 </script>
 {% endblock %}
 

@@ -18,6 +18,7 @@ class Lead(db.Model):
     __tablename__ = 'leads'
 
     id               = db.Column(db.Integer, primary_key=True)
+    code             = db.Column(db.String(30), unique=True, nullable=True)  # e.g. LD001
 
     # ── Existing DB columns (matching your original database) ──
     title            = db.Column(db.String(200))
@@ -273,6 +274,10 @@ class SampleOrder(db.Model):
     invoice_file = db.Column(db.String(300))   # uploaded invoice filename
     created_by   = db.Column(db.Integer, db.ForeignKey('users.id'))
     created_at   = db.Column(db.DateTime, default=datetime.utcnow)
+    # ── Soft Delete ──
+    is_deleted   = db.Column(db.Boolean, default=False, nullable=False, server_default='0')
+    deleted_at   = db.Column(db.DateTime, nullable=True)
+    deleted_by   = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
 
     lead    = db.relationship('Lead',  backref='sample_orders', lazy=True)
     creator = db.relationship('User',  backref='sample_orders', lazy=True,
@@ -312,6 +317,10 @@ class Quotation(db.Model):
     email_sent_to  = db.Column(db.String(150))
     created_by     = db.Column(db.Integer, db.ForeignKey('users.id'))
     created_at     = db.Column(db.DateTime, default=datetime.utcnow)
+    # ── Soft Delete ──
+    is_deleted     = db.Column(db.Boolean, default=False, nullable=False, server_default='0')
+    deleted_at     = db.Column(db.DateTime, nullable=True)
+    deleted_by     = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
 
     lead    = db.relationship('Lead', backref='quotations', lazy=True)
     creator = db.relationship('User', backref='quotations', lazy=True,

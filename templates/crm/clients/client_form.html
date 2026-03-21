@@ -124,6 +124,15 @@
 {% endblock %}
 
 {% block content %}
+{% if from_npd %}
+<div style="background:linear-gradient(135deg,#7c3aed11,#059669011);border:1.5px solid #7c3aed33;border-radius:14px;padding:.9rem 1.2rem;margin-bottom:1.1rem;display:flex;align-items:center;gap:.75rem;">
+    <span style="font-size:1.5rem;">🔗</span>
+    <div>
+        <div style="font-weight:800;font-size:.9rem;color:#3b0764;">NPD/EPD Project se client create ho raha hai</div>
+        <div style="font-size:.78rem;color:#6b21a8;margin-top:2px;">Details pre-filled hain — verify karke Save karo. Client create hone ke baad automatically lead se link ho jayega.</div>
+    </div>
+</div>
+{% endif %}
 <div class="fp-wrap fp-wide">
 
   <div class="fp-header">
@@ -180,7 +189,7 @@
         <div class="fgrid-2">
           <div class="fg">
             <label class="fl">Contact Name<span class="req-star">*</span></label>
-            <input type="text" name="contact_name" class="fi" id="f_contact_name" value="{{ client.contact_name if client else '' }}" placeholder="Full name">
+            <input type="text" name="contact_name" class="fi" id="f_contact_name" value="{{ client.contact_name if client else (prefill.contact_name if prefill else '') }}" placeholder="Full name">
             <div class="field-err-msg" id="err_contact_name">Contact name is required.</div>
           </div>
           <div class="fg">
@@ -189,7 +198,7 @@
           </div>
           <div class="fg">
             <label class="fl">Mobile<span class="req-star">*</span></label>
-            <input type="text" name="mobile" class="fi" id="f_mobile" value="{{ client.mobile if client else '' }}" placeholder="9999999999">
+            <input type="text" name="mobile" class="fi" id="f_mobile" value="{{ client.mobile if client else (prefill.mobile if prefill else '') }}" placeholder="9999999999">
             <div class="field-err-msg" id="err_mobile">Mobile number is required.</div>
           </div>
           <div class="fg">
@@ -198,7 +207,7 @@
           </div>
           <div class="fg">
             <label class="fl">Email Address<span class="req-star">*</span></label>
-            <input type="text" name="email" class="fi" id="f_email" value="{{ client.email if client else '' }}" placeholder="email@company.com">
+            <input type="text" name="email" class="fi" id="f_email" value="{{ client.email if client else (prefill.email if prefill else '') }}" placeholder="email@company.com">
             <div class="field-err-msg" id="err_email">Valid email address is required.</div>
           </div>
           <div class="fg">
@@ -210,7 +219,7 @@
         <div class="fgrid-2">
           <div class="fg" style="grid-column:1/-1;">
             <label class="fl">Company Name</label>
-            <input type="text" name="company_name" class="fi" value="{{ client.company_name if client else '' }}" placeholder="Company / Firm name">
+            <input type="text" name="company_name" class="fi" value="{{ client.company_name if client else (prefill.company_name if prefill else '') }}" placeholder="Company / Firm name">
           </div>
           <div class="fg" style="grid-column:1/-1;">
             <label class="fl">Notes</label>
@@ -427,7 +436,13 @@
         {{ 'Update Client' if client else 'Save Client' }}
       </button>
     </div>
-  </form>
+      {% if prefill and prefill.lead_id_link %}
+    <input type="hidden" name="lead_id_link" value="{{ prefill.lead_id_link }}">
+    {% endif %}
+    {% if prefill and prefill.proj_id_link %}
+    <input type="hidden" name="proj_id_link" value="{{ prefill.proj_id_link }}">
+    {% endif %}
+</form>
 </div>
 
 <script>

@@ -17,7 +17,7 @@ class Config:
     SESSION_COOKIE_HTTPONLY = True
     PERMANENT_SESSION_LIFETIME = 1800
 
-    # ── SMTP Mail Settings (Gmail) ──
+    # ── SMTP / Mail Settings ──────────────────────────────────────────────
     MAIL_SERVER   = os.environ.get('MAIL_SERVER',   'smtp.gmail.com')
     MAIL_PORT     = int(os.environ.get('MAIL_PORT', 587))
     MAIL_USE_TLS  = True

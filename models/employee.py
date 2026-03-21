@@ -86,6 +86,7 @@ class Employee(db.Model):
     is_block        = db.Column(db.Boolean, default=False)
     is_late         = db.Column(db.Boolean, default=False)
     is_probation    = db.Column(db.Boolean, default=True)
+    is_deleted      = db.Column(db.Boolean, default=False)
     status          = db.Column(db.String(20), default='active') # active/inactive/terminated
 
     # Linked system user (optional)

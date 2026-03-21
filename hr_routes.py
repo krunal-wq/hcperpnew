@@ -2,12 +2,13 @@
 hr_routes.py — HR Module: Employee & Contractor CRUD
 """
 import base64, io, json
-from flask import Blueprint, render_template, redirect, url_for, request, flash, jsonify
+from flask import Blueprint, render_template, redirect, url_for, request, flash, jsonify, send_file, Response
 from flask_login import login_required, current_user
 from audit_helper import audit, snapshot
 from datetime import datetime
 from models import db, User, Employee, Contractor, WishLog, SalaryConfig, SalaryComponent
 from permissions import get_perm, get_grid_columns, save_grid_columns
+from id_card_generator import generate_id_card_pdf
 
 hr = Blueprint('hr', __name__, url_prefix='/hr')
 
@@ -532,9 +533,9 @@ def emp_add():
             e.user_id = u.id
 
         db.session.commit()
-        audit('hr','EMP_ADD', emp.id, emp_code, f'Employee added by {current_user.username}: {emp.full_name} ({emp_code}) | Dept: {emp.department}')
+        audit('hr','EMP_ADD', e.id, emp_code, f'Employee added by {current_user.username}: {e.full_name} ({emp_code}) | Dept: {e.department}')
         flash(f'Employee {emp_code} added! Login: {uname} / HCP@123', 'success')
-        return redirect(url_for('hr.employees'))
+        return redirect(url_for('hr.emp_id_card', id=e.id))
 
     all_employees = Employee.query.filter_by(status='active').order_by(Employee.first_name).all()
     return render_template('hr/employees/form.html',
@@ -676,7 +677,7 @@ def emp_edit(id):
 
         e.updated_at     = datetime.utcnow()
         db.session.commit()
-        audit('hr','EMP_EDIT', emp.id, emp.emp_code, f'Employee updated by {current_user.username}: {emp.full_name} ({emp.emp_code})')
+        audit('hr','EMP_EDIT', e.id, e.employee_code, f'Employee updated by {current_user.username}: {e.full_name} ({e.employee_code})')
         flash('Employee updated!', 'success')
         return redirect(url_for('hr.employees'))
 
@@ -893,7 +894,7 @@ def emp_ajax_save_tab(id):
         return {'ok': False, 'error': f'Unknown tab: {tab}'}, 400
 
     e.updated_at = datetime.utcnow()
-    audit('hr', 'EMP_TAB_SAVE', emp.id, emp.emp_code, f'Employee {tab} tab saved by {current_user.username}: {emp.full_name}')
+    audit('hr', 'EMP_TAB_SAVE', e.id, e.employee_code, f'Employee {tab} tab saved by {current_user.username}: {e.full_name}')
     db.session.commit()
     return {'ok': True, 'msg': f'{tab.title()} saved successfully!'}
 
@@ -973,13 +974,40 @@ def emp_create_login(id):
     db.session.flush()
     e.user_id = u.id
     db.session.commit()
-    audit('hr','LOGIN_CREATE', emp.id, emp.emp_code, f'Login created by {current_user.username} for {emp.full_name}: username={uname}')
+    audit('hr','LOGIN_CREATE', e.id, e.employee_code, f'Login created by {current_user.username} for {e.full_name}: username={uname}')
     flash(f'Login created! Username: {uname}  Password: HCP@123', 'success')
     return redirect(url_for('hr.employees'))
 
 # ══════════════════════════════════════
 # CONTRACTOR
 # ══════════════════════════════════════
+
+@hr.route('/employees/<int:id>/id-card')
+@login_required
+def emp_id_card(id):
+    """Download or view employee ID card as 100×70mm PDF."""
+    e = Employee.query.get_or_404(id)
+    try:
+        pdf_bytes = generate_id_card_pdf(e)
+    except Exception as ex:
+        flash(f'ID Card generation failed: {ex}', 'error')
+        return redirect(url_for('hr.emp_view', id=id))
+
+    filename = f'ID_Card_{e.employee_code or id}.pdf'
+    action = request.args.get('action', 'download')   # ?action=view  to open in browser
+
+    if action == 'view':
+        return Response(pdf_bytes, mimetype='application/pdf',
+                        headers={'Content-Disposition': f'inline; filename="{filename}"'})
+    else:
+        return send_file(
+            io.BytesIO(pdf_bytes),
+            mimetype='application/pdf',
+            as_attachment=True,
+            download_name=filename
+        )
+
+
 
 @hr.route('/contractors')
 @login_required

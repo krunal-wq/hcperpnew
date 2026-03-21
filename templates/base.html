@@ -374,6 +374,127 @@
         .stat-item.active.green { color: #16a34a; }
         .stat-item.active.red   { color: #dc2626; }
 
+        /* ═══════════════════════════════════════════
+           MOBILE RESPONSIVE — toolbar & stat strip
+           ═══════════════════════════════════════════ */
+        @media (max-width: 767px) {
+
+            /* Stat strip — 2 columns on mobile */
+            .stat-strip.cols-4,
+            .stat-strip.cols-3,
+            .stat-strip { grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
+            .stat-item { padding: 12px 14px; gap: 10px; border-radius: 12px; }
+            .stat-icon-box { width: 36px; height: 36px; border-radius: 9px; }
+            .stat-icon-box svg { width: 17px; height: 17px; }
+            .stat-num { font-size: 1.35rem; }
+            .stat-lbl { font-size: 9px; }
+
+            /* ── TOOLBAR: Android App Style ── */
+            .grid-toolbar {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 10px;
+                padding: 12px 14px 10px;
+                background: #fff;
+                border-bottom: 1px solid var(--border);
+            }
+
+            /* Add Employee — full-width solid blue FAB-style */
+            .btn-add-new {
+                width: 100%;
+                justify-content: center;
+                padding: 13px 16px;
+                font-size: 15px;
+                font-weight: 700;
+                border-radius: 14px;
+                letter-spacing: .01em;
+                box-shadow: 0 2px 8px rgba(37,99,235,.25);
+            }
+
+            /* Search bar — rounded like Android */
+            .grid-search-wrap {
+                width: 100%;
+                min-width: unset;
+                border-radius: 12px;
+                padding: 10px 14px;
+                background: #f1f5f9;
+                border: 1.5px solid transparent;
+                transition: border-color .15s, background .15s;
+            }
+            .grid-search-wrap:focus-within {
+                background: #fff;
+                border-color: #2563eb;
+                box-shadow: 0 0 0 3px rgba(37,99,235,.1);
+            }
+            .grid-search-input { font-size: 14px; }
+
+            /* Status tabs — pill chips scrollable row */
+            .grid-filter-tabs {
+                display: flex;
+                flex-wrap: nowrap;
+                overflow-x: auto;
+                gap: 7px;
+                padding-bottom: 2px;
+                -webkit-overflow-scrolling: touch;
+                scrollbar-width: none;
+            }
+            .grid-filter-tabs::-webkit-scrollbar { display: none; }
+            .gft {
+                flex-shrink: 0;
+                font-size: 13px;
+                font-weight: 600;
+                padding: 7px 18px;
+                border-radius: 50px;
+                border: 1.5px solid var(--border);
+                transition: all .15s;
+            }
+            .gft.active {
+                background: #2563eb;
+                color: #fff;
+                border-color: #2563eb;
+                box-shadow: 0 2px 6px rgba(37,99,235,.3);
+            }
+
+            /* Action buttons row — icon-only pill chips */
+            .grid-toolbar-right {
+                margin-left: 0;
+                display: flex;
+                flex-wrap: nowrap;
+                overflow-x: auto;
+                gap: 7px;
+                padding-bottom: 2px;
+                -webkit-overflow-scrolling: touch;
+                scrollbar-width: none;
+                justify-content: flex-start;
+            }
+            .grid-toolbar-right::-webkit-scrollbar { display: none; }
+            .btn-grid-action {
+                flex-shrink: 0;
+                font-size: 12px;
+                font-weight: 600;
+                padding: 9px 12px;
+                border-radius: 50px;
+                border: 1.5px solid var(--border);
+                background: #f8fafc;
+                color: var(--text2);
+                gap: 0;
+                transition: all .15s;
+            }
+            /* Hide text labels — icon only on mobile */
+            .btn-label-text { display: none; }
+            .btn-grid-action.active,
+            .btn-grid-action:active {
+                background: #eff6ff;
+                border-color: #2563eb;
+                color: #2563eb;
+            }
+            /* separator line between btn groups */
+            .grid-toolbar-right [style*="width:1px"] { display: none; }
+
+            /* Hide less important actions on mobile */
+            .mobile-hide { display: none !important; }
+        }
+
         /* Column filter row (inline below header row) */
         .col-filter-row th {
             padding: 5px 8px; background: #f8fafc; border-bottom: 1px solid var(--border);
@@ -612,9 +733,7 @@
         @media (max-width: 768px) {
             .stat-strip { grid-template-columns: repeat(2, 1fr); }
             .stat-strip.cols-3 { grid-template-columns: repeat(2, 1fr); }
-            .grid-toolbar { padding: 8px 10px; gap: 6px; }
             th, td { padding: 8px 9px; }
-            .btn-add-new { padding: 7px 12px; font-size: 12.5px; }
         }
         @media (max-width: 480px) {
             .stat-strip, .stat-strip.cols-3, .stat-strip.cols-4 { grid-template-columns: repeat(2, 1fr); }

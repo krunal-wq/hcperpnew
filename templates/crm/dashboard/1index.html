@@ -190,14 +190,26 @@
 <!-- ── LEAD STATUS ── -->
 <div class="sec-lbl">Lead Status</div>
 <div class="ls-grid">
-    {% for ls in lead_statuses %}
-    <a href="/crm/leads?status={{ ls.name }}" class="ls-card ls-{{ ls.name|replace(' ','_')|lower }}"
-       style="border-left-color:{{ ls.color }};">
-        <span style="font-size:1.4rem;flex-shrink:0;opacity:.85;">{{ ls.icon }}</span>
-        <div>
-            <div class="ls-lbl">{{ ls.name.replace('_',' ')|title }}</div>
-            <div class="ls-num" style="color:{{ ls.color }};">{{ lead_counts.get(ls.name, 0) }}</div>
-        </div>
+    <a href="/crm/leads" class="ls-card ls-open">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="opacity:.6;flex-shrink:0;"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+        <div><div class="ls-lbl">Open</div><div class="ls-num">{{ lead_counts.open }}</div></div>
+    </a>
+    <a href="/crm/leads?status=in_process" class="ls-card ls-in_process">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="opacity:.7;flex-shrink:0;"><path d="M12 22C6.477 22 2 17.523 2 12S6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/><path d="M12 6v6l4 2"/></svg>
+        <div><div class="ls-lbl">In Process</div><div class="ls-num">{{ lead_counts.in_process }}</div></div>
+    </a>
+    <a href="/crm/leads?status=close" class="ls-card ls-close">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="opacity:.7;flex-shrink:0;"><polyline points="20 6 9 17 4 12"/></svg>
+        <div><div class="ls-lbl">Close</div><div class="ls-num">{{ lead_counts.close }}</div></div>
+    </a>
+    <a href="/crm/leads?status=cancel" class="ls-card ls-cancel">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="opacity:.7;flex-shrink:0;"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        <div><div class="ls-lbl">Cancel</div><div class="ls-num">{{ lead_counts.cancel }}</div></div>
+    </a>
+    {% for ls in lead_statuses if ls.name not in ('open','in_process','close','cancel') %}
+    <a href="/crm/leads?status={{ ls.name }}" class="ls-card" style="border-left-color:{{ ls.color }};">
+        <span style="font-size:1.3rem;flex-shrink:0;opacity:.8;">{{ ls.icon }}</span>
+        <div><div class="ls-lbl">{{ ls.name.replace('_',' ')|title }}</div><div class="ls-num" style="color:{{ ls.color }};">{{ lead_counts.get(ls.name, 0) }}</div></div>
     </a>
     {% endfor %}
 </div>

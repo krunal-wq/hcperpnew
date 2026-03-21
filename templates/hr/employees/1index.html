@@ -86,7 +86,6 @@
 
 {% block content %}
 {% set _efc = [search,dept,emptype,em_status_f]|select|list|length %}
-<script>var pendingQR=[], qrLibLoaded=false;</script>
 
 {% if show_trash %}
 <div class="trash-banner" style="margin-bottom:.5rem;border-radius:10px;">
@@ -502,7 +501,7 @@
 <div id="qrRenderTarget" style="position:absolute;left:-9999px;top:-9999px;width:200px;height:200px;"></div>
 
 <script>
-var qrLibLoaded=false;
+var pendingQR=[], qrLibLoaded=false;
 (function(){var s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js';s.onload=function(){qrLibLoaded=true;processQRQueue();};s.onerror=function(){var s2=document.createElement('script');s2.src='https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js';s2.onload=function(){qrLibLoaded=true;processQRQueue();};document.head.appendChild(s2);};document.head.appendChild(s);})();
 function processQRQueue(){if(!pendingQR.length)return;var item=pendingQR.shift();genQRForEmp(item.id,item.code,function(){setTimeout(processQRQueue,100);});}
 function showQR(src,code){document.getElementById('qrModalImg').src=src;document.getElementById('qrModalCode').textContent=code;document.getElementById('qrModal').classList.add('show');}

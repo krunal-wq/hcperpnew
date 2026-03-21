@@ -544,10 +544,12 @@ with app.app_context():
     from models import LeadStatus, LeadSource, LeadCategory, ProductRange
 
     statuses = [
-        ("open",       "📧", "#6366f1", 1),
-        ("in_process", "⚙️",  "#1e3a5f", 2),
-        ("close",      "✅", "#059669", 3),
-        ("cancel",     "❌", "#dc2626", 4),
+        ("open",             "📧", "#6366f1", 1),
+        ("in_process",       "⚙️",  "#1e3a5f", 2),
+        ("close",            "✅", "#059669", 3),
+        ("cancel",           "❌", "#dc2626", 4),
+        ("NPD Project",      "🧪", "#8b5cf6", 5),
+        ("Existing Project", "📦", "#0ea5e9", 6),
     ]
     s_added = 0
     for name, icon, color, sort in statuses:
@@ -753,9 +755,22 @@ with app.app_context():
         ('email_sent_to', 'VARCHAR(150)'),
         ('created_by',    'INT'),
         ('created_at',    'DATETIME DEFAULT CURRENT_TIMESTAMP'),
+        # ── Soft Delete ──
+        ('is_deleted',    'TINYINT(1) NOT NULL DEFAULT 0'),
+        ('deleted_at',    'DATETIME NULL DEFAULT NULL'),
+        ('deleted_by',    'INT NULL DEFAULT NULL'),
     ]
     q_added = sum(1 for col, defn in quot_cols if safe_add('quotations', col, defn))
     ok(f"quotations: {q_added} missing columns added") if q_added else ok("quotations: all columns already exist")
+
+    # Index for fast deleted tab queries
+    if table_exists('quotations') and col_exists('quotations', 'is_deleted'):
+        try:
+            cur.execute("CREATE INDEX idx_quot_is_deleted ON `quotations`(`is_deleted`)")
+            raw.commit()
+            print("     + Index idx_quot_is_deleted")
+        except:
+            pass  # already exists
 
     # customer_id → lead_id migrate karo (agar purana data hai)
     if col_exists('quotations', 'customer_id') and col_exists('quotations', 'lead_id'):
@@ -771,6 +786,20 @@ with app.app_context():
             cur.execute("UPDATE quotations SET quot_date = DATE(created_at) WHERE quot_date IS NULL")
             raw.commit()
             ok("quotations: quot_date NULL values fixed")
+        except: pass
+
+    # ── Sample Orders soft delete columns ──
+    so_soft = [
+        ('is_deleted', 'TINYINT(1) NOT NULL DEFAULT 0'),
+        ('deleted_at', 'DATETIME NULL DEFAULT NULL'),
+        ('deleted_by', 'INT NULL DEFAULT NULL'),
+    ]
+    so_sd = sum(1 for c,d in so_soft if safe_add('sample_orders', c, d))
+    if so_sd: ok(f"sample_orders: {so_sd} soft-delete columns added")
+    if table_exists('sample_orders') and col_exists('sample_orders','is_deleted'):
+        try:
+            cur.execute("CREATE INDEX idx_so_is_deleted ON `sample_orders`(`is_deleted`)")
+            raw.commit(); print("     + Index idx_so_is_deleted")
         except: pass
 
     step("STEP 8B: sample_orders table create kar raha hai...")
@@ -1016,6 +1045,44 @@ with app.app_context():
         except: pass
     raw.commit()
     ok(f"Category data: {cat_added} new records added")
+
+    # ══════════════════════════════════════════════════════
+    # STEP 11 — leads.code column
+    # ══════════════════════════════════════════════════════
+    step("STEP 11: leads.code column add kar raha hai...")
+    # Add code column if not exists
+    if not col_exists('leads', 'code'):
+        try:
+            cur.execute("ALTER TABLE `leads` ADD COLUMN `code` VARCHAR(30) NULL")
+            raw.commit()
+            ok("leads.code column added")
+        except Exception as e:
+            warn(f"leads.code add: {e}")
+    else:
+        ok("leads.code column already exists")
+
+    # Add unique index separately (safer)
+    try:
+        cur.execute("ALTER TABLE `leads` ADD UNIQUE INDEX `idx_leads_code` (`code`)")
+        raw.commit()
+        ok("leads.code unique index added")
+    except Exception as e:
+        if '1061' in str(e) or 'Duplicate key name' in str(e):
+            ok("leads.code index already exists")
+
+    # Back-fill existing leads with codes
+    try:
+        cur.execute("SELECT id FROM leads WHERE code IS NULL OR code = '' ORDER BY id")
+        rows = cur.fetchall()
+        updated = 0
+        for (lid,) in rows:
+            code = f"LD{str(lid).zfill(3)}"
+            cur.execute("UPDATE leads SET code = %s WHERE id = %s AND (code IS NULL OR code = '')", (code, lid))
+            updated += 1
+        raw.commit()
+        ok(f"leads code back-fill: {updated} records updated")
+    except Exception as e:
+        warn(f"Code backfill: {e}")
 
     raw.close()
 

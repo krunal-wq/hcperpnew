@@ -319,10 +319,22 @@
   <p id="qaError" style="color:#dc2626;font-size:.75rem;margin-top:6px;display:none;"></p>
 </div>
 
-<script src="https://cdn.ckeditor.com/ckeditor5/41.4.2/classic/ckeditor.js"></script>
+<script>
+// Try loading CKEditor — if CDN unavailable, use plain textarea
+function loadCKEditor() {
+  return new Promise(function(resolve, reject) {
+    var s = document.createElement('script');
+    s.src = 'https://cdn.ckeditor.com/ckeditor5/41.4.2/classic/ckeditor.js';
+    s.onload = resolve;
+    s.onerror = reject;
+    document.head.appendChild(s);
+  });
+}
+</script>
 <script>
 var ckReqSpec=null, ckRemark=null;
 
+loadCKEditor().then(function() {
 ClassicEditor.create(document.getElementById('fi_req_spec'),{
   toolbar:['heading','|','bold','italic','underline','strikethrough','|','bulletedList','numberedList','|','blockQuote','insertTable','|','undo','redo'],
   placeholder:'Describe product requirements in detail...'
@@ -338,6 +350,14 @@ ClassicEditor.create(document.getElementById('fi_remark'),{
   ckRemark=editor;
   document.getElementById('ck_remark_wrap').appendChild(editor.ui.element);
 }).catch(console.error);
+}).catch(function() {
+  // CKEditor CDN failed — plain textarea fallback
+  console.warn('CKEditor CDN unavailable — using plain textarea');
+  document.getElementById('fi_req_spec').style.display='block';
+  document.getElementById('ck_req_spec_wrap').style.display='none';
+  document.getElementById('fi_remark').style.display='block';
+  document.getElementById('ck_remark_wrap').style.display='none';
+});
 
 function showValToast(msg){var t=document.getElementById('valToast');document.getElementById('valToastMsg').textContent=msg;t.classList.add('show');setTimeout(function(){t.classList.remove('show');},3500);}
 function isValidEmail(v){return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());}
@@ -401,7 +421,14 @@ document.getElementById('leadForm').addEventListener('submit',function(e){
   btn.innerHTML='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="animation:spin .7s linear infinite"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Saving...';
   var formData=new FormData(document.getElementById('leadForm'));
   fetch(window.location.href,{method:'POST',headers:{'X-Requested-With':'XMLHttpRequest'},body:formData})
-  .then(function(res){return res.json();})
+  .then(function(res){
+    var ct = res.headers.get('content-type') || '';
+    if (!ct.includes('application/json')) {
+      // Server returned HTML (error page) — redirect to same URL
+      return {success: false, message: 'Server error (status ' + res.status + '). Check server logs.'};
+    }
+    return res.json();
+  })
   .then(function(data){
     btn.disabled=false;btn.innerHTML=origHtml;
     document.getElementById('fi_req_spec').style.display='none';
@@ -409,11 +436,12 @@ document.getElementById('leadForm').addEventListener('submit',function(e){
     if(data.success){showToast(data.message||'Lead saved successfully!','success',5000);if(data.redirect)setTimeout(function(){window.location.href=data.redirect;},1200);}
     else{showToast(data.message||'Something went wrong.','danger',5000);}
   })
-  .catch(function(){
+  .catch(function(err){
     btn.disabled=false;btn.innerHTML=origHtml;
     document.getElementById('fi_req_spec').style.display='none';
     document.getElementById('fi_remark').style.display='none';
-    showToast('Network error. Please check your connection.','danger',5000);
+    console.error('Form submit error:', err);
+    showToast('Submit failed: ' + (err.message || 'Please try again.'), 'danger', 6000);
   });
 });
 

@@ -13,14 +13,6 @@
 .tpl-subject { font-size:0.82rem; color:var(--text2); margin-top:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:500px; }
 .tpl-badge-active   { background:#dcfce7; color:#166534; padding:2px 10px; border-radius:100px; font-size:0.72rem; font-weight:700; }
 .tpl-badge-inactive { background:#fee2e2; color:#dc2626; padding:2px 10px; border-radius:100px; font-size:0.72rem; font-weight:700; }
-@media (max-width:767px) {
-    .tpl-card { flex-direction:column; align-items:flex-start; gap:12px; padding:14px; }
-    .tpl-card-top { display:flex; align-items:center; gap:10px; width:100%; }
-    .tpl-card-bottom { display:flex; align-items:center; justify-content:space-between; width:100%; }
-    .tpl-subject { max-width:100% !important; font-size:0.8rem; }
-    .tpl-card > div:last-child { width:100%; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:6px; }
-    .tpl-card > div:last-child a { flex:1; text-align:center; }
-}
 {% endblock %}
 
 {% block content %}

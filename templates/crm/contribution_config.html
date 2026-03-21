@@ -12,11 +12,18 @@
 .pts-input { width:70px; text-align:center; font-size:1rem; font-weight:700; padding:6px 8px; border:1.5px solid #e2e8f0; border-radius:8px; outline:none; transition:border-color .15s; }
 .pts-input:focus { border-color:#1e3a5f; }
 .sec-divider { background:#f8fafc; padding:8px 1rem; font-size:0.7rem; font-weight:800; color:var(--text3); text-transform:uppercase; letter-spacing:.09em; border-bottom:1px solid #e2e8f0; border-top:1px solid #e2e8f0; }
+@media (max-width:767px) {
+    .cfg-main-grid { grid-template-columns:1fr !important; }
+    .cfg-right-panel { position:static !important; }
+    .cfg-row { grid-template-columns:36px 1fr 70px !important; gap:8px !important; padding:10px 12px !important; }
+    .cfg-desc { display:none !important; }
+    .pts-input { width:60px !important; font-size:0.9rem !important; }
+}
 {% endblock %}
 
 {% block content %}
 <form method="POST" action="{{ url_for('crm.contribution_config_save') }}">
-<div style="display:grid;grid-template-columns:1fr 300px;gap:1rem;align-items:start;">
+<div class="cfg-main-grid" style="display:grid;grid-template-columns:1fr 300px;gap:1rem;align-items:start;">
 
     <!-- LEFT -->
     <div class="card">
@@ -84,7 +91,7 @@
     </div>
 
     <!-- RIGHT: Info + Save -->
-    <div style="position:sticky;top:1rem;">
+    <div class="cfg-right-panel" style="position:sticky;top:1rem;">
         <div class="card" style="margin-bottom:1rem;">
             <div class="card-hdr"><div class="card-title">📊 Current Slabs</div></div>
             <div class="card-body">

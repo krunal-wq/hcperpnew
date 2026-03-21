@@ -275,14 +275,65 @@ def client_add():
                     description = brand_descs[i] if i < len(brand_descs) else '',
                 ))
 
+        # ── Link client to Lead & NPD Project if came from convert flow ──
+        lead_id_link = request.form.get('lead_id_link') or request.args.get('lead_id')
+        proj_id_link = request.form.get('proj_id_link') or request.args.get('proj_id')
+
+        if lead_id_link:
+            try:
+                _lead = Lead.query.get(int(lead_id_link))
+                if _lead:
+                    _lead.client_id  = c.id
+                    _lead.updated_at = datetime.now()
+                    _lead.modified_by= current_user.id
+                    db.session.add(LeadActivityLog(
+                        lead_id    = _lead.id,
+                        user_id    = current_user.id,
+                        action     = f'Client created & linked: {c.contact_name} (Code: {c.code})',
+                        created_at = datetime.now(),
+                    ))
+            except: pass
+
+        if proj_id_link:
+            try:
+                from models import NPDProject
+                _proj = NPDProject.query.get(int(proj_id_link))
+                if _proj:
+                    from models.npd import NPDActivityLog
+                    db.session.add(NPDActivityLog(
+                        project_id = _proj.id,
+                        user_id    = current_user.id,
+                        action     = f'Client linked: {c.contact_name} (Code: {c.code}, ID: {c.id})',
+                        created_at = datetime.now(),
+                    ))
+            except: pass
+
         db.session.commit()
         is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
         if is_ajax:
             return jsonify(success=True, message=f'Client {c.contact_name} added! (Code: {c.code})', redirect=url_for('crm.clients'))
         flash(f'Client {c.contact_name} added! (Code: {c.code})', 'success')
+
+        # If came from NPD convert flow → go to client view
+        if proj_id_link:
+            return redirect(url_for('crm.client_view', id=c.id))
         return redirect(url_for('crm.clients'))
 
-    return render_template('crm/clients/client_form.html', client=None, brands=[], active_page='clients')
+    # Pre-fill from URL params (when coming from NPD convert flow)
+    _prefill = {
+        'contact_name': request.args.get('contact_name', ''),
+        'company_name': request.args.get('company_name', ''),
+        'email':        request.args.get('email', ''),
+        'mobile':       request.args.get('mobile', ''),
+        'city':         request.args.get('city', ''),
+        'state':        request.args.get('state', ''),
+        'lead_id_link': request.args.get('lead_id', ''),
+        'proj_id_link': request.args.get('proj_id', ''),
+    }
+    _from_npd = bool(request.args.get('proj_id'))
+    return render_template('crm/clients/client_form.html',
+        client=None, brands=[], active_page='clients',
+        prefill=_prefill, from_npd=_from_npd)
 
 
 @crm.route('/clients/<int:id>/edit', methods=['GET', 'POST'])
@@ -507,12 +558,13 @@ def leads():
 
     all_leads = query.all()
 
-    counts = {
-        'open':       Lead.query.filter_by(status='open', is_deleted=False).count(),
-        'in_process': Lead.query.filter_by(status='in_process', is_deleted=False).count(),
-        'close':      Lead.query.filter_by(status='close', is_deleted=False).count(),
-        'cancel':     Lead.query.filter_by(status='cancel', is_deleted=False).count(),
-    }
+    # Dynamic counts — all statuses from DB
+    _all_statuses = LeadStatus.query.filter_by(is_active=True).order_by(LeadStatus.sort_order).all()
+    counts = {st.name: Lead.query.filter_by(status=st.name, is_deleted=False).count()
+              for st in _all_statuses}
+    # Always include core statuses for backward compat
+    for _s in ('open','in_process','close','cancel'):
+        counts.setdefault(_s, Lead.query.filter_by(status=_s, is_deleted=False).count())
     deleted_count = Lead.query.filter_by(is_deleted=True).count()
 
     # Filter options
@@ -880,7 +932,9 @@ def lead_update_status(id):
     lead = Lead.query.get_or_404(id)
     data = request.get_json()
     new_status = data.get('status', '').strip()
-    valid = {'open', 'in_process', 'close', 'cancel'}
+    # Load valid statuses dynamically from DB
+    valid = {st.name for st in LeadStatus.query.filter_by(is_active=True).all()}
+    valid.update({'open', 'in_process', 'close', 'cancel'})  # always allow core statuses
     if new_status not in valid:
         return jsonify(success=False, error='Invalid status'), 400
     old_status = lead.status
@@ -940,52 +994,67 @@ def client_inline_edit(id):
 @login_required
 def lead_add():
     if request.method == 'POST':
-        # Get team members
-        team_ids = request.form.getlist('team_members[]')
-        team_str = ','.join(team_ids) if team_ids else ''
-
-        pname = request.form.get('name', '').strip()
-        l = Lead(
-            code             = gen_code(Lead, 'LD'),
-            contact_name     = pname,
-            title            = request.form.get('product_name', pname).strip() or pname,
-            position         = request.form.get('position', '').strip(),
-            email            = request.form.get('email', '').strip(),
-            website          = request.form.get('website', '').strip(),
-            phone            = request.form.get('mobile', '').strip(),
-            alternate_mobile = request.form.get('alternate_mobile', '').strip(),
-            company_name     = request.form.get('company', '').strip(),
-            address          = request.form.get('address', '').strip(),
-            city             = request.form.get('city', '').strip(),
-            state            = request.form.get('state', '').strip(),
-            country          = request.form.get('country', 'India').strip(),
-            zip_code         = request.form.get('zip_code', '').strip(),
-            average_cost     = request.form.get('average_cost') or 0,
-            product_name     = request.form.get('product_name', '').strip(),
-            category         = request.form.get('category', '').strip(),
-            product_range    = request.form.get('product_range', '').strip(),
-            order_quantity   = request.form.get('order_quantity', '').strip(),
-            requirement_spec = request.form.get('requirement_spec', '').strip(),
-            tags             = request.form.get('tags', '').strip(),
-            remark           = request.form.get('remark', '').strip(),
-            source           = request.form.get('source', '').strip(),
-            status           = request.form.get('status', 'open'),
-            lead_type        = request.form.get('lead_type', 'Quality'),
-            follow_up_date   = datetime.strptime(request.form['follow_up_date'], '%Y-%m-%d').date()
-                               if request.form.get('follow_up_date') else None,
-            team_members     = team_str,
-            client_id        = request.form.get('client_id') or None,
-            created_by       = current_user.id
-        )
-        db.session.add(l)
-        db.session.flush()
-        log_activity(l.id, 'New Lead Added')
-        db.session.commit()
         is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
-        if is_ajax:
-            return jsonify(success=True, message=f'Lead {l.contact_name} added successfully!', redirect=url_for('crm.lead_view', id=l.id))
-        flash(f'Lead {l.contact_name} added!', 'success')
-        return redirect(url_for('crm.lead_view', id=l.id))
+        try:
+            # Get team members
+            team_ids = request.form.getlist('team_members[]')
+            team_str = ','.join(team_ids) if team_ids else ''
+
+            pname = request.form.get('name', '').strip()
+            if not pname:
+                if is_ajax:
+                    return jsonify(success=False, message='Lead name is required.')
+                flash('Lead name is required.', 'danger')
+                return redirect(request.url)
+
+            l = Lead(
+                code             = gen_code(Lead, 'LD'),
+                contact_name     = pname,
+                title            = request.form.get('product_name', pname).strip() or pname,
+                position         = request.form.get('position', '').strip(),
+                email            = request.form.get('email', '').strip(),
+                website          = request.form.get('website', '').strip(),
+                phone            = request.form.get('mobile', '').strip(),
+                alternate_mobile = request.form.get('alternate_mobile', '').strip(),
+                company_name     = request.form.get('company', '').strip(),
+                address          = request.form.get('address', '').strip(),
+                city             = request.form.get('city', '').strip(),
+                state            = request.form.get('state', '').strip(),
+                country          = request.form.get('country', 'India').strip(),
+                zip_code         = request.form.get('zip_code', '').strip(),
+                average_cost     = request.form.get('average_cost') or 0,
+                product_name     = request.form.get('product_name', '').strip(),
+                category         = request.form.get('category', '').strip(),
+                product_range    = request.form.get('product_range', '').strip(),
+                order_quantity   = request.form.get('order_quantity', '').strip(),
+                requirement_spec = request.form.get('requirement_spec', '').strip(),
+                tags             = request.form.get('tags', '').strip(),
+                remark           = request.form.get('remark', '').strip(),
+                source           = request.form.get('source', '').strip(),
+                status           = request.form.get('status', 'open'),
+                lead_type        = request.form.get('lead_type', 'Quality'),
+                follow_up_date   = datetime.strptime(request.form['follow_up_date'], '%Y-%m-%d').date()
+                                   if request.form.get('follow_up_date') else None,
+                team_members     = team_str,
+                client_id        = request.form.get('client_id') or None,
+                created_by       = current_user.id
+            )
+            db.session.add(l)
+            db.session.flush()
+            log_activity(l.id, 'New Lead Added')
+            db.session.commit()
+            if is_ajax:
+                return jsonify(success=True, message=f'Lead {l.contact_name} added successfully!', redirect=url_for('crm.lead_view', id=l.id))
+            flash(f'Lead {l.contact_name} added!', 'success')
+            return redirect(url_for('crm.lead_view', id=l.id))
+        except Exception as e:
+            db.session.rollback()
+            import traceback; traceback.print_exc()
+            err_msg = f'Error saving lead: {str(e)}'
+            if is_ajax:
+                return jsonify(success=False, message=err_msg)
+            flash(err_msg, 'danger')
+            return redirect(request.url)
 
     clients      = ClientMaster.query.filter_by(status='active').order_by(ClientMaster.contact_name).all()
     all_users    = User.query.filter_by(is_active=True).all()
@@ -1004,48 +1073,57 @@ def lead_add():
 def lead_edit(id):
     l = Lead.query.get_or_404(id)
     if request.method == 'POST':
-        team_ids = request.form.getlist('team_members[]')
-        team_str = ','.join(team_ids) if team_ids else ''
-        from audit_helper import model_to_dict
-        _old_snap = model_to_dict(l)
-
-        l.contact_name     = request.form.get('name', '').strip()
-        l.title            = request.form.get('product_name', l.contact_name).strip() or l.contact_name
-        l.position         = request.form.get('position', '').strip()
-        l.email            = request.form.get('email', '').strip()
-        l.website          = request.form.get('website', '').strip()
-        l.phone            = request.form.get('mobile', '').strip()
-        l.alternate_mobile = request.form.get('alternate_mobile', '').strip()
-        l.company_name     = request.form.get('company', '').strip()
-        l.address          = request.form.get('address', '').strip()
-        l.city             = request.form.get('city', '').strip()
-        l.state            = request.form.get('state', '').strip()
-        l.country          = request.form.get('country', 'India').strip()
-        l.zip_code         = request.form.get('zip_code', '').strip()
-        l.average_cost     = request.form.get('average_cost') or 0
-        l.product_name     = request.form.get('product_name', '').strip()
-        l.category         = request.form.get('category', '').strip()
-        l.product_range    = request.form.get('product_range', '').strip()
-        l.order_quantity   = request.form.get('order_quantity', '').strip()
-        l.requirement_spec = request.form.get('requirement_spec', '').strip()
-        l.tags             = request.form.get('tags', '').strip()
-        l.remark           = request.form.get('remark', '').strip()
-        l.source           = request.form.get('source', '').strip()
-        l.status           = request.form.get('status', 'open')
-        l.lead_type        = request.form.get('lead_type', 'Quality')
-        l.follow_up_date   = None  # removed from form
-        l.team_members     = team_str
-        l.client_id        = request.form.get('client_id') or None
-        l.updated_at       = datetime.utcnow()
-
-        log_activity(l.id, f'Lead Record Updated')
-        add_contribution(l.id, 'edit', note='Lead record updated')
-        db.session.commit()
         is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
-        if is_ajax:
-            return jsonify(success=True, message='Lead updated successfully!', redirect=url_for('crm.lead_view', id=l.id))
-        flash('Lead updated!', 'success')
-        return redirect(url_for('crm.lead_view', id=l.id))
+        try:
+            team_ids = request.form.getlist('team_members[]')
+            team_str = ','.join(team_ids) if team_ids else ''
+            from audit_helper import model_to_dict
+            _old_snap = model_to_dict(l)
+
+            l.contact_name     = request.form.get('name', '').strip()
+            l.title            = request.form.get('product_name', l.contact_name).strip() or l.contact_name
+            l.position         = request.form.get('position', '').strip()
+            l.email            = request.form.get('email', '').strip()
+            l.website          = request.form.get('website', '').strip()
+            l.phone            = request.form.get('mobile', '').strip()
+            l.alternate_mobile = request.form.get('alternate_mobile', '').strip()
+            l.company_name     = request.form.get('company', '').strip()
+            l.address          = request.form.get('address', '').strip()
+            l.city             = request.form.get('city', '').strip()
+            l.state            = request.form.get('state', '').strip()
+            l.country          = request.form.get('country', 'India').strip()
+            l.zip_code         = request.form.get('zip_code', '').strip()
+            l.average_cost     = request.form.get('average_cost') or 0
+            l.product_name     = request.form.get('product_name', '').strip()
+            l.category         = request.form.get('category', '').strip()
+            l.product_range    = request.form.get('product_range', '').strip()
+            l.order_quantity   = request.form.get('order_quantity', '').strip()
+            l.requirement_spec = request.form.get('requirement_spec', '').strip()
+            l.tags             = request.form.get('tags', '').strip()
+            l.remark           = request.form.get('remark', '').strip()
+            l.source           = request.form.get('source', '').strip()
+            l.status           = request.form.get('status', 'open')
+            l.lead_type        = request.form.get('lead_type', 'Quality')
+            l.follow_up_date   = None  # removed from form
+            l.team_members     = team_str
+            l.client_id        = request.form.get('client_id') or None
+            l.updated_at       = datetime.utcnow()
+
+            log_activity(l.id, f'Lead Record Updated')
+            add_contribution(l.id, 'edit', note='Lead record updated')
+            db.session.commit()
+            if is_ajax:
+                return jsonify(success=True, message='Lead updated successfully!', redirect=url_for('crm.lead_view', id=l.id))
+            flash('Lead updated!', 'success')
+            return redirect(url_for('crm.lead_view', id=l.id))
+        except Exception as e:
+            db.session.rollback()
+            import traceback; traceback.print_exc()
+            err_msg = f'Error updating lead: {str(e)}'
+            if is_ajax:
+                return jsonify(success=False, message=err_msg)
+            flash(err_msg, 'danger')
+            return redirect(request.url)
 
     clients        = ClientMaster.query.filter_by(status='active').order_by(ClientMaster.contact_name).all()
     all_users      = User.query.filter_by(is_active=True).all()
@@ -1095,12 +1173,14 @@ def lead_view(id):
     team_members = l.get_team_member_objects()
     all_users   = User.query.filter_by(is_active=True).all()
     audit('leads','VIEW', id, f'{l.contact_name}', obj=l)
+    _view_statuses = LeadStatus.query.filter_by(is_active=True).order_by(LeadStatus.sort_order).all()
     return render_template('crm/leads/lead_view.html',
         lead=l, tab=tab,
         discussions=discussions, reminders=reminders,
         notes_list=notes_list, activity=activity,
         attachments=attachments, team_members=team_members,
         all_users=all_users,
+        lead_statuses=_view_statuses,
         now=datetime.utcnow(),
         active_page='leads')
 
@@ -1243,7 +1323,9 @@ def lead_note_delete(nid):
 def lead_status_change(id):
     l = Lead.query.get_or_404(id)
     new_status = request.form.get('status')
-    if new_status in ['open', 'in_process', 'close', 'cancel']:
+    _valid_statuses = {st.name for st in LeadStatus.query.filter_by(is_active=True).all()}
+    _valid_statuses.update({'open', 'in_process', 'close', 'cancel'})
+    if new_status in _valid_statuses:
         old = l.status
         l.status = new_status
         if new_status in ('close', 'cancel') and not l.closed_at:
@@ -1331,7 +1413,9 @@ def emp_leads_list():
 
     leads = q.distinct().order_by(Lead.created_at.desc()).all()
 
-    status_labels = {'open':'Open','in_process':'In Process','close':'Close','cancel':'Cancel'}
+    _st_objs = LeadStatus.query.filter_by(is_active=True).all()
+    status_labels = {st.name: st.name.replace('_',' ').title() for st in _st_objs}
+    status_labels.update({'open':'Open','in_process':'In Process','close':'Close','cancel':'Cancel'})
     result = []
     for l in leads:
         result.append({
@@ -1414,10 +1498,13 @@ def emp_dashboard_stats():
 
     # ── Status counts ──
     all_leads = base_q().distinct().all()
-    counts = {'open':0,'in_process':0,'close':0,'cancel':0}
+    _all_st = LeadStatus.query.filter_by(is_active=True).all()
+    counts = {st.name: 0 for st in _all_st}
+    counts.update({'open':0,'in_process':0,'close':0,'cancel':0})
     for l in all_leads:
         s = l.status or 'open'
         if s in counts: counts[s] += 1
+        else: counts[s] = 1
     total = len(all_leads)
 
     # ── Monthly trend (last 6 months within period) ──
@@ -1610,7 +1697,9 @@ def lead_import():
                         created_by       = current_user.id
                     )
                     # Validate status
-                    if l.status.lower() not in ['open','in_process','close','cancel']:
+                    _valid_import = {st.name.lower() for st in LeadStatus.query.filter_by(is_active=True).all()}
+                    _valid_import.update(['open','in_process','close','cancel'])
+                    if l.status.lower() not in _valid_import:
                         l.status = 'open'
                     # Validate lead_type
                     if l.lead_type not in ['Quality', 'Non-Quality']:
@@ -1685,7 +1774,7 @@ def lead_import_template():
         ('product_range',    16, False, 'Premium',               'Product range'),
         ('order_quantity',   15, False, '500 units',             'Required quantity'),
         ('source',           16, False, 'HCP Website',           'Lead source'),
-        ('status',           14, False, 'open',                  'open / in_process / close / cancel'),
+        ('status',           14, False, 'open',                  'open / in_process / close / cancel / NPD Project / Existing Project'),
         ('lead_type',        14, False, 'Quality',               'Quality / Non-Quality'),
         ('requirement_spec', 28, False, 'Vitamin C 500ml',       'Product specification'),
         ('remark',           22, False, 'Urgent requirement',    'Remarks / notes'),
@@ -1761,7 +1850,7 @@ def lead_import_template():
         ('', False),
         ('1. Fill data from Row 3 onwards (Row 1 = Headers, Row 2 = Example)', False),
         ('2. "name" column is REQUIRED — all other fields are optional', False),
-        ('3. status values: open, in_process, close, cancel', False),
+        ('3. status values: open, in_process, close, cancel, NPD Project, Existing Project', False),
         ('4. lead_type values: Quality OR Non-Quality (default: Quality)', False),
         ('5. Dropdown available for status and lead_type columns', False),
         ('6. Max file size: 5MB', False),
@@ -1896,13 +1985,16 @@ def client_import_template():
 @login_required
 def crm_dashboard():
     from models import LeadReminder
-    lead_counts = {
+    _dash_statuses = LeadStatus.query.filter_by(is_active=True).order_by(LeadStatus.sort_order).all()
+    _dash_lead_statuses = _dash_statuses  # reuse for template
+    lead_counts = {st.name: Lead.query.filter_by(status=st.name).count() for st in _dash_statuses}
+    lead_counts.update({
         'open':       Lead.query.filter_by(status='open').count(),
         'in_process': Lead.query.filter_by(status='in_process').count(),
         'close':      Lead.query.filter_by(status='close').count(),
         'cancel':     Lead.query.filter_by(status='cancel').count(),
         'total':      Lead.query.count(),
-    }
+    })
     total_clients     = ClientMaster.query.count()
     recent_leads      = Lead.query.order_by(Lead.created_at.desc()).limit(5).all()
     upcoming_reminders = LeadReminder.query.filter(
@@ -1916,6 +2008,7 @@ def crm_dashboard():
     return render_template('crm/dashboard/index.html',
         active_page='crm_dashboard',
         lead_counts=lead_counts,
+        lead_statuses=_dash_lead_statuses,
         total_clients=total_clients,
         recent_leads=recent_leads,
         upcoming_reminders=upcoming_reminders,
@@ -1995,11 +2088,13 @@ def api_employee_performance():
     leads = q.distinct().all()
 
     # ── Count by status ──
-    counts = {'open': 0, 'in_process': 0, 'close': 0, 'cancel': 0}
+    _all_st2 = LeadStatus.query.filter_by(is_active=True).all()
+    counts = {st.name: 0 for st in _all_st2}
+    counts.update({'open':0,'in_process':0,'close':0,'cancel':0})
     for l in leads:
         s = l.status or 'open'
-        if s in counts:
-            counts[s] += 1
+        if s in counts: counts[s] += 1
+        else: counts[s] = 1
 
     total = len(leads)
 
@@ -2232,6 +2327,21 @@ def lead_sample_order(id):
     rates        = request.form.getlist('item_rate[]')
     descs        = request.form.getlist('item_desc[]')
     terms        = request.form.get('terms', 'Payment: Advance\nDelivery: 7-10 working days\nSamples are for evaluation purpose only.')
+
+    # ── Backend validation ──
+    if not bill_company.strip():
+        flash('Company Name required', 'danger')
+        return redirect(url_for('crm.lead_view', id=id))
+    if not bill_address.strip():
+        flash('Address required', 'danger')
+        return redirect(url_for('crm.lead_view', id=id))
+    if not bill_phone.strip():
+        flash('Mobile required', 'danger')
+        return redirect(url_for('crm.lead_view', id=id))
+    valid_items = [n.strip() for n in items_raw if n.strip()]
+    if not valid_items:
+        flash('Kam se kam ek product add karo', 'danger')
+        return redirect(url_for('crm.lead_view', id=id))
 
     # ── Build PDF ──
     buf = io.BytesIO()
@@ -2484,11 +2594,18 @@ def lead_sample_order(id):
 @crm.route('/sample-orders')
 @login_required
 def sample_orders_list():
-    search   = request.args.get('search', '')
+    search   = request.args.get('search', '').strip()
+    tab      = request.args.get('tab', 'active')
     page     = request.args.get('page', 1, type=int)
     per_page = 20
 
     q = SampleOrder.query.join(Lead, SampleOrder.lead_id == Lead.id)
+
+    if tab == 'deleted':
+        q = q.filter(SampleOrder.is_deleted == True)
+    else:
+        q = q.filter((SampleOrder.is_deleted == False) | (SampleOrder.is_deleted == None))
+
     if search:
         q = q.filter(
             SampleOrder.order_number.ilike(f'%{search}%') |
@@ -2498,11 +2615,96 @@ def sample_orders_list():
         )
     q = q.order_by(SampleOrder.created_at.desc())
     pagination = q.paginate(page=page, per_page=per_page, error_out=False)
-    orders = pagination.items
+
+    active_count  = SampleOrder.query.filter((SampleOrder.is_deleted == False) | (SampleOrder.is_deleted == None)).count()
+    deleted_count = SampleOrder.query.filter(SampleOrder.is_deleted == True).count()
+
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        rows = []
+        for so in pagination.items:
+            rows.append({
+                'id':           so.id,
+                'order_number': so.order_number,
+                'order_date':   so.order_date.strftime('%d-%m-%Y') if so.order_date else '—',
+                'contact_name': so.lead.contact_name if so.lead else '—',
+                'company_name': so.lead.company_name if so.lead else '',
+                'lead_id':      so.lead_id,
+                'bill_company': so.bill_company or '—',
+                'sub_total':    float(so.sub_total or 0),
+                'gst_pct':      int(so.gst_pct or 0),
+                'gst_amount':   float(so.gst_amount or 0),
+                'total_amount': float(so.total_amount or 0),
+                'creator':      so.creator.full_name if so.creator else '—',
+                'created_at':   so.created_at.strftime('%d-%m-%Y %H:%M') if so.created_at else '—',
+                'invoice_file': so.invoice_file or '',
+                'bill_email':   so.bill_email or '',
+                'lead_email':   so.lead.email if so.lead and hasattr(so.lead, 'email') else '',
+                'deleted_at':   so.deleted_at.strftime('%d-%m-%Y %H:%M') if so.deleted_at else '',
+                'is_deleted':   bool(so.is_deleted),
+            })
+        return jsonify(rows=rows, total=pagination.total, page=pagination.page,
+                       pages=pagination.pages, active_count=active_count, deleted_count=deleted_count)
 
     return render_template('crm/sample_orders/list.html',
-        orders=orders, pagination=pagination,
-        search=search, active_page='sample_orders')
+        orders=pagination.items, pagination=pagination,
+        search=search, tab=tab,
+        active_count=active_count, deleted_count=deleted_count,
+        active_page='sample_orders')
+
+
+@crm.route('/sample-orders/bulk-delete', methods=['POST'])
+@login_required
+def sample_orders_bulk_delete():
+    """Soft-delete selected sample orders."""
+    ids = request.form.getlist('ids[]')
+    if not ids:
+        return jsonify(success=False, message='No orders selected.'), 400
+    count = 0
+    for sid in ids:
+        so = SampleOrder.query.get(int(sid))
+        if so and not so.is_deleted:
+            so.is_deleted = True
+            so.deleted_at = datetime.utcnow()
+            so.deleted_by = current_user.id
+            count += 1
+    db.session.commit()
+    return jsonify(success=True, message=f'{count} order(s) moved to Deleted tab.')
+
+
+@crm.route('/sample-orders/bulk-restore', methods=['POST'])
+@login_required
+def sample_orders_bulk_restore():
+    """Restore soft-deleted sample orders."""
+    ids = request.form.getlist('ids[]')
+    if not ids:
+        return jsonify(success=False, message='No orders selected.'), 400
+    count = 0
+    for sid in ids:
+        so = SampleOrder.query.get(int(sid))
+        if so and so.is_deleted:
+            so.is_deleted = False
+            so.deleted_at = None
+            so.deleted_by = None
+            count += 1
+    db.session.commit()
+    return jsonify(success=True, message=f'{count} order(s) restored.')
+
+
+@crm.route('/sample-orders/bulk-permanent-delete', methods=['POST'])
+@login_required
+def sample_orders_bulk_permanent_delete():
+    """Permanently delete sample orders."""
+    ids = request.form.getlist('ids[]')
+    if not ids:
+        return jsonify(success=False, message='No orders selected.'), 400
+    count = 0
+    for sid in ids:
+        so = SampleOrder.query.get(int(sid))
+        if so and so.is_deleted:
+            db.session.delete(so)
+            count += 1
+    db.session.commit()
+    return jsonify(success=True, message=f'{count} order(s) permanently deleted.')
 
 
 INVOICE_UPLOAD_FOLDER = os.path.join(os.path.dirname(__file__), 'static', 'uploads', 'invoices')
@@ -3519,22 +3721,78 @@ def lead_create_quotation(id):
 @crm.route('/quotations')
 @login_required
 def quotations_list():
-    search   = request.args.get('search', '')
+    search   = request.args.get('search', '').strip()
+    tab      = request.args.get('tab', 'active')   # 'active' | 'deleted'
+    status_f = request.args.get('status', '')       # draft|sent|accepted|rejected|''
     page     = request.args.get('page', 1, type=int)
     per_page = 20
+
     q = Quotation.query.join(Lead, Quotation.lead_id == Lead.id)
+
+    if tab == 'deleted':
+        q = q.filter(Quotation.is_deleted == True)
+    else:
+        q = q.filter((Quotation.is_deleted == False) | (Quotation.is_deleted == None))
+
     if search:
         q = q.filter(
             Quotation.quot_number.ilike(f'%{search}%') |
             Quotation.bill_company.ilike(f'%{search}%') |
             Lead.contact_name.ilike(f'%{search}%') |
-            Lead.company_name.ilike(f'%{search}%')
+            Lead.company_name.ilike(f'%{search}%') |
+            Quotation.subject.ilike(f'%{search}%')
         )
+    if status_f:
+        q = q.filter(Quotation.status == status_f)
+
     q = q.order_by(Quotation.created_at.desc())
     pagination = q.paginate(page=page, per_page=per_page, error_out=False)
+
+    # Count for tab badges
+    active_count  = Quotation.query.filter((Quotation.is_deleted == False) | (Quotation.is_deleted == None)).count()
+    deleted_count = Quotation.query.filter(Quotation.is_deleted == True).count()
+
+    # AJAX request — return JSON rows only
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        import json as _json
+        rows = []
+        for qt in pagination.items:
+            rows.append({
+                'id':           qt.id,
+                'quot_number':  qt.quot_number,
+                'quot_date':    qt.quot_date.strftime('%d-%m-%Y') if qt.quot_date else '—',
+                'valid_until':  qt.valid_until.strftime('%d-%m-%Y') if qt.valid_until else '—',
+                'contact_name': qt.lead.contact_name if qt.lead else '—',
+                'lead_id':      qt.lead_id,
+                'bill_company': qt.bill_company or '',
+                'subject':      qt.subject or '—',
+                'sub_total':    float(qt.sub_total or 0),
+                'gst_pct':      int(qt.gst_pct or 0),
+                'gst_amount':   float(qt.gst_amount or 0),
+                'total_amount': float(qt.total_amount or 0),
+                'status':       qt.status or 'draft',
+                'email_sent_at': qt.email_sent_at.strftime('%d-%m-%Y') if qt.email_sent_at else '',
+                'email_sent_to': qt.email_sent_to or '',
+                'bill_email':   qt.bill_email or '',
+                'creator':      qt.creator.full_name if qt.creator else '—',
+                'created_at':   qt.created_at.strftime('%d-%m-%Y %H:%M') if qt.created_at else '—',
+                'deleted_at':   qt.deleted_at.strftime('%d-%m-%Y %H:%M') if qt.deleted_at else '',
+                'is_deleted':   bool(qt.is_deleted),
+            })
+        return jsonify(
+            rows=rows,
+            total=pagination.total,
+            page=pagination.page,
+            pages=pagination.pages,
+            active_count=active_count,
+            deleted_count=deleted_count,
+        )
+
     return render_template('crm/quotations/list.html',
         quotations=pagination.items, pagination=pagination,
-        search=search, active_page='quotations')
+        search=search, tab=tab,
+        active_count=active_count, deleted_count=deleted_count,
+        active_page='quotations')
 
 
 
@@ -3743,4 +4001,142 @@ def quotation_status_update(id):
     db.session.commit()
     flash('Quotation status updated.', 'success')
     return redirect(url_for('crm.quotations_list'))
+
+
+# ── Bulk Actions ─────────────────────────────────────────────────────────────
+
+@crm.route('/quotations/bulk-status', methods=['POST'])
+@login_required
+def quotations_bulk_status():
+    """Bulk update status for selected quotations."""
+    ids    = request.form.getlist('ids[]')
+    status = request.form.get('status', '').strip()
+    valid  = {'draft', 'sent', 'accepted', 'rejected'}
+    if not ids:
+        return jsonify(success=False, message='No quotations selected.'), 400
+    if status not in valid:
+        return jsonify(success=False, message='Invalid status.'), 400
+    updated = 0
+    for qid in ids:
+        quot = Quotation.query.get(int(qid))
+        if quot:
+            quot.status = status
+            updated += 1
+    db.session.commit()
+    return jsonify(success=True, message=f'{updated} quotation(s) updated to "{status}".')
+
+
+@crm.route('/quotations/bulk-delete', methods=['POST'])
+@login_required
+def quotations_bulk_delete():
+    """Soft-delete selected quotations (moved to Deleted tab)."""
+    ids = request.form.getlist('ids[]')
+    if not ids:
+        return jsonify(success=False, message='No quotations selected.'), 400
+    deleted = 0
+    for qid in ids:
+        quot = Quotation.query.get(int(qid))
+        if quot and not quot.is_deleted:
+            quot.is_deleted  = True
+            quot.deleted_at  = datetime.utcnow()
+            quot.deleted_by  = current_user.id
+            log_activity(quot.lead_id, f'Quotation {quot.quot_number} moved to trash by {current_user.username}')
+            deleted += 1
+    db.session.commit()
+    return jsonify(success=True, message=f'{deleted} quotation(s) moved to Deleted tab.')
+
+
+@crm.route('/quotations/bulk-restore', methods=['POST'])
+@login_required
+def quotations_bulk_restore():
+    """Restore soft-deleted quotations back to active."""
+    ids = request.form.getlist('ids[]')
+    if not ids:
+        return jsonify(success=False, message='No quotations selected.'), 400
+    restored = 0
+    for qid in ids:
+        quot = Quotation.query.get(int(qid))
+        if quot and quot.is_deleted:
+            quot.is_deleted = False
+            quot.deleted_at = None
+            quot.deleted_by = None
+            log_activity(quot.lead_id, f'Quotation {quot.quot_number} restored by {current_user.username}')
+            restored += 1
+    db.session.commit()
+    return jsonify(success=True, message=f'{restored} quotation(s) restored successfully.')
+
+
+@crm.route('/quotations/bulk-permanent-delete', methods=['POST'])
+@login_required
+def quotations_bulk_permanent_delete():
+    """Permanently delete quotations from Deleted tab."""
+    ids = request.form.getlist('ids[]')
+    if not ids:
+        return jsonify(success=False, message='No quotations selected.'), 400
+    count = 0
+    for qid in ids:
+        quot = Quotation.query.get(int(qid))
+        if quot and quot.is_deleted:
+            log_activity(quot.lead_id, f'Quotation {quot.quot_number} permanently deleted by {current_user.username}')
+            db.session.delete(quot)
+            count += 1
+    db.session.commit()
+    return jsonify(success=True, message=f'{count} quotation(s) permanently deleted.')
+
+
+@crm.route('/quotations/bulk-email', methods=['POST'])
+@login_required
+def quotations_bulk_email():
+    """Bulk send email using the shared _send_smtp helper from mail_routes."""
+    from mail_routes import _get_or_create_quotation_template, _render_quot_template_vars, _send_smtp
+
+    ids = request.form.getlist('ids[]')
+    if not ids:
+        return jsonify(success=False, message='No quotations selected.'), 400
+
+    cfg        = current_app.config
+    t          = _get_or_create_quotation_template()
+    from_email = cfg.get('MAIL_USERNAME', 'info@hcpwellness.in')
+    from_name  = 'HCP Wellness Pvt. Ltd.'
+    sent = 0; skipped = 0; errors = []
+
+    for qid in ids:
+        try:
+            quot = Quotation.query.get(int(qid))
+        except Exception:
+            continue
+        if not quot:
+            continue
+        to_email = (quot.bill_email or '').strip()
+        if not to_email:
+            skipped += 1
+            continue
+        creator_name = quot.creator.full_name if quot.creator else 'Administrator'
+        subject   = _render_quot_template_vars(t.subject, quot, creator_name)
+        body_txt  = _render_quot_template_vars(t.body,    quot, creator_name)
+        html_body = f'<html><body style="font-family:Arial,sans-serif;font-size:14px;color:#333;">{body_txt}</body></html>'
+        try:
+            pdf_bytes = _build_quotation_pdf(quot, quot.lead).read()
+        except Exception as e:
+            errors.append(f'{quot.quot_number}: PDF build failed – {e}')
+            continue
+        success, err = _send_smtp(
+            to_email, subject, html_body, from_email, from_name,
+            attachment_bytes=pdf_bytes,
+            attachment_name=f'Quotation_{quot.quot_number}.pdf'
+        )
+        if success:
+            quot.status        = 'sent'
+            quot.email_sent_at = datetime.utcnow()
+            quot.email_sent_to = to_email
+            log_activity(quot.lead_id, f'Quotation {quot.quot_number} bulk-emailed to {to_email}')
+            sent += 1
+        else:
+            errors.append(f'{quot.quot_number}: {err}')
+
+    db.session.commit()
+    parts = [f'{sent} email(s) sent']
+    if skipped: parts.append(f'{skipped} skipped (no email on record)')
+    if errors:  parts.append(f'{len(errors)} failed')
+    return jsonify(success=True, message='; '.join(parts), errors=errors)
 

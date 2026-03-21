@@ -10,6 +10,8 @@ from .master     import LeadStatus, LeadSource, LeadCategory, ProductRange, Cate
 from .employee   import Employee, Contractor, WishLog, SalaryConfig, SalaryComponent
 from .permission import Module, RolePermission, UserGridConfig
 from .approval   import ApprovalRequest, ApprovalLevel
+from .npd        import (NPDProject, MilestoneMaster, MilestoneLog, NPDMilestoneTemplate,
+                         NPDFormulation, NPDPackingMaterial, NPDArtwork, NPDActivityLog)
 
 __all__ = [
     'db',
@@ -25,4 +27,7 @@ __all__ = [
     'Module', 'RolePermission', 'UserGridConfig',
     'AuditLog',
     'ApprovalRequest', 'ApprovalLevel',
+    # NPD / Product Development
+    'NPDProject', 'MilestoneMaster', 'MilestoneLog', 'NPDMilestoneTemplate',
+    'NPDFormulation', 'NPDPackingMaterial', 'NPDArtwork', 'NPDActivityLog',
 ]

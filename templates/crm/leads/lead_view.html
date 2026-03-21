@@ -17,8 +17,10 @@
 .badge-cancel     { background:#ef4444 !important; color:#fff !important; }
 
 /* Tabs */
-.tab-nav { display:flex; gap:0; border-bottom:2px solid var(--border); margin-bottom:1.25rem; flex-wrap:wrap; }
-.tab-btn { padding:10px 20px; font-size:0.85rem; font-weight:600; color:var(--text2); background:transparent; border:none; border-bottom:2px solid transparent; margin-bottom:-2px; cursor:pointer; transition:all .15s; text-decoration:none; }
+.tab-nav { display:flex; gap:0; border-bottom:2px solid var(--border); margin-bottom:1.25rem; flex-wrap:nowrap; position:relative; }
+.tab-nav-inner { display:flex; gap:0; overflow-x:auto; flex-wrap:nowrap; -webkit-overflow-scrolling:touch; scrollbar-width:none; flex:1; }
+.tab-nav-inner::-webkit-scrollbar { display:none; }
+.tab-btn { padding:10px 20px; font-size:0.85rem; font-weight:600; color:var(--text2); background:transparent; border:none; border-bottom:2px solid transparent; margin-bottom:-2px; cursor:pointer; transition:all .15s; text-decoration:none; white-space:nowrap; flex-shrink:0; }
 .tab-btn:hover { color:var(--blue); }
 .tab-btn.active { color:var(--blue); border-bottom-color:var(--blue); }
 .tab-pane { display:none; }
@@ -26,6 +28,9 @@
 
 /* Overview layout */
 .overview-grid { display:grid; grid-template-columns:1fr 1fr; gap:1rem; }
+.info-card { background:#fff; border:1.5px solid var(--border); border-radius:12px; overflow:hidden; }
+.info-card-hdr { background:#f8fafc; padding:10px 14px; border-bottom:1px solid var(--border); font-size:0.82rem; font-weight:800; color:#374151; text-transform:uppercase; letter-spacing:.04em; }
+.info-card-body { padding:4px 14px 8px; }
 .info-row { display:flex; gap:0.5rem; padding:0.45rem 0; border-bottom:1px solid var(--border); font-size:0.875rem; }
 .info-row:last-child { border-bottom:none; }
 .info-lbl { font-weight:600; color:var(--text2); min-width:160px; flex-shrink:0; }
@@ -110,10 +115,106 @@
 .reminder-when { font-size:0.78rem; color:var(--text2); }
 .reminder-done-txt { text-decoration:line-through; }
 
+/* CKEditor rendered content */
+.ck-content p { margin:0 0 6px; }
+.ck-content p:last-child { margin-bottom:0; }
+.ck-content ul, .ck-content ol { padding-left:1.2rem; margin:4px 0; }
+.ck-content h3 { font-size:0.9rem; font-weight:700; margin:6px 0 3px; }
+.ck-content strong { font-weight:700; }
+.ck-content em { font-style:italic; }
+
 /* Notes */
 .note-item { background:#fffbeb; border:1.5px solid #fde68a; border-radius:10px; padding:0.85rem 1rem; margin-bottom:0.6rem; }
 .note-text { font-size:0.88rem; color:var(--text); line-height:1.5; white-space:pre-wrap; }
 .note-meta { font-size:0.75rem; color:var(--text3); margin-top:6px; display:flex; align-items:center; justify-content:space-between; }
+
+/* ═══════════════════════════════════════
+   MOBILE RESPONSIVE — Lead View
+   ═══════════════════════════════════════ */
+@media (max-width: 767px) {
+
+    /* Header card */
+    .lead-header { padding:14px 14px 12px; border-radius:12px; margin-bottom:10px; }
+    .lead-header-top { flex-direction:column; gap:10px; margin-bottom:10px; }
+    .lead-title-block h2 { font-size:1rem; line-height:1.4; }
+    .lead-meta { gap:6px; }
+    .lead-meta-item { font-size:0.75rem; }
+    .lead-actions-row { gap:8px; }
+    .lead-actions-row > button,
+    .lead-actions-row > a { font-size:0.85rem; padding:9px 16px; flex:1; justify-content:center; }
+    /* Actions dropdown — full width on mobile */
+    #leadActionMenu { flex:1; }
+    #leadActionMenu > button { width:100%; justify-content:center; }
+    #leadActionDropdown { left:0; right:0; min-width:unset; }
+
+    /* Tabs — horizontal scroll */
+    /* Tabs sticky + scroll */
+    .tab-nav {
+        position:sticky;
+        top:0;
+        background:#fff;
+        z-index:10;
+        margin-left:-12px;
+        margin-right:-12px;
+        margin-bottom:14px;
+        box-shadow:0 2px 8px rgba(0,0,0,0.06);
+    }
+    .tab-nav-inner {
+        padding-left:12px;
+        overflow-x:auto !important;
+        -webkit-overflow-scrolling:touch !important;
+        scroll-behavior:smooth;
+    }
+    .tab-btn { padding:10px 14px; font-size:0.8rem; }
+
+    /* Reminder & Notes grid — stack vertically */
+    .reminder-grid { grid-template-columns:1fr !important; }
+
+    /* Form fields full width */
+    .reminder-grid input[type=text],
+    .reminder-grid input[type=datetime-local],
+    .reminder-grid textarea { width:100%; box-sizing:border-box; font-size:0.9rem; }
+
+    /* Overview — single column */
+    .overview-grid { grid-template-columns:1fr; gap:10px; }
+
+    /* Info rows — stack label above value on very small screens */
+    .info-row { flex-direction:column; gap:2px; padding:8px 0; }
+    .info-lbl { min-width:unset; font-size:0.75rem; color:#94a3b8; }
+    .info-val { font-size:0.88rem; font-weight:600; }
+
+    /* Info cards (Lead Info, Requirement Info) */
+    .card { border-radius:12px; }
+    .card-hdr { padding:10px 14px; }
+    .card-body { padding:10px 14px; }
+
+    /* Discussion */
+    .disc-form { padding:12px; border-radius:10px; }
+    .disc-input { font-size:0.85rem; min-height:70px; }
+    .disc-item { gap:10px; padding:12px 0; }
+    .disc-avatar { width:34px; height:34px; font-size:0.75rem; }
+    .disc-text { font-size:0.84rem; }
+
+    /* Activity */
+    .activity-item { gap:10px; padding:10px 0; }
+    .activity-avatar { width:32px; height:32px; font-size:0.72rem; }
+    .activity-action { font-size:0.82rem; }
+
+    /* Attachments */
+    .att-item { padding:10px 12px; border-radius:8px; }
+
+    /* Reminders */
+    .reminder-item { padding:10px 12px; border-radius:8px; }
+    .reminder-title { font-size:0.85rem; }
+
+    /* Notes */
+    .note-item { padding:10px 12px; border-radius:8px; }
+    .note-text { font-size:0.84rem; }
+
+    /* Quotation / Sample Order mini tables inside lead view */
+    .tbl-wrap { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    table { min-width:600px; }
+}
 {% endblock %}
 
 {% block content %}
@@ -126,10 +227,13 @@
                 {% if lead.city %} — {{ lead.city }}{% endif %}
                 {% if lead.product_name %} — {{ lead.product_name }}{% endif %}
                 &nbsp;
+                {% set _lv_color = '#6b7280' %}{% set _lv_icon = '' %}
+                {% for ls in lead_statuses if ls.name == lead.status %}{% set _lv_color = ls.color %}{% set _lv_icon = ls.icon %}{% endfor %}
                 {% if lead.status == 'open' %}<span class="badge badge-open">Open</span>
                 {% elif lead.status == 'in_process' %}<span class="badge badge-in_process">In Process</span>
                 {% elif lead.status == 'close' %}<span class="badge badge-close">Close</span>
                 {% elif lead.status == 'cancel' %}<span class="badge badge-cancel">Cancel</span>
+                {% else %}<span class="badge" style="background:{{ _lv_color }}18;color:{{ _lv_color }};border:1px solid {{ _lv_color }}33;">{{ _lv_icon }} {{ (lead.status or '')|replace('_',' ')|title }}</span>
                 {% endif %}
             </h2>
             <div class="lead-meta">
@@ -168,6 +272,39 @@
                     <button onclick="openNpdModal();toggleLeadMenu();" style="width:100%;display:flex;align-items:center;gap:10px;padding:10px 14px;font-size:0.85rem;color:#374151;background:none;border:none;cursor:pointer;text-align:left;transition:background .12s;">
                         <span style="width:20px;text-align:center;">✉️</span> Send NPD Project
                     </button>
+                    <div style="border-top:1px solid #f1f5f9;margin:2px 0;"></div>
+
+                    {# Hidden POST forms — submitted by custom modal #}
+                    <form id="form-npd-convert" method="POST" action="/npd/convert-lead/{{ lead.id }}/npd"></form>
+                    <form id="form-epd-convert" method="POST" action="/npd/convert-lead/{{ lead.id }}/existing"></form>
+
+                    {# ── NPD Button ── #}
+                    <button type="button"
+                        onclick="openConvertModal('npd', {% if lead.client_id %}true{% else %}false{% endif %}); toggleLeadMenu();"
+                        style="width:100%;display:flex;align-items:center;gap:10px;padding:10px 14px;font-size:0.85rem;color:#7c3aed;background:none;border:none;cursor:pointer;text-align:left;transition:background .12s;font-weight:600;">
+                        <span style="width:20px;text-align:center;">🧪</span>
+                        <span>
+                            NPD Project
+                            <span style="display:block;font-size:0.72rem;color:#9ca3af;font-weight:400;">
+                                {% if lead.client_id %}Client linked → Client View{% else %}Status → NPD Project{% endif %}
+                            </span>
+                        </span>
+                    </button>
+
+                    {# ── EPD Button ── #}
+                    <button type="button"
+                        onclick="openConvertModal('existing', {% if lead.client_id %}true{% else %}false{% endif %}); toggleLeadMenu();"
+                        style="width:100%;display:flex;align-items:center;gap:10px;padding:10px 14px;font-size:0.85rem;color:#059669;background:none;border:none;cursor:pointer;text-align:left;transition:background .12s;font-weight:600;">
+                        <span style="width:20px;text-align:center;">📦</span>
+                        <span>
+                            EPD Project
+                            <span style="display:block;font-size:0.72rem;color:#9ca3af;font-weight:400;">
+                                {% if lead.client_id %}Client linked → Client View{% else %}Status → Existing Project{% endif %}
+                            </span>
+                        </span>
+                    </button>
+
+                    <div style="border-top:1px solid #f1f5f9;margin:2px 0;"></div>
                     <button onclick="document.getElementById('statusModal').style.display='flex';toggleLeadMenu();" style="width:100%;display:flex;align-items:center;gap:10px;padding:10px 14px;font-size:0.85rem;color:#374151;background:none;border:none;cursor:pointer;text-align:left;transition:background .12s;">
                         <span style="width:20px;text-align:center;">🔄</span> Change Status
                     </button>
@@ -185,12 +322,14 @@
 
 <!-- Tabs Navigation -->
 <div class="tab-nav">
-    <a href="#" class="tab-btn {% if tab=='overview' %}active{% endif %}" onclick="switchTab('overview',this); return false;">Overview</a>
-    <a href="#" class="tab-btn {% if tab=='discussion' %}active{% endif %}" onclick="switchTab('discussion',this); return false;">Discussion Board</a>
-    <a href="#" class="tab-btn {% if tab=='activity' %}active{% endif %}" onclick="switchTab('activity',this); return false;">Activity Log</a>
-    <a href="#" class="tab-btn {% if tab=='attachments' %}active{% endif %}" onclick="switchTab('attachments',this); return false;">Attachments List</a>
-    <a href="#" class="tab-btn {% if tab=='reminder' %}active{% endif %}" onclick="switchTab('reminder',this); return false;">Reminder</a>
-    <a href="#" class="tab-btn {% if tab=='notes' %}active{% endif %}" onclick="switchTab('notes',this); return false;">Personal Notes</a>
+    <div class="tab-nav-inner" id="tabNavInner">
+        <a href="#" class="tab-btn {% if tab=='overview' %}active{% endif %}" onclick="switchTab('overview',this); return false;">Overview</a>
+        <a href="#" class="tab-btn {% if tab=='discussion' %}active{% endif %}" onclick="switchTab('discussion',this); return false;">Discussion Board</a>
+        <a href="#" class="tab-btn {% if tab=='activity' %}active{% endif %}" onclick="switchTab('activity',this); return false;">Activity Log</a>
+        <a href="#" class="tab-btn {% if tab=='attachments' %}active{% endif %}" onclick="switchTab('attachments',this); return false;">Attachments List</a>
+        <a href="#" class="tab-btn {% if tab=='reminder' %}active{% endif %}" onclick="switchTab('reminder',this); return false;">Reminder</a>
+        <a href="#" class="tab-btn {% if tab=='notes' %}active{% endif %}" onclick="switchTab('notes',this); return false;">Personal Notes</a>
+    </div>
 </div>
 
 <!-- TAB 1: OVERVIEW -->
@@ -233,11 +372,11 @@
                 <div class="info-row"><span class="info-lbl">Client Attachments</span><span class="info-val">{{ lead.client_attachment or 'No Files' }}</span></div>
                 <div class="info-row"><span class="info-lbl">Product Name</span><span class="info-val">{{ lead.product_name or 'N/A' }}</span></div>
                 <div class="info-row"><span class="info-lbl">Category</span><span class="info-val">{{ lead.category or 'N/A' }}</span></div>
-                <div class="info-row"><span class="info-lbl">Requirement Spec</span><span class="info-val" style="white-space:pre-wrap;">{{ lead.requirement_spec or 'N/A' }}</span></div>
+                <div class="info-row"><span class="info-lbl">Requirement Spec</span><div class="info-val ck-content" style="font-size:0.87rem;line-height:1.6;">{% if lead.requirement_spec %}{{ lead.requirement_spec|safe }}{% else %}N/A{% endif %}</div></div>
                 <div class="info-row"><span class="info-lbl">Tags</span><span class="info-val">{{ lead.tags or 'N/A' }}</span></div>
                 <div class="info-row"><span class="info-lbl">Product Range</span><span class="info-val">{{ lead.product_range or 'N/A' }}</span></div>
                 <div class="info-row"><span class="info-lbl">Order Quantity</span><span class="info-val">{{ lead.order_quantity or 'N/A' }}</span></div>
-                <div class="info-row"><span class="info-lbl">Remark</span><span class="info-val">{{ lead.remark or 'N/A' }}</span></div>
+                <div class="info-row"><span class="info-lbl">Remark</span><div class="info-val ck-content" style="font-size:0.87rem;line-height:1.6;">{% if lead.remark %}{{ lead.remark|safe }}{% else %}N/A{% endif %}</div></div>
                 <div class="info-row"><span class="info-lbl">Source</span><span class="info-val">{{ lead.source or 'N/A' }}</span></div>
                 <div class="info-row"><span class="info-lbl">Created Date</span><span class="info-val">{{ lead.created_at.strftime('%d-%m-%Y %I:%M:%S %p') }}</span></div>
                 <div class="info-row"><span class="info-lbl">Last Contact</span><span class="info-val">{% if lead.last_contact %}{{ lead.last_contact.strftime('%d-%m-%Y') }}{% else %}N/A{% endif %}</span></div>
@@ -431,7 +570,7 @@
 
 <!-- TAB 5: REMINDER (Followup) -->
 <div id="tab-reminder" class="tab-pane {% if tab=='reminder' %}active{% endif %}">
-    <div style="display:grid;grid-template-columns:1fr 350px;gap:1rem;align-items:start;">
+    <div class="reminder-grid" style="display:grid;grid-template-columns:1fr 350px;gap:1rem;align-items:start;">
         <div class="card">
             <div class="card-hdr"><div class="card-title">Reminders / Follow-ups</div></div>
             <div class="card-body">
@@ -488,7 +627,7 @@
 
 <!-- TAB 6: PERSONAL NOTES -->
 <div id="tab-notes" class="tab-pane {% if tab=='notes' %}active{% endif %}">
-    <div style="display:grid;grid-template-columns:1fr 350px;gap:1rem;align-items:start;">
+    <div class="reminder-grid" style="display:grid;grid-template-columns:1fr 350px;gap:1rem;align-items:start;">
         <div class="card">
             <div class="card-hdr">
                 <div class="card-title">📝 Personal Notes</div>
@@ -601,48 +740,248 @@
     </div>
 </div>
 
-<!-- Sample Order Modal -->
-<div id="sampleOrderModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:1000;align-items:center;justify-content:center;padding:1rem;">
-    <div style="background:#fff;border-radius:12px;width:100%;max-width:860px;max-height:92vh;overflow-y:auto;box-shadow:0 25px 80px rgba(0,0,0,0.25);">
 
-        <!-- Modal Header -->
-        <div style="background:#1e3a5f;color:#fff;padding:0.9rem 1.5rem;border-radius:12px 12px 0 0;display:flex;align-items:center;justify-content:space-between;">
-            <div style="font-size:1rem;font-weight:700;">📋 Sample Order</div>
-            <button onclick="closeSampleOrderModal()" style="background:rgba(255,255,255,0.15);border:none;color:#fff;width:28px;height:28px;border-radius:50%;font-size:1rem;cursor:pointer;">✕</button>
+<!-- ── NPD / EPD Convert Modal ── -->
+<div id="convertModal" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.55);z-index:2000;align-items:center;justify-content:center;backdrop-filter:blur(3px);">
+    <div style="background:#fff;border-radius:20px;padding:0;width:440px;max-width:95vw;box-shadow:0 25px 60px rgba(0,0,0,0.25);overflow:hidden;animation:modalIn .2s ease;">
+        <!-- Header -->
+        <div id="convertModalHeader" style="padding:1.25rem 1.5rem 1rem;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;gap:.75rem;">
+            <div id="convertModalIcon" style="width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.4rem;flex-shrink:0;"></div>
+            <div>
+                <div id="convertModalTitle" style="font-size:1rem;font-weight:800;color:#0f172a;"></div>
+                <div id="convertModalSub" style="font-size:.78rem;color:#64748b;margin-top:2px;"></div>
+            </div>
+            <button onclick="closeConvertModal()" style="margin-left:auto;width:30px;height:30px;border-radius:8px;border:none;background:#f1f5f9;color:#64748b;cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;">✕</button>
+        </div>
+        <!-- Body -->
+        <div style="padding:1.25rem 1.5rem;">
+            <div id="convertModalBody" style="font-size:.87rem;color:#374151;line-height:1.7;"></div>
+
+            <!-- Info row -->
+            <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:.85rem 1rem;margin-top:1rem;display:flex;flex-direction:column;gap:.4rem;">
+                <div style="display:flex;gap:.5rem;font-size:.8rem;">
+                    <span style="color:#94a3b8;width:90px;flex-shrink:0;">Lead</span>
+                    <span style="font-weight:700;color:#0f172a;">{{ lead.contact_name }}{% if lead.company_name %} / {{ lead.company_name }}{% endif %}</span>
+                </div>
+                <div style="display:flex;gap:.5rem;font-size:.8rem;">
+                    <span style="color:#94a3b8;width:90px;flex-shrink:0;">Product</span>
+                    <span style="font-weight:600;color:#374151;">{{ lead.product_name or '—' }}</span>
+                </div>
+                <div style="display:flex;gap:.5rem;font-size:.8rem;" id="convertClientRow" style="display:none;">
+                    <span style="color:#94a3b8;width:90px;flex-shrink:0;">Client</span>
+                    <span style="font-weight:600;color:#059669;">{% if lead.client_id %}✅ Already Linked{% else %}—{% endif %}</span>
+                </div>
+            </div>
+
+            <!-- What will happen -->
+            <div style="margin-top:1rem;">
+                <div style="font-size:.72rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.06em;margin-bottom:.5rem;">Yeh hoga:</div>
+                <div id="convertModalSteps" style="display:flex;flex-direction:column;gap:.35rem;"></div>
+            </div>
+        </div>
+        <!-- Footer -->
+        <div style="padding:.9rem 1.5rem 1.25rem;display:flex;gap:.6rem;justify-content:flex-end;">
+            <button onclick="closeConvertModal()" style="padding:.55rem 1.1rem;border:1.5px solid #e2e8f0;border-radius:10px;background:#fff;color:#374151;font-size:.85rem;font-weight:600;cursor:pointer;">Cancel</button>
+            <button id="convertModalConfirmBtn" onclick="submitConvertForm()" style="padding:.55rem 1.4rem;border:none;border-radius:10px;font-size:.85rem;font-weight:700;cursor:pointer;color:#fff;display:flex;align-items:center;gap:.4rem;">
+                <span id="convertModalBtnIcon"></span>
+                <span id="convertModalBtnText">Confirm</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+<style>
+@keyframes modalIn {
+    from { opacity:0; transform:scale(.95) translateY(10px); }
+    to   { opacity:1; transform:scale(1) translateY(0); }
+}
+</style>
+
+<script>
+var _convertType = 'npd';
+
+function openConvertModal(type, hasClient) {
+    _convertType = type;
+    var modal = document.getElementById('convertModal');
+    var icon  = document.getElementById('convertModalIcon');
+    var title = document.getElementById('convertModalTitle');
+    var sub   = document.getElementById('convertModalSub');
+    var body  = document.getElementById('convertModalBody');
+    var steps = document.getElementById('convertModalSteps');
+    var btn   = document.getElementById('convertModalConfirmBtn');
+    var btnIc = document.getElementById('convertModalBtnIcon');
+    var btnTx = document.getElementById('convertModalBtnText');
+    var hdr   = document.getElementById('convertModalHeader');
+
+    if (type === 'npd') {
+        icon.textContent  = '🧪';
+        icon.style.background = '#f3e8ff';
+        title.textContent = 'Create NPD Project';
+        sub.textContent   = 'New Product Development';
+        hdr.style.borderBottom = '1px solid #f3e8ff';
+        btn.style.background   = '#7c3aed';
+        btnIc.textContent = '🧪';
+        btnTx.textContent = 'Create NPD Project';
+        body.innerHTML = hasClient
+            ? 'Is lead ka <strong>client pehle se linked hai</strong>. NPD Project create hoga aur aap <strong>Client View</strong> pe redirect honge.'
+            : 'Is lead ke liye ek naya <strong>NPD (New Product Development) Project</strong> create hoga.';
+        steps.innerHTML = [
+            '✅ Lead status → <strong style="color:#7c3aed;">NPD Project</strong>',
+            '✅ NPD Project create hoga with lead details',
+            '✅ Default milestones attach honge',
+            hasClient
+              ? '✅ Client view open hoga (client already linked)'
+              : '✅ NPD Project view pe redirect hoga'
+        ].map(s => `<div style="font-size:.82rem;color:#374151;display:flex;align-items:flex-start;gap:.4rem;"><span style="margin-top:1px;">${s}</span></div>`).join('');
+    } else {
+        icon.textContent  = '📦';
+        icon.style.background = '#d1fae5';
+        title.textContent = 'Create EPD Project';
+        sub.textContent   = 'Existing Product Development';
+        hdr.style.borderBottom = '1px solid #d1fae5';
+        btn.style.background   = '#059669';
+        btnIc.textContent = '📦';
+        btnTx.textContent = 'Create EPD Project';
+        body.innerHTML = hasClient
+            ? 'Is lead ka <strong>client pehle se linked hai</strong>. EPD Project create hoga aur aap <strong>Client View</strong> pe redirect honge.'
+            : 'Is lead ke liye ek naya <strong>EPD (Existing Product) Project</strong> create hoga.';
+        steps.innerHTML = [
+            '✅ Lead status → <strong style="color:#059669;">Existing Project</strong>',
+            '✅ EPD Project create hoga with lead details',
+            '✅ Default milestones attach honge',
+            hasClient
+              ? '✅ Client view open hoga (client already linked)'
+              : '✅ EPD Project view pe redirect hoga'
+        ].map(s => `<div style="font-size:.82rem;color:#374151;display:flex;align-items:flex-start;gap:.4rem;"><span style="margin-top:1px;">${s}</span></div>`).join('');
+    }
+
+    modal.style.display = 'flex';
+}
+
+function closeConvertModal() {
+    document.getElementById('convertModal').style.display = 'none';
+}
+
+function submitConvertForm() {
+    var formId = _convertType === 'npd' ? 'form-npd-convert' : 'form-epd-convert';
+    // Show loading state
+    var btn = document.getElementById('convertModalConfirmBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<span style="opacity:.7;">Creating...</span>';
+    document.getElementById(formId).submit();
+}
+
+// Close on backdrop click
+document.getElementById('convertModal').addEventListener('click', function(e) {
+    if (e.target === this) closeConvertModal();
+});
+</script>
+
+
+<!-- Sample Order Modal -->
+<style>
+#sampleOrderModal { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.55); z-index:1000; align-items:flex-end; justify-content:center; }
+#sampleOrderModal .so-box { background:#fff; border-radius:22px 22px 0 0; width:100%; max-height:95vh; overflow-y:auto; box-shadow:0 -8px 40px rgba(0,0,0,0.2); animation:soSlideUp .25s ease; display:flex; flex-direction:column; }
+#sampleOrderModal .so-hdr { background:#1e3a5f; color:#fff; padding:14px 18px; border-radius:22px 22px 0 0; display:flex; align-items:center; justify-content:space-between; position:sticky; top:0; z-index:5; flex-shrink:0; }
+#sampleOrderModal .so-body { padding:16px; flex:1; }
+#sampleOrderModal .so-foot { padding:12px 16px; border-top:1px solid #e5e7eb; display:flex; gap:8px; background:#f9fafb; position:sticky; bottom:0; flex-shrink:0; }
+#sampleOrderModal .so-foot button { flex:1; padding:13px; border-radius:10px; font-size:0.88rem; font-weight:700; border:none; cursor:pointer; }
+.so-section-lbl { font-size:0.68rem; font-weight:700; letter-spacing:0.08em; color:#94a3b8; text-transform:uppercase; margin-bottom:8px; }
+.so-card-section { background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:14px; margin-bottom:12px; }
+/* Mobile item cards */
+.so-item-card { background:#fff; border:1.5px solid #e2e8f0; border-radius:10px; padding:12px; margin-bottom:8px; position:relative; }
+.so-item-card .so-item-name { width:100%; margin-bottom:8px; }
+.so-item-card .so-item-row { display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; align-items:center; }
+.so-item-card .so-item-row label { font-size:0.65rem; font-weight:700; color:#94a3b8; text-transform:uppercase; display:block; margin-bottom:3px; }
+.so-item-card .so-item-amt { font-size:0.82rem; font-weight:700; color:#1e3a5f; text-align:right; padding-top:6px; }
+.so-item-del { position:absolute; top:10px; right:10px; background:#fef2f2; color:#dc2626; border:none; border-radius:6px; width:26px; height:26px; font-size:0.85rem; cursor:pointer; display:flex; align-items:center; justify-content:center; }
+.so-total-row { display:flex; justify-content:space-between; padding:8px 12px; font-size:0.85rem; border-bottom:1px solid #e5e7eb; }
+.so-total-final { display:flex; justify-content:space-between; padding:10px 12px; font-size:0.92rem; font-weight:800; background:#f0f4ff; border-radius:0 0 10px 10px; color:#1e3a5f; }
+/* Desktop table items */
+.so-desktop-table { display:none; }
+.so-mobile-cards  { display:block; }
+/* Unified top layout */
+.so-unified-top { display:flex; flex-direction:column; gap:12px; margin-bottom:14px; }
+.so-bill-section, .so-order-section { background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:14px; }
+.so-bill-section .fi, .so-order-section .fi { margin-bottom:0; }
+@media(min-width:768px) {
+    .so-unified-top { flex-direction:row; gap:0; background:#fff; border:none; padding:0; margin-bottom:18px; padding-bottom:18px; border-bottom:1.5px dashed #d1d5db; }
+    .so-bill-section { flex:1; background:transparent; border:none; padding:0; padding-right:24px; border-radius:0; }
+    .so-order-section { width:280px; flex-shrink:0; background:transparent; border:none; padding:0; padding-left:24px; border-left:1px solid #e5e7eb; border-radius:0; }
+}
+/* Validation */
+.so-field-error { border-color:#ef4444 !important; box-shadow:0 0 0 3px rgba(239,68,68,0.12) !important; }
+.so-err-msg { color:#dc2626; font-size:0.72rem; font-weight:600; margin-top:3px; display:none; }
+.so-err-msg.show { display:block; }
+.so-val-toast { position:fixed; top:80px; left:50%; transform:translateX(-50%); background:#1e3a5f; color:#fff; padding:10px 20px; border-radius:10px; font-size:0.85rem; font-weight:600; z-index:9999; display:none; box-shadow:0 4px 20px rgba(0,0,0,0.25); white-space:nowrap; }
+.so-val-toast.show { display:block; animation:soSlideUp .2s ease; }
+@keyframes soSlideUp { from{opacity:0;transform:translateY(30px)} to{opacity:1;transform:translateY(0)} }
+@keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+@media(min-width:768px) {
+    #sampleOrderModal { align-items:center; padding:1rem; }
+    #sampleOrderModal .so-box { border-radius:16px; max-width:900px; max-height:92vh; }
+    #sampleOrderModal .so-hdr { border-radius:16px 16px 0 0; }
+    #sampleOrderModal .so-body { padding:1.5rem; }
+    #sampleOrderModal .so-foot button { padding:9px 22px; border-radius:8px; flex:none; }
+    /* Desktop: side-by-side billing + order details */
+    .so-desktop-top { display:grid !important; grid-template-columns:1fr 1px 1fr; gap:1.5rem; margin-bottom:1.5rem; padding-bottom:1.25rem; border-bottom:1.5px dashed #d1d5db; }
+    .so-desktop-divider { background:#e5e7eb; display:block !important; }
+    .so-mobile-cards  { display:none !important; }
+    .so-desktop-table { display:block !important; }
+    .so-card-section  { background:transparent; border:none; padding:0; margin-bottom:0; }
+    .so-section-lbl   { color:#6b7280; }
+    #sampleOrderModal .so-foot { justify-content:space-between; padding:.9rem 1.5rem; }
+    #sampleOrderModal .so-foot .so-foot-hint { display:block !important; }
+}
+</style>
+
+<div id="sampleOrderModal">
+    <div class="so-val-toast" id="soValToast"></div>
+    <div class="so-box">
+        <div class="so-hdr">
+            <span style="font-size:1rem;font-weight:700;">📋 Sample Order</span>
+            <button onclick="closeSampleOrderModal()" style="background:rgba(255,255,255,0.18);border:none;color:#fff;width:30px;height:30px;border-radius:50%;font-size:1rem;cursor:pointer;">✕</button>
         </div>
 
         <form method="POST" action="{{ url_for('crm.lead_sample_order', id=lead.id) }}" id="soForm">
-            <div style="padding:1.5rem;">
-
-                <!-- TOP SECTION: Logo + Address + Order Info -->
-                <div style="display:grid;grid-template-columns:1fr 1px 1fr;gap:1.5rem;margin-bottom:1.5rem;padding-bottom:1.25rem;border-bottom:1.5px dashed #d1d5db;">
-
-                    <!-- LEFT: Billing Address -->
-                    <div>
-                        <div style="font-size:0.7rem;font-weight:700;letter-spacing:0.08em;color:#6b7280;text-transform:uppercase;margin-bottom:0.75rem;">Billing Address</div>
-                        <input type="text" name="bill_company" value="{{ lead.company_name or '' }}" placeholder="Company Name" class="fi" style="font-size:0.85rem;margin-bottom:0.4rem;font-weight:600;">
-                        <textarea name="bill_address" class="fi" rows="2" placeholder="Address" style="font-size:0.83rem;resize:none;margin-bottom:0.4rem;">{{ ((lead.address or '') + (', ' + lead.city if lead.city else '') + (', ' + lead.state if lead.state else '') + (' - ' + lead.zip_code if lead.zip_code else '')) | trim(', ') }}</textarea>
-                        <input type="text" name="bill_phone" value="{{ lead.phone or '' }}" placeholder="Phone" class="fi" style="font-size:0.83rem;margin-bottom:0.4rem;">
-                        <input type="text" name="bill_email" value="{{ lead.email or '' }}" placeholder="Email" class="fi" style="font-size:0.83rem;margin-bottom:0.4rem;">
-                        <input type="text" name="bill_gst" value="" placeholder="GST Number" class="fi" style="font-size:0.83rem;">
+            <div class="so-body">
+                <!-- ── SINGLE UNIFIED FORM (CSS handles desktop/mobile layout) ── -->
+                <div class="so-unified-top">
+                    <!-- Billing Address -->
+                    <div class="so-bill-section">
+                        <div class="so-section-lbl">Billing Address</div>
+                        <input type="text" name="bill_company" id="soBillCompany" value="{{ lead.company_name or '' }}" placeholder="Company Name *" class="fi" style="font-weight:600;margin-bottom:4px;">
+                        <span class="so-err-msg" id="soErrBillCo">Company Name is required</span>
+                        <textarea name="bill_address" id="soBillAddress" class="fi" rows="2" placeholder="Address *" style="resize:none;margin-bottom:4px;">{{ ((lead.address or '') + (', ' + lead.city if lead.city else '') + (', ' + lead.state if lead.state else '') + (' - ' + lead.zip_code if lead.zip_code else '')) | trim(', ') }}</textarea>
+                        <span class="so-err-msg" id="soErrBillAddr">Address is required</span>
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:4px;">
+                            <div>
+                                <input type="text" name="bill_phone" id="soBillPhone" value="{{ lead.phone or '' }}" placeholder="Mobile *" class="fi">
+                                <span class="so-err-msg" id="soErrBillPhone">Mobile number is required</span>
+                            </div>
+                            <div>
+                                <input type="text" name="bill_email" id="soBillEmail" value="{{ lead.email or '' }}" placeholder="Email (optional)" class="fi">
+                                <span class="so-err-msg" id="soErrBillEmail">Please enter a valid email</span>
+                            </div>
+                        </div>
+                        <input type="text" name="bill_gst" id="soBillGst" value="" placeholder="GST Number (optional)" class="fi">
                     </div>
-
-                    <!-- Divider -->
-                    <div style="background:#e5e7eb;"></div>
-
-                    <!-- RIGHT: Order Details -->
-                    <div>
-                        <div style="font-size:0.7rem;font-weight:700;letter-spacing:0.08em;color:#6b7280;text-transform:uppercase;margin-bottom:0.75rem;">Order Details</div>
-                        <div style="display:grid;grid-template-columns:auto 1fr;gap:0.5rem 1rem;align-items:center;">
-                            <label style="font-size:0.83rem;color:#374151;font-weight:500;white-space:nowrap;">Date :</label>
-                            <input type="date" name="so_date" id="soDate" class="fi" style="font-size:0.83rem;" required>
-
-                            <label style="font-size:0.83rem;color:#374151;font-weight:500;white-space:nowrap;">Order ID :</label>
-                            <input type="text" name="so_number" id="soNumber" value="" class="fi" style="font-size:0.83rem;background:#f8fafc;" required>
-
-                            <input type="hidden" name="so_category" value="Sample Order">
-                            <label style="font-size:0.83rem;color:#374151;font-weight:500;white-space:nowrap;">GST % :</label>
-                            <select name="so_gst_pct" id="soGstPct" class="fi" style="font-size:0.83rem;" onchange="soCalcTotal()">
+                    <!-- Order Details -->
+                    <div class="so-order-section">
+                        <div class="so-section-lbl">Order Details</div>
+                        <div style="margin-bottom:10px;">
+                            <label style="font-size:0.75rem;font-weight:700;color:#64748b;display:block;margin-bottom:4px;">Date *</label>
+                            <input type="date" name="so_date" id="soDate" class="fi">
+                            <span class="so-err-msg" id="soErrDate">Date is required</span>
+                        </div>
+                        <div style="margin-bottom:10px;">
+                            <label style="font-size:0.75rem;font-weight:700;color:#64748b;display:block;margin-bottom:4px;">Order ID *</label>
+                            <input type="text" name="so_number" id="soNumber" value="" class="fi" style="background:#f8fafc;">
+                            <span class="so-err-msg" id="soErrNumber">Order ID is required</span>
+                        </div>
+                        <div>
+                            <label style="font-size:0.75rem;font-weight:700;color:#64748b;display:block;margin-bottom:4px;">GST %</label>
+                            <select name="so_gst_pct" id="soGstPct" class="fi" onchange="soCalcTotal()">
                                 <option value="0">0% (No GST)</option>
                                 <option value="5">5%</option>
                                 <option value="12">12%</option>
@@ -650,77 +989,106 @@
                                 <option value="28">28%</option>
                             </select>
                         </div>
+                        <input type="hidden" name="so_category" value="Sample Order">
                     </div>
                 </div>
 
-                <!-- ITEMS TABLE -->
-                <table style="width:100%;border-collapse:collapse;margin-bottom:0.5rem;" id="soItemsTable">
-                    <thead>
-                        <tr style="background:#f1f5f9;">
-                            <th style="padding:9px 10px;text-align:left;font-size:0.82rem;font-weight:700;color:#374151;border:1px solid #e2e8f0;width:45%;">Product Name</th>
-                            <th style="padding:9px 10px;text-align:right;font-size:0.82rem;font-weight:700;color:#374151;border:1px solid #e2e8f0;width:18%;">Rate (₹)</th>
-                            <th style="padding:9px 10px;text-align:center;font-size:0.82rem;font-weight:700;color:#374151;border:1px solid #e2e8f0;width:15%;">Quantity</th>
-                            <th style="padding:9px 10px;text-align:right;font-size:0.82rem;font-weight:700;color:#374151;border:1px solid #e2e8f0;width:18%;">Amount (₹)</th>
-                            <th style="border:1px solid #e2e8f0;width:4%;"></th>
-                        </tr>
-                    </thead>
-                    <tbody id="soItems">
-                        <!-- rows added by JS -->
-                    </tbody>
-                </table>
+                <!-- Products — shared between mobile and desktop -->
+                <div class="so-section-lbl" style="margin-bottom:8px;">Products</div>
+                <div id="soItemCards" class="so-mobile-cards"></div>
 
-                <!-- Add Item Button -->
-                <button type="button" onclick="soAddRow()" style="background:#fff;color:#1e3a5f;border:1.5px solid #1e3a5f;padding:5px 16px;border-radius:6px;font-size:0.82rem;font-weight:600;cursor:pointer;margin-bottom:1.25rem;">+ Add Item</button>
-
-                <!-- TOTALS -->
-                <div style="display:flex;justify-content:flex-end;">
-                    <div style="width:300px;">
-                        <div style="display:flex;justify-content:space-between;padding:7px 12px;font-size:0.85rem;border-bottom:1px solid #e5e7eb;">
-                            <span style="color:#6b7280;">Sub Total</span>
-                            <span id="soSubTotal" style="font-weight:600;">0.00</span>
-                        </div>
-                        <div style="display:flex;justify-content:space-between;padding:7px 12px;font-size:0.85rem;border-bottom:1px solid #e5e7eb;">
-                            <span style="color:#6b7280;">GST (<span id="soGstLabel">18</span>%)</span>
-                            <span id="soGstAmt" style="font-weight:600;">0.00</span>
-                        </div>
-                        <div style="display:flex;justify-content:space-between;padding:9px 12px;font-size:0.9rem;font-weight:700;background:#f0f4ff;border-radius:0 0 8px 8px;">
-                            <span style="color:#1e3a5f;">Total Amount</span>
-                            <span id="soTotal" style="color:#1e3a5f;">0.00</span>
-                        </div>
+                <!-- Desktop table -->
+                <div class="so-desktop-table" style="display:none;margin-bottom:10px;">
+                    <div style="overflow-x:auto;border:1px solid #e2e8f0;border-radius:10px;">
+                        <table style="width:100%;border-collapse:collapse;" id="soItemsTable">
+                            <thead>
+                                <tr style="background:#f1f5f9;">
+                                    <th style="padding:9px 10px;text-align:left;font-size:0.78rem;font-weight:700;color:#374151;border-bottom:2px solid #e2e8f0;white-space:nowrap;">Product Name</th>
+                                    <th style="padding:9px 10px;text-align:right;font-size:0.78rem;font-weight:700;color:#374151;border-bottom:2px solid #e2e8f0;width:120px;">Rate (₹)</th>
+                                    <th style="padding:9px 10px;text-align:center;font-size:0.78rem;font-weight:700;color:#374151;border-bottom:2px solid #e2e8f0;width:100px;">Quantity</th>
+                                    <th style="padding:9px 10px;text-align:right;font-size:0.78rem;font-weight:700;color:#374151;border-bottom:2px solid #e2e8f0;width:120px;">Amount (₹)</th>
+                                    <th style="padding:9px 10px;border-bottom:2px solid #e2e8f0;width:40px;"></th>
+                                </tr>
+                            </thead>
+                            <tbody id="soItems"></tbody>
+                        </table>
                     </div>
                 </div>
 
-                <!-- Terms (hidden in form, used in PDF) -->
+                <span class="so-err-msg" id="soErrItems" style="margin-bottom:6px;">At least one product is required</span>
+                <button type="button" onclick="soAddRow()" style="width:100%;background:#fff;color:#1e3a5f;border:1.5px dashed #1e3a5f;padding:10px;border-radius:10px;font-size:0.85rem;font-weight:700;cursor:pointer;margin-bottom:14px;">+ Add Item</button>
+
+                <!-- Totals -->
+                <div style="border:1.5px solid #e2e8f0;border-radius:10px;overflow:hidden;">
+                    <div class="so-total-row"><span style="color:#6b7280;">Sub Total</span><span id="soSubTotal" style="font-weight:600;">0.00</span></div>
+                    <div class="so-total-row"><span style="color:#6b7280;">GST (<span id="soGstLabel">18</span>%)</span><span id="soGstAmt" style="font-weight:600;">0.00</span></div>
+                    <div class="so-total-final"><span>Total Amount</span><span id="soTotal">0.00</span></div>
+                </div>
+
                 <input type="hidden" name="terms" value="Payment: Advance&#10;Delivery: 7-10 working days&#10;Samples are for evaluation purpose only.">
             </div>
 
-            <!-- Modal Footer -->
-            <div style="padding:1rem 1.5rem;border-top:1px solid #e5e7eb;display:flex;justify-content:flex-end;gap:0.5rem;background:#f9fafb;border-radius:0 0 12px 12px;">
-                <button type="button" onclick="closeSampleOrderModal()" class="btn-outline" style="font-size:0.83rem;">Cancel</button>
-                <button type="submit" style="background:#1e3a5f;color:#fff;border:none;padding:8px 22px;border-radius:8px;font-size:0.83rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+        </form>
+        <div class="so-foot">
+                <span class="so-foot-hint" style="display:none;font-size:0.78rem;color:#94a3b8;align-self:center;">Sample Order PDF generate hogi</span>
+                <button type="button" onclick="closeSampleOrderModal()" style="background:#f1f5f9;color:#374151;">Cancel</button>
+                <button type="button" id="soSubmitBtn" onclick="soSubmit()" style="background:#1e3a5f;color:#fff;display:flex;align-items:center;justify-content:center;gap:6px;">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
                     SEND
                 </button>
             </div>
-        </form>
     </div>
 </div>
 
 
 <!-- Quotation Modal -->
-<div id="quotationModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:1000;align-items:center;justify-content:center;padding:1rem;">
-    <div style="background:#fff;border-radius:12px;width:100%;max-width:1300px;max-height:97vh;overflow-y:auto;box-shadow:0 25px 80px rgba(0,0,0,0.25);">
+<style>
+#quotationModal { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.55); z-index:1000; align-items:flex-end; justify-content:center; }
+#quotationModal .qt-box { background:#fff; border-radius:22px 22px 0 0; width:100%; max-height:96vh; overflow-y:auto; box-shadow:0 -8px 40px rgba(0,0,0,0.2); animation:soSlideUp .25s ease; display:flex; flex-direction:column; }
+#quotationModal .qt-hdr { background:#1e3a5f; color:#fff; padding:14px 18px; border-radius:22px 22px 0 0; display:flex; align-items:center; justify-content:space-between; position:sticky; top:0; z-index:5; flex-shrink:0; }
+#quotationModal .qt-body { padding:14px 16px; flex:1; }
+#quotationModal .qt-foot { padding:12px 16px; border-top:1px solid #e5e7eb; background:#f9fafb; position:sticky; bottom:0; flex-shrink:0; }
+.qt-section { background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:14px; margin-bottom:12px; }
+.qt-section-lbl { font-size:0.68rem; font-weight:700; letter-spacing:0.08em; color:#94a3b8; text-transform:uppercase; margin-bottom:8px; }
+.qt-item-card { background:#fff; border:1.5px solid #e2e8f0; border-radius:10px; padding:12px; margin-bottom:8px; position:relative; }
+.qt-item-del { position:absolute; top:10px; right:10px; background:#fef2f2; color:#dc2626; border:none; border-radius:6px; width:26px; height:26px; font-size:0.85rem; cursor:pointer; display:flex; align-items:center; justify-content:center; }
+.qt-item-grid2 { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:8px; }
+.qt-item-grid3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-top:8px; }
+.qt-item-field label { font-size:0.64rem; font-weight:700; color:#94a3b8; text-transform:uppercase; display:block; margin-bottom:3px; }
+.qt-item-field .fi { font-size:0.85rem; padding:8px 10px; }
+.qt-total-box { border:1.5px solid #e2e8f0; border-radius:10px; overflow:hidden; margin-bottom:12px; }
+.qt-total-row { display:flex; justify-content:space-between; padding:8px 14px; font-size:0.85rem; border-bottom:1px solid #e5e7eb; }
+.qt-total-final { display:flex; justify-content:space-between; padding:11px 14px; font-size:0.95rem; font-weight:800; background:#f0f4ff; color:#1e3a5f; }
+.qt-mobile-only { display:block; }
+.qt-desktop-only { display:none; }
+@media(min-width:768px) {
+    #quotationModal { align-items:center; padding:1rem; }
+    #quotationModal .qt-box { border-radius:16px; max-width:1200px; max-height:94vh; }
+    #quotationModal .qt-hdr { border-radius:16px 16px 0 0; }
+    #quotationModal .qt-body { padding:1.5rem; }
+    .qt-mobile-only { display:none !important; }
+    .qt-desktop-only { display:block !important; }
+    .qt-desktop-top { display:grid !important; grid-template-columns:1fr 1px 1fr; gap:1.5rem; margin-bottom:1.5rem; padding-bottom:1.25rem; border-bottom:1.5px dashed #d1d5db; }
+    .qt-desktop-divider { background:#e5e7eb; display:block !important; }
+    .qt-section { background:transparent; border:none; padding:0; margin-bottom:0; }
+    #quotationModal .qt-foot { padding:.9rem 1.5rem; justify-content:space-between; }
+    #quotationModal .qt-foot .qt-foot-hint { display:block !important; }
+}
+</style>
 
-        <div style="background:#1e3a5f;color:#fff;padding:0.9rem 1.5rem;border-radius:12px 12px 0 0;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10;">
-            <div style="font-size:1rem;font-weight:700;">📄 Create Quotation</div>
-            <button onclick="closeQuotationModal()" style="background:rgba(255,255,255,0.15);border:none;color:#fff;width:28px;height:28px;border-radius:50%;font-size:1rem;cursor:pointer;">✕</button>
+<div id="quotationModal">
+    <div class="so-val-toast" id="qtValToast"></div>
+    <div class="qt-box">
+        <div class="qt-hdr">
+            <span style="font-size:1rem;font-weight:700;">📄 Create Quotation</span>
+            <button onclick="closeQuotationModal()" style="background:rgba(255,255,255,0.18);border:none;color:#fff;width:30px;height:30px;border-radius:50%;font-size:1rem;cursor:pointer;">✕</button>
         </div>
 
-        <form method="POST" action="{{ url_for('crm.lead_create_quotation', id=lead.id) }}" id="qtForm">
-            <div style="padding:1.25rem 1.5rem;">
+        <form method="POST" action="{{ url_for('crm.lead_create_quotation', id=lead.id) }}" id="qtForm" novalidate>
+            <div class="qt-body">
 
-                <!-- TOP: Billing + Details -->
-                <div style="display:grid;grid-template-columns:1fr 1px 1fr;gap:1.25rem;margin-bottom:1.25rem;padding-bottom:1.25rem;border-bottom:1.5px dashed #d1d5db;">
+                <!-- ── DESKTOP: side-by-side ── -->
+                <div class="qt-desktop-top qt-desktop-only" style="display:none;">
                     <div>
                         <div style="font-size:0.7rem;font-weight:700;letter-spacing:.08em;color:#6b7280;text-transform:uppercase;margin-bottom:.6rem;">Bill To</div>
                         <input type="text" name="bill_company" value="{{ lead.company_name or '' }}" placeholder="Company Name" class="fi" style="font-size:0.84rem;margin-bottom:.35rem;font-weight:600;">
@@ -729,71 +1097,140 @@
                         <input type="text" name="bill_email" value="{{ lead.email or '' }}" placeholder="Email" class="fi" style="font-size:0.82rem;margin-bottom:.35rem;">
                         <input type="text" name="bill_gst" placeholder="GST Number (optional)" class="fi" style="font-size:0.82rem;">
                     </div>
-                    <div style="background:#e5e7eb;"></div>
+                    <div class="qt-desktop-divider" style="display:none;background:#e5e7eb;"></div>
                     <div>
                         <div style="font-size:0.7rem;font-weight:700;letter-spacing:.08em;color:#6b7280;text-transform:uppercase;margin-bottom:.6rem;">Quotation Details</div>
                         <div style="display:grid;grid-template-columns:auto 1fr;gap:.45rem .9rem;align-items:center;">
                             <label style="font-size:0.82rem;color:#374151;font-weight:500;white-space:nowrap;">Quot. No :</label>
-                            <input type="text" name="quot_number" value="" id="qtNumber" class="fi" style="font-size:0.82rem;background:#f8fafc;" required>
+                            <input type="text" name="quot_number" id="qtNumberD" class="fi" style="font-size:0.82rem;background:#f8fafc;" required>
                             <label style="font-size:0.82rem;color:#374151;font-weight:500;white-space:nowrap;">Date :</label>
-                            <input type="date" name="quot_date" id="qtDate" class="fi" style="font-size:0.82rem;" required>
+                            <input type="date" name="quot_date" id="qtDateD" class="fi" style="font-size:0.82rem;" required>
                             <label style="font-size:0.82rem;color:#374151;font-weight:500;white-space:nowrap;">Valid Until :</label>
-                            <input type="date" name="valid_until" id="qtValidUntil" class="fi" style="font-size:0.82rem;">
+                            <input type="date" name="valid_until" id="qtValidUntilD" class="fi" style="font-size:0.82rem;">
+                            <label style="font-size:0.82rem;color:#374151;font-weight:500;white-space:nowrap;">GST % :</label>
+                            <select name="quot_gst_pct" id="qtGstPctD" class="fi" style="font-size:0.82rem;" onchange="qtCalcTotal();document.getElementById('qtGstPct')&&(document.getElementById('qtGstPct').value=this.value)">
+                                <option value="0">0%</option><option value="5">5%</option><option value="12">12%</option><option value="18" selected>18%</option><option value="28">28%</option>
+                            </select>
                             <label style="font-size:0.82rem;color:#374151;font-weight:500;white-space:nowrap;">Subject :</label>
                             <input type="text" name="quot_subject" value="Quotation for {{ lead.company_name or '' }}" class="fi" style="font-size:0.82rem;">
                         </div>
                     </div>
                 </div>
 
-                <!-- ITEMS TABLE -->
-                <div style="font-size:0.7rem;font-weight:700;letter-spacing:.08em;color:#6b7280;text-transform:uppercase;margin-bottom:.5rem;">Products / Items</div>
-                <div style="overflow-x:auto;margin-bottom:.75rem;border:1px solid #e2e8f0;border-radius:10px;">
-                    <table style="width:100%;border-collapse:collapse;min-width:1100px;" id="qtItemsTable">
-                        <thead>
-                            <tr style="background:linear-gradient(135deg,#1e3a5f,#2d5a8e);color:#fff;text-shadow:0 1px 2px rgba(0,0,0,0.3);">
-                                <th style="padding:10px 8px;font-size:0.72rem;font-weight:700;text-align:left;letter-spacing:.05em;text-transform:uppercase;color:#fff;border-right:1px solid rgba(255,255,255,.15);min-width:150px;">Product Name</th>
-                                <th style="padding:10px 6px;font-size:0.72rem;font-weight:700;text-align:center;letter-spacing:.05em;text-transform:uppercase;color:#fff;border-right:1px solid rgba(255,255,255,.15);width:60px;">Size</th>
-                                <th style="padding:10px 8px;font-size:0.72rem;font-weight:700;text-align:center;letter-spacing:.05em;text-transform:uppercase;color:#fff;border-right:1px solid rgba(255,255,255,.15);min-width:100px;">Product Code</th>
-                                <th style="padding:10px 8px;font-size:0.72rem;font-weight:700;text-align:center;letter-spacing:.05em;text-transform:uppercase;color:#fff;border-right:1px solid rgba(255,255,255,.15);width:110px;">UOM</th>
-                                <th style="padding:10px 8px;font-size:0.72rem;font-weight:700;text-align:right;letter-spacing:.05em;text-transform:uppercase;color:#fff;border-right:1px solid rgba(255,255,255,.15);width:90px;">Cost (₹)</th>
-                                <th style="padding:10px 8px;font-size:0.72rem;font-weight:700;text-align:center;letter-spacing:.05em;text-transform:uppercase;color:#fff;border-right:1px solid rgba(255,255,255,.15);width:80px;">MOQ</th>
-                                <th style="padding:10px 8px;font-size:0.72rem;font-weight:700;text-align:left;letter-spacing:.05em;text-transform:uppercase;color:#fff;border-right:1px solid rgba(255,255,255,.15);min-width:160px;">PM Spec.</th>
-                                <th style="padding:10px 8px;font-size:0.72rem;font-weight:700;text-align:right;letter-spacing:.05em;text-transform:uppercase;color:#fff;border-right:1px solid rgba(255,255,255,.15);width:85px;">PM Cost</th>
-                                <th style="padding:10px 8px;font-size:0.72rem;font-weight:700;text-align:right;letter-spacing:.05em;text-transform:uppercase;color:#fff;border-right:1px solid rgba(255,255,255,.15);width:85px;">FG Cost</th>
-                                <th style="padding:10px 8px;font-size:0.72rem;font-weight:700;text-align:center;letter-spacing:.05em;text-transform:uppercase;color:#fff;border-right:1px solid rgba(255,255,255,.15);width:130px;">Category</th>
-                                <th style="padding:10px 8px;font-size:0.72rem;font-weight:700;text-align:right;letter-spacing:.05em;text-transform:uppercase;color:#fff;border-right:1px solid rgba(255,255,255,.15);width:100px;">Final Cost</th>
-                                <th style="width:36px;"></th>
-                            </tr>
-                        </thead>
-                        <tbody id="qtItems"></tbody>
-                    </table>
+                <!-- ── MOBILE: stacked cards ── -->
+                <div class="qt-mobile-only">
+                <!-- Bill To -->
+                <div class="qt-section">
+                    <div class="qt-section-lbl">Bill To</div>
+                    <input type="text" name="bill_company" value="{{ lead.company_name or '' }}" placeholder="Company Name" class="fi" style="font-size:0.88rem;margin-bottom:8px;font-weight:600;">
+                    <textarea name="bill_address" class="fi" rows="2" placeholder="Address" style="font-size:0.85rem;resize:none;margin-bottom:8px;">{{ ((lead.address or '') + (', ' + lead.city if lead.city else '') + (', ' + lead.state if lead.state else '')) | trim(', ') }}</textarea>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                        <input type="text" name="bill_phone" value="{{ lead.phone or '' }}" placeholder="Phone" class="fi" style="font-size:0.85rem;">
+                        <input type="text" name="bill_email" value="{{ lead.email or '' }}" placeholder="Email" class="fi" style="font-size:0.85rem;">
+                    </div>
+                    <input type="text" name="bill_gst" placeholder="GST Number (optional)" class="fi" style="font-size:0.85rem;margin-top:8px;">
                 </div>
-                <button type="button" onclick="qtAddRow()" style="background:#f0f4ff;color:#1e3a5f;border:1.5px solid #c7d7f5;padding:6px 18px;border-radius:7px;font-size:0.82rem;font-weight:600;cursor:pointer;margin-bottom:0.75rem;transition:.15s;" onmouseover="this.style.background='#dce8ff'" onmouseout="this.style.background='#f0f4ff'">+ Add Row</button>
+
+                <!-- Quotation Details -->
+                <div class="qt-section">
+                    <div class="qt-section-lbl">Quotation Details</div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+                        <div>
+                            <label style="font-size:0.72rem;font-weight:700;color:#64748b;display:block;margin-bottom:4px;">Quot. No</label>
+                            <input type="text" name="quot_number" id="qtNumber" class="fi" style="font-size:0.85rem;background:#f8fafc;" required>
+                        </div>
+                        <div>
+                            <label style="font-size:0.72rem;font-weight:700;color:#64748b;display:block;margin-bottom:4px;">Date</label>
+                            <input type="date" name="quot_date" id="qtDate" class="fi" style="font-size:0.85rem;" required>
+                        </div>
+                        <div>
+                            <label style="font-size:0.72rem;font-weight:700;color:#64748b;display:block;margin-bottom:4px;">Valid Until</label>
+                            <input type="date" name="valid_until" id="qtValidUntil" class="fi" style="font-size:0.85rem;">
+                        </div>
+                        <div>
+                            <label style="font-size:0.72rem;font-weight:700;color:#64748b;display:block;margin-bottom:4px;">GST %</label>
+                            <select name="quot_gst_pct" id="qtGstPct" class="fi" style="font-size:0.85rem;" onchange="qtCalcTotal()">
+                                <option value="0">0% (No GST)</option>
+                                <option value="5">5%</option>
+                                <option value="12">12%</option>
+                                <option value="18" selected>18%</option>
+                                <option value="28">28%</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div>
+                        <label style="font-size:0.72rem;font-weight:700;color:#64748b;display:block;margin-bottom:4px;">Subject</label>
+                        <input type="text" name="quot_subject" value="Quotation for {{ lead.company_name or '' }}" class="fi" style="font-size:0.85rem;">
+                    </div>
+                </div>
+
+                </div><!-- end mobile-only -->
+
+                <!-- Products — desktop table + mobile cards -->
+                <div class="qt-section-lbl">Products / Items</div>
+
+                <!-- Mobile cards -->
+                <div id="qtItemCards" class="qt-mobile-only"></div>
+
+                <!-- Desktop table -->
+                <div class="qt-desktop-only" style="display:none;margin-bottom:10px;">
+                    <div style="overflow-x:auto;border:1px solid #e2e8f0;border-radius:10px;">
+                        <table style="width:100%;border-collapse:collapse;min-width:1050px;" id="qtItemsTable">
+                            <thead>
+                                <tr style="background:linear-gradient(135deg,#1e3a5f,#2d5a8e);">
+                                    <th style="padding:10px 8px;font-size:0.72rem;font-weight:700;color:#fff;text-align:left;letter-spacing:.05em;text-transform:uppercase;border-right:1px solid rgba(255,255,255,.15);min-width:140px;">Product Name</th>
+                                    <th style="padding:10px 6px;font-size:0.72rem;font-weight:700;color:#fff;text-align:center;letter-spacing:.05em;text-transform:uppercase;border-right:1px solid rgba(255,255,255,.15);width:60px;">Size</th>
+                                    <th style="padding:10px 8px;font-size:0.72rem;font-weight:700;color:#fff;text-align:center;letter-spacing:.05em;text-transform:uppercase;border-right:1px solid rgba(255,255,255,.15);width:90px;">Code</th>
+                                    <th style="padding:10px 8px;font-size:0.72rem;font-weight:700;color:#fff;text-align:center;letter-spacing:.05em;text-transform:uppercase;border-right:1px solid rgba(255,255,255,.15);width:100px;">UOM</th>
+                                    <th style="padding:10px 8px;font-size:0.72rem;font-weight:700;color:#fff;text-align:right;letter-spacing:.05em;text-transform:uppercase;border-right:1px solid rgba(255,255,255,.15);width:85px;">Cost (₹)</th>
+                                    <th style="padding:10px 8px;font-size:0.72rem;font-weight:700;color:#fff;text-align:center;letter-spacing:.05em;text-transform:uppercase;border-right:1px solid rgba(255,255,255,.15);width:75px;">MOQ</th>
+                                    <th style="padding:10px 8px;font-size:0.72rem;font-weight:700;color:#fff;text-align:left;letter-spacing:.05em;text-transform:uppercase;border-right:1px solid rgba(255,255,255,.15);min-width:140px;">PM Spec.</th>
+                                    <th style="padding:10px 8px;font-size:0.72rem;font-weight:700;color:#fff;text-align:right;letter-spacing:.05em;text-transform:uppercase;border-right:1px solid rgba(255,255,255,.15);width:80px;">PM Cost</th>
+                                    <th style="padding:10px 8px;font-size:0.72rem;font-weight:700;color:#fff;text-align:right;letter-spacing:.05em;text-transform:uppercase;border-right:1px solid rgba(255,255,255,.15);width:80px;">FG Cost</th>
+                                    <th style="padding:10px 8px;font-size:0.72rem;font-weight:700;color:#fff;text-align:center;letter-spacing:.05em;text-transform:uppercase;border-right:1px solid rgba(255,255,255,.15);width:120px;">Category</th>
+                                    <th style="padding:10px 8px;font-size:0.72rem;font-weight:700;color:#fff;text-align:right;letter-spacing:.05em;text-transform:uppercase;border-right:1px solid rgba(255,255,255,.15);width:95px;">Final Cost</th>
+                                    <th style="width:36px;"></th>
+                                </tr>
+                            </thead>
+                            <tbody id="qtItems"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <button type="button" onclick="qtAddRow()" style="width:100%;background:#fff;color:#1e3a5f;border:1.5px dashed #1e3a5f;padding:10px;border-radius:10px;font-size:0.85rem;font-weight:700;cursor:pointer;margin-bottom:6px;">+ Add Row</button>
+                <span id="qtErrItems" class="so-err-msg" style="display:none;margin-bottom:8px;">At least one product is required</span>
+
+                <!-- Totals -->
+                <div class="qt-total-box">
+                    <div class="qt-total-row"><span style="color:#6b7280;">Sub Total</span><span id="qtSubTotal" style="font-weight:600;">₹ 0.00</span></div>
+                    <div class="qt-total-row"><span style="color:#6b7280;">GST (<span id="qtGstLabel">18</span>%)</span><span id="qtGstAmt" style="font-weight:600;">₹ 0.00</span></div>
+                    <div class="qt-total-final"><span>Total Amount</span><span id="qtTotal">₹ 0.00</span></div>
+                </div>
 
                 <!-- Terms & Notes -->
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:.5rem;">
+                <div style="display:grid;grid-template-columns:1fr;gap:10px;">
                     <div>
-                        <div style="font-size:0.75rem;font-weight:700;color:#374151;margin-bottom:.35rem;">Terms & Conditions</div>
-                        <textarea name="terms" class="fi" rows="4" style="font-size:0.82rem;resize:vertical;">Payment: Advance
+                        <label style="font-size:0.75rem;font-weight:700;color:#374151;display:block;margin-bottom:5px;">Terms & Conditions</label>
+                        <textarea name="terms" class="fi" rows="3" style="font-size:0.83rem;resize:vertical;">Payment: Advance
 Delivery: 7-10 working days
 Prices are exclusive of GST and transportation charges.
 Quotation valid for 30 days from date of issue.</textarea>
                     </div>
                     <div>
-                        <div style="font-size:0.75rem;font-weight:700;color:#374151;margin-bottom:.35rem;">Notes (optional)</div>
-                        <textarea name="notes" class="fi" rows="4" placeholder="Any additional notes..." style="font-size:0.82rem;resize:vertical;"></textarea>
+                        <label style="font-size:0.75rem;font-weight:700;color:#374151;display:block;margin-bottom:5px;">Notes (optional)</label>
+                        <textarea name="notes" class="fi" rows="3" placeholder="Any additional notes..." style="font-size:0.83rem;resize:vertical;"></textarea>
                     </div>
                 </div>
+
+                <!-- (items rendered above in desktop table or mobile cards) -->
             </div>
 
-            <div style="padding:.9rem 1.5rem;border-top:1px solid #e5e7eb;display:flex;justify-content:space-between;align-items:center;background:#f9fafb;border-radius:0 0 12px 12px;">
-                <span style="font-size:0.8rem;color:#6b7280;">PDF (A4) generate hogi — baad mein Quotations list se email bhi bhej sakte hain</span>
-                <div style="display:flex;gap:.5rem;">
-                    <button type="button" onclick="closeQuotationModal()" class="btn-outline" style="font-size:0.83rem;">Cancel</button>
-                    <button type="submit" style="background:#1e3a5f;color:#fff;border:none;padding:8px 22px;border-radius:8px;font-size:0.83rem;font-weight:600;cursor:pointer;">
-                        📥 Generate PDF
-                    </button>
-                </div>
+            <div class="qt-foot" style="display:flex;align-items:center;gap:10px;">
+                <span class="qt-foot-hint" style="display:none;font-size:0.78rem;color:#94a3b8;flex:1;">📋 PDF (A4) generate hogi — Quotations list se email bhi bhej sakte hain</span>
+                <button type="button" onclick="closeQuotationModal()" style="padding:10px 20px;border-radius:9px;background:#f1f5f9;color:#374151;border:none;font-size:0.85rem;font-weight:700;cursor:pointer;">Cancel</button>
+                <button type="button" id="qtSubmitBtn" onclick="qtSubmit()" style="flex:1;padding:11px;border-radius:9px;background:#1e3a5f;color:#fff;border:none;font-size:0.88rem;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    Generate PDF
+                </button>
             </div>
         </form>
     </div>
@@ -829,8 +1266,8 @@ Quotation valid for 30 days from date of issue.</textarea>
 
 📋 Status: {{ lead.status|replace('_',' ')|title }}
 🏷️ Type: {{ lead.lead_type or 'Quality' }}
-{% if lead.requirement_spec %}📝 Spec: {{ lead.requirement_spec[:100] }}{% endif %}
-{% if lead.remark %}💬 Remark: {{ lead.remark[:80] }}{% endif %}
+{% if lead.requirement_spec %}📝 Spec: {{ lead.requirement_spec|striptags|truncate(100,True,"") }}{% endif %}
+{% if lead.remark %}💬 Remark: {{ lead.remark|striptags|truncate(80,True,"") }}{% endif %}
 
 🔗 Lead URL: {{ request.host_url }}crm/leads/{{ lead.id }}</textarea>
             </div>
@@ -870,10 +1307,11 @@ Quotation valid for 30 days from date of issue.</textarea>
         <form method="POST" action="{{ url_for('crm.lead_status_change', id=lead.id) }}">
             <div class="fg" style="margin-bottom:1rem;">
                 <select name="status" class="fi">
-                    <option value="open"       {{ 'selected' if lead.status=='open' }}>Open</option>
-                    <option value="in_process" {{ 'selected' if lead.status=='in_process' }}>In Process</option>
-                    <option value="close"      {{ 'selected' if lead.status=='close' }}>Close</option>
-                    <option value="cancel"     {{ 'selected' if lead.status=='cancel' }}>Cancel</option>
+                    {% for ls in lead_statuses %}
+                    <option value="{{ ls.name }}" {{ 'selected' if lead.status==ls.name }}>
+                        {{ ls.icon }} {{ ls.name.replace('_',' ')|title }}
+                    </option>
+                    {% endfor %}
                 </select>
             </div>
             <div style="display:flex;gap:0.5rem;">
@@ -887,12 +1325,33 @@ Quotation valid for 30 days from date of issue.</textarea>
 <script>
 const now = new Date();
 
+// ── Tab touch scroll ─────────────────────────────────────────
+(function() {
+    var el = document.getElementById('tabNavInner');
+    if (!el) return;
+    var isDown = false, startX, scrollLeft;
+    el.addEventListener('mousedown', function(e) { isDown=true; startX=e.pageX-el.offsetLeft; scrollLeft=el.scrollLeft; });
+    ['mouseleave','mouseup'].forEach(ev => el.addEventListener(ev, ()=>{ isDown=false; }));
+    el.addEventListener('mousemove', function(e) { if(!isDown)return; e.preventDefault(); el.scrollLeft=scrollLeft-(e.pageX-el.offsetLeft-startX); });
+    el.addEventListener('touchstart', function(e) { startX=e.touches[0].pageX; scrollLeft=el.scrollLeft; }, {passive:true});
+    el.addEventListener('touchmove',  function(e) { el.scrollLeft=scrollLeft-(e.touches[0].pageX-startX); }, {passive:true});
+    // Auto-scroll active tab into view on load
+    setTimeout(function() {
+        var active = el.querySelector('.tab-btn.active');
+        if (active) el.scrollLeft = active.offsetLeft - (el.offsetWidth/2) + (active.offsetWidth/2);
+    }, 50);
+})();
+
 function switchTab(name, el) {
     document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
     document.getElementById('tab-' + name).classList.add('active');
-    if (el) el.classList.add('active');
-    else {
+    if (el) {
+        el.classList.add('active');
+        // Scroll tab into view
+        var inner = document.getElementById('tabNavInner');
+        if (inner) inner.scrollLeft = el.offsetLeft - (inner.offsetWidth/2) + (el.offsetWidth/2);
+    } else {
         document.querySelectorAll('.tab-btn').forEach(b => {
             if (b.getAttribute('onclick') && b.getAttribute('onclick').includes("'" + name + "'")) {
                 b.classList.add('active');
@@ -981,7 +1440,7 @@ function fileIcon(name) {
 
 // ── WhatsApp Modal ──
 document.getElementById('waModal').addEventListener('click', function(e) {
-    if (e.target === this) closeSampleOrderModal();
+    if (e.target === this) document.getElementById('waModal').style.display = 'none';
 });
 
 function openWaModal() {
@@ -1061,7 +1520,7 @@ document.addEventListener('click', function(e) {
 
 // ── NPD Modal ──
 document.getElementById('npdModal').addEventListener('click', function(e) {
-    if (e.target === this) closeSampleOrderModal();
+    if (e.target === this) document.getElementById('npdModal').style.display = 'none';
 });
 
 let _npdView = 'preview';
@@ -1117,7 +1576,7 @@ document.getElementById('npdForm').addEventListener('submit', function() {
 
 // Close modal on outside click
 document.getElementById('statusModal').addEventListener('click', function(e) {
-    if (e.target === this) closeSampleOrderModal();
+    if (e.target === this) document.getElementById('statusModal').style.display = 'none';
 });
 document.getElementById('sampleOrderModal').addEventListener('click', function(e) {
     if (e.target === this) closeSampleOrderModal();
@@ -1127,53 +1586,267 @@ document.getElementById('sampleOrderModal').addEventListener('click', function(e
 // Set today's date
 document.getElementById('soDate').value = new Date().toISOString().split('T')[0];
 
-function soAddRow(name='', rate='', qty='0', amount='') {
-    const tbody = document.getElementById('soItems');
-    const idx   = tbody.querySelectorAll('.so-row').length;
-    const bg    = idx % 2 === 0 ? '#fff' : '#f8fafc';
-    const tr    = document.createElement('tr');
-    tr.className = 'so-row';
-    tr.style.background = bg;
-    tr.innerHTML = `
-        <td style="padding:6px 8px;border:1px solid #e2e8f0;">
-            <input type="text" name="item_name[]" value="${name}" placeholder="Product Name" class="fi" style="font-size:0.83rem;padding:5px 8px;" required oninput="soCalcTotal()">
-            <input type="hidden" name="item_desc[]" value="">
-            <input type="hidden" name="item_unit[]" value="pcs">
-        </td>
-        <td style="padding:6px 8px;border:1px solid #e2e8f0;">
-            <input type="number" name="item_rate[]" value="${rate}" min="0" step="any" placeholder="0.00" class="fi so-rate" style="font-size:0.83rem;padding:5px 8px;text-align:right;" oninput="soCalcRow(this)">
-        </td>
-        <td style="padding:6px 8px;border:1px solid #e2e8f0;">
-            <input type="number" name="item_qty[]" value="${qty}" min="0" step="any" class="fi so-qty" style="font-size:0.83rem;padding:5px 8px;text-align:center;" oninput="soCalcRow(this)">
-        </td>
-        <td style="padding:6px 8px;border:1px solid #e2e8f0;text-align:right;">
-            <input type="text" class="fi so-amt" value="${amount || '0.00'}" readonly style="font-size:0.83rem;padding:5px 8px;text-align:right;background:#f8fafc;cursor:default;">
-        </td>
-        <td style="padding:6px 8px;border:1px solid #e2e8f0;text-align:center;">
-            <button type="button" onclick="this.closest('tr').remove();soCalcTotal();" style="background:#fee2e2;color:#dc2626;border:none;width:24px;height:24px;border-radius:5px;font-size:0.8rem;cursor:pointer;line-height:1;">✕</button>
-        </td>
-    `;
-    tbody.appendChild(tr);
+// ── soAddRow — mobile cards on mobile, table rows on desktop ──
+let soRowCount = 0;
+function soAddRow(name='', rate='', qty='1', amount='') {
+    soRowCount++;
+    const rid = 'sorow_' + soRowCount;
+    const isMobile = window.innerWidth < 768;
+
+    if (isMobile) {
+        // ── Mobile: card ──
+        const cards = document.getElementById('soItemCards');
+        const card  = document.createElement('div');
+        card.className = 'so-item-card';
+        card.id = rid;
+        card.innerHTML =
+            '<input type="text" name="item_name[]" value="' + name + '" placeholder="Product Name" class="fi so-item-name" style="font-size:0.88rem;padding:9px 12px;margin-bottom:8px;">' +
+            '<input type="hidden" name="item_desc[]" value="">' +
+            '<input type="hidden" name="item_unit[]" value="pcs">' +
+            '<div class="so-item-row">' +
+                '<div><label>Rate (₹)</label><input type="number" name="item_rate[]" value="' + rate + '" min="0" step="any" placeholder="0.00" class="fi so-rate" style="font-size:0.88rem;padding:8px 10px;text-align:right;"></div>' +
+                '<div><label>Qty</label><input type="number" name="item_qty[]" value="' + qty + '" min="0" step="any" class="fi so-qty" style="font-size:0.88rem;padding:8px 10px;text-align:center;"></div>' +
+                '<div><label>Amount</label><div class="so-item-amt so-amt" id="amt_' + rid + '">&#8377; ' + (amount || '0.00') + '</div></div>' +
+            '</div>';
+        // Add event listeners
+        const rateInp = card.querySelector('.so-rate');
+        const qtyInp  = card.querySelector('.so-qty');
+        if (rateInp) rateInp.addEventListener('input', function() { soSyncAndCalc(rid); });
+        if (qtyInp)  qtyInp.addEventListener('input',  function() { soSyncAndCalc(rid); });
+        // Delete button
+        const delBtn = document.createElement('button');
+        delBtn.type = 'button';
+        delBtn.className = 'so-item-del';
+        delBtn.id = 'delbtn_' + rid;
+        if (soRowCount === 1) {
+            delBtn.disabled = true;
+            delBtn.style.cssText = 'position:absolute;top:10px;right:10px;background:#f1f5f9;color:#94a3b8;border:none;border-radius:6px;width:26px;height:26px;font-size:0.85rem;cursor:not-allowed;opacity:0.4;display:flex;align-items:center;justify-content:center;';
+            delBtn.textContent = '🔒';
+        } else {
+            delBtn.textContent = '✕';
+            delBtn.addEventListener('click', function() { soRemoveRow(rid); });
+        }
+        card.appendChild(delBtn);
+        cards.appendChild(card);
+        const nameInp = card.querySelector('input[name="item_name[]"]');
+        if (nameInp) nameInp.focus();
+
+    } else {
+        // ── Desktop: table row ──
+        const tbody = document.getElementById('soItems');
+        const tr = document.createElement('tr');
+        tr.id = rid;
+        tr.className = 'so-item-card';
+        tr.style.borderBottom = '1px solid #f1f5f9';
+        const inp = 'width:100%;border:1.5px solid #e8edf5;border-radius:6px;padding:6px 8px;font-size:0.83rem;outline:none;';
+
+        // Product name cell
+        const td1 = document.createElement('td');
+        td1.style.cssText = 'padding:6px 8px;border:1px solid #e2e8f0;';
+        const nameEl = document.createElement('input');
+        nameEl.type = 'text'; nameEl.name = 'item_name[]'; nameEl.value = name;
+        nameEl.placeholder = 'Product name'; nameEl.style.cssText = inp;
+        nameEl.className = 'so-name';
+        const descEl = document.createElement('input');
+        descEl.type = 'hidden'; descEl.name = 'item_desc[]'; descEl.value = '';
+        const unitEl = document.createElement('input');
+        unitEl.type = 'hidden'; unitEl.name = 'item_unit[]'; unitEl.value = 'pcs';
+        td1.appendChild(nameEl); td1.appendChild(descEl); td1.appendChild(unitEl);
+
+        // Rate cell
+        const td2 = document.createElement('td');
+        td2.style.cssText = 'padding:6px 8px;border:1px solid #e2e8f0;';
+        const rateEl = document.createElement('input');
+        rateEl.type = 'number'; rateEl.name = 'item_rate[]'; rateEl.value = rate;
+        rateEl.min = '0'; rateEl.step = 'any'; rateEl.placeholder = '0.00';
+        rateEl.style.cssText = inp + 'text-align:right;';
+        rateEl.className = 'fi so-rate';
+        rateEl.addEventListener('input', function() { soSyncAndCalc(rid); });
+        td2.appendChild(rateEl);
+
+        // Qty cell
+        const td3 = document.createElement('td');
+        td3.style.cssText = 'padding:6px 8px;border:1px solid #e2e8f0;';
+        const qtyEl = document.createElement('input');
+        qtyEl.type = 'number'; qtyEl.name = 'item_qty[]'; qtyEl.value = qty;
+        qtyEl.min = '0'; qtyEl.step = 'any';
+        qtyEl.style.cssText = inp + 'text-align:center;';
+        qtyEl.className = 'fi so-qty';
+        qtyEl.addEventListener('input', function() { soSyncAndCalc(rid); });
+        td3.appendChild(qtyEl);
+
+        // Amount cell
+        const td4 = document.createElement('td');
+        td4.style.cssText = 'padding:6px 8px;border:1px solid #e2e8f0;text-align:right;font-weight:600;color:#1e3a5f;';
+        td4.className = 'so-amt';
+        td4.id = 'amt_' + rid;
+        td4.textContent = '₹ ' + (amount || '0.00');
+
+        // Delete cell
+        const td5 = document.createElement('td');
+        td5.style.cssText = 'padding:6px 8px;border:1px solid #e2e8f0;text-align:center;';
+        const dBtn = document.createElement('button');
+        dBtn.type = 'button';
+        if (soRowCount === 1) {
+            dBtn.disabled = true;
+            dBtn.textContent = '🔒';
+            dBtn.style.cssText = 'background:#f1f5f9;color:#94a3b8;border:none;width:26px;height:26px;border-radius:5px;font-size:0.8rem;cursor:not-allowed;opacity:0.4;';
+        } else {
+            dBtn.textContent = '✕';
+            dBtn.style.cssText = 'background:#fee2e2;color:#dc2626;border:none;width:26px;height:26px;border-radius:5px;font-size:0.8rem;cursor:pointer;';
+            dBtn.addEventListener('click', function() { soRemoveRow(rid); });
+        }
+        td5.appendChild(dBtn);
+
+        tr.appendChild(td1); tr.appendChild(td2); tr.appendChild(td3);
+        tr.appendChild(td4); tr.appendChild(td5);
+        tbody.appendChild(tr);
+        nameEl.focus();
+    }
+    soCalcTotal();
+}
+function soRemoveRow(rid) {
+    // Count current items — prevent deleting if only 1 left
+    const allItems = document.querySelectorAll('#soForm input[name="item_name[]"]');
+    const total = document.querySelectorAll('#soItemCards .so-item-card').length + 
+                  document.querySelectorAll('#soItems tr.so-item-card').length;
+    if (total <= 1) {
+        soShowValToast('At least one product is required');
+        return;
+    }
+    document.getElementById(rid)?.remove();
     soCalcTotal();
 }
 
-function soCalcRow(input) {
-    const tr   = input.closest('tr');
-    const qty  = parseFloat(tr.querySelector('.so-qty')?.value) || 0;
-    const rate = parseFloat(tr.querySelector('.so-rate')?.value) || 0;
+function soSyncAndCalc(rid) {
+    const el = document.getElementById(rid);
+    if (!el) return;
+    const qty  = parseFloat(el.querySelector('.so-qty')  ? el.querySelector('.so-qty').value  : 0) || 0;
+    const rate = parseFloat(el.querySelector('.so-rate') ? el.querySelector('.so-rate').value : 0) || 0;
     const amt  = qty * rate;
-    tr.querySelector('.so-amt').value = amt.toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2});
+    const fmt  = function(v) { return '₹ ' + v.toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2}); };
+    const amtEl = document.getElementById('amt_' + rid) || el.querySelector('.so-amt');
+    if (amtEl) amtEl.textContent = fmt(amt);
     soCalcTotal();
 }
+
+// ── Sample Order Validation ──────────────────────────────
+function soShowValToast(msg) {
+    const t = document.getElementById('soValToast');
+    if (!t) return;
+    t.textContent = '⚠️ ' + msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 3500);
+}
+
+function soClearErrors() {
+    document.querySelectorAll('.so-field-error').forEach(el => el.classList.remove('so-field-error'));
+    document.querySelectorAll('.so-err-msg.show').forEach(el => el.classList.remove('show'));
+}
+
+function qtClearErrors() {
+    document.querySelectorAll('#qtForm .so-field-error').forEach(el => el.classList.remove('so-field-error'));
+    document.querySelectorAll('#quotationModal .so-err-msg.show, #quotationModal .qt-err-msg.show').forEach(el => el.classList.remove('show'));
+    var itemErr = document.getElementById('qtErrItems');
+    if (itemErr) itemErr.style.display = 'none';
+}
+
+function soValidate() {
+    soClearErrors();
+    const errors = [];
+    function isValidEmail(v) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim()); }
+
+    function chk(id, errId, label) {
+        const el = document.getElementById(id);
+        if (!el || !el.value.trim()) {
+            if (el) el.classList.add('so-field-error');
+            const e = document.getElementById(errId);
+            if (e) e.classList.add('show');
+            errors.push(label);
+            return false;
+        }
+        return true;
+    }
+
+    chk('soDate',        'soErrDate',     'Date');
+    chk('soNumber',      'soErrNumber',   'Order ID');
+    chk('soBillCompany', 'soErrBillCo',   'Company Name');
+    chk('soBillAddress', 'soErrBillAddr', 'Address');
+    chk('soBillPhone',   'soErrBillPhone','Mobile');
+
+    // Email — optional but validate format
+    const emailEl = document.getElementById('soBillEmail');
+    if (emailEl && emailEl.value.trim() && !isValidEmail(emailEl.value)) {
+        emailEl.classList.add('so-field-error');
+        const e = document.getElementById('soErrBillEmail');
+        if (e) e.classList.add('show');
+        errors.push('Valid Email');
+    }
+
+    // Products — name required + rate > 0 + qty > 0
+    const allItemNames = document.querySelectorAll('#soForm input[name="item_name[]"]');
+    const filledItems  = Array.from(allItemNames).filter(i => i.value.trim());
+    if (allItemNames.length === 0 || filledItems.length === 0) {
+        const e = document.getElementById('soErrItems');
+        if (e) { e.textContent = 'At least one product is required'; e.classList.add('show'); }
+        errors.push('At least one product required');
+    } else {
+        let itemError = false;
+        document.querySelectorAll('#soForm .so-item-card').forEach(function(card) {
+            const nameEl = card.querySelector('input[name="item_name[]"]');
+            if (!nameEl || !nameEl.value.trim()) return;
+            const rateEl = card.querySelector('input[name="item_rate[]"]');
+            const qtyEl  = card.querySelector('input[name="item_qty[]"]');
+            const rate = parseFloat(rateEl ? rateEl.value : 0) || 0;
+            const qty  = parseFloat(qtyEl  ? qtyEl.value  : 0) || 0;
+            if (rate <= 0 && rateEl) rateEl.classList.add('so-field-error');
+            if (qty  <= 0 && qtyEl)  qtyEl.classList.add('so-field-error');
+            if (rate <= 0 || qty <= 0) itemError = true;
+        });
+        if (itemError) {
+            const e = document.getElementById('soErrItems');
+            if (e) { e.textContent = 'Har product ka Rate aur Quantity bharna zaroori hai'; e.classList.add('show'); }
+            errors.push('Product Rate & Quantity required');
+        }
+    }
+
+    if (errors.length > 0) {
+        soShowValToast(errors[0] + (errors.length > 1 ? ' and ' + (errors.length-1) + ' more field' : '') + ' is required');
+        const firstErr = document.querySelector('#sampleOrderModal .so-field-error');
+        if (firstErr) firstErr.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        return false;
+    }
+    return true;
+}
+
+// Sample Order submit handler
+function soSubmit() {
+    if (!soValidate()) return;
+    var btn = document.getElementById('soSubmitBtn');
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="animation:spin .7s linear infinite"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Processing...';
+    }
+    document.getElementById('soForm').submit();
+}
+
+// Clear field error on input
+function soBindClearError(id) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener('input', function() { this.classList.remove('so-field-error'); });
+    el.addEventListener('change', function() { this.classList.remove('so-field-error'); });
+}
+['soDate','soNumber','soBillCompany','soBillAddress','soBillPhone','soBillEmail'].forEach(soBindClearError);
 
 function soCalcTotal() {
     let subTotal = 0;
-    document.querySelectorAll('.so-row').forEach(tr => {
-        const q = parseFloat(tr.querySelector('.so-qty')?.value) || 0;
-        const r = parseFloat(tr.querySelector('.so-rate')?.value) || 0;
+    document.querySelectorAll('.so-item-card').forEach(el => {
+        const q = parseFloat(el.querySelector('.so-qty')?.value)  || 0;
+        const r = parseFloat(el.querySelector('.so-rate')?.value) || 0;
         subTotal += q * r;
     });
-    const gstPct = parseFloat(document.getElementById('soGstPct')?.value) || 0;
+    const gstPct = parseFloat(document.getElementById('soGstPct')?.value || document.getElementById('soGstPctM')?.value) || 0;
     const gstAmt = subTotal * gstPct / 100;
     const total  = subTotal + gstAmt;
     const fmt    = v => v.toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2});
@@ -1198,12 +1871,14 @@ document.getElementById('soGstPct')?.addEventListener('change', soCalcTotal);
 // ── Quotation Modal: open with reset, close with reset ──
 function closeQuotationModal() {
     document.getElementById('quotationModal').style.display = 'none';
-    // Reset items table - clear all rows
+    // Reset item cards and table rows
+    var cards = document.getElementById('qtItemCards');
+    if (cards) cards.innerHTML = '';
     var tbody = document.getElementById('qtItems');
     if (tbody) tbody.innerHTML = '';
-    // Reset quot number
-    var qtNum = document.getElementById('qtNumber');
-    if (qtNum) qtNum.value = '';
+    qtRowCount = 0;
+    // Reset quot number (both mobile + desktop IDs)
+    ['qtNumber','qtNumberD'].forEach(function(id){ var el=document.getElementById(id); if(el) el.value=''; });
     // Reset bill_gst
     var gst = document.querySelector('#qtForm input[name="bill_gst"]');
     if (gst) gst.value = '';
@@ -1226,19 +1901,19 @@ function openQuotationModal() {
     closeQuotationModal();
     // Show modal
     document.getElementById('quotationModal').style.display = 'flex';
-    // Set today + valid until dates
+    // Scroll to top of modal
+    var box = document.querySelector('#quotationModal .qt-box'); if (box) box.scrollTop = 0;
+    // Set today + valid until dates (both mobile and desktop IDs)
     var today = new Date().toISOString().split('T')[0];
-    var qtDate = document.getElementById('qtDate');
-    if (qtDate) qtDate.value = today;
+    ['qtDate','qtDateD'].forEach(function(id){ var el=document.getElementById(id); if(el) el.value=today; });
     var d30 = new Date(); d30.setDate(d30.getDate()+30);
-    var qtValid = document.getElementById('qtValidUntil');
-    if (qtValid) qtValid.value = d30.toISOString().split('T')[0];
+    var d30str = d30.toISOString().split('T')[0];
+    ['qtValidUntil','qtValidUntilD'].forEach(function(id){ var el=document.getElementById(id); if(el) el.value=d30str; });
     // Fetch next quotation number
     fetch('/crm/quotations/next-number')
         .then(r => r.json())
         .then(data => {
-            var f = document.getElementById('qtNumber');
-            if (f && data.quot_number) f.value = data.quot_number;
+            ['qtNumber','qtNumberD'].forEach(function(id){ var f=document.getElementById(id); if(f && data.quot_number) f.value=data.quot_number; });
         })
         .catch(err => console.error('Quot number fetch failed:', err));
     // Fetch UOM + Category options fresh, then add row
@@ -1257,13 +1932,13 @@ document.getElementById('quotationModal').addEventListener('click', function(e) 
 });
 
 function qtAutoCalcFinal(input) {
-    var tr = input.closest('tr');
-    if (!tr) return;
-    var cost    = parseFloat(tr.querySelector('input[name="item_cost[]"]')?.value)    || 0;
-    var pmCost  = parseFloat(tr.querySelector('input[name="item_pm_cost[]"]')?.value) || 0;
-    var fgCost  = parseFloat(tr.querySelector('input[name="item_fg_cost[]"]')?.value) || 0;
+    var card = input.closest('.qt-item-card');
+    if (!card) return;
+    var cost    = parseFloat(card.querySelector('input[name="item_cost[]"]')?.value)    || 0;
+    var pmCost  = parseFloat(card.querySelector('input[name="item_pm_cost[]"]')?.value) || 0;
+    var fgCost  = parseFloat(card.querySelector('input[name="item_fg_cost[]"]')?.value) || 0;
     var final   = cost + pmCost + fgCost;
-    var fcInput = tr.querySelector('input[name="item_final_cost[]"]');
+    var fcInput = card.querySelector('input[name="item_final_cost[]"]');
     if (fcInput) {
         fcInput.value = final.toFixed(2);
         fcInput.style.background = '#fffbe6';
@@ -1272,114 +1947,193 @@ function qtAutoCalcFinal(input) {
     qtCalcTotal();
 }
 
-function qtCalcTotal() {
-    var rows = document.querySelectorAll('#qtItems .qt-row');
-    var subTotal = 0;
-    rows.forEach(function(tr) {
-        var fc = tr.querySelector('input[name="item_final_cost[]"]');
-        var moq = tr.querySelector('input[name="item_moq[]"]');
-        var cost = parseFloat(fc ? fc.value : 0) || 0;
-        var qty  = parseFloat(moq ? moq.value : 0) || 0;
-        subTotal += cost * qty;
+// ── Quotation Submit handler (same pattern as soSubmit) ──────
+function qtSubmit() {
+    if (!qtValidate()) return;
+    var btn = document.getElementById('qtSubmitBtn');
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="animation:spin .7s linear infinite"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Generating...';
+    }
+    document.getElementById('qtForm').submit();
+}
+
+// ── Quotation Validation ─────────────────────────────────────
+function qtShowValToast(msg) {
+    var t = document.getElementById('qtValToast');
+    if (!t) return;
+    t.textContent = '⚠️ ' + msg;
+    t.classList.add('show');
+    setTimeout(function(){ t.classList.remove('show'); }, 3500);
+}
+
+function qtValidate() {
+    qtClearErrors();
+    var errors = [];
+
+    function qtChkField(el, label) {
+        if (!el || !el.value.trim()) {
+            if (el) el.classList.add('so-field-error');
+            errors.push(label);
+            return false;
+        }
+        return true;
+    }
+
+    // Quot Number
+    var qtNum = document.getElementById('qtNumber') || document.getElementById('qtNumberD');
+    qtChkField(qtNum, 'Quotation Number');
+
+    // Date
+    var qtDt = document.getElementById('qtDate') || document.getElementById('qtDateD');
+    qtChkField(qtDt, 'Date');
+
+    // Bill To — Company / Name
+    var billCoEl = document.querySelector('#qtForm input[name="bill_company"]');
+    qtChkField(billCoEl, 'Bill To (Company Name)');
+
+    // Bill Phone
+    var billPhEl = document.querySelector('#qtForm input[name="bill_phone"]');
+    qtChkField(billPhEl, 'Mobile Number');
+
+    // Products — each row: name required + final cost > 0
+    var allItemCards = document.querySelectorAll('#qtForm .qt-item-card');
+    var hasAtLeastOne = false;
+    var itemRowError = false;
+
+    allItemCards.forEach(function(card) {
+        var nameEl      = card.querySelector('input[name="item_name[]"]');
+        var finalCostEl = card.querySelector('input[name="item_final_cost[]"]');
+        var moqEl       = card.querySelector('input[name="item_moq[]"]');
+
+        var name      = nameEl      ? nameEl.value.trim()      : '';
+        var finalCost = finalCostEl ? parseFloat(finalCostEl.value) || 0 : 0;
+        var moq       = moqEl       ? parseFloat(moqEl.value)  || 0 : 0;
+
+        // Skip completely blank rows (no name, no cost, no qty)
+        if (!name && finalCost === 0 && moq === 0) return;
+
+        hasAtLeastOne = true;
+
+        if (!name && nameEl) {
+            nameEl.classList.add('so-field-error');
+            itemRowError = true;
+        }
+        if (finalCost <= 0 && finalCostEl) {
+            finalCostEl.classList.add('so-field-error');
+            itemRowError = true;
+        }
+        if (moq <= 0 && moqEl) {
+            moqEl.classList.add('so-field-error');
+            itemRowError = true;
+        }
     });
-    var gstPct = parseFloat(document.getElementById('qtGstPct')?.value) || 0;
+
+    if (!hasAtLeastOne) {
+        errors.push('At least one product required');
+        var qtErrItems = document.getElementById('qtErrItems');
+        if (qtErrItems) { qtErrItems.textContent = 'At least one product is required'; qtErrItems.style.display='block'; }
+    } else if (itemRowError) {
+        errors.push('Product Name, Final Cost & MOQ/Qty required');
+        var qtErrItems = document.getElementById('qtErrItems');
+        if (qtErrItems) { qtErrItems.textContent = 'Har product ka Name, Final Cost aur MOQ/Qty bharna zaroori hai'; qtErrItems.style.display='block'; }
+    }
+    if (errors.length > 0) {
+        qtShowValToast(errors[0] + (errors.length > 1 ? ' and ' + (errors.length-1) + ' more field' : '') + ' is required');
+        return false;
+    }
+    // Disable submit button
+    var btn = document.querySelector('#qtForm button[type="submit"]');
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="animation:spin .7s linear infinite"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Generating...';
+    }
+    return true;
+}
+
+function qtCalcTotal() {
+    var subTotal = 0;
+    document.querySelectorAll('.qt-item-card').forEach(function(card) {
+        var fc  = parseFloat(card.querySelector('input[name="item_final_cost[]"]')?.value) || 0;
+        var moq = parseFloat(card.querySelector('input[name="item_moq[]"]')?.value) || 0;
+        subTotal += fc * moq;
+    });
+    var gstPct = parseFloat(document.getElementById('qtGstPct')?.value || document.getElementById('qtGstPctD')?.value) || 0;
     var gstAmt = subTotal * gstPct / 100;
     var total  = subTotal + gstAmt;
-    var fmt = function(v) { return v.toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2}); };
+    var fmt = function(v) { return '₹ ' + v.toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2}); };
     var el = document.getElementById('qtSubTotal'); if(el) el.textContent = fmt(subTotal);
     var el2 = document.getElementById('qtGstAmt');  if(el2) el2.textContent = fmt(gstAmt);
     var el3 = document.getElementById('qtTotal');   if(el3) el3.textContent = fmt(total);
     var el4 = document.getElementById('qtGstLabel');if(el4) el4.textContent = gstPct;
 }
 
+let qtRowCount = 0;
 function qtAddRow(name='', size='', code='', uom='', cost='', moq='', pmSpec='', pmCost='', fgCost='', cat='', finalCost='') {
-    const tbody = document.getElementById('qtItems');
-    const idx   = tbody.querySelectorAll('.qt-row').length;
-    const isFirst = idx === 0;
-    const bg    = idx % 2 === 0 ? '#fff' : '#f8faff';
-    const inp   = 'width:100%;border:1.5px solid #e8edf5;border-radius:6px;padding:5px 7px;font-size:0.81rem;background:transparent;outline:none;transition:.15s;';
-    const tr    = document.createElement('tr');
-    tr.className = 'qt-row';
-    tr.style.cssText = `background:${bg};transition:.15s;`;
-    // Delete btn: first row gets a lock icon (disabled), rest get X
-    const delBtn = isFirst
-        ? `<button type="button" title="First row cannot be deleted" style="background:#f1f5f9;color:#94a3b8;border:none;width:24px;height:24px;border-radius:5px;font-size:0.75rem;cursor:not-allowed;" disabled>🔒</button>`
-        : `<button type="button" onclick="this.closest('tr').remove();" title="Remove row" style="background:#fee2e2;color:#dc2626;border:none;width:24px;height:24px;border-radius:5px;font-size:0.78rem;cursor:pointer;transition:.15s;" onmouseover="this.style.background='#fecaca'" onmouseout="this.style.background='#fee2e2'">✕</button>`;
-    tr.innerHTML = `
-        <td style="padding:5px 7px;border-bottom:1px solid #f1f5f9;border-right:1px solid #f1f5f9;">
-            <input type="text" name="item_name[]" value="${name}" placeholder="Enter product name" style="${inp}" required>
-        </td>
-        <td style="padding:5px 5px;border-bottom:1px solid #f1f5f9;border-right:1px solid #f1f5f9;width:60px;">
-            <input type="number" name="item_size[]" value="${size}" placeholder="0.0" min="0" step="any" style="${inp};text-align:center;width:56px;">
-        </td>
-        <td style="padding:5px 7px;border-bottom:1px solid #f1f5f9;border-right:1px solid #f1f5f9;">
-            <input type="text" name="item_code[]" value="${code}" placeholder="Code" style="${inp};text-align:center;">
-        </td>
-        <td style="padding:5px 6px;border-bottom:1px solid #f1f5f9;border-right:1px solid #f1f5f9;">
-            <select name="item_uom[]" class="qt-uom-sel" style="width:100%;border:1.5px solid #e8edf5;border-radius:6px;padding:5px 4px;font-size:0.81rem;background:#fff;outline:none;">
-                <option value="">-- UOM --</option>
-            </select>
-        </td>
-        <td style="padding:5px 7px;border-bottom:1px solid #f1f5f9;border-right:1px solid #f1f5f9;">
-            <input type="number" name="item_cost[]" value="${cost}" placeholder="0.00" min="0" step="any" style="${inp};text-align:right;" oninput="qtAutoCalcFinal(this)">
-        </td>
-        <td style="padding:5px 7px;border-bottom:1px solid #f1f5f9;border-right:1px solid #f1f5f9;">
-            <input type="number" name="item_moq[]" value="${moq}" placeholder="Qty" min="0" step="1" style="${inp};text-align:center;" oninput="qtCalcTotal()">
-        </td>
-        <td style="padding:5px 7px;border-bottom:1px solid #f1f5f9;border-right:1px solid #f1f5f9;">
-            <textarea name="item_pm_spec[]" placeholder="PM specification..." rows="2" style="${inp};resize:vertical;min-height:36px;">${pmSpec}</textarea>
-        </td>
-        <td style="padding:5px 7px;border-bottom:1px solid #f1f5f9;border-right:1px solid #f1f5f9;">
-            <input type="number" name="item_pm_cost[]" value="${pmCost}" placeholder="0.00" min="0" step="any" style="${inp};text-align:right;" oninput="qtAutoCalcFinal(this)">
-        </td>
-        <td style="padding:5px 7px;border-bottom:1px solid #f1f5f9;border-right:1px solid #f1f5f9;">
-            <input type="number" name="item_fg_cost[]" value="${fgCost}" placeholder="0.00" min="0" step="any" style="${inp};text-align:right;" oninput="qtAutoCalcFinal(this)">
-        </td>
-        <td style="padding:5px 6px;border-bottom:1px solid #f1f5f9;border-right:1px solid #f1f5f9;">
-            <select name="item_category[]" class="qt-cat-sel" style="width:100%;border:1.5px solid #e8edf5;border-radius:6px;padding:5px 4px;font-size:0.81rem;background:#fff;outline:none;">
-                <option value="">-- Category --</option>
-            </select>
-        </td>
-        <td style="padding:5px 7px;border-bottom:1px solid #f1f5f9;border-right:1px solid #f1f5f9;">
-            <input type="number" name="item_final_cost[]" value="${finalCost}" placeholder="0.00" min="0" step="any"
-                   style="${inp};text-align:right;font-weight:700;background:#f0f6ff;border-color:#c7d7f5;" oninput="qtCalcTotal()" required>
-        </td>
-        <td style="padding:5px 6px;border-bottom:1px solid #f1f5f9;text-align:center;width:36px;">
-            ${delBtn}
-        </td>
-    `;
-    tbody.appendChild(tr);
-    // Row hover effect
-    tr.addEventListener('mouseenter', function(){ if(this.style.background!='#fff') this.style.background='#f8faff'; else this.style.background='#f5f8ff'; });
-    tr.addEventListener('mouseleave', function(){ this.style.background = idx%2===0?'#fff':'#f8faff'; });
-    // Focus effects on inputs
-    tr.querySelectorAll('input,select,textarea').forEach(function(el){
-        el.addEventListener('focus', function(){ this.style.borderColor='#3b82f6'; this.style.boxShadow='0 0 0 3px rgba(59,130,246,.1)'; });
-        el.addEventListener('blur',  function(){ this.style.borderColor='#e8edf5'; this.style.boxShadow='none'; });
-    });
-    // Populate UOM dropdown
-    var uomSel = tr.querySelector('.qt-uom-sel');
-    if (uomSel && window._qtUomOptions) {
-        window._qtUomOptions.forEach(function(o) {
-            var opt = document.createElement('option');
-            opt.value = o.code;
-            opt.textContent = o.code + (o.name ? ' - ' + o.name : '');
-            if (uom && o.code === uom) opt.selected = true;
-            uomSel.appendChild(opt);
-        });
+    qtRowCount++;
+    const rid = 'qtrow_' + qtRowCount;
+    const isMobile = window.innerWidth < 768;
+
+    function populateDropdowns(el) {
+        var uomSel = el.querySelector('.qt-uom-sel');
+        if (uomSel && window._qtUomOptions) window._qtUomOptions.forEach(o => { var opt=document.createElement('option'); opt.value=o.code; opt.textContent=o.code+(o.name?' - '+o.name:''); if(uom&&o.code===uom) opt.selected=true; uomSel.appendChild(opt); });
+        var catSel = el.querySelector('.qt-cat-sel');
+        if (catSel && window._qtCatOptions) window._qtCatOptions.forEach(o => { var opt=document.createElement('option'); opt.value=o.name; opt.textContent=o.name; if(cat&&o.name===cat) opt.selected=true; catSel.appendChild(opt); });
     }
-    // Populate Category dropdown
-    var catSel = tr.querySelector('.qt-cat-sel');
-    if (catSel && window._qtCatOptions) {
-        window._qtCatOptions.forEach(function(o) {
-            var opt = document.createElement('option');
-            opt.value = o.name;
-            opt.textContent = o.name;
-            if (cat && o.name === cat) opt.selected = true;
-            catSel.appendChild(opt);
-        });
+
+    if (isMobile) {
+        // ── Mobile: card UI ──
+        const cards = document.getElementById('qtItemCards');
+        const card  = document.createElement('div');
+        card.className = 'qt-item-card'; card.id = rid;
+        card.innerHTML = `
+            <button type="button" class="qt-item-del" onclick="document.getElementById('${rid}').remove();qtCalcTotal();">✕</button>
+            <input type="text" name="item_name[]" value="${name}" placeholder="Product Name" class="fi" style="font-size:0.88rem;padding:9px 12px;margin-bottom:8px;">
+            <div class="qt-item-grid2">
+                <div class="qt-item-field"><label>Size</label><input type="number" name="item_size[]" value="${size}" placeholder="0.0" min="0" step="any" class="fi"></div>
+                <div class="qt-item-field"><label>UOM</label><select name="item_uom[]" class="fi qt-uom-sel"><option value="">-- UOM --</option></select></div>
+                <div class="qt-item-field"><label>Product Code</label><input type="text" name="item_code[]" value="${code}" placeholder="Code" class="fi"></div>
+                <div class="qt-item-field"><label>Category</label><select name="item_category[]" class="fi qt-cat-sel"><option value="">-- Category --</option></select></div>
+            </div>
+            <div class="qt-item-grid3" style="margin-top:8px;">
+                <div class="qt-item-field"><label>Cost (₹)</label><input type="number" name="item_cost[]" value="${cost}" placeholder="0.00" min="0" step="any" class="fi" oninput="qtAutoCalcFinal(this)"></div>
+                <div class="qt-item-field"><label>MOQ / Qty</label><input type="number" name="item_moq[]" value="${moq}" placeholder="0" min="0" step="1" class="fi" oninput="qtCalcTotal()"></div>
+                <div class="qt-item-field"><label>Final Cost (₹) *</label><input type="number" name="item_final_cost[]" value="${finalCost}" placeholder="0.00" min="0" step="any" class="fi" style="background:#f0f6ff;border-color:#c7d7f5;font-weight:700;" oninput="qtCalcTotal()"></div>
+                <div class="qt-item-field"><label>PM Cost (₹)</label><input type="number" name="item_pm_cost[]" value="${pmCost}" placeholder="0.00" min="0" step="any" class="fi" oninput="qtAutoCalcFinal(this)"></div>
+                <div class="qt-item-field"><label>FG Cost (₹)</label><input type="number" name="item_fg_cost[]" value="${fgCost}" placeholder="0.00" min="0" step="any" class="fi" oninput="qtAutoCalcFinal(this)"></div>
+            </div>
+            <div style="margin-top:8px;"><label style="font-size:0.65rem;font-weight:700;color:#94a3b8;text-transform:uppercase;display:block;margin-bottom:3px;">PM Specification</label>
+            <textarea name="item_pm_spec[]" placeholder="PM specification..." rows="2" class="fi" style="font-size:0.85rem;resize:none;">${pmSpec}</textarea></div>`;
+        cards.appendChild(card);
+        populateDropdowns(card);
+        card.querySelector('input[name="item_name[]"]').focus();
+    } else {
+        // ── Desktop: table row ──
+        const tbody = document.getElementById('qtItems');
+        const tr = document.createElement('tr');
+        tr.id = rid; tr.className = 'qt-item-card';
+        tr.style.cssText = 'border-bottom:1px solid #f1f5f9;';
+        const inp = 'width:100%;border:1.5px solid #e8edf5;border-radius:6px;padding:5px 7px;font-size:0.81rem;outline:none;background:transparent;';
+        tr.innerHTML = `
+            <td style="padding:5px 7px;border-right:1px solid #f1f5f9;"><input type="text" name="item_name[]" value="${name}" placeholder="Product name" style="${inp}"></td>
+            <td style="padding:5px 5px;border-right:1px solid #f1f5f9;"><input type="number" name="item_size[]" value="${size}" placeholder="0.0" min="0" step="any" style="${inp};text-align:center;width:55px;"></td>
+            <td style="padding:5px 7px;border-right:1px solid #f1f5f9;"><input type="text" name="item_code[]" value="${code}" placeholder="Code" style="${inp};text-align:center;"></td>
+            <td style="padding:5px 6px;border-right:1px solid #f1f5f9;"><select name="item_uom[]" class="qt-uom-sel" style="width:100%;border:1.5px solid #e8edf5;border-radius:6px;padding:5px 4px;font-size:0.81rem;"><option value="">-- UOM --</option></select></td>
+            <td style="padding:5px 7px;border-right:1px solid #f1f5f9;"><input type="number" name="item_cost[]" value="${cost}" placeholder="0.00" min="0" step="any" style="${inp};text-align:right;" oninput="qtAutoCalcFinal(this)"></td>
+            <td style="padding:5px 7px;border-right:1px solid #f1f5f9;"><input type="number" name="item_moq[]" value="${moq}" placeholder="Qty" min="0" style="${inp};text-align:center;" oninput="qtCalcTotal()"></td>
+            <td style="padding:5px 7px;border-right:1px solid #f1f5f9;"><textarea name="item_pm_spec[]" placeholder="PM spec..." rows="2" style="${inp};resize:vertical;min-height:36px;">${pmSpec}</textarea></td>
+            <td style="padding:5px 7px;border-right:1px solid #f1f5f9;"><input type="number" name="item_pm_cost[]" value="${pmCost}" placeholder="0.00" min="0" step="any" style="${inp};text-align:right;" oninput="qtAutoCalcFinal(this)"></td>
+            <td style="padding:5px 7px;border-right:1px solid #f1f5f9;"><input type="number" name="item_fg_cost[]" value="${fgCost}" placeholder="0.00" min="0" step="any" style="${inp};text-align:right;" oninput="qtAutoCalcFinal(this)"></td>
+            <td style="padding:5px 6px;border-right:1px solid #f1f5f9;"><select name="item_category[]" class="qt-cat-sel" style="width:100%;border:1.5px solid #e8edf5;border-radius:6px;padding:5px 4px;font-size:0.81rem;"><option value="">-- Category --</option></select></td>
+            <td style="padding:5px 7px;border-right:1px solid #f1f5f9;"><input type="number" name="item_final_cost[]" value="${finalCost}" placeholder="0.00" min="0" step="any" style="${inp};text-align:right;font-weight:700;background:#f0f6ff;border-color:#c7d7f5;" oninput="qtCalcTotal()"></td>
+            <td style="padding:5px 6px;text-align:center;"><button type="button" onclick="document.getElementById('${rid}').remove();qtCalcTotal();" style="background:#fee2e2;color:#dc2626;border:none;width:24px;height:24px;border-radius:5px;font-size:0.78rem;cursor:pointer;">✕</button></td>`;
+        tbody.appendChild(tr);
+        populateDropdowns(tr);
+        tr.querySelector('input[name="item_name[]"]').focus();
     }
+    qtCalcTotal();
 }
+
 
 // Load UOM + Category options once on page load
 window._qtUomOptions = [];
@@ -1397,22 +2151,23 @@ window._qtCatOptions = [];
 // ── Sample Order Modal: open with reset, close with reset ──
 function closeSampleOrderModal() {
     document.getElementById('sampleOrderModal').style.display = 'none';
-    // Reset items table
-    var tbody = document.getElementById('soItems');
-    if (tbody) tbody.innerHTML = '';
+    // Reset item cards
+    var cards = document.getElementById('soItemCards');
+    if (cards) cards.innerHTML = '';
+    soRowCount = 0;
     // Reset totals
     ['soSubTotal','soGstAmt','soTotal'].forEach(function(id) {
         var el = document.getElementById(id);
         if (el) el.textContent = '0.00';
     });
-    // Reset order number and GST
     var soNum = document.getElementById('soNumber');
     if (soNum) soNum.value = '';
     var gstSel = document.getElementById('soGstPct');
     if (gstSel) gstSel.value = '18';
-    // Reset bill_gst field
-    var billGst = document.querySelector('input[name="bill_gst"]');
+    var billGst = document.getElementById('soBillGst');
     if (billGst) billGst.value = '';
+    // Also reset so_date and so_number
+    soClearErrors();
 }
 
 function openSampleOrderModal() {

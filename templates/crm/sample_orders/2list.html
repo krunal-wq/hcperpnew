@@ -36,9 +36,7 @@
 
 /* ── Table ── */
 .so-table { width:100%; border-collapse:collapse; }
-.so-table thead tr { background:linear-gradient(135deg,#1e3a5f,#2d5a8e); }
-.so-table th { padding:10px 12px; text-align:left; font-size:0.71rem; font-weight:700; color:#fff; text-transform:uppercase; letter-spacing:.05em; border-right:1px solid rgba(255,255,255,.15); white-space:nowrap; }
-.so-table th:last-child { border-right:none; }
+.so-table th { background:#f1f5f9; padding:10px 12px; text-align:left; font-size:0.78rem; font-weight:700; color:#374151; border-bottom:2px solid #e2e8f0; white-space:nowrap; }
 .so-table td { padding:10px 12px; font-size:0.83rem; color:var(--text); border-bottom:1px solid #f1f5f9; vertical-align:middle; }
 .so-table tr:hover td { background:#f8fafc; }
 .so-table tr.row-sel td { background:#eef2ff !important; }
@@ -278,31 +276,6 @@ input[type=checkbox].so-chk { width:17px; height:17px; accent-color:#1e3a5f; cur
                 <button onclick="soPermDelSingle({{ so.id }})" style="background:#fef2f2;color:#dc2626;">🗑️ Forever</button>
             </div>
             {% else %}
-            <!-- Invoice section on mobile -->
-            <div style="padding:10px 14px 0;">
-                {% if so.invoice_file %}
-                <div style="background:#f5f3ff;border:1px solid #ddd6fe;border-radius:10px;padding:10px 12px;display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:0;">
-                    <span style="font-size:0.75rem;color:#5b21b6;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;">📎 {{ so.invoice_file }}</span>
-                    <div style="display:flex;gap:6px;flex-shrink:0;">
-                        <a href="{{ url_for('crm.sample_order_invoice_download', id=so.id) }}" style="background:#eff6ff;color:#1d4ed8;padding:5px 9px;border-radius:6px;font-size:0.72rem;font-weight:700;text-decoration:none;">⬇</a>
-                        <label style="background:#fff7ed;color:#c2410c;padding:5px 9px;border-radius:6px;font-size:0.72rem;font-weight:700;cursor:pointer;" for="mob-inv-change-{{ so.id }}">🔄</label>
-                        <form method="POST" action="{{ url_for('crm.sample_order_invoice_delete', id=so.id) }}" style="display:inline;" onsubmit="return confirm('Delete karein?');">
-                            <button type="submit" style="background:#fef2f2;color:#dc2626;border:none;padding:5px 9px;border-radius:6px;font-size:0.72rem;font-weight:700;cursor:pointer;">✕</button>
-                        </form>
-                    </div>
-                    <form method="POST" action="{{ url_for('crm.sample_order_invoice_upload', id=so.id) }}" enctype="multipart/form-data" style="display:none;">
-                        <input type="file" id="mob-inv-change-{{ so.id }}" name="invoice_file" accept=".pdf,.jpg,.jpeg,.png" onchange="this.form.submit()">
-                    </form>
-                </div>
-                {% else %}
-                <label for="mob-inv-upload-{{ so.id }}" style="display:flex;align-items:center;justify-content:center;gap:6px;width:100%;background:#fdf4ff;color:#7c3aed;border:1.5px dashed #c4b5fd;padding:10px;border-radius:10px;font-size:0.82rem;font-weight:700;cursor:pointer;box-sizing:border-box;">
-                    ⬆ Invoice Upload
-                </label>
-                <form method="POST" action="{{ url_for('crm.sample_order_invoice_upload', id=so.id) }}" enctype="multipart/form-data" style="display:none;">
-                    <input type="file" id="mob-inv-upload-{{ so.id }}" name="invoice_file" accept=".pdf,.jpg,.jpeg,.png" onchange="this.form.submit()">
-                </form>
-                {% endif %}
-            </div>
             <div class="so-card-footer">
                 <form method="POST" action="{{ url_for('crm.sample_order_reprint', id=so.id) }}" target="_blank" style="flex:1;display:flex;">
                     <button type="submit" style="flex:1;background:#eff6ff;color:#1d4ed8;border:none;border-radius:9px;cursor:pointer;font-size:0.75rem;font-weight:700;padding:9px;">📥 PDF</button>
@@ -520,24 +493,6 @@ function soRenderRows(data) {
         const delBanner = isDel && so.deleted_at
             ? `<div style="margin:0 14px 10px;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:8px 12px;font-size:0.78rem;color:#dc2626;">🗑️ Deleted on ${so.deleted_at}</div>` : '';
 
-        // Invoice section (only on active tab)
-        const invoiceSection = isDel ? '' : so.invoice_file
-            ? `<div style="padding:10px 14px 0;">
-                 <div style="background:#f5f3ff;border:1px solid #ddd6fe;border-radius:10px;padding:10px 12px;display:flex;align-items:center;justify-content:space-between;gap:8px;">
-                   <span style="font-size:0.75rem;color:#5b21b6;font-weight:600;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">📎 ${soEsc(so.invoice_file)}</span>
-                   <div style="display:flex;gap:6px;flex-shrink:0;">
-                     <a href="/crm/sample-orders/${so.id}/invoice-download" style="background:#eff6ff;color:#1d4ed8;padding:5px 9px;border-radius:6px;font-size:0.72rem;font-weight:700;text-decoration:none;">⬇</a>
-                     <label style="background:#fff7ed;color:#c2410c;padding:5px 9px;border-radius:6px;font-size:0.72rem;font-weight:700;cursor:pointer;" for="ajax-inv-ch-${so.id}">🔄</label>
-                     <form method="POST" action="/crm/sample-orders/${so.id}/invoice-delete" style="display:inline;" onsubmit="return confirm('Delete?');"><button type="submit" style="background:#fef2f2;color:#dc2626;border:none;padding:5px 9px;border-radius:6px;font-size:0.72rem;font-weight:700;cursor:pointer;">✕</button></form>
-                   </div>
-                   <form method="POST" action="/crm/sample-orders/${so.id}/invoice-upload" enctype="multipart/form-data" style="display:none;"><input type="file" id="ajax-inv-ch-${so.id}" name="invoice_file" accept=".pdf,.jpg,.jpeg,.png" onchange="this.form.submit()"></form>
-                 </div>
-               </div>`
-            : `<div style="padding:10px 14px 0;">
-                 <label for="ajax-inv-up-${so.id}" style="display:flex;align-items:center;justify-content:center;gap:6px;width:100%;background:#fdf4ff;color:#7c3aed;border:1.5px dashed #c4b5fd;padding:10px;border-radius:10px;font-size:0.82rem;font-weight:700;cursor:pointer;box-sizing:border-box;">⬆ Invoice Upload</label>
-                 <form method="POST" action="/crm/sample-orders/${so.id}/invoice-upload" enctype="multipart/form-data" style="display:none;"><input type="file" id="ajax-inv-up-${so.id}" name="invoice_file" accept=".pdf,.jpg,.jpeg,.png" onchange="this.form.submit()"></form>
-               </div>`;
-
         div.innerHTML = `
           <div class="so-card-hdr">
             <input type="checkbox" class="so-chk so-row-chk" value="${so.id}" onchange="soOnRowCheck()" style="margin-top:3px;flex-shrink:0;accent-color:#fff;width:17px;height:17px;">
@@ -562,7 +517,6 @@ function soRenderRows(data) {
             </div>
           </div>
           ${delBanner}
-          ${invoiceSection}
           <div class="so-card-footer">${footerActions}</div>`;
         cards.appendChild(div);
     });

@@ -10,11 +10,17 @@
 #bodyEditor { min-height:500px; padding:1rem; font-size:0.88rem; line-height:1.6; outline:none; }
 .toolbar-btn { background:#f8fafc; border:1px solid #e5e7eb; border-radius:6px; padding:4px 10px; font-size:0.82rem; cursor:pointer; color:var(--text); transition:background .1s; }
 .toolbar-btn:hover { background:#e5e7eb; }
+@media (max-width:767px) {
+    .tpl-edit-grid { grid-template-columns:1fr !important; }
+    .tpl-vars-panel { position:static !important; }
+    #bodyEditor { min-height:280px !important; }
+    .fi { font-size:0.9rem !important; }
+}
 {% endblock %}
 
 {% block content %}
 <form method="POST" id="editForm">
-<div style="display:grid;grid-template-columns:1fr 320px;gap:1rem;align-items:start;">
+<div class="tpl-edit-grid" style="display:grid;grid-template-columns:1fr 320px;gap:1rem;align-items:start;">
 
     <!-- LEFT: Main Edit -->
     <div>
@@ -92,7 +98,7 @@
 
     <!-- RIGHT: Variables Helper -->
     <div>
-        <div class="card" style="position:sticky;top:1rem;">
+        <div class="card tpl-vars-panel" style="position:sticky;top:1rem;">
             <div class="card-hdr"><div class="card-title">📌 Variables</div></div>
             <div class="card-body">
                 <p style="font-size:0.8rem;color:var(--text2);margin-bottom:0.75rem;">Click karein to insert at cursor:</p>

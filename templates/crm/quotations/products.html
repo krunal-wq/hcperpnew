@@ -1,163 +1,375 @@
 {% extends "base.html" %}
-{% block title %}Quotation Product List
-
-{% endblock %}
+{% block title %}Quotation Product List{% endblock %}
 {% block page_title %}Quotation Product List{% endblock %}
 {% block bread %}CRM / Quotations / Product List{% endblock %}
 
-{% block content %}
-<script>
-var _filterTimer = null;
-function liveFilter(){ clearTimeout(_filterTimer); _filterTimer = setTimeout(_doFilter, 350); }
-function _doFilter(){
-    var el = document.getElementById('liveSearch');
-    var s  = el ? el.value.trim() : '';
-    var info = document.getElementById('filterInfo');
-    if(info) info.textContent = '⏳';
-    fetch('/crm/quotations/products/ajax?search='+encodeURIComponent(s))
-    .then(function(r){ return r.json(); })
-    .then(function(data){
-        var tbody = document.getElementById('productsTbody');
-        if(!tbody) return;
-        tbody.innerHTML = '';
-        if(!data.rows || !data.rows.length){
-            tbody.innerHTML = '<tr><td colspan="12" style="text-align:center;padding:2rem;color:#9ca3af;">No products found.</td></tr>';
-            if(info) info.textContent = '0 records';
-            return;
-        }
-        if(info) info.textContent = data.rows.length + ' records';
-        data.rows.forEach(function(row, i){
-            var tr = document.createElement('tr');
-            tr.innerHTML =
-                '<td style="text-align:center;color:#9ca3af;font-size:0.78rem;">'+(i+1)+'</td>'
-               +'<td style="white-space:nowrap;color:#6b7280;font-size:0.8rem;">'+x(row.quot_date)+'</td>'
-               +'<td style="font-size:0.82rem;font-weight:600;">'+x(row.company)+'</td>'
-               +'<td style="font-weight:600;color:#111827;">'+x(row.name)+'</td>'
-               +'<td style="text-align:center;">'+x(row.size_uom)+'</td>'
-               +'<td style="text-align:right;">'+f(row.cost)+'</td>'
-               +'<td style="text-align:center;font-weight:600;">'+(row.moq ? Number(row.moq).toLocaleString('en-IN') : '—')+'</td>'
-               +'<td style="font-size:0.78rem;color:#6b7280;">'+x(row.pm_spec)+'</td>'
-               +'<td style="text-align:right;">'+f(row.pm_cost)+'</td>'
-               +'<td style="text-align:right;">'+f(row.fg_cost)+'</td>'
-               +'<td style="font-size:0.8rem;">'+x(row.category)+'</td>'
-               +'<td style="text-align:right;font-weight:700;color:#1e3a5f;">'+f(row.final_cost)+'</td>';
-            tbody.appendChild(tr);
-        });
-    }).catch(function(){ if(info) info.textContent = 'Error'; });
+{% block extra_css %}
+* { box-sizing: border-box; }
+
+/* ── Search bar ── */
+.qp-search-wrap { position:relative; width:100%; }
+.qp-search-wrap input { width:100%; padding:10px 36px 10px 36px; border:1.5px solid #e2e8f0; border-radius:10px; font-size:0.88rem; outline:none; color:#374151; background:#fff; }
+.qp-search-wrap input:focus { border-color:#1e3a5f; box-shadow:0 0 0 3px rgba(30,58,95,0.08); }
+.qp-search-icon { position:absolute; left:11px; top:50%; transform:translateY(-50%); color:#94a3b8; font-size:0.9rem; pointer-events:none; }
+.qp-clear-btn   { position:absolute; right:10px; top:50%; transform:translateY(-50%); background:none; border:none; color:#94a3b8; font-size:1rem; cursor:pointer; display:none; line-height:1; padding:2px; }
+
+/* ── Stats bar ── */
+.qp-stats { display:flex; align-items:center; gap:12px; padding:8px 14px; background:#f8fafc; border-bottom:1px solid #e2e8f0; font-size:0.8rem; flex-wrap:wrap; }
+.qp-stat-item { display:flex; align-items:center; gap:5px; color:#64748b; }
+.qp-stat-item strong { color:#1e3a5f; font-size:0.85rem; }
+#qpCount { margin-left:auto; font-size:0.78rem; color:#94a3b8; }
+
+/* ════════ MOBILE CARDS ════════ */
+.qp-cards { display:none; padding:8px 12px 16px; gap:10px; flex-direction:column; }
+.qp-card {
+    background:#fff;
+    border:1.5px solid #e8edf5;
+    border-radius:14px;
+    overflow:hidden;
+    box-shadow:0 2px 10px rgba(30,58,95,0.06);
 }
-function f(v){ if(!v || v==0) return '—'; return '₹ '+parseFloat(v).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2}); }
-function x(s){ if(!s || s==='—') return '—'; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-document.addEventListener('DOMContentLoaded', function(){
-    var si = document.getElementById('liveSearch');
-    var cb = document.getElementById('clearBtn');
-    if(si) si.addEventListener('input', liveFilter);
-    if(cb) cb.addEventListener('click', function(){ if(si){ si.value=''; liveFilter(); } });
-});
-</script>
-<style>
-.tbl-wrap { overflow-x:auto; }
-table { width:100%; border-collapse:collapse; min-width:1100px; font-size:0.82rem; }
-thead tr { background:linear-gradient(135deg,#1e3a5f,#2d5a8e); color:#fff; }
-th { padding:10px 8px; font-size:0.72rem; font-weight:700; letter-spacing:.05em; text-transform:uppercase; border-right:1px solid rgba(255,255,255,.15); white-space:nowrap; }
-tbody tr { border-bottom:1px solid #f1f5f9; transition:.1s; }
-tbody tr:hover { background:#f5f8ff; }
-tbody tr:nth-child(even) { background:#fafbff; }
-tbody tr:nth-child(even):hover { background:#f0f5ff; }
-td { padding:8px 8px; vertical-align:middle; }
-.badge-draft    { background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:20px;font-size:0.72rem;font-weight:600; }
-.badge-sent     { background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:20px;font-size:0.72rem;font-weight:600; }
-.badge-accepted { background:#d1fae5;color:#065f46;padding:2px 8px;border-radius:20px;font-size:0.72rem;font-weight:600; }
-.badge-rejected { background:#fee2e2;color:#991b1b;padding:2px 8px;border-radius:20px;font-size:0.72rem;font-weight:600; }
-.num { text-align:right; font-variant-numeric:tabular-nums; }
-.fi  { width:100%;border:1.5px solid #e5e7eb;border-radius:7px;padding:7px 10px;font-size:0.83rem;outline:none; }
-</style>
+.qp-card-header {
+    background:linear-gradient(135deg,#1e3a5f,#2d5a8e);
+    color:#fff;
+    padding:12px 14px;
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+    gap:10px;
+}
+.qp-card-product { font-size:1rem; font-weight:800; line-height:1.3; }
+.qp-card-company { font-size:0.75rem; opacity:0.8; margin-top:3px; }
+.qp-card-final { text-align:right; flex-shrink:0; }
+.qp-card-final-label { font-size:0.65rem; opacity:0.75; text-transform:uppercase; letter-spacing:.5px; }
+.qp-card-final-amt { font-size:1.15rem; font-weight:800; }
+.qp-card-body { padding:12px 14px; }
+.qp-card-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px 14px; margin-bottom:10px; }
+.qp-card-grid-3 { grid-template-columns:1fr 1fr 1fr; }
+.qp-card-field label { font-size:0.65rem; font-weight:700; color:#94a3b8; text-transform:uppercase; letter-spacing:.5px; display:block; margin-bottom:2px; }
+.qp-card-field span { font-size:0.82rem; color:#374151; font-weight:600; }
+.qp-card-costs {
+    display:grid;
+    grid-template-columns:1fr 1fr 1fr;
+    gap:6px;
+    background:#f8fafc;
+    border-radius:10px;
+    padding:10px;
+    border:1px solid #e2e8f0;
+}
+.qp-cost-item { text-align:center; }
+.qp-cost-item label { font-size:0.62rem; font-weight:700; color:#94a3b8; text-transform:uppercase; display:block; margin-bottom:3px; }
+.qp-cost-item span { font-size:0.82rem; font-weight:700; color:#1e3a5f; }
+.qp-card-pm { background:#fffbeb; border:1px solid #fde68a; border-radius:8px; padding:8px 10px; margin-top:8px; }
+.qp-card-pm label { font-size:0.65rem; font-weight:700; color:#92400e; text-transform:uppercase; display:block; margin-bottom:2px; }
+.qp-card-pm span { font-size:0.8rem; color:#78350f; }
+.qp-card-footer { display:flex; justify-content:space-between; align-items:center; padding:8px 14px; background:#f8fafc; border-top:1px solid #e2e8f0; }
+.qp-card-date { font-size:0.75rem; color:#94a3b8; }
+.qp-card-cat { background:#eff6ff; color:#1d4ed8; padding:3px 9px; border-radius:100px; font-size:0.72rem; font-weight:700; }
 
-<div class="card" style="margin-bottom:1rem;">
-  <div class="card-body" style="padding:.9rem 1.25rem;">
-    <div style="display:flex;gap:.6rem;align-items:center;">
-      <div style="flex:1;">
-        <input type="text" id="liveSearch" value="{{ search }}" placeholder="Search product name, category, company..." class="fi">
-      </div>
-      <button type="button" id="clearBtn" class="btn-outline" style="padding:8px 14px;font-size:0.83rem;">✕ Clear</button>
-      <span id="filterInfo" style="font-size:0.8rem;color:#6b7280;white-space:nowrap;"></span>
+/* ════════ DESKTOP TABLE ════════ */
+.qp-tbl-wrap { display:none; overflow-x:auto; }
+.qp-table { width:100%; border-collapse:collapse; min-width:1150px; font-size:0.82rem; }
+.qp-table thead tr { background:#f1f5f9; }
+.qp-table th { padding:10px 10px; font-size:0.78rem; font-weight:700; color:#374151; text-transform:uppercase; letter-spacing:.04em; border-bottom:2px solid #e2e8f0; white-space:nowrap; border-right:none; }
+.qp-table tbody tr { border-bottom:1px solid #f1f5f9; transition:.1s; }
+.qp-table tbody tr:hover { background:#f5f8ff; }
+.qp-table tbody tr:nth-child(even) { background:#fafbff; }
+.qp-table tbody tr:nth-child(even):hover { background:#f0f5ff; }
+.qp-table td { padding:9px 10px; vertical-align:middle; }
+
+/* ── Empty ── */
+.qp-empty { text-align:center; padding:3rem 1rem; color:var(--text3); }
+
+/* ── Toast ── */
+#qpToast { display:none; position:fixed; bottom:20px; left:50%; transform:translateX(-50%); background:#1e3a5f; color:#fff; padding:12px 20px; border-radius:12px; font-size:0.85rem; font-weight:600; z-index:9999; box-shadow:0 8px 30px rgba(0,0,0,0.25); max-width:90vw; }
+#qpToast.show { display:block; animation:qpToastIn .25s ease; }
+
+@keyframes qpToastIn { from{opacity:0;transform:translateX(-50%) translateY(10px)} to{opacity:1;transform:translateX(-50%) translateY(0)} }
+
+/* ── Responsive ── */
+@media (max-width:767px) {
+    .qp-cards    { display:flex; }
+    .qp-tbl-wrap { display:none !important; }
+    .card-hdr    { flex-direction:column; align-items:stretch; gap:10px; padding:12px; }
+}
+@media (min-width:768px) {
+    .qp-cards    { display:none !important; }
+    .qp-tbl-wrap { display:block; }
+}
+{% endblock %}
+
+{% block content %}
+<!-- Search Card -->
+<div class="card" style="margin-bottom:12px;">
+    <div class="card-body" style="padding:12px 14px;">
+        <div class="qp-search-wrap">
+            <span class="qp-search-icon">🔍</span>
+            <input type="text" id="qpSearch" value="{{ search }}" placeholder="Search product name, category, company..." autocomplete="off">
+            <button class="qp-clear-btn" id="qpClearBtn" onclick="qpClear()">✕</button>
+        </div>
     </div>
-  </div>
 </div>
 
+<!-- Main Card -->
 <div class="card">
-  <div class="card-body" style="padding:0;">
-    <div class="tbl-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th style="width:45px;text-align:center;">Sr.</th>
-            <th>Date</th>
-            <th>Company</th>
-            <th style="min-width:140px;">Product Name</th>
-            <th>Size</th>
-            <th style="text-align:right;">Cost (INR)</th>
-            <th style="text-align:center;">MOQ</th>
-            <th style="min-width:130px;">PM Specification</th>
-            <th style="text-align:right;">PM Cost</th>
-            <th style="text-align:right;">FG Cost</th>
-            <th>Category</th>
-            <th style="text-align:right;">Final Cost</th>
-          </tr>
-        </thead>
-        <tbody id="productsTbody">
-          {% for row in rows %}
-          <tr>
-            <td style="text-align:center;color:#9ca3af;font-size:0.78rem;">{{ row.sr }}</td>
-            <td style="white-space:nowrap;color:#6b7280;font-size:0.8rem;">{{ row.quot_date }}</td>
-            <td style="font-size:0.82rem;font-weight:600;">{{ row.company }}</td>
-            <td style="font-weight:600;color:#111827;">{{ row.name }}</td>
-            <td style="text-align:center;color:#374151;">
-              {{ row.size }}{% if row.uom %} {{ row.uom }}{% endif %}
-            </td>
-            <td class="num">
-              {% if row.cost %}₹ {{ '{:,.2f}'.format(row.cost|float) }}{% else %}—{% endif %}
-            </td>
-            <td style="text-align:center;font-weight:600;">
-              {% if row.moq %}{{ '{:,}'.format(row.moq|int) }}{% else %}—{% endif %}
-            </td>
-            <td style="font-size:0.78rem;color:#6b7280;max-width:130px;">
-              {{ row.pm_spec if row.pm_spec and row.pm_spec != '—' else '—' }}
-            </td>
-            <td class="num">
-              {% if row.pm_cost %}₹ {{ '{:,.2f}'.format(row.pm_cost|float) }}{% else %}—{% endif %}
-            </td>
-            <td class="num">
-              {% if row.fg_cost %}₹ {{ '{:,.2f}'.format(row.fg_cost|float) }}{% else %}—{% endif %}
-            </td>
-            <td style="font-size:0.8rem;">{{ row.category if row.category and row.category != '—' else '—' }}</td>
-            <td class="num" style="font-weight:700;color:#1e3a5f;font-size:0.85rem;">
-              {% if row.final_cost %}₹ {{ '{:,.2f}'.format(row.final_cost|float) }}{% else %}—{% endif %}
-            </td>
-
-          </tr>
-          {% else %}
-          <tr>
-            <td colspan="12" style="text-align:center;padding:2.5rem;color:#9ca3af;">
-              No products found. Create quotations with products first.
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+    <!-- Stats bar -->
+    <div class="qp-stats">
+        <div class="qp-stat-item">📦 Products: <strong id="qpCount">{{ rows|length }}</strong></div>
+        <div class="qp-stat-item" id="qpStatsExtra"></div>
     </div>
-  </div>
+
+    <!-- ═══ MOBILE CARDS ═══ -->
+    <div class="qp-cards" id="qpCards">
+        {% for row in rows %}
+        <div class="qp-card">
+            <div class="qp-card-header">
+                <div>
+                    <div class="qp-card-product">{{ row.name }}</div>
+                    <div class="qp-card-company">🏢 {{ row.company }}</div>
+                </div>
+                <div class="qp-card-final">
+                    <div class="qp-card-final-label">Final Cost</div>
+                    <div class="qp-card-final-amt">{% if row.final_cost and row.final_cost != 0 %}₹{{ '{:,.0f}'.format(row.final_cost|float) }}{% else %}—{% endif %}</div>
+                </div>
+            </div>
+            <div class="qp-card-body">
+                <div class="qp-card-grid">
+                    <div class="qp-card-field">
+                        <label>Size</label>
+                        <span>{{ row.size }}{% if row.uom %} {{ row.uom }}{% endif %}</span>
+                    </div>
+                    <div class="qp-card-field">
+                        <label>MOQ</label>
+                        <span>{% if row.moq %}{{ '{:,}'.format(row.moq|int) }}{% else %}—{% endif %}</span>
+                    </div>
+                </div>
+                <div class="qp-card-costs">
+                    <div class="qp-cost-item">
+                        <label>Cost</label>
+                        <span>{% if row.cost and row.cost != 0 %}₹{{ '{:,.0f}'.format(row.cost|float) }}{% else %}—{% endif %}</span>
+                    </div>
+                    <div class="qp-cost-item">
+                        <label>PM Cost</label>
+                        <span>{% if row.pm_cost and row.pm_cost != 0 %}₹{{ '{:,.0f}'.format(row.pm_cost|float) }}{% else %}—{% endif %}</span>
+                    </div>
+                    <div class="qp-cost-item">
+                        <label>FG Cost</label>
+                        <span>{% if row.fg_cost and row.fg_cost != 0 %}₹{{ '{:,.0f}'.format(row.fg_cost|float) }}{% else %}—{% endif %}</span>
+                    </div>
+                </div>
+                {% if row.pm_spec and row.pm_spec != '—' %}
+                <div class="qp-card-pm">
+                    <label>PM Specification</label>
+                    <span>{{ row.pm_spec }}</span>
+                </div>
+                {% endif %}
+            </div>
+            <div class="qp-card-footer">
+                <span class="qp-card-date">📅 {{ row.quot_date }}</span>
+                {% if row.category and row.category != '—' %}
+                <span class="qp-card-cat">{{ row.category }}</span>
+                {% endif %}
+            </div>
+        </div>
+        {% else %}
+        <div class="qp-empty">
+            <div style="font-size:2.5rem;margin-bottom:0.5rem;">📦</div>
+            <div style="font-weight:600;">No products found</div>
+            <div style="font-size:0.85rem;margin-top:4px;">Quotations mein products add karein</div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- ═══ DESKTOP TABLE ═══ -->
+    <div class="qp-tbl-wrap" id="qpTblWrap">
+        <table class="qp-table">
+            <thead>
+                <tr>
+                    <th style="width:40px;text-align:center;">Sr.</th>
+                    <th>Date</th>
+                    <th>Company</th>
+                    <th style="min-width:150px;">Product Name</th>
+                    <th>Size</th>
+                    <th style="text-align:right;">Cost (INR)</th>
+                    <th style="text-align:center;">MOQ</th>
+                    <th style="min-width:120px;">PM Specification</th>
+                    <th style="text-align:right;">PM Cost</th>
+                    <th style="text-align:right;">FG Cost</th>
+                    <th>Category</th>
+                    <th style="text-align:right;">Final Cost</th>
+                </tr>
+            </thead>
+            <tbody id="qpTbody">
+                {% for row in rows %}
+                <tr>
+                    <td style="text-align:center;color:#9ca3af;font-size:0.78rem;">{{ row.sr }}</td>
+                    <td style="white-space:nowrap;color:#6b7280;font-size:0.8rem;">{{ row.quot_date }}</td>
+                    <td style="font-size:0.82rem;font-weight:600;">{{ row.company }}</td>
+                    <td style="font-weight:600;color:#111827;">{{ row.name }}</td>
+                    <td style="text-align:center;color:#374151;">{{ row.size }}{% if row.uom %} {{ row.uom }}{% endif %}</td>
+                    <td style="text-align:right;">{% if row.cost and row.cost != 0 %}₹ {{ '{:,.2f}'.format(row.cost|float) }}{% else %}—{% endif %}</td>
+                    <td style="text-align:center;font-weight:600;">{% if row.moq %}{{ '{:,}'.format(row.moq|int) }}{% else %}—{% endif %}</td>
+                    <td style="font-size:0.78rem;color:#6b7280;">{{ row.pm_spec if row.pm_spec and row.pm_spec != '—' else '—' }}</td>
+                    <td style="text-align:right;">{% if row.pm_cost and row.pm_cost != 0 %}₹ {{ '{:,.2f}'.format(row.pm_cost|float) }}{% else %}—{% endif %}</td>
+                    <td style="text-align:right;">{% if row.fg_cost and row.fg_cost != 0 %}₹ {{ '{:,.2f}'.format(row.fg_cost|float) }}{% else %}—{% endif %}</td>
+                    <td style="font-size:0.8rem;">{{ row.category if row.category and row.category != '—' else '—' }}</td>
+                    <td style="text-align:right;font-weight:700;color:#1e3a5f;font-size:0.85rem;">{% if row.final_cost and row.final_cost != 0 %}₹ {{ '{:,.2f}'.format(row.final_cost|float) }}{% else %}—{% endif %}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="12" class="qp-empty">No products found. Quotations mein products add karein.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% if not rows %}
+    <div class="qp-empty" id="qpEmpty">
+        <div style="font-size:2.5rem;margin-bottom:0.5rem;">📦</div>
+        <div style="font-weight:600;">No products found</div>
+        <div style="font-size:0.85rem;margin-top:4px;">Quotations mein products add karein</div>
+    </div>
+    {% endif %}
 </div>
 
+<!-- Pagination -->
 {% if pagination.pages > 1 %}
-<div style="display:flex;justify-content:center;gap:.5rem;padding:1rem;">
-  {% if pagination.has_prev %}
-  <a href="{{ url_for('crm.quotation_products_list', page=pagination.prev_num, search=search, date_from=date_from, date_to=date_to) }}" class="btn-outline" style="font-size:0.8rem;padding:5px 12px;">← Prev</a>
-  {% endif %}
-  <span style="padding:5px 14px;background:#f1f5f9;border-radius:6px;font-size:0.82rem;">Page {{ pagination.page }} / {{ pagination.pages }}</span>
-  {% if pagination.has_next %}
-  <a href="{{ url_for('crm.quotation_products_list', page=pagination.next_num, search=search, date_from=date_from, date_to=date_to) }}" class="btn-outline" style="font-size:0.8rem;padding:5px 12px;">Next →</a>
-  {% endif %}
+<div style="display:flex;justify-content:center;align-items:center;gap:8px;padding:14px;flex-wrap:wrap;">
+    {% if pagination.has_prev %}
+    <a href="{{ url_for('crm.quotation_products_list', page=pagination.prev_num, search=search, date_from=date_from, date_to=date_to) }}" class="btn-outline" style="padding:7px 14px;font-size:0.83rem;">← Prev</a>
+    {% endif %}
+    <span style="color:var(--text2);font-size:0.83rem;">Page {{ pagination.page }} of {{ pagination.pages }}</span>
+    {% if pagination.has_next %}
+    <a href="{{ url_for('crm.quotation_products_list', page=pagination.next_num, search=search, date_from=date_from, date_to=date_to) }}" class="btn-outline" style="padding:7px 14px;font-size:0.83rem;">Next →</a>
+    {% endif %}
 </div>
 {% endif %}
 
+<div id="qpToast"></div>
+
+<script>
+// ── Live Search ───────────────────────────────────────────────
+let qpTimer = null;
+
+document.getElementById('qpSearch').addEventListener('input', function() {
+    document.getElementById('qpClearBtn').style.display = this.value ? 'block' : 'none';
+    clearTimeout(qpTimer);
+    qpTimer = setTimeout(qpDoSearch, 350);
+});
+
+if (document.getElementById('qpSearch').value)
+    document.getElementById('qpClearBtn').style.display = 'block';
+
+function qpClear() {
+    document.getElementById('qpSearch').value = '';
+    document.getElementById('qpClearBtn').style.display = 'none';
+    qpDoSearch();
+}
+
+function qpDoSearch() {
+    const q = document.getElementById('qpSearch').value.trim();
+    document.getElementById('qpCount').textContent = '⏳';
+
+    fetch('/crm/quotations/products/ajax?search=' + encodeURIComponent(q))
+        .then(r => r.json())
+        .then(data => {
+            document.getElementById('qpCount').textContent = data.total || data.rows.length;
+            qpRenderCards(data.rows);
+            qpRenderTable(data.rows);
+        })
+        .catch(() => { document.getElementById('qpCount').textContent = 'Error'; });
+}
+
+// ── Render Cards (Mobile) ─────────────────────────────────────
+function qpRenderCards(rows) {
+    const container = document.getElementById('qpCards');
+    if (!container) return;
+    container.innerHTML = '';
+
+    if (!rows || !rows.length) {
+        container.innerHTML = `<div class="qp-empty">
+            <div style="font-size:2.5rem;margin-bottom:0.5rem;">📦</div>
+            <div style="font-weight:600;">No products found</div>
+            <div style="font-size:0.85rem;margin-top:4px;">Search modify karein</div>
+        </div>`;
+        return;
+    }
+
+    rows.forEach(row => {
+        const finalAmt = row.final_cost && row.final_cost != 0
+            ? '₹' + parseFloat(row.final_cost).toLocaleString('en-IN', {minimumFractionDigits:0, maximumFractionDigits:0})
+            : '—';
+        const costFmt = v => (v && v != 0) ? '₹' + parseFloat(v).toLocaleString('en-IN', {minimumFractionDigits:0}) : '—';
+        const pmSpec = (row.pm_spec && row.pm_spec !== '—')
+            ? `<div class="qp-card-pm"><label>PM Specification</label><span>${esc(row.pm_spec)}</span></div>` : '';
+        const catBadge = (row.category && row.category !== '—')
+            ? `<span class="qp-card-cat">${esc(row.category)}</span>` : '';
+        const sizeUom = [row.size, row.uom].filter(Boolean).join(' ') || '—';
+        const moq = row.moq ? Number(row.moq).toLocaleString('en-IN') : '—';
+
+        const div = document.createElement('div');
+        div.className = 'qp-card';
+        div.innerHTML = `
+            <div class="qp-card-header">
+                <div>
+                    <div class="qp-card-product">${esc(row.name)}</div>
+                    <div class="qp-card-company">🏢 ${esc(row.company)}</div>
+                </div>
+                <div class="qp-card-final">
+                    <div class="qp-card-final-label">Final Cost</div>
+                    <div class="qp-card-final-amt">${finalAmt}</div>
+                </div>
+            </div>
+            <div class="qp-card-body">
+                <div class="qp-card-grid">
+                    <div class="qp-card-field"><label>Size</label><span>${esc(sizeUom)}</span></div>
+                    <div class="qp-card-field"><label>MOQ</label><span>${moq}</span></div>
+                </div>
+                <div class="qp-card-costs">
+                    <div class="qp-cost-item"><label>Cost</label><span>${costFmt(row.cost)}</span></div>
+                    <div class="qp-cost-item"><label>PM Cost</label><span>${costFmt(row.pm_cost)}</span></div>
+                    <div class="qp-cost-item"><label>FG Cost</label><span>${costFmt(row.fg_cost)}</span></div>
+                </div>
+                ${pmSpec}
+            </div>
+            <div class="qp-card-footer">
+                <span class="qp-card-date">📅 ${esc(row.quot_date)}</span>
+                ${catBadge}
+            </div>`;
+        container.appendChild(div);
+    });
+}
+
+// ── Render Table (Desktop) ────────────────────────────────────
+function qpRenderTable(rows) {
+    const tbody = document.getElementById('qpTbody');
+    if (!tbody) return;
+
+    if (!rows || !rows.length) {
+        tbody.innerHTML = '<tr><td colspan="12" class="qp-empty">No products found.</td></tr>';
+        return;
+    }
+
+    const fmt = v => (v && v != 0) ? '₹ ' + parseFloat(v).toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2}) : '—';
+
+    tbody.innerHTML = rows.map((row, i) => `
+        <tr>
+            <td style="text-align:center;color:#9ca3af;font-size:0.78rem;">${i+1}</td>
+            <td style="white-space:nowrap;color:#6b7280;font-size:0.8rem;">${esc(row.quot_date)}</td>
+            <td style="font-size:0.82rem;font-weight:600;">${esc(row.company)}</td>
+            <td style="font-weight:600;color:#111827;">${esc(row.name)}</td>
+            <td style="text-align:center;">${esc([row.size, row.uom].filter(Boolean).join(' ') || '—')}</td>
+            <td style="text-align:right;">${fmt(row.cost)}</td>
+            <td style="text-align:center;font-weight:600;">${row.moq ? Number(row.moq).toLocaleString('en-IN') : '—'}</td>
+            <td style="font-size:0.78rem;color:#6b7280;">${(row.pm_spec && row.pm_spec !== '—') ? esc(row.pm_spec) : '—'}</td>
+            <td style="text-align:right;">${fmt(row.pm_cost)}</td>
+            <td style="text-align:right;">${fmt(row.fg_cost)}</td>
+            <td style="font-size:0.8rem;">${(row.category && row.category !== '—') ? esc(row.category) : '—'}</td>
+            <td style="text-align:right;font-weight:700;color:#1e3a5f;font-size:0.85rem;">${fmt(row.final_cost)}</td>
+        </tr>`).join('');
+}
+
+function esc(s) {
+    return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+</script>
 {% endblock %}

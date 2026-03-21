@@ -547,8 +547,13 @@ function validateBasicTab() {
 }
 // Live clear on input
 document.addEventListener('DOMContentLoaded', function() {
-    // Load salary config from DB on page load
-    _fetchSalCfgFromDB(null);
+    // Load salary components on page load (for auto-calc)
+    if (typeof _fetchCompsAndCalc === 'function') {
+        fetch('/hr/salary-components', {headers:{'X-Requested-With':'XMLHttpRequest'}})
+        .then(function(r){ return r.json(); })
+        .then(function(d){ if(d.ok) _salComps = d.components; })
+        .catch(function(){});
+    }
 
     var liveFields = [
         ['empCodeInput','err_emp_code'],['empTypeSelect','err_emp_type'],

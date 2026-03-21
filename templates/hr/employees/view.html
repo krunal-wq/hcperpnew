@@ -43,6 +43,8 @@
     <div style="display:flex;gap:.5rem;flex-wrap:wrap;">
         {% if perm.can_edit %}<a href="{{ url_for('hr.emp_edit', id=employee.id) }}" class="btn-primary" style="font-size:.82rem;">✏️ Edit</a>{% endif %}
         <a href="{{ url_for('hr.emp_export_single', id=employee.id) }}" class="btn-outline" style="font-size:.82rem;">📥 Export Excel</a>
+        <a href="{{ url_for('hr.emp_id_card', id=employee.id) }}" class="btn-outline" style="font-size:.82rem;background:#f0fdf4;border-color:#86efac;color:#166534;">🪪 Download ID Card</a>
+        <a href="{{ url_for('hr.emp_id_card', id=employee.id, action='view') }}" target="_blank" class="btn-outline" style="font-size:.82rem;">👁 View ID Card</a>
         <a href="{{ url_for('hr.employees') }}" class="btn-outline" style="font-size:.82rem;">← Back</a>
     </div>
 </div>

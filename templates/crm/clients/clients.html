@@ -6,6 +6,7 @@
 
 {% block content %}
 
+
 <style>
 /* ── Inline Edit ─────────────────────────────────────── */
 .ie-cell { cursor:pointer; position:relative; }
@@ -39,6 +40,149 @@
 .trash-banner { background:#fef3c7; border-bottom:1px solid #fcd34d; padding:8px 14px; font-size:.8rem; color:#92400e; display:flex; align-items:center; gap:8px; }
 .ra-btn.restore-btn { color:#059669; border-color:#a7f3d0; background:#ecfdf5; display:flex; align-items:center; gap:4px; padding:3px 9px; border-radius:6px; border:1px solid; font-size:.73rem; font-weight:700; cursor:pointer; white-space:nowrap; }
 .ra-btn.restore-btn:hover { background:#d1fae5; }
+
+/* ════════ MOBILE CLIENT CARDS ════════ */
+.cl-cards { display:none; padding:8px 12px 16px; gap:10px; flex-direction:column; }
+.cl-card { background:#fff; border:1.5px solid #e8edf5; border-radius:16px; overflow:hidden; box-shadow:0 3px 12px rgba(30,58,95,0.07); }
+.cl-card.selected { border-color:#2563eb; box-shadow:0 0 0 3px rgba(37,99,235,0.12); }
+/* Gradient header */
+.cl-card-hdr { background:linear-gradient(135deg,#1e3a5f,#2d5a8e); color:#fff; padding:13px 14px 11px; display:flex; align-items:flex-start; gap:10px; }
+.cl-card-hdr-info { flex:1; min-width:0; }
+.cl-card-name { font-size:0.95rem; font-weight:800; }
+.cl-card-company { font-size:0.75rem; opacity:0.78; margin-top:2px; }
+.cl-card-code { flex-shrink:0; background:rgba(255,255,255,0.18); color:#fff; font-size:0.72rem; font-weight:700; padding:3px 8px; border-radius:6px; font-family:monospace; }
+/* Body */
+.cl-card-body { padding:12px 14px 4px; }
+.cl-card-grid { display:grid; grid-template-columns:1fr 1fr; gap:7px 14px; margin-bottom:10px; }
+.cl-card-field label { font-size:0.64rem; font-weight:700; color:#94a3b8; text-transform:uppercase; letter-spacing:.5px; display:block; margin-bottom:2px; }
+.cl-card-field span, .cl-card-field a { font-size:0.82rem; color:#374151; font-weight:600; text-decoration:none; }
+.cl-card-field a { color:#2563eb; }
+/* Brands strip */
+.cl-card-brands { display:flex; flex-wrap:wrap; gap:5px; margin-bottom:10px; }
+.cl-brand-tag { display:inline-block; padding:3px 9px; background:#eff6ff; color:#1e40af; border-radius:20px; font-size:0.72rem; font-weight:600; }
+/* Status badge */
+.cl-status-active   { display:inline-flex; align-items:center; gap:4px; padding:3px 10px; background:#dcfce7; color:#16a34a; border-radius:20px; font-size:0.72rem; font-weight:700; }
+.cl-status-inactive { display:inline-flex; align-items:center; gap:4px; padding:3px 10px; background:#fee2e2; color:#dc2626; border-radius:20px; font-size:0.72rem; font-weight:700; }
+/* Footer */
+.cl-card-footer { display:flex; justify-content:space-between; align-items:center; padding:9px 14px; background:#f8fafc; border-top:1px solid #f1f5f9; }
+.cl-card-actions { display:flex; gap:6px; }
+.cl-card-actions a, .cl-card-actions button { width:34px; height:34px; border-radius:8px; display:flex; align-items:center; justify-content:center; border:none; cursor:pointer; text-decoration:none; }
+.cl-act-view { background:#eff6ff; color:#1d4ed8; }
+.cl-act-edit { background:#f0fdf4; color:#166534; }
+
+/* 3-dot action dropdown */
+.cl-action-wrap { position:relative; display:inline-block; }
+.cl-dots-btn {
+    width:32px; height:32px; border-radius:8px; border:1px solid var(--border);
+    background:#fff; cursor:pointer; display:flex; align-items:center;
+    justify-content:center; color:var(--text2); transition:.15s;
+    font-size:1.1rem; font-weight:900; letter-spacing:1px;
+}
+.cl-dots-btn:hover { background:var(--bg); border-color:#94a3b8; color:var(--text); }
+.cl-dd-menu {
+    display:none; position:absolute; right:0; top:calc(100% + 4px);
+    background:#fff; border:1.5px solid var(--border); border-radius:12px;
+    box-shadow:0 8px 24px rgba(0,0,0,.12); min-width:210px;
+    z-index:500; overflow:hidden;
+}
+.cl-dd-menu.open { display:block; }
+.cl-dd-item {
+    display:flex; align-items:center; gap:9px;
+    padding:9px 14px; font-size:.83rem; font-weight:600;
+    color:var(--text); text-decoration:none; cursor:pointer;
+    transition:background .1s; border:none; background:none;
+    width:100%; text-align:left;
+}
+.cl-dd-item:hover { background:var(--bg); }
+.cl-dd-item.danger { color:#dc2626; }
+.cl-dd-item.danger:hover { background:#fef2f2; }
+.cl-dd-item.purple { color:#7c3aed; }
+.cl-dd-item.purple:hover { background:#f3e8ff; }
+.cl-dd-item.green  { color:#059669; }
+.cl-dd-item.green:hover  { background:#d1fae5; }
+.cl-dd-item.blue   { color:#2563eb; }
+.cl-dd-item.blue:hover   { background:#eff6ff; }
+.cl-dd-divider { height:1px; background:var(--border); margin:3px 0; }
+.cl-dd-item-ic { width:20px; text-align:center; flex-shrink:0; font-size:.95rem; }
+.cl-act-del  { background:#fef2f2; color:#dc2626; }
+
+@media (max-width:767px) {
+    .cl-cards { display:flex; }
+    #clientsTable { display:none; }
+    .tbl-wrap { padding:0; }
+    .grid-footer .rows-selector { display:none; }
+}
+</style>
+<style>
+/* ── Inline Edit ─────────────────────────────────────── */
+.ie-cell { cursor:pointer; position:relative; }
+.ie-cell:hover { background:rgba(37,99,235,.04); }
+.ie-view { display:flex; align-items:center; gap:5px; min-height:22px; }
+.ie-pencil { opacity:0; font-size:11px; color:#94a3b8; transition:opacity .15s; flex-shrink:0; }
+.ie-cell:hover .ie-pencil { opacity:1; }
+.ie-input-wrap { display:none; align-items:center; gap:4px; }
+.ie-input, .ie-select {
+  padding:3px 7px; border:1.5px solid #2563eb; border-radius:5px;
+  font-size:.8rem; font-family:inherit; color:var(--text);
+  background:#fff; outline:none; min-width:80px; max-width:180px;
+  box-shadow:0 0 0 3px rgba(37,99,235,.1);
+}
+.ie-select { cursor:pointer; }
+.ie-ok  { padding:3px 8px; border-radius:5px; border:none; background:#2563eb; color:#fff; font-size:.72rem; font-weight:700; cursor:pointer; }
+.ie-esc { padding:3px 7px; border-radius:5px; border:1px solid var(--border); background:#f8fafc; color:var(--text2); font-size:.72rem; cursor:pointer; }
+.ie-cell.ie-saving .ie-view { opacity:.4; }
+.ie-cell.ie-saved  { animation: ie-flash .5s ease; }
+@keyframes ie-flash { 0%,100%{background:transparent} 40%{background:rgba(16,185,129,.12)} }
+.sbadge.active   { background:#d1fae5; color:#065f46; }
+.sbadge.active::before { background:#10b981; }
+.sbadge.inactive { background:#fee2e2; color:#991b1b; }
+.sbadge.inactive::before { background:#ef4444; }
+.entity-link { color:#2563eb; font-weight:600; text-decoration:none; }
+.entity-link:hover { text-decoration:underline; }
+/* Trash styles */
+.trash-tab { color:#dc2626 !important; }
+.trash-tab.active { color:#dc2626 !important; background:#fef2f2 !important; }
+.trash-badge { display:inline-block; background:#dc2626; color:#fff; font-size:.6rem; font-weight:800; padding:1px 5px; border-radius:10px; margin-left:3px; vertical-align:middle; }
+.trash-banner { background:#fef3c7; border-bottom:1px solid #fcd34d; padding:8px 14px; font-size:.8rem; color:#92400e; display:flex; align-items:center; gap:8px; }
+.ra-btn.restore-btn { color:#059669; border-color:#a7f3d0; background:#ecfdf5; display:flex; align-items:center; gap:4px; padding:3px 9px; border-radius:6px; border:1px solid; font-size:.73rem; font-weight:700; cursor:pointer; white-space:nowrap; }
+.ra-btn.restore-btn:hover { background:#d1fae5; }
+
+/* ════════ MOBILE CLIENT CARDS ════════ */
+.cl-cards { display:none; padding:8px 12px 16px; gap:10px; flex-direction:column; }
+.cl-card { background:#fff; border:1.5px solid #e8edf5; border-radius:16px; overflow:hidden; box-shadow:0 3px 12px rgba(30,58,95,0.07); }
+.cl-card.selected { border-color:#2563eb; box-shadow:0 0 0 3px rgba(37,99,235,0.12); }
+/* Gradient header */
+.cl-card-hdr { background:linear-gradient(135deg,#1e3a5f,#2d5a8e); color:#fff; padding:13px 14px 11px; display:flex; align-items:flex-start; gap:10px; }
+.cl-card-hdr-info { flex:1; min-width:0; }
+.cl-card-name { font-size:0.95rem; font-weight:800; }
+.cl-card-company { font-size:0.75rem; opacity:0.78; margin-top:2px; }
+.cl-card-code { flex-shrink:0; background:rgba(255,255,255,0.18); color:#fff; font-size:0.72rem; font-weight:700; padding:3px 8px; border-radius:6px; font-family:monospace; }
+/* Body */
+.cl-card-body { padding:12px 14px 4px; }
+.cl-card-grid { display:grid; grid-template-columns:1fr 1fr; gap:7px 14px; margin-bottom:10px; }
+.cl-card-field label { font-size:0.64rem; font-weight:700; color:#94a3b8; text-transform:uppercase; letter-spacing:.5px; display:block; margin-bottom:2px; }
+.cl-card-field span, .cl-card-field a { font-size:0.82rem; color:#374151; font-weight:600; text-decoration:none; }
+.cl-card-field a { color:#2563eb; }
+/* Brands strip */
+.cl-card-brands { display:flex; flex-wrap:wrap; gap:5px; margin-bottom:10px; }
+.cl-brand-tag { display:inline-block; padding:3px 9px; background:#eff6ff; color:#1e40af; border-radius:20px; font-size:0.72rem; font-weight:600; }
+/* Status badge */
+.cl-status-active   { display:inline-flex; align-items:center; gap:4px; padding:3px 10px; background:#dcfce7; color:#16a34a; border-radius:20px; font-size:0.72rem; font-weight:700; }
+.cl-status-inactive { display:inline-flex; align-items:center; gap:4px; padding:3px 10px; background:#fee2e2; color:#dc2626; border-radius:20px; font-size:0.72rem; font-weight:700; }
+/* Footer */
+.cl-card-footer { display:flex; justify-content:space-between; align-items:center; padding:9px 14px; background:#f8fafc; border-top:1px solid #f1f5f9; }
+.cl-card-actions { display:flex; gap:6px; }
+.cl-card-actions a, .cl-card-actions button { width:34px; height:34px; border-radius:8px; display:flex; align-items:center; justify-content:center; border:none; cursor:pointer; text-decoration:none; }
+.cl-act-view { background:#eff6ff; color:#1d4ed8; }
+.cl-act-edit { background:#f0fdf4; color:#166534; }
+.cl-act-del  { background:#fef2f2; color:#dc2626; }
+
+@media (max-width:767px) {
+    .cl-cards { display:flex; }
+    #clientsTable { display:none; }
+    .tbl-wrap { padding:0; }
+    .grid-footer .rows-selector { display:none; }
+}
 </style>
 
 <div class="page-hdr" style="margin-bottom:.6rem;">
@@ -275,6 +419,124 @@
     <input type="hidden" id="cl_h_sort_dir"     name="sort_dir"    value="{{ sort_dir }}">
   </form>
 
+  <!-- ═══ MOBILE CARDS ═══ -->
+  <div class="cl-cards" id="clMobileCards">
+    <!-- Select All row -->
+    <div style="display:flex;align-items:center;gap:10px;padding:4px 2px 6px;">
+      <input type="checkbox" id="mobileCheckAll" style="width:18px;height:18px;accent-color:#1e3a5f;cursor:pointer;"
+        onchange="document.querySelectorAll('.row-check-item').forEach(c=>c.checked=this.checked); document.getElementById('checkAll').checked=this.checked; updateBulkBtn();">
+      <label for="mobileCheckAll" style="font-size:0.82rem;color:#64748b;font-weight:600;cursor:pointer;">Select All</label>
+      <span style="font-size:0.78rem;color:#94a3b8;margin-left:auto;" id="clMobileCount">{{ clients|length }} client{{ 's' if clients|length != 1 }}</span>
+    </div>
+
+    {% for c in clients %}
+    <div class="cl-card" id="clcard-{{ c.id }}">
+      <!-- Gradient Header -->
+      <div class="cl-card-hdr">
+        <input type="checkbox" class="row-cb row-check-item" value="{{ c.id }}" onchange="updateBulkBtn();var all=document.querySelectorAll('.row-check-item'),chk=document.querySelectorAll('.row-check-item:checked');var ma=document.getElementById('mobileCheckAll');if(ma){ma.indeterminate=chk.length>0&&chk.length<all.length;ma.checked=chk.length===all.length;}"
+          style="width:17px;height:17px;accent-color:#fff;cursor:pointer;margin-top:3px;flex-shrink:0;">
+        <div class="cl-card-hdr-info">
+          <div class="cl-card-name">
+            <a href="{{ url_for('crm.client_view', id=c.id) }}" style="color:#fff;text-decoration:none;">{{ c.contact_name }}</a>
+          </div>
+          {% if c.company_name %}<div class="cl-card-company">🏢 {{ c.company_name }}</div>{% endif %}
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px;">
+          <code class="cl-card-code">{{ c.code }}</code>
+          {% if c.status == 'active' %}
+            <span class="cl-status-active">✅ Active</span>
+          {% else %}
+            <span class="cl-status-inactive">⛔ Inactive</span>
+          {% endif %}
+        </div>
+      </div>
+      <!-- Body -->
+      <div class="cl-card-body">
+        <div class="cl-card-grid">
+          <div class="cl-card-field">
+            <label>Mobile</label>
+            <span>{{ c.mobile or '—' }}</span>
+          </div>
+          <div class="cl-card-field">
+            <label>City</label>
+            <span>{{ c.city or '—' }}</span>
+          </div>
+          <div class="cl-card-field">
+            <label>Email</label>
+            <span style="font-size:0.75rem;word-break:break-all;">{{ c.email or '—' }}</span>
+          </div>
+          <div class="cl-card-field">
+            <label>State</label>
+            <span>{{ c.state or '—' }}</span>
+          </div>
+          {% if c.gstin %}
+          <div class="cl-card-field" style="grid-column:span 2;">
+            <label>GSTIN</label>
+            <span style="font-family:monospace;font-size:0.78rem;">{{ c.gstin }}</span>
+          </div>
+          {% endif %}
+        </div>
+        {% if c.brands %}
+        <div class="cl-card-brands">
+          {% for b in c.brands %}<span class="cl-brand-tag">{{ b.brand_name }}</span>{% endfor %}
+        </div>
+        {% endif %}
+      </div>
+      <!-- Footer -->
+      <div class="cl-card-footer">
+        <span style="font-size:0.73rem;color:#94a3b8;">📅 {{ c.created_at.strftime('%d-%m-%Y') if c.created_at else '—' }}</span>
+        <div class="cl-card-actions">
+          {% if show_trash %}
+          <form method="POST" action="{{ url_for('crm.client_restore', id=c.id) }}" style="display:inline;">
+            <button type="submit" style="background:#ede9fe;color:#5b21b6;width:auto;padding:6px 12px;border-radius:8px;border:none;font-size:0.75rem;font-weight:700;cursor:pointer;">♻️ Restore</button>
+          </form>
+          {% else %}
+          <div class="cl-action-wrap">
+            <button class="cl-dots-btn" onclick="toggleClDd(this, event)" title="Actions">⋯</button>
+            <div class="cl-dd-menu">
+              <!-- View / Edit / Delete -->
+              <a href="{{ url_for('crm.client_view', id=c.id) }}" class="cl-dd-item blue">
+                <span class="cl-dd-item-ic">👁️</span> View Client
+              </a>
+              <a href="{{ url_for('crm.client_edit', id=c.id) }}" class="cl-dd-item">
+                <span class="cl-dd-item-ic">✏️</span> Edit Client
+              </a>
+              <div class="cl-dd-divider"></div>
+              <!-- NPD / EPD -->
+              <a href="/npd/projects/new?lead_id=&client_name={{ c.contact_name|urlencode }}&client_company={{ c.company_name|urlencode }}&client_email={{ c.email|urlencode }}&client_phone={{ c.mobile|urlencode }}&type=npd" class="cl-dd-item purple">
+                <span class="cl-dd-item-ic">🧪</span>
+                <span>Create NPD Project<span style="display:block;font-size:.7rem;font-weight:400;color:#9ca3af;">New Product Development</span></span>
+              </a>
+              <a href="/npd/projects/new?lead_id=&client_name={{ c.contact_name|urlencode }}&client_company={{ c.company_name|urlencode }}&client_email={{ c.email|urlencode }}&client_phone={{ c.mobile|urlencode }}&type=existing" class="cl-dd-item green">
+                <span class="cl-dd-item-ic">📦</span>
+                <span>Create EPD Project<span style="display:block;font-size:.7rem;font-weight:400;color:#9ca3af;">Existing Product</span></span>
+              </a>
+              <a href="/crm/quotations/new?client_id={{ c.id }}" class="cl-dd-item blue">
+                <span class="cl-dd-item-ic">📄</span>
+                <span>Send NPD Quote<span style="display:block;font-size:.7rem;font-weight:400;color:#9ca3af;">Create Quotation</span></span>
+              </a>
+              <div class="cl-dd-divider"></div>
+              <!-- Delete -->
+              <form method="POST" action="{{ url_for('crm.client_delete', id=c.id) }}"
+                    onsubmit="return confirm('Move {{ c.contact_name }} to trash?')">
+                <button type="submit" class="cl-dd-item danger">
+                  <span class="cl-dd-item-ic">🗑️</span> Delete Client
+                </button>
+              </form>
+            </div>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+    {% else %}
+    <div style="text-align:center;padding:3rem;color:#94a3b8;">
+      <div style="font-size:2rem;margin-bottom:8px;">🏢</div>
+      <div style="font-weight:600;">No clients found</div>
+    </div>
+    {% endfor %}
+  </div>
+
   <!-- ── Table ── -->
   <div class="tbl-wrap">
     <table id="clientsTable">
@@ -355,9 +617,37 @@
                   </button>
                 </form>
               {% else %}
-                <a href="{{ url_for('crm.client_view', id=c.id) }}" class="ra-btn" title="View"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></a>
-                <a href="{{ url_for('crm.client_edit', id=c.id) }}" class="ra-btn" title="Edit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></a>
-                <form method="POST" action="{{ url_for('crm.client_delete', id=c.id) }}" style="display:inline;" data-no-review><button type="submit" class="ra-btn danger" title="Move to Trash"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg></button></form>
+                <div class="cl-action-wrap">
+                  <button class="cl-dots-btn" onclick="toggleClDd(this, event)" title="Actions">⋯</button>
+                  <div class="cl-dd-menu">
+                    <a href="{{ url_for('crm.client_view', id=c.id) }}" class="cl-dd-item blue">
+                      <span class="cl-dd-item-ic">👁️</span> View Client
+                    </a>
+                    <a href="{{ url_for('crm.client_edit', id=c.id) }}" class="cl-dd-item">
+                      <span class="cl-dd-item-ic">✏️</span> Edit Client
+                    </a>
+                    <div class="cl-dd-divider"></div>
+                    <a href="/npd/projects/new?client_name={{ c.contact_name|urlencode }}&client_company={{ c.company_name|urlencode }}&client_email={{ c.email|urlencode }}&client_phone={{ c.mobile|urlencode }}&type=npd" class="cl-dd-item purple">
+                      <span class="cl-dd-item-ic">🧪</span>
+                      <span>Create NPD Project<span style="display:block;font-size:.7rem;font-weight:400;color:#9ca3af;">New Product Development</span></span>
+                    </a>
+                    <a href="/npd/projects/new?client_name={{ c.contact_name|urlencode }}&client_company={{ c.company_name|urlencode }}&client_email={{ c.email|urlencode }}&client_phone={{ c.mobile|urlencode }}&type=existing" class="cl-dd-item green">
+                      <span class="cl-dd-item-ic">📦</span>
+                      <span>Create EPD Project<span style="display:block;font-size:.7rem;font-weight:400;color:#9ca3af;">Existing Product</span></span>
+                    </a>
+                    <a href="/crm/quotations/new?client_id={{ c.id }}" class="cl-dd-item blue">
+                      <span class="cl-dd-item-ic">📄</span>
+                      <span>Send NPD Quote<span style="display:block;font-size:.7rem;font-weight:400;color:#9ca3af;">Create Quotation</span></span>
+                    </a>
+                    <div class="cl-dd-divider"></div>
+                    <form method="POST" action="{{ url_for('crm.client_delete', id=c.id) }}"
+                          onsubmit="return confirm('Move {{ c.contact_name }} to trash?')" data-no-review>
+                      <button type="submit" class="cl-dd-item danger">
+                        <span class="cl-dd-item-ic">🗑️</span> Delete Client
+                      </button>
+                    </form>
+                  </div>
+                </div>
               {% endif %}
             </div>
           </td>
@@ -648,5 +938,26 @@ function doExport(){
   Object.keys(map).forEach(function(k){var el=document.getElementById(map[k]);if(el&&el.value)p.set(k,el.value);});
   window.location.href='/crm/clients/export?'+p.toString();
 }
+
+// ── Client 3-dot dropdown ──
+function toggleClDd(btn, e) {
+    e.stopPropagation();
+    var menu = btn.nextElementSibling;
+    var isOpen = menu.classList.contains('open');
+    // Close all open menus first
+    document.querySelectorAll('.cl-dd-menu.open').forEach(function(m){ m.classList.remove('open'); });
+    if (!isOpen) {
+        menu.classList.add('open');
+        // Auto flip if near bottom
+        var rect = menu.getBoundingClientRect();
+        if (rect.bottom > window.innerHeight) {
+            menu.style.top = 'auto';
+            menu.style.bottom = 'calc(100% + 4px)';
+        }
+    }
+}
+document.addEventListener('click', function() {
+    document.querySelectorAll('.cl-dd-menu.open').forEach(function(m){ m.classList.remove('open'); });
+});
 </script>
 {% endblock %}
