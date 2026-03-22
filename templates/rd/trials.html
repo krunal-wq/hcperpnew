@@ -281,16 +281,32 @@ function openPredefineModal(pid, name, code) {
     document.getElementById('predefine-proj-code').textContent = code;
     document.getElementById('predefine-subtitle').textContent  = 'Project: ' + name + ' — set default parameter values';
 
-    // Load saved defaults for this project from server
+    // Pre-fill immediately from localStorage cache (instant UX)
+    var cacheKey = 'predefine_' + pid;
+    try {
+        var cached = localStorage.getItem(cacheKey);
+        if(cached) {
+            var c = JSON.parse(cached);
+            renderPredefineTable(c.params || {});
+            document.getElementById('predefine-sample-name').value = c.sample_name || '';
+            document.getElementById('predefine-remark').value = c.remark || '';
+        } else {
+            renderPredefineTable({});
+        }
+    } catch(e) { renderPredefineTable({}); }
+
+    // Then fetch from server and update (source of truth)
     fetch('/rd/project-params/' + pid)
     .then(function(r){ return r.json(); })
     .then(function(d){
         renderPredefineTable(d.params || {});
         document.getElementById('predefine-sample-name').value = d.sample_name || '';
         document.getElementById('predefine-remark').value = d.remark || '';
+        // Update cache with latest server data
+        try { localStorage.setItem(cacheKey, JSON.stringify({params: d.params||{}, sample_name: d.sample_name||'', remark: d.remark||''})); } catch(e){}
     })
     .catch(function(){
-        renderPredefineTable({});
+        // Keep localStorage pre-fill if fetch fails
     });
 
     document.getElementById('predefine-modal').classList.add('open');
@@ -359,6 +375,15 @@ function savePredefineParams() {
     .then(function(d){
         if(d.success){
             btn.textContent = '✅ Saved!';
+            // Save to localStorage cache so next open pre-fills immediately
+            try {
+                var cacheKey = 'predefine_' + currentPredefineProjectId;
+                localStorage.setItem(cacheKey, JSON.stringify({
+                    params: params,
+                    sample_name: document.getElementById('predefine-sample-name').value.trim(),
+                    remark: document.getElementById('predefine-remark').value.trim()
+                }));
+            } catch(e){}
             setTimeout(function(){ closePredefineModal(); btn.textContent = '💾 Save Defaults'; btn.disabled = false; }, 800);
         } else {
             btn.textContent = '💾 Save Defaults'; btn.disabled = false;
