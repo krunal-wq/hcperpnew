@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}R&D Performance{% endblock %}
+{% block page_title %}R&D Performance{% endblock %}
+{% block bread %}R&D / Performance{% endblock %}
+{% block extra_css %}
+.rd-tbl{width:100%;border-collapse:collapse;font-size:.82rem;}
+.rd-tbl th{font-size:.68rem;font-weight:800;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;padding:.5rem .9rem;border-bottom:2px solid var(--border);text-align:left;background:var(--bg);}
+.rd-tbl td{padding:.65rem .9rem;border-bottom:1px solid var(--border);color:var(--text);vertical-align:middle;}
+.rd-tbl tbody tr:hover td{background:var(--blue-lt);}
+.rd-tbl tbody tr:last-child td{border-bottom:none;}
+.exec-av{width:30px;height:30px;border-radius:8px;background:var(--blue-lt);color:var(--blue);display:inline-flex;align-items:center;justify-content:center;font-size:.72rem;font-weight:800;flex-shrink:0;}
+.prog-bar{height:6px;background:var(--border);border-radius:3px;overflow:hidden;width:80px;}
+.prog-fill{height:100%;border-radius:3px;}
+{% endblock %}
+{% block content %}
+<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.75rem;margin-bottom:1rem;">
+    <div>
+        <div style="font-size:1.1rem;font-weight:800;">◑ R&D Performance</div>
+        <div style="font-size:.77rem;color:var(--text3);">Executive performance leaderboard & project stats</div>
+    </div>
+    <a href="{{ url_for('rd.dashboard') }}" class="btn-grid-action">← Dashboard</a>
+</div>
+
+<div style="background:var(--amber-lt);border:1px solid var(--amber-border);border-radius:var(--r-md);padding:.75rem 1rem;margin-bottom:1rem;font-size:.82rem;color:#92400e;">
+    ⬧ Performance reflects trial success rate, project completion, and on-time delivery.
+</div>
+
+<div class="card">
+    <div style="padding:.85rem 1.1rem;border-bottom:1px solid var(--border);font-weight:700;font-size:.9rem;">🏆 Executive Performance Leaderboard</div>
+    <table class="rd-tbl">
+        <thead><tr>
+            <th>Rank</th><th>Executive</th><th>Projects</th><th>Completed</th>
+            <th>Trial Success</th><th>On-Time</th><th>Score</th><th>Status</th>
+        </tr></thead>
+        <tbody>
+        {% set medals = ['🥇','🥈','🥉'] %}
+        {% for p in perf %}
+        <tr>
+            <td style="font-size:1.1rem;">{{ medals[loop.index0] if loop.index0 < 3 else '#'+loop.index|string }}</td>
+            <td>
+                <div style="display:flex;align-items:center;gap:.5rem;">
+                    {% set ini = (p.user.full_name.split()[0][0] + p.user.full_name.split()[-1][0]).upper() if p.user.full_name.split()|length > 1 else p.user.full_name[:2].upper() %}
+                    <div class="exec-av">{{ ini }}</div>
+                    <div>
+                        <div style="font-weight:600;font-size:.83rem;">{{ p.user.full_name }}</div>
+                        <div style="font-size:.7rem;color:var(--text3);">{{ p.user.role or 'R&D Executive' }}</div>
+                    </div>
+                </div>
+            </td>
+            <td style="font-weight:600;">{{ p.proj_count }}</td>
+            <td style="font-weight:600;color:var(--green);">{{ p.completed }}</td>
+            <td>
+                <div style="display:flex;align-items:center;gap:.4rem;">
+                    <div class="prog-bar">
+                        <div class="prog-fill" style="width:{{ p.trial_rate }}%;background:{% if p.trial_rate>=80 %}var(--green){% elif p.trial_rate>=60 %}var(--blue){% else %}var(--amber){% endif %};"></div>
+                    </div>
+                    <span style="font-size:.75rem;font-weight:700;">{{ p.trial_rate }}%</span>
+                </div>
+                <div style="font-size:.7rem;color:var(--text3);">{{ p.trial_pass }}/{{ p.trial_total }}</div>
+            </td>
+            <td>{{ p.ontime_rate }}%</td>
+            <td style="font-size:1rem;font-weight:900;">{{ p.score }}</td>
+            <td>
+                {% if p.user.is_active %}
+                <span style="background:var(--green-lt);color:#166534;border:1px solid var(--green-border);padding:2px 7px;border-radius:100px;font-size:.7rem;font-weight:700;">Active</span>
+                {% else %}
+                <span style="background:var(--bg);color:var(--text3);border:1px solid var(--border);padding:2px 7px;border-radius:100px;font-size:.7rem;font-weight:700;">Inactive</span>
+                {% endif %}
+            </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="8" style="text-align:center;padding:2rem;color:var(--text3);">No performance data yet</td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

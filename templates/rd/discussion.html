@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% block title %}R&D Discussion Board{% endblock %}
+{% block page_title %}R&D Discussion Board{% endblock %}
+{% block bread %}R&D / Discussion{% endblock %}
+{% block extra_css %}
+.disc-layout{display:grid;grid-template-columns:250px 1fr;gap:14px;height:calc(100vh - 200px);min-height:480px;}
+@media(max-width:768px){.disc-layout{grid-template-columns:1fr;height:auto;}}
+.disc-sb{background:var(--white);border:1px solid var(--border);border-radius:var(--r-xl);display:flex;flex-direction:column;overflow:hidden;box-shadow:var(--sh-sm);}
+.disc-thread-list{overflow-y:auto;flex:1;}
+.disc-ti{padding:.65rem .9rem;border-bottom:1px solid var(--border);cursor:pointer;transition:.1s;}
+.disc-ti:hover{background:var(--bg);}
+.disc-ti.active{background:var(--blue-lt);}
+.disc-main{background:var(--white);border:1px solid var(--border);border-radius:var(--r-xl);display:flex;flex-direction:column;overflow:hidden;box-shadow:var(--sh-sm);}
+.disc-msgs{flex:1;overflow-y:auto;padding:.9rem 1.1rem;display:flex;flex-direction:column;gap:.75rem;}
+.msg{display:flex;gap:.6rem;align-items:flex-start;}
+.msg.me{flex-direction:row-reverse;}
+.msg-av{width:30px;height:30px;border-radius:9px;background:var(--blue-lt);color:var(--blue);display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:800;flex-shrink:0;}
+.msg-body{max-width:70%;}
+.msg-name{font-size:.7rem;color:var(--text3);margin-bottom:2px;}
+.msg-name.right{text-align:right;}
+.bubble{padding:.6rem .85rem;border-radius:10px;font-size:.83rem;line-height:1.5;}
+.bubble-o{background:var(--bg);border:1px solid var(--border);border-radius:10px 10px 10px 3px;}
+.bubble-m{background:var(--blue);color:#fff;border-radius:10px 10px 3px 10px;}
+.disc-inp{padding:.7rem;border-top:1px solid var(--border);display:flex;gap:.5rem;align-items:flex-end;}
+.disc-ta{flex:1;padding:.45rem .75rem;border:1px solid var(--border);border-radius:var(--r-sm);font-size:.83rem;font-family:inherit;resize:none;outline:none;background:var(--bg);color:var(--text);}
+.disc-ta:focus{border-color:var(--blue);}
+{% endblock %}
+{% block content %}
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:.5rem;">
+    <div>
+        <div style="font-size:1.1rem;font-weight:800;">💬 Discussion Board</div>
+        <div style="font-size:.77rem;color:var(--text3);">Project discussions — R&D team communication</div>
+    </div>
+    <a href="{{ url_for('rd.dashboard') }}" class="btn-grid-action">← Dashboard</a>
+</div>
+<div class="disc-layout">
+    <!-- Sidebar -->
+    <div class="disc-sb">
+        <div style="padding:.75rem .9rem;border-bottom:1px solid var(--border);">
+            <div style="font-weight:700;font-size:.88rem;margin-bottom:.5rem;">Project Channels</div>
+            <input type="text" placeholder="Search..." style="width:100%;padding:.35rem .65rem;border:1px solid var(--border);border-radius:var(--r-sm);font-size:.8rem;background:var(--bg);outline:none;">
+        </div>
+        <div class="disc-thread-list">
+            {% if projects %}
+            {% for p in projects %}
+            <div class="disc-ti {{ 'active' if loop.first }}" onclick="selectThread(this,'{{ p.product_name|replace("'","\\'") }}','{{ p.code }}')">
+                <div style="display:flex;align-items:center;justify-content:space-between;">
+                    <div style="font-size:.83rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+                        {% if p.project_type == 'npd' %}🧪{% else %}📦{% endif %} {{ p.product_name[:28] }}
+                    </div>
+                </div>
+                <div style="font-size:.72rem;color:var(--text3);">{{ p.code }}</div>
+            </div>
+            {% endfor %}
+            <div class="disc-ti" onclick="selectThread(this,'General R&D Updates','All Projects')">
+                <div style="font-size:.83rem;font-weight:600;">📢 General R&D Updates</div>
+                <div style="font-size:.72rem;color:var(--text3);">All Projects</div>
+            </div>
+            {% else %}
+            <div style="padding:2rem;text-align:center;color:var(--text3);font-size:.82rem;">No active projects</div>
+            {% endif %}
+        </div>
+    </div>
+    <!-- Messages -->
+    <div class="disc-main">
+        <div style="padding:.75rem 1rem;border-bottom:1px solid var(--border);">
+            <div style="font-weight:700;font-size:.9rem;" id="disc-title">{{ projects[0].product_name if projects else 'Select a channel' }}</div>
+            <div style="font-size:.72rem;color:var(--text3);" id="disc-meta">{{ projects[0].code if projects else '' }}</div>
+        </div>
+        <div class="disc-msgs" id="disc-msgs">
+            <div style="text-align:center;color:var(--text3);font-size:.82rem;margin-top:2rem;">💬 Start the conversation for this project.</div>
+        </div>
+        <div class="disc-inp">
+            <textarea class="disc-ta" id="msg-input" placeholder="Type a message... (Enter to send)" rows="2"
+                      onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMsg();}"></textarea>
+            <button class="btn-add-new" onclick="sendMsg()" style="align-self:flex-end;">Send</button>
+        </div>
+    </div>
+</div>
+<script>
+var messages={};
+var curThread=null;
+function selectThread(el,title,meta){
+    document.querySelectorAll('.disc-ti').forEach(x=>x.classList.remove('active'));
+    el.classList.add('active');
+    document.getElementById('disc-title').textContent=title;
+    document.getElementById('disc-meta').textContent=meta;
+    curThread=title;renderMsgs();
+}
+function renderMsgs(){
+    var msgs=messages[curThread]||[];
+    var c=document.getElementById('disc-msgs');
+    if(!msgs.length){c.innerHTML='<div style="text-align:center;color:var(--text3);font-size:.82rem;margin-top:2rem;">💬 Start the conversation for this project.</div>';return;}
+    c.innerHTML=msgs.map(m=>`<div class="msg ${m.mine?'me':''}">
+        ${!m.mine?`<div class="msg-av">${m.ini}</div>`:''}
+        <div class="msg-body">
+            <div class="msg-name ${m.mine?'right':''}">${m.from} · ${m.time}</div>
+            <div class="bubble ${m.mine?'bubble-m':'bubble-o'}">${m.text}</div>
+        </div>
+        ${m.mine?`<div class="msg-av" style="background:var(--blue);color:#fff;">You</div>`:''}
+    </div>`).join('');
+    c.scrollTop=c.scrollHeight;
+}
+function sendMsg(){
+    var inp=document.getElementById('msg-input');
+    var text=inp.value.trim();
+    if(!text||!curThread)return;
+    if(!messages[curThread])messages[curThread]=[];
+    var now=new Date();
+    var time=now.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
+    messages[curThread].push({from:'{{ current_user.full_name }}',ini:'{{ (current_user.full_name[:2])|upper if current_user.full_name else "ME" }}',text,time,mine:true});
+    inp.value='';renderMsgs();
+}
+{% if projects %}curThread='{{ projects[0].product_name|replace("'","\\'") }}';{% endif %}
+</script>
+{% endblock %}

@@ -46,6 +46,33 @@ class NPDProject(db.Model):
     product_category= db.Column(db.String(100))
     product_range   = db.Column(db.String(100))
 
+    # Extended Product Fields (from NPD form)
+    area_of_application = db.Column(db.String(200))        # Face, Body, Hair, etc.
+    market_level        = db.Column(db.String(100))        # Premium, Mass, etc.
+    no_of_samples       = db.Column(db.Integer, default=0)
+    moq                 = db.Column(db.String(100))        # Minimum Order Qty
+    product_size        = db.Column(db.String(100))        # 50ml, 100g, etc.
+    description         = db.Column(db.Text)               # Product description
+    ingredients         = db.Column(db.Text)               # Full ingredient list
+    active_ingredients  = db.Column(db.String(500))        # Active Ing Required
+    video_link          = db.Column(db.String(500))        # Reference video URL
+    reference_brand     = db.Column(db.String(200))        # e.g. Foxtale
+    reference_product_name = db.Column(db.String(300))     # e.g. Foxtale Oil Face Wash
+    variant_type        = db.Column(db.String(200))        # Variant/Variety/Type
+    appearance          = db.Column(db.String(500))        # Clear gel, Cream, etc.
+    product_claim       = db.Column(db.Text)               # Product claim
+    label_claim         = db.Column(db.Text)               # Label claim
+    costing_range       = db.Column(db.String(200))        # e.g. as per benchmark
+    ph_value            = db.Column(db.String(50))         # pH value
+    packaging_type      = db.Column(db.String(200))        # fliptop cap with bottle
+    fragrance           = db.Column(db.String(200))        # Fragrance/Flavours
+    viscosity           = db.Column(db.String(200))        # Viscosity
+    priority            = db.Column(db.String(50), default='Normal')  # Urgent/High/Normal/Low
+    project_start_date  = db.Column(db.Date)
+    project_lead_days   = db.Column(db.Integer)            # Lead time in days
+    project_end_date    = db.Column(db.Date)
+    client_coordinator  = db.Column(db.String(200))        # Client side coordinator
+
     # NPD-specific fields
     npd_fee_paid    = db.Column(db.Boolean, default=False)
     npd_fee_amount  = db.Column(db.Numeric(10, 2), default=10000)
@@ -115,6 +142,9 @@ class NPDProject(db.Model):
     activity_logs   = db.relationship('NPDActivityLog', backref='project', lazy=True,
                                       cascade='all, delete-orphan',
                                       order_by='NPDActivityLog.created_at.desc()')
+    comments        = db.relationship('NPDComment', backref='project', lazy=True,
+                                      cascade='all, delete-orphan',
+                                      order_by='NPDComment.created_at.desc()')
 
     @property
     def status_label(self):
@@ -423,6 +453,40 @@ class NPDArtwork(db.Model):
 # ─────────────────────────────────────────────────────────────
 # NPD Activity Log
 # ─────────────────────────────────────────────────────────────
+
+# ─────────────────────────────────────────────────────────────
+# NPD Comment (Discussion Board & Internal Discussion Board)
+# ─────────────────────────────────────────────────────────────
+
+class NPDComment(db.Model):
+    __tablename__ = 'npd_comments'
+
+    id          = db.Column(db.Integer, primary_key=True)
+    project_id  = db.Column(db.Integer, db.ForeignKey('npd_projects.id'), nullable=False)
+    user_id     = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    comment     = db.Column(db.Text, nullable=False)
+    is_internal = db.Column(db.Boolean, default=False)   # False = Discussion, True = Internal
+    attachment  = db.Column(db.String(300), nullable=True)
+    created_at  = db.Column(db.DateTime, default=datetime.now)
+
+    user        = db.relationship('User', backref='npd_comments', lazy=True)
+
+
+# ─────────────────────────────────────────────────────────────
+# NPD Note (Rich text note per project)
+# ─────────────────────────────────────────────────────────────
+
+class NPDNote(db.Model):
+    __tablename__ = 'npd_notes'
+
+    id          = db.Column(db.Integer, primary_key=True)
+    project_id  = db.Column(db.Integer, db.ForeignKey('npd_projects.id'), nullable=False, unique=True)
+    content     = db.Column(db.Text)
+    updated_by  = db.Column(db.Integer, db.ForeignKey('users.id'))
+    updated_at  = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
+
+    editor      = db.relationship('User', backref='npd_notes', lazy=True)
+
 
 class NPDActivityLog(db.Model):
     __tablename__ = 'npd_activity_logs'

@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}R&D Settings{% endblock %}
+{% block page_title %}R&D Settings{% endblock %}
+{% block bread %}R&D / Settings{% endblock %}
+{% block content %}
+<div style="max-width:560px;">
+    <div class="card" style="margin-bottom:1rem;">
+        <div class="card-hdr"><div class="card-title">⚙️ System Configuration</div></div>
+        <div class="card-body">
+            <div style="margin-bottom:.85rem;"><label style="font-size:.78rem;font-weight:700;color:var(--text2);display:block;margin-bottom:.3rem;">Company Name</label>
+                <input style="width:100%;padding:.45rem .75rem;border:1px solid var(--border);border-radius:var(--r-sm);font-size:.85rem;background:var(--white);" value="HCP Wellness Pvt. Ltd."></div>
+            <div style="margin-bottom:.85rem;"><label style="font-size:.78rem;font-weight:700;color:var(--text2);display:block;margin-bottom:.3rem;">R&D Department Code</label>
+                <input style="width:100%;padding:.45rem .75rem;border:1px solid var(--border);border-radius:var(--r-sm);font-size:.85rem;background:var(--white);" value="RD-NPD-2024"></div>
+            <div style="margin-bottom:1rem;"><label style="font-size:.78rem;font-weight:700;color:var(--text2);display:block;margin-bottom:.3rem;">Default Trial Code Prefix</label>
+                <input style="width:100%;padding:.45rem .75rem;border:1px solid var(--border);border-radius:var(--r-sm);font-size:.85rem;background:var(--white);" value="T-2024-"></div>
+            <button class="btn-add-new">Save Settings</button>
+        </div>
+    </div>
+    <div class="card">
+        <div class="card-hdr"><div class="card-title">🔔 Notification Preferences</div></div>
+        <div class="card-body">
+            {% for item in [('New trial submitted','on'),('Project status change','on'),('Discussion mention','on'),('Executive deactivation alert','off')] %}
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:.6rem 0;border-bottom:1px solid var(--border);font-size:.85rem;">
+                <span>{{ item[0] }}</span>
+                <button onclick="this.textContent=this.textContent==='ON'?'OFF':'ON';this.style.background=this.textContent==='ON'?'var(--green)':'var(--border)'"
+                        style="background:var(--{{ 'green' if item[1]=='on' else 'border' }});color:#fff;border:none;border-radius:12px;padding:3px 10px;font-size:.72rem;font-weight:700;cursor:pointer;min-width:36px;">{{ 'ON' if item[1]=='on' else 'OFF' }}</button>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}

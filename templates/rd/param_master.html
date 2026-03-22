@@ -1,0 +1,244 @@
+{% extends "base.html" %}
+{% block title %}Test Parameter Master{% endblock %}
+{% block page_title %}Test Parameter Master{% endblock %}
+{% block bread %}R&D / Parameter Master{% endblock %}
+
+{% block extra_css %}
+.pm-tbl{width:100%;border-collapse:collapse;font-size:.84rem;}
+.pm-tbl th{font-size:.68rem;font-weight:800;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;padding:.5rem .9rem;border-bottom:2px solid var(--border);text-align:left;background:var(--bg);}
+.pm-tbl td{padding:.55rem .9rem;border-bottom:1px solid var(--border);color:var(--text);vertical-align:middle;}
+.pm-tbl tbody tr:last-child td{border-bottom:none;}
+.pm-tbl tbody tr:hover td{background:var(--blue-lt);}
+.pm-inp{padding:.3rem .6rem;border:1px solid var(--border);border-radius:5px;font-size:.83rem;font-family:inherit;background:var(--white);color:var(--text);outline:none;transition:border-color .15s;}
+.pm-inp:focus{border-color:var(--blue);box-shadow:0 0 0 2px var(--blue-lt);}
+.drag-handle{cursor:grab;color:var(--text3);font-size:1rem;padding:0 4px;user-select:none;}
+.drag-over-row td{background:var(--blue-lt)!important;}
+.pm-row-inactive td{opacity:.45;}
+.badge-active{background:var(--green-lt);color:#166534;border:1px solid var(--green-border);padding:2px 9px;border-radius:100px;font-size:.7rem;font-weight:700;}
+.badge-inactive{background:var(--bg);color:var(--text3);border:1px solid var(--border);padding:2px 9px;border-radius:100px;font-size:.7rem;font-weight:700;}
+.modal-ov{display:none;position:fixed;inset:0;background:rgba(15,23,42,.5);z-index:9999;align-items:center;justify-content:center;backdrop-filter:blur(3px);}
+.modal-ov.open{display:flex;}
+.modal-box{background:var(--white);border-radius:var(--r-xl);width:460px;max-width:95vw;box-shadow:0 20px 60px rgba(0,0,0,.18);border:1px solid var(--border);}
+.modal-hdr{padding:1rem 1.4rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.modal-body{padding:1.25rem 1.4rem;}
+.modal-foot{padding:.85rem 1.4rem;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:.5rem;}
+.fg{display:flex;flex-direction:column;gap:.3rem;margin-bottom:.85rem;}
+.fg label{font-size:.78rem;font-weight:700;color:var(--text2);}
+.fg input{padding:.45rem .75rem;border:1px solid var(--border);border-radius:var(--r-sm);font-size:.85rem;color:var(--text);background:var(--white);font-family:inherit;width:100%;outline:none;box-sizing:border-box;}
+.fg input:focus{border-color:var(--blue);box-shadow:0 0 0 3px var(--blue-lt);}
+{% endblock %}
+
+{% block content %}
+
+<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.75rem;margin-bottom:1rem;">
+    <div>
+        <div style="font-size:1.1rem;font-weight:800;">🧪 Test Parameter Master</div>
+        <div style="font-size:.77rem;color:var(--text3);">Define parameters shown in R&D trial forms — drag to reorder</div>
+    </div>
+    <div style="display:flex;gap:.4rem;flex-wrap:wrap;">
+        <button class="btn-add-new" onclick="openAddModal()">+ Add Parameter</button>
+        <a href="{{ url_for('rd.dashboard') }}" class="btn-grid-action">← Dashboard</a>
+    </div>
+</div>
+
+<!-- Stats -->
+<div style="display:flex;gap:.65rem;margin-bottom:1rem;flex-wrap:wrap;">
+    <div style="background:var(--white);border:1px solid var(--border);border-radius:var(--r-md);padding:.45rem .9rem;display:flex;align-items:center;gap:.4rem;font-size:.82rem;">
+        <strong style="color:var(--blue);">{{ params|length }}</strong><span style="color:var(--text3);">Total</span>
+    </div>
+    <div style="background:var(--white);border:1px solid var(--border);border-radius:var(--r-md);padding:.45rem .9rem;display:flex;align-items:center;gap:.4rem;font-size:.82rem;">
+        <strong style="color:#16a34a;">{{ params|selectattr('is_active')|list|length }}</strong><span style="color:var(--text3);">Active</span>
+    </div>
+    <div style="background:var(--white);border:1px solid var(--border);border-radius:var(--r-md);padding:.45rem .9rem;display:flex;align-items:center;gap:.4rem;font-size:.82rem;">
+        <strong style="color:var(--text3);">{{ params|rejectattr('is_active')|list|length }}</strong><span style="color:var(--text3);">Inactive</span>
+    </div>
+</div>
+
+<!-- Table -->
+<div class="card">
+    <div style="overflow-x:auto;">
+    <table class="pm-tbl" id="param-table">
+        <thead>
+            <tr>
+                <th style="width:32px;"></th>
+                <th style="width:40px;">#</th>
+                <th>Parameter Name</th>
+                <th>Default Value</th>
+                <th>Unit</th>
+                <th>Status</th>
+                <th style="width:110px;">Actions</th>
+            </tr>
+        </thead>
+        <tbody id="param-tbody">
+        {% if params %}
+        {% for p in params %}
+        <tr class="pm-row{% if not p.is_active %} pm-row-inactive{% endif %}" data-id="{{ p.id }}" data-order="{{ p.sort_order }}">
+            <td><span class="drag-handle" title="Drag to reorder">⠿</span></td>
+            <td style="font-size:.72rem;color:var(--text3);font-family:monospace;" class="sort-num">{{ p.sort_order }}</td>
+            <td>
+                <input class="pm-inp" style="width:175px;" value="{{ p.name }}"
+                       onblur="inlineUpdate(this,{{ p.id }},'name')">
+            </td>
+            <td>
+                <input class="pm-inp" style="width:145px;" value="{{ p.default_val or '' }}" placeholder="—"
+                       onblur="inlineUpdate(this,{{ p.id }},'default_val')">
+            </td>
+            <td>
+                <input class="pm-inp" style="width:75px;" value="{{ p.unit or '' }}" placeholder="cP"
+                       onblur="inlineUpdate(this,{{ p.id }},'unit')">
+            </td>
+            <td>
+                <span class="{{ 'badge-active' if p.is_active else 'badge-inactive' }}">
+                    {{ '✅ Active' if p.is_active else '⏸ Inactive' }}
+                </span>
+            </td>
+            <td>
+                <div style="display:flex;gap:.3rem;">
+                    <button onclick="toggleStatus({{ p.id }},this)"
+                            title="{{ 'Deactivate' if p.is_active else 'Activate' }}"
+                            style="padding:3px 8px;border:1px solid var(--border);border-radius:5px;background:var(--white);cursor:pointer;font-size:.75rem;">
+                        {{ '⏸' if p.is_active else '▶' }}
+                    </button>
+                    <button onclick="deleteParam({{ p.id }},'{{ p.name|replace("'","") }}')"
+                            style="padding:3px 8px;border:1px solid var(--red-border);border-radius:5px;background:var(--red-lt);cursor:pointer;font-size:.75rem;color:var(--red);">
+                        🗑
+                    </button>
+                </div>
+            </td>
+        </tr>
+        {% endfor %}
+        {% else %}
+        <tr id="empty-row">
+            <td colspan="7" style="text-align:center;padding:3rem;color:var(--text3);">
+                <div style="font-size:2rem;margin-bottom:.5rem;">🧪</div>
+                <div style="font-weight:700;">No parameters yet</div>
+                <button class="btn-add-new" style="margin-top:.75rem;" onclick="openAddModal()">+ Add First Parameter</button>
+            </td>
+        </tr>
+        {% endif %}
+        </tbody>
+    </table>
+    </div>
+</div>
+
+<!-- Add Modal -->
+<div class="modal-ov" id="add-modal">
+    <div class="modal-box">
+        <div class="modal-hdr">
+            <div style="font-weight:800;font-size:1rem;">+ Add Test Parameter</div>
+            <button onclick="closeAddModal()" style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:var(--text3);">✕</button>
+        </div>
+        <div class="modal-body">
+            <div class="fg">
+                <label>Parameter Name <span style="color:var(--red);">*</span></label>
+                <input type="text" id="add-name" placeholder="e.g. Foam Height">
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;">
+                <div class="fg" style="margin-bottom:0;">
+                    <label>Default Value</label>
+                    <input type="text" id="add-default" placeholder="e.g. Clear">
+                </div>
+                <div class="fg" style="margin-bottom:0;">
+                    <label>Unit</label>
+                    <input type="text" id="add-unit" placeholder="e.g. cP">
+                </div>
+            </div>
+        </div>
+        <div class="modal-foot">
+            <button class="btn-grid-action" onclick="closeAddModal()">Cancel</button>
+            <button class="btn-add-new" id="add-submit-btn" onclick="submitAdd()">✅ Add Parameter</button>
+        </div>
+    </div>
+</div>
+
+<script>
+function openAddModal(){
+    ['add-name','add-default','add-unit'].forEach(function(id){ document.getElementById(id).value=''; });
+    document.getElementById('add-modal').classList.add('open');
+    setTimeout(function(){ document.getElementById('add-name').focus(); },100);
+}
+function closeAddModal(){ document.getElementById('add-modal').classList.remove('open'); }
+document.getElementById('add-modal').addEventListener('click',function(e){ if(e.target===this) closeAddModal(); });
+document.getElementById('add-name').addEventListener('keydown',function(e){ if(e.key==='Enter') submitAdd(); });
+
+function submitAdd(){
+    var name = document.getElementById('add-name').value.trim();
+    if(!name){ document.getElementById('add-name').style.borderColor='var(--red)'; return; }
+    var btn = document.getElementById('add-submit-btn');
+    btn.textContent='Adding...'; btn.disabled=true;
+    fetch('/rd/param-master/add',{
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({name:name, default_val:document.getElementById('add-default').value.trim(), unit:document.getElementById('add-unit').value.trim()})
+    }).then(function(r){return r.json();}).then(function(d){
+        if(d.success){ window.location.reload(); }
+        else{ alert(d.error||'Error'); btn.textContent='✅ Add Parameter'; btn.disabled=false; }
+    });
+}
+
+function inlineUpdate(input, pid, field){
+    fetch('/rd/param-master/'+pid+'/update',{
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({field:field, value:input.value.trim()})
+    }).then(function(r){return r.json();}).then(function(d){
+        input.style.borderColor = d.success ? 'var(--green)' : 'var(--red)';
+        setTimeout(function(){ input.style.borderColor=''; },1200);
+    });
+}
+
+function toggleStatus(pid, btn){
+    fetch('/rd/param-master/'+pid+'/toggle',{method:'POST'})
+    .then(function(r){return r.json();}).then(function(d){ if(d.success) window.location.reload(); });
+}
+
+function deleteParam(pid, name){
+    if(!confirm('Delete parameter "'+name+'"?\nThis will not affect already-saved trials.')) return;
+    fetch('/rd/param-master/'+pid+'/delete',{method:'POST'})
+    .then(function(r){return r.json();}).then(function(d){
+        if(d.success){
+            var row = document.querySelector('tr[data-id="'+pid+'"]');
+            if(row) row.remove();
+        }
+    });
+}
+
+// ── Drag to Reorder ──
+var dragSrc = null;
+document.querySelectorAll('.drag-handle').forEach(function(h){
+    var row = h.closest('tr');
+    row.draggable = true;
+    row.addEventListener('dragstart',function(e){
+        dragSrc=this; e.dataTransfer.effectAllowed='move'; this.style.opacity='.4';
+    });
+    row.addEventListener('dragend',function(){
+        this.style.opacity='';
+        document.querySelectorAll('.drag-over-row').forEach(function(r){ r.classList.remove('drag-over-row'); });
+        saveOrder();
+    });
+    row.addEventListener('dragover',function(e){
+        e.preventDefault(); if(this!==dragSrc) this.classList.add('drag-over-row');
+    });
+    row.addEventListener('dragleave',function(){ this.classList.remove('drag-over-row'); });
+    row.addEventListener('drop',function(e){
+        e.preventDefault(); this.classList.remove('drag-over-row');
+        if(dragSrc && dragSrc!==this){
+            var tbody=document.getElementById('param-tbody');
+            var rows=Array.from(tbody.querySelectorAll('tr[data-id]'));
+            if(rows.indexOf(dragSrc)<rows.indexOf(this)) this.after(dragSrc);
+            else this.before(dragSrc);
+        }
+    });
+});
+
+function saveOrder(){
+    var rows=document.querySelectorAll('#param-tbody tr[data-id]');
+    var order=Array.from(rows).map(function(r,i){
+        r.querySelector('.sort-num').textContent=i+1;
+        return {id:parseInt(r.dataset.id), sort_order:i+1};
+    });
+    fetch('/rd/param-master/reorder',{
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({order:order})
+    });
+}
+</script>
+{% endblock %}

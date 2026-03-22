@@ -1471,6 +1471,10 @@
         {% set _mod = 'dashboard' %}
         {% if _pg in ('crm_dashboard','leads','clients','lead_import','client_import','sample_orders','mail_master','contribution_config','leaderboard','quotations','quotation_products') %}
             {% set _mod = 'crm' %}
+        {% elif _pg in ('npd_dashboard','npd_projects','npd_reports','npd_milestone_master','npd_npd_dashboard','npd_npd_projects','npd_epd_dashboard','npd_epd_projects') %}
+            {% set _mod = 'npd' %}
+        {% elif _pg in ('rd_dashboard','rd_projects','rd_trials','rd_executives','rd_performance','rd_discussion','rd_settings') %}
+            {% set _mod = 'rd' %}
         {% elif _pg in ('cat_master','uom_master','hsn_master','masters') %}
             {% set _mod = 'masters' %}
         {% elif _pg in ('hr_emp_dashboard','hr_employees','hr_contractors','hierarchy','salary_config') %}
@@ -1503,6 +1507,63 @@
                 <a class="nav-a" href="/crm/sample-orders"><span class="nav-ic">🧾</span><span class="nav-txt">Sample Orders</span></a>
                 <a class="nav-a" href="/crm/quotations"><span class="nav-ic">📄</span><span class="nav-txt">Quotations</span></a>
                 <a class="nav-a" href="/crm/quotations/products"><span class="nav-ic">📋</span><span class="nav-txt">Quot. Product List</span></a>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if role in ('admin','manager','user','sales') %}
+        <div class="sb-sec sb-accordion">
+            <button class="sb-acc-hdr" onclick="toggleAccordion(this)">
+                <span class="sb-acc-ic">🧪</span>
+                <span class="sb-acc-lbl">NPD</span>
+                <span class="sb-acc-arrow">▶</span>
+            </button>
+            <div class="sb-acc-body">
+                <a class="nav-a" href="/npd/npd-dashboard"><span class="nav-ic">📊</span><span class="nav-txt">NPD Dashboard</span></a>
+                <a class="nav-a" href="/npd/npd-projects"><span class="nav-ic">📋</span><span class="nav-txt">NPD Projects</span></a>
+                <a class="nav-a" href="/npd/npd-new"><span class="nav-ic">➕</span><span class="nav-txt">New NPD Project</span></a>
+            </div>
+        </div>
+        <div class="sb-sec sb-accordion">
+            <button class="sb-acc-hdr" onclick="toggleAccordion(this)">
+                <span class="sb-acc-ic">📦</span>
+                <span class="sb-acc-lbl">EPD</span>
+                <span class="sb-acc-arrow">▶</span>
+            </button>
+            <div class="sb-acc-body">
+                <a class="nav-a" href="/npd/epd-dashboard"><span class="nav-ic">📊</span><span class="nav-txt">EPD Dashboard</span></a>
+                <a class="nav-a" href="/npd/epd-projects"><span class="nav-ic">📋</span><span class="nav-txt">EPD Projects</span></a>
+                <a class="nav-a" href="/npd/epd-new"><span class="nav-ic">➕</span><span class="nav-txt">New EPD Project</span></a>
+            </div>
+        </div>
+        {% if role == 'admin' %}
+        <div class="sb-sec sb-accordion">
+            <button class="sb-acc-hdr" onclick="toggleAccordion(this)">
+                <span class="sb-acc-ic">⚙️</span>
+                <span class="sb-acc-lbl">NPD Masters</span>
+                <span class="sb-acc-arrow">▶</span>
+            </button>
+            <div class="sb-acc-body">
+                <a class="nav-a" href="/npd/milestone-master"><span class="nav-ic">⚙️</span><span class="nav-txt">Milestone Master</span></a>
+                <a class="nav-a" href="/npd/reports"><span class="nav-ic">📈</span><span class="nav-txt">Reports</span></a>
+            </div>
+        </div>
+        {% endif %}
+        {% endif %}
+        {% if role in ('admin','manager','user','sales') %}
+        <div class="sb-sec sb-accordion">
+            <button class="sb-acc-hdr" onclick="toggleAccordion(this)">
+                <span class="sb-acc-ic">⚗️</span>
+                <span class="sb-acc-lbl">R&D</span>
+                <span class="sb-acc-arrow">▶</span>
+            </button>
+            <div class="sb-acc-body">
+                <a class="nav-a" href="/rd/dashboard"><span class="nav-ic">◈</span><span class="nav-txt">R&D Dashboard</span></a>
+                <a class="nav-a" href="/rd/projects"><span class="nav-ic">⬡</span><span class="nav-txt">R&D Projects</span></a>
+                <a class="nav-a" href="/rd/trials"><span class="nav-ic">⚗</span><span class="nav-txt">R&D Trials</span></a>
+                <a class="nav-a" href="/rd/executives"><span class="nav-ic">◎</span><span class="nav-txt">Executives</span></a>
+                <a class="nav-a" href="/rd/performance"><span class="nav-ic">◑</span><span class="nav-txt">Performance</span></a>
+                <a class="nav-a" href="/rd/discussion"><span class="nav-ic">💬</span><span class="nav-txt">Discussion</span></a>
             </div>
         </div>
         {% endif %}
@@ -1620,6 +1681,72 @@
                 </a>
             </div>
         </div>
+
+        {# ════ R&D MODULE ════ #}
+        {% elif _mod == 'rd' %}
+        <div class="sb-sec">
+            <a class="nav-a nav-back" href="{{ url_for('dashboard') }}">
+                <span class="nav-ic">←</span><span class="nav-txt">Main Dashboard</span>
+            </a>
+        </div>
+        <div class="sb-sec">
+            <div class="sb-sec-lbl">R&D NPD System</div>
+            <a class="nav-a {% if _pg == 'rd_dashboard' %}active{% endif %}" href="/rd/dashboard"><span class="nav-ic">◈</span><span class="nav-txt">Dashboard</span></a>
+            <a class="nav-a {% if _pg == 'rd_projects' %}active{% endif %}" href="/rd/projects"><span class="nav-ic">⬡</span><span class="nav-txt">Projects</span></a>
+            <a class="nav-a {% if _pg == 'rd_trials' %}active{% endif %}" href="/rd/trials"><span class="nav-ic">⚗</span><span class="nav-txt">R&D Trials</span></a>
+            <a class="nav-a {% if _pg == 'rd_executives' %}active{% endif %}" href="/rd/executives"><span class="nav-ic">◎</span><span class="nav-txt">Executives</span></a>
+            <a class="nav-a {% if _pg == 'rd_performance' %}active{% endif %}" href="/rd/performance"><span class="nav-ic">◑</span><span class="nav-txt">Performance</span></a>
+            <a class="nav-a {% if _pg == 'rd_discussion' %}active{% endif %}" href="/rd/discussion"><span class="nav-ic">💬</span><span class="nav-txt">Discussion</span></a>
+            <a class="nav-a {% if _pg == 'rd_settings' %}active{% endif %}" href="/rd/settings"><span class="nav-ic">⚙️</span><span class="nav-txt">Settings</span></a>
+        </div>
+        <div class="sb-sec">
+            <div class="sb-sec-lbl">Quick Links</div>
+            <a class="nav-a" href="/npd/npd-new"><span class="nav-ic">🧪</span><span class="nav-txt">New NPD Project</span></a>
+            <a class="nav-a" href="/npd/epd-new"><span class="nav-ic">📦</span><span class="nav-txt">New EPD Project</span></a>
+        </div>
+
+        {# ════ NPD MODULE ════ #}
+        {% elif _mod == 'npd' %}
+        <div class="sb-sec">
+            <a class="nav-a nav-back" href="{{ url_for('dashboard') }}">
+                <span class="nav-ic">←</span><span class="nav-txt">Main Dashboard</span>
+            </a>
+        </div>
+        <div class="sb-sec">
+            <div class="sb-sec-lbl" style="color:#7c3aed;">🧪 NPD</div>
+            <a class="nav-a {% if _pg == 'npd_npd_dashboard' %}active{% endif %}" href="/npd/npd-dashboard">
+                <span class="nav-ic">📊</span><span class="nav-txt">NPD Dashboard</span>
+            </a>
+            <a class="nav-a {% if _pg == 'npd_npd_projects' %}active{% endif %}" href="/npd/npd-projects">
+                <span class="nav-ic">📋</span><span class="nav-txt">NPD Projects</span>
+            </a>
+            <a class="nav-a" href="/npd/npd-new">
+                <span class="nav-ic">➕</span><span class="nav-txt">New NPD Project</span>
+            </a>
+        </div>
+        <div class="sb-sec">
+            <div class="sb-sec-lbl" style="color:#059669;">📦 EPD</div>
+            <a class="nav-a {% if _pg == 'npd_epd_dashboard' %}active{% endif %}" href="/npd/epd-dashboard">
+                <span class="nav-ic">📊</span><span class="nav-txt">EPD Dashboard</span>
+            </a>
+            <a class="nav-a {% if _pg == 'npd_epd_projects' %}active{% endif %}" href="/npd/epd-projects">
+                <span class="nav-ic">📋</span><span class="nav-txt">EPD Projects</span>
+            </a>
+            <a class="nav-a" href="/npd/epd-new">
+                <span class="nav-ic">➕</span><span class="nav-txt">New EPD Project</span>
+            </a>
+        </div>
+        {% if role == 'admin' %}
+        <div class="sb-sec">
+            <div class="sb-sec-lbl">Admin</div>
+            <a class="nav-a {% if _pg == 'npd_milestone_master' %}active{% endif %}" href="/npd/milestone-master">
+                <span class="nav-ic">⚙️</span><span class="nav-txt">Milestone Master</span>
+            </a>
+            <a class="nav-a {% if _pg == 'npd_reports' %}active{% endif %}" href="/npd/reports">
+                <span class="nav-ic">📈</span><span class="nav-txt">Reports</span>
+            </a>
+        </div>
+        {% endif %}
 
         {# ════ HR MODULE ════ #}
         {% elif _mod == 'hr' %}
@@ -2145,12 +2272,20 @@ var GS_DATA=[
   {icon:'🤝',bg:'#fdf4ff',label:'Contractors',sub:'HR / Contractor management',url:'/hr/contractors',tags:['contractors','hr','vendors','third party'],section:'HR'},
   {icon:'🌳',bg:'#f0fdf4',label:'Org Hierarchy',sub:'HR / Organisation chart & reporting',url:'/hierarchy',tags:['hierarchy','org','chart','tree','reporting','structure'],section:'HR'},
   {icon:'📥',bg:'#fdf4ff',label:'Import Employees',sub:'HR / Bulk employee import',url:'/hr/employees/import',tags:['import','employees','bulk','upload','hr','excel'],section:'HR'},
+  {icon:'🧪',bg:'#f3e8ff',label:'NPD Dashboard',sub:'NPD / New Product Development overview',url:'/npd/npd-dashboard',tags:['npd','dashboard','new product'],section:'NPD'},
+  {icon:'📋',bg:'#f3e8ff',label:'NPD Projects',sub:'NPD / All NPD project list',url:'/npd/npd-projects',tags:['npd','projects','list'],section:'NPD'},
+  {icon:'➕',bg:'#f3e8ff',label:'New NPD Project',sub:'NPD / Create new NPD project',url:'/npd/npd-new',tags:['npd','new','create'],section:'NPD'},
+  {icon:'📦',bg:'#d1fae5',label:'EPD Dashboard',sub:'EPD / Existing Product Development overview',url:'/npd/epd-dashboard',tags:['epd','dashboard','existing product'],section:'EPD'},
+  {icon:'📋',bg:'#d1fae5',label:'EPD Projects',sub:'EPD / All EPD project list',url:'/npd/epd-projects',tags:['epd','projects','list'],section:'EPD'},
+  {icon:'➕',bg:'#d1fae5',label:'New EPD Project',sub:'EPD / Create new EPD project',url:'/npd/epd-new',tags:['epd','new','create'],section:'EPD'},
+  {icon:'⚙️',bg:'#fdf4ff',label:'Milestone Master',sub:'NPD / Configure milestone types',url:'/npd/milestone-master',tags:['milestone','master','config'],section:'NPD'},
+  {icon:'📈',bg:'#fdf4ff',label:'NPD Reports',sub:'NPD / Analytics & reports',url:'/npd/reports',tags:['npd','reports','analytics'],section:'NPD'},
   {icon:'✅',bg:'#f0fdf4',label:'Approvals',sub:'Admin / Pending approval requests',url:'/approvals',tags:['approvals','pending','admin','workflow','requests'],section:'Admin'},
   {icon:'🔐',bg:'#fef2f2',label:'Permissions',sub:'Admin / Role & access control',url:'/admin/permissions',tags:['permissions','roles','access','admin','security'],section:'Admin'},
   {icon:'🔍',bg:'#f8fafc',label:'Audit Logs',sub:'Admin / System activity logs',url:'/admin/audit-logs',tags:['audit','logs','activity','history','admin','trail'],section:'Admin'},
   {icon:'👤',bg:'#eff6ff',label:'Users',sub:'Admin / User account management',url:'/admin/users',tags:['users','admin','accounts','manage','login'],section:'Admin'},
 ];
-var SEC_COLORS={CRM:{bg:'#eff6ff',txt:'#1d4ed8'},HR:{bg:'#f0fdf4',txt:'#166534'},Admin:{bg:'#fef2f2',txt:'#dc2626'},Home:{bg:'#f5f3ff',txt:'#7c3aed'}};
+var SEC_COLORS={CRM:{bg:'#eff6ff',txt:'#1d4ed8'},HR:{bg:'#f0fdf4',txt:'#166534'},Admin:{bg:'#fef2f2',txt:'#dc2626'},Home:{bg:'#f5f3ff',txt:'#7c3aed'},NPD:{bg:'#f3e8ff',txt:'#7c3aed'},EPD:{bg:'#d1fae5',txt:'#065f46'}};
 var _gsOpen=false,_gsSel=-1,_gsItems=[];
 
 function gsOpen(){

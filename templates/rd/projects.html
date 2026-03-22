@@ -1,0 +1,521 @@
+{% extends "base.html" %}
+{% block title %}R&D Projects{% endblock %}
+{% block page_title %}R&D Projects{% endblock %}
+{% block bread %}R&D / Projects{% endblock %}
+
+{% block extra_css %}
+.proj-layout{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;align-items:start;}
+@media(max-width:1100px){.proj-layout{grid-template-columns:1fr 1fr;}}
+@media(max-width:700px){.proj-layout{grid-template-columns:1fr;}}
+.tag-closed{background:#f1f5f9;color:#475569;}
+.trial-modal-ov{display:none;position:fixed;inset:0;background:rgba(15,23,42,.5);z-index:9999;align-items:center;justify-content:center;backdrop-filter:blur(3px);}
+.trial-modal-ov.open{display:flex;}
+.trial-modal-box{background:var(--white);border-radius:var(--r-xl);width:780px;max-width:96vw;max-height:92vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.2);border:1px solid var(--border);}
+.t-modal-hdr{padding:1.1rem 1.4rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.t-modal-body{padding:1.4rem;}
+.tfg{display:flex;flex-direction:column;gap:.3rem;margin-bottom:.85rem;}
+.tfg label{font-size:.78rem;font-weight:700;color:var(--text2);}
+.tfg input,.tfg select,.tfg textarea{padding:.45rem .75rem;border:1px solid var(--border);border-radius:var(--r-sm);font-size:.85rem;color:var(--text);background:var(--white);font-family:inherit;width:100%;outline:none;box-sizing:border-box;}
+.tfg input:focus,.tfg select:focus,.tfg textarea:focus{border-color:var(--blue);box-shadow:0 0 0 3px var(--blue-lt);}
+.tgr2{display:grid;grid-template-columns:1fr 1fr;gap:.75rem;}
+.panel-hdr{padding:.75rem 1rem;border-bottom:1px solid var(--border);background:var(--bg);display:flex;align-items:center;justify-content:space-between;}
+.panel-count{font-size:.68rem;font-weight:800;padding:2px 8px;border-radius:100px;}
+.proj-item{padding:.75rem 1rem;border-bottom:1px solid var(--border);transition:.1s;}
+.proj-item:last-child{border-bottom:none;}
+.proj-item.clickable{cursor:pointer;}
+.proj-item.clickable:hover{background:var(--blue-lt);}
+.proj-item:hover{background:var(--bg);}
+.proj-tag{display:inline-flex;padding:1px 6px;border-radius:4px;font-size:.65rem;font-weight:700;text-transform:uppercase;}
+.tag-npd{background:var(--purple-lt);color:var(--purple);}
+.tag-epd{background:#d1fae5;color:#065f46;}
+.assignee-row{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px;}
+.assignee-pill{display:inline-flex;align-items:center;gap:5px;background:var(--blue-lt);border:1px solid var(--blue-border);border-radius:100px;padding:2px 10px;font-size:.72rem;font-weight:600;color:var(--blue);}
+.assignee-pill .av{width:18px;height:18px;border-radius:50%;background:var(--blue);color:#fff;display:flex;align-items:center;justify-content:center;font-size:.55rem;font-weight:800;flex-shrink:0;}
+.modal-ov{display:none;position:fixed;inset:0;background:rgba(15,23,42,.5);z-index:9999;align-items:center;justify-content:center;backdrop-filter:blur(3px);}
+.modal-ov.open{display:flex;}
+.modal-box{background:var(--white);border-radius:var(--r-xl);width:520px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.18);border:1px solid var(--border);}
+.modal-hdr{padding:1rem 1.4rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.modal-body{padding:1.25rem 1.4rem;}
+.modal-foot{padding:.85rem 1.4rem;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:.5rem;}
+.user-check-card{display:flex;align-items:center;gap:.65rem;padding:.65rem .85rem;border:1.5px solid var(--border);border-radius:var(--r-md);cursor:pointer;transition:.12s;margin-bottom:.4rem;}
+.user-check-card:hover{border-color:var(--blue-border);background:var(--blue-lt);}
+.user-check-card.selected{border-color:var(--blue);background:var(--blue-lt);}
+.u-av{width:36px;height:36px;border-radius:10px;background:var(--blue-lt);color:var(--blue);display:flex;align-items:center;justify-content:center;font-size:.78rem;font-weight:800;flex-shrink:0;}
+.check-ic{width:20px;height:20px;border-radius:50%;border:2px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:.7rem;margin-left:auto;flex-shrink:0;transition:.12s;}
+.user-check-card.selected .check-ic{background:var(--blue);border-color:var(--blue);color:#fff;}
+.proj-info-bar{background:var(--bg);border:1px solid var(--border);border-radius:var(--r-md);padding:.65rem .85rem;margin-bottom:1rem;display:flex;align-items:center;gap:1rem;flex-wrap:wrap;}
+.empty-panel{text-align:center;padding:2.5rem 1rem;color:var(--text3);}
+{% endblock %}
+
+{% block content %}
+<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.75rem;margin-bottom:1rem;">
+    <div>
+        <div style="font-size:1.1rem;font-weight:800;">⬡ R&D Projects</div>
+        <div style="font-size:.77rem;color:var(--text3);">
+            {% if is_rd_manager %}
+            <span style="background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:4px;font-weight:700;font-size:.72rem;">👔 R&D Manager View</span>
+            — Assign R&D team to projects
+            {% else %}
+            My assigned projects
+            {% endif %}
+        </div>
+    </div>
+    <div style="display:flex;gap:.4rem;flex-wrap:wrap;">
+        <a href="{{ url_for('npd.npd_new') }}" class="btn-add-new" style="background:#7c3aed;text-decoration:none;">🧪 New NPD</a>
+        <a href="{{ url_for('npd.epd_new') }}" class="btn-add-new" style="background:#059669;text-decoration:none;">📦 New EPD</a>
+        <a href="{{ url_for('rd.dashboard') }}" class="btn-grid-action">← Dashboard</a>
+    </div>
+</div>
+
+<form method="GET" style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;margin-bottom:1rem;">
+    <input type="text" name="q" value="{{ q }}" placeholder="🔍 Search project, client..."
+           style="padding:.4rem .75rem;border:1px solid var(--border);border-radius:var(--r-sm);font-size:.82rem;background:var(--white);outline:none;min-width:180px;">
+    <select name="cat" style="padding:.4rem .75rem;border:1px solid var(--border);border-radius:var(--r-sm);font-size:.82rem;background:var(--white);outline:none;">
+        <option value="">All Types</option>
+        <option value="npd" {% if cat=='npd' %}selected{% endif %}>🧪 NPD</option>
+        <option value="existing" {% if cat=='existing' %}selected{% endif %}>📦 EPD</option>
+    </select>
+    <button type="submit" class="btn-add-new">Filter</button>
+    <a href="{{ url_for('rd.projects') }}" class="btn-grid-action">Reset</a>
+</form>
+
+<div class="proj-layout">
+
+    <!-- LEFT: Unallotted -->
+    <div class="card">
+        <div class="panel-hdr">
+            <div style="display:flex;align-items:center;gap:.5rem;">
+                <div style="width:8px;height:8px;border-radius:50%;background:var(--red);"></div>
+                <div>
+                <div style="font-size:.88rem;font-weight:700;">Unallotted Projects</div>
+                <div style="font-size:.65rem;color:var(--text3);">No R&D executive assigned</div>
+            </div>
+            </div>
+            <span class="panel-count" style="background:var(--red-lt);color:var(--red);border:1px solid var(--red-border);" id="unallot-count">{{ unallotted|length }}</span>
+        </div>
+        <div id="unallotted-list">
+        {% if unallotted %}
+        {% for p in unallotted %}
+        <div class="proj-item clickable" id="unallot-{{ p.id }}"
+             onclick="openAssignModal({{ p.id }},'{{ p.product_name|replace("'","") }}','{{ p.code }}','{{ 'NPD' if p.project_type=='npd' else 'EPD' }}','{{ (p.client_company or p.client_name or '')|replace("'","") }}','{{ p.status_color }}','{{ p.status_label }}')">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:3px;">
+                <span class="proj-tag {{ 'tag-npd' if p.project_type=='npd' else 'tag-epd' }}">{{ 'NPD' if p.project_type=='npd' else 'EPD' }}</span>
+                <span style="font-size:.7rem;color:var(--text3);">{{ p.project_age }}d</span>
+            </div>
+            <div style="font-weight:700;font-size:.86rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="{{ p.product_name }}">{{ p.product_name }}</div>
+            <div style="font-size:.7rem;color:var(--text3);font-family:var(--font-mono);margin-bottom:2px;">{{ p.code }}</div>
+            {% if p.client_company or p.client_name %}
+            <div style="font-size:.75rem;color:var(--text2);">👤 {{ p.client_company or p.client_name }}</div>
+            {% endif %}
+            <div style="margin-top:5px;display:flex;align-items:center;gap:.4rem;">
+                <span style="background:{{ p.status_color }}18;color:{{ p.status_color }};border:1px solid {{ p.status_color }}44;padding:1px 7px;border-radius:100px;font-size:.68rem;font-weight:700;">{{ p.status_label }}</span>
+                <span style="font-size:.68rem;color:var(--blue);font-weight:600;margin-left:auto;">Click to assign →</span>
+            </div>
+        </div>
+        {% endfor %}
+        {% else %}
+        <div class="empty-panel" id="unallotted-empty">
+            <div style="font-size:1.8rem;margin-bottom:.3rem;">✅</div>
+            <div style="font-weight:700;font-size:.88rem;">All projects assigned</div>
+        </div>
+        {% endif %}
+        </div>
+    </div>
+
+    <!-- RIGHT: Allotted -->
+    <div class="card">
+        <div class="panel-hdr">
+            <div style="display:flex;align-items:center;gap:.5rem;">
+                <div style="width:8px;height:8px;border-radius:50%;background:var(--green);"></div>
+                <div>
+                <div style="font-size:.88rem;font-weight:700;">Allotted Projects</div>
+                <div style="font-size:.65rem;color:var(--text3);">{% if is_rd_manager %}All R&D assigned projects{% else %}Your assigned projects{% endif %}</div>
+            </div>
+            </div>
+            <span class="panel-count" style="background:var(--green-lt);color:var(--green);border:1px solid var(--green-border);" id="allot-count">{{ allotted|length }}</span>
+        </div>
+        <div id="allotted-list">
+        {% if allotted %}
+        {% for p in allotted %}
+        {% if p.status and p.status|lower in ['completed','closed','done','project_closed','cancelled'] %}
+        {# Skip — moved to Closed/Done column #}
+        {% elif not is_rd_manager and p.rd_user and p.rd_user.id != current_user.id %}
+        {# Skip — not assigned to current user #}
+        {% else %}
+        <div class="proj-item" id="allot-{{ p.id }}" style="cursor:pointer;" data-href="/rd/trials?project_id={{ p.id }}" onmouseover="this.style.background='var(--blue-lt)'" onmouseout="this.style.background=''" onclick="window.location.href=this.dataset.href">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:3px;">
+                <span class="proj-tag {{ 'tag-npd' if p.project_type=='npd' else 'tag-epd' }}">{{ 'NPD' if p.project_type=='npd' else 'EPD' }}</span>
+                <div style="display:flex;align-items:center;gap:.5rem;">
+                    <span style="font-size:.7rem;color:var(--text3);">{{ p.project_age }}d</span>
+                    <button onclick="openAssignModal({{ p.id }},'{{ p.product_name|replace("'","") }}','{{ p.code }}','{{ 'NPD' if p.project_type=='npd' else 'EPD' }}','{{ (p.client_company or p.client_name or '')|replace("'","") }}','{{ p.status_color }}','{{ p.status_label }}')"
+                            style="font-size:.68rem;color:var(--blue);background:none;border:none;cursor:pointer;font-weight:600;">✏️ Reassign</button>
+                </div>
+            </div>
+            <div style="font-weight:700;font-size:.86rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ p.product_name }}</div>
+            <div style="font-size:.7rem;color:var(--text3);font-family:var(--font-mono);margin-bottom:4px;">{{ p.code }}</div>
+            <div class="assignee-row" id="assignees-{{ p.id }}">
+                {% if p.rd_user %}
+                {% set ini=(p.rd_user.full_name.split()[0][0]+p.rd_user.full_name.split()[-1][0]).upper() if p.rd_user.full_name.split()|length>1 else p.rd_user.full_name[:2].upper() %}
+                <span class="assignee-pill"><span class="av">{{ ini }}</span>{{ p.rd_user.full_name }}</span>
+                {% endif %}
+                {% if p.sc_user and (not p.rd_user or p.sc_user.id != p.rd_user.id) %}
+                {% set sci=(p.sc_user.full_name.split()[0][0]+p.sc_user.full_name.split()[-1][0]).upper() if p.sc_user.full_name.split()|length>1 else p.sc_user.full_name[:2].upper() %}
+                <span class="assignee-pill" style="background:#f0fdf4;border-color:#86efac;color:#166534;"><span class="av" style="background:#16a34a;">{{ sci }}</span>{{ p.sc_user.full_name }} (SC)</span>
+                {% endif %}
+            </div>
+            <div style="margin-top:5px;">
+                <span style="background:{{ p.status_color }}18;color:{{ p.status_color }};border:1px solid {{ p.status_color }}44;padding:1px 7px;border-radius:100px;font-size:.68rem;font-weight:700;">{{ p.status_label }}</span>
+            </div>
+        </div>
+        {% endif %}
+        {% endfor %}
+        {% else %}
+        <div class="empty-panel" id="allotted-empty">
+            <div style="font-size:1.8rem;margin-bottom:.3rem;">📋</div>
+            <div style="font-weight:700;font-size:.88rem;">No allotted projects yet</div>
+            <div style="font-size:.78rem;margin-top:2px;">Assign R&D team from left panel</div>
+        </div>
+        {% endif %}
+        </div>
+    </div>
+	
+	<!-- COLUMN 3: Closed / Done -->
+    <div class="card">
+        <div class="panel-hdr">
+            <div style="display:flex;align-items:center;gap:.5rem;">
+                <div style="width:8px;height:8px;border-radius:50%;background:#6b7280;"></div>
+                <div>
+                <div style="font-size:.88rem;font-weight:700;">Closed / Done</div>
+                <div style="font-size:.65rem;color:var(--text3);">Project completed or closed</div>
+            </div>
+            </div>
+            <span class="panel-count" style="background:#f1f5f920;color:#6b7280;border:1px solid #6b728044;">{{ closed|length }}</span>
+        </div>
+        <div id="closed-list">
+        {% if closed %}
+        {% for p in closed %}
+        <div class="proj-item" id="closed-{{ p.id }}">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:3px;">
+                <span class="proj-tag {{ 'tag-npd' if p.project_type=='npd' else 'tag-epd' }}">{{ 'NPD' if p.project_type=='npd' else 'EPD' }}</span>
+                <span style="font-size:.7rem;color:var(--text3);">{{ p.project_age }}d</span>
+            </div>
+            <div style="font-weight:700;font-size:.86rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="{{ p.product_name }}">{{ p.product_name }}</div>
+            <div style="font-size:.7rem;color:var(--text3);font-family:var(--font-mono);margin-bottom:2px;">{{ p.code }}</div>
+            {% if p.client_company or p.client_name %}
+            <div style="font-size:.75rem;color:var(--text2);">👤 {{ p.client_company or p.client_name }}</div>
+            {% endif %}
+            {% if p.rd_user %}
+            <div class="assignee-row" style="margin-top:4px;">
+                {% set ini=(p.rd_user.full_name.split()[0][0]+p.rd_user.full_name.split()[-1][0]).upper() if p.rd_user.full_name.split()|length>1 else p.rd_user.full_name[:2].upper() %}
+                <span class="assignee-pill" style="background:#f1f5f9;border-color:#cbd5e1;color:#475569;"><span class="av" style="background:#6b7280;">{{ ini }}</span>{{ p.rd_user.full_name }}</span>
+            </div>
+            {% endif %}
+            <div style="margin-top:5px;">
+                <span style="background:{{ p.status_color }}18;color:{{ p.status_color }};border:1px solid {{ p.status_color }}44;padding:1px 7px;border-radius:100px;font-size:.68rem;font-weight:700;">{{ p.status_label }}</span>
+            </div>
+        </div>
+        {% endfor %}
+        {% else %}
+        <div class="empty-panel" id="closed-empty">
+            <div style="font-size:1.8rem;margin-bottom:.3rem;">🏁</div>
+            <div style="font-weight:700;font-size:.88rem;">No closed projects</div>
+            <div style="font-size:.78rem;margin-top:2px;">Completed projects will appear here</div>
+        </div>
+        {% endif %}
+        </div>
+    </div>
+</div>
+
+    
+
+
+<!-- Assign Modal -->
+<div class="modal-ov" id="assign-modal">
+    <div class="modal-box">
+        <div class="modal-hdr">
+            <div style="font-weight:800;font-size:1rem;">👥 Assign R&D Team</div>
+            <button onclick="closeModal()" style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:var(--text3);">✕</button>
+        </div>
+        <div class="modal-body">
+            <div class="proj-info-bar">
+                <div><div style="font-size:.68rem;color:var(--text3);font-weight:600;">Project</div><div style="font-size:.88rem;font-weight:800;" id="modal-proj-name">—</div></div>
+                <div><div style="font-size:.68rem;color:var(--text3);font-weight:600;">Code</div><div style="font-size:.82rem;font-family:var(--font-mono);font-weight:700;color:var(--blue);" id="modal-proj-code">—</div></div>
+                <div><div style="font-size:.68rem;color:var(--text3);font-weight:600;">Client</div><div style="font-size:.82rem;font-weight:600;" id="modal-proj-client">—</div></div>
+                <div><span id="modal-proj-status" style="font-size:.72rem;font-weight:700;padding:3px 10px;border-radius:100px;"></span></div>
+            </div>
+            <div style="font-size:.78rem;font-weight:800;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.6rem;">
+                Select R&D Person(s) <span style="color:var(--text3);font-weight:500;text-transform:none;letter-spacing:0;">(multiple allowed)</span>
+            </div>
+            <div id="user-cards-list">
+                {% for u in users %}
+                {% set ini=(u.full_name.split()[0][0]+u.full_name.split()[-1][0]).upper() if u.full_name.split()|length>1 else u.full_name[:2].upper() %}
+                <div class="user-check-card" id="ucard-{{ u.id }}" onclick="toggleUser({{ u.id }}, this)">
+                    <div class="u-av">{{ ini }}</div>
+                    <div style="flex:1;">
+                        <div style="font-size:.85rem;font-weight:700;">{{ u.full_name }}</div>
+                        <div style="font-size:.72rem;color:var(--text3);">{{ u.role or 'R&D Executive' }}</div>
+                    </div>
+                    <div class="check-ic" id="chk-{{ u.id }}">✓</div>
+                </div>
+                {% endfor %}
+            </div>
+            <input type="hidden" id="modal-proj-id" value="">
+        </div>
+        <div class="modal-foot">
+            <button class="btn-grid-action" onclick="closeModal()">Cancel</button>
+            <button class="btn-add-new" onclick="submitAssign()" id="assign-btn">✅ Assign Selected</button>
+        </div>
+    </div>
+</div>
+
+<script>
+var currentProjId = null;
+var selectedUsers = [];
+
+function openAssignModal(pid, name, code, type, client, statusColor, statusLabel) {
+    currentProjId = pid;
+    selectedUsers = [];
+    resetUserCards();
+    document.getElementById('modal-proj-id').value = pid;
+    document.getElementById('modal-proj-name').textContent   = name;
+    document.getElementById('modal-proj-code').textContent   = code;
+    document.getElementById('modal-proj-client').textContent = client || '—';
+    var st = document.getElementById('modal-proj-status');
+    st.textContent = statusLabel;
+    st.style.cssText = 'font-size:.72rem;font-weight:700;padding:3px 10px;border-radius:100px;background:'+statusColor+'18;color:'+statusColor+';border:1px solid '+statusColor+'44;';
+    document.getElementById('assign-btn').textContent = '✅ Assign Selected';
+    document.getElementById('assign-modal').classList.add('open');
+}
+
+function closeModal() {
+    document.getElementById('assign-modal').classList.remove('open');
+    currentProjId = null; selectedUsers = []; resetUserCards();
+}
+document.getElementById('assign-modal').addEventListener('click', function(e){ if(e.target===this) closeModal(); });
+
+function resetUserCards() {
+    document.querySelectorAll('.user-check-card').forEach(function(c){ c.classList.remove('selected'); });
+    document.querySelectorAll('.check-ic').forEach(function(c){ c.style.cssText=''; });
+    selectedUsers = [];
+}
+
+function toggleUser(uid, el) {
+    el.classList.toggle('selected');
+    var chk = document.getElementById('chk-'+uid);
+    if(el.classList.contains('selected')) {
+        selectedUsers.push(uid);
+        chk.style.background='var(--blue)'; chk.style.borderColor='var(--blue)'; chk.style.color='#fff';
+    } else {
+        selectedUsers = selectedUsers.filter(function(x){ return x!=uid; });
+        chk.style.background=''; chk.style.borderColor=''; chk.style.color='';
+    }
+}
+
+function submitAssign() {
+    if(!currentProjId){ return; }
+    if(selectedUsers.length === 0){ alert('Please select at least one R&D person'); return; }
+    var btn = document.getElementById('assign-btn');
+    btn.textContent = 'Assigning...'; btn.disabled = true;
+    var form = new FormData();
+    selectedUsers.forEach(function(uid){ form.append('rd_ids', uid); });
+    fetch('/rd/projects/'+currentProjId+'/assign-multi', { method:'POST', body:form })
+    .then(function(r){ return r.json(); })
+    .then(function(data) {
+        if(!data.success){ alert(data.error||'Error'); btn.textContent='✅ Assign Selected'; btn.disabled=false; return; }
+        moveToAllotted(data);
+        closeModal();
+        btn.disabled = false;
+    })
+    .catch(function(){ btn.textContent='✅ Assign Selected'; btn.disabled=false; });
+}
+
+function moveToAllotted(data) {
+    var pid = data.proj_id;
+    // Remove from unallotted
+    var unEl = document.getElementById('unallot-'+pid);
+    if(unEl) unEl.remove();
+    var newUn = parseInt(document.getElementById('unallot-count').textContent) - 1;
+    document.getElementById('unallot-count').textContent = newUn < 0 ? 0 : newUn;
+    if(newUn <= 0) document.getElementById('unallotted-list').innerHTML='<div class="empty-panel"><div style="font-size:1.8rem">✅</div><div style="font-weight:700;">All projects assigned</div></div>';
+
+    // Remove existing allotted card (reassign case)
+    var ex = document.getElementById('allot-'+pid);
+    if(ex) ex.remove();
+    var emEl = document.getElementById('allotted-empty');
+    if(emEl) emEl.remove();
+
+    // Build pills
+    var pills = data.rd_names.map(function(n){
+        var ini = n.split(' ').map(function(w){return w[0]||'';}).slice(0,2).join('').toUpperCase();
+        return '<span class="assignee-pill"><span class="av">'+ini+'</span>'+n+'</span>';
+    }).join('');
+
+    var typeClass = data.type==='npd'?'tag-npd':'tag-epd';
+    var html = '<div class="proj-item" id="allot-'+pid+'">' +
+        '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:3px;">' +
+            '<span class="proj-tag '+typeClass+'">'+data.type.toUpperCase()+'</span>' +
+            '<div style="display:flex;align-items:center;gap:.5rem;">' +
+                '<span style="font-size:.7rem;color:var(--text3);">'+data.age+'d</span>' +
+                '<button onclick="openAssignModal('+pid+',\''+data.name.replace(/\'/g,"\\'")+'\',\''+data.code+'\',\''+data.type+'\',\''+data.client+'\',\''+data.status_color+'\',\''+data.status+'\')" ' +
+                    'style="font-size:.68rem;color:var(--blue);background:none;border:none;cursor:pointer;font-weight:600;">✏️ Reassign</button>' +
+            '</div>' +
+        '</div>' +
+        '<div style="font-weight:700;font-size:.86rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+data.name+'</div>' +
+        '<div style="font-size:.7rem;color:var(--text3);font-family:var(--font-mono);margin-bottom:4px;">'+data.code+'</div>' +
+        '<div class="assignee-row">'+pills+'</div>' +
+        '<div style="margin-top:5px;"><span style="background:'+data.status_color+'18;color:'+data.status_color+';border:1px solid '+data.status_color+'44;padding:1px 7px;border-radius:100px;font-size:.68rem;font-weight:700;">'+data.status+'</span></div>' +
+    '</div>';
+
+    document.getElementById('allotted-list').insertAdjacentHTML('afterbegin', html);
+    var newAl = parseInt(document.getElementById('allot-count').textContent) + 1;
+    document.getElementById('allot-count').textContent = newAl;
+}
+</script>
+
+<!-- ═══════ TRIAL POPUP MODAL ═══════ -->
+<div class="trial-modal-ov" id="proj-trial-modal">
+    <div class="trial-modal-box">
+        <div class="t-modal-hdr">
+            <div style="display:flex;align-items:center;gap:.65rem;">
+                <span style="font-size:1.2rem;">⚗️</span>
+                <div>
+                    <div style="font-weight:800;font-size:1rem;">Log R&D Trial</div>
+                    <div style="font-size:.72rem;color:var(--text3);" id="t-modal-subtitle">—</div>
+                </div>
+            </div>
+            <button onclick="closeTrialModal()" style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:var(--text3);">✕</button>
+        </div>
+        <div class="t-modal-body">
+            <!-- Project Info Banner -->
+            <div id="t-proj-banner" style="background:var(--blue-lt);border:1px solid var(--blue-border);border-radius:var(--r-md);padding:.65rem 1rem;margin-bottom:1rem;display:flex;align-items:center;gap:1.5rem;flex-wrap:wrap;">
+                <div><div style="font-size:.65rem;color:var(--text3);font-weight:700;">PROJECT</div><div style="font-size:.88rem;font-weight:800;" id="t-proj-name">—</div></div>
+                <div style="width:1px;height:28px;background:var(--blue-border);"></div>
+                <div><div style="font-size:.65rem;color:var(--text3);font-weight:700;">CODE</div><div style="font-size:.82rem;font-weight:700;color:var(--blue);font-family:monospace;" id="t-proj-code">—</div></div>
+                <div style="width:1px;height:28px;background:var(--blue-border);"></div>
+                <div><div style="font-size:.65rem;color:var(--text3);font-weight:700;">CLIENT</div><div style="font-size:.82rem;font-weight:700;" id="t-proj-client">—</div></div>
+                <div style="margin-left:auto;"><span id="t-proj-status" style="font-size:.72rem;font-weight:700;padding:3px 10px;border-radius:100px;background:var(--blue);color:#fff;"></span></div>
+            </div>
+
+            <form method="POST" action="{{ url_for('rd.add_trial') }}" id="t-trial-form">
+                <input type="hidden" name="project_id" id="t-proj-id-input">
+
+                <div class="tgr2" style="margin-bottom:.85rem;">
+                    <!-- R&D Executive (pre-selected) -->
+                    <div class="tfg" style="margin-bottom:0;">
+                        <label>R&D Executive</label>
+                        <select name="exec_id" id="t-exec-select"
+                                style="width:100%;padding:.45rem .75rem;border:1px solid var(--border);border-radius:var(--r-sm);font-size:.85rem;background:var(--white);color:var(--text);outline:none;">
+                            <option value="">— Select —</option>
+                            {% for u in users %}
+                            <option value="{{ u.id }}">{{ u.full_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <!-- Iteration Name -->
+                    <div class="tfg" style="margin-bottom:0;">
+                        <label>Iteration / Sample Name</label>
+                        <input type="text" name="formulation_name" placeholder="e.g. V2 — Stabilized Formula">
+                    </div>
+                </div>
+
+                <!-- Test Parameters -->
+                <div class="tfg">
+                    <label>Test Parameters</label>
+                    <div id="t-ck-params" style="min-height:90px;border:1px solid var(--border);border-radius:var(--r-sm);overflow:hidden;"></div>
+                    <textarea name="parameters" id="t-params-hidden" style="display:none;"></textarea>
+                </div>
+
+                <!-- Observations -->
+                <div class="tfg">
+                    <label>Observations</label>
+                    <div id="t-ck-obs" style="min-height:110px;border:1px solid var(--border);border-radius:var(--r-sm);overflow:hidden;"></div>
+                    <textarea name="observations" id="t-obs-hidden" style="display:none;"></textarea>
+                </div>
+
+                <div style="display:flex;gap:.5rem;justify-content:flex-end;margin-top:.75rem;">
+                    <button type="button" class="btn-grid-action" onclick="closeTrialModal()">Cancel</button>
+                    <button type="submit" class="btn-add-new" onclick="tSyncEditors()">⚗️ Log Trial</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+var tCkParams = null, tCkObs = null, tEditorsReady = false;
+
+function initTRichEditor(containerId, hiddenId) {
+    var container = document.getElementById(containerId);
+    if (!container) return null;
+    var hidden = document.getElementById(hiddenId);
+    var toolbar = document.createElement('div');
+    toolbar.style.cssText = 'display:flex;gap:3px;padding:5px 8px;background:var(--bg);border-bottom:1px solid var(--border);flex-wrap:wrap;';
+    var btns = [
+        {cmd:'bold',label:'<b>B</b>'},{cmd:'italic',label:'<i>I</i>'},{cmd:'underline',label:'<u>U</u>'},
+        {cmd:'sep'},{cmd:'insertUnorderedList',label:'• List'},{cmd:'insertOrderedList',label:'1. List'},
+        {cmd:'sep'},{cmd:'undo',label:'↩'},{cmd:'redo',label:'↪'}
+    ];
+    var area = document.createElement('div');
+    area.contentEditable = 'true';
+    area.style.cssText = 'min-height:90px;padding:.5rem .75rem;font-size:.85rem;font-family:inherit;outline:none;line-height:1.6;color:var(--text);';
+    btns.forEach(function(b){
+        if(b.cmd==='sep'){var s=document.createElement('span');s.style.cssText='width:1px;background:var(--border);margin:2px 3px;display:inline-block;';toolbar.appendChild(s);return;}
+        var btn=document.createElement('button');btn.type='button';btn.innerHTML=b.label;
+        btn.style.cssText='padding:3px 8px;border:1px solid var(--border);border-radius:5px;background:var(--white);cursor:pointer;font-size:.78rem;min-width:28px;font-family:inherit;';
+        btn.onmousedown=function(e){e.preventDefault();document.execCommand(b.cmd,false,null);area.focus();};
+        btn.onmouseover=function(){this.style.background='var(--blue-lt)';};
+        btn.onmouseout=function(){this.style.background='var(--white)';};
+        toolbar.appendChild(btn);
+    });
+    area.addEventListener('focus',function(){container.style.borderColor='var(--blue)';container.style.boxShadow='0 0 0 3px var(--blue-lt)';});
+    area.addEventListener('blur',function(){container.style.borderColor='var(--border)';container.style.boxShadow='none';hidden.value=area.innerHTML;});
+    area.addEventListener('input',function(){hidden.value=area.innerHTML;});
+    container.appendChild(toolbar);
+    container.appendChild(area);
+    return area;
+}
+
+function openTrialModal(pid, name, code, type, client, status, rdUserId) {
+    // Fill banner
+    document.getElementById('t-proj-name').textContent   = name;
+    document.getElementById('t-proj-code').textContent   = code;
+    document.getElementById('t-proj-client').textContent = client || '—';
+    document.getElementById('t-proj-status').textContent = status;
+    document.getElementById('t-modal-subtitle').textContent = '[' + type + '] ' + code;
+    document.getElementById('t-proj-id-input').value = pid;
+
+    // Pre-select R&D executive if assigned
+    var execSel = document.getElementById('t-exec-select');
+    if(rdUserId && execSel) {
+        execSel.value = rdUserId;
+    }
+
+    // Clear editor content
+    var p = document.getElementById('t-ck-params');
+    var o = document.getElementById('t-ck-obs');
+    if(p) { var pa = p.querySelector('[contenteditable]'); if(pa) pa.innerHTML = ''; }
+    if(o) { var oa = o.querySelector('[contenteditable]'); if(oa) oa.innerHTML = ''; }
+    document.getElementById('t-params-hidden').value = '';
+    document.getElementById('t-obs-hidden').value = '';
+
+    document.getElementById('proj-trial-modal').classList.add('open');
+
+    // Init editors only once
+    if(!tEditorsReady) {
+        tCkParams = initTRichEditor('t-ck-params', 't-params-hidden');
+        tCkObs    = initTRichEditor('t-ck-obs',    't-obs-hidden');
+        tEditorsReady = true;
+    }
+}
+
+function closeTrialModal() {
+    document.getElementById('proj-trial-modal').classList.remove('open');
+}
+document.getElementById('proj-trial-modal').addEventListener('click', function(e){ if(e.target===this) closeTrialModal(); });
+
+function tSyncEditors() {
+    if(tCkParams) document.getElementById('t-params-hidden').value = tCkParams.innerHTML;
+    if(tCkObs)    document.getElementById('t-obs-hidden').value    = tCkObs.innerHTML;
+}
+</script>
+{% endblock %}

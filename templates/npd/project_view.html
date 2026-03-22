@@ -1,0 +1,465 @@
+{% extends "base.html" %}
+{% block title %}{{ proj.code }} — {{ proj.product_name }}{% endblock %}
+{% block page_title %}Project View{% endblock %}
+{% block bread %}NPD / {{ 'NPD' if proj.project_type=='npd' else 'EPD' }} / {{ proj.code }}{% endblock %}
+
+{% block extra_css %}
+/* ── Same as lead_view theme ── */
+.lead-header{background:#fff;border:1px solid var(--border);border-radius:var(--r-xl);padding:1rem 1.25rem;margin-bottom:1rem;box-shadow:var(--sh-sm);}
+.badge{display:inline-flex;align-items:center;padding:3px 10px;border-radius:6px;font-size:.75rem;font-weight:700;}
+.tab-nav{display:flex;gap:0;border-bottom:2px solid var(--border);margin-bottom:1.25rem;flex-wrap:nowrap;position:relative;}
+.tab-nav-inner{display:flex;gap:0;overflow-x:auto;flex-wrap:nowrap;-webkit-overflow-scrolling:touch;scrollbar-width:none;flex:1;}
+.tab-nav-inner::-webkit-scrollbar{display:none;}
+.tab-btn{padding:10px 20px;font-size:.85rem;font-weight:600;color:var(--text2);background:transparent;border:none;border-bottom:2px solid transparent;margin-bottom:-2px;cursor:pointer;transition:all .15s;text-decoration:none;white-space:nowrap;flex-shrink:0;}
+.tab-btn:hover{color:var(--blue);}
+.tab-btn.active{color:var(--blue);border-bottom-color:var(--blue);}
+.tab-pane{display:none;}
+.tab-pane.active{display:block;}
+.card{background:#fff;border:1px solid var(--border);border-radius:var(--r-xl);overflow:hidden;box-shadow:var(--sh-sm);margin-bottom:1rem;}
+.card-hdr{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.card-title{font-weight:700;font-size:.9rem;color:var(--text);}
+.card-body{padding:14px 16px;}
+/* Info rows */
+.info-2col{display:grid;grid-template-columns:1fr 1fr;gap:1rem;}
+@media(max-width:768px){.info-2col{grid-template-columns:1fr;}}
+.info-section-title{font-weight:700;font-size:.88rem;color:var(--text);padding-bottom:.5rem;border-bottom:1px solid var(--border);margin-bottom:.75rem;}
+.info-row{display:flex;padding:.45rem 0;border-bottom:1px solid var(--border);font-size:.85rem;}
+.info-row:last-child{border-bottom:none;}
+.info-lbl{color:var(--text2);font-weight:600;min-width:140px;flex-shrink:0;}
+.info-val{color:var(--text);flex:1;}
+/* Discussion */
+.disc-input{width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:9px;font-family:inherit;font-size:.88rem;resize:vertical;min-height:80px;outline:none;transition:border-color .2s;box-sizing:border-box;}
+.disc-input:focus{border-color:var(--blue);}
+.disc-item{display:flex;gap:.85rem;padding:1rem 0;border-bottom:1px solid var(--border);}
+.disc-item:last-child{border-bottom:none;}
+.disc-avatar{width:40px;height:40px;border-radius:50%;background:var(--blue);color:#fff;font-size:.82rem;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.disc-meta{font-size:.8rem;color:var(--text3);margin-bottom:.2rem;}
+.disc-text{font-size:.85rem;color:var(--text);}
+.disc-attach{margin-top:.35rem;display:flex;flex-wrap:wrap;gap:.3rem;}
+.attach-chip{display:inline-flex;align-items:center;gap:4px;padding:2px 9px;background:var(--blue-lt);border:1px solid var(--blue-border);border-radius:100px;font-size:.75rem;color:var(--blue);text-decoration:none;}
+/* Drop zone */
+.drop-zone{border:2px dashed var(--border);border-radius:10px;padding:1.25rem;text-align:center;cursor:pointer;transition:all .2s;margin-top:.5rem;background:var(--bg);}
+.drop-zone:hover,.drop-zone.drag-over{border-color:var(--blue);background:var(--blue-lt);}
+.drop-browse{color:var(--blue);text-decoration:underline;cursor:pointer;font-weight:600;}
+/* Activity */
+.activity-item{display:flex;gap:.75rem;padding:.85rem 0;border-bottom:1px solid var(--border);position:relative;}
+.activity-item:last-child{border-bottom:none;}
+.activity-line{position:absolute;left:17px;top:52px;bottom:-1px;width:2px;background:var(--border);z-index:0;}
+.activity-avatar{width:36px;height:36px;border-radius:50%;background:#e2e8f0;color:var(--text2);font-size:.78rem;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;z-index:1;}
+.activity-action{font-size:.84rem;color:var(--text);margin-top:.15rem;}
+.activity-when{font-size:.72rem;color:var(--text3);margin-top:.1rem;}
+.time-badge{font-size:.72rem;font-weight:600;background:var(--bg);border:1px solid var(--border);padding:1px 7px;border-radius:4px;color:var(--text3);}
+/* Attachment list */
+.att-item{display:flex;align-items:center;gap:.75rem;padding:.75rem;border:1.5px solid var(--border);border-radius:10px;margin-bottom:.5rem;}
+/* Note editor */
+.ntb{padding:3px 8px;border:1px solid var(--border);border-radius:5px;background:#fff;cursor:pointer;font-size:.78rem;min-width:28px;font-family:inherit;}
+.ntb:hover{background:var(--blue-lt);}
+/* Action buttons */
+.pv-btn{padding:6px 14px;border-radius:7px;font-size:.82rem;font-weight:700;cursor:pointer;border:1.5px solid var(--border);text-decoration:none;display:inline-flex;align-items:center;gap:5px;transition:.12s;background:#fff;color:var(--text2);}
+.pv-btn:hover{border-color:var(--blue);color:var(--blue);}
+.pv-btn-green{background:#059669;color:#fff;border-color:#059669;}
+.pv-btn-green:hover{background:#047857;}
+.pv-btn-blue{background:#0ea5e9;color:#fff;border-color:#0ea5e9;}
+.pv-btn-blue:hover{background:#0284c7;}
+{% endblock %}
+
+{% block content %}
+
+<!-- Project Header (same style as lead header) -->
+<div class="lead-header">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:.75rem;">
+        <div>
+            <h2 style="font-size:1.1rem;font-weight:800;color:var(--text);margin-bottom:.35rem;display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;">
+                {{ proj.code }}
+                {% if proj.client_company or proj.client_name %}
+                <span style="color:var(--text3);">—</span>
+                <span>{{ proj.client_company or proj.client_name }}</span>
+                {% endif %}
+                <span style="color:var(--text3);">—</span>
+                <span>{{ proj.product_name }}</span>
+                <span style="color:var(--text3);">—</span>
+                <span class="badge" style="background:{{ proj.status_color }}18;color:{{ proj.status_color }};border:1px solid {{ proj.status_color }}44;">{{ proj.status_label }}</span>
+            </h2>
+            <div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap;font-size:.77rem;color:var(--text3);">
+                <span>📅 Create Date: <strong style="color:var(--text2);">{{ proj.created_at.strftime('%d-%m-%Y %I:%M:%S %p') if proj.created_at else '—' }}</strong></span>
+                <span>🏷️ Type: <strong style="color:var(--text2);">{{ 'NPD' if proj.project_type=='npd' else 'EPD' }}</strong></span>
+                <span>📅 Age: <strong style="color:var(--text2);">{{ proj.project_age }} days</strong></span>
+            </div>
+        </div>
+        <div style="display:flex;gap:.4rem;flex-wrap:wrap;">
+            <button class="pv-btn" onclick="printDiscussion()">🖨️ Print</button>
+            <a href="/npd/projects/{{ proj.id }}/edit" class="pv-btn pv-btn-green">✏️ Edit {{ 'NPD' if proj.project_type=='npd' else 'EPD' }} Project</a>
+
+        </div>
+    </div>
+</div>
+
+<!-- Tabs (same as lead_view) -->
+<div class="tab-nav">
+    <div class="tab-nav-inner">
+        <a href="#" class="tab-btn active" onclick="switchTab('overview',this);return false;">Overview</a>
+        <a href="#" class="tab-btn" onclick="switchTab('discussion',this);return false;">Discussion Board</a>
+        <a href="#" class="tab-btn" onclick="switchTab('internal',this);return false;">Internal Discussion Board</a>
+        <a href="#" class="tab-btn" onclick="switchTab('activity',this);return false;">Activity Log</a>
+        <a href="#" class="tab-btn" onclick="switchTab('attachments',this);return false;">Attachments List</a>
+        <a href="#" class="tab-btn" onclick="switchTab('note',this);return false;">Note</a>
+    </div>
+</div>
+
+<!-- TAB 1: OVERVIEW -->
+<div id="tab-overview" class="tab-pane active">
+    <div class="info-2col">
+        <!-- Left: Product Info -->
+        <div class="card">
+            <div class="card-hdr"><div class="card-title">Product Information</div></div>
+            <div class="card-body">
+                <div class="info-row"><span class="info-lbl">Project No</span><span class="info-val">{{ proj.code }}</span></div>
+                <div class="info-row"><span class="info-lbl">Product Name</span><span class="info-val">{{ proj.product_name }}</span></div>
+                <div class="info-row"><span class="info-lbl">Category</span><span class="info-val">{{ proj.product_category or 'N/A' }}</span></div>
+                {% if proj.reference_product_name %}<div class="info-row"><span class="info-lbl">Reference Product</span><span class="info-val">{{ proj.reference_product_name }}</span></div>{% endif %}
+                {% if proj.reference_brand %}<div class="info-row"><span class="info-lbl">Reference Brand</span><span class="info-val">{{ proj.reference_brand }}</span></div>{% endif %}
+                {% if proj.area_of_application %}<div class="info-row"><span class="info-lbl">Area of Application</span><span class="info-val">{{ proj.area_of_application }}</span></div>{% endif %}
+                {% if proj.variant_type %}<div class="info-row"><span class="info-lbl">Variant/Variety/Type</span><span class="info-val">{{ proj.variant_type }}</span></div>{% endif %}
+                {% if proj.no_of_samples %}<div class="info-row"><span class="info-lbl">No of Samples</span><span class="info-val">{{ proj.no_of_samples }}</span></div>{% endif %}
+                {% if proj.moq %}<div class="info-row"><span class="info-lbl">MOQ</span><span class="info-val">{{ proj.moq }}</span></div>{% endif %}
+                {% if proj.product_size %}<div class="info-row"><span class="info-lbl">Product Size</span><span class="info-val">{{ proj.product_size }}</span></div>{% endif %}
+                {% if proj.order_quantity %}<div class="info-row"><span class="info-lbl">Order Quantity</span><span class="info-val">{{ proj.order_quantity }}</span></div>{% endif %}
+                {% if proj.market_level %}<div class="info-row"><span class="info-lbl">Market Level</span><span class="info-val">{{ proj.market_level }}</span></div>{% endif %}
+                {% if proj.priority %}<div class="info-row"><span class="info-lbl">Priority</span><span class="info-val">{{ proj.priority }}</span></div>{% endif %}
+                {% if proj.costing_range %}<div class="info-row"><span class="info-lbl">Costing Range</span><span class="info-val">{{ proj.costing_range }}</span></div>{% endif %}
+                {% if proj.ph_value %}<div class="info-row"><span class="info-lbl">Ph</span><span class="info-val">{{ proj.ph_value }}</span></div>{% endif %}
+                {% if proj.packaging_type %}<div class="info-row"><span class="info-lbl">Packaging Type</span><span class="info-val">{{ proj.packaging_type }}</span></div>{% endif %}
+                {% if proj.fragrance %}<div class="info-row"><span class="info-lbl">Fragrance / Flavours</span><span class="info-val">{{ proj.fragrance }}</span></div>{% endif %}
+                {% if proj.viscosity %}<div class="info-row"><span class="info-lbl">Viscosity</span><span class="info-val">{{ proj.viscosity }}</span></div>{% endif %}
+                {% if proj.appearance %}<div class="info-row"><span class="info-lbl">Appearance</span><span class="info-val">{{ proj.appearance }}</span></div>{% endif %}
+                {% if proj.video_link %}<div class="info-row"><span class="info-lbl">Video Link</span><span class="info-val"><a href="{{ proj.video_link }}" target="_blank" style="color:var(--blue);">{{ proj.video_link[:45] }}{% if proj.video_link|length>45 %}…{% endif %}</a></span></div>{% endif %}
+            </div>
+        </div>
+        <!-- Right: Client + Formulation Info -->
+        <div>
+            <div class="card" style="margin-bottom:1rem;">
+                <div class="card-hdr"><div class="card-title">Client Information</div></div>
+                <div class="card-body">
+                    <div class="info-row"><span class="info-lbl">Client Name</span><span class="info-val">{{ proj.client_name or '—' }}</span></div>
+                    <div class="info-row"><span class="info-lbl">Company</span><span class="info-val" style="font-weight:700;color:var(--blue);">{{ proj.client_company or '—' }}</span></div>
+                    {% if proj.client_coordinator %}<div class="info-row"><span class="info-lbl">Co-Ordinator</span><span class="info-val">{{ proj.client_coordinator }}</span></div>{% endif %}
+                    {% if proj.client_email %}<div class="info-row"><span class="info-lbl">Email</span><span class="info-val"><a href="mailto:{{ proj.client_email }}" style="color:var(--blue);">{{ proj.client_email }}</a></span></div>{% endif %}
+                    {% if proj.client_phone %}<div class="info-row"><span class="info-lbl">Phone</span><span class="info-val">{{ proj.client_phone }}</span></div>{% endif %}
+                    {% if proj.sc_user %}<div class="info-row"><span class="info-lbl">Sales Coordinator</span><span class="info-val">{{ proj.sc_user.full_name }}</span></div>{% endif %}
+                    {% if proj.rd_user %}<div class="info-row"><span class="info-lbl">R&D Person</span><span class="info-val">{{ proj.rd_user.full_name }}</span></div>{% endif %}
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-hdr"><div class="card-title">Formulation Details</div></div>
+                <div class="card-body">
+                    {% if proj.active_ingredients %}<div class="info-row"><span class="info-lbl">Active Ing. req</span><span class="info-val">{{ proj.active_ingredients }}</span></div>{% endif %}
+                    {% if proj.ingredients %}<div class="info-row"><span class="info-lbl">Ingredients</span><span class="info-val" style="font-size:.8rem;line-height:1.5;">{{ proj.ingredients[:200] }}{% if proj.ingredients|length>200 %}…{% endif %}</span></div>{% endif %}
+                    {% if proj.product_claim %}<div class="info-row"><span class="info-lbl">Product Claim</span><span class="info-val">{{ proj.product_claim }}</span></div>{% endif %}
+                    {% if proj.label_claim %}<div class="info-row"><span class="info-lbl">Label Claim</span><span class="info-val">{{ proj.label_claim }}</span></div>{% endif %}
+                    {% if proj.description %}<div class="info-row"><span class="info-lbl">Description</span><span class="info-val" style="font-size:.8rem;line-height:1.5;">{{ proj.description[:200] }}{% if proj.description|length>200 %}…{% endif %}</span></div>{% endif %}
+                    {% if proj.requirement_spec %}<div class="info-row"><span class="info-lbl">Requirement Spec</span><span class="info-val">{{ proj.requirement_spec }}</span></div>{% endif %}
+                    <div class="info-row"><span class="info-lbl">Milestones</span><span class="info-val">{{ ms_done }}/{{ selected_ms|length }} done ({{ ms_pct }}%)</span></div>
+                    {% if proj.project_start_date %}<div class="info-row"><span class="info-lbl">Start Date</span><span class="info-val">{{ proj.project_start_date.strftime('%d-%m-%Y') }}</span></div>{% endif %}
+                    {% if proj.project_end_date %}<div class="info-row"><span class="info-lbl">End Date</span><span class="info-val">{{ proj.project_end_date.strftime('%d-%m-%Y') }}</span></div>{% endif %}
+                    {% if proj.project_type == 'npd' %}
+                    <div class="info-row"><span class="info-lbl">NPD Fee</span><span class="info-val">{% if proj.npd_fee_paid %}<span style="color:#16a34a;font-weight:700;">✅ Paid ₹{{ '{:,.0f}'.format(proj.npd_fee_amount or 10000) }}</span>{% else %}<span style="color:var(--red);">⏳ Pending</span>{% endif %}</span></div>
+                    {% endif %}
+                    <!-- Team Members -->
+                    <div class="info-row">
+                        <span class="info-lbl">Team Members</span>
+                        <span class="info-val" style="display:flex;flex-wrap:wrap;gap:3px;">
+                            {% for u in users[:15] %}
+                            {% set ini=(u.full_name.split()[0][0]+u.full_name.split()[-1][0]).upper() if u.full_name.split()|length>1 else u.full_name[:2].upper() %}
+                            <span title="{{ u.full_name }}" style="width:26px;height:26px;border-radius:50%;background:var(--blue-lt);color:var(--blue);display:inline-flex;align-items:center;justify-content:center;font-size:.6rem;font-weight:800;border:2px solid #fff;margin-left:-4px;flex-shrink:0;">{{ ini }}</span>
+                            {% endfor %}
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- TAB 2: DISCUSSION BOARD -->
+<div id="tab-discussion" class="tab-pane">
+    <div class="card">
+        <div class="card-hdr"><div class="card-title">Discussion Board</div></div>
+        <div class="card-body">
+            <form method="POST" action="{{ url_for('npd.add_comment', pid=proj.id) }}" enctype="multipart/form-data" id="discForm">
+                <input type="hidden" name="is_internal" value="0">
+                <div style="display:flex;gap:.75rem;align-items:flex-start;">
+                    {% set ini=(current_user.full_name.split()[0][0]+current_user.full_name.split()[-1][0]).upper() if current_user.full_name and current_user.full_name.split()|length>1 else 'Me' %}
+                    <div class="disc-avatar">{{ ini }}</div>
+                    <div style="flex:1;min-width:0;">
+                        <textarea name="comment" class="disc-input" placeholder="Add a comment..." id="discBox"></textarea>
+                        <div class="drop-zone" id="discDropZone" onclick="document.getElementById('discFile').click()" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="handleDrop(event,'disc')">
+                            <span style="font-size:1.3rem;">📎</span><br>
+                            <span style="font-size:.84rem;color:var(--text3);">Drag & drop files here, or <span class="drop-browse" onclick="event.stopPropagation();document.getElementById('discFile').click()">browse</span></span>
+                            <br><span style="font-size:.75rem;color:var(--text3);">Any file type supported</span>
+                            <input type="file" name="attachment" id="discFile" style="display:none;" onchange="showFileName(this,'discLabel')">
+                        </div>
+                        <div id="discLabel" style="font-size:.78rem;color:var(--blue);margin-top:.3rem;"></div>
+                        <div style="display:flex;justify-content:flex-end;margin-top:.65rem;">
+                            <button type="submit" class="btn-add-new" style="font-size:.83rem;padding:7px 20px;">💬 Post Comment</button>
+                        </div>
+                    </div>
+                </div>
+            </form>
+            {% if disc_comments %}
+            {% for c in disc_comments %}
+            {% set ci=(c.user.full_name.split()[0][0]+c.user.full_name.split()[-1][0]).upper() if c.user and c.user.full_name.split()|length>1 else (c.user.full_name[:2].upper() if c.user else 'U') %}
+            <div class="disc-item">
+                <div class="disc-avatar">{{ ci }}</div>
+                <div class="disc-content">
+                    <div class="disc-meta"><strong>{{ c.user.full_name if c.user else 'Unknown' }}</strong> · {{ c.created_at.strftime('%d-%m-%Y %H:%M:%S') if c.created_at else '' }}</div>
+                    {% if c.comment and not c.comment.startswith('📎 File attached:') %}
+                    <div class="disc-text">{{ c.comment }}</div>
+                    {% endif %}
+                    {% if c.attachment %}
+                    {% set att_parts = c.attachment.split('|') %}
+                    {% set att_file = att_parts[0] %}
+                    {% set att_name = att_parts[1] if att_parts|length > 1 else att_parts[0] %}
+                    <div class="disc-attach" style="margin-top:.4rem;">
+                        <a href="/static/uploads/npd/{{ att_file }}" target="_blank" class="attach-chip">
+                            📎 {{ att_name }}
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+            {% else %}
+            <p style="color:var(--text3);text-align:center;padding:2rem;font-size:.85rem;">No comments yet.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- TAB 3: INTERNAL DISCUSSION -->
+<div id="tab-internal" class="tab-pane">
+    <div class="card">
+        <div class="card-hdr"><div class="card-title">Internal Discussion Board</div></div>
+        <div class="card-body">
+            <form method="POST" action="{{ url_for('npd.add_comment', pid=proj.id) }}" enctype="multipart/form-data">
+                <input type="hidden" name="is_internal" value="1">
+                <div style="display:flex;gap:.75rem;align-items:flex-start;">
+                    {% set ini=(current_user.full_name.split()[0][0]+current_user.full_name.split()[-1][0]).upper() if current_user.full_name and current_user.full_name.split()|length>1 else 'Me' %}
+                    <div class="disc-avatar" style="background:#059669;">{{ ini }}</div>
+                    <div style="flex:1;min-width:0;">
+                        <textarea name="comment" class="disc-input" placeholder="Add an internal comment..."></textarea>
+                        <div class="drop-zone" onclick="document.getElementById('intFile').click()" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="handleDrop(event,'int')">
+                            <span style="font-size:1.3rem;">📎</span><br>
+                            <span style="font-size:.84rem;color:var(--text3);">Drag & drop files here, or <span class="drop-browse" onclick="event.stopPropagation();document.getElementById('intFile').click()">browse</span></span>
+                            <br><span style="font-size:.75rem;color:var(--text3);">Any file type supported</span>
+                            <input type="file" name="attachment" id="intFile" style="display:none;" onchange="showFileName(this,'intLabel')">
+                        </div>
+                        <div id="intLabel" style="font-size:.78rem;color:var(--blue);margin-top:.3rem;"></div>
+                        <div style="display:flex;justify-content:flex-end;margin-top:.65rem;">
+                            <button type="submit" class="btn-add-new" style="font-size:.83rem;padding:7px 20px;background:#059669;">💬 Post Internal</button>
+                        </div>
+                    </div>
+                </div>
+            </form>
+            {% if internal_comments %}
+            {% for c in internal_comments %}
+            {% set ci=(c.user.full_name.split()[0][0]+c.user.full_name.split()[-1][0]).upper() if c.user and c.user.full_name.split()|length>1 else 'U' %}
+            <div class="disc-item">
+                <div class="disc-avatar" style="background:#059669;">{{ ci }}</div>
+                <div class="disc-content">
+                    <div class="disc-meta"><strong>{{ c.user.full_name if c.user else 'Unknown' }}</strong> · {{ c.created_at.strftime('%d-%m-%Y %H:%M:%S') if c.created_at else '' }}</div>
+                    {% if c.comment and not c.comment.startswith('📎 File attached:') %}
+                    <div class="disc-text">{{ c.comment }}</div>
+                    {% endif %}
+                    {% if c.attachment %}
+                    {% set att_parts = c.attachment.split('|') %}
+                    {% set att_file = att_parts[0] %}
+                    {% set att_name = att_parts[1] if att_parts|length > 1 else att_parts[0] %}
+                    <div class="disc-attach" style="margin-top:.4rem;">
+                        <a href="/static/uploads/npd/{{ att_file }}" target="_blank" class="attach-chip">
+                            📎 {{ att_name }}
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+            {% else %}
+            <p style="color:var(--text3);text-align:center;padding:2rem;font-size:.85rem;">No internal comments yet.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- TAB 4: ACTIVITY LOG -->
+<div id="tab-activity" class="tab-pane">
+    <div class="card">
+        <div class="card-hdr"><div class="card-title">Activity Log</div></div>
+        <div class="card-body">
+            {% if activity_logs %}
+            {% for a in activity_logs %}
+            {% set u=a.user %}
+            {% set ini=(u.full_name.split()[0][0]+u.full_name.split()[-1][0]).upper() if u and u.full_name.split()|length>1 else (u.full_name[:2].upper() if u else '?') %}
+            <div class="activity-item">
+                {% if not loop.last %}<div class="activity-line"></div>{% endif %}
+                <div class="activity-avatar">{{ ini }}</div>
+                <div>
+                    <div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;">
+                        <strong style="font-size:.88rem;">{{ u.full_name if u else 'System' }}</strong>
+                        <span class="time-badge">{{ a.created_at.strftime('%d-%m-%Y') if a.created_at else '' }}</span>
+                    </div>
+                    <div class="activity-action">{{ a.action }}</div>
+                    <div class="activity-when">{{ a.created_at.strftime('%d-%m-%Y %H:%M:%S') if a.created_at else '' }}</div>
+                </div>
+            </div>
+            {% endfor %}
+            {% else %}
+            <p style="color:var(--text3);text-align:center;padding:2rem;font-size:.85rem;">No activity recorded yet.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- TAB 5: ATTACHMENTS LIST -->
+<div id="tab-attachments" class="tab-pane">
+    <div class="card">
+        <div class="card-hdr">
+            <div class="card-title">Attachments List</div>
+            <span style="font-size:.78rem;color:var(--text3);">Files attached in discussions appear here</span>
+        </div>
+        <div class="card-body">
+            {% set all_attachments = (disc_comments + internal_comments)|selectattr('attachment')|list %}
+            {% if all_attachments %}
+            {% for c in all_attachments %}
+            <div class="att-item">
+                <span style="font-size:1.2rem;">📄</span>
+                <div style="flex:1;">
+                    {% set ap = c.attachment.split('|') %}
+                    <div style="font-size:.85rem;font-weight:600;">{{ ap[1] if ap|length > 1 else ap[0] }}</div>
+                    <div style="font-size:.75rem;color:var(--text3);">Uploaded by {{ c.user.full_name if c.user else '—' }} · {{ c.created_at.strftime('%d-%m-%Y') if c.created_at else '' }}</div>
+                </div>
+                <a href="/static/uploads/npd/{{ ap[0] }}" target="_blank" class="btn-grid-action">⬇ Download</a>
+            </div>
+            {% endfor %}
+            {% else %}
+            <p style="color:var(--text3);text-align:center;padding:2rem;font-size:.85rem;">No attachments found. Add files through Discussion Board.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- TAB 6: NOTE -->
+<div id="tab-note" class="tab-pane">
+    <div class="card">
+        <div class="card-hdr"><div class="card-title">Note</div></div>
+        <div class="card-body">
+            <form method="POST" action="{{ url_for('npd.save_note', pid=proj.id) }}">
+                <input type="hidden" name="note_content" id="note-hidden">
+                <div style="border:1px solid var(--border);border-radius:var(--r-lg);overflow:hidden;margin-bottom:1rem;">
+                    <div style="display:flex;gap:3px;padding:5px 8px;background:var(--bg);border-bottom:1px solid var(--border);flex-wrap:wrap;">
+                        <button type="button" class="ntb" onclick="document.execCommand('undo')">↩</button>
+                        <button type="button" class="ntb" onclick="document.execCommand('redo')">↪</button>
+                        <select class="ntb" onchange="document.execCommand('formatBlock',false,this.value)"><option value="p">Paragraph</option><option value="h1">H1</option><option value="h2">H2</option><option value="h3">H3</option></select>
+                        <button type="button" class="ntb" onclick="document.execCommand('bold')"><b>B</b></button>
+                        <button type="button" class="ntb" onclick="document.execCommand('italic')"><i>I</i></button>
+                        <button type="button" class="ntb" onclick="document.execCommand('createLink',false,prompt('URL:'))">🔗</button>
+                        <button type="button" class="ntb" onclick="document.execCommand('insertImage',false,prompt('Image URL:'))">🖼</button>
+                        <button type="button" class="ntb" onclick="document.execCommand('insertUnorderedList')">•≡</button>
+                        <button type="button" class="ntb" onclick="document.execCommand('insertOrderedList')">1≡</button>
+                        <button type="button" class="ntb" onclick="document.execCommand('outdent')">⇤</button>
+                        <button type="button" class="ntb" onclick="document.execCommand('indent')">⇥</button>
+                    </div>
+                    <div contenteditable="true" id="note-editor"
+                         style="min-height:280px;padding:.85rem 1rem;font-size:.88rem;font-family:inherit;outline:none;line-height:1.7;color:var(--text);">{{ note.content|safe if note and note.content else '' }}</div>
+                </div>
+                <div style="display:flex;justify-content:flex-end;">
+                    <button type="submit" class="btn-add-new" onclick="document.getElementById('note-hidden').value=document.getElementById('note-editor').innerHTML;" style="font-size:.85rem;padding:8px 24px;font-weight:700;letter-spacing:.05em;">SEND</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+// Tab switching
+function switchTab(name, el) {
+    document.querySelectorAll('.tab-pane').forEach(function(p){ p.classList.remove('active'); });
+    document.querySelectorAll('.tab-btn').forEach(function(b){ b.classList.remove('active'); });
+    document.getElementById('tab-'+name).classList.add('active');
+    if(el) el.classList.add('active');
+    else document.querySelectorAll('.tab-btn').forEach(function(b){ if(b.textContent.toLowerCase().includes(name)) b.classList.add('active'); });
+}
+
+// File name display
+function showFileName(input, labelId) {
+    var label = document.getElementById(labelId);
+    if(label && input.files.length > 0) label.textContent = '📎 ' + input.files[0].name;
+}
+
+// Drag & drop
+function handleDrop(e, prefix) {
+    e.preventDefault();
+    e.currentTarget.classList.remove('drag-over');
+    var files = e.dataTransfer.files;
+    if(files.length > 0) {
+        var fileInput = document.getElementById(prefix+'File');
+        if(fileInput) {
+            // Use DataTransfer to properly assign files to input
+            try {
+                var dt = new DataTransfer();
+                for(var i = 0; i < files.length; i++) dt.items.add(files[i]);
+                fileInput.files = dt.files;
+            } catch(ex) { /* fallback for older browsers */ }
+            var label = document.getElementById(prefix+'Label');
+            if(label) label.textContent = '📎 ' + files[0].name;
+        }
+    }
+}
+
+// Print only discussion board
+function printDiscussion() {
+    var disc = document.getElementById('tab-discussion');
+    var comments = disc ? disc.querySelectorAll('.disc-item') : [];
+    var html = '<html><head><title>Discussion Board — {{ proj.code }}</title>';
+    html += '<style>body{font-family:sans-serif;padding:20px;max-width:800px;margin:0 auto;}';
+    html += 'h2{font-size:16px;border-bottom:2px solid #e2e8f0;padding-bottom:8px;margin-bottom:16px;}';
+    html += '.item{display:flex;gap:12px;padding:12px 0;border-bottom:1px solid #e2e8f0;}';
+    html += '.av{width:36px;height:36px;border-radius:50%;background:#2563eb;color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0;}';
+    html += '.meta{font-size:12px;color:#6b7280;margin-bottom:4px;}';
+    html += '.meta strong{color:#111827;}';
+    html += '.text{font-size:14px;color:#374151;}</style></head><body>';
+    html += '<h2>Discussion Board — {{ proj.code }} — {{ proj.product_name }}</h2>';
+    html += '<div style="font-size:12px;color:#6b7280;margin-bottom:16px;">Printed on: ' + new Date().toLocaleString() + '</div>';
+    if(comments.length === 0) {
+        html += '<p style="color:#9ca3af;text-align:center;padding:32px;">No comments yet.</p>';
+    } else {
+        comments.forEach(function(item) {
+            var av  = item.querySelector('.disc-avatar');
+            var meta= item.querySelector('.disc-meta');
+            var txt = item.querySelector('.disc-text');
+            html += '<div class="item">';
+            html += '<div class="av">' + (av ? av.textContent.trim() : '?') + '</div>';
+            html += '<div><div class="meta">' + (meta ? meta.innerHTML : '') + '</div>';
+            html += '<div class="text">' + (txt ? txt.innerHTML : '') + '</div></div>';
+            html += '</div>';
+        });
+    }
+    html += '</body></html>';
+    var w = window.open('', '_blank');
+    w.document.write(html);
+    w.document.close();
+    w.onload = function(){ w.print(); };
+}
+
+// URL tab routing
+var urlParams = new URLSearchParams(window.location.search);
+var tabParam = urlParams.get('tab');
+if(tabParam) {
+    var tabMap = {'overview':'overview','discussion':'discussion','internal_discussion':'internal','activity':'activity','attachments':'attachments','note':'note'};
+    if(tabMap[tabParam]) {
+        document.querySelectorAll('.tab-pane').forEach(function(p){ p.classList.remove('active'); });
+        document.querySelectorAll('.tab-btn').forEach(function(b){ b.classList.remove('active'); });
+        document.getElementById('tab-'+tabMap[tabParam]).classList.add('active');
+    }
+}
+</script>
+{% endblock %}

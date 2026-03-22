@@ -1084,6 +1084,106 @@ with app.app_context():
     except Exception as e:
         warn(f"Code backfill: {e}")
 
+    # ── NPD Project R&D param defaults ──
+    safe_add('npd_projects', 'rd_param_defaults', 'TEXT')
+
+    # ── Ensure npd_comments has attachment column ──
+    safe_add('npd_comments', 'attachment', 'VARCHAR(300)')
+
+    # ── NPD Comments & Notes tables ──
+    if not table_exists('npd_comments'):
+        cur.execute("""
+            CREATE TABLE npd_comments (
+                id          INT AUTO_INCREMENT PRIMARY KEY,
+                project_id  INT NOT NULL,
+                user_id     INT NOT NULL,
+                comment     TEXT NOT NULL,
+                is_internal TINYINT(1) DEFAULT 0,
+                attachment  VARCHAR(300),
+                created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (project_id) REFERENCES npd_projects(id),
+                FOREIGN KEY (user_id)    REFERENCES users(id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        """)
+        ok("npd_comments table created")
+
+    if not table_exists('npd_notes'):
+        cur.execute("""
+            CREATE TABLE npd_notes (
+                id          INT AUTO_INCREMENT PRIMARY KEY,
+                project_id  INT NOT NULL UNIQUE,
+                content     TEXT,
+                updated_by  INT,
+                updated_at  DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                FOREIGN KEY (project_id) REFERENCES npd_projects(id),
+                FOREIGN KEY (updated_by) REFERENCES users(id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        """)
+        ok("npd_notes table created")
+
+    # ══════════════════════════════════════════════════════
+    # STEP 12 — R&D Test Parameter Master table + seed
+    # ══════════════════════════════════════════════════════
+    step("STEP 12: rd_test_parameters table create kar raha hai...")
+
+    if not table_exists('rd_test_parameters'):
+        cur.execute("""
+            CREATE TABLE rd_test_parameters (
+                id          INT AUTO_INCREMENT PRIMARY KEY,
+                name        VARCHAR(120) NOT NULL,
+                default_val VARCHAR(200) DEFAULT '',
+                unit        VARCHAR(50)  DEFAULT '',
+                sort_order  INT          DEFAULT 0,
+                is_active   TINYINT(1)   DEFAULT 1,
+                created_at  DATETIME     DEFAULT CURRENT_TIMESTAMP,
+                updated_at  DATETIME     DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        """)
+        raw.commit()
+        ok("rd_test_parameters table created")
+    else:
+        ok("rd_test_parameters table already exists")
+
+    # Add missing columns (safe for re-runs)
+    safe_add('rd_test_parameters', 'default_val', "VARCHAR(200) DEFAULT ''")
+    safe_add('rd_test_parameters', 'unit',        "VARCHAR(50)  DEFAULT ''")
+    safe_add('rd_test_parameters', 'sort_order',  'INT DEFAULT 0')
+    safe_add('rd_test_parameters', 'is_active',   'TINYINT(1) DEFAULT 1')
+    safe_add('rd_test_parameters', 'created_at',  'DATETIME DEFAULT CURRENT_TIMESTAMP')
+    safe_add('rd_test_parameters', 'updated_at',  'DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP')
+
+    # Seed default parameters only if table is empty
+    cur.execute("SELECT COUNT(*) FROM rd_test_parameters")
+    param_count = cur.fetchone()[0]
+
+    if param_count == 0:
+        default_params = [
+            (1, 'Appearance',   '',    ''),
+            (2, 'Color',        '',    ''),
+            (3, 'Odour',        '',    ''),
+            (4, 'Transparency', '',    ''),
+            (5, 'pH',           '',    ''),
+            (6, 'Viscosity',    '',    'cP'),
+            (7, 'Spindle No.',  '',    ''),
+            (8, 'RPM',          '',    'rpm'),
+        ]
+        for sort_order, name, default_val, unit in default_params:
+            cur.execute(
+                "INSERT INTO rd_test_parameters (name, default_val, unit, sort_order, is_active) VALUES (%s, %s, %s, %s, 1)",
+                (name, default_val, unit, sort_order)
+            )
+        raw.commit()
+        ok(f"rd_test_parameters: {len(default_params)} default parameters seeded")
+    else:
+        ok(f"rd_test_parameters: {param_count} parameters already exist — seed skip")
+
+    # Show current parameters
+    cur.execute("SELECT sort_order, name, unit, is_active FROM rd_test_parameters ORDER BY sort_order")
+    rows = cur.fetchall()
+    for sort_order, name, unit, is_active in rows:
+        status = f"{G}Active{E}" if is_active else f"{Y}Inactive{E}"
+        print(f"     [{sort_order}] {name:<20} unit={unit or '—':<8} {status}")
+
     raw.close()
 
     # ══════════════════════════════════════════════════════

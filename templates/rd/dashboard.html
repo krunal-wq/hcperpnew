@@ -1,0 +1,223 @@
+{% extends "base.html" %}
+{% block title %}R&D NPD Dashboard{% endblock %}
+{% block page_title %}R&D NPD Management{% endblock %}
+{% block bread %}R&D / Dashboard{% endblock %}
+
+{% block extra_css %}
+/* ── R&D Module Styles ── */
+.rd-stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:1.1rem;}
+@media(max-width:900px){.rd-stat-grid{grid-template-columns:repeat(2,1fr);}}
+.rd-stat{background:var(--white);border:1px solid var(--border);border-radius:var(--r-xl);padding:1rem 1.25rem;box-shadow:var(--sh-sm);}
+.rd-stat-lbl{font-size:10px;font-weight:800;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.4rem;}
+.rd-stat-val{font-size:1.8rem;font-weight:900;color:var(--text);line-height:1;}
+.rd-stat-sub{font-size:.72rem;color:var(--text3);margin-top:3px;}
+.rd-trend{display:inline-flex;align-items:center;gap:3px;font-size:.7rem;font-weight:700;padding:2px 6px;border-radius:5px;margin-top:4px;}
+.rd-trend.up{background:var(--green-lt);color:#166534;}
+.rd-2col{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:1rem;}
+@media(max-width:768px){.rd-2col{grid-template-columns:1fr;}}
+
+/* ── R&D Table ── */
+.rd-tbl{width:100%;border-collapse:collapse;font-size:.82rem;}
+.rd-tbl th{font-size:.68rem;font-weight:800;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;padding:.5rem .9rem;border-bottom:2px solid var(--border);text-align:left;background:var(--bg);}
+.rd-tbl td{padding:.6rem .9rem;border-bottom:1px solid var(--border);color:var(--text);vertical-align:middle;}
+.rd-tbl tbody tr:hover td{background:var(--blue-lt);}
+.rd-tbl tbody tr:last-child td{border-bottom:none;}
+
+/* ── Badges ── */
+.rd-badge{display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:100px;font-size:.7rem;font-weight:700;border:1px solid transparent;}
+.rd-badge-active{background:var(--green-lt);color:#166534;border-color:var(--green-border);}
+.rd-badge-inactive{background:var(--bg);color:var(--text3);border-color:var(--border);}
+.rd-badge-pass{background:var(--green-lt);color:#166534;border-color:var(--green-border);}
+.rd-badge-fail{background:var(--red-lt);color:#991b1b;border-color:var(--red-border);}
+.rd-badge-pending{background:var(--amber-lt);color:#92400e;border-color:var(--amber-border);}
+
+/* ── Tags ── */
+.rd-tag{display:inline-flex;padding:2px 7px;border-radius:5px;font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;}
+.rd-tag-npd{background:var(--purple-lt);color:var(--purple);}
+.rd-tag-epd{background:#d1fae5;color:#065f46;}
+
+/* ── Progress ── */
+.rd-prog{height:4px;background:var(--border);border-radius:2px;overflow:hidden;}
+.rd-prog-fill{height:100%;border-radius:2px;transition:width .3s;}
+
+/* ── Quick Actions ── */
+.qa-item{display:flex;align-items:center;gap:.75rem;padding:.7rem 1rem;border:1px solid var(--border);border-radius:var(--r-md);text-decoration:none;color:var(--text);transition:.12s;margin-bottom:.4rem;}
+.qa-item:hover{border-color:var(--blue-border);background:var(--blue-lt);}
+.qa-ic{width:36px;height:36px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0;}
+
+/* ── Workload ── */
+.wl-av{width:28px;height:28px;border-radius:8px;background:var(--blue-lt);color:var(--blue);display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:800;flex-shrink:0;}
+{% endblock %}
+
+{% block content %}
+
+<!-- Header -->
+<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.75rem;margin-bottom:1.1rem;">
+    <div>
+        <div style="font-size:1.1rem;font-weight:800;color:var(--text);">⚗️ R&D NPD Management</div>
+        <div style="font-size:.77rem;color:var(--text3);">New Product Development — R&D Overview</div>
+    </div>
+    <div style="display:flex;gap:.4rem;flex-wrap:wrap;">
+        <a href="{{ url_for('rd.trials') }}" class="btn-grid-action">⚗ Trials</a>
+        <a href="/rd/param-master" class="btn-grid-action">🧪 Parameters</a>
+        <a href="{{ url_for('rd.executives') }}" class="btn-grid-action">◎ Team</a>
+        <a href="{{ url_for('npd.npd_new') }}" class="btn-add-new" style="text-decoration:none;">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>New NPD
+        </a>
+    </div>
+</div>
+
+<!-- Stat Cards -->
+<div class="rd-stat-grid">
+    <div class="rd-stat">
+        <div class="rd-stat-lbl">Active Projects</div>
+        <div class="rd-stat-val" style="color:var(--blue);">{{ active_projects }}</div>
+        <div><span class="rd-trend up">▲ Running</span></div>
+    </div>
+    <div class="rd-stat">
+        <div class="rd-stat-lbl">R&D Trials</div>
+        <div class="rd-stat-val" style="color:var(--purple);">{{ total_trials }}</div>
+        <div class="rd-stat-sub">Formulation iterations</div>
+    </div>
+    <div class="rd-stat">
+        <div class="rd-stat-lbl">Success Rate</div>
+        <div class="rd-stat-val" style="color:var(--green);">{{ success_rate }}%</div>
+        <div class="rd-stat-sub">Projects completed</div>
+    </div>
+    <div class="rd-stat">
+        <div class="rd-stat-lbl">R&D Team</div>
+        <div class="rd-stat-val" style="color:var(--amber);">{{ total_users }}</div>
+        <div class="rd-stat-sub">Active members</div>
+    </div>
+</div>
+
+<!-- Projects + Trials -->
+<div class="rd-2col">
+
+    <!-- Active Projects -->
+    <div class="card">
+        <div class="card-hdr">
+            <div class="card-title">⬡ Active Projects</div>
+            <a href="{{ url_for('rd.projects') }}" class="card-action">View all →</a>
+        </div>
+        <table class="rd-tbl">
+            <thead><tr><th>Project</th><th>Type</th><th>Status</th><th>Age</th></tr></thead>
+            <tbody>
+            {% if recent_projects %}
+            {% for p in recent_projects %}
+            <tr>
+                <td>
+                    <div style="font-weight:700;font-size:.83rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:160px;" title="{{ p.product_name }}">{{ p.product_name }}</div>
+                    <div style="font-size:.7rem;color:var(--text3);font-family:var(--font-mono);">{{ p.code }}</div>
+                </td>
+                <td>
+                    {% if p.project_type == 'npd' %}<span class="rd-tag rd-tag-npd">NPD</span>
+                    {% else %}<span class="rd-tag rd-tag-epd">EPD</span>{% endif %}
+                </td>
+                <td><span class="rd-badge" style="background:{{ p.status_color }}18;color:{{ p.status_color }};border-color:{{ p.status_color }}44;">{{ p.status_label }}</span></td>
+                <td style="font-size:.78rem;color:var(--text3);">{{ p.project_age }}d{% if p.project_age > 30 %} <span style="color:var(--red);">⚠️</span>{% endif %}</td>
+            </tr>
+            {% endfor %}
+            {% else %}
+            <tr><td colspan="4" style="text-align:center;color:var(--text3);padding:2rem;">
+                No active projects — <a href="{{ url_for('npd.npd_new') }}" style="color:var(--blue);">Create NPD →</a>
+            </td></tr>
+            {% endif %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Recent Trials -->
+    <div class="card">
+        <div class="card-hdr">
+            <div class="card-title">⚗ Recent Trials</div>
+            <a href="{{ url_for('rd.trials') }}" class="card-action">View all →</a>
+        </div>
+        <table class="rd-tbl">
+            <thead><tr><th>Iter</th><th>Project</th><th>R&D</th><th>Result</th></tr></thead>
+            <tbody>
+            {% if recent_trials %}
+            {% for t in recent_trials %}
+            <tr>
+                <td><span style="font-family:var(--font-mono);font-size:.78rem;font-weight:700;background:var(--bg);padding:2px 7px;border-radius:5px;border:1px solid var(--border);color:var(--blue);">#{{ t.iteration }}</span></td>
+                <td style="font-size:.78rem;">
+                    {% if t.project %}{{ t.project.product_name[:22] }}{% if t.project.product_name|length > 22 %}…{% endif %}{% else %}—{% endif %}
+                </td>
+                <td style="font-size:.78rem;color:var(--text2);">{{ t.rd_user.full_name.split()[0] if t.rd_user else '—' }}</td>
+                <td>
+                    {% if t.client_status == 'approved' %}<span class="rd-badge rd-badge-pass">✅ Pass</span>
+                    {% elif 'rejected' in t.status %}<span class="rd-badge rd-badge-fail">❌ Fail</span>
+                    {% else %}<span class="rd-badge rd-badge-pending">⏳ Pending</span>{% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+            {% else %}
+            <tr><td colspan="4" style="text-align:center;color:var(--text3);padding:2rem;">No trials yet</td></tr>
+            {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Workload + Quick Actions -->
+<div class="rd-2col">
+
+    <!-- SC Workload -->
+    <div class="card">
+        <div class="card-hdr"><div class="card-title">👤 SC Workload</div></div>
+        <div class="card-body">
+            {% if sc_workload %}
+            {% for name, uid, count in sc_workload %}
+            {% set ini = (name.split()[0][0] + name.split()[-1][0]).upper() if name.split()|length > 1 else name[:2].upper() %}
+            <div style="display:flex;align-items:center;gap:.6rem;margin-bottom:.65rem;">
+                <div class="wl-av">{{ ini }}</div>
+                <div style="flex:1;">
+                    <div style="display:flex;justify-content:space-between;margin-bottom:2px;">
+                        <span style="font-size:.82rem;font-weight:600;">{{ name }}</span>
+                        <span style="font-size:.7rem;color:var(--text3);">{{ count }} proj</span>
+                    </div>
+                    <div class="rd-prog">
+                        <div class="rd-prog-fill" style="width:{{ [count * 12, 100]|min }}%;background:var(--blue);"></div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+            {% else %}
+            <p style="color:var(--text3);font-size:.82rem;text-align:center;padding:1.5rem 0;">No active workload</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="card">
+        <div class="card-hdr"><div class="card-title">🚀 Quick Actions</div></div>
+        <div class="card-body" style="padding-top:.75rem;">
+            <a href="{{ url_for('npd.npd_new') }}" class="qa-item">
+                <div class="qa-ic" style="background:var(--purple-lt);">🧪</div>
+                <div><div style="font-weight:700;font-size:.85rem;">New NPD Project</div><div style="font-size:.72rem;color:var(--text3);">R&D formulation from scratch</div></div>
+            </a>
+            <a href="{{ url_for('npd.epd_new') }}" class="qa-item">
+                <div class="qa-ic" style="background:#d1fae5;">📦</div>
+                <div><div style="font-weight:700;font-size:.85rem;">New EPD Project</div><div style="font-size:.72rem;color:var(--text3);">Existing product development</div></div>
+            </a>
+            <a href="{{ url_for('rd.trials') }}" class="qa-item">
+                <div class="qa-ic" style="background:var(--blue-lt);">⚗️</div>
+                <div><div style="font-weight:700;font-size:.85rem;">R&D Trials</div><div style="font-size:.72rem;color:var(--text3);">Log formulation iterations</div></div>
+            </a>
+            <a href="{{ url_for('rd.performance') }}" class="qa-item">
+                <div class="qa-ic" style="background:var(--amber-lt);">◑</div>
+                <div><div style="font-weight:700;font-size:.85rem;">Performance Report</div><div style="font-size:.72rem;color:var(--text3);">Executive leaderboard</div></div>
+            </a>
+            <a href="{{ url_for('rd.discussion') }}" class="qa-item">
+                <div class="qa-ic" style="background:var(--bg);">💬</div>
+                <div><div style="font-weight:700;font-size:.85rem;">Discussion Board</div><div style="font-size:.72rem;color:var(--text3);">Project discussions</div></div>
+            </a>
+            <a href="/rd/param-master" class="qa-item">
+                <div class="qa-ic" style="background:#fef3c7;">🧪</div>
+                <div><div style="font-weight:700;font-size:.85rem;">Parameter Master</div><div style="font-size:.72rem;color:var(--text3);">Manage test parameters</div></div>
+            </a>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

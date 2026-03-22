@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block title %}R&D Executives{% endblock %}
+{% block page_title %}R&D Executives{% endblock %}
+{% block bread %}R&D / Executives{% endblock %}
+{% block extra_css %}
+.exec-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
+@media(max-width:1000px){.exec-grid{grid-template-columns:repeat(2,1fr);}}
+@media(max-width:640px){.exec-grid{grid-template-columns:1fr;}}
+.exec-card{background:var(--white);border:1px solid var(--border);border-radius:var(--r-xl);padding:1.25rem;box-shadow:var(--sh-sm);}
+.exec-card.inactive{opacity:.65;}
+.exec-av{width:44px;height:44px;border-radius:12px;background:var(--blue-lt);color:var(--blue);display:flex;align-items:center;justify-content:center;font-size:.95rem;font-weight:800;flex-shrink:0;}
+.exec-stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin:.85rem 0;}
+.exec-stat{text-align:center;background:var(--bg);border-radius:var(--r-sm);padding:.5rem .25rem;}
+.exec-stat .en{font-size:1.1rem;font-weight:800;color:var(--text);}
+.exec-stat .el{font-size:.65rem;color:var(--text3);margin-top:1px;}
+.perf-bar{height:5px;background:var(--border);border-radius:3px;overflow:hidden;margin:.5rem 0;}
+.perf-fill{height:100%;border-radius:3px;}
+{% endblock %}
+{% block content %}
+<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.75rem;margin-bottom:1rem;">
+    <div>
+        <div style="font-size:1.1rem;font-weight:800;">◎ R&D Executives</div>
+        <div style="font-size:.77rem;color:var(--text3);">Team accounts, assignments & performance</div>
+    </div>
+    <a href="{{ url_for('rd.dashboard') }}" class="btn-grid-action">← Dashboard</a>
+</div>
+
+<form method="GET" style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;margin-bottom:1rem;">
+    <input type="text" name="q" value="{{ q }}" placeholder="🔍 Search executive..."
+           style="padding:.4rem .75rem;border:1px solid var(--border);border-radius:var(--r-sm);font-size:.82rem;background:var(--white);outline:none;min-width:180px;">
+    <select name="status" style="padding:.4rem .75rem;border:1px solid var(--border);border-radius:var(--r-sm);font-size:.82rem;background:var(--white);outline:none;">
+        <option value="">All Status</option>
+        <option value="active" {% if status=='active' %}selected{% endif %}>Active</option>
+        <option value="inactive" {% if status=='inactive' %}selected{% endif %}>Inactive</option>
+    </select>
+    <button type="submit" class="btn-add-new">Filter</button>
+</form>
+
+<div class="exec-grid">
+{% for u in users %}
+{% set st = user_stats.get(u.id, {}) %}
+{% set rate = st.get('success_rate', 0) %}
+{% set ini = (u.full_name.split()[0][0] + u.full_name.split()[-1][0]).upper() if u.full_name.split()|length > 1 else u.full_name[:2].upper() %}
+<div class="exec-card {{ 'inactive' if not u.is_active }}">
+    <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:.75rem;">
+        <div class="exec-av">{{ ini }}</div>
+        <div style="flex:1;min-width:0;">
+            <div style="font-weight:700;font-size:.9rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ u.full_name }}</div>
+            <div style="font-size:.75rem;color:var(--text3);">{{ u.role or 'R&D Executive' }}</div>
+            <div style="margin-top:3px;">
+                {% if u.is_active %}
+                <span style="background:var(--green-lt);color:#166534;border:1px solid var(--green-border);padding:2px 7px;border-radius:100px;font-size:.68rem;font-weight:700;">● Active</span>
+                {% else %}
+                <span style="background:var(--bg);color:var(--text3);border:1px solid var(--border);padding:2px 7px;border-radius:100px;font-size:.68rem;font-weight:700;">Inactive</span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <div class="exec-stats">
+        <div class="exec-stat"><div class="en">{{ st.get('proj_count', 0) }}</div><div class="el">Projects</div></div>
+        <div class="exec-stat"><div class="en">{{ st.get('completed', 0) }}</div><div class="el">Done</div></div>
+        <div class="exec-stat"><div class="en">{{ rate }}%</div><div class="el">Pass Rate</div></div>
+    </div>
+    <div style="font-size:.72rem;color:var(--text3);margin-bottom:3px;">Trial Success Rate</div>
+    <div class="perf-bar">
+        <div class="perf-fill" style="width:{{ rate }}%;background:{% if rate>=80 %}var(--green){% elif rate>=60 %}var(--blue){% else %}var(--amber){% endif %};"></div>
+    </div>
+    <div style="font-size:.75rem;color:var(--text3);">✅ {{ st.get('trials_pass', 0) }} pass &nbsp; ❌ {{ st.get('trials_fail', 0) }} fail</div>
+    <div style="margin-top:.75rem;display:flex;gap:.4rem;">
+        <a href="{{ url_for('rd.performance') }}" class="btn-grid-action" style="flex:1;text-align:center;text-decoration:none;">Performance</a>
+    </div>
+</div>
+{% else %}
+<div style="grid-column:1/-1;text-align:center;padding:3rem;color:var(--text3);">
+    <div style="font-size:2rem;margin-bottom:.5rem;">◎</div>
+    <div style="font-weight:700;">No executives found</div>
+</div>
+{% endfor %}
+</div>
+{% endblock %}

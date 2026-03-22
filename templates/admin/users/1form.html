@@ -27,7 +27,7 @@
           <div class="fg"><label class="fl">Full Name *</label><input type="text" name="full_name" class="fi" required value="{{ user.full_name if user else '' }}" placeholder="John Doe"></div>
           <div class="fg"><label class="fl">Username *</label><input type="text" name="username" class="fi" value="{{ user.username if user else '' }}" {{ 'readonly style=background:#f8fafc;color:var(--text3)' if user else 'required' }} placeholder="johndoe">{% if user %}<p style="font-size:.7rem;color:var(--text3);margin-top:2px;">Cannot change username</p>{% endif %}</div>
           <div class="fg"><label class="fl">Email *</label><input type="email" name="email" class="fi" required value="{{ user.email if user else '' }}" placeholder="john@company.com"></div>
-          <div class="fg"><label class="fl">Role</label><select name="role" class="fi sd">{% for r,l in [('user','👤 User'),('hr','👔 HR'),('manager','📊 Manager'),('admin','🔑 Admin'),('rd_executive','⚗️ R&D Executive'),('rd_manager','🔬 R&D Manager')] %}<option value="{{ r }}" {{ 'selected' if user and user.role==r or (not user and r=='user') }}>{{ l }}</option>{% endfor %}</select></div>
+          <div class="fg"><label class="fl">Role</label><select name="role" class="fi sd">{% for r,l in [('user','👤 User'),('hr','👔 HR'),('manager','📊 Manager'),('admin','🔑 Admin')] %}<option value="{{ r }}" {{ 'selected' if user and user.role==r or (not user and r=='user') }}>{{ l }}</option>{% endfor %}</select></div>
         </div>
         <div class="frow">
           <label class="fl">{{ 'New Password' if user else 'Password' }} <span style="font-size:.72rem;color:var(--text3);">{{ '(leave blank to keep)' if user else '(default: HCP@123)' }}</span></label>

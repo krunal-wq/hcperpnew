@@ -1,0 +1,172 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit EPD Project' if edit else 'New EPD Project' }}{% endblock %}
+{% block page_title %}{{ 'Edit EPD Project' if edit else 'New EPD Project' }}{% endblock %}
+{% block bread %}NPD / EPD Projects / {{ 'Edit' if edit else 'New' }}{% endblock %}
+{% block extra_css %}
+.form-card{background:#fff;border:1px solid var(--border);border-radius:var(--r-lg);padding:1.5rem;margin-bottom:1rem;}
+.form-section-title{font-size:.8rem;font-weight:800;color:#059669;text-transform:uppercase;letter-spacing:.08em;margin-bottom:1rem;padding-bottom:.5rem;border-bottom:2px solid #d1fae5;}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem;}
+.form-grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;}
+@media(max-width:640px){.form-grid,.form-grid-3{grid-template-columns:1fr;}}
+.form-group{display:flex;flex-direction:column;gap:.35rem;}
+.form-group label{font-size:.78rem;font-weight:600;color:var(--text2);}
+.form-group input,.form-group select,.form-group textarea{padding:.5rem .75rem;border:1px solid var(--border);border-radius:var(--r-md);font-size:.85rem;color:var(--text);background:#fff;font-family:inherit;}
+.form-group input:focus,.form-group select:focus,.form-group textarea:focus{outline:none;border-color:#059669;box-shadow:0 0 0 3px #d1fae5;}
+.form-group textarea{resize:vertical;min-height:80px;}
+.form-group.full{grid-column:1/-1;}
+.ms-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem;}
+@media(max-width:640px){.ms-grid{grid-template-columns:1fr 1fr;}}
+.ms-item{display:flex;align-items:center;gap:.5rem;padding:.5rem .7rem;border:1px solid var(--border);border-radius:var(--r-md);cursor:pointer;font-size:.8rem;}
+.ms-item:has(input:checked){border-color:#059669;background:#d1fae5;}
+.ms-item input{width:15px;height:15px;cursor:pointer;}
+{% endblock %}
+{% block content %}
+
+<!-- EPD Banner -->
+<div style="background:linear-gradient(135deg,#05996915,#34d39910);border:2px solid #05996933;border-radius:var(--r-lg);padding:.9rem 1.2rem;margin-bottom:1rem;display:flex;align-items:center;gap:.75rem;">
+    <span style="font-size:1.5rem;">📦</span>
+    <div>
+        <div style="font-weight:800;font-size:.95rem;color:#064e3b;">EPD — Existing Product Development</div>
+        <div style="font-size:.78rem;color:#065f46;margin-top:2px;">SC selects from existing products. Samples sent to client. Faster path to commercial project.</div>
+    </div>
+    {% if prefill_lead %}
+    <a href="{{ url_for('crm.lead_view', id=prefill_lead.id) }}" style="margin-left:auto;color:#059669;font-weight:600;font-size:.82rem;white-space:nowrap;">← Back to Lead</a>
+    {% endif %}
+</div>
+
+{% if prefill_lead %}
+<div style="background:#f0fdf4;border:1px solid #86efac;border-radius:var(--r-lg);padding:.75rem 1.1rem;margin-bottom:1rem;font-size:.84rem;">
+    🔗 Lead se create: <strong>{{ prefill_lead.contact_name }}{% if prefill_lead.company_name %} / {{ prefill_lead.company_name }}{% endif %}</strong> — details pre-filled hain.
+</div>
+{% endif %}
+
+<form method="POST" enctype="multipart/form-data">
+<input type="hidden" name="project_type" value="existing">
+{% if prefill_lead %}<input type="hidden" name="from_lead_id" value="{{ prefill_lead.id }}">{% endif %}
+
+<!-- Product Info -->
+<div class="form-card">
+    <div class="form-section-title">📋 Product Information</div>
+    <div class="form-grid">
+        <div class="form-group full">
+            <label>Product Name <span style="color:red">*</span></label>
+            <input type="text" name="product_name" value="{{ edit.product_name if edit else ((prefill_url.client_name if prefill_url else '') or (prefill_lead.product_name if prefill_lead else '')) }}" placeholder="e.g. Neem Face Wash 100ml" required>
+        </div>
+        <div class="form-group">
+            <label>Product Category</label>
+            <input type="text" name="product_category" value="{{ edit.product_category if edit else (prefill_lead.category if prefill_lead else '') }}" placeholder="e.g. Skin Care">
+        </div>
+        <div class="form-group">
+            <label>Product Range</label>
+            <input type="text" name="product_range" value="{{ edit.product_range if edit else (prefill_lead.product_range if prefill_lead else '') }}" placeholder="e.g. Herbal">
+        </div>
+        <div class="form-group">
+            <label>Order Quantity</label>
+            <input type="text" name="order_quantity" value="{{ edit.order_quantity if edit else (prefill_lead.order_quantity if prefill_lead else '') }}" placeholder="e.g. 5000 units">
+        </div>
+        <div class="form-group">
+            <label>Reference / Matching Product</label>
+            <input type="text" name="reference_product" value="{{ edit.reference_product if edit else '' }}" placeholder="HCP existing product code/name">
+        </div>
+        <div class="form-group full">
+            <label>Requirement Specification</label>
+            <textarea name="requirement_spec" placeholder="Packaging requirements, label specs, private labeling details...">{{ edit.requirement_spec if edit else (prefill_lead.requirement_spec if prefill_lead else '') }}</textarea>
+        </div>
+    </div>
+</div>
+
+<!-- Client Info -->
+<div class="form-card">
+    <div class="form-section-title">👤 Client Information</div>
+    <div class="form-grid">
+        <div class="form-group">
+            <label>Client Name</label>
+            <input type="text" name="client_name" value="{{ edit.client_name if edit else ((prefill_url.client_name if prefill_url and prefill_url.client_name else '') or (prefill_lead.contact_name if prefill_lead else '')) }}" placeholder="Contact person">
+        </div>
+        <div class="form-group">
+            <label>Company</label>
+            <input type="text" name="client_company" value="{{ edit.client_company if edit else ((prefill_url.client_company if prefill_url and prefill_url.client_company else '') or (prefill_lead.company_name if prefill_lead else '')) }}" placeholder="Company name">
+        </div>
+        <div class="form-group">
+            <label>Email</label>
+            <input type="email" name="client_email" value="{{ edit.client_email if edit else ((prefill_url.client_email if prefill_url and prefill_url.client_email else '') or (prefill_lead.email if prefill_lead else '')) }}" placeholder="email@company.com">
+        </div>
+        <div class="form-group">
+            <label>Phone</label>
+            <input type="text" name="client_phone" value="{{ edit.client_phone if edit else ((prefill_url.client_phone if prefill_url and prefill_url.client_phone else '') or (prefill_lead.phone if prefill_lead else '')) }}" placeholder="+91 99999 99999">
+        </div>
+        <div class="form-group full">
+            <label>Link to Lead (optional)</label>
+            <select name="lead_id">
+                <option value="">— Select Lead —</option>
+                {% for lead in leads %}
+                <option value="{{ lead.id }}" {% if (edit and edit.lead_id==lead.id) or (prefill_lead and lead.id==prefill_lead.id) %}selected{% endif %}>
+                    {{ lead.code or lead.id }} — {{ lead.contact_name }} / {{ lead.company_name or '' }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+</div>
+
+<!-- Team -->
+<div class="form-card">
+    <div class="form-section-title">👥 Team Assignment</div>
+    <div class="form-grid">
+        <div class="form-group">
+            <label>Sales Coordinator (SC)</label>
+            <select name="assigned_sc">
+                <option value="">— Select SC —</option>
+                {% for u in users %}<option value="{{ u.id }}" {% if edit and edit.assigned_sc==u.id %}selected{% endif %}>{{ u.full_name }}</option>{% endfor %}
+            </select>
+        </div>
+        <div class="form-group">
+            <label>R&D Person</label>
+            <select name="assigned_rd">
+                <option value="">— Select R&D —</option>
+                {% for u in users %}<option value="{{ u.id }}" {% if edit and edit.assigned_rd==u.id %}selected{% endif %}>{{ u.full_name }}</option>{% endfor %}
+            </select>
+        </div>
+    </div>
+</div>
+
+<!-- Advance Payment (EPD specific) -->
+<div class="form-card">
+    <div class="form-section-title">💰 Advance Payment (₹2,000)</div>
+    <div class="form-grid">
+        <div class="form-group">
+            <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;">
+                <input type="checkbox" name="advance_paid" {% if edit and edit.advance_paid %}checked{% endif %}>
+                <span>Advance Received</span>
+            </label>
+        </div>
+        <div class="form-group">
+            <label>Amount (₹)</label>
+            <input type="number" name="advance_amount" value="{{ edit.advance_amount if edit else 2000 }}" step="1">
+        </div>
+    </div>
+</div>
+
+<!-- Milestones -->
+{% if not edit %}
+<div class="form-card">
+    <div class="form-section-title">⚙️ Select Milestones</div>
+    <div class="ms-grid">
+        {% for tmpl in default_milestones %}
+        <label class="ms-item">
+            <input type="checkbox" name="milestones" value="{{ tmpl.milestone_type }}" {{ 'checked' if tmpl.default_selected else '' }}>
+            <span>{{ tmpl.icon if tmpl.icon else '' }} {{ tmpl.title }}</span>
+        </label>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<div style="display:flex;gap:.5rem;justify-content:flex-end;">
+    <a href="{{ url_for('npd.epd_dashboard') }}" class="btn btn-outline">Cancel</a>
+    <button type="submit" class="btn btn-sm" style="background:#059669;color:#fff;border:none;padding:.55rem 1.4rem;font-weight:700;">
+        {{ '💾 Save Changes' if edit else '📦 Create EPD Project' }}
+    </button>
+</div>
+</form>
+{% endblock %}

@@ -1,0 +1,947 @@
+{% extends "base.html" %}
+{% block title %}R&D Trials{% endblock %}<!-- ═══ PARAMETER MASTER MODAL ═══ -->
+<div class="modal-ov" id="param-master-modal">
+    <div class="modal-box" style="width:480px;max-width:95vw;">
+        <div class="modal-hdr">
+            <div style="font-weight:800;font-size:1rem;">⚙️ Manage Parameter Master</div>
+            <button onclick="closeParamMaster()" style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:var(--text3);">✕</button>
+        </div>
+        <div class="modal-body">
+            <div style="font-size:.78rem;color:var(--text3);margin-bottom:.85rem;">Add, remove, or reorder test parameters. Changes apply to all new trials.</div>
+
+            <div id="master-param-list" style="margin-bottom:.85rem;max-height:320px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--r-md);"></div>
+
+            <!-- Add new parameter -->
+            <div style="display:flex;gap:.5rem;align-items:center;">
+                <input type="text" id="new-param-input" placeholder="New parameter name (e.g. Foam Height)"
+                    style="flex:1;padding:.4rem .75rem;border:1px solid var(--border);border-radius:var(--r-sm);font-size:.84rem;outline:none;"
+                    onkeydown="if(event.key==='Enter'){event.preventDefault();addParamToMaster();}">
+                <button type="button" onclick="addParamToMaster()" class="btn-add-new" style="padding:.4rem 1rem;font-size:.82rem;white-space:nowrap;">+ Add</button>
+            </div>
+        </div>
+        <div style="padding:.85rem 1.4rem;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
+            <button type="button" onclick="resetParamMaster()" style="font-size:.75rem;color:var(--red);background:none;border:none;cursor:pointer;font-weight:600;">↺ Reset to Default</button>
+            <div style="display:flex;gap:.5rem;">
+                <button type="button" class="btn-grid-action" onclick="closeParamMaster()">Cancel</button>
+                <button type="button" class="btn-add-new" onclick="saveParamMaster()">✅ Save & Apply</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
+
+{% block page_title %}R&D Trials{% endblock %}
+{% block bread %}R&D / Trials{% endblock %}
+{% block extra_css %}
+.rd-tbl{width:100%;border-collapse:collapse;font-size:.82rem;}
+.rd-tbl th{font-size:.68rem;font-weight:800;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;padding:.5rem .9rem;border-bottom:2px solid var(--border);text-align:left;background:var(--bg);}
+.rd-tbl td{padding:.65rem .9rem;border-bottom:1px solid var(--border);color:var(--text);vertical-align:middle;}
+.rd-tbl tbody tr:hover td{background:var(--blue-lt);}
+.rd-tbl tbody tr:last-child td{border-bottom:none;}
+.tc{font-family:var(--font-mono);font-size:.78rem;font-weight:700;background:var(--bg);padding:2px 7px;border-radius:5px;color:var(--blue);border:1px solid var(--border);}
+.modal-ov{display:none;position:fixed;inset:0;background:rgba(15,23,42,.5);z-index:9999;align-items:center;justify-content:center;backdrop-filter:blur(3px);}
+.modal-ov.open{display:flex;}
+.modal-box{background:var(--white);border-radius:var(--r-xl);width:520px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.2);border:1px solid var(--border);}
+.modal-hdr{padding:1.1rem 1.4rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.modal-body{padding:1.4rem;}
+.fg{display:flex;flex-direction:column;gap:.3rem;margin-bottom:.85rem;}
+.fg label{font-size:.78rem;font-weight:700;color:var(--text2);}
+.fg input,.fg select,.fg textarea{padding:.45rem .75rem;border:1px solid var(--border);border-radius:var(--r-sm);font-size:.85rem;color:var(--text);background:var(--white);font-family:inherit;width:100%;outline:none;}
+.fg input:focus,.fg select:focus,.fg textarea:focus{border-color:var(--blue);box-shadow:0 0 0 3px var(--blue-lt);}
+.gr2{display:grid;grid-template-columns:1fr 1fr;gap:.75rem;}
+
+{% endblock %}
+{% block content %}
+<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.75rem;margin-bottom:1rem;">
+    <div>
+        <div style="font-size:1.1rem;font-weight:800;">⚗️ R&D Trials</div>
+        <div style="font-size:.77rem;color:var(--text3);">
+            {% if project_filter %}
+            Trials for <strong style="color:var(--text2);">{{ project_filter.product_name }}</strong> — {{ trials|length }} trial{{ 's' if trials|length != 1 else '' }} logged
+            {% else %}
+            Formulation iterations — sample tracking &amp; results
+            {% endif %}
+        </div>
+    </div>
+    <div style="display:flex;gap:.4rem;">
+        <button class="btn-add-new" onclick="openTrialModalWith()">+ Log Trial</button>
+        <a href="{{ url_for('rd.dashboard') }}" class="btn-grid-action">← Dashboard</a>
+    </div>
+</div>
+
+{% if project_filter %}
+<!-- Project context banner -->
+<div style="background:var(--blue-lt);border:1px solid var(--blue-border);border-radius:var(--r-md);padding:.65rem 1.1rem;margin-bottom:.85rem;display:flex;align-items:center;gap:1rem;flex-wrap:wrap;">
+    <div style="display:flex;align-items:center;gap:.6rem;flex:1;">
+        <span style="font-size:1.1rem;">⚗️</span>
+        <div>
+            <div style="font-size:.7rem;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.05em;">Showing trials for</div>
+            <div style="font-size:.92rem;font-weight:800;color:var(--text);">{{ project_filter.product_name }} <span style="font-size:.75rem;color:var(--blue);font-family:monospace;font-weight:700;">{{ project_filter.code }}</span></div>
+        </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;">
+        {% if project_filter.client_company or project_filter.client_name %}
+        <span style="font-size:.78rem;color:var(--text2);">👤 {{ project_filter.client_company or project_filter.client_name }}</span>
+        {% endif %}
+        {% if project_filter.rd_user %}
+        <span style="font-size:.78rem;color:var(--text2);">🧪 {{ project_filter.rd_user.full_name }}</span>
+        {% endif %}
+        <span style="font-size:.7rem;font-weight:700;padding:2px 10px;border-radius:100px;background:{{ project_filter.status_color }}18;color:{{ project_filter.status_color }};border:1px solid {{ project_filter.status_color }}44;">{{ project_filter.status_label }}</span>
+        <a href="{{ url_for('rd.trials') }}" class="btn-grid-action" style="font-size:.75rem;padding:4px 10px;">✕ Clear Filter</a>
+    </div>
+</div>
+{% endif %}
+
+<form method="GET" style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;margin-bottom:1rem;">
+    {% if project_filter %}<input type="hidden" name="project_id" value="{{ project_filter.id }}">{% endif %}
+    <input type="text" name="q" value="{{ q }}" placeholder="🔍 Search trial, project..."
+           style="padding:.4rem .75rem;border:1px solid var(--border);border-radius:var(--r-sm);font-size:.82rem;background:var(--white);outline:none;min-width:200px;">
+    <select name="result" style="padding:.4rem .75rem;border:1px solid var(--border);border-radius:var(--r-sm);font-size:.82rem;background:var(--white);outline:none;">
+        <option value="">All Results</option>
+        <option value="pass" {% if result=='pass' %}selected{% endif %}>✅ Pass</option>
+        <option value="fail" {% if result=='fail' %}selected{% endif %}>❌ Fail</option>
+        <option value="pending" {% if result=='pending' %}selected{% endif %}>⏳ Pending</option>
+    </select>
+    <button type="submit" class="btn-add-new">Filter</button>
+    <a href="{{ url_for('rd.trials') }}" class="btn-grid-action">Reset</a>
+</form>
+
+
+<script>
+
+var tempMaster = [];
+
+function openParamMaster(){
+    tempMaster = PARAM_MASTER.map(function(p){ return {name:p.name, default:p.default||''}; });
+    renderMasterList();
+    document.getElementById('param-master-modal').classList.add('open');
+}
+function closeParamMaster(){
+    document.getElementById('param-master-modal').classList.remove('open');
+}
+document.addEventListener('DOMContentLoaded',function(){
+    document.getElementById('param-master-modal').addEventListener('click',function(e){if(e.target===this)closeParamMaster();});
+});
+
+function renderMasterList(){
+    var ul = document.getElementById('master-param-list');
+    ul.innerHTML = '';
+    if(tempMaster.length === 0){
+        ul.innerHTML = '<div style="padding:1.5rem;text-align:center;color:var(--text3);font-size:.82rem;">No parameters. Add below.</div>';
+        return;
+    }
+    tempMaster.forEach(function(pm, idx){
+        var row = document.createElement('div');
+        row.style.cssText = 'display:flex;align-items:center;gap:.5rem;padding:.5rem .75rem;border-bottom:1px solid var(--border);';
+        row.innerHTML =
+            '<span style="color:var(--text3);cursor:grab;font-size:.9rem;flex-shrink:0;">⠿</span>'+
+            '<input type="text" value="'+pm.name+'" data-idx="'+idx+'" onchange="tempMaster[this.dataset.idx].name=this.value" '+
+                'style="flex:1;padding:.3rem .5rem;border:1px solid var(--border);border-radius:4px;font-size:.83rem;outline:none;">'+
+            '<input type="text" value="'+(pm.default||'')+'" data-idx="'+idx+'" placeholder="Default value" onchange="tempMaster[this.dataset.idx].default=this.value" '+
+                'style="width:110px;padding:.3rem .5rem;border:1px solid var(--border);border-radius:4px;font-size:.78rem;outline:none;color:var(--text3);" title="Default value (optional)">'+
+            '<button type="button" onclick="removeMasterParam('+idx+')" style="background:none;border:none;cursor:pointer;color:var(--red);font-size:1rem;flex-shrink:0;padding:0 4px;" title="Remove">✕</button>';
+        ul.appendChild(row);
+    });
+}
+
+function addParamToMaster(){
+    var inp = document.getElementById('new-param-input');
+    var val = inp.value.trim();
+    if(!val) return;
+    // Check duplicate
+    if(tempMaster.some(function(p){ return p.name.toLowerCase()===val.toLowerCase(); })){
+        inp.style.borderColor='var(--red)'; setTimeout(function(){ inp.style.borderColor='var(--border)'; }, 1200); return;
+    }
+    tempMaster.push({name:val, default:''});
+    inp.value = '';
+    renderMasterList();
+    // Scroll to bottom
+    var ul = document.getElementById('master-param-list');
+    ul.scrollTop = ul.scrollHeight;
+}
+
+function removeMasterParam(idx){
+    tempMaster.splice(idx, 1);
+    renderMasterList();
+}
+
+function saveParamMaster(){
+    PARAM_MASTER = tempMaster.map(function(p){ return {name:p.name, default:p.default||''}; });
+    saveParamMasterToStorage();
+    renderParamTable(); // Re-render table in trial modal
+    closeParamMaster();
+}
+
+function resetParamMaster(){
+    if(!confirm('Reset to default parameters?')) return;
+    localStorage.removeItem('rd_param_master');
+    PARAM_MASTER = [
+        {name:'Appearance', default:''},{name:'Color', default:''},{name:'Odour', default:''},
+        {name:'Transparency', default:''},{name:'pH', default:''},{name:'Viscosity', default:''},
+        {name:'Spindle No.', default:''},{name:'RPM', default:''}
+    ];
+    tempMaster = PARAM_MASTER.slice();
+    renderMasterList();
+}
+
+
+// ── Master-Detail: Project Selection ──
+var selectedProjectId = null;
+var selectedProjectRd  = null;
+
+function selectProject(pid, name, code, rdId) {
+    selectedProjectId = pid;
+    selectedProjectRd  = rdId || null;
+
+    // Highlight selected project card
+    document.querySelectorAll('[id^="proj-card-"]').forEach(function(el){
+        el.style.background = '';
+        el.style.borderLeftColor = 'transparent';
+    });
+    var card = document.getElementById('proj-card-' + pid);
+    if(card){
+        card.style.background = 'var(--blue-lt)';
+        card.style.borderLeftColor = 'var(--blue)';
+    }
+
+    // Show right panel
+    document.getElementById('right-empty-state').style.display = 'none';
+    document.getElementById('right-content').style.display = 'block';
+    document.getElementById('right-proj-name').textContent = name;
+    document.getElementById('right-proj-code').textContent = code;
+
+    // Get trials for this project
+    var projectTrials = TRIALS_BY_PROJECT[pid] || [];
+    document.getElementById('right-count').textContent = projectTrials.length;
+
+    var listEl = document.getElementById('right-trial-list');
+
+    if(projectTrials.length === 0) {
+        listEl.innerHTML =
+            '<div style="text-align:center;padding:3rem 1rem;color:var(--text3);">' +
+                '<div style="font-size:2rem;margin-bottom:.5rem;">⚗️</div>' +
+                '<div style="font-weight:700;font-size:.88rem;">No trials yet for this project</div>' +
+                '<div style="font-size:.78rem;margin-top:.3rem;margin-bottom:1rem;">Pehla trial log karo</div>' +
+                '<button onclick="logTrialForSelected()" class="btn-add-new" style="font-size:.82rem;">+ Create First Trial</button>' +
+            '</div>';
+        return;
+    }
+
+    var html = '';
+    projectTrials.forEach(function(t){
+        var statusHtml = '';
+        if(t.status === 'client_approved' || t.t_status === 'client_approved'){
+            statusHtml = '<span style="background:var(--green-lt);color:#166534;border:1px solid var(--green-border);padding:2px 8px;border-radius:100px;font-size:.7rem;font-weight:700;">✅ Pass</span>';
+        } else if(t.t_status && t.t_status.indexOf('rejected') >= 0){
+            statusHtml = '<span style="background:var(--red-lt);color:#991b1b;border:1px solid var(--red-border);padding:2px 8px;border-radius:100px;font-size:.7rem;font-weight:700;">❌ Fail</span>';
+        } else {
+            statusHtml = '<span style="background:var(--amber-lt);color:#92400e;border:1px solid var(--amber-border);padding:2px 8px;border-radius:100px;font-size:.7rem;font-weight:700;">⏳ Pending</span>';
+        }
+
+        html +=
+            '<div style="padding:.75rem 1rem;border-bottom:1px solid var(--border);cursor:pointer;transition:.12s;"' +
+            '     onmouseover="this.style.background=\'var(--blue-lt)\'" onmouseout="this.style.background=\'\'"' +
+            '     data-tid="' + t.id + '" ondblclick="openExistingTrial(this)">' +
+            '  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:3px;">' +
+            '    <div style="display:flex;align-items:center;gap:.5rem;">' +
+            '      <span style="font-family:monospace;font-size:.78rem;font-weight:700;background:var(--bg);padding:2px 7px;border-radius:5px;border:1px solid var(--border);color:var(--blue);">#' + t.iter + '</span>' +
+            '      <span style="font-size:.84rem;font-weight:700;">' + (t.name || 'Iteration ' + t.iter) + '</span>' +
+            '    </div>' +
+            '    <span style="font-size:.7rem;color:var(--text3);">' + t.date + '</span>' +
+            '  </div>' +
+            '  <div style="display:flex;align-items:center;justify-content:space-between;margin-top:4px;">' +
+            '    <span style="font-size:.75rem;color:var(--text2);">🧪 ' + (t.rd || '—') + '</span>' +
+            '    <div style="display:flex;align-items:center;gap:.5rem;">' +
+            '      ' + statusHtml +
+            '      <span style="font-size:.65rem;color:var(--text3);">↕ Double-click to edit</span>' +
+            '    </div>' +
+            '  </div>' +
+            '</div>';
+    });
+    listEl.innerHTML = html;
+}
+
+function logTrialForSelected() {
+    if(!selectedProjectId) return;
+    // Find project card data
+    var card = document.getElementById('proj-card-' + selectedProjectId);
+    var name = document.getElementById('right-proj-name').textContent;
+    var code = document.getElementById('right-proj-code').textContent;
+    openTrialForProject(selectedProjectId, name, code, '', '', '', selectedProjectRd);
+}
+
+
+var currentPredefineProjectId = null;
+
+function openPredefineModal(pid, name, code) {
+    currentPredefineProjectId = pid;
+    document.getElementById('predefine-proj-name').textContent = name;
+    document.getElementById('predefine-proj-code').textContent = code;
+    document.getElementById('predefine-subtitle').textContent  = 'Project: ' + name + ' — set default parameter values';
+
+    // Load saved defaults for this project from server
+    fetch('/rd/project-params/' + pid)
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+        renderPredefineTable(d.params || {});
+        document.getElementById('predefine-sample-name').value = d.sample_name || '';
+        document.getElementById('predefine-remark').value = d.remark || '';
+    })
+    .catch(function(){
+        renderPredefineTable({});
+    });
+
+    document.getElementById('predefine-modal').classList.add('open');
+}
+
+function closePredefineModal() {
+    document.getElementById('predefine-modal').classList.remove('open');
+    currentPredefineProjectId = null;
+}
+document.addEventListener('DOMContentLoaded',function(){
+    document.getElementById('predefine-modal').addEventListener('click', function(e){
+        if(e.target === this) closePredefineModal();
+    });
+});
+
+function renderPredefineTable(savedMap) {
+    var tbody = document.getElementById('predefine-tbody');
+    tbody.innerHTML = '';
+    PARAM_MASTER.forEach(function(pm){
+        var saved = savedMap[pm.name] || '';
+        var tr = document.createElement('tr');
+        tr.style.borderBottom = '1px solid var(--border)';
+        var inp = document.createElement('input');
+        inp.type = 'text';
+        inp.className = 'predefine-inp param-inp';
+        inp.dataset.param = pm.name;
+        inp.value = saved;
+        inp.placeholder = 'Enter default value...';
+        inp.style.cssText = 'width:100%;padding:.35rem .6rem;border:1px solid transparent;border-radius:5px;font-size:.83rem;background:transparent;outline:none;color:var(--text);';
+        inp.addEventListener('focus', function(){ this.style.border='1px solid var(--blue)'; this.style.background='var(--white)'; });
+        inp.addEventListener('blur',  function(){ this.style.border='1px solid transparent'; this.style.background='transparent'; });
+
+        var td1 = document.createElement('td');
+        td1.style.cssText = 'padding:.45rem .85rem;color:var(--text2);font-weight:600;background:var(--bg);font-size:.83rem;';
+        td1.textContent = pm.name;
+        var td2 = document.createElement('td');
+        td2.style.cssText = 'padding:.3rem .5rem;';
+        td2.appendChild(inp);
+        tr.appendChild(td1);
+        tr.appendChild(td2);
+        tbody.appendChild(tr);
+    });
+}
+
+function savePredefineParams() {
+    if(!currentPredefineProjectId) return;
+    var inputs = document.querySelectorAll('.predefine-inp');
+    var params = {};
+    inputs.forEach(function(inp){
+        if(inp.value.trim()) params[inp.dataset.param] = inp.value.trim();
+    });
+
+    var btn = document.getElementById('predefine-save-btn');
+    btn.textContent = 'Saving...'; btn.disabled = true;
+
+    fetch('/rd/project-params/' + currentPredefineProjectId + '/save', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            params: params,
+            sample_name: document.getElementById('predefine-sample-name').value.trim(),
+            remark: document.getElementById('predefine-remark').value.trim()
+        })
+    })
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+        if(d.success){
+            btn.textContent = '✅ Saved!';
+            setTimeout(function(){ closePredefineModal(); btn.textContent = '💾 Save Defaults'; btn.disabled = false; }, 800);
+        } else {
+            btn.textContent = '💾 Save Defaults'; btn.disabled = false;
+        }
+    })
+    .catch(function(){
+        btn.textContent = '💾 Save Defaults'; btn.disabled = false;
+    });
+}
+
+</script>
+
+<div style="display:grid;grid-template-columns:320px 1fr;gap:14px;align-items:start;">
+
+<!-- ═══ LEFT: Project List ═══ -->
+<div class="card" style="position:sticky;top:1rem;">
+    <div class="panel-hdr" style="padding:.75rem 1rem;border-bottom:1px solid var(--border);background:var(--bg);display:flex;align-items:center;justify-content:space-between;">
+        <div>
+            <div style="font-size:.88rem;font-weight:700;">{% if current_user.role in ['admin','superadmin'] %}All Active Projects{% else %}My Projects{% endif %}</div>
+            <div style="font-size:.65rem;color:var(--text3);">Click to view trials | Double-click for defaults</div>
+        </div>
+        <span style="font-size:.68rem;font-weight:800;padding:2px 8px;border-radius:100px;background:var(--blue-lt);color:var(--blue);border:1px solid var(--blue-border);">{{ my_projects|length }}</span>
+    </div>
+    {% if my_projects %}
+    {% for p in my_projects %}
+    {% set trial_count = trials|selectattr('project_id','eq',p.id)|list|length %}
+    <div id="proj-card-{{ p.id }}"
+         style="padding:.7rem 1rem;border-bottom:1px solid var(--border);cursor:pointer;transition:.12s;border-left:3px solid transparent;"
+         onclick="selectProject({{ p.id }},'{{ p.product_name|replace("'","") }}','{{ p.code }}','{{ p.assigned_rd or "" }}')"
+         ondblclick="openPredefineModal({{ p.id }},'{{ p.product_name|replace("'","") }}','{{ p.code }}')"
+         title="Click: view trials | Double-click: set default parameters">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2px;">
+            <span style="background:{{ 'var(--purple-lt)' if p.project_type=='npd' else '#d1fae5' }};color:{{ 'var(--purple)' if p.project_type=='npd' else '#065f46' }};padding:1px 6px;border-radius:4px;font-size:.62rem;font-weight:700;">{{ 'NPD' if p.project_type=='npd' else 'EPD' }}</span>
+            <span style="font-size:.65rem;color:{{ 'var(--green)' if trial_count > 0 else 'var(--text3)' }};font-weight:{{ '700' if trial_count > 0 else '400' }};">{{ trial_count }} trial{{ 's' if trial_count != 1 else '' }}</span>
+        </div>
+        <div style="font-weight:700;font-size:.84rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ p.product_name }}</div>
+        <div style="font-size:.68rem;color:var(--text3);font-family:monospace;">{{ p.code }}</div>
+        <div style="margin-top:4px;">
+            <span style="background:{{ p.status_color }}18;color:{{ p.status_color }};border:1px solid {{ p.status_color }}44;padding:1px 6px;border-radius:100px;font-size:.65rem;font-weight:700;">{{ p.status_label }}</span>
+        </div>
+    </div>
+    {% endfor %}
+    {% else %}
+    <div style="text-align:center;padding:2rem;color:var(--text3);">
+        <div style="font-size:1.5rem;">📋</div>
+        <div style="font-weight:700;font-size:.85rem;margin-top:.3rem;">No projects assigned</div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- ═══ RIGHT: Trial list for selected project ═══ -->
+<div class="card" id="right-panel">
+    <div id="right-empty-state" style="text-align:center;padding:4rem 1rem;color:var(--text3);">
+        <div style="font-size:2.5rem;margin-bottom:.5rem;">👈</div>
+        <div style="font-weight:700;font-size:.92rem;">Select a project</div>
+        <div style="font-size:.78rem;margin-top:.3rem;">Left side se koi project click karo</div>
+    </div>
+    <div id="right-content" style="display:none;">
+        <div class="panel-hdr" style="padding:.75rem 1rem;border-bottom:1px solid var(--border);background:var(--bg);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem;">
+            <div>
+                <div style="font-size:.88rem;font-weight:700;" id="right-proj-name">—</div>
+                <div style="font-size:.65rem;color:var(--text3);" id="right-proj-code">—</div>
+            </div>
+            <div style="display:flex;gap:.4rem;align-items:center;">
+                <span id="right-count" style="font-size:.68rem;font-weight:800;padding:2px 8px;border-radius:100px;background:var(--green-lt);color:var(--green);border:1px solid var(--green-border);">0</span>
+                <button onclick="logTrialForSelected()" class="btn-add-new" style="font-size:.75rem;padding:5px 14px;">+ Log Trial</button>
+            </div>
+        </div>
+        <div id="right-trial-list"></div>
+    </div>
+</div>
+
+</div>
+
+<!-- CKEditor 5 via cdnjs -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<style>
+.ck-editor__editable{min-height:100px!important;font-size:.85rem!important;font-family:inherit!important;}
+.pinp-focus{border:1px solid var(--blue)!important;background:var(--white)!important;box-shadow:0 0 0 2px var(--blue-lt);}
+#param-table tr:last-child td{border-bottom:none;}
+#param-table tbody tr:hover td{background:var(--blue-lt);}
+.ck.ck-toolbar{border-radius:var(--r-sm) var(--r-sm) 0 0!important;background:var(--bg)!important;border-color:var(--border)!important;}
+.ck.ck-editor__main>.ck-editor__editable{border-radius:0 0 var(--r-sm) var(--r-sm)!important;border-color:var(--border)!important;}
+.ck.ck-editor__main>.ck-editor__editable:focus{border-color:var(--blue)!important;box-shadow:0 0 0 3px var(--blue-lt)!important;}
+</style>
+
+<!-- Trial & Project Data for JS -->
+
+
+
+<script>
+
+const TRIAL_DATA = {
+    {% for t in trials %}
+    "{{ t.id }}": {
+        proj_id:  {{ t.project_id or 'null' }},
+        rd_id:    {{ t.rd_person or 'null' }},
+        name:     {{ t.formulation_name|tojson }},
+        params:   {{ t.formulation_desc|tojson if t.formulation_desc else '""' }},
+        obs:      {{ t.rd_notes|tojson if t.rd_notes else '""' }}
+    }{% if not loop.last %},{% endif %}
+    {% endfor %}
+};
+
+// Trials grouped by project_id
+const TRIALS_BY_PROJECT = {};
+{% for t in trials %}
+(function(){
+    var pid = {{ t.project_id or 'null' }};
+    if(!pid) return;
+    if(!TRIALS_BY_PROJECT[pid]) TRIALS_BY_PROJECT[pid] = [];
+    TRIALS_BY_PROJECT[pid].push({
+        id:       {{ t.id }},
+        iter:     {{ t.iteration }},
+        name:     {{ t.formulation_name|tojson }},
+        rd:       {{ t.rd_user.full_name|tojson if t.rd_user else (t.rd_person|string|tojson if t.rd_person else '""') }},
+        date:     "{{ t.created_at.strftime('%d %b %Y') if t.created_at else '' }}",
+        status:   "{{ t.client_status or 'pending' }}",
+        t_status: "{{ t.status or 'pending' }}"
+    });
+})();
+{% endfor %}
+
+
+</script>
+<script>
+
+const RD_PROJECTS = {
+    {% for p in all_projects %}
+    "{{ p.id }}": {
+        name: "{{ p.product_name }}",
+        code: "{{ p.code }}",
+        type: "{{ 'NPD' if p.project_type=='npd' else 'EPD' }}",
+        client: "{{ (p.client_name or '') }}",
+        company: "{{ (p.client_company or '') }}",
+        email: "{{ (p.client_email or '') }}",
+        phone: "{{ (p.client_phone or '') }}",
+        sc: "{{ p.sc_user.full_name if p.sc_user else '' }}",
+        rd: "{{ p.rd_user.full_name if p.rd_user else '' }}",
+        status: "{{ p.status_label }}"
+    }{% if not loop.last %},{% endif %}
+    {% endfor %}
+};
+
+</script>
+<script>
+
+// ── Close modal ──
+function closeTrialModal(){
+    document.getElementById('trial-modal').classList.remove('open');
+    // Reset to add mode
+    document.getElementById('trial-edit-id').value = '';
+    document.getElementById('trial-form').action = '{{ url_for("rd.add_trial") }}';
+    document.getElementById('modal-title').textContent = '⚗️ Log New R&D Trial';
+    document.getElementById('modal-submit-btn').textContent = 'Log Trial';
+    document.getElementById('edit-info-bar').style.display = 'none';
+    document.getElementById('proj-exec-row').style.display = '';
+}
+document.addEventListener('DOMContentLoaded',function(){
+    document.getElementById('trial-modal').addEventListener('click',function(e){if(e.target===this)closeTrialModal();});
+});
+
+// ── Project select → show client details ──
+function onProjectChange(pid){
+    var card = document.getElementById('client-info-card');
+    if(!pid || !RD_PROJECTS[pid]){card.style.display='none';return;}
+    var p = RD_PROJECTS[pid];
+    document.getElementById('ci-client').textContent  = p.client  || '—';
+    document.getElementById('ci-company').textContent = p.company || '—';
+    document.getElementById('ci-status').textContent  = p.status  || '—';
+    card.style.display = 'block';
+}
+
+// ── Simple Rich Text Editor (no CDN dependency) ──
+var ckObs = null;
+
+function initRichEditor(containerId, hiddenId) {
+    var container = document.getElementById(containerId);
+    var hidden = document.getElementById(hiddenId);
+
+    // Toolbar
+    var toolbar = document.createElement('div');
+    toolbar.style.cssText = 'display:flex;gap:3px;padding:5px 8px;background:var(--bg);border-bottom:1px solid var(--border);flex-wrap:wrap;';
+
+    var btns = [
+        {cmd:'bold',      label:'<b>B</b>'},
+        {cmd:'italic',    label:'<i>I</i>'},
+        {cmd:'underline', label:'<u>U</u>'},
+        {cmd:'separator'},
+        {cmd:'insertUnorderedList', label:'• List'},
+        {cmd:'insertOrderedList',   label:'1. List'},
+        {cmd:'separator'},
+        {cmd:'undo', label:'↩'},
+        {cmd:'redo', label:'↪'},
+    ];
+
+    btns.forEach(function(b){
+        if(b.cmd === 'separator'){
+            var sep = document.createElement('span');
+            sep.style.cssText = 'width:1px;background:var(--border);margin:2px 3px;display:inline-block;';
+            toolbar.appendChild(sep);
+            return;
+        }
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.innerHTML = b.label;
+        btn.style.cssText = 'padding:3px 8px;border:1px solid var(--border);border-radius:5px;background:var(--white);cursor:pointer;font-size:.78rem;min-width:28px;font-family:inherit;';
+        btn.onmousedown = function(e){
+            e.preventDefault();
+            document.execCommand(b.cmd, false, null);
+            area.focus();
+        };
+        btn.onmouseover = function(){this.style.background='var(--blue-lt)';};
+        btn.onmouseout  = function(){this.style.background='var(--white)';};
+        toolbar.appendChild(btn);
+    });
+
+    // Editable area
+    var area = document.createElement('div');
+    area.contentEditable = 'true';
+    area.style.cssText = 'min-height:100px;padding:.5rem .75rem;font-size:.85rem;font-family:inherit;outline:none;line-height:1.6;color:var(--text);';
+    area.setAttribute('placeholder', 'Type here...');
+
+    area.addEventListener('focus', function(){
+        container.style.borderColor = 'var(--blue)';
+        container.style.boxShadow   = '0 0 0 3px var(--blue-lt)';
+    });
+    area.addEventListener('blur', function(){
+        container.style.borderColor = 'var(--border)';
+        container.style.boxShadow   = 'none';
+        hidden.value = area.innerHTML;
+    });
+    area.addEventListener('input', function(){
+        hidden.value = area.innerHTML;
+    });
+
+    container.appendChild(toolbar);
+    container.appendChild(area);
+
+    return area;
+}
+
+// Parameters from DB
+var PARAM_MASTER = [
+    {% if test_params %}{% for p in test_params %}{id:{{ p.id }}, name:{{ p.name|tojson }}, default_val:{{ (p.default_val or '')|tojson }}, unit:{{ (p.unit or '')|tojson }}}{% if not loop.last %},{% endif %}{% endfor %}{% endif %}
+];
+if(!PARAM_MASTER || PARAM_MASTER.length === 0){
+    PARAM_MASTER = [
+        {name:'Appearance',default_val:'',unit:''},{name:'Color',default_val:'',unit:''},
+        {name:'Odour',default_val:'',unit:''},{name:'Transparency',default_val:'',unit:''},
+        {name:'pH',default_val:'',unit:''},{name:'Viscosity',default_val:'',unit:'cP'},
+        {name:'Spindle No.',default_val:'',unit:''},{name:'RPM',default_val:'',unit:'rpm'}
+    ];
+}
+
+function loadParamMasterFromStorage(){ /* now loaded from DB */ }
+function saveParamMasterToStorage(){
+    // Redirect to Parameter Master page for editing
+    window.open('/rd/param-master', '_blank');
+}
+
+function renderParamTable(existingData){
+    // existingData = array of {parameter, result} from saved trial (edit mode)
+    var dataMap = {};
+    if(existingData){ existingData.forEach(function(r){ dataMap[r.parameter]=r.result||''; }); }
+    var tbody = document.getElementById('param-tbody');
+    if(!tbody) return;
+    tbody.innerHTML = '';
+    PARAM_MASTER.forEach(function(pm, idx){
+        var val = dataMap[pm.name] !== undefined ? dataMap[pm.name] : (pm.default_val||'');
+        var tr = document.createElement('tr');
+        tr.style.cssText = 'border-bottom:1px solid var(--border);';
+        tr.innerHTML =
+            '<td style="padding:.45rem .85rem;color:var(--text2);font-weight:600;background:var(--bg);font-size:.83rem;" class="param-lbl">'+pm.name+'</td>'+
+            '<td style="padding:.3rem .5rem;">'+
+                '<input type="text" class="param-inp" value="'+val+'" placeholder="Enter result..." '+
+                'style="width:100%;padding:.35rem .6rem;border:1px solid transparent;border-radius:5px;font-size:.83rem;background:transparent;outline:none;color:var(--text);" '+
+                'onfocus="this.style.border=\'1px solid var(--blue)\';this.style.background=\'var(--white)\';" '+
+                'onblur="this.style.border=\'1px solid transparent\';this.style.background=\'transparent\';">'+
+            '</td>';
+        tbody.appendChild(tr);
+    });
+}
+
+window.addEventListener('DOMContentLoaded', function(){
+    loadParamMasterFromStorage();
+    renderParamTable();
+    ckObs = initRichEditor('ck-obs', 'obs-hidden');
+});
+
+function openTrialModalWith() {
+    // Reset to "new trial" mode
+    document.getElementById('trial-edit-id').value = '';
+    document.getElementById('trial-form').action = '{{ url_for("rd.add_trial") }}';
+    document.getElementById('modal-title').textContent = '⚗️ Log New R&D Trial';
+    document.getElementById('modal-submit-btn').textContent = 'Log Trial';
+
+    // Show dropdowns, hide info bar
+    document.getElementById('proj-exec-row').style.display = '';
+    document.getElementById('edit-info-bar').style.display = 'none';
+
+    // Reset selects
+    var sel = document.getElementById('proj-select');
+    if(sel) { sel.value = ''; onProjectChange(''); }
+    var exec = document.querySelector('select[name="exec_id"]');
+    if(exec) exec.value = '';
+
+    renderParamTable();
+    document.getElementById('trial-modal').classList.add('open');
+}
+
+// Called when clicking a project card in Grid 1
+// Open existing trial in edit mode with pre-filled data
+function openExistingTrial(el) {
+    var tid = el.dataset.tid;
+    var d   = TRIAL_DATA[tid] || {};
+    var projId    = d.proj_id || '';
+    var rdId      = d.rd_id   || '';
+    var formName  = d.name    || '';
+    var paramsRaw = d.params  || '';
+    var obsRaw    = d.obs     || '';
+
+    // Switch form to EDIT mode
+    document.getElementById('trial-edit-id').value = tid;
+    document.getElementById('trial-form').action = '/rd/trials/' + tid + '/edit';
+    document.getElementById('modal-title').textContent = '✏️ Edit R&D Trial #' + tid;
+    document.getElementById('modal-submit-btn').textContent = '💾 Update Trial';
+
+    // Pre-select project & trigger client info card
+    var sel = document.getElementById('proj-select');
+    if(sel && projId) {
+        sel.value = projId;
+        onProjectChange(projId);
+        // Show project name + code in info bar
+        var opt = sel.options[sel.selectedIndex];
+        if(opt) {
+            var optText = opt.text; // e.g. "[NPD] Face Wash — NPD-0004"
+            var codeMatch = optText.match(/—\s*(\S+)\s*$/);
+            var nameMatch = optText.match(/\]\s*(.+?)\s*—/);
+            document.getElementById('edit-proj-label').textContent = nameMatch ? nameMatch[1].trim() : optText;
+            document.getElementById('edit-proj-code').textContent  = codeMatch ? codeMatch[1] : '';
+        }
+    }
+
+    // Pre-select R&D executive
+    var execSel = document.querySelector('select[name="exec_id"]');
+    if(rdId && execSel) {
+        execSel.value = rdId;
+        var rdOpt = execSel.options[execSel.selectedIndex];
+        document.getElementById('edit-rd-label').textContent = rdOpt ? '🧪 ' + rdOpt.text : '—';
+    }
+
+    // Show info bar, hide project+exec selects in edit mode
+    document.getElementById('edit-info-bar').style.display = 'block';
+    document.getElementById('proj-exec-row').style.display = 'none';
+
+    // Fill iteration/sample name
+    var nameInp = document.querySelector('input[name="formulation_name"]');
+    if(nameInp) nameInp.value = formName || '';
+
+    // Fill parameters — clean JSON from JS object
+    var parsedParams = [];
+    if(paramsRaw) {
+        try {
+            parsedParams = typeof paramsRaw === 'string' ? JSON.parse(paramsRaw) : paramsRaw;
+        } catch(e) { parsedParams = []; }
+    }
+    renderParamTable(Array.isArray(parsedParams) ? parsedParams : []);
+
+    // Fill observations
+    setTimeout(function(){
+        if(ckObs) {
+            ckObs.innerHTML = obsRaw || '';
+            document.getElementById('obs-hidden').value = obsRaw || '';
+        }
+    }, 50);
+
+    document.getElementById('trial-modal').classList.add('open');
+}
+
+function openTrialForProject(pid, name, code, type, client, status, rdUserId) {
+    renderParamTable();
+    // Pre-select project
+    var sel = document.getElementById('proj-select');
+    if(sel) { sel.value = pid; onProjectChange(pid); }
+    // Pre-select R&D executive
+    if(rdUserId) {
+        var exec = document.querySelector('select[name="exec_id"]');
+        if(exec) exec.value = rdUserId;
+    }
+    document.getElementById('trial-modal').classList.add('open');
+}
+
+function syncEditors(){
+    // Serialize parameter table to JSON string
+    var rows = document.querySelectorAll('#param-tbody tr');
+    var params = [];
+    rows.forEach(function(row){
+        var lbl = row.querySelector('.param-lbl');
+        var inp = row.querySelector('.param-inp');
+        if(lbl && inp) params.push({parameter: lbl.textContent.trim(), result: inp.value.trim()});
+    });
+    document.getElementById('params-hidden').value = JSON.stringify(params);
+    if(ckObs) document.getElementById('obs-hidden').value = ckObs.innerHTML;
+}
+
+function syncAndSubmit(){
+    syncEditors();
+    // Small delay to ensure hidden fields are set before submit
+    setTimeout(function(){
+        document.getElementById('trial-form').submit();
+    }, 30);
+}
+
+</script>
+
+<!-- Log Trial Modal -->
+<div class="modal-ov" id="trial-modal">
+    <div class="modal-box" style="width:780px;max-width:96vw;">
+        <div class="modal-hdr">
+            <div style="font-weight:800;font-size:1rem;" id="modal-title">⚗️ Log New R&D Trial</div>
+            <button onclick="closeTrialModal()" style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:var(--text3);">✕</button>
+        </div>
+        <div class="modal-body" style="padding:1.4rem;">
+            <input type="hidden" id="trial-edit-id" value="">
+            <form method="POST" action="{{ url_for('rd.add_trial') }}" id="trial-form">
+
+                <!-- Edit mode info bar -->
+                <div id="edit-info-bar" style="display:none;background:#f8fafc;border:1px solid var(--border);border-radius:var(--r-md);padding:.55rem .9rem;margin-bottom:.75rem;font-size:.8rem;color:var(--text2);">
+                    <span id="edit-proj-label" style="font-weight:700;color:var(--text);"></span>
+                    <span id="edit-proj-code" style="font-family:monospace;font-size:.72rem;color:var(--blue);margin-left:.4rem;"></span>
+                    <span style="margin:0 .5rem;color:var(--border);">|</span>
+                    <span id="edit-rd-label">—</span>
+                </div>
+
+                <!-- Row 1: Project + Executive -->
+                <div class="gr2" style="margin-bottom:.85rem;display:none;" id="proj-exec-row">
+                    <div class="fg" style="margin-bottom:0;">
+                        <label>Project <span style="color:var(--red);">*</span></label>
+                        <select name="project_id" id="proj-select" required onchange="onProjectChange(this.value)"
+                                style="width:100%;padding:.45rem .75rem;border:1px solid var(--border);border-radius:var(--r-sm);font-size:.85rem;background:var(--white);color:var(--text);outline:none;">
+                            <option value="">— Select Project —</option>
+                            {% for p in all_projects %}
+                            <option value="{{ p.id }}">
+                                [{{ 'NPD' if p.project_type=='npd' else 'EPD' }}] {{ p.product_name }} — {{ p.code }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="fg" style="margin-bottom:0;">
+                        <label>R&D Executive</label>
+                        <select name="exec_id"
+                                style="width:100%;padding:.45rem .75rem;border:1px solid var(--border);border-radius:var(--r-sm);font-size:.85rem;background:var(--white);color:var(--text);outline:none;">
+                            <option value="">— Select —</option>
+                            {% for u in users %}
+                            <option value="{{ u.id }}">{{ u.full_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Client Info Card (hidden by default) -->
+                <div id="client-info-card" style="display:none;background:var(--blue-lt);border:1px solid var(--blue-border);border-radius:var(--r-md);padding:.6rem 1rem;margin-bottom:.85rem;">
+                    <div style="font-size:.7rem;font-weight:800;color:var(--blue);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.4rem;">📋 Project Details</div>
+                    <div style="display:flex;align-items:center;gap:1.5rem;flex-wrap:wrap;">
+                        <div>
+                            <div style="font-size:.68rem;color:var(--text3);font-weight:600;">Client Name</div>
+                            <div style="font-size:.9rem;font-weight:800;color:var(--text);" id="ci-client">—</div>
+                        </div>
+                        <div style="width:1px;height:32px;background:var(--blue-border);"></div>
+                        <div>
+                            <div style="font-size:.68rem;color:var(--text3);font-weight:600;">Company</div>
+                            <div style="font-size:.9rem;font-weight:800;color:var(--text);" id="ci-company">—</div>
+                        </div>
+                        <div style="margin-left:auto;">
+                            <span id="ci-status" style="font-size:.75rem;font-weight:700;padding:3px 10px;border-radius:100px;background:var(--blue);color:#fff;"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Iteration Name -->
+                <div class="fg">
+                    <label>Iteration / Sample Name</label>
+                    <input type="text" name="formulation_name" placeholder="e.g. V2 — Stabilized Formula"
+                           style="padding:.45rem .75rem;border:1px solid var(--border);border-radius:var(--r-sm);font-size:.85rem;background:var(--white);color:var(--text);width:100%;outline:none;">
+                </div>
+
+                <!-- Parameters Table -->
+                <div class="fg">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.4rem;">
+                        <label style="margin-bottom:0;">Test Parameters</label>
+                        <a href="/rd/param-master" target="_blank" style="font-size:.72rem;color:var(--blue);background:var(--blue-lt);border:1px solid var(--blue-border);border-radius:5px;padding:2px 10px;cursor:pointer;font-weight:600;text-decoration:none;">⚙️ Manage Parameters ↗</a>
+                    </div>
+                    <div style="border:1.5px solid var(--border);border-radius:var(--r-md);overflow:hidden;">
+                        <table style="width:100%;border-collapse:collapse;font-size:.84rem;" id="param-table">
+                            <thead>
+                                <tr style="background:var(--bg);">
+                                    <th style="padding:.5rem .85rem;text-align:left;font-size:.72rem;font-weight:800;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;border-bottom:1.5px solid var(--border);width:42%;">Parameter</th>
+                                    <th style="padding:.5rem .85rem;text-align:left;font-size:.72rem;font-weight:800;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;border-bottom:1.5px solid var(--border);">Result</th>
+                                </tr>
+                            </thead>
+                            <tbody id="param-tbody">
+                                <!-- Rows injected by JS from master list -->
+                            </tbody>
+                        </table>
+                    </div>
+                    <textarea name="parameters" id="params-hidden" style="display:none;"></textarea>
+                </div>
+
+                <!-- Observations -->
+                <div class="fg">
+                    <label>Observations / Notes</label>
+                    <div id="ck-obs" style="min-height:100px;border:1px solid var(--border);border-radius:var(--r-sm);overflow:hidden;"></div>
+                    <textarea name="observations" id="obs-hidden" style="display:none;"></textarea>
+                </div>
+
+                <div style="display:flex;gap:.5rem;justify-content:flex-end;margin-top:.5rem;">
+                    <button type="button" class="btn-grid-action" onclick="closeTrialModal()">Cancel</button>
+                    <button type="button" class="btn-add-new" id="modal-submit-btn" onclick="syncAndSubmit()">Log Trial</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+
+<!-- ═══ PREDEFINE PARAMETERS MODAL ═══ -->
+<div class="modal-ov" id="predefine-modal">
+    <div class="modal-box" style="width:700px;max-width:96vw;max-height:92vh;overflow-y:auto;">
+        <div class="modal-hdr">
+            <div>
+                <div style="font-weight:800;font-size:1rem;">📋 Pre-define Parameters</div>
+                <div style="font-size:.72rem;color:var(--text3);margin-top:2px;" id="predefine-subtitle">Set default parameter values for this project</div>
+            </div>
+            <button onclick="closePredefineModal()" style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:var(--text3);">✕</button>
+        </div>
+        <div class="modal-body" style="padding:1.25rem 1.4rem;">
+
+            <!-- Project info bar -->
+            <div id="predefine-proj-bar" style="background:var(--blue-lt);border:1px solid var(--blue-border);border-radius:var(--r-md);padding:.55rem .9rem;margin-bottom:1rem;display:flex;align-items:center;gap:.75rem;">
+                <span id="predefine-proj-name" style="font-weight:800;font-size:.88rem;color:var(--text);"></span>
+                <span id="predefine-proj-code" style="font-family:monospace;font-size:.75rem;color:var(--blue);font-weight:700;"></span>
+                <span style="font-size:.72rem;color:var(--text3);margin-left:auto;">💡 Yeh values naye trial mein auto-fill hongi</span>
+            </div>
+
+            <!-- Sample Name + Remark -->
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:.85rem;">
+                <div>
+                    <label style="font-size:.78rem;font-weight:700;color:var(--text2);display:block;margin-bottom:.3rem;">Iteration / Sample Name</label>
+                    <input type="text" id="predefine-sample-name" placeholder="e.g. V1 — Base Formula"
+                        style="width:100%;padding:.45rem .75rem;border:1px solid var(--border);border-radius:var(--r-sm);font-size:.84rem;outline:none;box-sizing:border-box;"
+                        onfocus="this.style.borderColor='var(--blue)'" onblur="this.style.borderColor='var(--border)'">
+                </div>
+                <div>
+                    <label style="font-size:.78rem;font-weight:700;color:var(--text2);display:block;margin-bottom:.3rem;">Remark</label>
+                    <input type="text" id="predefine-remark" placeholder="e.g. Initial batch test"
+                        style="width:100%;padding:.45rem .75rem;border:1px solid var(--border);border-radius:var(--r-sm);font-size:.84rem;outline:none;box-sizing:border-box;"
+                        onfocus="this.style.borderColor='var(--blue)'" onblur="this.style.borderColor='var(--border)'">
+                </div>
+            </div>
+
+            <!-- Parameters table -->
+            <div style="border:1.5px solid var(--border);border-radius:var(--r-md);overflow:hidden;">
+                <table style="width:100%;border-collapse:collapse;font-size:.84rem;">
+                    <thead>
+                        <tr style="background:var(--bg);">
+                            <th style="padding:.5rem .85rem;text-align:left;font-size:.72rem;font-weight:800;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;border-bottom:1.5px solid var(--border);width:42%;">Parameter</th>
+                            <th style="padding:.5rem .85rem;text-align:left;font-size:.72rem;font-weight:800;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;border-bottom:1.5px solid var(--border);">Default Value for this Project</th>
+                        </tr>
+                    </thead>
+                    <tbody id="predefine-tbody"></tbody>
+                </table>
+            </div>
+
+            <div style="display:flex;gap:.5rem;justify-content:flex-end;margin-top:1rem;">
+                <button type="button" class="btn-grid-action" onclick="closePredefineModal()">Cancel</button>
+                <button type="button" class="btn-add-new" id="predefine-save-btn" onclick="savePredefineParams()">💾 Save Defaults</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
+
+{% endblock %}
