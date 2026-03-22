@@ -117,13 +117,16 @@ def projects():
         User.role == 'rd_executive'
     ).all()}
 
-    unallotted = [p for p in projects if not p.assigned_rd or p.assigned_rd not in rd_exec_ids]
-    allotted   = [p for p in projects if p.assigned_rd and p.assigned_rd in rd_exec_ids]
+    CLOSED_STATUSES = {'completed', 'complete', 'closed', 'done', 'project_closed', 'cancelled'}
+
+    unallotted = [p for p in projects if (not p.assigned_rd or p.assigned_rd not in rd_exec_ids) and (p.status or '').lower() not in CLOSED_STATUSES]
+    allotted   = [p for p in projects if p.assigned_rd and p.assigned_rd in rd_exec_ids and (p.status or '').lower() not in CLOSED_STATUSES]
+    closed     = [p for p in projects if (p.status or '').lower() in CLOSED_STATUSES]
 
     return render_template('rd/projects.html',
         active_page='rd_projects',
         projects=projects, q=q, cat=cat, status=status,
-        users=users, unallotted=unallotted, allotted=allotted,
+        users=users, unallotted=unallotted, allotted=allotted, closed=closed,
         is_rd_manager=is_rd_manager,
     )
 

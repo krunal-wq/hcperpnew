@@ -109,292 +109,6 @@
 </form>
 
 
-<script>
-
-var tempMaster = [];
-
-function openParamMaster(){
-    tempMaster = PARAM_MASTER.map(function(p){ return {name:p.name, default:p.default||''}; });
-    renderMasterList();
-    document.getElementById('param-master-modal').classList.add('open');
-}
-function closeParamMaster(){
-    document.getElementById('param-master-modal').classList.remove('open');
-}
-document.addEventListener('DOMContentLoaded',function(){
-    document.getElementById('param-master-modal').addEventListener('click',function(e){if(e.target===this)closeParamMaster();});
-});
-
-function renderMasterList(){
-    var ul = document.getElementById('master-param-list');
-    ul.innerHTML = '';
-    if(tempMaster.length === 0){
-        ul.innerHTML = '<div style="padding:1.5rem;text-align:center;color:var(--text3);font-size:.82rem;">No parameters. Add below.</div>';
-        return;
-    }
-    tempMaster.forEach(function(pm, idx){
-        var row = document.createElement('div');
-        row.style.cssText = 'display:flex;align-items:center;gap:.5rem;padding:.5rem .75rem;border-bottom:1px solid var(--border);';
-        row.innerHTML =
-            '<span style="color:var(--text3);cursor:grab;font-size:.9rem;flex-shrink:0;">⠿</span>'+
-            '<input type="text" value="'+pm.name+'" data-idx="'+idx+'" onchange="tempMaster[this.dataset.idx].name=this.value" '+
-                'style="flex:1;padding:.3rem .5rem;border:1px solid var(--border);border-radius:4px;font-size:.83rem;outline:none;">'+
-            '<input type="text" value="'+(pm.default||'')+'" data-idx="'+idx+'" placeholder="Default value" onchange="tempMaster[this.dataset.idx].default=this.value" '+
-                'style="width:110px;padding:.3rem .5rem;border:1px solid var(--border);border-radius:4px;font-size:.78rem;outline:none;color:var(--text3);" title="Default value (optional)">'+
-            '<button type="button" onclick="removeMasterParam('+idx+')" style="background:none;border:none;cursor:pointer;color:var(--red);font-size:1rem;flex-shrink:0;padding:0 4px;" title="Remove">✕</button>';
-        ul.appendChild(row);
-    });
-}
-
-function addParamToMaster(){
-    var inp = document.getElementById('new-param-input');
-    var val = inp.value.trim();
-    if(!val) return;
-    // Check duplicate
-    if(tempMaster.some(function(p){ return p.name.toLowerCase()===val.toLowerCase(); })){
-        inp.style.borderColor='var(--red)'; setTimeout(function(){ inp.style.borderColor='var(--border)'; }, 1200); return;
-    }
-    tempMaster.push({name:val, default:''});
-    inp.value = '';
-    renderMasterList();
-    // Scroll to bottom
-    var ul = document.getElementById('master-param-list');
-    ul.scrollTop = ul.scrollHeight;
-}
-
-function removeMasterParam(idx){
-    tempMaster.splice(idx, 1);
-    renderMasterList();
-}
-
-function saveParamMaster(){
-    PARAM_MASTER = tempMaster.map(function(p){ return {name:p.name, default:p.default||''}; });
-    saveParamMasterToStorage();
-    renderParamTable(); // Re-render table in trial modal
-    closeParamMaster();
-}
-
-function resetParamMaster(){
-    if(!confirm('Reset to default parameters?')) return;
-    localStorage.removeItem('rd_param_master');
-    PARAM_MASTER = [
-        {name:'Appearance', default:''},{name:'Color', default:''},{name:'Odour', default:''},
-        {name:'Transparency', default:''},{name:'pH', default:''},{name:'Viscosity', default:''},
-        {name:'Spindle No.', default:''},{name:'RPM', default:''}
-    ];
-    tempMaster = PARAM_MASTER.slice();
-    renderMasterList();
-}
-
-
-// ── Master-Detail: Project Selection ──
-var selectedProjectId = null;
-var selectedProjectRd  = null;
-
-function selectProject(pid, name, code, rdId) {
-    selectedProjectId = pid;
-    selectedProjectRd  = rdId || null;
-
-    // Highlight selected project card
-    document.querySelectorAll('[id^="proj-card-"]').forEach(function(el){
-        el.style.background = '';
-        el.style.borderLeftColor = 'transparent';
-    });
-    var card = document.getElementById('proj-card-' + pid);
-    if(card){
-        card.style.background = 'var(--blue-lt)';
-        card.style.borderLeftColor = 'var(--blue)';
-    }
-
-    // Show right panel
-    document.getElementById('right-empty-state').style.display = 'none';
-    document.getElementById('right-content').style.display = 'block';
-    document.getElementById('right-proj-name').textContent = name;
-    document.getElementById('right-proj-code').textContent = code;
-
-    // Get trials for this project
-    var projectTrials = TRIALS_BY_PROJECT[pid] || [];
-    document.getElementById('right-count').textContent = projectTrials.length;
-
-    var listEl = document.getElementById('right-trial-list');
-
-    if(projectTrials.length === 0) {
-        listEl.innerHTML =
-            '<div style="text-align:center;padding:3rem 1rem;color:var(--text3);">' +
-                '<div style="font-size:2rem;margin-bottom:.5rem;">⚗️</div>' +
-                '<div style="font-weight:700;font-size:.88rem;">No trials yet for this project</div>' +
-                '<div style="font-size:.78rem;margin-top:.3rem;margin-bottom:1rem;">Pehla trial log karo</div>' +
-                '<button onclick="logTrialForSelected()" class="btn-add-new" style="font-size:.82rem;">+ Create First Trial</button>' +
-            '</div>';
-        return;
-    }
-
-    var html = '';
-    projectTrials.forEach(function(t){
-        var statusHtml = '';
-        if(t.status === 'client_approved' || t.t_status === 'client_approved'){
-            statusHtml = '<span style="background:var(--green-lt);color:#166534;border:1px solid var(--green-border);padding:2px 8px;border-radius:100px;font-size:.7rem;font-weight:700;">✅ Pass</span>';
-        } else if(t.t_status && t.t_status.indexOf('rejected') >= 0){
-            statusHtml = '<span style="background:var(--red-lt);color:#991b1b;border:1px solid var(--red-border);padding:2px 8px;border-radius:100px;font-size:.7rem;font-weight:700;">❌ Fail</span>';
-        } else {
-            statusHtml = '<span style="background:var(--amber-lt);color:#92400e;border:1px solid var(--amber-border);padding:2px 8px;border-radius:100px;font-size:.7rem;font-weight:700;">⏳ Pending</span>';
-        }
-
-        html +=
-            '<div style="padding:.75rem 1rem;border-bottom:1px solid var(--border);cursor:pointer;transition:.12s;"' +
-            '     onmouseover="this.style.background=\'var(--blue-lt)\'" onmouseout="this.style.background=\'\'"' +
-            '     data-tid="' + t.id + '" ondblclick="openExistingTrial(this)">' +
-            '  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:3px;">' +
-            '    <div style="display:flex;align-items:center;gap:.5rem;">' +
-            '      <span style="font-family:monospace;font-size:.78rem;font-weight:700;background:var(--bg);padding:2px 7px;border-radius:5px;border:1px solid var(--border);color:var(--blue);">#' + t.iter + '</span>' +
-            '      <span style="font-size:.84rem;font-weight:700;">' + (t.name || 'Iteration ' + t.iter) + '</span>' +
-            '    </div>' +
-            '    <span style="font-size:.7rem;color:var(--text3);">' + t.date + '</span>' +
-            '  </div>' +
-            '  <div style="display:flex;align-items:center;justify-content:space-between;margin-top:4px;">' +
-            '    <span style="font-size:.75rem;color:var(--text2);">🧪 ' + (t.rd || '—') + '</span>' +
-            '    <div style="display:flex;align-items:center;gap:.5rem;">' +
-            '      ' + statusHtml +
-            '      <span style="font-size:.65rem;color:var(--text3);">↕ Double-click to edit</span>' +
-            '    </div>' +
-            '  </div>' +
-            '</div>';
-    });
-    listEl.innerHTML = html;
-}
-
-function logTrialForSelected() {
-    if(!selectedProjectId) return;
-    // Find project card data
-    var card = document.getElementById('proj-card-' + selectedProjectId);
-    var name = document.getElementById('right-proj-name').textContent;
-    var code = document.getElementById('right-proj-code').textContent;
-    openTrialForProject(selectedProjectId, name, code, '', '', '', selectedProjectRd);
-}
-
-
-var currentPredefineProjectId = null;
-
-function openPredefineModal(pid, name, code) {
-    currentPredefineProjectId = pid;
-    document.getElementById('predefine-proj-name').textContent = name;
-    document.getElementById('predefine-proj-code').textContent = code;
-    document.getElementById('predefine-subtitle').textContent  = 'Project: ' + name + ' — set default parameter values';
-
-    // Pre-fill immediately from localStorage cache (instant UX)
-    var cacheKey = 'predefine_' + pid;
-    try {
-        var cached = localStorage.getItem(cacheKey);
-        if(cached) {
-            var c = JSON.parse(cached);
-            renderPredefineTable(c.params || {});
-            document.getElementById('predefine-sample-name').value = c.sample_name || '';
-            document.getElementById('predefine-remark').value = c.remark || '';
-        } else {
-            renderPredefineTable({});
-        }
-    } catch(e) { renderPredefineTable({}); }
-
-    // Then fetch from server and update (source of truth)
-    fetch('/rd/project-params/' + pid)
-    .then(function(r){ return r.json(); })
-    .then(function(d){
-        renderPredefineTable(d.params || {});
-        document.getElementById('predefine-sample-name').value = d.sample_name || '';
-        document.getElementById('predefine-remark').value = d.remark || '';
-        // Update cache with latest server data
-        try { localStorage.setItem(cacheKey, JSON.stringify({params: d.params||{}, sample_name: d.sample_name||'', remark: d.remark||''})); } catch(e){}
-    })
-    .catch(function(){
-        // Keep localStorage pre-fill if fetch fails
-    });
-
-    document.getElementById('predefine-modal').classList.add('open');
-}
-
-function closePredefineModal() {
-    document.getElementById('predefine-modal').classList.remove('open');
-    currentPredefineProjectId = null;
-}
-document.addEventListener('DOMContentLoaded',function(){
-    document.getElementById('predefine-modal').addEventListener('click', function(e){
-        if(e.target === this) closePredefineModal();
-    });
-});
-
-function renderPredefineTable(savedMap) {
-    var tbody = document.getElementById('predefine-tbody');
-    tbody.innerHTML = '';
-    PARAM_MASTER.forEach(function(pm){
-        var saved = savedMap[pm.name] || '';
-        var tr = document.createElement('tr');
-        tr.style.borderBottom = '1px solid var(--border)';
-        var inp = document.createElement('input');
-        inp.type = 'text';
-        inp.className = 'predefine-inp param-inp';
-        inp.dataset.param = pm.name;
-        inp.value = saved;
-        inp.placeholder = 'Enter default value...';
-        inp.style.cssText = 'width:100%;padding:.35rem .6rem;border:1px solid transparent;border-radius:5px;font-size:.83rem;background:transparent;outline:none;color:var(--text);';
-        inp.addEventListener('focus', function(){ this.style.border='1px solid var(--blue)'; this.style.background='var(--white)'; });
-        inp.addEventListener('blur',  function(){ this.style.border='1px solid transparent'; this.style.background='transparent'; });
-
-        var td1 = document.createElement('td');
-        td1.style.cssText = 'padding:.45rem .85rem;color:var(--text2);font-weight:600;background:var(--bg);font-size:.83rem;';
-        td1.textContent = pm.name;
-        var td2 = document.createElement('td');
-        td2.style.cssText = 'padding:.3rem .5rem;';
-        td2.appendChild(inp);
-        tr.appendChild(td1);
-        tr.appendChild(td2);
-        tbody.appendChild(tr);
-    });
-}
-
-function savePredefineParams() {
-    if(!currentPredefineProjectId) return;
-    var inputs = document.querySelectorAll('.predefine-inp');
-    var params = {};
-    inputs.forEach(function(inp){
-        if(inp.value.trim()) params[inp.dataset.param] = inp.value.trim();
-    });
-
-    var btn = document.getElementById('predefine-save-btn');
-    btn.textContent = 'Saving...'; btn.disabled = true;
-
-    fetch('/rd/project-params/' + currentPredefineProjectId + '/save', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({
-            params: params,
-            sample_name: document.getElementById('predefine-sample-name').value.trim(),
-            remark: document.getElementById('predefine-remark').value.trim()
-        })
-    })
-    .then(function(r){ return r.json(); })
-    .then(function(d){
-        if(d.success){
-            btn.textContent = '✅ Saved!';
-            // Save to localStorage cache so next open pre-fills immediately
-            try {
-                var cacheKey = 'predefine_' + currentPredefineProjectId;
-                localStorage.setItem(cacheKey, JSON.stringify({
-                    params: params,
-                    sample_name: document.getElementById('predefine-sample-name').value.trim(),
-                    remark: document.getElementById('predefine-remark').value.trim()
-                }));
-            } catch(e){}
-            setTimeout(function(){ closePredefineModal(); btn.textContent = '💾 Save Defaults'; btn.disabled = false; }, 800);
-        } else {
-            btn.textContent = '💾 Save Defaults'; btn.disabled = false;
-        }
-    })
-    .catch(function(){
-        btn.textContent = '💾 Save Defaults'; btn.disabled = false;
-    });
-}
-
-</script>
 
 <div style="display:grid;grid-template-columns:320px 1fr;gap:14px;align-items:start;">
 
@@ -474,8 +188,218 @@ function savePredefineParams() {
 
 
 
+
+<!-- Log Trial Modal -->
+<div class="modal-ov" id="trial-modal">
+    <div class="modal-box" style="width:780px;max-width:96vw;">
+        <div class="modal-hdr">
+            <div style="font-weight:800;font-size:1rem;" id="modal-title">⚗️ Log New R&D Trial</div>
+            <button onclick="closeTrialModal()" style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:var(--text3);">✕</button>
+        </div>
+        <div class="modal-body" style="padding:1.4rem;">
+            <input type="hidden" id="trial-edit-id" value="">
+            <form method="POST" action="{{ url_for('rd.add_trial') }}" id="trial-form">
+
+                <!-- Edit mode info bar -->
+                <div id="edit-info-bar" style="display:none;background:#f8fafc;border:1px solid var(--border);border-radius:var(--r-md);padding:.55rem .9rem;margin-bottom:.75rem;font-size:.8rem;color:var(--text2);">
+                    <span id="edit-proj-label" style="font-weight:700;color:var(--text);"></span>
+                    <span id="edit-proj-code" style="font-family:monospace;font-size:.72rem;color:var(--blue);margin-left:.4rem;"></span>
+                    <span style="margin:0 .5rem;color:var(--border);">|</span>
+                    <span id="edit-rd-label">—</span>
+                </div>
+
+                <!-- Row 1: Project + Executive -->
+                <!-- Project label + exec (shown when opened from project card) -->
+                <div id="proj-label-row" style="display:none;margin-bottom:.85rem;">
+                    <div class="gr2" style="gap:.75rem;">
+                        <div style="display:flex;align-items:center;gap:.6rem;background:var(--bg);border:1px solid var(--border);border-radius:var(--r-md);padding:.55rem .9rem;">
+                            <span style="font-size:.72rem;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;">Project</span>
+                            <span id="proj-label-name" style="font-weight:800;font-size:.9rem;color:var(--text);"></span>
+                            <span id="proj-label-code" style="font-family:monospace;font-size:.75rem;color:var(--blue);font-weight:700;"></span>
+                            <input type="hidden" name="project_id" id="proj-label-hidden">
+                        </div>
+                        <div style="display:flex;align-items:center;gap:.6rem;background:var(--bg);border:1px solid var(--border);border-radius:var(--r-md);padding:.55rem .9rem;">
+                            <span style="font-size:.72rem;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;">R&D Executive</span>
+                            <span id="exec-label-name" style="font-weight:800;font-size:.9rem;color:var(--text);">—</span>
+                            <input type="hidden" name="exec_id" id="exec-label-hidden">
+                        </div>
+                    </div>
+                </div>
+                <div class="gr2" style="margin-bottom:.85rem;display:none;" id="proj-exec-row">
+                    <div class="fg" style="margin-bottom:0;">
+                        <label>Project <span style="color:var(--red);">*</span></label>
+                        <select name="project_id" id="proj-select" required onchange="onProjectChange(this.value)"
+                                style="width:100%;padding:.45rem .75rem;border:1px solid var(--border);border-radius:var(--r-sm);font-size:.85rem;background:var(--white);color:var(--text);outline:none;">
+                            <option value="">— Select Project —</option>
+                            {% for p in all_projects %}
+                            <option value="{{ p.id }}">
+                                [{{ 'NPD' if p.project_type=='npd' else 'EPD' }}] {{ p.product_name }} — {{ p.code }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="fg" style="margin-bottom:0;">
+                        <label>R&D Executive</label>
+                        <select name="exec_id"
+                                style="width:100%;padding:.45rem .75rem;border:1px solid var(--border);border-radius:var(--r-sm);font-size:.85rem;background:var(--white);color:var(--text);outline:none;">
+                            <option value="">— Select —</option>
+                            {% for u in users %}
+                            <option value="{{ u.id }}">{{ u.full_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Client Info Card (hidden by default) -->
+                <div id="client-info-card" style="display:none;background:var(--blue-lt);border:1px solid var(--blue-border);border-radius:var(--r-md);padding:.6rem 1rem;margin-bottom:.85rem;">
+                    <div style="font-size:.7rem;font-weight:800;color:var(--blue);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.4rem;">📋 Project Details</div>
+                    <div style="display:flex;align-items:center;gap:1.5rem;flex-wrap:wrap;">
+                        <div>
+                            <div style="font-size:.68rem;color:var(--text3);font-weight:600;">Client Name</div>
+                            <div style="font-size:.9rem;font-weight:800;color:var(--text);" id="ci-client">—</div>
+                        </div>
+                        <div style="width:1px;height:32px;background:var(--blue-border);"></div>
+                        <div>
+                            <div style="font-size:.68rem;color:var(--text3);font-weight:600;">Company</div>
+                            <div style="font-size:.9rem;font-weight:800;color:var(--text);" id="ci-company">—</div>
+                        </div>
+                        <div style="margin-left:auto;">
+                            <span id="ci-status" style="font-size:.75rem;font-weight:700;padding:3px 10px;border-radius:100px;background:var(--blue);color:#fff;"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sample No -->
+                <div class="fg">
+                    <label>Sample No.</label>
+                    <input type="text" name="formulation_name" placeholder="e.g. S-001"
+                           style="padding:.45rem .75rem;border:1px solid var(--border);border-radius:var(--r-sm);font-size:.85rem;background:var(--white);color:var(--text);width:100%;outline:none;">
+                </div>
+
+                <!-- Parameters Table -->
+                <div class="fg">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.4rem;">
+                        <label style="margin-bottom:0;">Test Parameters</label>
+
+                    </div>
+                    <div style="border:1.5px solid var(--border);border-radius:var(--r-md);overflow:hidden;">
+                        <table style="width:100%;border-collapse:collapse;font-size:.84rem;" id="param-table">
+                            <thead>
+                                <tr style="background:var(--bg);">
+                                    <th style="padding:.5rem .85rem;text-align:left;font-size:.72rem;font-weight:800;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;border-bottom:1.5px solid var(--border);width:42%;">Parameter</th>
+                                    <th style="padding:.5rem .85rem;text-align:left;font-size:.72rem;font-weight:800;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;border-bottom:1.5px solid var(--border);">Result</th>
+                                </tr>
+                            </thead>
+                            <tbody id="param-tbody">
+                                <!-- Rows injected by JS from master list -->
+                            </tbody>
+                        </table>
+                    </div>
+                    <textarea name="parameters" id="params-hidden" style="display:none;"></textarea>
+                </div>
+
+                <!-- Status + Rejection for main sample -->
+                <div class="gr2" style="margin-bottom:.85rem;">
+                    <div class="fg" style="margin-bottom:0;">
+                        <label>Status</label>
+                        <select name="status" id="trial-status-sel" onchange="onStatusChange(this.value,'main')"
+                                style="width:100%;padding:.45rem .75rem;border:1px solid var(--border);border-radius:var(--r-sm);font-size:.85rem;background:var(--white);color:var(--text);outline:none;">
+                            <option value="pending">⏳ Pending</option>
+                            <option value="approved">✅ Approved</option>
+                            <option value="rejected">❌ Rejected</option>
+                            <option value="submitted_npd">📤 Submitted to NPD Team</option>
+                            <option value="submitted_client">📨 Submitted to Client</option>
+                            <option value="client_approved">✅ Client Approved</option>
+                            <option value="client_rejected">❌ Client Rejected</option>
+                        </select>
+                    </div>
+                    <div class="fg" style="margin-bottom:0;" id="rejection-reason-row" style="display:none;">
+                        <label>Rejection Reason <span style="color:var(--red);">*</span></label>
+                        <input type="text" name="rejection_reason" id="rejection-reason-inp" placeholder="Reason mandatory for rejection..."
+                               style="padding:.45rem .75rem;border:1px solid var(--border);border-radius:var(--r-sm);font-size:.85rem;background:var(--white);color:var(--text);width:100%;outline:none;">
+                    </div>
+                </div>
+
+                <!-- Observations -->
+                <div class="fg">
+                    <label>Observations / Notes</label>
+                    <div id="ck-obs" style="min-height:100px;border:1px solid var(--border);border-radius:var(--r-sm);overflow:hidden;"></div>
+                    <textarea name="observations" id="obs-hidden" style="display:none;"></textarea>
+                </div>
+
+                <div style="display:flex;gap:.5rem;justify-content:flex-end;margin-top:.5rem;">
+                    <button type="button" class="btn-grid-action" onclick="printTrialLabels()" style="display:flex;align-items:center;gap:.3rem;">🖨️ Print Labels</button>
+                    <button type="button" class="btn-grid-action" onclick="closeTrialModal()">Cancel</button>
+                    <button type="button" class="btn-add-new" id="modal-submit-btn" onclick="syncAndSubmit()">Log Trial</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+
+<!-- ═══ PREDEFINE PARAMETERS MODAL ═══ -->
+<div class="modal-ov" id="predefine-modal">
+    <div class="modal-box" style="width:700px;max-width:96vw;max-height:92vh;overflow-y:auto;">
+        <div class="modal-hdr">
+            <div>
+                <div style="font-weight:800;font-size:1rem;">📋 Pre-define Parameters</div>
+                <div style="font-size:.72rem;color:var(--text3);margin-top:2px;" id="predefine-subtitle">Set default parameter values for this project</div>
+            </div>
+            <button onclick="closePredefineModal()" style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:var(--text3);">✕</button>
+        </div>
+        <div class="modal-body" style="padding:1.25rem 1.4rem;">
+
+            <!-- Project info bar -->
+            <div id="predefine-proj-bar" style="background:var(--blue-lt);border:1px solid var(--blue-border);border-radius:var(--r-md);padding:.55rem .9rem;margin-bottom:1rem;display:flex;align-items:center;gap:.75rem;">
+                <span id="predefine-proj-name" style="font-weight:800;font-size:.88rem;color:var(--text);"></span>
+                <span id="predefine-proj-code" style="font-family:monospace;font-size:.75rem;color:var(--blue);font-weight:700;"></span>
+                <span style="font-size:.72rem;color:var(--text3);margin-left:auto;">💡 Yeh values naye trial mein auto-fill hongi</span>
+            </div>
+
+            <!-- Sample Name + Remark -->
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:.85rem;">
+                <div>
+                    <label style="font-size:.78rem;font-weight:700;color:var(--text2);display:block;margin-bottom:.3rem;">Sample No.</label>
+                    <input type="text" id="predefine-sample-name" placeholder="e.g. V1 — Base Formula"
+                        style="width:100%;padding:.45rem .75rem;border:1px solid var(--border);border-radius:var(--r-sm);font-size:.84rem;outline:none;box-sizing:border-box;"
+                        onfocus="this.style.borderColor='var(--blue)'" onblur="this.style.borderColor='var(--border)'">
+                </div>
+                <div>
+                    <label style="font-size:.78rem;font-weight:700;color:var(--text2);display:block;margin-bottom:.3rem;">Remark</label>
+                    <input type="text" id="predefine-remark" placeholder="e.g. Initial batch test"
+                        style="width:100%;padding:.45rem .75rem;border:1px solid var(--border);border-radius:var(--r-sm);font-size:.84rem;outline:none;box-sizing:border-box;"
+                        onfocus="this.style.borderColor='var(--blue)'" onblur="this.style.borderColor='var(--border)'">
+                </div>
+            </div>
+
+            <!-- Parameters table -->
+            <div style="border:1.5px solid var(--border);border-radius:var(--r-md);overflow:hidden;">
+                <table style="width:100%;border-collapse:collapse;font-size:.84rem;">
+                    <thead>
+                        <tr style="background:var(--bg);">
+                            <th style="padding:.5rem .85rem;text-align:left;font-size:.72rem;font-weight:800;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;border-bottom:1.5px solid var(--border);width:42%;">Parameter</th>
+                            <th style="padding:.5rem .85rem;text-align:left;font-size:.72rem;font-weight:800;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;border-bottom:1.5px solid var(--border);">Default Value for this Project</th>
+                        </tr>
+                    </thead>
+                    <tbody id="predefine-tbody"></tbody>
+                </table>
+            </div>
+
+            <div style="display:flex;gap:.5rem;justify-content:flex-end;margin-top:1rem;">
+                <button type="button" class="btn-grid-action" onclick="closePredefineModal()">Cancel</button>
+                <button type="button" class="btn-add-new" id="predefine-save-btn" onclick="savePredefineParams()">💾 Save Defaults</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
+
 <script>
 
+// ── TRIAL DATA ──
 const TRIAL_DATA = {
     {% for t in trials %}
     "{{ t.id }}": {
@@ -502,15 +426,13 @@ const TRIALS_BY_PROJECT = {};
         rd:       {{ t.rd_user.full_name|tojson if t.rd_user else (t.rd_person|string|tojson if t.rd_person else '""') }},
         date:     "{{ t.created_at.strftime('%d %b %Y') if t.created_at else '' }}",
         status:   "{{ t.client_status or 'pending' }}",
-        t_status: "{{ t.status or 'pending' }}"
+        t_status: "{{ t.status or 'pending' }}",
+        rejection_reason: {{ t.rejection_reason|tojson if t.rejection_reason is defined and t.rejection_reason else '""'|safe }}
     });
 })();
 {% endfor %}
 
-
-</script>
-<script>
-
+// ── RD PROJECTS ──
 const RD_PROJECTS = {
     {% for p in all_projects %}
     "{{ p.id }}": {
@@ -528,9 +450,7 @@ const RD_PROJECTS = {
     {% endfor %}
 };
 
-</script>
-<script>
-
+// ── PARAM MASTER + ALL FUNCTIONS ──
 // ── Close modal ──
 function closeTrialModal(){
     document.getElementById('trial-modal').classList.remove('open');
@@ -672,6 +592,19 @@ window.addEventListener('DOMContentLoaded', function(){
     loadParamMasterFromStorage();
     renderParamTable();
     ckObs = initRichEditor('ck-obs', 'obs-hidden');
+
+    // Auto-select project if redirected from projects page with project_id
+    {% if project_filter %}
+    selectProject(
+        {{ project_filter.id }},
+        {{ project_filter.product_name|tojson }},
+        '{{ project_filter.code }}',
+        '{{ project_filter.assigned_rd or "" }}'
+    );
+    // Scroll left panel to selected card
+    var card = document.getElementById('proj-card-{{ project_filter.id }}');
+    if(card) card.scrollIntoView({behavior:'smooth', block:'center'});
+    {% endif %}
 });
 
 function openTrialModalWith() {
@@ -681,8 +614,9 @@ function openTrialModalWith() {
     document.getElementById('modal-title').textContent = '⚗️ Log New R&D Trial';
     document.getElementById('modal-submit-btn').textContent = 'Log Trial';
 
-    // Show dropdowns, hide info bar
+    // Show dropdowns, hide label row and info bar
     document.getElementById('proj-exec-row').style.display = '';
+    document.getElementById('proj-label-row').style.display = 'none';
     document.getElementById('edit-info-bar').style.display = 'none';
 
     // Reset selects
@@ -690,6 +624,11 @@ function openTrialModalWith() {
     if(sel) { sel.value = ''; onProjectChange(''); }
     var exec = document.querySelector('select[name="exec_id"]');
     if(exec) exec.value = '';
+
+    // Reset status & rejection
+    var stSel = document.getElementById('trial-status-sel');
+    if(stSel) stSel.value = 'pending';
+    onStatusChange('pending');
 
     renderParamTable();
     document.getElementById('trial-modal').classList.add('open');
@@ -753,6 +692,15 @@ function openExistingTrial(el) {
     }
     renderParamTable(Array.isArray(parsedParams) ? parsedParams : []);
 
+    // Fill status
+    var trialStatus = d.t_status || 'pending';
+    var stSel = document.getElementById('trial-status-sel');
+    if(stSel) stSel.value = trialStatus;
+    onStatusChange(trialStatus);
+    // Fill rejection reason if any
+    var rejInp = document.getElementById('rejection-reason-inp');
+    if(rejInp) rejInp.value = d.rejection_reason || '';
+
     // Fill observations
     setTimeout(function(){
         if(ckObs) {
@@ -766,16 +714,44 @@ function openExistingTrial(el) {
 
 function openTrialForProject(pid, name, code, type, client, status, rdUserId) {
     renderParamTable();
-    // Pre-select project
+
+    // Hide dropdown, show label instead
+    document.getElementById('proj-exec-row').style.display = 'none';
+    document.getElementById('proj-label-row').style.display = 'block';
+    document.getElementById('proj-label-name').textContent = name;
+    document.getElementById('proj-label-code').textContent = code;
+    document.getElementById('proj-label-hidden').value = pid;
+
+    // Also set the real select so onProjectChange works
     var sel = document.getElementById('proj-select');
-    if(sel) { sel.value = pid; onProjectChange(pid); }
-    // Pre-select R&D executive
-    if(rdUserId) {
-        var exec = document.querySelector('select[name="exec_id"]');
-        if(exec) exec.value = rdUserId;
+    if(sel) { sel.value = pid; }
+    onProjectChange(pid);
+
+    // Fill R&D executive label
+    document.getElementById('exec-label-hidden').value = rdUserId || '';
+    // Find exec name from the dropdown options
+    var execName = '—';
+    var execSel = document.querySelector('#proj-exec-row select[name="exec_id"]');
+    if(execSel && rdUserId) {
+        var opt = execSel.querySelector('option[value="' + rdUserId + '"]');
+        if(opt) execName = opt.textContent;
     }
+    document.getElementById('exec-label-name').textContent = execName;
+
     document.getElementById('trial-modal').classList.add('open');
 }
+
+function onStatusChange(val, scope) {
+    var rejRow = document.getElementById('rejection-reason-row');
+    var rejInp = document.getElementById('rejection-reason-inp');
+    var isRej = (val === 'rejected' || val === 'client_rejected');
+    if(rejRow) rejRow.style.display = isRej ? 'flex' : 'none';
+    if(rejInp) { rejInp.required = isRej; if(!isRej) rejInp.value = ''; }
+}
+
+
+
+
 
 function syncEditors(){
     // Serialize parameter table to JSON string
@@ -788,6 +764,7 @@ function syncEditors(){
     });
     document.getElementById('params-hidden').value = JSON.stringify(params);
     if(ckObs) document.getElementById('obs-hidden').value = ckObs.innerHTML;
+
 }
 
 function syncAndSubmit(){
@@ -798,175 +775,332 @@ function syncAndSubmit(){
     }, 30);
 }
 
+// ── PARAM MASTER MODAL + PREDEFINE FUNCTIONS ──
+var tempMaster = [];
+
+function openParamMaster(){
+    tempMaster = PARAM_MASTER.map(function(p){ return {name:p.name, default:p.default||''}; });
+    renderMasterList();
+    document.getElementById('param-master-modal').classList.add('open');
+}
+function closeParamMaster(){
+    document.getElementById('param-master-modal').classList.remove('open');
+}
+document.addEventListener('DOMContentLoaded',function(){
+    document.getElementById('param-master-modal').addEventListener('click',function(e){if(e.target===this)closeParamMaster();});
+});
+
+function renderMasterList(){
+    var ul = document.getElementById('master-param-list');
+    ul.innerHTML = '';
+    if(tempMaster.length === 0){
+        ul.innerHTML = '<div style="padding:1.5rem;text-align:center;color:var(--text3);font-size:.82rem;">No parameters. Add below.</div>';
+        return;
+    }
+    tempMaster.forEach(function(pm, idx){
+        var row = document.createElement('div');
+        row.style.cssText = 'display:flex;align-items:center;gap:.5rem;padding:.5rem .75rem;border-bottom:1px solid var(--border);';
+        row.innerHTML =
+            '<span style="color:var(--text3);cursor:grab;font-size:.9rem;flex-shrink:0;">⠿</span>'+
+            '<input type="text" value="'+pm.name+'" data-idx="'+idx+'" onchange="tempMaster[this.dataset.idx].name=this.value" '+
+                'style="flex:1;padding:.3rem .5rem;border:1px solid var(--border);border-radius:4px;font-size:.83rem;outline:none;">'+
+            '<input type="text" value="'+(pm.default||'')+'" data-idx="'+idx+'" placeholder="Default value" onchange="tempMaster[this.dataset.idx].default=this.value" '+
+                'style="width:110px;padding:.3rem .5rem;border:1px solid var(--border);border-radius:4px;font-size:.78rem;outline:none;color:var(--text3);" title="Default value (optional)">'+
+            '<button type="button" onclick="removeMasterParam('+idx+')" style="background:none;border:none;cursor:pointer;color:var(--red);font-size:1rem;flex-shrink:0;padding:0 4px;" title="Remove">✕</button>';
+        ul.appendChild(row);
+    });
+}
+
+function addParamToMaster(){
+    var inp = document.getElementById('new-param-input');
+    var val = inp.value.trim();
+    if(!val) return;
+    // Check duplicate
+    if(tempMaster.some(function(p){ return p.name.toLowerCase()===val.toLowerCase(); })){
+        inp.style.borderColor='var(--red)'; setTimeout(function(){ inp.style.borderColor='var(--border)'; }, 1200); return;
+    }
+    tempMaster.push({name:val, default:''});
+    inp.value = '';
+    renderMasterList();
+    // Scroll to bottom
+    var ul = document.getElementById('master-param-list');
+    ul.scrollTop = ul.scrollHeight;
+}
+
+function removeMasterParam(idx){
+    tempMaster.splice(idx, 1);
+    renderMasterList();
+}
+
+function saveParamMaster(){
+    PARAM_MASTER = tempMaster.map(function(p){ return {name:p.name, default:p.default||''}; });
+    saveParamMasterToStorage();
+    renderParamTable(); // Re-render table in trial modal
+    closeParamMaster();
+}
+
+function resetParamMaster(){
+    if(!confirm('Reset to default parameters?')) return;
+    localStorage.removeItem('rd_param_master');
+    PARAM_MASTER = [
+        {name:'Appearance', default:''},{name:'Color', default:''},{name:'Odour', default:''},
+        {name:'Transparency', default:''},{name:'pH', default:''},{name:'Viscosity', default:''},
+        {name:'Spindle No.', default:''},{name:'RPM', default:''}
+    ];
+    tempMaster = PARAM_MASTER.slice();
+    renderMasterList();
+}
+
+
+// ── Master-Detail: Project Selection ──
+var selectedProjectId = null;
+var selectedProjectRd  = null;
+
+function selectProject(pid, name, code, rdId) {
+    selectedProjectId = pid;
+    selectedProjectRd  = rdId || null;
+
+    // Highlight selected project card
+    document.querySelectorAll('[id^="proj-card-"]').forEach(function(el){
+        el.style.background = '';
+        el.style.borderLeftColor = 'transparent';
+    });
+    var card = document.getElementById('proj-card-' + pid);
+    if(card){
+        card.style.background = 'var(--blue-lt)';
+        card.style.borderLeftColor = 'var(--blue)';
+    }
+
+    // Show right panel
+    document.getElementById('right-empty-state').style.display = 'none';
+    document.getElementById('right-content').style.display = 'block';
+    document.getElementById('right-proj-name').textContent = name;
+    document.getElementById('right-proj-code').textContent = code;
+
+    // Get trials for this project
+    var projectTrials = TRIALS_BY_PROJECT[pid] || [];
+    document.getElementById('right-count').textContent = projectTrials.length;
+
+    var listEl = document.getElementById('right-trial-list');
+
+    if(projectTrials.length === 0) {
+        listEl.innerHTML =
+            '<div style="text-align:center;padding:3rem 1rem;color:var(--text3);">' +
+                '<div style="font-size:2rem;margin-bottom:.5rem;">⚗️</div>' +
+                '<div style="font-weight:700;font-size:.88rem;">No trials yet for this project</div>' +
+                '<div style="font-size:.78rem;margin-top:.3rem;margin-bottom:1rem;">Pehla trial log karo</div>' +
+                '<button onclick="logTrialForSelected()" class="btn-add-new" style="font-size:.82rem;">+ Create First Trial</button>' +
+            '</div>';
+        return;
+    }
+
+    var html = '';
+    projectTrials.forEach(function(t){
+        var statusHtml = '';
+        var st = t.t_status || t.status || 'pending';
+        var statusMap = {
+            'pending':             ['#fef3c7','#92400e','#fcd34d','⏳ Pending'],
+            'approved':            ['#d1fae5','#065f46','#6ee7b7','✅ Approved'],
+            'rejected':            ['#fee2e2','#991b1b','#fca5a5','❌ Rejected'],
+            'submitted_npd':       ['#ede9fe','#5b21b6','#c4b5fd','📤 Submitted to NPD'],
+            'submitted_client':    ['#dbeafe','#1e40af','#93c5fd','📨 Submitted to Client'],
+            'client_approved':     ['#d1fae5','#065f46','#6ee7b7','✅ Client Approved'],
+            'client_rejected':     ['#fee2e2','#991b1b','#fca5a5','❌ Client Rejected']
+        };
+        var sm = statusMap[st] || statusMap['pending'];
+        statusHtml = '<span style="background:'+sm[0]+';color:'+sm[1]+';border:1px solid '+sm[2]+';padding:2px 8px;border-radius:100px;font-size:.7rem;font-weight:700;">'+sm[3]+'</span>';
+
+        html +=
+            '<div style="padding:.75rem 1rem;border-bottom:1px solid var(--border);cursor:pointer;transition:.12s;"' +
+            '     onmouseover="this.style.background=\'var(--blue-lt)\'" onmouseout="this.style.background=\'\'"' +
+            '     data-tid="' + t.id + '" ondblclick="openExistingTrial(this)">' +
+            '  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:3px;">' +
+            '    <div style="display:flex;align-items:center;gap:.5rem;">' +
+            '      <span style="font-family:monospace;font-size:.78rem;font-weight:700;background:var(--bg);padding:2px 7px;border-radius:5px;border:1px solid var(--border);color:var(--blue);">#' + t.iter + '</span>' +
+            '      <span style="font-size:.84rem;font-weight:700;">' + (t.name || 'Iteration ' + t.iter) + '</span>' +
+            '    </div>' +
+            '    <span style="font-size:.7rem;color:var(--text3);">' + t.date + '</span>' +
+            '  </div>' +
+            '  <div style="display:flex;align-items:center;justify-content:space-between;margin-top:4px;">' +
+            '    <span style="font-size:.75rem;color:var(--text2);">🧪 ' + (t.rd || '—') + '</span>' +
+            '    <div style="display:flex;align-items:center;gap:.5rem;">' +
+            '      ' + statusHtml +
+            '      <span style="font-size:.65rem;color:var(--text3);">↕ Double-click to edit</span>' +
+            '    </div>' +
+            '  </div>' +
+            '</div>';
+    });
+    listEl.innerHTML = html;
+}
+
+function logTrialForSelected() {
+    if(!selectedProjectId) return;
+    // Find project card data
+    var card = document.getElementById('proj-card-' + selectedProjectId);
+    var name = document.getElementById('right-proj-name').textContent;
+    var code = document.getElementById('right-proj-code').textContent;
+    openTrialForProject(selectedProjectId, name, code, '', '', '', selectedProjectRd);
+}
+
+
+var currentPredefineProjectId = null;
+
+function openPredefineModal(pid, name, code) {
+    currentPredefineProjectId = pid;
+    document.getElementById('predefine-proj-name').textContent = name;
+    document.getElementById('predefine-proj-code').textContent = code;
+    document.getElementById('predefine-subtitle').textContent  = 'Project: ' + name + ' — set default parameter values';
+
+    // Pre-fill immediately from localStorage cache (instant UX)
+    var cacheKey = 'predefine_' + pid;
+    try {
+        var cached = localStorage.getItem(cacheKey);
+        if(cached) {
+            var c = JSON.parse(cached);
+            renderPredefineTable(c.params || {});
+            document.getElementById('predefine-sample-name').value = c.sample_name || '';
+            document.getElementById('predefine-remark').value = c.remark || '';
+        } else {
+            renderPredefineTable({});
+        }
+    } catch(e) { renderPredefineTable({}); }
+
+    // Then fetch from server and update (source of truth)
+    fetch('/rd/project-params/' + pid)
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+        renderPredefineTable(d.params || {});
+        document.getElementById('predefine-sample-name').value = d.sample_name || '';
+        document.getElementById('predefine-remark').value = d.remark || '';
+        // Update cache with latest server data
+        try { localStorage.setItem(cacheKey, JSON.stringify({params: d.params||{}, sample_name: d.sample_name||'', remark: d.remark||''})); } catch(e){}
+    })
+    .catch(function(){
+        // Keep localStorage pre-fill if fetch fails
+    });
+
+    document.getElementById('predefine-modal').classList.add('open');
+}
+
+function closePredefineModal() {
+    document.getElementById('predefine-modal').classList.remove('open');
+    currentPredefineProjectId = null;
+}
+document.addEventListener('DOMContentLoaded',function(){
+    document.getElementById('predefine-modal').addEventListener('click', function(e){
+        if(e.target === this) closePredefineModal();
+    });
+});
+
+function renderPredefineTable(savedMap) {
+    var tbody = document.getElementById('predefine-tbody');
+    tbody.innerHTML = '';
+    PARAM_MASTER.forEach(function(pm){
+        var saved = savedMap[pm.name] || '';
+        var tr = document.createElement('tr');
+        tr.style.borderBottom = '1px solid var(--border)';
+        var inp = document.createElement('input');
+        inp.type = 'text';
+        inp.className = 'predefine-inp param-inp';
+        inp.dataset.param = pm.name;
+        inp.value = saved;
+        inp.placeholder = 'Enter default value...';
+        inp.style.cssText = 'width:100%;padding:.35rem .6rem;border:1px solid transparent;border-radius:5px;font-size:.83rem;background:transparent;outline:none;color:var(--text);';
+        inp.addEventListener('focus', function(){ this.style.border='1px solid var(--blue)'; this.style.background='var(--white)'; });
+        inp.addEventListener('blur',  function(){ this.style.border='1px solid transparent'; this.style.background='transparent'; });
+
+        var td1 = document.createElement('td');
+        td1.style.cssText = 'padding:.45rem .85rem;color:var(--text2);font-weight:600;background:var(--bg);font-size:.83rem;';
+        td1.textContent = pm.name;
+        var td2 = document.createElement('td');
+        td2.style.cssText = 'padding:.3rem .5rem;';
+        td2.appendChild(inp);
+        tr.appendChild(td1);
+        tr.appendChild(td2);
+        tbody.appendChild(tr);
+    });
+}
+
+function savePredefineParams() {
+    if(!currentPredefineProjectId) return;
+    var inputs = document.querySelectorAll('#predefine-tbody .predefine-inp');
+    var params = {};
+    inputs.forEach(function(inp){
+        params[inp.dataset.param] = inp.value.trim(); // save all, including empty
+    });
+
+    var btn = document.getElementById('predefine-save-btn');
+    btn.textContent = 'Saving...'; btn.disabled = true;
+
+    fetch('/rd/project-params/' + currentPredefineProjectId + '/save', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            params: params,
+            sample_name: document.getElementById('predefine-sample-name').value.trim(),
+            remark: document.getElementById('predefine-remark').value.trim()
+        })
+    })
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+        if(d.success){
+            btn.textContent = '✅ Saved!';
+            // Save to localStorage cache so next open pre-fills immediately
+            try {
+                var cacheKey = 'predefine_' + currentPredefineProjectId;
+                // Capture all param values including empty ones for full restore
+                var allParams = {};
+                document.querySelectorAll('#predefine-tbody .predefine-inp').forEach(function(i){
+                    allParams[i.dataset.param] = i.value.trim();
+                });
+                localStorage.setItem(cacheKey, JSON.stringify({
+                    params: allParams,
+                    sample_name: document.getElementById('predefine-sample-name').value.trim(),
+                    remark: document.getElementById('predefine-remark').value.trim()
+                }));
+            } catch(e){}
+            setTimeout(function(){ closePredefineModal(); btn.textContent = '💾 Save Defaults'; btn.disabled = false; }, 800);
+        } else {
+            btn.textContent = '💾 Save Defaults'; btn.disabled = false;
+        }
+    })
+    .catch(function(){
+        btn.textContent = '💾 Save Defaults'; btn.disabled = false;
+    });
+}
+
+
+function printTrialLabels() {
+    var projName = document.getElementById('proj-label-name').textContent.trim() ||
+                   (document.getElementById('right-proj-name') ? document.getElementById('right-proj-name').textContent.trim() : '') || '';
+    var sampleNo = document.querySelector('input[name="formulation_name"]').value.trim() || '—';
+
+    var labelCard =
+        '<div class="label-card">' +
+            '<div class="label-proj">' + projName + '</div>' +
+            '<div class="label-sample">' + sampleNo + '</div>' +
+            '<div class="label-footer">HCP WELLNESS</div>' +
+        '</div>';
+
+    var labelsRow = '<div class="labels-grid">' + labelCard + labelCard + '</div>';
+
+    var win = window.open('', '_blank', 'width=600,height=400');
+    win.document.write('<!DOCTYPE html><html><head><meta charset="utf-8"><title>Print Labels</title><style>' +
+        '* { margin:0; padding:0; box-sizing:border-box; }' +
+        'body { background:#fff; font-family: Arial, sans-serif; }' +
+        '.labels-grid { display:flex; flex-wrap:wrap; gap:0; padding:5mm; }' +
+        '.label-card { width:40mm; height:20mm; border:0.6mm solid #000; display:flex; flex-direction:column; align-items:center; justify-content:space-between; padding:1.5mm 2mm; overflow:hidden; }' +
+        '.label-proj  { font-size:7.5pt; font-weight:900; text-align:center; line-height:1.3; flex:1; display:flex; align-items:center; justify-content:center; }' +
+        '.label-sample{ font-size:7pt; font-weight:700; color:#222; text-align:center; }' +
+        '.label-footer{ font-size:5.5pt; font-weight:800; border-top:0.4mm solid #000; padding-top:1mm; width:100%; text-align:center; letter-spacing:.08em; }' +
+        '@media print { @page { margin:4mm; size:A4; } body { margin:0; } }' +
+        '</style></head><body>' +
+        labelsRow +
+        '<script>window.onload=function(){ window.print(); }<' + '/script>' +
+        '</body></html>');
+    win.document.close();
+}
+
 </script>
-
-<!-- Log Trial Modal -->
-<div class="modal-ov" id="trial-modal">
-    <div class="modal-box" style="width:780px;max-width:96vw;">
-        <div class="modal-hdr">
-            <div style="font-weight:800;font-size:1rem;" id="modal-title">⚗️ Log New R&D Trial</div>
-            <button onclick="closeTrialModal()" style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:var(--text3);">✕</button>
-        </div>
-        <div class="modal-body" style="padding:1.4rem;">
-            <input type="hidden" id="trial-edit-id" value="">
-            <form method="POST" action="{{ url_for('rd.add_trial') }}" id="trial-form">
-
-                <!-- Edit mode info bar -->
-                <div id="edit-info-bar" style="display:none;background:#f8fafc;border:1px solid var(--border);border-radius:var(--r-md);padding:.55rem .9rem;margin-bottom:.75rem;font-size:.8rem;color:var(--text2);">
-                    <span id="edit-proj-label" style="font-weight:700;color:var(--text);"></span>
-                    <span id="edit-proj-code" style="font-family:monospace;font-size:.72rem;color:var(--blue);margin-left:.4rem;"></span>
-                    <span style="margin:0 .5rem;color:var(--border);">|</span>
-                    <span id="edit-rd-label">—</span>
-                </div>
-
-                <!-- Row 1: Project + Executive -->
-                <div class="gr2" style="margin-bottom:.85rem;display:none;" id="proj-exec-row">
-                    <div class="fg" style="margin-bottom:0;">
-                        <label>Project <span style="color:var(--red);">*</span></label>
-                        <select name="project_id" id="proj-select" required onchange="onProjectChange(this.value)"
-                                style="width:100%;padding:.45rem .75rem;border:1px solid var(--border);border-radius:var(--r-sm);font-size:.85rem;background:var(--white);color:var(--text);outline:none;">
-                            <option value="">— Select Project —</option>
-                            {% for p in all_projects %}
-                            <option value="{{ p.id }}">
-                                [{{ 'NPD' if p.project_type=='npd' else 'EPD' }}] {{ p.product_name }} — {{ p.code }}
-                            </option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="fg" style="margin-bottom:0;">
-                        <label>R&D Executive</label>
-                        <select name="exec_id"
-                                style="width:100%;padding:.45rem .75rem;border:1px solid var(--border);border-radius:var(--r-sm);font-size:.85rem;background:var(--white);color:var(--text);outline:none;">
-                            <option value="">— Select —</option>
-                            {% for u in users %}
-                            <option value="{{ u.id }}">{{ u.full_name }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                </div>
-
-                <!-- Client Info Card (hidden by default) -->
-                <div id="client-info-card" style="display:none;background:var(--blue-lt);border:1px solid var(--blue-border);border-radius:var(--r-md);padding:.6rem 1rem;margin-bottom:.85rem;">
-                    <div style="font-size:.7rem;font-weight:800;color:var(--blue);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.4rem;">📋 Project Details</div>
-                    <div style="display:flex;align-items:center;gap:1.5rem;flex-wrap:wrap;">
-                        <div>
-                            <div style="font-size:.68rem;color:var(--text3);font-weight:600;">Client Name</div>
-                            <div style="font-size:.9rem;font-weight:800;color:var(--text);" id="ci-client">—</div>
-                        </div>
-                        <div style="width:1px;height:32px;background:var(--blue-border);"></div>
-                        <div>
-                            <div style="font-size:.68rem;color:var(--text3);font-weight:600;">Company</div>
-                            <div style="font-size:.9rem;font-weight:800;color:var(--text);" id="ci-company">—</div>
-                        </div>
-                        <div style="margin-left:auto;">
-                            <span id="ci-status" style="font-size:.75rem;font-weight:700;padding:3px 10px;border-radius:100px;background:var(--blue);color:#fff;"></span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Iteration Name -->
-                <div class="fg">
-                    <label>Iteration / Sample Name</label>
-                    <input type="text" name="formulation_name" placeholder="e.g. V2 — Stabilized Formula"
-                           style="padding:.45rem .75rem;border:1px solid var(--border);border-radius:var(--r-sm);font-size:.85rem;background:var(--white);color:var(--text);width:100%;outline:none;">
-                </div>
-
-                <!-- Parameters Table -->
-                <div class="fg">
-                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.4rem;">
-                        <label style="margin-bottom:0;">Test Parameters</label>
-                        <a href="/rd/param-master" target="_blank" style="font-size:.72rem;color:var(--blue);background:var(--blue-lt);border:1px solid var(--blue-border);border-radius:5px;padding:2px 10px;cursor:pointer;font-weight:600;text-decoration:none;">⚙️ Manage Parameters ↗</a>
-                    </div>
-                    <div style="border:1.5px solid var(--border);border-radius:var(--r-md);overflow:hidden;">
-                        <table style="width:100%;border-collapse:collapse;font-size:.84rem;" id="param-table">
-                            <thead>
-                                <tr style="background:var(--bg);">
-                                    <th style="padding:.5rem .85rem;text-align:left;font-size:.72rem;font-weight:800;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;border-bottom:1.5px solid var(--border);width:42%;">Parameter</th>
-                                    <th style="padding:.5rem .85rem;text-align:left;font-size:.72rem;font-weight:800;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;border-bottom:1.5px solid var(--border);">Result</th>
-                                </tr>
-                            </thead>
-                            <tbody id="param-tbody">
-                                <!-- Rows injected by JS from master list -->
-                            </tbody>
-                        </table>
-                    </div>
-                    <textarea name="parameters" id="params-hidden" style="display:none;"></textarea>
-                </div>
-
-                <!-- Observations -->
-                <div class="fg">
-                    <label>Observations / Notes</label>
-                    <div id="ck-obs" style="min-height:100px;border:1px solid var(--border);border-radius:var(--r-sm);overflow:hidden;"></div>
-                    <textarea name="observations" id="obs-hidden" style="display:none;"></textarea>
-                </div>
-
-                <div style="display:flex;gap:.5rem;justify-content:flex-end;margin-top:.5rem;">
-                    <button type="button" class="btn-grid-action" onclick="closeTrialModal()">Cancel</button>
-                    <button type="button" class="btn-add-new" id="modal-submit-btn" onclick="syncAndSubmit()">Log Trial</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-
-
-<!-- ═══ PREDEFINE PARAMETERS MODAL ═══ -->
-<div class="modal-ov" id="predefine-modal">
-    <div class="modal-box" style="width:700px;max-width:96vw;max-height:92vh;overflow-y:auto;">
-        <div class="modal-hdr">
-            <div>
-                <div style="font-weight:800;font-size:1rem;">📋 Pre-define Parameters</div>
-                <div style="font-size:.72rem;color:var(--text3);margin-top:2px;" id="predefine-subtitle">Set default parameter values for this project</div>
-            </div>
-            <button onclick="closePredefineModal()" style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:var(--text3);">✕</button>
-        </div>
-        <div class="modal-body" style="padding:1.25rem 1.4rem;">
-
-            <!-- Project info bar -->
-            <div id="predefine-proj-bar" style="background:var(--blue-lt);border:1px solid var(--blue-border);border-radius:var(--r-md);padding:.55rem .9rem;margin-bottom:1rem;display:flex;align-items:center;gap:.75rem;">
-                <span id="predefine-proj-name" style="font-weight:800;font-size:.88rem;color:var(--text);"></span>
-                <span id="predefine-proj-code" style="font-family:monospace;font-size:.75rem;color:var(--blue);font-weight:700;"></span>
-                <span style="font-size:.72rem;color:var(--text3);margin-left:auto;">💡 Yeh values naye trial mein auto-fill hongi</span>
-            </div>
-
-            <!-- Sample Name + Remark -->
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:.85rem;">
-                <div>
-                    <label style="font-size:.78rem;font-weight:700;color:var(--text2);display:block;margin-bottom:.3rem;">Iteration / Sample Name</label>
-                    <input type="text" id="predefine-sample-name" placeholder="e.g. V1 — Base Formula"
-                        style="width:100%;padding:.45rem .75rem;border:1px solid var(--border);border-radius:var(--r-sm);font-size:.84rem;outline:none;box-sizing:border-box;"
-                        onfocus="this.style.borderColor='var(--blue)'" onblur="this.style.borderColor='var(--border)'">
-                </div>
-                <div>
-                    <label style="font-size:.78rem;font-weight:700;color:var(--text2);display:block;margin-bottom:.3rem;">Remark</label>
-                    <input type="text" id="predefine-remark" placeholder="e.g. Initial batch test"
-                        style="width:100%;padding:.45rem .75rem;border:1px solid var(--border);border-radius:var(--r-sm);font-size:.84rem;outline:none;box-sizing:border-box;"
-                        onfocus="this.style.borderColor='var(--blue)'" onblur="this.style.borderColor='var(--border)'">
-                </div>
-            </div>
-
-            <!-- Parameters table -->
-            <div style="border:1.5px solid var(--border);border-radius:var(--r-md);overflow:hidden;">
-                <table style="width:100%;border-collapse:collapse;font-size:.84rem;">
-                    <thead>
-                        <tr style="background:var(--bg);">
-                            <th style="padding:.5rem .85rem;text-align:left;font-size:.72rem;font-weight:800;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;border-bottom:1.5px solid var(--border);width:42%;">Parameter</th>
-                            <th style="padding:.5rem .85rem;text-align:left;font-size:.72rem;font-weight:800;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;border-bottom:1.5px solid var(--border);">Default Value for this Project</th>
-                        </tr>
-                    </thead>
-                    <tbody id="predefine-tbody"></tbody>
-                </table>
-            </div>
-
-            <div style="display:flex;gap:.5rem;justify-content:flex-end;margin-top:1rem;">
-                <button type="button" class="btn-grid-action" onclick="closePredefineModal()">Cancel</button>
-                <button type="button" class="btn-add-new" id="predefine-save-btn" onclick="savePredefineParams()">💾 Save Defaults</button>
-            </div>
-        </div>
-    </div>
-</div>
-
-
-
 
 {% endblock %}

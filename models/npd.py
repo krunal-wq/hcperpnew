@@ -111,6 +111,9 @@ class NPDProject(db.Model):
     # Completion
     completed_at    = db.Column(db.DateTime)
 
+    # R&D pre-defined parameter defaults per project (stored as JSON)
+    rd_param_defaults = db.Column(db.Text, nullable=True)
+
     # Soft delete
     is_deleted      = db.Column(db.Boolean, default=False, nullable=False, server_default='0')
     deleted_at      = db.Column(db.DateTime, nullable=True)

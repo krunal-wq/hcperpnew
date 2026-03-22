@@ -137,12 +137,10 @@
         <div id="allotted-list">
         {% if allotted %}
         {% for p in allotted %}
-        {% if p.status and p.status|lower in ['completed','closed','done','project_closed','cancelled'] %}
-        {# Skip — moved to Closed/Done column #}
-        {% elif not is_rd_manager and p.rd_user and p.rd_user.id != current_user.id %}
+        {% if not is_rd_manager and p.rd_user and p.rd_user.id != current_user.id %}
         {# Skip — not assigned to current user #}
         {% else %}
-        <div class="proj-item" id="allot-{{ p.id }}" style="cursor:pointer;" data-href="/rd/trials?project_id={{ p.id }}" onmouseover="this.style.background='var(--blue-lt)'" onmouseout="this.style.background=''" onclick="window.location.href=this.dataset.href">
+        <div class="proj-item" id="allot-{{ p.id }}" style="cursor:pointer;" onmouseover="this.style.background='var(--blue-lt)'" onmouseout="this.style.background=''" ondblclick="window.location.href='/rd/trials?project_id={{ p.id }}'">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:3px;">
                 <span class="proj-tag {{ 'tag-npd' if p.project_type=='npd' else 'tag-epd' }}">{{ 'NPD' if p.project_type=='npd' else 'EPD' }}</span>
                 <div style="display:flex;align-items:center;gap:.5rem;">
@@ -291,7 +289,7 @@ function closeModal() {
     document.getElementById('assign-modal').classList.remove('open');
     currentProjId = null; selectedUsers = []; resetUserCards();
 }
-document.getElementById('assign-modal').addEventListener('click', function(e){ if(e.target===this) closeModal(); });
+document.addEventListener('DOMContentLoaded', function(){ document.getElementById('assign-modal').addEventListener('click', function(e){ if(e.target===this) closeModal(); }); });
 
 function resetUserCards() {
     document.querySelectorAll('.user-check-card').forEach(function(c){ c.classList.remove('selected'); });
@@ -511,7 +509,7 @@ function openTrialModal(pid, name, code, type, client, status, rdUserId) {
 function closeTrialModal() {
     document.getElementById('proj-trial-modal').classList.remove('open');
 }
-document.getElementById('proj-trial-modal').addEventListener('click', function(e){ if(e.target===this) closeTrialModal(); });
+document.addEventListener('DOMContentLoaded', function(){ document.getElementById('proj-trial-modal').addEventListener('click', function(e){ if(e.target===this) closeTrialModal(); }); });
 
 function tSyncEditors() {
     if(tCkParams) document.getElementById('t-params-hidden').value = tCkParams.innerHTML;
