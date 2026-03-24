@@ -52,6 +52,121 @@
 .fg input:focus,.fg select:focus,.fg textarea:focus{border-color:var(--blue);box-shadow:0 0 0 3px var(--blue-lt);}
 .gr2{display:grid;grid-template-columns:1fr 1fr;gap:.75rem;}
 
+/* ═══ MOBILE: Chat list + popup ═══ */
+@media(max-width: 767px) {
+    .tr-main-grid { display: block !important; }
+    #right-panel  { display: none !important; }
+
+    /* Full-width card, no border radius */
+    .tr-main-grid > .card:first-child {
+        border-radius: 0 !important;
+        border-left: none !important; border-right: none !important;
+        box-shadow: none !important; position: static !important;
+    }
+    /* Sticky header */
+    .tr-main-grid > .card:first-child .panel-hdr {
+        position: sticky; top: 0; z-index: 10;
+        background: var(--white) !important;
+        padding: 14px 16px !important;
+    }
+    /* Chat row */
+    [id^="proj-card-"] {
+        padding: 13px 16px !important;
+        border-bottom: 1px solid #f1f5f9 !important;
+        border-left: none !important;
+        display: flex !important;
+        align-items: center !important;
+        gap: 12px !important;
+        background: var(--white);
+        -webkit-tap-highlight-color: transparent;
+        transition: background .1s;
+    }
+    [id^="proj-card-"]:active { background: #f0f9ff !important; }
+    /* Avatar */
+    [id^="proj-card-"]::before {
+        content: attr(data-initial);
+        width: 46px; height: 46px; border-radius: 50%;
+        flex-shrink: 0;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 16px; font-weight: 800; color: #fff;
+        background: linear-gradient(135deg, var(--blue), var(--purple));
+    }
+    /* Chevron */
+    [id^="proj-card-"]::after {
+        content: '›'; color: #cbd5e1; font-size: 22px;
+        flex-shrink: 0; margin-left: auto;
+    }
+    /* Product name */
+    [id^="proj-card-"] > div > div:nth-child(2) {
+        font-size: 14px !important; font-weight: 700 !important;
+        white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    [id^="proj-card-"] > div > div:nth-child(3) {
+        font-size: 12px !important; color: var(--text3) !important;
+    }
+}
+
+/* ═══ Project Trials Bottom Sheet Popup ═══ */
+.tr-proj-popup-ov {
+    display: none; position: fixed; inset: 0;
+    background: rgba(15,23,42,.5); z-index: 9997;
+    align-items: flex-end; justify-content: center;
+    backdrop-filter: blur(2px);
+}
+.tr-proj-popup-ov.open { display: flex; }
+.tr-proj-popup-box {
+    background: var(--white); border-radius: 20px 20px 0 0;
+    width: 100%; max-height: 82vh; overflow-y: auto;
+    box-shadow: 0 -6px 30px rgba(0,0,0,.15);
+    animation: trPopSlideUp .22s ease;
+}
+@keyframes trPopSlideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+.tr-popup-handle {
+    width: 36px; height: 4px; background: #e2e8f0;
+    border-radius: 2px; margin: 10px auto 0; display: block;
+}
+.tr-popup-hdr {
+    padding: 14px 18px 12px; display: flex; align-items: center;
+    justify-content: space-between; border-bottom: 1px solid var(--border);
+    position: sticky; top: 0; background: var(--white); z-index: 1;
+}
+.tr-popup-close {
+    width: 32px; height: 32px; border-radius: 50%; border: none;
+    background: var(--bg); color: var(--text2); font-size: 15px;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+}
+.tr-popup-trial-item {
+    padding: 14px 18px; border-bottom: 1px solid var(--border-muted);
+}
+.tr-popup-trial-item:last-child { border-bottom: none; }
+
+/* ═══ MOBILE: Trial Modal → Bottom Sheet ═══ */
+@media(max-width: 767px) {
+    #trial-modal.modal-ov { align-items: flex-end !important; }
+    #trial-modal .modal-box {
+        width: 100% !important; max-width: 100% !important;
+        max-height: 92vh !important; border-radius: 20px 20px 0 0 !important;
+        overflow-y: auto; animation: trModalUp .25s ease;
+    }
+    @keyframes trModalUp { from{transform:translateY(100%)} to{transform:translateY(0)} }
+    #trial-modal .modal-hdr { padding: 14px 18px 12px !important; }
+    #trial-modal .modal-body { padding: 14px 16px !important; }
+    #trial-modal .gr2 { grid-template-columns: 1fr !important; gap: 10px !important; }
+    #proj-label-row .gr2 { grid-template-columns: 1fr !important; }
+    #trial-modal input[type="text"], #trial-modal select, #trial-modal textarea {
+        font-size: 15px !important; padding: 11px 12px !important; border-radius: 10px !important;
+    }
+    #trial-modal .modal-body > form > div:last-child {
+        flex-direction: column !important; gap: 8px !important;
+    }
+    #trial-modal .modal-body > form > div:last-child button {
+        width: 100% !important; padding: 13px !important;
+        font-size: 14px !important; border-radius: 12px !important;
+        justify-content: center !important;
+    }
+    #trial-modal button[onclick*="printTrialLabels"] { display: none !important; }
+}
+
 {% endblock %}
 {% block content %}
 <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.75rem;margin-bottom:1rem;">
@@ -110,7 +225,7 @@
 
 
 
-<div style="display:grid;grid-template-columns:320px 1fr;gap:14px;align-items:start;">
+<div class="tr-main-grid" style="display:grid;grid-template-columns:320px 1fr;gap:14px;align-items:start;">
 
 <!-- ═══ LEFT: Project List ═══ -->
 <div class="card" style="position:sticky;top:1rem;">
@@ -124,9 +239,9 @@
     {% if my_projects %}
     {% for p in my_projects %}
     {% set trial_count = trials|selectattr('project_id','eq',p.id)|list|length %}
-    <div id="proj-card-{{ p.id }}"
+    <div id="proj-card-{{ p.id }}" data-initial="{{ p.product_name[0]|upper }}"
          style="padding:.7rem 1rem;border-bottom:1px solid var(--border);cursor:pointer;transition:.12s;border-left:3px solid transparent;"
-         onclick="selectProject({{ p.id }},'{{ p.product_name|replace("'","") }}','{{ p.code }}','{{ p.assigned_rd or "" }}')"
+         onclick="onProjCardClick({{ p.id }},'{{ p.product_name|replace("'","") }}','{{ p.code }}','{{ p.assigned_rd or "" }}')"
          ondblclick="openPredefineModal({{ p.id }},'{{ p.product_name|replace("'","") }}','{{ p.code }}')"
          title="Click: view trials | Double-click: set default parameters">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2px;">
@@ -170,6 +285,25 @@
     </div>
 </div>
 
+</div>
+
+
+<!-- ═══ MOBILE: Project Trials Bottom Sheet ═══ -->
+<div class="tr-proj-popup-ov" id="trProjPopup" onclick="if(event.target===this)closeTrPopup()">
+    <div class="tr-proj-popup-box">
+        <div class="tr-popup-handle"></div>
+        <div class="tr-popup-hdr">
+            <div>
+                <div style="font-size:1rem;font-weight:800;" id="trPopupName">—</div>
+                <div style="font-size:.72rem;color:var(--text3);font-family:monospace;" id="trPopupCode">—</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;">
+                <button onclick="trPopupLogTrial()" class="btn-add-new" style="font-size:.8rem;padding:7px 14px;">+ Log Trial</button>
+                <button class="tr-popup-close" onclick="closeTrPopup()">✕</button>
+            </div>
+        </div>
+        <div id="trPopupBody" style="min-height:100px;"></div>
+    </div>
 </div>
 
 <!-- CKEditor 5 via cdnjs -->
@@ -1099,6 +1233,51 @@ function printTrialLabels() {
         '<script>window.onload=function(){ window.print(); }<' + '/script>' +
         '</body></html>');
     win.document.close();
+}
+
+
+// ══ Mobile Project Card Popup ══════════════════════════════
+var _trPopupPid = null, _trPopupName = '', _trPopupCode = '';
+
+function onProjCardClick(pid, name, code, rdId) {
+    if (window.innerWidth <= 767) {
+        _trPopupPid = pid; _trPopupName = name; _trPopupCode = code;
+        // Load trials by calling selectProject first
+        selectProject(pid, name, code, rdId);
+        setTimeout(function() { openTrPopup(pid, name, code); }, 80);
+    } else {
+        selectProject(pid, name, code, rdId);
+    }
+}
+
+function openTrPopup(pid, name, code) {
+    document.getElementById('trPopupName').textContent = name;
+    document.getElementById('trPopupCode').textContent = code;
+    var body = document.getElementById('trPopupBody');
+    var trialList = document.getElementById('right-trial-list');
+    var rightContent = document.getElementById('right-content');
+    var hasTrials = rightContent && rightContent.style.display !== 'none' && trialList && trialList.innerHTML.trim() !== '';
+    if (hasTrials) {
+        body.innerHTML = '<div style="padding:4px 0;">' + trialList.innerHTML + '</div>';
+    } else {
+        body.innerHTML = '<div style="text-align:center;padding:40px 20px;color:var(--text3);">' +
+            '<div style="font-size:2.5rem;margin-bottom:10px;">⚗️</div>' +
+            '<div style="font-weight:700;font-size:.92rem;">No trials yet</div>' +
+            '<div style="font-size:.78rem;margin-top:4px;">+ Log Trial se pehla trial add karo</div>' +
+            '</div>';
+    }
+    document.getElementById('trProjPopup').classList.add('open');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeTrPopup() {
+    document.getElementById('trProjPopup').classList.remove('open');
+    document.body.style.overflow = '';
+}
+
+function trPopupLogTrial() {
+    closeTrPopup();
+    setTimeout(function() { openTrialModalWith(_trPopupPid, _trPopupName, _trPopupCode); }, 200);
 }
 
 </script>

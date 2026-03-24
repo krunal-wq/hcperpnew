@@ -383,15 +383,77 @@ def performance():
 @rd.route('/discussion')
 @login_required
 def discussion():
-    from models.npd import NPDProject
+    from models.npd import NPDProject, NPDComment
     projects = NPDProject.query.filter(
         NPDProject.is_deleted == False,
         NPDProject.status.notin_(['complete', 'cancelled'])
     ).order_by(NPDProject.created_at.desc()).all()
 
+    # Load all comments for all active projects (grouped by project_id)
+    pid = request.args.get('pid', type=int)
+    selected_project = None
+    comments = []
+
+    if pid:
+        selected_project = NPDProject.query.filter_by(id=pid, is_deleted=False).first()
+        if selected_project:
+            comments = NPDComment.query.filter_by(project_id=pid)                           .order_by(NPDComment.created_at.asc()).all()
+    elif projects:
+        selected_project = projects[0]
+        comments = NPDComment.query.filter_by(project_id=projects[0].id)                       .order_by(NPDComment.created_at.asc()).all()
+
     return render_template('rd/discussion.html',
         active_page='rd_discussion',
         projects=projects,
+        selected_project=selected_project,
+        comments=comments,
+        pid=pid or (projects[0].id if projects else None),
+    )
+
+
+
+@rd.route('/discussion/messages')
+@login_required
+def discussion_messages():
+    from models.npd import NPDComment
+    pid = request.args.get('pid', type=int)
+    if not pid:
+        return jsonify(comments=[])
+    comments = NPDComment.query.filter_by(project_id=pid)                   .order_by(NPDComment.created_at.asc()).all()
+    return jsonify(comments=[{
+        'id':       c.id,
+        'message':  c.comment,
+        'user':     c.user.full_name if c.user else 'Unknown',
+        'initials': (c.user.full_name[:2]).upper() if c.user and c.user.full_name else '??',
+        'time':     c.created_at.strftime('%d %b, %I:%M %p'),
+        'mine':     c.user_id == current_user.id,
+    } for c in comments])
+
+@rd.route('/discussion/send', methods=['POST'])
+@login_required
+def discussion_send():
+    from models.npd import NPDComment, NPDProject
+    pid     = request.form.get('project_id', type=int)
+    message = request.form.get('message', '').strip()
+    if not pid or not message:
+        return jsonify(success=False, error='Missing data'), 400
+    proj = NPDProject.query.filter_by(id=pid, is_deleted=False).first_or_404()
+    comment = NPDComment(
+        project_id  = pid,
+        user_id     = current_user.id,
+        comment     = message,
+        is_internal = False,
+    )
+    db.session.add(comment)
+    db.session.commit()
+    return jsonify(
+        success  = True,
+        id       = comment.id,
+        message  = comment.comment,
+        user     = current_user.full_name,
+        initials = (current_user.full_name[:2]).upper() if current_user.full_name else 'ME',
+        time     = comment.created_at.strftime('%d %b, %I:%M %p'),
+        mine     = True,
     )
 
 

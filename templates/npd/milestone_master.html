@@ -1,0 +1,425 @@
+{% extends 'base.html' %}
+
+{% block title %}Milestone Master — HCP ERP{% endblock %}
+{% block page_title %}Milestone Master{% endblock %}
+{% block bread %}NPD / Milestone Master{% endblock %}
+
+{% block content %}
+<style>
+    /* ── Page Layout ── */
+    .mm-layout { display: grid; grid-template-columns: 1fr 380px; gap: 20px; align-items: start; }
+    @media(max-width:960px){ .mm-layout { grid-template-columns: 1fr; } }
+
+    /* ── Master Row ── */
+    .ms-row {
+        display: flex; align-items: center; gap: 12px;
+        padding: 13px 16px; border-bottom: 1px solid var(--border-muted);
+        transition: background .12s; cursor: grab;
+        background: var(--white);
+    }
+    .ms-row:last-child { border-bottom: none; }
+    .ms-row:hover { background: var(--sb-hover); }
+    .ms-row.dragging { opacity: .4; background: var(--blue-lt); }
+    .ms-row.drag-over { border-top: 2px solid var(--blue); }
+
+    .ms-drag-handle { color: var(--text4); font-size: 14px; cursor: grab; flex-shrink:0; padding: 0 2px; }
+    .ms-drag-handle:active { cursor: grabbing; }
+    .ms-icon { font-size: 18px; width: 28px; text-align: center; flex-shrink: 0; }
+    .ms-info { flex: 1; min-width: 0; }
+    .ms-title { font-size: 13.5px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .ms-meta  { font-size: 11px; color: var(--text3); margin-top: 2px; display: flex; gap: 8px; flex-wrap: wrap; }
+    .ms-type  { font-family: 'JetBrains Mono', monospace; font-size: 10.5px; background: var(--bg); padding: 1px 7px; border-radius: 4px; border: 1px solid var(--border); color: var(--text2); }
+
+    .ms-badge { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 100px; border: 1px solid; flex-shrink: 0; }
+    .ms-badge.both    { background: var(--blue-lt);   color: var(--blue);   border-color: var(--blue-border); }
+    .ms-badge.npd     { background: var(--purple-lt); color: var(--purple); border-color: var(--purple-border); }
+    .ms-badge.existing{ background: var(--green-lt);  color: var(--green);  border-color: var(--green-border); }
+
+    .ms-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+    .ms-btn { background: none; border: 1px solid var(--border); border-radius: 6px;
+              padding: 5px 9px; font-size: 12px; cursor: pointer; color: var(--text2);
+              font-family: inherit; transition: all .12s; }
+    .ms-btn:hover { background: var(--bg); }
+    .ms-btn.danger:hover { background: var(--red-lt); border-color: var(--red-border); color: var(--red); }
+    .ms-btn.edit:hover   { background: var(--blue-lt); border-color: var(--blue-border); color: var(--blue); }
+
+    /* Toggle switch */
+    .toggle-sw { position: relative; width: 36px; height: 20px; flex-shrink: 0; }
+    .toggle-sw input { opacity: 0; width: 0; height: 0; }
+    .toggle-slider {
+        position: absolute; inset: 0; background: #cbd5e1; border-radius: 20px;
+        cursor: pointer; transition: .2s;
+    }
+    .toggle-slider::before {
+        content: ''; position: absolute;
+        width: 14px; height: 14px; left: 3px; top: 3px;
+        background: #fff; border-radius: 50%; transition: .2s;
+        box-shadow: 0 1px 3px rgba(0,0,0,.2);
+    }
+    .toggle-sw input:checked + .toggle-slider { background: var(--blue); }
+    .toggle-sw input:checked + .toggle-slider::before { transform: translateX(16px); }
+
+    /* inactive row */
+    .ms-row.inactive { opacity: .5; }
+
+    /* ── Add/Edit Form Card ── */
+    .form-card { background: var(--white); border: 1px solid var(--border); border-radius: var(--r-xl); box-shadow: var(--sh-sm); position: sticky; top: 76px; }
+    .form-card-hdr { padding: 14px 18px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+    .form-card-title { font-size: 14px; font-weight: 800; }
+    .form-card-body { padding: 18px; }
+
+    .form-row { margin-bottom: 14px; }
+    .form-label { font-size: 12px; font-weight: 700; color: var(--text2); margin-bottom: 5px; display: block; }
+    .form-input, .form-select, .form-textarea {
+        width: 100%; padding: 9px 12px; border: 1px solid var(--border);
+        border-radius: var(--r-md); font-size: 13px; font-family: inherit;
+        color: var(--text); background: var(--white); outline: none;
+        transition: border-color .15s, box-shadow .15s;
+    }
+    .form-input:focus, .form-select:focus, .form-textarea:focus {
+        border-color: var(--blue); box-shadow: 0 0 0 3px rgba(37,99,235,.1);
+    }
+    .form-textarea { resize: vertical; min-height: 70px; }
+    .form-check-row { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text); margin-bottom: 8px; }
+    .form-check-row input[type=checkbox] { width: 15px; height: 15px; accent-color: var(--blue); }
+    .form-inline { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+    .btn-submit { width: 100%; padding: 10px; background: var(--blue); color: #fff; border: none;
+                  border-radius: var(--r-md); font-size: 13.5px; font-weight: 700; font-family: inherit;
+                  cursor: pointer; transition: background .15s; margin-top: 4px; }
+    .btn-submit:hover { background: var(--blue-dk); }
+    .btn-cancel { width: 100%; padding: 9px; background: none; color: var(--text2); border: 1px solid var(--border);
+                  border-radius: var(--r-md); font-size: 13px; font-weight: 600; font-family: inherit;
+                  cursor: pointer; transition: all .15s; margin-top: 6px; }
+    .btn-cancel:hover { background: var(--bg); }
+
+    .sort-order-badge { font-size: 10px; font-weight: 800; color: var(--text3);
+                        background: var(--bg); border: 1px solid var(--border);
+                        padding: 2px 7px; border-radius: 100px; min-width: 28px; text-align: center; }
+    .saving-indicator { display:none; font-size:11px; color:var(--blue); padding:4px 10px; }
+
+/* ═══ MOBILE: Milestone Master ═══ */
+@media(max-width: 767px) {
+    /* Layout: stack left + right */
+    .mm-layout { grid-template-columns: 1fr !important; gap: 16px !important; }
+
+    /* Milestone row — card style */
+    .ms-row {
+        flex-wrap: wrap !important;
+        padding: 14px 16px !important;
+        gap: 10px !important;
+        align-items: flex-start !important;
+    }
+    .ms-drag-handle { display: none !important; }
+    .sort-order-badge { font-size: 11px !important; padding: 3px 9px !important; }
+    .ms-icon { font-size: 20px !important; }
+    .ms-info { flex: 1 1 auto; min-width: 0; }
+    .ms-title { font-size: 14px !important; white-space: normal !important; }
+    .ms-meta { flex-wrap: wrap; gap: 6px !important; margin-top: 5px !important; }
+
+    /* Toggle + actions — move to second row right side */
+    .ms-row .toggle-sw { order: 2; }
+    .ms-row .ms-actions { order: 3; gap: 8px !important; }
+    .ms-btn { padding: 7px 12px !important; font-size: 13px !important; border-radius: 8px !important; }
+
+    /* Form: single column */
+    .form-inline { grid-template-columns: 1fr 1fr !important; }
+    .form-card { position: static !important; }
+    .form-card-body { padding: 16px !important; }
+    .form-input, .form-select, .form-textarea {
+        font-size: 15px !important;
+        padding: 11px 12px !important;
+        border-radius: 10px !important;
+    }
+    .btn-submit, .btn-cancel {
+        padding: 13px !important;
+        font-size: 14px !important;
+        border-radius: 12px !important;
+    }
+
+    /* Card header */
+    .card-hdr { padding: 14px 16px !important; }
+
+    /* Page header */
+    .mm-layout + * { margin-top: 0; }
+}
+
+</style>
+
+{# ── Page Header ── #}
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:10px;">
+    <div>
+        <h1 style="font-size:1.4rem;font-weight:900;letter-spacing:-.02em;margin:0;">⚙️ Milestone Master</h1>
+        <p style="font-size:12.5px;color:var(--text2);margin:4px 0 0;">
+            Manage milestone templates used when creating NPD / EPD projects. Drag to reorder.
+        </p>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;">
+        <span style="font-size:12px;color:var(--text3);">{{ templates|length }} milestones</span>
+        <span class="saving-indicator" id="savingInd">💾 Saving order…</span>
+    </div>
+</div>
+
+<div class="mm-layout">
+
+    {# ══════════════════════════════
+       LEFT — Milestone List
+    ══════════════════════════════ #}
+    <div>
+        <div class="card">
+            <div class="card-hdr">
+                <span class="card-title">All Milestone Templates</span>
+                <span style="font-size:11.5px;color:var(--text3);">Drag rows to reorder</span>
+            </div>
+
+            <div id="msList">
+                {% if templates %}
+                    {% for t in templates %}
+                    <div class="ms-row {% if not t.is_active %}inactive{% endif %}"
+                         data-id="{{ t.id }}" draggable="true">
+                        <span class="ms-drag-handle">⠿</span>
+                        <span class="sort-order-badge" id="sort_{{ t.id }}">{{ loop.index }}</span>
+                        <span class="ms-icon">{{ t.icon or '📌' }}</span>
+                        <div class="ms-info">
+                            <div class="ms-title">{{ t.title }}</div>
+                            <div class="ms-meta">
+                                <span class="ms-type">{{ t.milestone_type }}</span>
+                                <span class="ms-badge {{ t.applies_to }}">
+                                    {% if t.applies_to == 'both' %}NPD + EPD
+                                    {% elif t.applies_to == 'npd' %}NPD only
+                                    {% else %}EPD only{% endif %}
+                                </span>
+                                {% if t.is_mandatory %}<span style="font-size:10px;color:var(--red);font-weight:700;">🔒 Mandatory</span>{% endif %}
+                                {% if t.default_selected %}<span style="font-size:10px;color:var(--green);font-weight:600;">✓ Default ON</span>{% endif %}
+                            </div>
+                        </div>
+
+                        {# Toggle Active #}
+                        <label class="toggle-sw" title="{{ 'Active' if t.is_active else 'Inactive' }}">
+                            <input type="checkbox" {% if t.is_active %}checked{% endif %}
+                                   onchange="toggleActive({{ t.id }}, this)">
+                            <span class="toggle-slider"></span>
+                        </label>
+
+                        <div class="ms-actions">
+                            <button class="ms-btn edit" onclick="openEdit({{ t.id }}, {
+                                milestone_type: {{ t.milestone_type|tojson }},
+                                title: {{ t.title|tojson }},
+                                description: {{ (t.description or '')|tojson }},
+                                icon: {{ (t.icon or '📌')|tojson }},
+                                applies_to: {{ t.applies_to|tojson }},
+                                default_selected: {{ 'true' if t.default_selected else 'false' }},
+                                is_mandatory: {{ 'true' if t.is_mandatory else 'false' }},
+                                is_active: {{ 'true' if t.is_active else 'false' }},
+                                sort_order: {{ t.sort_order or 0 }}
+                            })">✏️</button>
+                            <form action="/npd/milestone-master/{{ t.id }}/delete" method="POST" style="margin:0;">
+                                <button type="submit" class="ms-btn danger"
+                                        onclick="return confirm('Delete \'{{ t.title }}\'?')">🗑️</button>
+                            </form>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                <div style="text-align:center;padding:40px 20px;color:var(--text3);">
+                    <div style="font-size:2.5rem;margin-bottom:10px;">📋</div>
+                    <div style="font-size:13px;">No milestone templates yet. Add one using the form →</div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    {# ══════════════════════════════
+       RIGHT — Add / Edit Form
+    ══════════════════════════════ #}
+    <div>
+        <div class="form-card">
+            <div class="form-card-hdr">
+                <span class="form-card-title" id="formTitle">➕ Add Milestone</span>
+                <button class="ms-btn" id="cancelEditBtn" style="display:none;" onclick="resetForm()">✕ Cancel</button>
+            </div>
+            <div class="form-card-body">
+                <form id="msForm" method="POST" action="/npd/milestone-master/add">
+
+                    {# Hidden for edit #}
+                    <input type="hidden" name="_method" value="POST">
+
+                    <div class="form-inline">
+                        <div class="form-row">
+                            <label class="form-label">Icon <span style="color:var(--text3);">(emoji)</span></label>
+                            <input type="text" name="icon" id="f_icon" class="form-input"
+                                   placeholder="📌" maxlength="5" value="📌" style="font-size:18px;">
+                        </div>
+                        <div class="form-row">
+                            <label class="form-label">Sort Order</label>
+                            <input type="number" name="sort_order" id="f_sort" class="form-input"
+                                   placeholder="0" min="0" value="{{ templates|length + 1 }}">
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <label class="form-label">Milestone Type <span style="color:var(--red);">*</span>
+                            <span style="color:var(--text3);font-weight:500;"> (snake_case, unique)</span></label>
+                        <input type="text" name="milestone_type" id="f_type" class="form-input"
+                               placeholder="e.g. artwork_approval" required>
+                    </div>
+
+                    <div class="form-row">
+                        <label class="form-label">Title <span style="color:var(--red);">*</span></label>
+                        <input type="text" name="title" id="f_title" class="form-input"
+                               placeholder="e.g. Artwork / Design" required>
+                    </div>
+
+                    <div class="form-row">
+                        <label class="form-label">Description <span style="color:var(--text3);font-weight:500;">(optional)</span></label>
+                        <textarea name="description" id="f_desc" class="form-textarea"
+                                  placeholder="Brief description of this milestone…"></textarea>
+                    </div>
+
+                    <div class="form-row">
+                        <label class="form-label">Applies To</label>
+                        <select name="applies_to" id="f_applies" class="form-select">
+                            <option value="both">Both NPD &amp; EPD</option>
+                            <option value="npd">NPD Only</option>
+                            <option value="existing">EPD Only</option>
+                        </select>
+                    </div>
+
+                    <div class="form-row" style="margin-bottom:4px;">
+                        <label class="form-check-row">
+                            <input type="checkbox" name="default_selected" id="f_default" checked>
+                            Selected by default when creating new project
+                        </label>
+                        <label class="form-check-row">
+                            <input type="checkbox" name="is_mandatory" id="f_mandatory">
+                            Mandatory (cannot be deselected)
+                        </label>
+                        <label class="form-check-row">
+                            <input type="checkbox" name="is_active" id="f_active" checked>
+                            Active
+                        </label>
+                    </div>
+
+                    <button type="submit" class="btn-submit" id="submitBtn">➕ Add Milestone</button>
+                    <button type="button" class="btn-cancel" id="cancelEditBtn2" style="display:none;" onclick="resetForm()">Cancel Edit</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+{# ── Hidden edit form (for action URL switching) ── #}
+<div id="editUrlHelper" style="display:none;"></div>
+
+<script>
+// ══════════════════════════════════════════════
+// EDIT — populate form with existing data
+// ══════════════════════════════════════════════
+function openEdit(id, t) {
+    document.getElementById('formTitle').textContent = '✏️ Edit Milestone';
+    document.getElementById('msForm').action = '/npd/milestone-master/' + id + '/edit';
+    document.getElementById('f_icon').value    = t.icon || '📌';
+    document.getElementById('f_sort').value    = t.sort_order || 0;
+    document.getElementById('f_type').value    = t.milestone_type || '';
+    document.getElementById('f_title').value   = t.title || '';
+    document.getElementById('f_desc').value    = t.description || '';
+    document.getElementById('f_applies').value = t.applies_to || 'both';
+    document.getElementById('f_default').checked  = t.default_selected;
+    document.getElementById('f_mandatory').checked = t.is_mandatory;
+    document.getElementById('f_active').checked    = t.is_active;
+    document.getElementById('submitBtn').textContent = '💾 Save Changes';
+    document.getElementById('cancelEditBtn').style.display  = '';
+    document.getElementById('cancelEditBtn2').style.display = '';
+    // Scroll to form
+    document.querySelector('.form-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function resetForm() {
+    document.getElementById('formTitle').textContent = '➕ Add Milestone';
+    document.getElementById('msForm').action = '/npd/milestone-master/add';
+    document.getElementById('msForm').reset();
+    document.getElementById('submitBtn').textContent = '➕ Add Milestone';
+    document.getElementById('cancelEditBtn').style.display  = 'none';
+    document.getElementById('cancelEditBtn2').style.display = 'none';
+}
+
+// ══════════════════════════════════════════════
+// TOGGLE ACTIVE — AJAX
+// ══════════════════════════════════════════════
+function toggleActive(id, checkbox) {
+    fetch('/npd/milestone-master/' + id + '/toggle', { method: 'POST' })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                const row = document.querySelector('[data-id="' + id + '"]');
+                if (row) row.classList.toggle('inactive', !data.is_active);
+            }
+        })
+        .catch(() => { checkbox.checked = !checkbox.checked; });
+}
+
+// ══════════════════════════════════════════════
+// DRAG & DROP — Reorder
+// ══════════════════════════════════════════════
+let dragSrc = null;
+
+document.querySelectorAll('.ms-row').forEach(row => {
+    row.addEventListener('dragstart', e => {
+        dragSrc = row;
+        row.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+    });
+    row.addEventListener('dragend', e => {
+        row.classList.remove('dragging');
+        document.querySelectorAll('.ms-row').forEach(r => r.classList.remove('drag-over'));
+        saveOrder();
+    });
+    row.addEventListener('dragover', e => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        document.querySelectorAll('.ms-row').forEach(r => r.classList.remove('drag-over'));
+        if (row !== dragSrc) row.classList.add('drag-over');
+    });
+    row.addEventListener('drop', e => {
+        e.preventDefault();
+        if (dragSrc && dragSrc !== row) {
+            const list = document.getElementById('msList');
+            const rows = [...list.querySelectorAll('.ms-row')];
+            const srcIdx = rows.indexOf(dragSrc);
+            const dstIdx = rows.indexOf(row);
+            if (srcIdx < dstIdx) {
+                list.insertBefore(dragSrc, row.nextSibling);
+            } else {
+                list.insertBefore(dragSrc, row);
+            }
+            updateSortBadges();
+        }
+        row.classList.remove('drag-over');
+    });
+});
+
+function updateSortBadges() {
+    document.querySelectorAll('#msList .ms-row').forEach((row, i) => {
+        const badge = document.getElementById('sort_' + row.dataset.id);
+        if (badge) badge.textContent = i + 1;
+    });
+}
+
+function saveOrder() {
+    const ids = [...document.querySelectorAll('#msList .ms-row')].map(r => parseInt(r.dataset.id));
+    const ind = document.getElementById('savingInd');
+    ind.style.display = 'inline';
+    fetch('/npd/milestone-master/reorder', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids })
+    })
+    .then(r => r.json())
+    .then(() => { ind.style.display = 'none'; })
+    .catch(() => { ind.style.display = 'none'; });
+}
+</script>
+
+{% endblock %}

@@ -48,8 +48,88 @@
 {% endblock %}
 
 {% block content %}
-<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.75rem;margin-bottom:1rem;">
-    <div>
+<style>
+/* ── Mobile: Android App Style ── */
+@media(max-width: 767px) {
+    .rd-page-hdr { display: flex; flex-direction: column; gap: 0; margin-bottom: 0; }
+    .rd-title-row { padding: 12px 0 10px; }
+    .rd-btn-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        margin-bottom: 12px;
+    }
+    .rd-btn-npd, .rd-btn-epd {
+        display: flex; align-items: center; justify-content: center; gap: 8px;
+        padding: 14px 10px;
+        border-radius: 14px;
+        font-size: 15px; font-weight: 700;
+        text-decoration: none; color: #fff;
+        box-shadow: 0 3px 10px rgba(0,0,0,.15);
+        letter-spacing: .01em;
+    }
+    .rd-btn-npd { background: linear-gradient(135deg, #7c3aed, #6d28d9); }
+    .rd-btn-epd { background: linear-gradient(135deg, #059669, #047857); }
+    .rd-btn-dashboard {
+        display: flex; align-items: center; justify-content: center; gap: 6px;
+        padding: 10px; border: 1.5px solid var(--border);
+        border-radius: 12px; background: var(--white); color: var(--text2);
+        font-size: 13px; font-weight: 600; text-decoration: none;
+        grid-column: 1 / -1;
+    }
+    .rd-filter-form {
+        display: flex; flex-direction: column; gap: 10px;
+        margin-bottom: 14px;
+    }
+    .rd-search-wrap {
+        display: flex; align-items: center; gap: 8px;
+        background: #fff; border: 1.5px solid var(--border);
+        border-radius: 12px; padding: 11px 14px;
+        transition: border-color .15s, background .15s;
+    }
+    .rd-search-wrap:focus-within { background: #fff; border-color: var(--blue); box-shadow: 0 0 0 3px rgba(37,99,235,.1); }
+    .rd-search-wrap input { border: none; background: transparent; outline: none; font-size: 14px; font-family: inherit; color: var(--text); width: 100%; }
+    .rd-filter-row { display: flex; gap: 8px; }
+    .rd-type-select {
+        flex: 1; padding: 11px 12px; background: #fff;
+        border: 1.5px solid var(--border); border-radius: 12px;
+        font-size: 14px; font-family: inherit; color: var(--text); outline: none;
+    }
+    .rd-filter-btn {
+        flex: 1; padding: 11px; background: var(--blue); color: #fff;
+        border: none; border-radius: 12px; font-size: 14px; font-weight: 700;
+        font-family: inherit; cursor: pointer;
+        box-shadow: 0 2px 8px rgba(37,99,235,.25);
+    }
+    .rd-reset-btn {
+        padding: 11px 16px; border: 1.5px solid var(--border);
+        border-radius: 12px; background: var(--white); color: var(--text2);
+        font-size: 13px; font-weight: 600; text-decoration: none;
+        display: flex; align-items: center;
+    }
+}
+/* ── Desktop: unchanged ── */
+@media(min-width: 768px) {
+    .rd-page-hdr { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: .75rem; margin-bottom: 1rem; }
+    .rd-btn-row { display: flex; gap: .4rem; flex-wrap: wrap; }
+    .rd-btn-npd { display: inline-flex; align-items: center; gap: 6px; padding: 7px 16px; background: #7c3aed; color: #fff; border-radius: 7px; font-size: 13px; font-weight: 600; text-decoration: none; }
+    .rd-btn-npd:hover { background: #6d28d9; }
+    .rd-btn-epd { display: inline-flex; align-items: center; gap: 6px; padding: 7px 16px; background: #059669; color: #fff; border-radius: 7px; font-size: 13px; font-weight: 600; text-decoration: none; }
+    .rd-btn-epd:hover { background: #047857; }
+    .rd-btn-dashboard { display: inline-flex; align-items: center; gap: 6px; padding: 6px 13px; background: var(--white); border: 1px solid var(--border); border-radius: 7px; font-size: 12.5px; font-weight: 600; color: var(--text2); text-decoration: none; }
+    .rd-filter-form { display: flex; gap: .5rem; flex-wrap: wrap; align-items: center; margin-bottom: 1rem; }
+    .rd-search-wrap { display: flex; align-items: center; gap: 6px; background: var(--white); border: 1px solid var(--border); border-radius: var(--r-sm); padding: .4rem .75rem; min-width: 200px; }
+    .rd-search-wrap input { border: none; outline: none; font-size: .82rem; font-family: inherit; background: transparent; color: var(--text); }
+    .rd-type-select { padding: .4rem .75rem; border: 1px solid var(--border); border-radius: var(--r-sm); font-size: .82rem; background: var(--white); outline: none; }
+    .rd-filter-btn { padding: 7px 16px; background: var(--blue); color: #fff; border: none; border-radius: 7px; font-size: 13px; font-weight: 600; font-family: inherit; cursor: pointer; }
+    .rd-reset-btn { padding: 6px 13px; background: var(--white); border: 1px solid var(--border); border-radius: 7px; font-size: 12.5px; font-weight: 600; color: var(--text2); text-decoration: none; display: inline-flex; align-items: center; }
+    .rd-filter-row { display: contents; }
+    .rd-title-row { flex: 1; }
+}
+</style>
+
+<div class="rd-page-hdr">
+    <div class="rd-title-row">
         <div style="font-size:1.1rem;font-weight:800;">⬡ R&D Projects</div>
         <div style="font-size:.77rem;color:var(--text3);">
             {% if is_rd_manager %}
@@ -60,23 +140,27 @@
             {% endif %}
         </div>
     </div>
-    <div style="display:flex;gap:.4rem;flex-wrap:wrap;">
-        <a href="{{ url_for('npd.npd_new') }}" class="btn-add-new" style="background:#7c3aed;text-decoration:none;">🧪 New NPD</a>
-        <a href="{{ url_for('npd.epd_new') }}" class="btn-add-new" style="background:#059669;text-decoration:none;">📦 New EPD</a>
-        <a href="{{ url_for('rd.dashboard') }}" class="btn-grid-action">← Dashboard</a>
+    <div class="rd-btn-row">
+        <a href="{{ url_for('npd.npd_new') }}" class="rd-btn-npd">🧪 New NPD</a>
+        <a href="{{ url_for('npd.epd_new') }}" class="rd-btn-epd">📦 New EPD</a>
+        <a href="{{ url_for('rd.dashboard') }}" class="rd-btn-dashboard">← Dashboard</a>
     </div>
 </div>
 
-<form method="GET" style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;margin-bottom:1rem;">
-    <input type="text" name="q" value="{{ q }}" placeholder="🔍 Search project, client..."
-           style="padding:.4rem .75rem;border:1px solid var(--border);border-radius:var(--r-sm);font-size:.82rem;background:var(--white);outline:none;min-width:180px;">
-    <select name="cat" style="padding:.4rem .75rem;border:1px solid var(--border);border-radius:var(--r-sm);font-size:.82rem;background:var(--white);outline:none;">
-        <option value="">All Types</option>
-        <option value="npd" {% if cat=='npd' %}selected{% endif %}>🧪 NPD</option>
-        <option value="existing" {% if cat=='existing' %}selected{% endif %}>📦 EPD</option>
-    </select>
-    <button type="submit" class="btn-add-new">Filter</button>
-    <a href="{{ url_for('rd.projects') }}" class="btn-grid-action">Reset</a>
+<form method="GET" class="rd-filter-form">
+    <div class="rd-search-wrap">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2.5" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" name="q" value="{{ q }}" placeholder="Search project, client...">
+    </div>
+    <div class="rd-filter-row">
+        <select name="cat" class="rd-type-select">
+            <option value="">All Types</option>
+            <option value="npd" {% if cat=='npd' %}selected{% endif %}>🧪 NPD</option>
+            <option value="existing" {% if cat=='existing' %}selected{% endif %}>📦 EPD</option>
+        </select>
+        <button type="submit" class="rd-filter-btn">Filter</button>
+        <a href="{{ url_for('rd.projects') }}" class="rd-reset-btn">Reset</a>
+    </div>
 </form>
 
 <div class="proj-layout">

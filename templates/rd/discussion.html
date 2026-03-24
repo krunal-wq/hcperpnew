@@ -3,28 +3,98 @@
 {% block page_title %}R&D Discussion Board{% endblock %}
 {% block bread %}R&D / Discussion{% endblock %}
 {% block extra_css %}
-.disc-layout{display:grid;grid-template-columns:250px 1fr;gap:14px;height:calc(100vh - 200px);min-height:480px;}
+.disc-layout{display:grid;grid-template-columns:250px 1fr;gap:14px;height:calc(100vh - 140px);min-height:480px;}
 @media(max-width:768px){.disc-layout{grid-template-columns:1fr;height:auto;}}
 .disc-sb{background:var(--white);border:1px solid var(--border);border-radius:var(--r-xl);display:flex;flex-direction:column;overflow:hidden;box-shadow:var(--sh-sm);}
 .disc-thread-list{overflow-y:auto;flex:1;}
-.disc-ti{padding:.65rem .9rem;border-bottom:1px solid var(--border);cursor:pointer;transition:.1s;}
+.disc-ti{padding:.65rem .9rem;border-bottom:1px solid var(--border);cursor:pointer;transition:.1s;text-decoration:none;display:block;}
 .disc-ti:hover{background:var(--bg);}
-.disc-ti.active{background:var(--blue-lt);}
+.disc-ti.active{background:var(--blue-lt);border-left:3px solid var(--blue);}
 .disc-main{background:var(--white);border:1px solid var(--border);border-radius:var(--r-xl);display:flex;flex-direction:column;overflow:hidden;box-shadow:var(--sh-sm);}
-.disc-msgs{flex:1;overflow-y:auto;padding:.9rem 1.1rem;display:flex;flex-direction:column;gap:.75rem;}
+.disc-msgs{flex:1;overflow-y:auto;padding:.9rem 1.1rem;display:flex;flex-direction:column;gap:.75rem;min-height:300px;max-height:calc(100vh - 320px);}
 .msg{display:flex;gap:.6rem;align-items:flex-start;}
 .msg.me{flex-direction:row-reverse;}
-.msg-av{width:30px;height:30px;border-radius:9px;background:var(--blue-lt);color:var(--blue);display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:800;flex-shrink:0;}
+.msg-av{width:32px;height:32px;border-radius:9px;background:var(--blue-lt);color:var(--blue);display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:800;flex-shrink:0;}
+.msg-av.mine{background:var(--blue);color:#fff;}
 .msg-body{max-width:70%;}
 .msg-name{font-size:.7rem;color:var(--text3);margin-bottom:2px;}
 .msg-name.right{text-align:right;}
-.bubble{padding:.6rem .85rem;border-radius:10px;font-size:.83rem;line-height:1.5;}
+.bubble{padding:.6rem .85rem;border-radius:10px;font-size:.83rem;line-height:1.5;word-break:break-word;}
 .bubble-o{background:var(--bg);border:1px solid var(--border);border-radius:10px 10px 10px 3px;}
 .bubble-m{background:var(--blue);color:#fff;border-radius:10px 10px 3px 10px;}
-.disc-inp{padding:.7rem;border-top:1px solid var(--border);display:flex;gap:.5rem;align-items:flex-end;}
+.disc-inp{padding:.7rem;border-top:1px solid var(--border);display:flex;gap:.5rem;align-items:flex-end;flex-shrink:0;}
 .disc-ta{flex:1;padding:.45rem .75rem;border:1px solid var(--border);border-radius:var(--r-sm);font-size:.83rem;font-family:inherit;resize:none;outline:none;background:var(--bg);color:var(--text);}
-.disc-ta:focus{border-color:var(--blue);}
+.disc-ta:focus{border-color:var(--blue);background:var(--white);}
+.disc-empty{text-align:center;color:var(--text3);font-size:.82rem;margin:auto;padding:2rem;}
+
+/* ═══ MOBILE: Discussion Board ═══ */
+@media(max-width: 767px) {
+    /* Stack layout — only show sidebar */
+    .disc-layout { display: block !important; height: auto !important; }
+    .disc-main   { display: none !important; }
+
+    /* Chat list full width */
+    .disc-sb { border-radius: 12px !important; }
+    .disc-ti { padding: 14px 16px !important; }
+    .disc-ti.active { border-left: 3px solid var(--blue); }
+}
+
+/* ═══ Chat Popup Bottom Sheet ═══ */
+.disc-popup-ov {
+    display: none; position: fixed; inset: 0;
+    background: rgba(15,23,42,.5); z-index: 9998;
+    align-items: flex-end; justify-content: center;
+    backdrop-filter: blur(2px);
+}
+.disc-popup-ov.open { display: flex; }
+.disc-popup-box {
+    background: var(--white); border-radius: 20px 20px 0 0;
+    width: 100%; height: 88vh;
+    display: flex; flex-direction: column;
+    box-shadow: 0 -8px 40px rgba(0,0,0,.18);
+    animation: discSlideUp .25s ease;
+    overflow: hidden;
+}
+@keyframes discSlideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+.disc-popup-handle {
+    width: 36px; height: 4px; background: #e2e8f0;
+    border-radius: 2px; margin: 10px auto 0; display: block; flex-shrink: 0;
+}
+.disc-popup-hdr {
+    padding: 12px 16px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 10px; flex-shrink: 0;
+}
+.disc-popup-close {
+    width: 32px; height: 32px; border-radius: 50%; border: none;
+    background: var(--bg); color: var(--text2); font-size: 15px;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    margin-left: auto; flex-shrink: 0;
+}
+.disc-popup-msgs {
+    flex: 1; overflow-y: auto; padding: 12px 16px;
+    display: flex; flex-direction: column; gap: 10px;
+}
+.disc-popup-inp {
+    padding: 10px 12px; border-top: 1px solid var(--border);
+    display: flex; gap: 8px; align-items: flex-end; flex-shrink: 0;
+    background: var(--white);
+}
+.disc-popup-ta {
+    flex: 1; padding: 11px 14px; border: 1.5px solid var(--border);
+    border-radius: 22px; font-size: 14px; font-family: inherit;
+    resize: none; outline: none; background: #f8fafc; color: var(--text);
+    line-height: 1.4; max-height: 100px;
+}
+.disc-popup-ta:focus { border-color: var(--blue); background: var(--white); }
+.disc-popup-send {
+    width: 44px; height: 44px; border-radius: 50%; border: none;
+    background: var(--blue); color: #fff; font-size: 18px;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; box-shadow: 0 2px 8px rgba(37,99,235,.3);
+}
+
 {% endblock %}
+
 {% block content %}
 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:.5rem;">
     <div>
@@ -33,84 +103,271 @@
     </div>
     <a href="{{ url_for('rd.dashboard') }}" class="btn-grid-action">← Dashboard</a>
 </div>
+
 <div class="disc-layout">
-    <!-- Sidebar -->
+
+    {# ── LEFT: Project List ── #}
     <div class="disc-sb">
         <div style="padding:.75rem .9rem;border-bottom:1px solid var(--border);">
             <div style="font-weight:700;font-size:.88rem;margin-bottom:.5rem;">Project Channels</div>
-            <input type="text" placeholder="Search..." style="width:100%;padding:.35rem .65rem;border:1px solid var(--border);border-radius:var(--r-sm);font-size:.8rem;background:var(--bg);outline:none;">
+            <input type="text" id="disc-search" placeholder="Search..." oninput="filterChannels(this.value)"
+                   style="width:100%;padding:.35rem .65rem;border:1px solid var(--border);border-radius:var(--r-sm);font-size:.8rem;background:var(--bg);outline:none;">
         </div>
         <div class="disc-thread-list">
-            {% if projects %}
             {% for p in projects %}
-            <div class="disc-ti {{ 'active' if loop.first }}" onclick="selectThread(this,'{{ p.product_name|replace("'","\\'") }}','{{ p.code }}')">
+            <a href="{{ url_for('rd.discussion') }}?pid={{ p.id }}"
+               class="disc-ti {% if selected_project and selected_project.id == p.id %}active{% endif %}"
+               data-name="{{ p.product_name|lower }}" data-code="{{ p.code|lower }}"
+               onclick="if(window.innerWidth<=767){event.preventDefault();openDiscPopup({{ p.id }},'{{ p.product_name|replace("'","\'") }}','{{ p.code }}','{% if p.project_type=='npd' %}🧪{% else %}📦{% endif %}')}">
                 <div style="display:flex;align-items:center;justify-content:space-between;">
                     <div style="font-size:.83rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
                         {% if p.project_type == 'npd' %}🧪{% else %}📦{% endif %} {{ p.product_name[:28] }}
                     </div>
                 </div>
                 <div style="font-size:.72rem;color:var(--text3);">{{ p.code }}</div>
-            </div>
-            {% endfor %}
-            <div class="disc-ti" onclick="selectThread(this,'General R&D Updates','All Projects')">
-                <div style="font-size:.83rem;font-weight:600;">📢 General R&D Updates</div>
-                <div style="font-size:.72rem;color:var(--text3);">All Projects</div>
-            </div>
+            </a>
             {% else %}
             <div style="padding:2rem;text-align:center;color:var(--text3);font-size:.82rem;">No active projects</div>
-            {% endif %}
+            {% endfor %}
         </div>
     </div>
-    <!-- Messages -->
+
+    {# ── RIGHT: Chat Area ── #}
     <div class="disc-main">
-        <div style="padding:.75rem 1rem;border-bottom:1px solid var(--border);">
-            <div style="font-weight:700;font-size:.9rem;" id="disc-title">{{ projects[0].product_name if projects else 'Select a channel' }}</div>
-            <div style="font-size:.72rem;color:var(--text3);" id="disc-meta">{{ projects[0].code if projects else '' }}</div>
+        {# Header #}
+        <div style="padding:.75rem 1rem;border-bottom:1px solid var(--border);flex-shrink:0;">
+            {% if selected_project %}
+            <div style="font-weight:700;font-size:.9rem;">
+                {% if selected_project.project_type == 'npd' %}🧪{% else %}📦{% endif %}
+                {{ selected_project.product_name }}
+            </div>
+            <div style="font-size:.72rem;color:var(--text3);">{{ selected_project.code }}</div>
+            {% else %}
+            <div style="font-weight:700;font-size:.9rem;">Select a channel</div>
+            {% endif %}
         </div>
+
+        {# Messages #}
         <div class="disc-msgs" id="disc-msgs">
-            <div style="text-align:center;color:var(--text3);font-size:.82rem;margin-top:2rem;">💬 Start the conversation for this project.</div>
+            {% if comments %}
+                {% for c in comments %}
+                {% set is_mine = c.user_id == current_user.id %}
+                <div class="msg {% if is_mine %}me{% endif %}">
+                    {% if not is_mine %}
+                    <div class="msg-av">{{ (c.user.full_name[:2])|upper if c.user and c.user.full_name else '??' }}</div>
+                    {% endif %}
+                    <div class="msg-body">
+                        <div class="msg-name {% if is_mine %}right{% endif %}">
+                            {{ c.user.full_name if c.user else 'Unknown' }} · {{ c.created_at.strftime('%d %b, %I:%M %p') }}
+                        </div>
+                        <div class="bubble {% if is_mine %}bubble-m{% else %}bubble-o{% endif %}">{{ c.comment }}</div>
+                    </div>
+                    {% if is_mine %}
+                    <div class="msg-av mine">{{ (current_user.full_name[:2])|upper if current_user.full_name else 'ME' }}</div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            {% else %}
+            <div class="disc-empty">💬 Start the conversation for this project.</div>
+            {% endif %}
         </div>
+
+        {# Input #}
+        {% if selected_project %}
         <div class="disc-inp">
             <textarea class="disc-ta" id="msg-input" placeholder="Type a message... (Enter to send)" rows="2"
                       onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMsg();}"></textarea>
-            <button class="btn-add-new" onclick="sendMsg()" style="align-self:flex-end;">Send</button>
+            <button class="btn-add-new" onclick="sendMsg()" id="send-btn" style="align-self:flex-end;">Send</button>
+        </div>
+        {% endif %}
+    </div>
+
+</div>
+
+
+<!-- ═══ MOBILE: Chat Bottom Sheet Popup ═══ -->
+<div class="disc-popup-ov" id="discPopup" onclick="if(event.target===this)closeDiscPopup()">
+    <div class="disc-popup-box">
+        <div class="disc-popup-handle"></div>
+        <div class="disc-popup-hdr">
+            <div style="font-size:1.3rem;" id="discPopupIcon">💬</div>
+            <div>
+                <div style="font-size:.95rem;font-weight:800;" id="discPopupTitle">—</div>
+                <div style="font-size:.72rem;color:var(--text3);font-family:monospace;" id="discPopupCode">—</div>
+            </div>
+            <button class="disc-popup-close" onclick="closeDiscPopup()">✕</button>
+        </div>
+        <div class="disc-popup-msgs" id="discPopupMsgs">
+            <div style="text-align:center;color:var(--text3);font-size:.82rem;margin:auto;padding:2rem;" id="discPopupEmpty">
+                💬 Start the conversation for this project.
+            </div>
+        </div>
+        <div class="disc-popup-inp">
+            <textarea class="disc-popup-ta" id="discPopupInput" placeholder="Type a message..." rows="1"
+                onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendPopupMsg();}"
+                oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,100)+'px'"></textarea>
+            <button class="disc-popup-send" onclick="sendPopupMsg()">➤</button>
         </div>
     </div>
 </div>
+
 <script>
-var messages={};
-var curThread=null;
-function selectThread(el,title,meta){
-    document.querySelectorAll('.disc-ti').forEach(x=>x.classList.remove('active'));
-    el.classList.add('active');
-    document.getElementById('disc-title').textContent=title;
-    document.getElementById('disc-meta').textContent=meta;
-    curThread=title;renderMsgs();
+var _pid = {{ pid or 'null' }};
+var _myName = {{ current_user.full_name|tojson if current_user.full_name else '"Me"' }};
+var _myIni  = {{ (current_user.full_name[:2]|upper)|tojson if current_user.full_name else '"ME"' }};
+
+// Scroll to bottom on load
+document.addEventListener('DOMContentLoaded', function(){
+    var msgs = document.getElementById('disc-msgs');
+    if(msgs) msgs.scrollTop = msgs.scrollHeight;
+});
+
+// ── Send message via AJAX ──
+function sendMsg() {
+    var inp  = document.getElementById('msg-input');
+    var text = inp.value.trim();
+    if (!text || !_pid) return;
+
+    var btn = document.getElementById('send-btn');
+    btn.disabled = true;
+    btn.textContent = '...';
+
+    fetch('{{ url_for("rd.discussion_send") }}', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: 'project_id=' + _pid + '&message=' + encodeURIComponent(text)
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            inp.value = '';
+            appendMsg(data.message, _myName, _myIni, data.time, true);
+        }
+        btn.disabled = false;
+        btn.textContent = 'Send';
+    })
+    .catch(() => { btn.disabled = false; btn.textContent = 'Send'; });
 }
-function renderMsgs(){
-    var msgs=messages[curThread]||[];
-    var c=document.getElementById('disc-msgs');
-    if(!msgs.length){c.innerHTML='<div style="text-align:center;color:var(--text3);font-size:.82rem;margin-top:2rem;">💬 Start the conversation for this project.</div>';return;}
-    c.innerHTML=msgs.map(m=>`<div class="msg ${m.mine?'me':''}">
-        ${!m.mine?`<div class="msg-av">${m.ini}</div>`:''}
-        <div class="msg-body">
-            <div class="msg-name ${m.mine?'right':''}">${m.from} · ${m.time}</div>
-            <div class="bubble ${m.mine?'bubble-m':'bubble-o'}">${m.text}</div>
-        </div>
-        ${m.mine?`<div class="msg-av" style="background:var(--blue);color:#fff;">You</div>`:''}
-    </div>`).join('');
-    c.scrollTop=c.scrollHeight;
+
+// ── Append a new message bubble ──
+function appendMsg(text, from, ini, time, mine) {
+    var c = document.getElementById('disc-msgs');
+    // Remove empty state
+    var empty = c.querySelector('.disc-empty');
+    if (empty) empty.remove();
+
+    var div = document.createElement('div');
+    div.className = 'msg' + (mine ? ' me' : '');
+    div.innerHTML = (!mine ? `<div class="msg-av">${ini}</div>` : '') +
+        `<div class="msg-body">
+            <div class="msg-name${mine?' right':''}">${from} · ${time}</div>
+            <div class="bubble ${mine?'bubble-m':'bubble-o'}">${text}</div>
+        </div>` +
+        (mine ? `<div class="msg-av mine">${ini}</div>` : '');
+    c.appendChild(div);
+    c.scrollTop = c.scrollHeight;
 }
-function sendMsg(){
-    var inp=document.getElementById('msg-input');
-    var text=inp.value.trim();
-    if(!text||!curThread)return;
-    if(!messages[curThread])messages[curThread]=[];
-    var now=new Date();
-    var time=now.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
-    messages[curThread].push({from:'{{ current_user.full_name }}',ini:'{{ (current_user.full_name[:2])|upper if current_user.full_name else "ME" }}',text,time,mine:true});
-    inp.value='';renderMsgs();
+
+// ── Filter channels ──
+function filterChannels(q) {
+    q = q.toLowerCase().trim();
+    document.querySelectorAll('.disc-ti').forEach(function(el) {
+        var name = el.getAttribute('data-name') || '';
+        var code = el.getAttribute('data-code') || '';
+        el.style.display = (name.includes(q) || code.includes(q)) ? '' : 'none';
+    });
 }
-{% if projects %}curThread='{{ projects[0].product_name|replace("'","\\'") }}';{% endif %}
+
+// ═══ Mobile Discussion Popup ═══════════════════════════════
+var _discPopupPid = null;
+
+function openDiscPopup(pid, title, code, icon) {
+    if (window.innerWidth > 767) return; // desktop pe nahi
+
+    _discPopupPid = pid;
+    document.getElementById('discPopupTitle').textContent = title;
+    document.getElementById('discPopupCode').textContent  = code;
+    document.getElementById('discPopupIcon').textContent  = icon;
+
+    // Load messages via AJAX
+    loadPopupMessages(pid);
+
+    document.getElementById('discPopup').classList.add('open');
+    document.body.style.overflow = 'hidden';
+    setTimeout(function(){
+        document.getElementById('discPopupInput').focus();
+    }, 300);
+}
+
+function closeDiscPopup() {
+    document.getElementById('discPopup').classList.remove('open');
+    document.body.style.overflow = '';
+    _discPopupPid = null;
+}
+
+function loadPopupMessages(pid) {
+    var msgs = document.getElementById('discPopupMsgs');
+    msgs.innerHTML = '<div style="text-align:center;padding:30px;color:var(--text3);">Loading...</div>';
+
+    fetch('/rd/discussion/messages?pid=' + pid)
+        .then(r => r.json())
+        .then(data => {
+            if (!data.comments || !data.comments.length) {
+                msgs.innerHTML = '<div style="text-align:center;color:var(--text3);font-size:.82rem;margin:auto;padding:2rem;">💬 Start the conversation for this project.</div>';
+                return;
+            }
+            msgs.innerHTML = '';
+            data.comments.forEach(function(c) {
+                appendPopupMsg(c.message, c.user, c.initials, c.time, c.mine);
+            });
+            msgs.scrollTop = msgs.scrollHeight;
+        })
+        .catch(function() {
+            msgs.innerHTML = '<div style="text-align:center;padding:20px;color:var(--red);">Failed to load messages</div>';
+        });
+}
+
+function appendPopupMsg(text, from, ini, time, mine) {
+    var msgs = document.getElementById('discPopupMsgs');
+    var empty = msgs.querySelector('[id="discPopupEmpty"]') || msgs.querySelector('div[style*="margin:auto"]');
+    if (empty) empty.remove();
+
+    var div = document.createElement('div');
+    div.className = 'msg' + (mine ? ' me' : '');
+    div.innerHTML = (!mine ? `<div class="msg-av">${ini}</div>` : '') +
+        `<div class="msg-body">
+            <div class="msg-name${mine?' right':''}">${from} · ${time}</div>
+            <div class="bubble ${mine?'bubble-m':'bubble-o'}">${text}</div>
+        </div>` +
+        (mine ? `<div class="msg-av mine">${ini}</div>` : '');
+    msgs.appendChild(div);
+    msgs.scrollTop = msgs.scrollHeight;
+}
+
+function sendPopupMsg() {
+    var inp  = document.getElementById('discPopupInput');
+    var text = inp.value.trim();
+    if (!text || !_discPopupPid) return;
+
+    var btn = document.querySelector('.disc-popup-send');
+    btn.disabled = true;
+
+    fetch('{{ url_for("rd.discussion_send") }}', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: 'project_id=' + _discPopupPid + '&message=' + encodeURIComponent(text)
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            inp.value = '';
+            inp.style.height = 'auto';
+            appendPopupMsg(data.message, data.user, data.initials, data.time, true);
+        }
+        btn.disabled = false;
+    })
+    .catch(function() { btn.disabled = false; });
+}
+
 </script>
 {% endblock %}

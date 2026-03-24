@@ -1446,6 +1446,15 @@
     .sb-acc-body .nav-a.active {
         border-left-color: var(--blue);
     }
+    .sb-acc-sub-lbl {
+        font-size: 10px; font-weight: 800; color: var(--sb-sec-lbl);
+        letter-spacing: 0.08em; text-transform: uppercase;
+        padding: 10px 10px 3px 12px;
+        margin-top: 2px;
+        border-top: 1px solid var(--border-muted);
+    }
+    .sb-acc-body .sb-acc-sub-lbl:first-child { border-top: none; margin-top: 0; padding-top: 6px; }
+    .sb-acc-body.open { max-height: 700px; }
     </style>
 </head>
 <body>
@@ -1471,9 +1480,10 @@
         {% set _mod = 'dashboard' %}
         {% if _pg in ('crm_dashboard','leads','clients','lead_import','client_import','sample_orders','mail_master','contribution_config','leaderboard','quotations','quotation_products') %}
             {% set _mod = 'crm' %}
-        {% elif _pg in ('npd_dashboard','npd_projects','npd_reports','npd_milestone_master','npd_npd_dashboard','npd_npd_projects','npd_epd_dashboard','npd_epd_projects') %}
-            {% set _mod = 'npd' %}
-        {% elif _pg in ('rd_dashboard','rd_projects','rd_trials','rd_executives','rd_performance','rd_discussion','rd_settings') %}
+        {% elif _pg in ('npd_dashboard','npd_projects','npd_reports','npd_milestone_master',
+                        'npd_npd_dashboard','npd_npd_projects','npd_epd_dashboard','npd_epd_projects',
+                        'rd_dashboard','rd_projects','rd_trials','rd_executives','rd_performance',
+                        'rd_discussion','rd_param_master') %}
             {% set _mod = 'rd' %}
         {% elif _pg in ('cat_master','uom_master','hsn_master','masters') %}
             {% set _mod = 'masters' %}
@@ -1511,59 +1521,46 @@
         </div>
         {% endif %}
 
-        {% if role in ('admin','manager','user','sales') %}
+        {% if role in ('admin','manager','user','sales','rd_executive','rd_manager') %}
         <div class="sb-sec sb-accordion">
             <button class="sb-acc-hdr" onclick="toggleAccordion(this)">
-                <span class="sb-acc-ic">🧪</span>
-                <span class="sb-acc-lbl">NPD</span>
+                <span class="sb-acc-ic">🔬</span>
+                <span class="sb-acc-lbl">R&amp;D</span>
                 <span class="sb-acc-arrow">▶</span>
             </button>
             <div class="sb-acc-body">
+
+                {# ── R&D Dashboard ── #}
+                <a class="nav-a" href="/rd/dashboard"><span class="nav-ic">◈</span><span class="nav-txt">R&amp;D Dashboard</span></a>
+
+                {# ── NPD Section ── #}
+                <div class="sb-acc-sub-lbl">🧪 NPD</div>
                 <a class="nav-a" href="/npd/npd-dashboard"><span class="nav-ic">📊</span><span class="nav-txt">NPD Dashboard</span></a>
                 <a class="nav-a" href="/npd/npd-projects"><span class="nav-ic">📋</span><span class="nav-txt">NPD Projects</span></a>
                 <a class="nav-a" href="/npd/npd-new"><span class="nav-ic">➕</span><span class="nav-txt">New NPD Project</span></a>
-            </div>
-        </div>
-        <div class="sb-sec sb-accordion">
-            <button class="sb-acc-hdr" onclick="toggleAccordion(this)">
-                <span class="sb-acc-ic">📦</span>
-                <span class="sb-acc-lbl">EPD</span>
-                <span class="sb-acc-arrow">▶</span>
-            </button>
-            <div class="sb-acc-body">
+
+                {# ── EPD Section ── #}
+                <div class="sb-acc-sub-lbl">📦 EPD</div>
                 <a class="nav-a" href="/npd/epd-dashboard"><span class="nav-ic">📊</span><span class="nav-txt">EPD Dashboard</span></a>
                 <a class="nav-a" href="/npd/epd-projects"><span class="nav-ic">📋</span><span class="nav-txt">EPD Projects</span></a>
                 <a class="nav-a" href="/npd/epd-new"><span class="nav-ic">➕</span><span class="nav-txt">New EPD Project</span></a>
-            </div>
-        </div>
-        {% if role == 'admin' %}
-        <div class="sb-sec sb-accordion">
-            <button class="sb-acc-hdr" onclick="toggleAccordion(this)">
-                <span class="sb-acc-ic">⚙️</span>
-                <span class="sb-acc-lbl">NPD Masters</span>
-                <span class="sb-acc-arrow">▶</span>
-            </button>
-            <div class="sb-acc-body">
-                <a class="nav-a" href="/npd/milestone-master"><span class="nav-ic">⚙️</span><span class="nav-txt">Milestone Master</span></a>
-                <a class="nav-a" href="/npd/reports"><span class="nav-ic">📈</span><span class="nav-txt">Reports</span></a>
-            </div>
-        </div>
-        {% endif %}
-        {% endif %}
-        {% if role in ('admin','manager','user','sales') %}
-        <div class="sb-sec sb-accordion">
-            <button class="sb-acc-hdr" onclick="toggleAccordion(this)">
-                <span class="sb-acc-ic">⚗️</span>
-                <span class="sb-acc-lbl">R&D</span>
-                <span class="sb-acc-arrow">▶</span>
-            </button>
-            <div class="sb-acc-body">
-                <a class="nav-a" href="/rd/dashboard"><span class="nav-ic">◈</span><span class="nav-txt">R&D Dashboard</span></a>
-                <a class="nav-a" href="/rd/projects"><span class="nav-ic">⬡</span><span class="nav-txt">R&D Projects</span></a>
-                <a class="nav-a" href="/rd/trials"><span class="nav-ic">⚗</span><span class="nav-txt">R&D Trials</span></a>
+
+                {# ── R&D Team ── #}
+                <div class="sb-acc-sub-lbl">⚗️ R&amp;D</div>
+                <a class="nav-a" href="/rd/projects"><span class="nav-ic">⬡</span><span class="nav-txt">R&amp;D Projects</span></a>
+                <a class="nav-a" href="/rd/trials"><span class="nav-ic">⚗</span><span class="nav-txt">R&amp;D Trials</span></a>
                 <a class="nav-a" href="/rd/executives"><span class="nav-ic">◎</span><span class="nav-txt">Executives</span></a>
                 <a class="nav-a" href="/rd/performance"><span class="nav-ic">◑</span><span class="nav-txt">Performance</span></a>
                 <a class="nav-a" href="/rd/discussion"><span class="nav-ic">💬</span><span class="nav-txt">Discussion</span></a>
+
+                {# ── NPD Masters (Admin only) ── #}
+                {% if role == 'admin' %}
+                <div class="sb-acc-sub-lbl">⚙️ NPD Masters</div>
+                <a class="nav-a" href="/npd/milestone-master"><span class="nav-ic">🎯</span><span class="nav-txt">Milestone Master</span></a>
+                <a class="nav-a" href="/rd/param-master"><span class="nav-ic">🔧</span><span class="nav-txt">Parameter Master</span></a>
+                <a class="nav-a" href="/npd/reports"><span class="nav-ic">📈</span><span class="nav-txt">Reports</span></a>
+                {% endif %}
+
             </div>
         </div>
         {% endif %}
@@ -1689,29 +1686,19 @@
                 <span class="nav-ic">←</span><span class="nav-txt">Main Dashboard</span>
             </a>
         </div>
+
+        {# ── R&D Dashboard ── #}
         <div class="sb-sec">
-            <div class="sb-sec-lbl">R&D NPD System</div>
-            <a class="nav-a {% if _pg == 'rd_dashboard' %}active{% endif %}" href="/rd/dashboard"><span class="nav-ic">◈</span><span class="nav-txt">Dashboard</span></a>
-            <a class="nav-a {% if _pg == 'rd_projects' %}active{% endif %}" href="/rd/projects"><span class="nav-ic">⬡</span><span class="nav-txt">Projects</span></a>
-            <a class="nav-a {% if _pg == 'rd_trials' %}active{% endif %}" href="/rd/trials"><span class="nav-ic">⚗</span><span class="nav-txt">R&D Trials</span></a>
+            <div class="sb-sec-lbl">R&amp;D</div>
+            <a class="nav-a {% if _pg == 'rd_dashboard' %}active{% endif %}" href="/rd/dashboard"><span class="nav-ic">◈</span><span class="nav-txt">R&amp;D Dashboard</span></a>
+            <a class="nav-a {% if _pg == 'rd_projects' %}active{% endif %}" href="/rd/projects"><span class="nav-ic">⬡</span><span class="nav-txt">R&amp;D Projects</span></a>
+            <a class="nav-a {% if _pg == 'rd_trials' %}active{% endif %}" href="/rd/trials"><span class="nav-ic">⚗</span><span class="nav-txt">R&amp;D Trials</span></a>
             <a class="nav-a {% if _pg == 'rd_executives' %}active{% endif %}" href="/rd/executives"><span class="nav-ic">◎</span><span class="nav-txt">Executives</span></a>
             <a class="nav-a {% if _pg == 'rd_performance' %}active{% endif %}" href="/rd/performance"><span class="nav-ic">◑</span><span class="nav-txt">Performance</span></a>
             <a class="nav-a {% if _pg == 'rd_discussion' %}active{% endif %}" href="/rd/discussion"><span class="nav-ic">💬</span><span class="nav-txt">Discussion</span></a>
-            <a class="nav-a {% if _pg == 'rd_settings' %}active{% endif %}" href="/rd/settings"><span class="nav-ic">⚙️</span><span class="nav-txt">Settings</span></a>
-        </div>
-        <div class="sb-sec">
-            <div class="sb-sec-lbl">Quick Links</div>
-            <a class="nav-a" href="/npd/npd-new"><span class="nav-ic">🧪</span><span class="nav-txt">New NPD Project</span></a>
-            <a class="nav-a" href="/npd/epd-new"><span class="nav-ic">📦</span><span class="nav-txt">New EPD Project</span></a>
         </div>
 
-        {# ════ NPD MODULE ════ #}
-        {% elif _mod == 'npd' %}
-        <div class="sb-sec">
-            <a class="nav-a nav-back" href="{{ url_for('dashboard') }}">
-                <span class="nav-ic">←</span><span class="nav-txt">Main Dashboard</span>
-            </a>
-        </div>
+        {# ── NPD Section ── #}
         <div class="sb-sec">
             <div class="sb-sec-lbl" style="color:#7c3aed;">🧪 NPD</div>
             <a class="nav-a {% if _pg == 'npd_npd_dashboard' %}active{% endif %}" href="/npd/npd-dashboard">
@@ -1724,6 +1711,8 @@
                 <span class="nav-ic">➕</span><span class="nav-txt">New NPD Project</span>
             </a>
         </div>
+
+        {# ── EPD Section ── #}
         <div class="sb-sec">
             <div class="sb-sec-lbl" style="color:#059669;">📦 EPD</div>
             <a class="nav-a {% if _pg == 'npd_epd_dashboard' %}active{% endif %}" href="/npd/epd-dashboard">
@@ -1736,11 +1725,16 @@
                 <span class="nav-ic">➕</span><span class="nav-txt">New EPD Project</span>
             </a>
         </div>
+
+        {# ── NPD Masters (Admin only) ── #}
         {% if role == 'admin' %}
         <div class="sb-sec">
-            <div class="sb-sec-lbl">Admin</div>
+            <div class="sb-sec-lbl">⚙️ NPD Masters</div>
             <a class="nav-a {% if _pg == 'npd_milestone_master' %}active{% endif %}" href="/npd/milestone-master">
-                <span class="nav-ic">⚙️</span><span class="nav-txt">Milestone Master</span>
+                <span class="nav-ic">🎯</span><span class="nav-txt">Milestone Master</span>
+            </a>
+            <a class="nav-a {% if _pg == 'rd_param_master' %}active{% endif %}" href="/rd/param-master">
+                <span class="nav-ic">🔧</span><span class="nav-txt">Parameter Master</span>
             </a>
             <a class="nav-a {% if _pg == 'npd_reports' %}active{% endif %}" href="/npd/reports">
                 <span class="nav-ic">📈</span><span class="nav-txt">Reports</span>
@@ -1966,9 +1960,16 @@
 <div id="celContainer"></div>
 
 <script>
-    const d = new Date();
-    const el = document.getElementById('tdate');
-    if(el) el.textContent = d.toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'short',year:'numeric'});
+    function updateDateTime() {
+        const d = new Date();
+        const el = document.getElementById('tdate');
+        if(!el) return;
+        const date = d.toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'short',year:'numeric'});
+        const time = d.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:true});
+        el.textContent = date + '  ' + time;
+    }
+    updateDateTime();
+    setInterval(updateDateTime, 1000);
 
     function toggleSB(){
         document.body.classList.toggle('sb-open');

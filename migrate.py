@@ -1184,6 +1184,42 @@ with app.app_context():
         status = f"{G}Active{E}" if is_active else f"{Y}Inactive{E}"
         print(f"     [{sort_order}] {name:<20} unit={unit or '—':<8} {status}")
 
+
+    # ══════════════════════════════════════════════════════
+    # STEP 13 — Seed: NPD Milestone Templates (Default)
+    # ══════════════════════════════════════════════════════
+    step("STEP 13: NPD Milestone Templates seed kar raha hai...")
+
+    if not table_exists('npd_milestone_templates'):
+        ok("npd_milestone_templates table exist nahi — skip (pehle migrate chalao)")
+    else:
+        cur.execute("SELECT COUNT(*) FROM npd_milestone_templates")
+        ms_count = cur.fetchone()[0]
+
+        if ms_count == 0:
+            default_milestones = [
+                # (milestone_type,  title,                                      icon,  applies_to, default_selected, is_mandatory, sort_order)
+                ('ingredients',     'Ingredients List & Marketing Sheet (BOM)', '📋', 'both',     1, 0, 1),
+                ('quotation',       'Quotation',                                '💰', 'both',     1, 0, 2),
+                ('packing_material','Packing Material (PM)',                    '📦', 'both',     1, 0, 3),
+                ('artwork',         'Artwork / Design',                         '🎨', 'both',     1, 0, 4),
+                ('qc_fda',          'QC Approval & FDA',                        '✅', 'both',     1, 0, 5),
+                ('barcode',         'Barcode',                                  '🔢', 'both',     1, 0, 6),
+            ]
+            seeded = 0
+            for mtype, title, icon, applies_to, default_sel, is_mandatory, sort in default_milestones:
+                cur.execute("""
+                    INSERT IGNORE INTO npd_milestone_templates
+                    (milestone_type, title, icon, applies_to, default_selected, is_mandatory, sort_order, is_active, created_by)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, 1, 1)
+                """, (mtype, title, icon, applies_to, default_sel, is_mandatory, sort))
+                if cur.rowcount > 0:
+                    seeded += 1
+            raw.commit()
+            ok(f"NPD Milestone Templates: {seeded} default milestones seeded!")
+        else:
+            ok(f"NPD Milestone Templates: {ms_count} records already exist — seed skip")
+
     raw.close()
 
     # ══════════════════════════════════════════════════════

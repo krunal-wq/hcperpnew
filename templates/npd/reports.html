@@ -1,0 +1,489 @@
+{% extends 'base.html' %}
+
+{% block title %}NPD/EPD Reports — HCP ERP{% endblock %}
+{% block page_title %}Reports{% endblock %}
+{% block bread %}NPD / Reports{% endblock %}
+
+{% block content %}
+<style>
+    .rpt-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 16px; margin-bottom: 24px; }
+    @media(max-width:900px){ .rpt-grid { grid-template-columns: 1fr 1fr; } }
+    @media(max-width:600px){ .rpt-grid { grid-template-columns: 1fr; } }
+
+    .rpt-card {
+        background: var(--white); border: 1px solid var(--border);
+        border-radius: var(--r-xl); padding: 20px 22px;
+        box-shadow: var(--sh-sm); position: relative; overflow: hidden;
+    }
+    .rpt-card::before {
+        content:''; position:absolute; left:0; top:0; bottom:0;
+        width:4px; border-radius:4px 0 0 4px;
+    }
+    .rpt-card.blue::before   { background: var(--blue); }
+    .rpt-card.green::before  { background: var(--green); }
+    .rpt-card.amber::before  { background: var(--amber); }
+    .rpt-card.red::before    { background: var(--red); }
+    .rpt-card.purple::before { background: var(--purple); }
+
+    .rpt-label  { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: var(--text3); margin-bottom: 6px; }
+    .rpt-value  { font-size: 2rem; font-weight: 900; letter-spacing: -.03em; color: var(--text); line-height: 1; }
+    .rpt-sub    { font-size: 12px; color: var(--text2); margin-top: 6px; font-weight: 500; }
+    .rpt-badge  { display: inline-block; font-size: 11px; font-weight: 700; padding: 3px 10px;
+                  border-radius: 100px; margin-top: 8px; }
+    .rpt-badge.green  { background: var(--green-lt);  color: var(--green); border: 1px solid var(--green-border); }
+    .rpt-badge.amber  { background: var(--amber-lt);  color: var(--amber); border: 1px solid var(--amber-border); }
+    .rpt-badge.red    { background: var(--red-lt);    color: var(--red);   border: 1px solid var(--red-border); }
+    .rpt-badge.blue   { background: var(--blue-lt);   color: var(--blue);  border: 1px solid var(--blue-border); }
+
+    /* Progress bar */
+    .prog-bar-wrap { background: var(--border-muted); border-radius: 100px; height: 8px; margin-top: 10px; overflow: hidden; }
+    .prog-bar { height: 100%; border-radius: 100px; transition: width .5s ease; }
+    .prog-bar.blue   { background: var(--blue); }
+    .prog-bar.green  { background: var(--green); }
+    .prog-bar.amber  { background: var(--amber); }
+    .prog-bar.red    { background: var(--red); }
+
+    /* Section headers */
+    .sec-hdr {
+        display: flex; align-items: center; gap: 10px;
+        font-size: 13px; font-weight: 800; color: var(--text);
+        margin: 28px 0 12px; letter-spacing: -.01em;
+    }
+    .sec-hdr::after { content:''; flex:1; height:1px; background: var(--border); }
+
+    /* Table */
+    .rpt-tbl { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .rpt-tbl th { padding: 9px 14px; background: var(--bg); color: var(--text2);
+                  font-weight: 700; font-size: 11px; text-transform: uppercase;
+                  letter-spacing: .06em; border-bottom: 1px solid var(--border); text-align: left; }
+    .rpt-tbl td { padding: 11px 14px; border-bottom: 1px solid var(--border-muted);
+                  color: var(--text); vertical-align: middle; }
+    .rpt-tbl tr:last-child td { border-bottom: none; }
+    .rpt-tbl tr:hover td { background: var(--sb-hover); }
+
+    .chip { display: inline-flex; align-items: center; gap: 4px;
+            font-size: 11px; font-weight: 700; padding: 3px 9px;
+            border-radius: 100px; border: 1px solid; }
+    .chip.red   { background: var(--red-lt);   color: var(--red);   border-color: var(--red-border); }
+    .chip.amber { background: var(--amber-lt); color: var(--amber); border-color: var(--amber-border); }
+    .chip.green { background: var(--green-lt); color: var(--green); border-color: var(--green-border); }
+
+    .empty-state { text-align: center; padding: 32px; color: var(--text3); font-size: 13px; }
+    .empty-state .es-ic { font-size: 2rem; margin-bottom: 8px; }
+
+    /* ═══ MOBILE: Reports ═══ */
+    @media(max-width: 767px) {
+        /* KPI grid — single column */
+        .rpt-grid { grid-template-columns: 1fr !important; gap: 12px !important; }
+        .rpt-card { padding: 16px 18px !important; }
+        .rpt-value { font-size: 2.4rem !important; }
+
+        /* Hide tables, show mobile cards */
+        .rpt-tbl-wrap { display: none !important; }
+        .m-rpt-cards  { display: block !important; }
+
+        /* SC performance mobile card */
+        .m-sc-card {
+            padding: 14px 16px;
+            border-bottom: 1px solid #f1f5f9;
+            display: flex; align-items: center; gap: 12px;
+        }
+        .m-sc-card:last-child { border-bottom: none; }
+        .m-sc-avatar {
+            width: 44px; height: 44px; border-radius: 50%; flex-shrink: 0;
+            background: linear-gradient(135deg, var(--blue), var(--purple));
+            display: flex; align-items: center; justify-content: center;
+            font-size: 16px; font-weight: 800; color: #fff;
+        }
+        .m-sc-info { flex: 1; min-width: 0; }
+        .m-sc-name { font-size: 14px; font-weight: 700; }
+        .m-sc-stats { display: flex; gap: 8px; margin-top: 5px; flex-wrap: wrap; }
+        .m-sc-rate { font-size: 1.4rem; font-weight: 900; color: var(--blue); flex-shrink: 0; }
+
+        /* Overdue milestone mobile card */
+        .m-ms-card {
+            padding: 14px 16px;
+            border-bottom: 1px solid #f1f5f9;
+        }
+        .m-ms-card:last-child { border-bottom: none; }
+        .m-ms-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+        .m-ms-proj { font-weight: 700; color: var(--blue); font-size: 13px; }
+        .m-ms-title { font-size: 13.5px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+        .m-ms-meta { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+        /* Stale delay mobile card */
+        .m-stale-card {
+            padding: 14px 16px;
+            border-bottom: 1px solid #f1f5f9;
+        }
+        .m-stale-card:last-child { border-bottom: none; }
+        .m-stale-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+        .m-stale-name { font-size: 13.5px; font-weight: 700; color: var(--text); }
+        .m-stale-meta { font-size: 12px; color: var(--text2); margin-top: 3px; }
+
+        /* Section header */
+        .sec-hdr { margin: 20px 0 10px !important; font-size: 13px !important; }
+    }
+    @media(min-width: 768px) {
+        .rpt-tbl-wrap { display: block; overflow-x: auto; }
+        .m-rpt-cards  { display: none !important; }
+    }
+
+</style>
+
+{# ── Page Header ── #}
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:10px;">
+    <div>
+        <h1 style="font-size:1.4rem;font-weight:900;letter-spacing:-.02em;margin:0;">📈 NPD / EPD Reports</h1>
+        <p style="font-size:12.5px;color:var(--text2);margin:4px 0 0;">Conversion rates, sampling analysis, SC performance & overdue milestones</p>
+    </div>
+    <span style="font-size:11.5px;color:var(--text3);background:var(--bg);border:1px solid var(--border);padding:5px 12px;border-radius:100px;font-family:'JetBrains Mono',monospace;">
+        Generated: {{ now().strftime('%d %b %Y, %I:%M %p') if now is defined else '' }}
+    </span>
+</div>
+
+
+{# ══════════════════════════════
+   SECTION 1 — KPI CARDS
+══════════════════════════════ #}
+<div class="sec-hdr">🎯 Key Metrics</div>
+
+<div class="rpt-grid">
+
+    {# NPD Conversion #}
+    <div class="rpt-card blue">
+        <div class="rpt-label">NPD → Commercial</div>
+        <div class="rpt-value">{{ npd_conv_rate }}<span style="font-size:1.1rem;font-weight:700;color:var(--text2);">%</span></div>
+        <div class="rpt-sub">{{ npd_commercial }} of {{ npd_total }} NPD projects converted</div>
+        <div class="prog-bar-wrap"><div class="prog-bar blue" style="width:{{ npd_conv_rate }}%;"></div></div>
+        {% if npd_conv_rate >= 60 %}
+            <span class="rpt-badge green">✅ Strong</span>
+        {% elif npd_conv_rate >= 30 %}
+            <span class="rpt-badge amber">⚠️ Moderate</span>
+        {% else %}
+            <span class="rpt-badge red">🔴 Low</span>
+        {% endif %}
+    </div>
+
+    {# EPD Conversion #}
+    <div class="rpt-card green">
+        <div class="rpt-label">EPD → Commercial</div>
+        <div class="rpt-value">{{ epd_conv_rate }}<span style="font-size:1.1rem;font-weight:700;color:var(--text2);">%</span></div>
+        <div class="rpt-sub">{{ epd_commercial }} of {{ epd_total }} EPD projects converted</div>
+        <div class="prog-bar-wrap"><div class="prog-bar green" style="width:{{ epd_conv_rate }}%;"></div></div>
+        {% if epd_conv_rate >= 60 %}
+            <span class="rpt-badge green">✅ Strong</span>
+        {% elif epd_conv_rate >= 30 %}
+            <span class="rpt-badge amber">⚠️ Moderate</span>
+        {% else %}
+            <span class="rpt-badge red">🔴 Low</span>
+        {% endif %}
+    </div>
+
+    {# Sampling Rejection Ratio #}
+    <div class="rpt-card red">
+        <div class="rpt-label">Sample Rejection Ratio</div>
+        <div class="rpt-value">{{ rejection_ratio }}<span style="font-size:1.1rem;font-weight:700;color:var(--text2);">%</span></div>
+        <div class="rpt-sub">{{ form_rejected }} rejected out of {{ form_total }} total formulations</div>
+        <div class="prog-bar-wrap"><div class="prog-bar red" style="width:{{ rejection_ratio }}%;"></div></div>
+        {% if rejection_ratio <= 20 %}
+            <span class="rpt-badge green">✅ Healthy</span>
+        {% elif rejection_ratio <= 40 %}
+            <span class="rpt-badge amber">⚠️ Watch</span>
+        {% else %}
+            <span class="rpt-badge red">🔴 High</span>
+        {% endif %}
+    </div>
+
+    {# Overdue Milestones #}
+    <div class="rpt-card amber">
+        <div class="rpt-label">Overdue Milestones</div>
+        <div class="rpt-value">{{ overdue_ms | length }}</div>
+        <div class="rpt-sub">Milestones past their target date</div>
+        {% if overdue_ms | length == 0 %}
+            <span class="rpt-badge green">✅ All on track</span>
+        {% else %}
+            <span class="rpt-badge red">⚠️ Action needed</span>
+        {% endif %}
+    </div>
+
+    {# Stale Delay Updates #}
+    <div class="rpt-card purple">
+        <div class="rpt-label">Stale Delay Updates</div>
+        <div class="rpt-value">{{ stale_delays | length }}</div>
+        <div class="rpt-sub">Projects in formulation/sampling without a delay update this week</div>
+        {% if stale_delays | length == 0 %}
+            <span class="rpt-badge green">✅ Up to date</span>
+        {% else %}
+            <span class="rpt-badge amber">⚠️ Needs update</span>
+        {% endif %}
+    </div>
+
+    {# Total Projects #}
+    <div class="rpt-card blue">
+        <div class="rpt-label">Total Projects</div>
+        <div class="rpt-value">{{ npd_total + epd_total }}</div>
+        <div class="rpt-sub">
+            <span style="color:var(--purple);font-weight:700;">{{ npd_total }} NPD</span>
+            &nbsp;+&nbsp;
+            <span style="color:var(--green);font-weight:700;">{{ epd_total }} EPD</span>
+        </div>
+    </div>
+
+</div>
+
+
+{# ══════════════════════════════
+   SECTION 2 — SC PERFORMANCE
+══════════════════════════════ #}
+<div class="sec-hdr">👤 Sales Coordinator Performance</div>
+
+<div class="card" style="margin-bottom:24px;">
+    <div class="card-hdr">
+        <span class="card-title">SC-wise Project Stats</span>
+    </div>
+    {# ── MOBILE: SC Cards ── #}
+    <div class="m-rpt-cards">
+        {% if sc_stats %}
+        {% for sc in sc_stats %}
+        {% set active_count = sc.total - (sc.completed or 0) - (sc.cancelled or 0) %}
+        {% set rate = ((sc.completed or 0) / sc.total * 100) | round(1) if sc.total else 0 %}
+        <div class="m-sc-card">
+            <div class="m-sc-avatar">{{ sc.full_name[0]|upper }}</div>
+            <div class="m-sc-info">
+                <div class="m-sc-name">{{ sc.full_name }}</div>
+                <div class="m-sc-stats">
+                    <span class="chip green" style="font-size:10px;">✅ {{ sc.completed or 0 }}</span>
+                    <span class="chip red" style="font-size:10px;">❌ {{ sc.cancelled or 0 }}</span>
+                    <span class="chip amber" style="font-size:10px;">⚡ {{ active_count if active_count > 0 else 0 }}</span>
+                </div>
+                <div style="margin-top:6px;display:flex;align-items:center;gap:8px;">
+                    <div class="prog-bar-wrap" style="flex:1;">
+                        <div class="prog-bar {% if rate >= 60 %}green{% elif rate >= 30 %}amber{% else %}red{% endif %}" style="width:{{ rate }}%;"></div>
+                    </div>
+                    <span style="font-size:12px;font-weight:700;color:var(--text2);">{{ rate }}%</span>
+                </div>
+            </div>
+            <div class="m-sc-rate">{{ sc.total }}</div>
+        </div>
+        {% endfor %}
+        {% else %}
+        <div class="empty-state"><div class="es-ic">👤</div>No SC data available yet.</div>
+        {% endif %}
+    </div>
+
+    {# ── DESKTOP: SC Table ── #}
+    <div class="rpt-tbl-wrap">
+        {% if sc_stats %}
+        <table class="rpt-tbl">
+            <thead>
+                <tr>
+                    <th>#</th><th>Sales Coordinator</th><th>Total Projects</th>
+                    <th>Completed</th><th>Cancelled</th><th>Active</th><th>Success Rate</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for sc in sc_stats %}
+                {% set active_count = sc.total - (sc.completed or 0) - (sc.cancelled or 0) %}
+                {% set rate = ((sc.completed or 0) / sc.total * 100) | round(1) if sc.total else 0 %}
+                <tr>
+                    <td style="color:var(--text3);font-size:12px;">{{ loop.index }}</td>
+                    <td><div style="display:flex;align-items:center;gap:8px;"><div style="width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,var(--blue),var(--purple));display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#fff;flex-shrink:0;">{{ sc.full_name[0]|upper }}</div><span style="font-weight:600;">{{ sc.full_name }}</span></div></td>
+                    <td><strong>{{ sc.total }}</strong></td>
+                    <td><span class="chip green">✅ {{ sc.completed or 0 }}</span></td>
+                    <td><span class="chip red">❌ {{ sc.cancelled or 0 }}</span></td>
+                    <td><span class="chip amber">⚡ {{ active_count if active_count > 0 else 0 }}</span></td>
+                    <td><div style="display:flex;align-items:center;gap:8px;"><div class="prog-bar-wrap" style="flex:1;min-width:60px;"><div class="prog-bar {% if rate >= 60 %}green{% elif rate >= 30 %}amber{% else %}red{% endif %}" style="width:{{ rate }}%;"></div></div><span style="font-size:12px;font-weight:700;color:var(--text2);min-width:36px;">{{ rate }}%</span></div></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty-state"><div class="es-ic">👤</div>No SC data available yet.</div>
+        {% endif %}
+    </div>
+</div>
+
+
+{# ══════════════════════════════
+   SECTION 3 — OVERDUE MILESTONES
+══════════════════════════════ #}
+<div class="sec-hdr">⏰ Overdue Milestones</div>
+
+<div class="card" style="margin-bottom:24px;">
+    <div class="card-hdr">
+        <span class="card-title">Milestones Past Target Date</span>
+        {% if overdue_ms %}
+        <span class="rpt-badge red">{{ overdue_ms | length }} overdue</span>
+        {% endif %}
+    </div>
+    {# ── MOBILE: Overdue Cards ── #}
+    <div class="m-rpt-cards">
+        {% if overdue_ms %}
+        {% for ms, proj in overdue_ms %}
+        {% set days_late = (today - ms.target_date).days if ms.target_date else 0 %}
+        <div class="m-ms-card">
+            <div class="m-ms-top">
+                <a href="/npd/projects/{{ proj.id }}" class="m-ms-proj">{{ proj.code or '—' }}</a>
+                <span class="chip {% if days_late > 14 %}red{% else %}amber{% endif %}" style="font-size:10px;">{{ days_late }}d late</span>
+            </div>
+            <div class="m-ms-title">{{ ms.title }}</div>
+            <div class="m-ms-meta">
+                {% if ms.status == 'pending' %}<span class="chip amber" style="font-size:10px;">⏳ Pending</span>
+                {% else %}<span class="chip amber" style="font-size:10px;">🔄 In Progress</span>{% endif %}
+                <span style="font-size:11px;color:var(--text3);">{{ ms.target_date.strftime('%d %b %Y') if ms.target_date else '—' }}</span>
+                <a href="/npd/projects/{{ proj.id }}" style="font-size:12px;color:var(--blue);font-weight:600;text-decoration:none;margin-left:auto;">View →</a>
+            </div>
+        </div>
+        {% endfor %}
+        {% else %}
+        <div class="empty-state"><div class="es-ic">✅</div>No overdue milestones — everything is on track!</div>
+        {% endif %}
+    </div>
+
+    {# ── DESKTOP: Overdue Table ── #}
+    <div class="rpt-tbl-wrap">
+        {% if overdue_ms %}
+        <table class="rpt-tbl">
+            <thead>
+                <tr>
+                    <th>Project</th>
+                    <th>Milestone</th>
+                    <th>Status</th>
+                    <th>Target Date</th>
+                    <th>Days Overdue</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for ms, proj in overdue_ms %}
+                {% set days_late = (today - ms.target_date).days if ms.target_date else 0 %}
+                <tr>
+                    <td>
+                        <a href="/npd/projects/{{ proj.id }}" style="font-weight:700;color:var(--blue);text-decoration:none;">
+                            {{ proj.code or '—' }}
+                        </a>
+                        <div style="font-size:11.5px;color:var(--text2);">{{ proj.product_name[:35] }}{% if proj.product_name|length > 35 %}…{% endif %}</div>
+                    </td>
+                    <td>{{ ms.title }}</td>
+                    <td>
+                        {% if ms.status == 'pending' %}
+                            <span class="chip amber">⏳ Pending</span>
+                        {% elif ms.status == 'in_progress' %}
+                            <span class="chip blue">🔄 In Progress</span>
+                        {% else %}
+                            <span class="chip amber">{{ ms.status }}</span>
+                        {% endif %}
+                    </td>
+                    <td style="font-family:'JetBrains Mono',monospace;font-size:12px;">
+                        {{ ms.target_date.strftime('%d %b %Y') if ms.target_date else '—' }}
+                    </td>
+                    <td>
+                        <span class="chip {% if days_late > 14 %}red{% else %}amber{% endif %}">
+                            {{ days_late }}d late
+                        </span>
+                    </td>
+                    <td>
+                        <a href="/npd/projects/{{ proj.id }}" style="font-size:12px;color:var(--blue);font-weight:600;text-decoration:none;">View →</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty-state"><div class="es-ic">✅</div>No overdue milestones — everything is on track!</div>
+        {% endif %}
+        </table>
+    </div>
+</div>
+
+
+{# ══════════════════════════════
+   SECTION 4 — STALE DELAY UPDATES
+══════════════════════════════ #}
+<div class="sec-hdr">📋 Stale Delay Updates</div>
+
+<div class="card" style="margin-bottom:24px;">
+    <div class="card-hdr">
+        <span class="card-title">Projects Without Weekly Delay Update</span>
+        {% if stale_delays %}
+        <span class="rpt-badge amber">{{ stale_delays | length }} projects</span>
+        {% endif %}
+    </div>
+    {# ── MOBILE: Stale Cards ── #}
+    <div class="m-rpt-cards">
+        {% if stale_delays %}
+        {% for proj in stale_delays %}
+        <div class="m-stale-card">
+            <div class="m-stale-top">
+                <a href="/npd/projects/{{ proj.id }}" style="font-weight:700;color:var(--blue);font-size:13px;text-decoration:none;">{{ proj.code or '—' }}</a>
+                <a href="/npd/projects/{{ proj.id }}" style="font-size:12px;color:var(--blue);font-weight:600;text-decoration:none;">Update →</a>
+            </div>
+            <div class="m-stale-name">{{ proj.product_name[:40] }}{% if proj.product_name|length > 40 %}…{% endif %}</div>
+            <div class="m-stale-meta" style="display:flex;gap:8px;align-items:center;margin-top:5px;flex-wrap:wrap;">
+                <span class="chip amber" style="font-size:10px;">{{ proj.status_label }}</span>
+                {% if proj.last_delay_update %}
+                <span style="font-size:11px;color:var(--text2);">Updated: {{ proj.last_delay_update.strftime('%d %b %Y') }}</span>
+                {% else %}
+                <span style="font-size:11px;color:var(--red);font-weight:600;">Never updated</span>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+        {% else %}
+        <div class="empty-state"><div class="es-ic">✅</div>All projects have recent delay updates.</div>
+        {% endif %}
+    </div>
+
+    {# ── DESKTOP: Stale Table ── #}
+    <div class="rpt-tbl-wrap">
+        {% if stale_delays %}
+        <table class="rpt-tbl">
+            <thead>
+                <tr>
+                    <th>Project</th>
+                    <th>Product</th>
+                    <th>Status</th>
+                    <th>Last Delay Update</th>
+                    <th>Delay Reason</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for proj in stale_delays %}
+                <tr>
+                    <td>
+                        <a href="/npd/projects/{{ proj.id }}" style="font-weight:700;color:var(--blue);text-decoration:none;">
+                            {{ proj.code or '—' }}
+                        </a>
+                    </td>
+                    <td>{{ proj.product_name[:35] }}{% if proj.product_name|length > 35 %}…{% endif %}</td>
+                    <td>
+                        <span class="chip amber">{{ proj.status_label }}</span>
+                    </td>
+                    <td style="font-size:12px;color:var(--text2);">
+                        {% if proj.last_delay_update %}
+                            {{ proj.last_delay_update.strftime('%d %b %Y') }}
+                        {% else %}
+                            <span style="color:var(--red);">Never updated</span>
+                        {% endif %}
+                    </td>
+                    <td style="font-size:12px;color:var(--text2);max-width:200px;">
+                        {{ proj.delay_reason[:60] if proj.delay_reason else '—' }}
+                        {% if proj.delay_reason and proj.delay_reason|length > 60 %}…{% endif %}
+                    </td>
+                    <td>
+                        <a href="/npd/projects/{{ proj.id }}" style="font-size:12px;color:var(--blue);font-weight:600;text-decoration:none;">Update →</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty-state"><div class="es-ic">✅</div>All projects have recent delay updates.</div>
+        {% endif %}
+        </table>
+    </div>
+</div>
+
+{% endblock %}
