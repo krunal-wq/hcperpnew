@@ -3,7 +3,8 @@ master_routes.py — CRUD for Lead Masters
 Blueprint: masters at /masters
 """
 from flask import Blueprint, render_template, redirect, url_for, request, flash, jsonify
-from flask_login import login_required
+from flask_login import login_required, current_user
+from permissions import get_perm
 from models import db, LeadStatus, LeadSource, LeadCategory, ProductRange, CategoryMaster, UOMMaster, HSNCode
 from flask_login import current_user
 from datetime import datetime
@@ -31,12 +32,16 @@ def index():
     data = {}
     for key, cfg in MASTER_MAP.items():
         data[key] = cfg['model'].query.order_by(cfg['model'].sort_order, cfg['model'].name).all()
-    return render_template('masters/index.html', data=data, active_page='masters')
+    perm = get_perm('masters')
+    return render_template('masters/index.html', data=data, perm=perm, active_page='masters')
 
 # ── Quick Add via AJAX (from lead form + button) ──
 @masters.route('/quick-add', methods=['POST'])
 @login_required
 def quick_add():
+    perm = get_perm('masters')
+    if not perm or not perm.can_add:
+        return jsonify(success=False, error='Permission denied'), 403
     mtype = request.json.get('type')
     name  = request.json.get('name', '').strip()
     icon  = request.json.get('icon', '').strip() or None

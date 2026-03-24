@@ -182,7 +182,7 @@
     </button>
     <button id="tab-emp" onclick="switchDashTab('emp')" style="padding:10px 22px;font-size:0.88rem;font-weight:700;color:#64748b;background:transparent;border:none;border-bottom:2.5px solid transparent;margin-bottom:-2px;cursor:pointer;display:flex;align-items:center;gap:6px;">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-        <span id="empTabTitle">Employee Performance</span>
+        <span id="empTabTitle">{% if is_admin %}Administrator Dashboard{% else %}My Performance{% endif %}</span>
     </button>
 </div>
 <div id="dashTab-main">
@@ -333,18 +333,23 @@
 <div id="dashTab-emp" style="display:none;">
 
 <!-- Big Heading -->
-<h2 id="empDashHeading" style="font-size:1.6rem;font-weight:800;color:var(--text);margin:0 0 1rem 0;">Employee Performance</h2>
+<h2 id="empDashHeading" style="font-size:1.6rem;font-weight:800;color:var(--text);margin:0 0 1rem 0;">{% if is_admin %}Administrator Dashboard{% else %}My Performance{% endif %}</h2>
 
 <!-- Filters Row -->
 <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.5rem;margin-bottom:1rem;">
     <div style="font-size:0.78rem;color:var(--text3);">Select employee and period to view performance</div>
     <div style="display:flex;gap:0.5rem;align-items:center;">
+        {% if is_admin %}
         <select id="empSelect" onchange="loadEmpDash()" style="font-size:0.82rem;padding:7px 12px;border:1.5px solid #e2e8f0;border-radius:8px;outline:none;background:#fff;min-width:170px;color:var(--text);">
             <option value="">👥 All Employees</option>
             {% for u in all_users %}
             <option value="{{ u.id }}">{{ u.full_name }}</option>
             {% endfor %}
         </select>
+        {% else %}
+        {# Non-admin: sirf apna data dekhe, dropdown nahi #}
+        <input type="hidden" id="empSelect" value="{{ current_user.id }}">
+        {% endif %}
         <select id="periodSelect" onchange="loadEmpDash()" style="font-size:0.82rem;padding:7px 12px;border:1.5px solid #e2e8f0;border-radius:8px;outline:none;background:#fff;color:var(--text);">
             <option value="today">Today</option>
             <option value="this_week">This Week</option>
@@ -454,18 +459,30 @@ Chart.defaults.color = '#64748b';
 let _empCharts = {};
 
 async function loadEmpDash() {
-    const empId   = document.getElementById('empSelect').value;
+    const empEl   = document.getElementById('empSelect');
+    const empId   = empEl ? empEl.value : '';
     const period  = document.getElementById('periodSelect').value;
-    // Update tab title
-    const empSel  = document.getElementById('empSelect');
-    const empName = empSel.options[empSel.selectedIndex].text;
+
+    // empName safely — hidden input has no options
+    const empName = (empEl && empEl.tagName === 'SELECT' && empEl.selectedIndex >= 0)
+                    ? empEl.options[empEl.selectedIndex].text
+                    : '{{ current_user.full_name or current_user.username }}';
+
     const titleEl = document.getElementById('empTabTitle');
     if (titleEl) {
-        titleEl.textContent = empId ? empName + ' Dashboard' : 'Employee Performance';
+        {% if is_admin %}
+        titleEl.textContent = empId ? empName + ' Dashboard' : 'Administrator Dashboard';
+        {% else %}
+        titleEl.textContent = 'My Performance';
+        {% endif %}
     }
     const headingEl = document.getElementById('empDashHeading');
     if (headingEl) {
-        headingEl.textContent = empId ? empName + ' Dashboard' : 'Employee Performance';
+        {% if is_admin %}
+        headingEl.textContent = empId ? empName + ' Dashboard' : 'Administrator Dashboard';
+        {% else %}
+        headingEl.textContent = 'My Performance';
+        {% endif %}
     }
     const url    = `/crm/api/emp-dashboard-stats?emp_id=${empId}&period=${period}`;
     const clrs   = ['#2563eb','#0d9488','#7c3aed','#ea580c','#dc2626','#0891b2','#65a30d','#d97706'];
@@ -590,9 +607,12 @@ async function loadEmpDash() {
 }
 
 function goEmpLeads(status) {
-    const empId  = document.getElementById('empSelect').value;
-    const period = document.getElementById('periodSelect').value;
-    const empName = document.getElementById('empSelect').options[document.getElementById('empSelect').selectedIndex].text;
+    const empEl   = document.getElementById('empSelect');
+    const empId   = empEl ? empEl.value : '';
+    const period  = document.getElementById('periodSelect').value;
+    const empName = (empEl && empEl.tagName === 'SELECT' && empEl.selectedIndex >= 0)
+                    ? empEl.options[empEl.selectedIndex].text
+                    : '{{ current_user.full_name or current_user.username }}';
     const periodName = document.getElementById('periodSelect').options[document.getElementById('periodSelect').selectedIndex].text;
 
     const statusLabels = {open:'Open', in_process:'In Process', close:'Close', cancel:'Cancel', '':'All'};

@@ -25,6 +25,16 @@
     </div>
 </div>
 
+<!-- ── Tabs ── -->
+<div style="display:flex;gap:0;border-bottom:2px solid var(--border);margin-bottom:1.25rem;overflow-x:auto;">
+    <button class="vw-tab active" onclick="cTab('ct-overview',this)" style="padding:.55rem 1.1rem;font-size:.78rem;font-weight:700;color:var(--blue);border:none;background:none;cursor:pointer;border-bottom:3px solid var(--blue);margin-bottom:-2px;white-space:nowrap;">
+        👤 Overview
+    </button>
+
+</div>
+
+<!-- Tab: Overview -->
+<div id="ct-overview">
 <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
     <div class="card">
         <div class="card-hdr"><div class="card-title">Contact Information</div></div>
@@ -71,4 +81,23 @@
     <div class="card-body"><p style="color:var(--text2);">{{ client.notes }}</p></div>
 </div>
 {% endif %}
+</div><!-- /ct-overview -->
+
+
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function cTab(id, btn) {
+    document.querySelectorAll('[id^="ct-"]').forEach(el => el.style.display = 'none');
+    document.getElementById(id).style.display = 'block';
+    document.querySelectorAll('.vw-tab').forEach(b => {
+        b.style.color = 'var(--text2)';
+        b.style.borderBottomColor = 'transparent';
+    });
+    btn.style.color = 'var(--blue)';
+    btn.style.borderBottomColor = 'var(--blue)';
+}
+</script>
 {% endblock %}

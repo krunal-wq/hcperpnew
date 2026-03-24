@@ -1,29 +1,101 @@
 """
 permissions.py — Permission helpers used across the app
+Priority: UserPermission (user-specific) → RolePermission (role fallback)
 """
 from functools import wraps
 from flask import flash, redirect, url_for, abort
 from flask_login import current_user
-from models import db, RolePermission, Module, UserGridConfig
+from models import db, RolePermission, Module, UserGridConfig, UserPermission
 
 
-# ── Fetch permission for current user's role on a module ──
+# ── Sub-permission keys per module ──────────────────────────────────────────
+# Ye dict define karta hai har module ke andar kaunse granular sub-permissions hain
+MODULE_SUB_PERMS = {
+    'crm_leads': [
+        ('discussion_board', 'Discussion Board'),
+        ('activity_log',     'Activity Log'),
+        ('reminder',         'Reminder'),
+        ('quotation',        'Quotation'),
+        ('sample_order',     'Sample Order'),
+        ('attachments',      'Attachments List'),
+        ('whatsapp',         'WhatsApp'),
+    ],
+    'crm_clients': [
+        ('create_npd',       'Create NPD Project'),
+        ('create_epd',       'Create EPD Project'),
+        ('npd_quote',        'NPD Quote'),
+    ],
+    'hr_employees': [
+        ('salary_details',   'Salary Details'),
+        ('documents',        'Documents'),
+        ('bank_details',     'Bank Details'),
+        ('kyc_details',      'KYC Details'),
+    ],
+    'npd': [
+        ('create_project',   'Create Project'),
+        ('milestone',        'Milestone'),
+        ('epd',              'EPD'),
+        ('reports',          'Reports'),
+    ],
+    'rd': [
+        ('create_project',   'Create Project'),
+        ('trials',           'Trials'),
+        ('discussion',       'Discussion'),
+        ('performance',      'Performance'),
+        ('settings',         'Settings'),
+    ],
+}
+
+
+# ── Fetch permission for current user ───────────────────────────────────────
 def get_perm(module_name):
+    """
+    Priority:
+    1. UserPermission record hai → use that (ALL users including admin)
+    2. Warna role_permissions se fallback
+    3. Koi record nahi → no perm
+    """
     if not current_user.is_authenticated:
         return None
-    # Admin always has full access
-    if current_user.role == 'admin':
-        return _full_perm(module_name)
     try:
         mod = Module.query.filter_by(name=module_name).first()
         if not mod:
-            # Module not seeded yet — grant view access to avoid lockout
             return _view_only_perm()
+
+        # Priority 1: User-specific override (admin bhi)
+        user_perm = UserPermission.query.filter_by(
+            user_id=current_user.id, module_id=mod.id
+        ).first()
+        if user_perm is not None:
+            return user_perm
+
+        # Priority 2: Role fallback
         return RolePermission.query.filter_by(
             role=current_user.role, module_id=mod.id
         ).first() or _no_perm()
     except Exception:
         return _view_only_perm()
+
+
+def get_sub_perm(module_name, key):
+    """Check specific sub-permission for current user on a module."""
+    if not current_user.is_authenticated:
+        return False
+    try:
+        mod = Module.query.filter_by(name=module_name).first()
+        if not mod:
+            return False
+        # User-specific override check karo
+        user_perm = UserPermission.query.filter_by(
+            user_id=current_user.id, module_id=mod.id
+        ).first()
+        if user_perm is not None:
+            return user_perm.has_sub_perm(key)
+        # User ka koi record nahi — sub-perm nahi deni by default
+        # (Admin bhi yahan aayega — use bhi set karna hoga explicitly)
+        return False
+    except Exception:
+        return False
 
 
 def _full_perm(module_name=None):

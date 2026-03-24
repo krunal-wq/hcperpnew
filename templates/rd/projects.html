@@ -141,8 +141,8 @@
         </div>
     </div>
     <div class="rd-btn-row">
-        <a href="{{ url_for('npd.npd_new') }}" class="rd-btn-npd">🧪 New NPD</a>
-        <a href="{{ url_for('npd.epd_new') }}" class="rd-btn-epd">📦 New EPD</a>
+        {% if perm and perm.can_add %}<a href="{{ url_for('npd.npd_new') }}" class="rd-btn-npd">🧪 New NPD</a>{% endif %}
+        {% if perm and perm.can_add %}<a href="{{ url_for('npd.epd_new') }}" class="rd-btn-epd">📦 New EPD</a>{% endif %}
         <a href="{{ url_for('rd.dashboard') }}" class="rd-btn-dashboard">← Dashboard</a>
     </div>
 </div>

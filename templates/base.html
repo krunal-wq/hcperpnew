@@ -1602,7 +1602,8 @@
             </button>
             <div class="sb-acc-body">
                 <a class="nav-a" href="/approvals"><span class="nav-ic">✅</span><span class="nav-txt">Approvals</span></a>
-                <a class="nav-a" href="/admin/permissions"><span class="nav-ic">🔐</span><span class="nav-txt">Permissions</span></a>
+                <a class="nav-a" href="/admin/permissions"><span class="nav-ic">🔐</span><span class="nav-txt">Role Permissions</span></a>
+                <a class="nav-a {% if active_page == 'user_permissions' %}active{% endif %}" href="/admin/user-permissions"><span class="nav-ic">👤</span><span class="nav-txt">User Permissions</span></a>
                 <a class="nav-a" href="/admin/audit-logs"><span class="nav-ic">🔍</span><span class="nav-txt">Audit Logs</span></a>
             </div>
         </div>
@@ -1809,6 +1810,9 @@
                 <span class="nav-ic">✅</span><span class="nav-txt">Approvals</span>
             </a>
             <a class="nav-a {% if _pg == 'permissions' %}active{% endif %}" href="/admin/permissions">
+                <span class="nav-ic">🔐</span><span class="nav-txt">Role Perms</span></a>
+            <a class="nav-a {% if _pg == 'user_permissions' %}active{% endif %}" href="/admin/user-permissions">
+                <span class="nav-ic">👤</span><span class="nav-txt">User Perms</span></a>
                 <span class="nav-ic">🔐</span><span class="nav-txt">Permissions</span>
             </a>
             <a class="nav-a {% if _pg == 'audit_logs' %}active{% endif %}" href="/admin/audit-logs">
@@ -2885,6 +2889,8 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 </script>
+
+{% block extra_js %}{% endblock %}
 
 </body>
 </html>

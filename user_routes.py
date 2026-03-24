@@ -7,8 +7,8 @@ from flask_login import login_required, current_user
 from audit_helper import audit, snapshot
 from functools import wraps
 from datetime import datetime
-from models import db, User, LoginLog, Module, RolePermission
-from permissions import seed_permissions
+from models import db, User, LoginLog, Module, RolePermission, UserPermission
+from permissions import seed_permissions, MODULE_SUB_PERMS
 
 users_bp = Blueprint('users_bp', __name__, url_prefix='/admin')
 
@@ -414,3 +414,151 @@ def users_export():
         mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         as_attachment=True,
         download_name=f"users_export_{dt.now().strftime('%Y%m%d_%H%M')}.xlsx")
+
+
+# ═══════════════════════════════════════════════════════════════════
+# USER-WISE PERMISSIONS
+# ═══════════════════════════════════════════════════════════════════
+
+@users_bp.route('/user-permissions')
+@login_required
+@admin_required
+def user_permissions_list():
+    """User list — click karo kisi user pe to uski permissions set karo."""
+    from models.employee import Employee
+    users = User.query.filter_by(is_active=True).order_by(User.full_name).all()
+    return render_template('admin/permissions/user_permissions_list.html',
+                           users=users, active_page='user_permissions')
+
+
+@users_bp.route('/user-permissions/<int:user_id>', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def user_permissions(user_id):
+    """User-wise permission set/edit karo."""
+    u = User.query.get_or_404(user_id)
+    modules = Module.query.filter_by(is_active=True).order_by(Module.sort_order).all()
+
+    if request.method == 'POST':
+        action = request.form.get('action', 'save')
+
+        if action == 'copy_from_role':
+            # Role ke permissions copy karo is user ke liye
+            role = request.form.get('role', u.role)
+            for mod in modules:
+                rp = RolePermission.query.filter_by(role=role, module_id=mod.id).first()
+                up = UserPermission.query.filter_by(user_id=user_id, module_id=mod.id).first()
+                if not up:
+                    up = UserPermission(user_id=user_id, module_id=mod.id)
+                    db.session.add(up)
+                if rp:
+                    up.can_view   = rp.can_view
+                    up.can_add    = rp.can_add
+                    up.can_edit   = rp.can_edit
+                    up.can_delete = rp.can_delete
+                    up.can_export = rp.can_export
+                else:
+                    up.can_view = up.can_add = up.can_edit = up.can_delete = up.can_export = False
+                up.updated_by = current_user.id
+            db.session.commit()
+            flash(f'Permissions copied from role "{role}" for {u.full_name}!', 'success')
+            return redirect(url_for('users_bp.user_permissions', user_id=user_id))
+
+        elif action == 'reset':
+            # User ke saare overrides delete karo (role pe wapas jaayega)
+            UserPermission.query.filter_by(user_id=user_id).delete()
+            db.session.commit()
+            flash(f'{u.full_name} ke permissions reset ho gaye — ab role permissions follow hongi.', 'success')
+            return redirect(url_for('users_bp.user_permissions', user_id=user_id))
+
+        else:
+            # Save individual module permissions
+            for mod in modules:
+                prefix = f'mod_{mod.id}_'
+                can_view   = request.form.get(f'{prefix}view') == 'on'
+                can_add    = request.form.get(f'{prefix}add') == 'on'
+                can_edit   = request.form.get(f'{prefix}edit') == 'on'
+                can_delete = request.form.get(f'{prefix}delete') == 'on'
+                can_export = request.form.get(f'{prefix}export') == 'on'
+
+                # Sub-permissions
+                sub_keys = [k for k, _ in MODULE_SUB_PERMS.get(mod.name, [])]
+                sub_dict = {k: (request.form.get(f'{prefix}sub_{k}') == 'on') for k in sub_keys}
+
+                up = UserPermission.query.filter_by(user_id=user_id, module_id=mod.id).first()
+                if not up:
+                    up = UserPermission(user_id=user_id, module_id=mod.id)
+                    db.session.add(up)
+                up.can_view   = can_view
+                up.can_add    = can_add
+                up.can_edit   = can_edit
+                up.can_delete = can_delete
+                up.can_export = can_export
+                up.set_sub_permissions(sub_dict)
+                up.updated_by = current_user.id
+
+            db.session.commit()
+            audit('users', 'USER_PERM_SAVE', user_id, u.username,
+                  f'User permissions saved for {u.full_name} by {current_user.username}')
+            flash(f'{u.full_name} ke permissions save ho gaye!', 'success')
+            return redirect(url_for('users_bp.user_permissions', user_id=user_id))
+
+    # GET — load existing user permissions
+    perm_map = {}  # module_id → UserPermission
+    for up in UserPermission.query.filter_by(user_id=user_id).all():
+        perm_map[up.module_id] = up
+
+    # Build sub_perm_map: module_id → {key: bool}
+    sub_perm_map = {}
+    for mod_id, up in perm_map.items():
+        sub_perm_map[mod_id] = up.get_sub_permissions()
+
+    role_perm_map = {}  # module_id → RolePermission (for reference)
+    for rp in RolePermission.query.filter_by(role=u.role).all():
+        role_perm_map[rp.module_id] = rp
+
+    roles = ['admin', 'manager', 'hr', 'user', 'sales', 'viewer']
+
+    return render_template('admin/permissions/user_permissions.html',
+                           target_user=u,
+                           modules=modules,
+                           perm_map=perm_map,
+                           sub_perm_map=sub_perm_map,
+                           role_perm_map=role_perm_map,
+                           module_sub_perms=MODULE_SUB_PERMS,
+                           roles=roles,
+                           active_page='user_permissions')
+
+
+@users_bp.route('/user-permissions/<int:user_id>/toggle', methods=['POST'])
+@login_required
+@admin_required
+def user_perm_toggle(user_id):
+    """AJAX toggle — single permission on/off."""
+    data      = request.json
+    module_id = int(data.get('module_id'))
+    action    = data.get('action')   # can_view, can_add, can_edit, can_delete, can_export
+    value     = bool(data.get('value'))
+
+    up = UserPermission.query.filter_by(user_id=user_id, module_id=module_id).first()
+    if not up:
+        up = UserPermission(user_id=user_id, module_id=module_id)
+        db.session.add(up)
+
+    if action in ('can_view', 'can_add', 'can_edit', 'can_delete', 'can_export', 'can_import'):
+        setattr(up, action, value)
+        up.updated_by = current_user.id
+        db.session.commit()
+        return jsonify({'ok': True, 'value': value})
+
+    # Sub-permission toggle
+    if action.startswith('sub_'):
+        sub_key = action[4:]
+        subs = up.get_sub_permissions()
+        subs[sub_key] = value
+        up.set_sub_permissions(subs)
+        up.updated_by = current_user.id
+        db.session.commit()
+        return jsonify({'ok': True, 'value': value})
+
+    return jsonify({'ok': False, 'error': 'Unknown action'}), 400

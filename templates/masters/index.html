@@ -130,21 +130,21 @@
             <span class="master-name">{{ item.name }}</span>
             <span class="master-order">#{{ item.sort_order }}</span>
             <div class="row-actions">
-                <button class="row-btn row-btn-edit"
+                {% if perm and perm.can_edit %}<button class="row-btn row-btn-edit"
                     onclick="openEdit('{{ mtype }}',{{ item.id }},'{{ item.name }}','{{ item.icon }}',{{ item.sort_order }},'{{ item.color if mtype=='status' else '' }}',{{ item.is_active|lower }})">
                     ✏️ Edit
-                </button>
+                </button>{% endif %}
                 <form method="POST" action="{{ url_for('masters.toggle', mtype=mtype, id=item.id) }}"
                     style="display:inline;" onsubmit="return true;">
                     <button class="row-btn row-btn-toggle" type="submit">
                         {{ '✅' if item.is_active else '⛔' }}
                     </button>
                 </form>
-                <form method="POST" action="{{ url_for('masters.delete', mtype=mtype, id=item.id) }}"
+                {% if perm and perm.can_delete %}<form method="POST" action="{{ url_for('masters.delete', mtype=mtype, id=item.id) }}"
                     style="display:inline;"
                     onsubmit="return confirm('Delete {{ item.name }}?')">
                     <button class="row-btn row-btn-del" type="submit">🗑️</button>
-                </form>
+                </form>{% endif %}
             </div>
         </div>
         {% else %}
@@ -154,7 +154,7 @@
         {% endfor %}
     </div>
 
-    <!-- Add new form -->
+    {% if perm and perm.can_add %}<!-- Add new form -->
     <div class="add-form-wrap">
         <form method="POST" action="{{ url_for('masters.add', mtype=mtype) }}" novalidate onsubmit="return validateAddForm(this)">
             <div class="add-form-row">
@@ -175,6 +175,7 @@
         </form>
     </div>
 </div>
+    {% endif %}
 {% endfor %}
 
 </div>

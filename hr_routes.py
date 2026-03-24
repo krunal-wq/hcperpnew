@@ -907,7 +907,15 @@ def emp_view(id):
     e = Employee.query.get_or_404(id)
     audit('employees','VIEW', id, f'{e.employee_code or id} / {e.full_name}', obj=e)
     from datetime import date
-    return render_template('hr/employees/view.html', employee=e, perm=perm, active_page='hr_employees', today=date.today())
+    from permissions import get_sub_perm
+    sub_perms = {
+        'salary_details' : get_sub_perm('hr_employees', 'salary_details'),
+        'documents'      : get_sub_perm('hr_employees', 'documents'),
+        'bank_details'   : get_sub_perm('hr_employees', 'bank_details'),
+        'kyc_details'    : get_sub_perm('hr_employees', 'kyc_details'),
+    }
+    return render_template('hr/employees/view.html', employee=e, perm=perm,
+        sub_perms=sub_perms, active_page='hr_employees', today=date.today())
 
 
 @hr.route('/employees/<int:id>/delete', methods=['POST'])

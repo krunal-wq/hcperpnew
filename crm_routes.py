@@ -208,6 +208,13 @@ def clients():
     grid_cols = get_grid_columns('clients', CLIENT_COLS_DEFAULT, list(CLIENT_COLS_ALL.keys()))
 
     deleted_count = ClientMaster.query.filter_by(is_deleted=True).count()
+    perm = get_perm('crm_clients')
+    from permissions import get_sub_perm
+    sub_perms = {
+        'create_npd': get_sub_perm('crm_clients', 'create_npd'),
+        'create_epd': get_sub_perm('crm_clients', 'create_epd'),
+        'npd_quote':  get_sub_perm('crm_clients', 'npd_quote'),
+    }
     return render_template('crm/clients/clients.html',
         clients=all_clients, search=search, show_trash=show_trash,
         deleted_count=deleted_count,
@@ -215,6 +222,8 @@ def clients():
         sort_by=sort_by, sort_dir=sort_dir,
         all_cities=all_cities, all_states=all_states,
         grid_cols=grid_cols, all_cols=CLIENT_COLS_ALL,
+        perm=perm,
+        sub_perms=sub_perms,
         active_page='clients')
 
 
@@ -407,7 +416,15 @@ def client_edit(id):
 def client_view(id):
     c = ClientMaster.query.get_or_404(id)
     brands = ClientBrand.query.filter_by(client_id=c.id).all()
-    return render_template('crm/clients/client_view.html', client=c, brands=brands, active_page='clients')
+    from permissions import get_sub_perm
+    perm = get_perm('crm_clients')
+    sub_perms = {
+        'create_npd': get_sub_perm('crm_clients', 'create_npd'),
+        'create_epd': get_sub_perm('crm_clients', 'create_epd'),
+        'npd_quote':  get_sub_perm('crm_clients', 'npd_quote'),
+    }
+    return render_template('crm/clients/client_view.html', client=c, brands=brands,
+        perm=perm, sub_perms=sub_perms, active_page='clients')
 
 
 @crm.route('/clients/<int:id>/delete', methods=['POST'])
@@ -579,6 +596,7 @@ def leads():
     lead_categories= LeadCategory.query.filter_by(is_active=True).order_by(LeadCategory.sort_order).all()
     product_ranges = ProductRange.query.filter_by(is_active=True).order_by(ProductRange.sort_order).all()
 
+    perm = get_perm('crm_leads')
     return render_template('crm/leads/leads.html',
         leads=all_leads, counts=counts, deleted_count=deleted_count,
         show_trash=show_trash, all_users=all_users,
@@ -591,6 +609,7 @@ def leads():
         lead_statuses=lead_statuses, lead_sources=lead_sources,
         lead_categories=lead_categories, product_ranges=product_ranges,
         grid_cols=grid_cols, all_cols=LEAD_COLS_ALL,
+        perm=perm,
         active_page='leads')
 
 
@@ -951,6 +970,9 @@ def lead_update_status(id):
 @crm.route('/leads/<int:id>/inline-edit', methods=['POST'])
 @login_required
 def lead_inline_edit(id):
+    perm = get_perm('crm_leads')
+    if not perm or not perm.can_edit:
+        return jsonify(success=False, error='Edit permission nahi hai'), 403
     lead = Lead.query.get_or_404(id)
     data = request.get_json()
     field = data.get('field','').strip()
@@ -974,6 +996,9 @@ def lead_inline_edit(id):
 @crm.route('/clients/<int:id>/inline-edit', methods=['POST'])
 @login_required
 def client_inline_edit(id):
+    perm = get_perm('crm_clients')
+    if not perm or not perm.can_edit:
+        return jsonify(success=False, error='Edit permission nahi hai'), 403
     c = ClientMaster.query.get_or_404(id)
     data = request.get_json()
     field = data.get('field','').strip()
@@ -1174,6 +1199,21 @@ def lead_view(id):
     all_users   = User.query.filter_by(is_active=True).all()
     audit('leads','VIEW', id, f'{l.contact_name}', obj=l)
     _view_statuses = LeadStatus.query.filter_by(is_active=True).order_by(LeadStatus.sort_order).all()
+
+    # Permissions
+    perm = get_perm('crm_leads')
+    from permissions import get_sub_perm
+    sub_perms = {
+        'discussion_board' : get_sub_perm('crm_leads', 'discussion_board'),
+        'activity_log'     : get_sub_perm('crm_leads', 'activity_log'),
+        'reminder'         : get_sub_perm('crm_leads', 'reminder'),
+        'quotation'        : get_sub_perm('crm_leads', 'quotation'),
+        'sample_order'     : get_sub_perm('crm_leads', 'sample_order'),
+        'attachments'      : get_sub_perm('crm_leads', 'attachments'),
+        'whatsapp'         : get_sub_perm('crm_leads', 'whatsapp'),
+        'personal_notes'   : True,
+    }
+
     return render_template('crm/leads/lead_view.html',
         lead=l, tab=tab,
         discussions=discussions, reminders=reminders,
@@ -1181,6 +1221,8 @@ def lead_view(id):
         attachments=attachments, team_members=team_members,
         all_users=all_users,
         lead_statuses=_view_statuses,
+        perm=perm,
+        sub_perms=sub_perms,
         now=datetime.utcnow(),
         active_page='leads')
 
@@ -2013,6 +2055,7 @@ def crm_dashboard():
         recent_leads=recent_leads,
         upcoming_reminders=upcoming_reminders,
         all_users=all_users,
+        is_admin=(current_user.role == 'admin'),
         now=datetime.utcnow())
 
 

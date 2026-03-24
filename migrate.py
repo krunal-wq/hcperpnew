@@ -496,18 +496,19 @@ with app.app_context():
     from models.permission import Module, RolePermission
 
     modules_data = [
-        ("dashboard",   "Dashboard",   "🏠", "/",                    1),
-        ("crm",         "CRM",         "📋", "/crm",                 2),
-        ("leads",       "Leads",       "📋", "/crm/leads",           3),
-        ("clients",     "Clients",     "🏢", "/crm/clients",         4),
-        ("hr",          "HR",          "👥", "/hr",                  5),
-        ("hr_employees","Employees",   "👤", "/hr/employees",        6),
-        ("hr_contractors","Contractors","🔧","/hr/contractors",       7),
-        ("masters",     "Masters",     "⚙️",  "/masters",             8),
-        ("admin",       "Admin",       "🔐", "/admin",               9),
-        ("users",       "Users",       "👤", "/admin/users",         10),
-        ("audit",       "Audit Logs",  "🔍", "/admin/audit-logs",    11),
-        ("approvals",   "Approvals",   "✅", "/approvals",           12),
+        ("dashboard",      "Dashboard",    "🏠", "/",                     1),
+        ("crm",            "CRM",          "📊", "/crm",                  2),
+        ("crm_leads",      "Leads",        "📋", "/crm/leads",            3),
+        ("crm_clients",    "Clients",      "👥", "/crm/clients",          4),
+        ("hr",             "HR",           "👔", "/hr",                   5),
+        ("hr_employees",   "Employees",    "🪪", "/hr/employees",         6),
+        ("hr_contractors", "Contractors",  "🤝", "/hr/contractors",       7),
+        ("npd",            "NPD",          "🔬", "/npd",                  8),
+        ("rd",             "R&D",          "🧪", "/rd",                   9),
+        ("masters",        "Masters",      "⚙️", "/masters",              10),
+        ("approvals",      "Approvals",    "✅", "/approvals",            11),
+        ("user_mgmt",      "Users",        "👤", "/admin/users",          12),
+        ("audit_logs",     "Audit Logs",   "🔍", "/admin/audit-logs",     13),
     ]
     mod_added = 0
     for name, label, icon, url, sort in modules_data:
@@ -1220,7 +1221,96 @@ with app.app_context():
         else:
             ok(f"NPD Milestone Templates: {ms_count} records already exist — seed skip")
 
+    # ══════════════════════════════════════════════════════
+    # STEP 14 — User-wise Permission Table
+    # ══════════════════════════════════════════════════════
+    step("STEP 14: user_permissions table create kar raha hai...")
+
+    cur.execute("SHOW TABLES LIKE 'user_permissions'")
+    if not cur.fetchone():
+        cur.execute("""
+            CREATE TABLE user_permissions (
+                id            INT AUTO_INCREMENT PRIMARY KEY,
+                user_id       INT NOT NULL,
+                module_id     INT NOT NULL,
+                can_view      TINYINT(1) DEFAULT 0,
+                can_add       TINYINT(1) DEFAULT 0,
+                can_edit      TINYINT(1) DEFAULT 0,
+                can_delete    TINYINT(1) DEFAULT 0,
+                can_export    TINYINT(1) DEFAULT 0,
+                can_import    TINYINT(1) DEFAULT 0,
+                sub_permissions TEXT DEFAULT '{}',
+                updated_at    DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                updated_by    INT NULL,
+                UNIQUE KEY uq_user_module_perm (user_id, module_id),
+                FOREIGN KEY (user_id)   REFERENCES users(id)   ON DELETE CASCADE,
+                FOREIGN KEY (module_id) REFERENCES modules(id) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        """)
+        raw.commit()
+        ok("user_permissions table created!")
+    else:
+        # Add can_import column if missing
+        safe_add('user_permissions', 'can_import', 'TINYINT(1) DEFAULT 0')
+        safe_add('role_permissions', 'can_import', 'TINYINT(1) DEFAULT 0')
+        ok("user_permissions + role_permissions can_import column ready")
+
+   
     raw.close()
+
+    # ══════════════════════════════════════════════════════
+    # STEP 15 — Fix Duplicate Modules (old names → canonical)
+    # ══════════════════════════════════════════════════════
+    step("STEP 15: Duplicate modules clean kar raha hai...")
+
+    from models.permission import Module, RolePermission, UserPermission
+
+    # Old name → Canonical name
+    RENAME_MAP = {
+        'leads'   : 'crm_leads',
+        'clients' : 'crm_clients',
+        'users'   : 'user_mgmt',
+        'admin'   : 'user_mgmt',
+        'audit'   : 'audit_logs',
+    }
+
+    for old_name, new_name in RENAME_MAP.items():
+        old_mod = Module.query.filter_by(name=old_name).first()
+        new_mod = Module.query.filter_by(name=new_name).first()
+        if not old_mod:
+            continue
+        if new_mod:
+            # Merge: move permissions from old → new, delete old
+            for rp in RolePermission.query.filter_by(module_id=old_mod.id).all():
+                if not RolePermission.query.filter_by(role=rp.role, module_id=new_mod.id).first():
+                    rp.module_id = new_mod.id
+                else:
+                    db.session.delete(rp)
+            for up in UserPermission.query.filter_by(module_id=old_mod.id).all():
+                if not UserPermission.query.filter_by(user_id=up.user_id, module_id=new_mod.id).first():
+                    up.module_id = new_mod.id
+                else:
+                    db.session.delete(up)
+            for child in Module.query.filter_by(parent_id=old_mod.id).all():
+                child.parent_id = new_mod.id
+            db.session.delete(old_mod)
+            ok(f"Duplicate '{old_name}' → '{new_name}' merged & deleted")
+        else:
+            old_mod.name = new_name
+            ok(f"Module '{old_name}' → '{new_name}' renamed")
+
+    # Fix parent_id for child modules
+    parent_map = {'crm_leads': 'crm', 'crm_clients': 'crm',
+                  'hr_employees': 'hr', 'hr_contractors': 'hr'}
+    for child_name, parent_name in parent_map.items():
+        child  = Module.query.filter_by(name=child_name).first()
+        parent = Module.query.filter_by(name=parent_name).first()
+        if child and parent and child.parent_id != parent.id:
+            child.parent_id = parent.id
+            ok(f"'{child_name}' parent fixed → '{parent_name}'")
+
+    db.session.commit()
+    ok("Duplicate module cleanup done!")
 
     # ══════════════════════════════════════════════════════
     # DONE

@@ -8,6 +8,7 @@ from flask_login import login_required, current_user
 from datetime import datetime, date
 from models import db, User
 
+from permissions import get_perm, get_sub_perm
 rd = Blueprint('rd', __name__, url_prefix='/rd')
 
 
@@ -68,8 +69,9 @@ def dashboard():
      .filter(NP.is_deleted == False, NP.status.notin_(['complete', 'cancelled']))\
      .group_by(User.id, User.full_name).all()
 
+    perm = get_perm('rd')
     return render_template('rd/dashboard.html',
-        active_page='rd_dashboard',
+        active_page='rd_dashboard', perm=perm,
         active_projects=active_projects,
         total_trials=total_trials,
         success_rate=success_rate,
@@ -127,7 +129,7 @@ def projects():
         active_page='rd_projects',
         projects=projects, q=q, cat=cat, status=status,
         users=users, unallotted=unallotted, allotted=allotted, closed=closed,
-        is_rd_manager=is_rd_manager,
+        is_rd_manager=is_rd_manager, perm=get_perm('rd'),
     )
 
 

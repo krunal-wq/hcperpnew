@@ -14,6 +14,7 @@ from models import (db, User, Lead, NPDMilestoneTemplate,
                     NPDProject, MilestoneMaster, MilestoneLog,
                     NPDFormulation, NPDPackingMaterial, NPDArtwork, NPDActivityLog)
 
+from permissions import get_perm, get_sub_perm
 npd = Blueprint('npd', __name__, url_prefix='/npd')
 
 UPLOAD_FOLDER = os.path.join(os.path.dirname(__file__), 'static', 'uploads', 'npd')
@@ -1255,13 +1256,14 @@ def npd_dashboard():
      .filter(NPDProject.is_deleted==False, NPDProject.project_type==ptype)\
      .group_by(User.id, User.full_name).all()
 
+    perm = get_perm('npd')
     return render_template('npd/npd_dashboard.html',
         active_page='npd_npd_dashboard',
         projects=projects, total=total, active=active,
         completed=completed, cancelled=cancelled,
         status_counts=status_counts,
         ms_pct=ms_pct, ms_done=ms_done, ms_total=ms_total,
-        sc_stats=sc_stats,
+        sc_stats=sc_stats, perm=perm,
     )
 
 
@@ -1288,9 +1290,10 @@ def npd_projects():
 
     projects = query.order_by(NPDProject.created_at.desc()).paginate(page=page, per_page=25)
     users    = get_users()
+    perm = get_perm('npd')
     return render_template('npd/npd_projects.html',
         active_page='npd_npd_projects',
-        projects=projects, q=q, status=status, sc_id=sc_id, users=users,
+        projects=projects, q=q, status=status, sc_id=sc_id, users=users, perm=perm,
     )
 
 

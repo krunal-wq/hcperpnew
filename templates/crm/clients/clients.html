@@ -204,9 +204,11 @@
   <!-- ── Toolbar ── -->
   <div class="grid-toolbar">
     {% if not show_trash %}
+    {% if perm and perm.can_add %}
     <a href="{{ url_for('crm.client_add') }}" class="btn-add-new">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Add Client
     </a>
+    {% endif %}
     {% endif %}
     <div class="grid-search-wrap">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -260,21 +262,31 @@
       <button class="btn-grid-action danger" id="bulkDeleteBtn" style="display:none;" onclick="bulkDelete()">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>Delete
       </button>
+      {% if perm and perm.can_export %}
+      {% if perm and perm.can_export %}
       <button class="btn-grid-action" onclick="doExport()">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Export
       </button>
+      {% endif %}
+      {% endif %}
+      {% if perm and perm.can_import %}
+      {% if perm and perm.can_import %}
       <a href="{{ url_for('crm.client_import') }}" class="btn-grid-action">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>Import
       </a>
+      {% endif %}
+      {% endif %}
     </div>
   </div>
 
   <!-- ── Status / Trash Tabs ── -->
   <div class="grid-filter-tabs" style="padding:0 14px;border-bottom:1px solid var(--border);background:#fafbfc;">
     <a href="{{ url_for('crm.clients') }}" class="gft {{ 'active' if not show_trash }}">All</a>
+    {% if perm and perm.can_delete %}
     <a href="{{ url_for('crm.clients', trash=1) }}" class="gft trash-tab {{ 'active' if show_trash }}">
       🗑 Deleted{% if deleted_count %} <span class="trash-badge">{{ deleted_count }}</span>{% endif %}
     </a>
+    {% endif %}
   </div>
 
   <!-- ── Filter Panel ── -->
@@ -495,34 +507,54 @@
             <button class="cl-dots-btn" onclick="toggleClDd(this, event)" title="Actions">⋯</button>
             <div class="cl-dd-menu">
               <!-- View / Edit / Delete -->
+              {% if perm and perm.can_view %}
               <a href="{{ url_for('crm.client_view', id=c.id) }}" class="cl-dd-item blue">
                 <span class="cl-dd-item-ic">👁️</span> View Client
               </a>
+              {% endif %}
+              {% if perm and perm.can_edit %}
               <a href="{{ url_for('crm.client_edit', id=c.id) }}" class="cl-dd-item">
                 <span class="cl-dd-item-ic">✏️</span> Edit Client
               </a>
+              {% endif %}
               <div class="cl-dd-divider"></div>
               <!-- NPD / EPD -->
+              {% if perm and perm.can_add %}
+              {% if sub_perms.create_npd %}
               <a href="/npd/npd-new?client_name={{ c.contact_name|urlencode }}&client_company={{ c.company_name|urlencode }}&client_email={{ c.email|urlencode }}&client_phone={{ c.mobile|urlencode }}" class="cl-dd-item purple">
                 <span class="cl-dd-item-ic">🧪</span>
                 <span>Create NPD Project<span style="display:block;font-size:.7rem;font-weight:400;color:#9ca3af;">New Product Development</span></span>
               </a>
+              {% endif %}
+              {% endif %}
+              {% if perm and perm.can_add %}
+              {% if sub_perms.create_epd %}
               <a href="/npd/epd-new?client_name={{ c.contact_name|urlencode }}&client_company={{ c.company_name|urlencode }}&client_email={{ c.email|urlencode }}&client_phone={{ c.mobile|urlencode }}" class="cl-dd-item green">
                 <span class="cl-dd-item-ic">📦</span>
                 <span>Create EPD Project<span style="display:block;font-size:.7rem;font-weight:400;color:#9ca3af;">Existing Product</span></span>
               </a>
+              {% endif %}
+              {% endif %}
+              {% if perm and perm.can_edit %}
+              {% if sub_perms.npd_quote %}
               <a href="/crm/quotations/new?client_id={{ c.id }}" class="cl-dd-item blue">
                 <span class="cl-dd-item-ic">📄</span>
                 <span>Send NPD Quote<span style="display:block;font-size:.7rem;font-weight:400;color:#9ca3af;">Create Quotation</span></span>
               </a>
+              {% endif %}
+              {% endif %}
               <div class="cl-dd-divider"></div>
               <!-- Delete -->
+              {% if perm and perm.can_delete %}
+              {% if perm and perm.can_delete %}
               <form method="POST" action="{{ url_for('crm.client_delete', id=c.id) }}"
                     onsubmit="return confirm('Move {{ c.contact_name }} to trash?')">
                 <button type="submit" class="cl-dd-item danger">
                   <span class="cl-dd-item-ic">🗑️</span> Delete Client
                 </button>
               </form>
+              {% endif %}
+              {% endif %}
             </div>
           </div>
           {% endif %}
@@ -551,6 +583,7 @@
         </tr>
       </thead>
       <tbody>
+        {%- set can_inline_edit = perm and perm.can_edit -%}
         {% for c in clients %}
         <tr class="client-row" data-id="{{ c.id }}" data-search="{{ [c.contact_name, c.company_name or '', c.mobile or '', c.email or '', c.city or '', c.state or '']|join(' ')|lower }}">
           <td class="row-check"><input type="checkbox" class="row-cb row-check-item" value="{{ c.id }}" onchange="updateBulkBtn()"></td>
@@ -562,39 +595,39 @@
           {% elif col == 'created_at' %}
           <td style="font-size:12px;color:var(--text2);white-space:nowrap;">{{ c.created_at.strftime('%d-%m-%Y') if c.created_at else '—' }}</td>
           {% elif col == 'contact_name' %}
-          <td class="ie-cell" data-field="contact_name" data-val="{{ c.contact_name or '' }}" data-type="text" onclick="ieActivate(this)">
-            <div class="ie-view"><a href="{{ url_for('crm.client_view', id=c.id) }}" class="entity-link" onclick="event.stopPropagation()">{{ c.contact_name }}</a><span class="ie-pencil">✎</span></div>
+          <td class="{% if can_inline_edit %}ie-cell{% endif %}" data-field="contact_name" data-val="{{ c.contact_name or '' }}" data-type="text" {% if can_inline_edit %}onclick="ieActivate(this)"{% endif %}>
+            <div class="ie-view"><a href="{{ url_for('crm.client_view', id=c.id) }}" class="entity-link" onclick="event.stopPropagation()">{{ c.contact_name }}</a>{% if can_inline_edit %}<span class="ie-pencil">✎</span>{% endif %}</div>
           </td>
           {% elif col == 'company_name' %}
-          <td class="ie-cell" data-field="company_name" data-val="{{ c.company_name or '' }}" data-type="text" onclick="ieActivate(this)">
-            <div class="ie-view"><span style="font-size:12.5px;">{{ c.company_name or '—' }}</span><span class="ie-pencil">✎</span></div>
+          <td class="{% if can_inline_edit %}ie-cell{% endif %}" data-field="company_name" data-val="{{ c.company_name or '' }}" data-type="text" {% if can_inline_edit %}onclick="ieActivate(this)"{% endif %}>
+            <div class="ie-view"><span style="font-size:12.5px;">{{ c.company_name or '—' }}</span>{% if can_inline_edit %}<span class="ie-pencil">✎</span>{% endif %}</div>
           </td>
           {% elif col == 'mobile' %}
-          <td class="ie-cell" data-field="mobile" data-val="{{ c.mobile or '' }}" data-type="text" onclick="ieActivate(this)">
-            <div class="ie-view"><span style="font-size:12.5px;">{{ c.mobile or '—' }}</span><span class="ie-pencil">✎</span></div>
+          <td class="{% if can_inline_edit %}ie-cell{% endif %}" data-field="mobile" data-val="{{ c.mobile or '' }}" data-type="text" {% if can_inline_edit %}onclick="ieActivate(this)"{% endif %}>
+            <div class="ie-view"><span style="font-size:12.5px;">{{ c.mobile or '—' }}</span>{% if can_inline_edit %}<span class="ie-pencil">✎</span>{% endif %}</div>
           </td>
           {% elif col == 'email' %}
-          <td class="ie-cell" data-field="email" data-val="{{ c.email or '' }}" data-type="text" onclick="ieActivate(this)">
-            <div class="ie-view"><span style="font-size:12px;color:var(--text2);">{{ c.email or '—' }}</span><span class="ie-pencil">✎</span></div>
+          <td class="{% if can_inline_edit %}ie-cell{% endif %}" data-field="email" data-val="{{ c.email or '' }}" data-type="text" {% if can_inline_edit %}onclick="ieActivate(this)"{% endif %}>
+            <div class="ie-view"><span style="font-size:12px;color:var(--text2);">{{ c.email or '—' }}</span>{% if can_inline_edit %}<span class="ie-pencil">✎</span>{% endif %}</div>
           </td>
           {% elif col == 'city' %}
-          <td class="ie-cell" data-field="city" data-val="{{ c.city or '' }}" data-type="text" onclick="ieActivate(this)">
-            <div class="ie-view"><span style="font-size:12px;">{{ c.city or '—' }}</span><span class="ie-pencil">✎</span></div>
+          <td class="{% if can_inline_edit %}ie-cell{% endif %}" data-field="city" data-val="{{ c.city or '' }}" data-type="text" {% if can_inline_edit %}onclick="ieActivate(this)"{% endif %}>
+            <div class="ie-view"><span style="font-size:12px;">{{ c.city or '—' }}</span>{% if can_inline_edit %}<span class="ie-pencil">✎</span>{% endif %}</div>
           </td>
           {% elif col == 'state' %}
-          <td class="ie-cell" data-field="state" data-val="{{ c.state or '' }}" data-type="text" onclick="ieActivate(this)">
-            <div class="ie-view"><span style="font-size:12px;">{{ c.state or '—' }}</span><span class="ie-pencil">✎</span></div>
+          <td class="{% if can_inline_edit %}ie-cell{% endif %}" data-field="state" data-val="{{ c.state or '' }}" data-type="text" {% if can_inline_edit %}onclick="ieActivate(this)"{% endif %}>
+            <div class="ie-view"><span style="font-size:12px;">{{ c.state or '—' }}</span>{% if can_inline_edit %}<span class="ie-pencil">✎</span>{% endif %}</div>
           </td>
           {% elif col == 'gstin' %}
-          <td class="ie-cell" data-field="gstin" data-val="{{ c.gstin or '' }}" data-type="text" onclick="ieActivate(this)">
-            <div class="ie-view"><span style="font-size:11.5px;font-family:monospace;color:var(--text2);">{{ c.gstin or '—' }}</span><span class="ie-pencil">✎</span></div>
+          <td class="{% if can_inline_edit %}ie-cell{% endif %}" data-field="gstin" data-val="{{ c.gstin or '' }}" data-type="text" {% if can_inline_edit %}onclick="ieActivate(this)"{% endif %}>
+            <div class="ie-view"><span style="font-size:11.5px;font-family:monospace;color:var(--text2);">{{ c.gstin or '—' }}</span>{% if can_inline_edit %}<span class="ie-pencil">✎</span>{% endif %}</div>
           </td>
           {% elif col == 'website' %}
-          <td class="ie-cell" data-field="website" data-val="{{ c.website or '' }}" data-type="text" onclick="ieActivate(this)">
-            <div class="ie-view">{% if c.website %}<a href="{{ c.website }}" target="_blank" style="color:#2563eb;text-decoration:none;font-size:12px;" onclick="event.stopPropagation()">{{ c.website|truncate(24) }}</a>{% else %}<span style="font-size:12px;">—</span>{% endif %}<span class="ie-pencil">✎</span></div>
+          <td class="{% if can_inline_edit %}ie-cell{% endif %}" data-field="website" data-val="{{ c.website or '' }}" data-type="text" {% if can_inline_edit %}onclick="ieActivate(this)"{% endif %}>
+            <div class="ie-view">{% if c.website %}<a href="{{ c.website }}" target="_blank" style="color:#2563eb;text-decoration:none;font-size:12px;" onclick="event.stopPropagation()">{{ c.website|truncate(24) }}</a>{% else %}<span style="font-size:12px;">—</span>{% endif %}{% if can_inline_edit %}<span class="ie-pencil">✎</span>{% endif %}</div>
           </td>
           {% elif col == 'brands' %}
-          <td>{% for b in c.brands %}<span style="display:inline-block;padding:2px 7px;background:#eff6ff;color:#1e40af;border-radius:20px;font-size:10.5px;font-weight:600;margin:1px;">{{ b.brand_name }}</span>{% else %}<span style="color:var(--text3);">—</span>{% endfor %}</td><span class="ie-pencil">✎</span></div>
+          <td>{% for b in c.brands %}<span style="display:inline-block;padding:2px 7px;background:#eff6ff;color:#1e40af;border-radius:20px;font-size:10.5px;font-weight:600;margin:1px;">{{ b.brand_name }}</span>{% else %}<span style="color:var(--text3);">—</span>{% endfor %}</td>{% if can_inline_edit %}<span class="ie-pencil">✎</span>{% endif %}</div>
           </td>
           {% elif col == 'status' %}
           <td>
@@ -620,32 +653,44 @@
                 <div class="cl-action-wrap">
                   <button class="cl-dots-btn" onclick="toggleClDd(this, event)" title="Actions">⋯</button>
                   <div class="cl-dd-menu">
+                    {% if perm and perm.can_view %}
                     <a href="{{ url_for('crm.client_view', id=c.id) }}" class="cl-dd-item blue">
                       <span class="cl-dd-item-ic">👁️</span> View Client
                     </a>
+                    {% endif %}
+                    {% if perm and perm.can_edit %}
                     <a href="{{ url_for('crm.client_edit', id=c.id) }}" class="cl-dd-item">
                       <span class="cl-dd-item-ic">✏️</span> Edit Client
                     </a>
+                    {% endif %}
                     <div class="cl-dd-divider"></div>
+                    {% if sub_perms.create_npd %}
                     <a href="/npd/npd-new?client_name={{ c.contact_name|urlencode }}&client_company={{ c.company_name|urlencode }}&client_email={{ c.email|urlencode }}&client_phone={{ c.mobile|urlencode }}" class="cl-dd-item purple">
                       <span class="cl-dd-item-ic">🧪</span>
                       <span>Create NPD Project<span style="display:block;font-size:.7rem;font-weight:400;color:#9ca3af;">New Product Development</span></span>
                     </a>
+                    {% endif %}
+                    {% if sub_perms.create_epd %}
                     <a href="/npd/epd-new?client_name={{ c.contact_name|urlencode }}&client_company={{ c.company_name|urlencode }}&client_email={{ c.email|urlencode }}&client_phone={{ c.mobile|urlencode }}" class="cl-dd-item green">
                       <span class="cl-dd-item-ic">📦</span>
                       <span>Create EPD Project<span style="display:block;font-size:.7rem;font-weight:400;color:#9ca3af;">Existing Product</span></span>
                     </a>
+                    {% endif %}
+                    {% if sub_perms.npd_quote %}
                     <a href="/crm/quotations/new?client_id={{ c.id }}" class="cl-dd-item blue">
                       <span class="cl-dd-item-ic">📄</span>
                       <span>Send NPD Quote<span style="display:block;font-size:.7rem;font-weight:400;color:#9ca3af;">Create Quotation</span></span>
                     </a>
+                    {% endif %}
                     <div class="cl-dd-divider"></div>
+                    {% if perm and perm.can_delete %}
                     <form method="POST" action="{{ url_for('crm.client_delete', id=c.id) }}"
                           onsubmit="return confirm('Move {{ c.contact_name }} to trash?')" data-no-review>
                       <button type="submit" class="cl-dd-item danger">
                         <span class="cl-dd-item-ic">🗑️</span> Delete Client
                       </button>
                     </form>
+                    {% endif %}
                   </div>
                 </div>
               {% endif %}
@@ -918,14 +963,14 @@ function ieUpdateView(cell, field, val) {
   var view=cell.querySelector('.ie-view'); if(!view) return;
   if(field==='status'){
     var cls=val==='active'?'active':'inactive', lbl=val?val.charAt(0).toUpperCase()+val.slice(1):'—';
-    view.innerHTML='<span class="sbadge '+cls+'">'+lbl+'</span><span class="ie-pencil">✎</span>'; return;
+    view.innerHTML='<span class="sbadge '+cls+'">'+lbl+'</span>{% if can_inline_edit %}<span class="ie-pencil">✎</span>{% endif %}'; return;
   }
   if(field==='contact_name'){
     var lnk=view.querySelector('a.entity-link'); if(lnk) lnk.textContent=val||'—'; return;
   }
   var sp=view.querySelector('span:not(.ie-pencil)');
   if(sp) sp.textContent=val||'—';
-  else view.innerHTML='<span>'+(val||'—')+'</span><span class="ie-pencil">✎</span>';
+  else view.innerHTML='<span>'+(val||'—')+'</span>{% if can_inline_edit %}<span class="ie-pencil">✎</span>{% endif %}';
 }
 document.addEventListener('click',function(e){
   if(_ieActive&&!_ieActive.contains(e.target)) ieCancel(_ieActive);

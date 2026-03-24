@@ -67,7 +67,7 @@
         <div style="font-size:.77rem;color:var(--text3);">New Product Development — all projects</div>
     </div>
     <div class="proj-hdr-btns">
-        <a href="/npd/npd-new" class="proj-btn-new">+ New NPD Project</a>
+        {% if perm and perm.can_add %}<a href="/npd/npd-new" class="proj-btn-new">+ New NPD Project</a>{% endif %}
         <a href="/npd/npd-dashboard" class="proj-btn-dash">📊 Dashboard</a>
     </div>
 </div>
@@ -166,12 +166,12 @@
                         <button class="act-dots" onclick="toggleAct(this,event)">⋯</button>
                         <div class="act-menu">
                             <a href="/npd/projects/{{ p.id }}" class="act-item" style="color:var(--blue);">👁️ View</a>
-                            <a href="/npd/projects/{{ p.id }}/edit" class="act-item">✏️ Edit</a>
+                            {% if perm and perm.can_edit %}<a href="/npd/projects/{{ p.id }}/edit" class="act-item">✏️ Edit</a>{% endif %}
                             <div class="act-divider"></div>
                             <form method="POST" action="/npd/projects/{{ p.id }}/status" onsubmit="return confirm('Mark complete?')"><input type="hidden" name="status" value="complete"><button type="submit" class="act-item" style="color:#22c55e;">✅ Complete</button></form>
                             <form method="POST" action="/npd/projects/{{ p.id }}/status" onsubmit="return confirm('Cancel?')"><input type="hidden" name="status" value="cancelled"><button type="submit" class="act-item red">❌ Cancel</button></form>
                             <div class="act-divider"></div>
-                            <form method="POST" action="/npd/projects/{{ p.id }}/delete" onsubmit="return confirm('Delete?')"><button type="submit" class="act-item red">🗑️ Delete</button></form>
+                            {% if perm and perm.can_delete %}<form method="POST" action="/npd/projects/{{ p.id }}/delete" onsubmit="return confirm('Delete?')"><button type="submit" class="act-item red">🗑️ Delete</button></form>{% endif %}
                         </div>
                     </div>
                 </td>
@@ -191,7 +191,7 @@
     <div style="text-align:center;padding:3rem;color:var(--text3);">
         <div style="font-size:2.5rem;margin-bottom:.5rem;">🧪</div>
         <div style="font-weight:700;">No NPD projects found</div>
-        <a href="/npd/npd-new" style="color:#7c3aed;font-weight:600;">+ Create NPD Project →</a>
+        {% if perm and perm.can_add %}<a href="/npd/npd-new" style="color:#7c3aed;font-weight:600;">+ Create NPD Project →</a>{% endif %}
     </div>
     {% endif %}
 </div>

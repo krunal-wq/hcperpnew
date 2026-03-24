@@ -8,7 +8,7 @@ from .lead       import (Lead, LeadDiscussion, LeadAttachment,
 from .legacy     import Customer, CustomerAddress
 from .master     import LeadStatus, LeadSource, LeadCategory, ProductRange, CategoryMaster, UOMMaster, HSNCode
 from .employee   import Employee, Contractor, WishLog, SalaryConfig, SalaryComponent
-from .permission import Module, RolePermission, UserGridConfig
+from .permission import Module, RolePermission, UserGridConfig, UserPermission
 from .approval   import ApprovalRequest, ApprovalLevel
 from .npd        import (NPDProject, MilestoneMaster, MilestoneLog, NPDMilestoneTemplate,
                          NPDFormulation, NPDPackingMaterial, NPDArtwork, NPDActivityLog,
@@ -25,7 +25,7 @@ __all__ = [
     'LeadStatus', 'LeadSource', 'LeadCategory', 'ProductRange',
     'CategoryMaster', 'UOMMaster', 'HSNCode',
     'Employee', 'Contractor', 'WishLog', 'SalaryConfig', 'SalaryComponent',
-    'Module', 'RolePermission', 'UserGridConfig',
+    'Module', 'RolePermission', 'UserGridConfig', 'UserPermission',
     'AuditLog',
     'ApprovalRequest', 'ApprovalLevel',
     # NPD / Product Development

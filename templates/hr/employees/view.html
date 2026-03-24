@@ -52,11 +52,11 @@
 <div class="vw-tabs">
     <button class="vw-tab active" onclick="vwTab('vt1',this)">👤 Basic Info</button>
     <button class="vw-tab" onclick="vwTab('vt2',this)">🏢 Professional</button>
-    <button class="vw-tab" onclick="vwTab('vt3',this)">🪪 Personal & KYC</button>
-    <button class="vw-tab" onclick="vwTab('vt4',this)">🏦 Bank Details</button>
-    <button class="vw-tab" onclick="vwTab('vt5',this)">💰 Salary</button>
+    {% if sub_perms.kyc_details %}<button class="vw-tab" onclick="vwTab('vt3',this)">🪪 Personal & KYC</button>{% endif %}
+    {% if sub_perms.bank_details %}<button class="vw-tab" onclick="vwTab('vt4',this)">🏦 Bank Details</button>{% endif %}
+    {% if sub_perms.salary_details %}<button class="vw-tab" onclick="vwTab('vt5',this)">💰 Salary</button>{% endif %}
     <button class="vw-tab" onclick="vwTab('vt6',this)">📚 Education</button>
-    <button class="vw-tab" onclick="vwTab('vt7',this)">📎 Documents</button>
+    {% if sub_perms.documents %}<button class="vw-tab" onclick="vwTab('vt7',this)">📎 Documents</button>{% endif %}
 </div>
 
 <!-- TAB 1: BASIC INFO -->

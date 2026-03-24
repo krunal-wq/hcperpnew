@@ -109,7 +109,7 @@
         <div style="font-size:.77rem;color:var(--text3);">All NPD projects overview</div>
     </div>
     <div class="npd-hdr-btns">
-        <a href="/npd/npd-new" class="npd-btn-new">+ New NPD Project</a>
+        {% if perm and perm.can_add %}<a href="/npd/npd-new" class="npd-btn-new">+ New NPD Project</a>{% endif %}
         <a href="/npd/npd-projects" class="npd-btn-all">📋 All NPD Projects</a>
     </div>
 </div>
