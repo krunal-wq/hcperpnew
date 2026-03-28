@@ -6,7 +6,7 @@ from .lead       import (Lead, LeadDiscussion, LeadAttachment,
                          LeadReminder, LeadNote, LeadActivityLog,
                          SampleOrder, Quotation, EmailTemplate, LeadContribution, ContributionConfig)
 from .legacy     import Customer, CustomerAddress
-from .master     import LeadStatus, LeadSource, LeadCategory, ProductRange, CategoryMaster, UOMMaster, HSNCode
+from .master     import LeadStatus, LeadSource, LeadCategory, ProductRange, CategoryMaster, UOMMaster, HSNCode, NPDStatus, MilestoneStatus
 from .employee   import Employee, Contractor, WishLog, SalaryConfig, SalaryComponent
 from .permission import Module, RolePermission, UserGridConfig, UserPermission
 from .approval   import ApprovalRequest, ApprovalLevel
@@ -22,7 +22,7 @@ __all__ = [
     'LeadReminder', 'LeadNote', 'LeadActivityLog',
     'SampleOrder', 'Quotation', 'EmailTemplate', 'LeadContribution', 'ContributionConfig',
     'Customer', 'CustomerAddress',
-    'LeadStatus', 'LeadSource', 'LeadCategory', 'ProductRange',
+    'LeadStatus', 'LeadSource', 'LeadCategory', 'ProductRange', 'NPDStatus', 'MilestoneStatus',
     'CategoryMaster', 'UOMMaster', 'HSNCode',
     'Employee', 'Contractor', 'WishLog', 'SalaryConfig', 'SalaryComponent',
     'Module', 'RolePermission', 'UserGridConfig', 'UserPermission',

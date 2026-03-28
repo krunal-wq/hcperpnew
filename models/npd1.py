@@ -32,7 +32,7 @@ class NPDProject(db.Model):
     # Status flow
     # npd: lead_created → npd_form → formulation → client_approved → commercial → milestones → complete/cancelled
     # existing: lead_created → sample_sent → client_review → commercial → milestones → complete/cancelled
-    status          = db.Column(db.String(40), default='not_started', nullable=False)
+    status          = db.Column(db.String(40), default='lead_created', nullable=False)
 
     # Lead link
     lead_id         = db.Column(db.Integer, db.ForeignKey('leads.id'), nullable=True)
@@ -48,7 +48,7 @@ class NPDProject(db.Model):
 
     # Extended Product Fields (from NPD form)
     area_of_application = db.Column(db.String(200))        # Face, Body, Hair, etc.
-    market_level        = db.Column(db.String(300))        # Premium, Mass, etc.
+    market_level        = db.Column(db.String(100))        # Premium, Mass, etc.
     no_of_samples       = db.Column(db.Integer, default=0)
     moq                 = db.Column(db.String(100))        # Minimum Order Qty
     product_size        = db.Column(db.String(100))        # 50ml, 100g, etc.
@@ -82,9 +82,7 @@ class NPDProject(db.Model):
     requirement_spec  = db.Column(db.Text)
     order_quantity  = db.Column(db.String(100))
 
-    assigned_members    = db.Column(db.String(500))   # comma-separated employee IDs
-    assigned_rd_members = db.Column(db.String(500))   # comma-separated R&D employee IDs
-    client_id           = db.Column(db.Integer, db.ForeignKey('client_masters.id'), nullable=True)
+    # Assigned people
     assigned_sc     = db.Column(db.Integer, db.ForeignKey('users.id'))     # Sales Coordinator
     assigned_rd     = db.Column(db.Integer, db.ForeignKey('users.id'))     # R&D person
     npd_poc         = db.Column(db.Integer, db.ForeignKey('users.id'))     # NPD POC (Shital/Dipika)
@@ -102,9 +100,8 @@ class NPDProject(db.Model):
     milestone_master_created = db.Column(db.Boolean, default=False)
 
     # TAT tracking
-    target_sample_date   = db.Column(db.Date)
-    last_connected       = db.Column(db.DateTime)   # last activity/contact date
-    delay_reason         = db.Column(db.Text)
+    target_sample_date   = db.Column(db.Date)   # 7-day TAT target
+    delay_reason         = db.Column(db.Text)   # updated weekly if delayed
     last_delay_update    = db.Column(db.DateTime)
 
     # Cancellation
@@ -154,31 +151,38 @@ class NPDProject(db.Model):
 
     @property
     def status_label(self):
-        try:
-            from models.master import NPDStatus
-            s = NPDStatus.query.filter_by(slug=self.status).first()
-            if s: return s.name
-        except: pass
-        # fallback
-        return self.status.replace('_', ' ').title() if self.status else '—'
+        STATUS_LABELS = {
+            'lead_created':    'Lead Created',
+            'npd_form':        'NPD Form Submitted',
+            'formulation':     'R&D Formulation',
+            'sampling':        'Sample Sent to Client',
+            'client_approved': 'Client Approved',
+            'commercial':      'Commercial Project',
+            'milestones':      'Milestones Active',
+            'complete':        'Completed ✅',
+            'cancelled':       'Cancelled ❌',
+            # Existing path
+            'sample_sent':     'Sample Sent',
+            'client_review':   'Client Review',
+        }
+        return STATUS_LABELS.get(self.status, self.status.replace('_', ' ').title())
 
     @property
     def status_color(self):
-        try:
-            from models.master import NPDStatus
-            s = NPDStatus.query.filter_by(slug=self.status).first()
-            if s: return s.color
-        except: pass
-        return '#6b7280'
-
-    @property
-    def status_icon(self):
-        try:
-            from models.master import NPDStatus
-            s = NPDStatus.query.filter_by(slug=self.status).first()
-            if s: return s.icon
-        except: pass
-        return '🔵'
+        COLORS = {
+            'lead_created': '#3b82f6',
+            'npd_form':     '#f59e0b',
+            'formulation':  '#8b5cf6',
+            'sampling':     '#06b6d4',
+            'client_approved': '#10b981',
+            'commercial':   '#6366f1',
+            'milestones':   '#f97316',
+            'complete':     '#22c55e',
+            'cancelled':    '#ef4444',
+            'sample_sent':  '#06b6d4',
+            'client_review':'#f59e0b',
+        }
+        return COLORS.get(self.status, '#6b7280')
 
     @property
     def project_age(self):

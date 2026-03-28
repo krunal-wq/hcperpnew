@@ -5,6 +5,22 @@ models/master.py — Lead Master tables
 from datetime import datetime
 from .base import db
 
+class NPDStatus(db.Model):
+    __tablename__ = 'npd_statuses'
+    id         = db.Column(db.Integer, primary_key=True)
+    name       = db.Column(db.String(100), nullable=False, unique=True)
+    slug       = db.Column(db.String(60),  nullable=False, unique=True)   # e.g. 'sample_inprocess'
+    color      = db.Column(db.String(20),  default='#6b7280')
+    icon       = db.Column(db.String(10),  default='🔵')
+    sort_order = db.Column(db.Integer,     default=0)
+    is_active  = db.Column(db.Boolean,     default=True)
+    created_at = db.Column(db.DateTime,    default=datetime.now)
+    created_by = db.Column(db.Integer,     nullable=True)
+    modified_by= db.Column(db.Integer,     nullable=True)
+    modified_at= db.Column(db.DateTime,    nullable=True)
+    def __repr__(self): return f'<NPDStatus {self.name}>'
+
+
 class LeadStatus(db.Model):
     __tablename__ = 'lead_statuses'
     id         = db.Column(db.Integer, primary_key=True)
@@ -112,3 +128,19 @@ class HSNCode(db.Model):
     modified_at = db.Column(db.DateTime, nullable=True)
     modified_by = db.Column(db.Integer, nullable=True)
     def __repr__(self): return f'<HSNCode {self.hsn_code}>'
+
+
+class MilestoneStatus(db.Model):
+    __tablename__ = 'milestone_statuses'
+    id         = db.Column(db.Integer, primary_key=True)
+    name       = db.Column(db.String(100), nullable=False, unique=True)
+    slug       = db.Column(db.String(60),  nullable=False, unique=True)
+    color      = db.Column(db.String(20),  default='#6b7280')
+    icon       = db.Column(db.String(10),  default='🔵')
+    sort_order = db.Column(db.Integer,     default=0)
+    is_active  = db.Column(db.Boolean,     default=True)
+    created_at = db.Column(db.DateTime,    default=datetime.now)
+    created_by = db.Column(db.Integer,     nullable=True)
+    modified_by= db.Column(db.Integer,     nullable=True)
+    modified_at= db.Column(db.DateTime,    nullable=True)
+    def __repr__(self): return f'<MilestoneStatus {self.name}>'

@@ -333,3 +333,249 @@ def hsn_master_toggle(id):
     obj = HSNCode.query.get_or_404(id)
     obj.status = not obj.status; obj.modified_by = current_user.id; obj.modified_at = datetime.now()
     db.session.commit(); return jsonify(success=True, status=obj.status)
+
+# ══════════════════════════════════════
+# NPD STATUS MASTER — Full CRUD
+# ══════════════════════════════════════
+
+@masters.route('/npd-status')
+@login_required
+def npd_status_list():
+    from models import NPDStatus
+    statuses = NPDStatus.query.order_by(NPDStatus.sort_order, NPDStatus.id).all()
+    perm = get_perm('masters')
+    return render_template('masters/npd_status.html', statuses=statuses, perm=perm, active_page='npd_status_master')
+
+@masters.route('/npd-status/add', methods=['POST'])
+@login_required
+def npd_status_add():
+    from models import NPDStatus
+    import re
+    name = request.form.get('name','').strip()
+    if not name:
+        flash('Name is required', 'error')
+        return redirect(url_for('masters.npd_status_list'))
+    # auto-generate slug from name
+    slug = request.form.get('slug','').strip()
+    if not slug:
+        slug = re.sub(r'[^a-z0-9]+', '_', name.lower()).strip('_')
+    if NPDStatus.query.filter_by(slug=slug).first():
+        flash(f'Slug "{slug}" already exists', 'warning')
+        return redirect(url_for('masters.npd_status_list'))
+    obj = NPDStatus(
+        name       = name,
+        slug       = slug,
+        color      = request.form.get('color','#6b7280'),
+        icon       = request.form.get('icon','🔵').strip() or '🔵',
+        sort_order = int(request.form.get('sort_order', 0) or 0),
+        is_active  = 'is_active' in request.form,
+        created_by = current_user.id,
+    )
+    db.session.add(obj)
+    db.session.commit()
+    flash(f'NPD Status "{name}" added!', 'success')
+    return redirect(url_for('masters.npd_status_list'))
+
+@masters.route('/npd-status/<int:id>/edit', methods=['POST'])
+@login_required
+def npd_status_edit(id):
+    from models import NPDStatus
+    obj = NPDStatus.query.get_or_404(id)
+    obj.name       = request.form.get('name', obj.name).strip()
+    obj.color      = request.form.get('color', obj.color)
+    obj.icon       = request.form.get('icon', obj.icon).strip() or obj.icon
+    obj.sort_order = int(request.form.get('sort_order', obj.sort_order) or 0)
+    obj.is_active  = 'is_active' in request.form
+    obj.modified_by= current_user.id
+    obj.modified_at= datetime.now()
+    db.session.commit()
+    flash(f'"{obj.name}" updated!', 'success')
+    return redirect(url_for('masters.npd_status_list'))
+
+@masters.route('/npd-status/<int:id>/delete', methods=['POST'])
+@login_required
+def npd_status_delete(id):
+    from models import NPDStatus
+    obj = NPDStatus.query.get_or_404(id)
+    name = obj.name
+    db.session.delete(obj)
+    db.session.commit()
+    flash(f'"{name}" deleted', 'success')
+    return redirect(url_for('masters.npd_status_list'))
+
+@masters.route('/npd-status/<int:id>/toggle', methods=['POST'])
+@login_required
+def npd_status_toggle(id):
+    from models import NPDStatus
+    obj = NPDStatus.query.get_or_404(id)
+    obj.is_active   = not obj.is_active
+    obj.modified_by = current_user.id
+    obj.modified_at = datetime.now()
+    db.session.commit()
+    return jsonify(success=True, is_active=obj.is_active)
+
+@masters.route('/npd-status/options')
+@login_required
+def npd_status_options():
+    from models import NPDStatus
+    items = NPDStatus.query.filter_by(is_active=True).order_by(NPDStatus.sort_order).all()
+    return jsonify([{'id': o.id, 'slug': o.slug, 'name': o.name,
+                     'color': o.color, 'icon': o.icon} for o in items])
+
+# ══════════════════════════════════════
+# MILESTONE STATUS MASTER — Full CRUD
+# ══════════════════════════════════════
+
+@masters.route('/milestone-status')
+@login_required
+def milestone_status_list():
+    from models import MilestoneStatus
+    statuses = MilestoneStatus.query.order_by(MilestoneStatus.sort_order, MilestoneStatus.id).all()
+    perm = get_perm('masters')
+    return render_template('masters/milestone_status.html', statuses=statuses, perm=perm, active_page='milestone_status_master')
+
+@masters.route('/milestone-status/add', methods=['POST'])
+@login_required
+def milestone_status_add():
+    from models import MilestoneStatus
+    import re
+    name = request.form.get('name','').strip()
+    if not name:
+        flash('Name is required', 'error')
+        return redirect(url_for('masters.milestone_status_list'))
+    slug = request.form.get('slug','').strip()
+    if not slug:
+        slug = re.sub(r'[^a-z0-9]+', '_', name.lower()).strip('_')
+    if MilestoneStatus.query.filter_by(slug=slug).first():
+        flash(f'Slug "{slug}" already exists', 'warning')
+        return redirect(url_for('masters.milestone_status_list'))
+    obj = MilestoneStatus(
+        name       = name,
+        slug       = slug,
+        color      = request.form.get('color','#6b7280'),
+        icon       = request.form.get('icon','🔵').strip() or '🔵',
+        sort_order = int(request.form.get('sort_order', 0) or 0),
+        is_active  = 'is_active' in request.form,
+        created_by = current_user.id,
+    )
+    db.session.add(obj)
+    db.session.commit()
+    flash(f'Milestone Status "{name}" added!', 'success')
+    return redirect(url_for('masters.milestone_status_list'))
+
+@masters.route('/milestone-status/<int:id>/edit', methods=['POST'])
+@login_required
+def milestone_status_edit(id):
+    from models import MilestoneStatus
+    obj = MilestoneStatus.query.get_or_404(id)
+    obj.name       = request.form.get('name', obj.name).strip()
+    obj.color      = request.form.get('color', obj.color)
+    obj.icon       = request.form.get('icon', obj.icon).strip() or obj.icon
+    obj.sort_order = int(request.form.get('sort_order', obj.sort_order) or 0)
+    obj.is_active  = 'is_active' in request.form
+    obj.modified_by= current_user.id
+    obj.modified_at= datetime.now()
+    db.session.commit()
+    flash(f'"{obj.name}" updated!', 'success')
+    return redirect(url_for('masters.milestone_status_list'))
+
+@masters.route('/milestone-status/<int:id>/delete', methods=['POST'])
+@login_required
+def milestone_status_delete(id):
+    from models import MilestoneStatus
+    obj = MilestoneStatus.query.get_or_404(id)
+    name = obj.name
+    db.session.delete(obj)
+    db.session.commit()
+    flash(f'"{name}" deleted', 'success')
+    return redirect(url_for('masters.milestone_status_list'))
+
+@masters.route('/milestone-status/<int:id>/toggle', methods=['POST'])
+@login_required
+def milestone_status_toggle(id):
+    from models import MilestoneStatus
+    obj = MilestoneStatus.query.get_or_404(id)
+    obj.is_active   = not obj.is_active
+    obj.modified_by = current_user.id
+    obj.modified_at = datetime.now()
+    db.session.commit()
+    return jsonify(success=True, is_active=obj.is_active)
+
+@masters.route('/milestone-status/options')
+@login_required
+def milestone_status_options():
+    from models import MilestoneStatus
+    items = MilestoneStatus.query.filter_by(is_active=True).order_by(MilestoneStatus.sort_order).all()
+    return jsonify([{'id': o.id, 'slug': o.slug, 'name': o.name,
+                     'color': o.color, 'icon': o.icon} for o in items])
+
+# ══════════════════════════════════════════════════════════════
+# NPD CATEGORY MASTER (uses existing CategoryMaster model)
+# ══════════════════════════════════════════════════════════════
+
+@masters.route('/npd-category')
+@login_required
+def npd_category_list():
+    from models.master import CategoryMaster
+    search = request.args.get('search', '').strip()
+    q = CategoryMaster.query.filter_by(is_deleted=False)
+    if search:
+        q = q.filter(CategoryMaster.name.ilike(f'%{search}%'))
+    items = q.order_by(CategoryMaster.name).all()
+    return render_template('masters/npd_category.html', items=items, search=search, active_page='npd_category_master')
+
+@masters.route('/npd-category/add', methods=['POST'])
+@login_required
+def npd_category_add():
+    from models.master import CategoryMaster
+    name = request.form.get('name', '').strip()
+    if not name:
+        flash('Name required', 'danger')
+        return redirect(url_for('masters.npd_category_list'))
+    if CategoryMaster.query.filter_by(name=name, is_deleted=False).first():
+        flash(f'"{name}" already exists', 'warning')
+        return redirect(url_for('masters.npd_category_list'))
+    obj = CategoryMaster(name=name, status=True, created_by=current_user.id)
+    db.session.add(obj)
+    db.session.commit()
+    flash(f'Category "{name}" added!', 'success')
+    return redirect(url_for('masters.npd_category_list'))
+
+@masters.route('/npd-category/<int:id>/edit', methods=['POST'])
+@login_required
+def npd_category_edit(id):
+    from models.master import CategoryMaster
+    obj = CategoryMaster.query.get_or_404(id)
+    name = request.form.get('name', '').strip()
+    if name:
+        obj.name = name
+    obj.status = 'status' in request.form
+    obj.modified_at = datetime.now()
+    obj.modified_by = current_user.id
+    db.session.commit()
+    flash(f'"{obj.name}" updated!', 'success')
+    return redirect(url_for('masters.npd_category_list'))
+
+@masters.route('/npd-category/<int:id>/delete', methods=['POST'])
+@login_required
+def npd_category_delete(id):
+    from models.master import CategoryMaster
+    obj = CategoryMaster.query.get_or_404(id)
+    name = obj.name
+    obj.is_deleted = True
+    obj.modified_at = datetime.now()
+    obj.modified_by = current_user.id
+    db.session.commit()
+    flash(f'"{name}" deleted', 'success')
+    return redirect(url_for('masters.npd_category_list'))
+
+@masters.route('/npd-category/<int:id>/toggle', methods=['POST'])
+@login_required
+def npd_category_toggle(id):
+    from models.master import CategoryMaster
+    obj = CategoryMaster.query.get_or_404(id)
+    obj.status = not obj.status
+    obj.modified_at = datetime.now()
+    obj.modified_by = current_user.id
+    db.session.commit()
+    return jsonify(success=True, status=obj.status)

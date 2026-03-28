@@ -521,7 +521,7 @@
               <!-- NPD / EPD -->
               {% if perm and perm.can_add %}
               {% if sub_perms.create_npd %}
-              <a href="/npd/npd-new?client_name={{ c.contact_name|urlencode }}&client_company={{ c.company_name|urlencode }}&client_email={{ c.email|urlencode }}&client_phone={{ c.mobile|urlencode }}" class="cl-dd-item purple">
+              <a href="/npd/npd-new?client_id={{ c.id }}" class="cl-dd-item purple">
                 <span class="cl-dd-item-ic">🧪</span>
                 <span>Create NPD Project<span style="display:block;font-size:.7rem;font-weight:400;color:#9ca3af;">New Product Development</span></span>
               </a>
@@ -529,7 +529,7 @@
               {% endif %}
               {% if perm and perm.can_add %}
               {% if sub_perms.create_epd %}
-              <a href="/npd/epd-new?client_name={{ c.contact_name|urlencode }}&client_company={{ c.company_name|urlencode }}&client_email={{ c.email|urlencode }}&client_phone={{ c.mobile|urlencode }}" class="cl-dd-item green">
+              <a href="/npd/epd-new?client_id={{ c.id }}" class="cl-dd-item green">
                 <span class="cl-dd-item-ic">📦</span>
                 <span>Create EPD Project<span style="display:block;font-size:.7rem;font-weight:400;color:#9ca3af;">Existing Product</span></span>
               </a>
@@ -665,13 +665,13 @@
                     {% endif %}
                     <div class="cl-dd-divider"></div>
                     {% if sub_perms.create_npd %}
-                    <a href="/npd/npd-new?client_name={{ c.contact_name|urlencode }}&client_company={{ c.company_name|urlencode }}&client_email={{ c.email|urlencode }}&client_phone={{ c.mobile|urlencode }}" class="cl-dd-item purple">
+                    <a href="/npd/npd-new?client_id={{ c.id }}" class="cl-dd-item purple">
                       <span class="cl-dd-item-ic">🧪</span>
                       <span>Create NPD Project<span style="display:block;font-size:.7rem;font-weight:400;color:#9ca3af;">New Product Development</span></span>
                     </a>
                     {% endif %}
                     {% if sub_perms.create_epd %}
-                    <a href="/npd/epd-new?client_name={{ c.contact_name|urlencode }}&client_company={{ c.company_name|urlencode }}&client_email={{ c.email|urlencode }}&client_phone={{ c.mobile|urlencode }}" class="cl-dd-item green">
+                    <a href="/npd/epd-new?client_id={{ c.id }}" class="cl-dd-item green">
                       <span class="cl-dd-item-ic">📦</span>
                       <span>Create EPD Project<span style="display:block;font-size:.7rem;font-weight:400;color:#9ca3af;">Existing Product</span></span>
                     </a>

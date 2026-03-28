@@ -50,11 +50,19 @@
     <div class="form-grid">
         <div class="form-group full">
             <label>Product Name <span style="color:red">*</span></label>
-            <input type="text" name="product_name" value="{{ edit.product_name if edit else ((prefill_url.client_name if prefill_url else '') or (prefill_lead.product_name if prefill_lead else '')) }}" placeholder="e.g. Neem Face Wash 100ml" required>
+            <input type="text" name="product_name" value="{{ edit.product_name if edit else ((prefill_url.product_name if prefill_url and prefill_url.product_name else '') or (prefill_lead.product_name if prefill_lead else '')) }}" placeholder="e.g. Neem Face Wash 100ml" required>
         </div>
         <div class="form-group">
             <label>Product Category</label>
-            <input type="text" name="product_category" value="{{ edit.product_category if edit else (prefill_lead.category if prefill_lead else '') }}" placeholder="e.g. Skin Care">
+            <select name="product_category" style="width:100%;padding:.45rem .75rem;border:1.5px solid var(--border,#e2e8f0);border-radius:6px;font-size:.85rem;font-family:inherit;background:#fff;color:var(--text,#1e293b);">
+                <option value="">Select Category</option>
+                {% for cat in categories %}
+                <option value="{{ cat.name }}"
+                    {% if edit and edit.product_category == cat.name %}selected
+                    {% elif prefill_lead and prefill_lead.category == cat.name %}selected
+                    {% endif %}>{{ cat.name }}</option>
+                {% endfor %}
+            </select>
         </div>
         <div class="form-group">
             <label>Product Range</label>
@@ -109,26 +117,7 @@
     </div>
 </div>
 
-<!-- Team -->
-<div class="form-card">
-    <div class="form-section-title">👥 Team Assignment</div>
-    <div class="form-grid">
-        <div class="form-group">
-            <label>Sales Coordinator (SC)</label>
-            <select name="assigned_sc">
-                <option value="">— Select SC —</option>
-                {% for u in users %}<option value="{{ u.id }}" {% if edit and edit.assigned_sc==u.id %}selected{% endif %}>{{ u.full_name }}</option>{% endfor %}
-            </select>
-        </div>
-        <div class="form-group">
-            <label>R&D Person</label>
-            <select name="assigned_rd">
-                <option value="">— Select R&D —</option>
-                {% for u in users %}<option value="{{ u.id }}" {% if edit and edit.assigned_rd==u.id %}selected{% endif %}>{{ u.full_name }}</option>{% endfor %}
-            </select>
-        </div>
-    </div>
-</div>
+
 
 <!-- Advance Payment (EPD specific) -->
 <div class="form-card">

@@ -3,176 +3,696 @@
 {% block page_title %}{{ 'Edit NPD Project' if edit else 'New NPD Project' }}{% endblock %}
 {% block bread %}NPD / NPD Projects / {{ 'Edit' if edit else 'New' }}{% endblock %}
 {% block extra_css %}
-.form-card{background:#fff;border:1px solid var(--border);border-radius:var(--r-lg);padding:1.5rem;margin-bottom:1rem;}
-.sec-title{font-size:.8rem;font-weight:800;color:#7c3aed;text-transform:uppercase;letter-spacing:.08em;margin-bottom:1rem;padding-bottom:.5rem;border-bottom:2px solid #f3e8ff;}
-.g2{display:grid;grid-template-columns:1fr 1fr;gap:1rem;}
-.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;}
-.g4{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:1rem;}
+/* ── Form width ── */
+.npd-wrap{max-width:860px;margin:0 auto;}
+.form-card{background:#fff;border:1px solid var(--border);border-radius:var(--r-lg);padding:1.25rem;margin-bottom:.85rem;}
+.sec-title{font-size:.78rem;font-weight:800;color:#7c3aed;text-transform:uppercase;letter-spacing:.08em;margin-bottom:.9rem;padding-bottom:.45rem;border-bottom:2px solid #f3e8ff;}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:.85rem;}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:.85rem;}
+.g4{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:.85rem;}
 @media(max-width:900px){.g4{grid-template-columns:1fr 1fr;}}
 @media(max-width:640px){.g2,.g3,.g4{grid-template-columns:1fr;}}
-.fg{display:flex;flex-direction:column;gap:.35rem;}
-.fg label{font-size:.78rem;font-weight:600;color:var(--text2);}
+.fg{display:flex;flex-direction:column;gap:.3rem;}
+.fg label{font-size:.76rem;font-weight:600;color:var(--text2);}
 .req{color:#ef4444;margin-left:2px;}
-.fg input,.fg select,.fg textarea{padding:.5rem .75rem;border:1px solid var(--border);border-radius:var(--r-md);font-size:.85rem;color:var(--text);background:#fff;font-family:inherit;width:100%;}
-.fg input:focus,.fg select:focus,.fg textarea:focus{outline:none;border-color:#7c3aed;box-shadow:0 0 0 3px #f3e8ff;}
-.fg textarea{resize:vertical;min-height:80px;}
+.fi{padding:.45rem .7rem;border:1.5px solid var(--border);border-radius:var(--r-md);font-size:.83rem;color:var(--text);background:#fff;font-family:inherit;width:100%;transition:border-color .15s;}
+.fi:focus{outline:none;border-color:#7c3aed;box-shadow:0 0 0 3px #f3e8ff;}
+textarea.fi{resize:vertical;min-height:72px;}
+.fi.field-error{border-color:#dc2626!important;background:#fff8f8!important;}
+.field-err-msg{font-size:.7rem;color:#dc2626;font-weight:600;margin-top:2px;display:none;}
+.field-err-msg.show{display:block;}
 .full{grid-column:1/-1;}
-.ms-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem;}
+
+/* ── Shared multi-select dropdown ── */
+.msd{position:relative;z-index:10;}
+.msd:focus-within,.msd.active{z-index:9999;}
+.msd-trigger{padding:.45rem .75rem;border:1.5px solid var(--border);border-radius:var(--r-md);font-size:.83rem;color:var(--text2);background:#fff;cursor:pointer;display:flex;align-items:center;justify-content:space-between;user-select:none;transition:border-color .15s;min-height:36px;}
+.msd-trigger:hover{border-color:#7c3aed;}
+.msd-trigger.open{border-color:#7c3aed;box-shadow:0 0 0 3px #f3e8ff;}
+.msd-trigger.field-error{border-color:#dc2626!important;background:#fff8f8!important;}
+.msd-lbl{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.msd-arrow{font-size:.6rem;color:var(--text3);transition:transform .2s;flex-shrink:0;margin-left:6px;}
+.msd-trigger.open .msd-arrow{transform:rotate(180deg);}
+.msd-panel{display:none;position:absolute;top:calc(100% + 3px);left:0;right:0;background:#fff;border:1.5px solid var(--border);border-radius:var(--r-md);box-shadow:0 8px 28px rgba(0,0,0,.14);z-index:9999;overflow:hidden;}
+.msd-panel.open{display:block;}
+.msd-search{width:100%;padding:.5rem .75rem;border:none;border-bottom:1px solid var(--border);font-size:.82rem;font-family:inherit;outline:none;color:var(--text);background:#fafbfc;}
+.msd-list{max-height:190px;overflow-y:auto;}
+.msd-opt{display:flex;align-items:center;gap:.65rem;padding:.48rem .75rem;font-size:.82rem;font-weight:500;color:var(--text2);cursor:pointer;transition:background .1s;}
+.msd-opt:hover{background:#f5f3ff;}
+.msd-opt input[type=checkbox]{width:15px;height:15px;accent-color:#7c3aed;cursor:pointer;flex-shrink:0;}
+.msd-opt-av{width:24px;height:24px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#6366f1);color:#fff;font-size:.65rem;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.msd-footer{display:flex;align-items:center;gap:.4rem;padding:.5rem .65rem;border-top:1px solid var(--border);background:#fafbfc;}
+.msd-btn{padding:.28rem .75rem;border-radius:6px;font-size:.76rem;font-weight:700;cursor:pointer;border:1.5px solid var(--border);background:#fff;color:var(--text2);transition:all .12s;font-family:inherit;}
+.msd-btn:hover{border-color:#7c3aed;color:#7c3aed;}
+.msd-btn-done{background:#7c3aed;color:#fff;border-color:#7c3aed;margin-left:auto;}
+.msd-btn-done:hover{background:#6d28d9;border-color:#6d28d9;color:#fff;}
+.msd-tags{display:none!important;}
+.msd-tag{display:inline-flex;align-items:center;gap:.3rem;padding:.2rem .6rem;background:#ede9fe;border:1px solid #ddd6fe;border-radius:100px;font-size:.72rem;font-weight:700;color:#6d28d9;}
+.msd-tag-x{cursor:pointer;color:#a78bfa;font-size:.82rem;line-height:1;transition:color .1s;}
+.msd-tag-x:hover{color:#dc2626;}
+
+/* ── Milestones ── */
+.ms-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:.45rem;}
 @media(max-width:640px){.ms-grid{grid-template-columns:1fr 1fr;}}
-.ms-item{display:flex;align-items:center;gap:.5rem;padding:.5rem .7rem;border:1px solid var(--border);border-radius:var(--r-md);cursor:pointer;font-size:.8rem;}
-.ms-item:has(input:checked){border-color:#7c3aed;background:#f3e8ff;}
-.ms-item input{width:15px;height:15px;cursor:pointer;}
+.ms-item{display:flex;align-items:center;gap:.45rem;padding:.5rem .65rem;border:1.5px solid var(--border);border-radius:var(--r-md);cursor:pointer;font-size:.78rem;font-weight:600;color:var(--text2);transition:all .15s;user-select:none;}
+.ms-item:has(input:checked){border-color:#7c3aed;background:#f3e8ff;color:#6d28d9;}
+.ms-item input{width:14px;height:14px;cursor:pointer;accent-color:#7c3aed;}
+.val-toast{position:fixed;top:20px;left:50%;transform:translateX(-50%) translateY(-100px);background:#dc2626;color:#fff;padding:10px 20px;border-radius:10px;font-size:.82rem;font-weight:600;z-index:99999;transition:transform .3s cubic-bezier(.34,1.56,.64,1);box-shadow:0 4px 20px rgba(220,38,38,.35);white-space:nowrap;}
+.val-toast.show{transform:translateX(-50%) translateY(0);}
+/* ── Flatpickr custom theme ── */
+.flatpickr-calendar{font-family:'Inter',sans-serif!important;border-radius:12px!important;box-shadow:0 8px 28px rgba(0,0,0,.14)!important;border:1.5px solid var(--border)!important;}
+.flatpickr-day.selected,.flatpickr-day.selected:hover{background:#7c3aed!important;border-color:#7c3aed!important;}
+.flatpickr-day:hover{background:#f3e8ff!important;}
+.flatpickr-months .flatpickr-month{background:#7c3aed!important;border-radius:10px 10px 0 0!important;}
+.flatpickr-current-month .flatpickr-monthDropdown-months,.flatpickr-current-month input.cur-year{color:#fff!important;}
+.flatpickr-weekday{color:#7c3aed!important;font-weight:700!important;}
+.flatpickr-prev-month svg,.flatpickr-next-month svg{fill:#fff!important;}
+.fi-date{cursor:pointer;}
+@keyframes spin{to{transform:rotate(360deg);}}
 {% endblock %}
+
 {% block content %}
-<div style="background:linear-gradient(135deg,#7c3aed15,#a855f710);border:2px solid #7c3aed33;border-radius:var(--r-lg);padding:.9rem 1.2rem;margin-bottom:1rem;display:flex;align-items:center;gap:.75rem;">
-    <span style="font-size:1.5rem;">🧪</span>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.js"></script>
+<div class="npd-wrap">
+<div style="background:linear-gradient(135deg,#7c3aed15,#a855f710);border:2px solid #7c3aed33;border-radius:var(--r-lg);padding:.8rem 1rem;margin-bottom:.85rem;display:flex;align-items:center;gap:.75rem;">
+    <span style="font-size:1.3rem;">🧪</span>
     <div>
-        <div style="font-weight:800;font-size:.95rem;color:#4c1d95;">NPD — New Product Development</div>
-        <div style="font-size:.78rem;color:#6d28d9;">R&D formulation from scratch. Full sampling loop. ₹10,000 fee applicable.</div>
+        <div style="font-weight:800;font-size:.9rem;color:#4c1d95;">NPD — New Product Development</div>
+        <div style="font-size:.75rem;color:#6d28d9;">R&D formulation from scratch. Full sampling loop. ₹10,000 fee applicable.</div>
     </div>
-    {% if prefill_lead %}<a href="{{ url_for('crm.lead_view', id=prefill_lead.id) }}" style="margin-left:auto;color:#7c3aed;font-weight:600;font-size:.82rem;white-space:nowrap;">← Back to Lead</a>{% endif %}
+    {% if prefill_lead %}<a href="{{ url_for('crm.lead_view', id=prefill_lead.id) }}" style="margin-left:auto;color:#7c3aed;font-weight:600;font-size:.8rem;white-space:nowrap;">← Back to Lead</a>{% endif %}
 </div>
 {% if prefill_lead %}
-<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:var(--r-lg);padding:.75rem 1.1rem;margin-bottom:1rem;font-size:.84rem;">
+<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:var(--r-lg);padding:.65rem 1rem;margin-bottom:.85rem;font-size:.82rem;">
     🔗 Lead se create: <strong>{{ prefill_lead.contact_name }}{% if prefill_lead.company_name %} / {{ prefill_lead.company_name }}{% endif %}</strong>
 </div>
 {% endif %}
-<form method="POST" enctype="multipart/form-data">
+
+<form method="POST" enctype="multipart/form-data" id="npdForm" novalidate>
 <input type="hidden" name="project_type" value="npd">
 {% if prefill_lead %}<input type="hidden" name="from_lead_id" value="{{ prefill_lead.id }}">{% endif %}
 
-<!-- Basic Info -->
+<!-- SECTION 1: Basic Info -->
 <div class="form-card">
     <div class="sec-title">📋 Basic Project Information</div>
-    <div class="g4">
-        {% if edit %}<div class="fg"><label>Project No</label><input type="text" value="{{ edit.code }}" disabled style="background:var(--bg);"></div>{% endif %}
-        <div class="fg{% if not edit %} full{% endif %}"><label>Product Name <span class="req">*</span></label><input type="text" name="product_name" value="{{ edit.product_name if edit else (prefill_lead.product_name if prefill_lead else '') }}" placeholder="Acne Clarifying Cleanser" required></div>
-        <div class="fg"><label>Client Name <span class="req">*</span></label><input type="text" name="client_name" value="{{ edit.client_name if edit else ((prefill_url.client_name if prefill_url and prefill_url.client_name else '') or (prefill_lead.contact_name if prefill_lead else '')) }}" placeholder="BHISHAM BHATEJA" required></div>
-        <div class="fg"><label>Category</label><input type="text" name="product_category" value="{{ edit.product_category if edit else (prefill_lead.category if prefill_lead else '') }}" placeholder="Skin Care, Hair Care"></div>
-        <div class="fg"><label>Company <span class="req">*</span></label><input type="text" name="client_company" value="{{ edit.client_company if edit else ((prefill_url.client_company if prefill_url and prefill_url.client_company else '') or (prefill_lead.company_name if prefill_lead else '')) }}" placeholder="PURESTA" required></div>
-        <div class="fg"><label>Client Co-Ordinator</label><input type="text" name="client_coordinator" value="{{ edit.client_coordinator if edit else '' }}" placeholder="Sneha Dagar"></div>
-        <div class="fg"><label>Status</label>
-            <select name="status">
-                <option value="lead_created" {% if not edit or edit.status=='lead_created' %}selected{% endif %}>Not Started</option>
-                <option value="formulation" {% if edit and edit.status=='formulation' %}selected{% endif %}>In Formulation</option>
-                <option value="sampling" {% if edit and edit.status=='sampling' %}selected{% endif %}>Sampling</option>
-                <option value="client_approved" {% if edit and edit.status=='client_approved' %}selected{% endif %}>Client Approved</option>
-                <option value="commercial" {% if edit and edit.status=='commercial' %}selected{% endif %}>Commercial</option>
-                <option value="complete" {% if edit and edit.status=='complete' %}selected{% endif %}>Completed</option>
-                <option value="cancelled" {% if edit and edit.status=='cancelled' %}selected{% endif %}>Cancelled</option>
-            </select>
+    <div class="g3">
+        {% if edit %}<div class="fg"><label>Project No</label><input type="text" class="fi" value="{{ edit.code }}" disabled style="background:var(--bg);"></div>{% endif %}
+        <div class="fg{% if not edit %} full{% endif %}">
+            <label>Product Name <span class="req">*</span></label>
+            <input type="text" name="product_name" id="fi_product_name" class="fi" value="{{ edit.product_name if edit else ((prefill_url.product_name if prefill_url and prefill_url.product_name else '') or (prefill_lead.product_name if prefill_lead else '')) }}" placeholder="Acne Clarifying Cleanser" required>
+            <div class="field-err-msg" id="err_product_name">Product Name is required</div>
         </div>
-        <div class="fg"><label>Area of Application <span class="req">*</span></label><input type="text" name="area_of_application" value="{{ edit.area_of_application if edit else '' }}" placeholder="Face, Body, Hair" required></div>
-        <div class="fg"><label>Market Level <span class="req">*</span></label>
-            <select name="market_level">
-                <option value="">Select</option>
-                {% for lvl in ['Premium','Mass Market','Mid Range','Luxury','Economy'] %}
-                <option value="{{ lvl }}" {% if edit and edit.market_level==lvl %}selected{% endif %}>{{ lvl }}</option>
+        <div class="fg">
+            <label>Client CO-Ordinator <span class="req">*</span></label>
+            <input type="text" name="client_coordinator" id="fi_client_coordinator" class="fi" value="{{ edit.client_coordinator if edit else current_user.full_name }}" placeholder="Sneha Dagar" required>
+            <div class="field-err-msg" id="err_client_coordinator">Client CO-Ordinator is required</div>
+        </div>
+        <div class="fg">
+            <label>Category</label>
+            <select name="product_category" class="fi" id="fi_product_category">
+                <option value="">Select Category</option>
+                {% for cat in categories %}
+                <option value="{{ cat.name }}"
+                    {% if edit and edit.product_category == cat.name %}selected
+                    {% elif prefill_lead and prefill_lead.category == cat.name %}selected
+                    {% endif %}>{{ cat.name }}</option>
                 {% endfor %}
             </select>
         </div>
-        <div class="fg"><label>Priority <span class="req">*</span></label>
-            <select name="priority">
+        <div class="fg">
+            <label>Client Name <span class="req">*</span></label>
+            <input type="hidden" name="client_name" id="fi_client_name" value="{{ edit.client_name if edit else ((prefill_url.client_name if prefill_url and prefill_url.client_name else '') or (prefill_lead.contact_name if prefill_lead else '')) }}" required>
+            <input type="hidden" name="client_id" id="fi_client_id" value="{{ edit.client_id if edit else (prefill_url.client_id if prefill_url and prefill_url.client_id else '') }}">
+            <div class="msd" id="client_dd">
+                <div class="msd-trigger" id="client_trigger" onclick="clientToggle()" style="justify-content:space-between;">
+                    <span class="msd-lbl" id="client_lbl">{% if edit and edit.client_name %}{{ edit.client_name }}{% elif prefill_url and prefill_url.client_name %}{{ prefill_url.client_name }}{% elif prefill_lead and prefill_lead.contact_name %}{{ prefill_lead.contact_name }}{% else %}Select Client{% endif %}</span>
+                    <span class="msd-arrow">▼</span>
+                </div>
+                <div class="msd-panel" id="client_panel">
+                    <input type="text" class="msd-search" placeholder="🔍 Search client..." oninput="clientSearch(this)">
+                    <div class="msd-list" id="client_list" style="max-height:220px;">
+                        <div class="msd-opt" onclick="selectClient('','','','','')">
+                            <span style="color:var(--text3);font-style:italic;">— None —</span>
+                        </div>
+                        {% if clients %}
+                            {% for c in clients %}
+                            <div class="msd-opt" onclick="selectClient('{{ c.id }}','{{ c.contact_name|e }}','{{ c.company_name|e }}','{{ c.email or '' }}','{{ c.mobile or '' }}')" style="flex-direction:column;align-items:flex-start;gap:1px;">
+                                <span style="font-weight:600;color:var(--text);">{{ c.contact_name }}</span>
+                                {% if c.company_name %}<span style="font-size:.74rem;color:var(--text3);">{{ c.company_name }}</span>{% endif %}
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                            <div style="padding:.75rem;font-size:.8rem;color:var(--text3);text-align:center;">No clients found</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            <div class="field-err-msg" id="err_client_name">Client Name is required</div>
+        </div>
+        <div class="fg">
+            <label>Company Name <span class="req">*</span></label>
+            <input type="text" name="client_company" id="fi_client_company" class="fi" value="{{ edit.client_company if edit else ((prefill_url.client_company if prefill_url and prefill_url.client_company else '') or (prefill_lead.company_name if prefill_lead else '')) }}" placeholder="Zilla Kirana" required>
+            <div class="field-err-msg" id="err_client_company">Company Name is required</div>
+        </div>
+        <div class="fg">
+            <label>Client Email</label>
+            <input type="email" name="client_email" class="fi" value="{{ edit.client_email if edit else ((prefill_url.client_email if prefill_url else '') or (prefill_lead.email if prefill_lead else '')) }}" placeholder="client@email.com">
+        </div>
+        <div class="fg">
+            <label>Client Phone</label>
+            <input type="text" name="client_phone" class="fi" value="{{ edit.client_phone if edit else ((prefill_url.client_phone if prefill_url else '') or (prefill_lead.phone if prefill_lead else '')) }}" placeholder="+91 99999 99999">
+        </div>
+        <div class="fg">
+            <label>Area of Application <span class="req">*</span></label>
+            <input type="text" name="area_of_application" id="fi_area_of_application" class="fi" value="{{ edit.area_of_application if edit else '' }}" placeholder="Face, Body, Hair" required>
+            <div class="field-err-msg" id="err_area_of_application">Area of Application is required</div>
+        </div>
+
+        {# ── Market Level multi-select dropdown ── #}
+        <div class="fg">
+            <label>Market Level <span class="req">*</span></label>
+            <input type="hidden" name="market_level" id="fi_market_level" value="{{ edit.market_level if edit else '' }}">
+            <div class="msd" id="ml_dd">
+                <div class="msd-trigger" id="ml_trigger" onclick="msdToggle('ml')">
+                    <span class="msd-lbl" id="ml_lbl">Select Market Level</span>
+                    <span class="msd-arrow">▼</span>
+                </div>
+                <div class="msd-panel" id="ml_panel">
+                    <input type="text" class="msd-search" placeholder="🔍 Search..." oninput="msdSearch(this,'ml_list')">
+                    <div class="msd-list" id="ml_list">
+                        {% for lvl in ['Premium','Mass Market','Mid Range','Luxury','Economy'] %}
+                        <label class="msd-opt" onclick="event.stopPropagation()">
+                            <input type="checkbox" value="{{ lvl }}" onchange="msdChange('ml')"> {{ lvl }}
+                        </label>
+                        {% endfor %}
+                    </div>
+                    <div class="msd-footer">
+                        <button type="button" class="msd-btn" onclick="msdSelectAll('ml_list','ml')">Select All</button>
+                        <button type="button" class="msd-btn" onclick="msdDeselectAll('ml_list','ml')">Deselect All</button>
+                        <button type="button" class="msd-btn msd-btn-done" onclick="msdClose('ml')">Done</button>
+                    </div>
+                </div>
+                <div class="msd-tags" id="ml_tags"></div>
+            </div>
+            <div class="field-err-msg" id="err_market_level">Market Level is required</div>
+        </div>
+
+        {# ── Assign Members (Employee list) ── #}
+        <div class="fg">
+            <label>Assign Members</label>
+            <input type="hidden" name="assigned_members" id="fi_assigned_members" value="{{ edit.assigned_members if edit else '' }}">
+            <div class="msd" id="mem_dd">
+                <div class="msd-trigger" id="mem_trigger" onclick="msdToggle('mem')">
+                    <span class="msd-lbl" id="mem_lbl">Select Members</span>
+                    <span class="msd-arrow">▼</span>
+                </div>
+                <div class="msd-panel" id="mem_panel">
+                    <input type="text" class="msd-search" placeholder="🔍 Search members..." oninput="msdSearch(this,'mem_list')">
+                    <div class="msd-list" id="mem_list">
+                        {% if employees %}
+                            {% for emp in employees %}
+                            <label class="msd-opt" onclick="event.stopPropagation()">
+                                <input type="checkbox" value="{{ emp.id }}" data-name="{{ emp.full_name }}" onchange="msdChange('mem')">
+                                <div class="msd-opt-av">{{ emp.first_name[0]|upper }}</div>
+                                {{ emp.full_name }}
+                            </label>
+                            {% endfor %}
+                        {% else %}
+                            <div style="padding:.75rem;font-size:.8rem;color:var(--text3);text-align:center;">No employees found</div>
+                        {% endif %}
+                    </div>
+                    <div class="msd-footer">
+                        <button type="button" class="msd-btn" onclick="msdSelectAll('mem_list','mem')">Select All</button>
+                        <button type="button" class="msd-btn" onclick="msdDeselectAll('mem_list','mem')">Deselect All</button>
+                        <button type="button" class="msd-btn msd-btn-done" onclick="msdClose('mem')">Done</button>
+                    </div>
+                </div>
+                <div class="msd-tags" id="mem_tags"></div>
+            </div>
+        </div>
+
+        <div class="fg">
+            <label>Priority</label>
+            <select name="priority" class="fi">
                 {% for p in ['Urgent','High','Normal','Low'] %}
-                <option value="{{ p }}" {% if (edit and edit.priority==p) or (not edit and p=='Normal') %}selected{% endif %}>{{ p }}</option>
+                <option value="{{ p }}" {{ 'selected' if (edit and edit.priority==p) or (not edit and p=='Normal') }}>{{ p }}</option>
                 {% endfor %}
             </select>
+        </div>
+        <div class="fg">
+            <label>Status</label>
+            <select name="status" class="fi">
+                {% if npd_statuses %}
+                    {% for s in npd_statuses %}
+                    <option value="{{ s.slug }}" {{ 'selected' if edit and edit.status==s.slug else ('selected' if not edit and loop.first else '') }}>{{ s.icon }} {{ s.name }}</option>
+                    {% endfor %}
+                {% else %}
+                    <option value="not_started" selected>Not Started</option>
+                {% endif %}
+            </select>
+        </div>
+    </div>
+    <div style="margin-top:.85rem;display:flex;flex-direction:column;gap:.7rem;">
+        <div class="fg">
+            <label>Description <span class="req">*</span></label>
+            <textarea name="description" id="fi_description" class="fi" rows="2" placeholder="About this item — detailed product description..." required>{{ edit.description if edit else '' }}</textarea>
+            <div class="field-err-msg" id="err_description">Description is required</div>
+        </div>
+        <div class="fg">
+            <label>Ingredients <span class="req">*</span></label>
+            <textarea name="ingredients" id="fi_ingredients" class="fi" rows="2" placeholder="Aqua, Sodium Methyl Cocoyl Taurate..." required>{{ edit.ingredients if edit else '' }}</textarea>
+            <div class="field-err-msg" id="err_ingredients">Ingredients is required</div>
+        </div>
+        <div class="fg">
+            <label>Video Link</label>
+            <input type="url" name="video_link" class="fi" value="{{ edit.video_link if edit else '' }}" placeholder="https://www.instagram.com/reel/...">
+        </div>
+        <div class="fg">
+            <label>Active Ing. Req <span class="req">*</span></label>
+            <input type="text" name="active_ingredients" id="fi_active_ingredients" class="fi" value="{{ edit.active_ingredients if edit else '' }}" placeholder="2% Salicylic Acid + Niacinamide + Cica" required>
+            <div class="field-err-msg" id="err_active_ingredients">Active Ing. Req is required</div>
         </div>
     </div>
 </div>
 
-<!-- Product Details -->
+<!-- SECTION 2: Product Specs -->
 <div class="form-card">
-    <div class="sec-title">🔬 Product Details</div>
+    <div class="sec-title">🔬 Product Specifications</div>
     <div class="g3">
-        <div class="fg"><label>No of Samples</label><input type="number" name="no_of_samples" value="{{ edit.no_of_samples if edit else 5 }}" min="0"></div>
-        <div class="fg"><label>MOQ</label><input type="text" name="moq" value="{{ edit.moq if edit else '' }}" placeholder="5000"></div>
-        <div class="fg"><label>Product Size</label><input type="text" name="product_size" value="{{ edit.product_size if edit else '' }}" placeholder="50ml, 100g"></div>
-        <div class="fg"><label>Variant / Variety / Type <span class="req">*</span></label><input type="text" name="variant_type" value="{{ edit.variant_type if edit else '' }}" placeholder="Face wash" required></div>
-        <div class="fg"><label>Packaging Type <span class="req">*</span></label><input type="text" name="packaging_type" value="{{ edit.packaging_type if edit else '' }}" placeholder="Fliptop cap with bottle" required></div>
-        <div class="fg"><label>Costing Range <span class="req">*</span></label><input type="text" name="costing_range" value="{{ edit.costing_range if edit else '' }}" placeholder="as per benchmark" required></div>
-        <div class="fg"><label>Ph <span class="req">*</span></label><input type="text" name="ph_value" value="{{ edit.ph_value if edit else '' }}" placeholder="5.5" required></div>
-        <div class="fg"><label>Viscosity <span class="req">*</span></label><input type="text" name="viscosity" value="{{ edit.viscosity if edit else '' }}" placeholder="As per benchmark" required></div>
-        <div class="fg"><label>Fragrance / Flavours <span class="req">*</span></label><input type="text" name="fragrance" value="{{ edit.fragrance if edit else '' }}" placeholder="Mild and pleasant fragrance" required></div>
-        <div class="fg"><label>Appearance <span class="req">*</span></label><input type="text" name="appearance" value="{{ edit.appearance if edit else '' }}" placeholder="Clear gel with smooth texture" required></div>
-        <div class="fg"><label>Order Quantity</label><input type="text" name="order_quantity" value="{{ edit.order_quantity if edit else (prefill_lead.order_quantity if prefill_lead else '') }}" placeholder="5000 units"></div>
-        <div class="fg"><label>Product Range</label><input type="text" name="product_range" value="{{ edit.product_range if edit else (prefill_lead.product_range if prefill_lead else '') }}" placeholder="Premium, Herbal"></div>
-        <div class="fg full"><label>Description <span class="req">*</span></label><textarea name="description" rows="3" placeholder="About this item — detailed product description..." required>{{ edit.description if edit else '' }}</textarea></div>
-        <div class="fg full"><label>Ingredients <span class="req">*</span></label><textarea name="ingredients" rows="3" placeholder="Aqua, Sodium Methyl Cocoyl Taurate..." required>{{ edit.ingredients if edit else '' }}</textarea></div>
-        <div class="fg full"><label>Active Ingredients Required <span class="req">*</span></label><input type="text" name="active_ingredients" value="{{ edit.active_ingredients if edit else '' }}" placeholder="2% Salicylic Acid + Niacinamide + Cica" required></div>
-        <div class="fg full"><label>Product Claim <span class="req">*</span></label><textarea name="product_claim" rows="2" placeholder="Helps fight acne and breakouts..." required>{{ edit.product_claim if edit else '' }}</textarea></div>
-        <div class="fg full"><label>Label Claim <span class="req">*</span></label><textarea name="label_claim" rows="2" placeholder="Helps maintain skin balance..." required>{{ edit.label_claim if edit else '' }}</textarea></div>
-        <div class="fg full"><label>Requirement Specification</label><textarea name="requirement_spec" rows="2" placeholder="Additional formulation requirements...">{{ edit.requirement_spec if edit else (prefill_lead.requirement_spec if prefill_lead else '') }}</textarea></div>
+        <div class="fg"><label>Reference Brand <span class="req">*</span></label><input type="text" name="reference_brand" id="fi_reference_brand" class="fi" value="{{ edit.reference_brand if edit else '' }}" placeholder="Foxtale, Minimalist" required><div class="field-err-msg" id="err_reference_brand">Required</div></div>
+        <div class="fg"><label>Reference Product Name <span class="req">*</span></label><input type="text" name="reference_product_name" id="fi_reference_product_name" class="fi" value="{{ edit.reference_product_name if edit else '' }}" placeholder="Foxtale Oil Face Wash" required><div class="field-err-msg" id="err_reference_product_name">Required</div></div>
+        <div class="fg"><label>Variant / Type <span class="req">*</span></label><input type="text" name="variant_type" id="fi_variant_type" class="fi" value="{{ edit.variant_type if edit else '' }}" placeholder="Face wash, Mango" required><div class="field-err-msg" id="err_variant_type">Required</div></div>
+        <div class="fg"><label>Appearance <span class="req">*</span></label><input type="text" name="appearance" id="fi_appearance" class="fi" value="{{ edit.appearance if edit else '' }}" placeholder="Clear gel" required><div class="field-err-msg" id="err_appearance">Required</div></div>
+        <div class="fg"><label>Product Claim <span class="req">*</span></label><input type="text" name="product_claim" id="fi_product_claim" class="fi" value="{{ edit.product_claim if edit else '' }}" placeholder="Anti-acne, Moisturising" required><div class="field-err-msg" id="err_product_claim">Required</div></div>
+        <div class="fg"><label>Label Claim <span class="req">*</span></label><input type="text" name="label_claim" id="fi_label_claim" class="fi" value="{{ edit.label_claim if edit else '' }}" placeholder="Label claim" required><div class="field-err-msg" id="err_label_claim">Required</div></div>
+        <div class="fg"><label>Costing Range <span class="req">*</span></label><input type="text" name="costing_range" id="fi_costing_range" class="fi" value="{{ edit.costing_range if edit else '' }}" placeholder="As per benchmark" required><div class="field-err-msg" id="err_costing_range">Required</div></div>
+        <div class="fg"><label>Odour / Fragrance <span class="req">*</span></label><input type="text" name="fragrance" id="fi_fragrance" class="fi" value="{{ edit.fragrance if edit else '' }}" placeholder="Mild fragrance" required><div class="field-err-msg" id="err_fragrance">Required</div></div>
+        <div class="fg"><label>pH <span class="req">*</span></label><input type="text" name="ph_value" id="fi_ph_value" class="fi" value="{{ edit.ph_value if edit else '' }}" placeholder="5.5" required><div class="field-err-msg" id="err_ph_value">Required</div></div>
+        <div class="fg"><label>No of Samples</label><input type="number" name="no_of_samples" class="fi" min="0" value="{{ edit.no_of_samples if edit else 0 }}"></div>
+        <div class="fg"><label>MOQ</label><input type="text" name="moq" class="fi" value="{{ edit.moq if edit else '' }}" placeholder="5000 units"></div>
+        <div class="fg"><label>Product Size</label><input type="text" name="product_size" class="fi" value="{{ edit.product_size if edit else '' }}" placeholder="50ml, 100g"></div>
+        <div class="fg"><label>Viscosity <span class="req">*</span></label><input type="text" name="viscosity" id="fi_viscosity" class="fi" value="{{ edit.viscosity if edit else '' }}" placeholder="As per benchmark" required><div class="field-err-msg" id="err_viscosity">Required</div></div>
+        <div class="fg"><label>Packaging Option <span class="req">*</span></label><input type="text" name="packaging_type" id="fi_packaging_type" class="fi" value="{{ edit.packaging_type if edit else '' }}" placeholder="Fliptop cap with bottle" required><div class="field-err-msg" id="err_packaging_type">Required</div></div>
+        <div class="fg"><label>Order Quantity</label><input type="text" name="order_quantity" class="fi" value="{{ edit.order_quantity if edit else (prefill_lead.order_quantity if prefill_lead else '') }}" placeholder="5000 units"></div>
+        <div class="fg full"><label>Requirement Specification</label><textarea name="requirement_spec" class="fi" rows="2" placeholder="Additional formulation requirements...">{{ edit.requirement_spec if edit else (prefill_lead.requirement_spec if prefill_lead else '') }}</textarea></div>
+        <div class="fg full"><label>Reference / Existing HCP Product</label><input type="text" name="reference_product" class="fi" value="{{ edit.reference_product if edit else '' }}" placeholder="HCP existing product reference"></div>
     </div>
 </div>
 
-<!-- Reference -->
-<div class="form-card">
-    <div class="sec-title">🔗 Reference Product</div>
-    <div class="g3">
-        <div class="fg"><label>Reference Brand</label><input type="text" name="reference_brand" value="{{ edit.reference_brand if edit else '' }}" placeholder="Foxtale, Minimalist"></div>
-        <div class="fg"><label>Reference Product Name</label><input type="text" name="reference_product_name" value="{{ edit.reference_product_name if edit else '' }}" placeholder="Foxtale Oil & Acne Control Face Wash"></div>
-        <div class="fg"><label>Video Link</label><input type="url" name="video_link" value="{{ edit.video_link if edit else '' }}" placeholder="https://www.instagram.com/reel/..."></div>
-        <div class="fg full"><label>Reference / Existing HCP Product</label><input type="text" name="reference_product" value="{{ edit.reference_product if edit else '' }}" placeholder="HCP existing product reference"></div>
-    </div>
-</div>
-
-<!-- Team -->
+<!-- SECTION 3: Team -->
 <div class="form-card">
     <div class="sec-title">👥 Team Assignment</div>
-    <div class="g3">
-        <div class="fg"><label>Sales Coordinator (SC)</label><select name="assigned_sc"><option value="">— Select SC —</option>{% for u in users %}<option value="{{ u.id }}" {% if edit and edit.assigned_sc==u.id %}selected{% endif %}>{{ u.full_name }}</option>{% endfor %}</select></div>
-        <div class="fg"><label>R&D Person</label><select name="assigned_rd"><option value="">— Select R&D —</option>{% for u in users %}<option value="{{ u.id }}" {% if edit and edit.assigned_rd==u.id %}selected{% endif %}>{{ u.full_name }}</option>{% endfor %}</select></div>
-        <div class="fg"><label>NPD POC</label><select name="npd_poc"><option value="">— Select POC —</option>{% for u in users %}<option value="{{ u.id }}" {% if edit and edit.npd_poc==u.id %}selected{% endif %}>{{ u.full_name }}</option>{% endfor %}</select></div>
-        <div class="fg"><label>Client Email</label><input type="email" name="client_email" value="{{ edit.client_email if edit else ((prefill_url.client_email if prefill_url else '') or (prefill_lead.email if prefill_lead else '')) }}" placeholder="client@email.com"></div>
-        <div class="fg"><label>Client Phone</label><input type="text" name="client_phone" value="{{ edit.client_phone if edit else ((prefill_url.client_phone if prefill_url else '') or (prefill_lead.phone if prefill_lead else '')) }}" placeholder="+91 99999 99999"></div>
-        <div class="fg"><label>Link to Lead</label><select name="lead_id"><option value="">— Select Lead —</option>{% for lead in leads %}<option value="{{ lead.id }}" {% if (edit and edit.lead_id==lead.id) or (prefill_lead and lead.id==prefill_lead.id) %}selected{% endif %}>{{ lead.code or lead.id }} — {{ lead.contact_name }} / {{ lead.company_name or '' }}</option>{% endfor %}</select></div>
-    </div>
-</div>
+    <div class="g2">
+        {# ── R&D Person multi-select ── #}
+        <div class="fg">
+            <label>R&D Person</label>
+            <input type="hidden" name="assigned_rd_members" id="fi_assigned_rd" value="{{ edit.assigned_rd_members if edit else '' }}">
+            <div class="msd" id="rd_dd">
+                <div class="msd-trigger" id="rd_trigger" onclick="msdToggle('rd')">
+                    <span class="msd-lbl" id="rd_lbl">Select R&D Members</span>
+                    <span class="msd-arrow">▼</span>
+                </div>
+                <div class="msd-panel" id="rd_panel">
+                    <input type="text" class="msd-search" placeholder="🔍 Search members..." oninput="msdSearch(this,'rd_list')">
+                    <div class="msd-list" id="rd_list">
+                        {% if rd_employees %}
+                            {% for emp in rd_employees %}
+                            <label class="msd-opt" onclick="event.stopPropagation()">
+                                <input type="checkbox" value="{{ emp.id }}" data-name="{{ emp.full_name }}" onchange="msdChange('rd')">
+                                <div class="msd-opt-av">{{ emp.first_name[0]|upper }}</div>
+                                <span>{{ emp.full_name }}{% if emp.designation %} <span style="font-size:.72rem;color:var(--text3);">({{ emp.designation }})</span>{% endif %}</span>
+                            </label>
+                            {% endfor %}
+                        {% else %}
+                            <div style="padding:.75rem;font-size:.8rem;color:var(--text3);text-align:center;">No R&D employees found</div>
+                        {% endif %}
+                    </div>
+                    <div class="msd-footer">
+                        <button type="button" class="msd-btn" onclick="msdSelectAll('rd_list','rd')">Select All</button>
+                        <button type="button" class="msd-btn" onclick="msdDeselectAll('rd_list','rd')">Deselect All</button>
+                        <button type="button" class="msd-btn msd-btn-done" onclick="msdClose('rd')">Done</button>
+                    </div>
+                </div>
+                <div class="msd-tags" id="rd_tags"></div>
+            </div>
+        </div>
 
-<!-- Timeline -->
-<div class="form-card">
-    <div class="sec-title">📅 Timeline</div>
-    <div class="g4">
-        <div class="fg"><label>Project Start Date <span class="req">*</span></label><input type="date" name="project_start_date" id="start_date" value="{{ edit.project_start_date.strftime('%Y-%m-%d') if edit and edit.project_start_date else '' }}" required></div>
-        <div class="fg"><label>Project Lead Time (No of days) <span class="req">*</span></label>
-            <select name="project_lead_days" id="lead_days">
-                <option value="">Select Days</option>
-                {% for d in [7,14,21,30,45,60,90,120] %}<option value="{{ d }}" {% if edit and edit.project_lead_days==d %}selected{% endif %}>{{ d }} days</option>{% endfor %}
+        {# hidden fields for removed fields (keep for backend compat) #}
+
+        {% if not edit %}
+        <div class="fg">
+            <label>Link to Lead</label>
+            <select name="lead_id" class="fi">
+                <option value="">— Select Lead —</option>
+                {% for lead in leads %}
+                <option value="{{ lead.id }}" {{ 'selected' if prefill_lead and lead.id==prefill_lead.id }}>{{ lead.code or lead.id }} — {{ lead.contact_name }} / {{ lead.company_name or '' }}</option>
+                {% endfor %}
             </select>
         </div>
-        <div class="fg"><label>Project End Date <span class="req">*</span></label><input type="date" name="project_end_date" id="end_date" value="{{ edit.project_end_date.strftime('%Y-%m-%d') if edit and edit.project_end_date else '' }}" required></div>
-        <div class="fg"><label>Target Sample Date</label><input type="date" name="target_sample_date" value="{{ edit.target_sample_date.strftime('%Y-%m-%d') if edit and edit.target_sample_date else '' }}"></div>
+        {% endif %}
     </div>
 </div>
 
-<!-- NPD Fee -->
+<!-- SECTION 4: Timeline -->
 <div class="form-card">
-    <div class="sec-title">💰 NPD Fee</div>
+    <div class="sec-title">📅 Timeline</div>
     <div class="g3">
-        <div class="fg"><label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;margin-top:1.2rem;"><input type="checkbox" name="npd_fee_paid" {% if edit and edit.npd_fee_paid %}checked{% endif %}><span>NPD Fee Received (₹10,000)</span></label></div>
-        <div class="fg"><label>Amount (₹)</label><input type="number" name="npd_fee_amount" value="{{ edit.npd_fee_amount if edit else 10000 }}" step="1"></div>
-        <div class="fg"><label>Fee Receipt</label><input type="file" name="npd_fee_receipt" accept=".pdf,.jpg,.jpeg,.png">{% if edit and edit.npd_fee_receipt %}<span style="font-size:.72rem;color:var(--text3);">{{ edit.npd_fee_receipt }}</span>{% endif %}</div>
+        <div class="fg">
+            <label>Project Start Date</label>
+            <input type="text" name="project_start_date" id="start_date" class="fi fi-date" readonly
+                value="{{ edit.project_start_date.strftime('%d-%m-%Y') if edit and edit.project_start_date else '' }}"
+                placeholder="DD-MM-YYYY">
+        </div>
+        <div class="fg">
+            <label>Lead Time (No of days)</label>
+            <input type="text" name="project_lead_days" id="lead_days" class="fi"
+                value="{{ edit.project_lead_days if edit and edit.project_lead_days else '' }}"
+                placeholder="Enter no. of days" inputmode="numeric" pattern="[0-9]*">
+        </div>
+        <div class="fg">
+            <label>Project End Date</label>
+            <input type="text" name="project_end_date" id="end_date" class="fi fi-date" readonly
+                value="{{ edit.project_end_date.strftime('%d-%m-%Y') if edit and edit.project_end_date else '' }}"
+                placeholder="DD-MM-YYYY">
+        </div>
     </div>
 </div>
 
+<!-- SECTION 5: NPD Fee -->
+<div class="form-card">
+    <div class="sec-title">🔥 NPD Fee</div>
+    <div class="g3" style="align-items:end;">
+        <div class="fg"><label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;margin-top:1rem;"><input type="checkbox" name="npd_fee_paid" id="npd_fee_paid" style="width:16px;height:16px;accent-color:#7c3aed;" {{ 'checked' if edit and edit.npd_fee_paid }} onchange="toggleFeeAmt()"><span style="font-size:.83rem;font-weight:600;">NPD Fee Received (₹10,000)</span></label></div>
+        <div class="fg"><label>Amount (₹)</label><input type="number" name="npd_fee_amount" id="npd_fee_amount" class="fi" value="{{ edit.npd_fee_amount if edit else 10000 }}" min="0"></div>
+        <div class="fg"><label>Fee Receipt</label><input type="file" name="npd_fee_receipt" class="fi" accept=".pdf,.jpg,.jpeg,.png">{% if edit and edit.npd_fee_receipt %}<span style="font-size:.72rem;color:var(--text3);">📎 <a href="/npd/uploads/{{ edit.npd_fee_receipt }}" target="_blank" style="color:var(--blue);">View</a></span>{% endif %}</div>
+    </div>
+</div>
+
+<!-- SECTION 6: Milestones -->
 {% if not edit %}
 <div class="form-card">
     <div class="sec-title">⚙️ Select Milestones</div>
     <div class="ms-grid">
-        {% for tmpl in default_milestones %}<label class="ms-item"><input type="checkbox" name="milestones" value="{{ tmpl.milestone_type }}" {{ 'checked' if tmpl.default_selected else '' }}><span>{{ tmpl.icon if tmpl.icon else '' }} {{ tmpl.title }}</span></label>{% endfor %}
+        {% for tmpl in default_milestones %}
+        <label class="ms-item"><input type="checkbox" name="milestones" value="{{ tmpl.milestone_type }}"><span>{{ tmpl.icon if tmpl.icon else '' }} {{ tmpl.title }}</span></label>
+        {% endfor %}
     </div>
 </div>
 {% endif %}
 
+<!-- Footer -->
 <div style="display:flex;gap:.5rem;justify-content:flex-end;margin-bottom:2rem;">
-    <a href="{{ url_for('npd.npd_dashboard') }}" class="btn btn-outline">Cancel</a>
-    <button type="submit" style="background:#7c3aed;color:#fff;border:none;padding:.55rem 1.6rem;font-size:.9rem;font-weight:700;border-radius:var(--r-md);cursor:pointer;">{{ '💾 Save Changes' if edit else '🧪 Create NPD Project' }}</button>
+    <a href="{{ url_for('npd.npd_projects') }}" class="btn btn-outline">Cancel</a>
+    <button type="submit" id="saveBtn" style="background:#7c3aed;color:#fff;border:none;padding:.5rem 1.5rem;font-size:.88rem;font-weight:700;border-radius:var(--r-md);cursor:pointer;display:flex;align-items:center;gap:6px;">
+        {{ '💾 Save Changes' if edit else '✨ Create NPD Project' }}
+    </button>
 </div>
 </form>
+</div>{# end npd-wrap #}
+
+<div class="val-toast" id="valToast"></div>
+
 <script>
-function calcEnd(){var s=document.getElementById('start_date').value;var d=document.getElementById('lead_days').value;if(s&&d){var dt=new Date(s);dt.setDate(dt.getDate()+parseInt(d));document.getElementById('end_date').value=dt.toISOString().split('T')[0];}}
-document.getElementById('start_date').addEventListener('change',calcEnd);
-document.getElementById('lead_days').addEventListener('change',calcEnd);
+/* ── Unified Multi-Select Dropdown (msd) ── */
+var msdState={};
+
+var MSD_CONFIG={
+    ml:  {hidden:'fi_market_level',    lbl:'ml_lbl',  tags:'ml_tags',  panel:'ml_panel',  trigger:'ml_trigger', listId:'ml_list',  defaultLbl:'Select Market Level',  isEmployee:false},
+    mem: {hidden:'fi_assigned_members',lbl:'mem_lbl', tags:'mem_tags', panel:'mem_panel', trigger:'mem_trigger',listId:'mem_list', defaultLbl:'Select Members',       isEmployee:true},
+    rd:  {hidden:'fi_assigned_rd',     lbl:'rd_lbl',  tags:'rd_tags',  panel:'rd_panel',  trigger:'rd_trigger', listId:'rd_list',  defaultLbl:'Select R&D Members',   isEmployee:true}
+};
+
+function msdToggle(id){
+    var open=msdState[id];
+    // close all
+    Object.keys(MSD_CONFIG).forEach(function(k){
+        if(msdState[k]){
+            msdState[k]=false;
+            document.getElementById(MSD_CONFIG[k].trigger).classList.remove('open');
+            document.getElementById(MSD_CONFIG[k].panel).classList.remove('open');
+            var dd=document.getElementById(k+'_dd');
+            if(dd)dd.classList.remove('active');
+        }
+    });
+    if(!open){
+        msdState[id]=true;
+        document.getElementById(MSD_CONFIG[id].trigger).classList.add('open');
+        document.getElementById(MSD_CONFIG[id].panel).classList.add('open');
+        var dd=document.getElementById(id+'_dd');
+        if(dd)dd.classList.add('active');
+    }
+}
+
+function msdClose(id){
+    msdState[id]=false;
+    document.getElementById(MSD_CONFIG[id].trigger).classList.remove('open');
+    document.getElementById(MSD_CONFIG[id].panel).classList.remove('open');
+}
+
+function msdChange(id){
+    var cfg=MSD_CONFIG[id];
+    var checks=Array.from(document.querySelectorAll('#'+cfg.listId+' input:checked'));
+    // Update hidden value
+    if(cfg.isEmployee){
+        document.getElementById(cfg.hidden).value=checks.map(function(c){return c.value;}).join(',');
+    } else {
+        document.getElementById(cfg.hidden).value=checks.map(function(c){return c.value;}).join(',');
+    }
+    // Update label
+    var lbl=document.getElementById(cfg.lbl);
+    if(checks.length===0){lbl.textContent=cfg.defaultLbl;lbl.style.color='var(--text3)';}
+    else if(cfg.isEmployee){lbl.textContent=checks.length+' member'+(checks.length>1?'s':'')+' selected';lbl.style.color='var(--text)';}
+    else{lbl.textContent=checks.map(function(c){return c.value;}).join(', ');lbl.style.color='var(--text)';}
+    // Update tags
+    var tagsEl=document.getElementById(cfg.tags);
+    if(cfg.isEmployee){
+        tagsEl.innerHTML=checks.map(function(c){
+            var n=c.dataset.name||c.value;
+            var ini=n.charAt(0).toUpperCase();
+            return '<span class="msd-tag"><span style="width:15px;height:15px;border-radius:50%;background:#7c3aed;color:#fff;font-size:.6rem;font-weight:800;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;">'+ini+'</span>'+n+'<span class="msd-tag-x" onclick="msdRemove(\''+id+'\',\''+c.value+'\')">✕</span></span>';
+        }).join('');
+    } else {
+        tagsEl.innerHTML=checks.map(function(c){
+            return '<span class="msd-tag">'+c.value+'<span class="msd-tag-x" onclick="msdRemove(\''+id+'\',\''+c.value+'\')">✕</span></span>';
+        }).join('');
+    }
+    // Clear validation error
+    var errEl=document.getElementById('err_'+id==='ml'?'market_level':id);
+    if(errEl&&checks.length>0)errEl.classList.remove('show');
+    if(id==='ml'&&checks.length>0){var t=document.getElementById('ml_trigger');if(t)t.classList.remove('field-error');}
+}
+
+function msdRemove(id,val){
+    var cfg=MSD_CONFIG[id];
+    document.querySelectorAll('#'+cfg.listId+' input').forEach(function(cb){if(cb.value===val)cb.checked=false;});
+    msdChange(id);
+}
+
+function msdSelectAll(listId,id){
+    document.querySelectorAll('#'+listId+' input[type=checkbox]').forEach(function(cb){
+        if(cb.closest('.msd-opt').style.display!=='none')cb.checked=true;
+    });
+    msdChange(id);
+}
+
+function msdDeselectAll(listId,id){
+    document.querySelectorAll('#'+listId+' input[type=checkbox]').forEach(function(cb){cb.checked=false;});
+    msdChange(id);
+}
+
+function msdSearch(inp,listId){
+    var q=inp.value.toLowerCase();
+    document.querySelectorAll('#'+listId+' .msd-opt').forEach(function(opt){
+        opt.style.display=opt.textContent.toLowerCase().includes(q)?'':'none';
+    });
+}
+
+// Close on outside click
+document.addEventListener('click',function(e){
+    Object.keys(MSD_CONFIG).forEach(function(id){
+        if(msdState[id]){
+            var dd=document.getElementById(id+'_dd');
+            if(dd&&!dd.contains(e.target)){msdClose(id);}
+        }
+    });
+});
+
+// Pre-fill on edit
+(function(){
+    // Market Level
+    var mlVal=document.getElementById('fi_market_level').value;
+    if(mlVal){mlVal.split(',').forEach(function(v){v=v.trim();document.querySelectorAll('#ml_list input').forEach(function(cb){if(cb.value===v)cb.checked=true;});});msdChange('ml');}
+    // Members
+    var memVal=document.getElementById('fi_assigned_members').value;
+    if(memVal){memVal.split(',').forEach(function(v){v=v.trim();document.querySelectorAll('#mem_list input').forEach(function(cb){if(cb.value===v)cb.checked=true;});});msdChange('mem');}
+    // R&D
+    var rdVal=document.getElementById('fi_assigned_rd').value;
+    if(rdVal){rdVal.split(',').forEach(function(v){v=v.trim();document.querySelectorAll('#rd_list input').forEach(function(cb){if(cb.value===v)cb.checked=true;});});msdChange('rd');}
+})();
+
+/* ── Client Dropdown ── */
+var clientOpen=false;
+function clientToggle(){
+    clientOpen=!clientOpen;
+    document.getElementById('client_trigger').classList.toggle('open',clientOpen);
+    document.getElementById('client_panel').classList.toggle('open',clientOpen);
+    document.getElementById('client_dd').classList.toggle('active',clientOpen);
+}
+function selectClient(id,name,company,email,phone){
+    document.getElementById('fi_client_id').value=id;
+    document.getElementById('fi_client_name').value=name;
+    var lbl=document.getElementById('client_lbl');
+    lbl.textContent=name||'Select Client';
+    lbl.style.color=name?'var(--text)':'var(--text3)';
+    // Auto-fill company, email, phone
+    if(company){var ce=document.querySelector('[name=client_company]');if(ce)ce.value=company;}
+    if(email){var em=document.querySelector('[name=client_email]');if(em)em.value=email;}
+    if(phone){var ph=document.querySelector('[name=client_phone]');if(ph)ph.value=phone;}
+    // Clear validation
+    if(name){document.getElementById('client_trigger').classList.remove('field-error');document.getElementById('err_client_name').classList.remove('show');}
+    clientOpen=false;
+    document.getElementById('client_trigger').classList.remove('open');
+    document.getElementById('client_panel').classList.remove('open');
+}
+function clientSearch(inp){
+    var q=inp.value.toLowerCase();
+    document.querySelectorAll('#client_list .msd-opt').forEach(function(opt){
+        opt.style.display=opt.textContent.toLowerCase().includes(q)?'':'none';
+    });
+}
+document.addEventListener('click',function(e){
+    if(clientOpen&&!document.getElementById('client_dd').contains(e.target)){
+        clientOpen=false;
+        document.getElementById('client_trigger').classList.remove('open');
+        document.getElementById('client_panel').classList.remove('open');
+    }
+});
+
+/* ── Timeline auto-calc ── */
+/* ── Flatpickr Date Pickers ── */
+var fpStart, fpEnd;
+
+function calcEndFromStart() {
+    var days = parseInt(document.getElementById('lead_days').value);
+    if(!days || days < 1) return;
+    var raw = document.getElementById('start_date').value;
+    if(!raw) return;
+    var parts = raw.split('-');
+    if(parts.length !== 3) return;
+    var d = parseInt(parts[0]), m = parseInt(parts[1])-1, y = parseInt(parts[2]);
+    var endDate = new Date(y, m, d + days);
+    if(fpEnd) fpEnd.setDate(endDate, true);
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+// Auto-select client if prefilled from URL (client_id param)
+(function(){
+    var cid = document.getElementById('fi_client_id').value;
+    var cname = document.getElementById('fi_client_name').value;
+    if(cid && cname){
+        var lbl = document.getElementById('client_lbl');
+        if(lbl && lbl.textContent.trim() === 'Select Client'){
+            lbl.textContent = cname;
+            lbl.style.color = 'var(--text)';
+        }
+        // Check the matching option in client list
+        document.querySelectorAll('#client_list .msd-opt').forEach(function(opt){
+            if(opt.getAttribute('onclick') && opt.getAttribute('onclick').indexOf("'"+cid+"'") !== -1){
+                opt.style.background = '#f5f3ff';
+            }
+        });
+    }
+})();
+fpStart = flatpickr('#start_date', {
+    dateFormat: 'd-m-Y',
+    allowInput: false,
+    disableMobile: true,
+    maxDate: 'today',
+    onChange: function(selectedDates) {
+        if(selectedDates[0]) {
+            if(fpEnd) fpEnd.set('minDate', selectedDates[0]);
+            calcEndFromStart();
+        }
+    }
+});
+fpEnd = flatpickr('#end_date', {
+    dateFormat: 'd-m-Y',
+    allowInput: false,
+    disableMobile: true,
+    onChange: function(selectedDates) {
+        if(selectedDates[0] && fpStart && fpStart.selectedDates[0]) {
+            var diff = Math.round((selectedDates[0] - fpStart.selectedDates[0]) / (1000*60*60*24));
+            if(diff > 0) document.getElementById('lead_days').value = diff;
+        }
+    }
+});
+document.getElementById('lead_days').addEventListener('input', calcEndFromStart);
+}); // end DOMContentLoaded
+
+
+/* ── NPD Fee ── */
+function toggleFeeAmt(){var cb=document.getElementById('npd_fee_paid');var amt=document.getElementById('npd_fee_amount');amt.disabled=!cb.checked;amt.style.opacity=cb.checked?'1':'.5';}
+toggleFeeAmt();
+
+/* ── Validation ── */
+function showValToast(msg){var t=document.getElementById('valToast');t.innerHTML='⚠️ '+msg;t.classList.add('show');setTimeout(function(){t.classList.remove('show');},3500);}
+var REQUIRED=[
+    ['fi_product_name','err_product_name','Product Name'],
+    ['fi_client_coordinator','err_client_coordinator','Client CO-Ordinator'],
+    ['fi_client_name','err_client_name','Client Name'],
+    ['fi_client_company','err_client_company','Company Name'],
+    ['fi_area_of_application','err_area_of_application','Area of Application'],
+    ['fi_market_level','err_market_level','Market Level'],
+    ['fi_description','err_description','Description'],
+    ['fi_ingredients','err_ingredients','Ingredients'],
+    ['fi_active_ingredients','err_active_ingredients','Active Ing. Req'],
+    ['fi_reference_brand','err_reference_brand','Reference Brand'],
+    ['fi_reference_product_name','err_reference_product_name','Reference Product Name'],
+    ['fi_variant_type','err_variant_type','Variant'],
+    ['fi_appearance','err_appearance','Appearance'],
+    ['fi_product_claim','err_product_claim','Product Claim'],
+    ['fi_label_claim','err_label_claim','Label Claim'],
+    ['fi_costing_range','err_costing_range','Costing Range'],
+    ['fi_fragrance','err_fragrance','Odour/Fragrance'],
+    ['fi_ph_value','err_ph_value','pH'],
+    ['fi_viscosity','err_viscosity','Viscosity'],
+    ['fi_packaging_type','err_packaging_type','Packaging Option'],
+];
+function validateNpdForm(){
+    var errors=[];var firstErr=null;
+    REQUIRED.forEach(function(f){
+        var el=document.getElementById(f[0]);var em=document.getElementById(f[1]);if(!el)return;
+        var val=el.value?el.value.trim():'';
+        if(!val){
+            if(f[0]==='fi_market_level'){document.getElementById('ml_trigger').classList.add('field-error');}
+            else if(f[0]==='fi_client_name'){document.getElementById('client_trigger').classList.add('field-error');}
+            else{el.classList.add('field-error');}
+            if(em)em.classList.add('show');errors.push(f[2]);if(!firstErr)firstErr=el;
+        }else{
+            if(f[0]==='fi_market_level'){document.getElementById('ml_trigger').classList.remove('field-error');}
+            else if(f[0]==='fi_client_name'){document.getElementById('client_trigger').classList.remove('field-error');}
+            else{el.classList.remove('field-error');}
+            if(em)em.classList.remove('show');
+        }
+    });
+    if(errors.length>0){
+        var msg=errors.length===1?errors[0]+' is required':errors[0]+' and '+(errors.length-1)+' more field'+(errors.length>2?'s':'')+' required';
+        showValToast(msg);
+        if(firstErr)firstErr.scrollIntoView({behavior:'smooth',block:'center'});
+        return false;
+    }
+    return true;
+}
+REQUIRED.forEach(function(f){
+    var el=document.getElementById(f[0]);var em=document.getElementById(f[1]);if(!el)return;
+    var evt=(el.tagName==='SELECT')?'change':'input';
+    el.addEventListener(evt,function(){el.classList.remove('field-error');if(em)em.classList.remove('show');});
+});
+document.getElementById('npdForm').addEventListener('submit',function(e){
+    if(!validateNpdForm()){e.preventDefault();return false;}
+    var btn=document.getElementById('saveBtn');btn.disabled=true;
+    btn.innerHTML='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="animation:spin .7s linear infinite"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Saving...';
+});
 </script>
 {% endblock %}

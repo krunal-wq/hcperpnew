@@ -161,6 +161,7 @@ def create_tables():
     import models.permission
     import models.audit
     import models.legacy
+    import models.npd
 
     app = Flask(__name__)
     app.config.from_object(Config)

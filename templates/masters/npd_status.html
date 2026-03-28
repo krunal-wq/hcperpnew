@@ -1,0 +1,172 @@
+{% extends "base.html" %}
+{% block title %}NPD Status Master{% endblock %}
+{% block page_title %}NPD Status Master{% endblock %}
+{% block bread %}Masters / NPD Status{% endblock %}
+
+{% block extra_css %}
+.m-table { width:100%; border-collapse:collapse; }
+.m-table th { background:#f1f5f9; padding:10px 14px; text-align:left; font-size:0.8rem; font-weight:700; color:#374151; border-bottom:2px solid #e2e8f0; white-space:nowrap; }
+.m-table td { padding:10px 14px; font-size:0.85rem; color:var(--text); border-bottom:1px solid #f1f5f9; vertical-align:middle; }
+.m-table tr:hover td { background:#f8fafc; }
+.badge-active   { background:#dcfce7; color:#166534; padding:3px 10px; border-radius:100px; font-size:0.75rem; font-weight:700; }
+.badge-inactive { background:#f1f5f9; color:#64748b; padding:3px 10px; border-radius:100px; font-size:0.75rem; font-weight:700; }
+.status-pill { display:inline-flex; align-items:center; gap:5px; padding:4px 10px; border-radius:100px; font-size:0.78rem; font-weight:700; }
+.color-dot { width:14px; height:14px; border-radius:50%; display:inline-block; border:1px solid rgba(0,0,0,.15); flex-shrink:0; }
+{% endblock %}
+
+{% block content %}
+<div class="card" style="margin-bottom:1.2rem;">
+    <div class="card-hdr">
+        <div class="card-title">⚙️ NPD Status Master</div>
+    </div>
+
+    {# Add Form #}
+    <div style="padding:1rem 1.25rem;background:#f8fafc;border-bottom:1px solid #e5e7eb;">
+        <form method="POST" action="{{ url_for('masters.npd_status_add') }}" style="display:flex;gap:.75rem;align-items:flex-end;flex-wrap:wrap;">
+            <div>
+                <label style="font-size:0.78rem;font-weight:600;color:#374151;display:block;margin-bottom:3px;">Status Name *</label>
+                <input type="text" name="name" class="fi" required placeholder="e.g. Sample In Process" style="font-size:0.85rem;width:220px;">
+            </div>
+            <div>
+                <label style="font-size:0.78rem;font-weight:600;color:#374151;display:block;margin-bottom:3px;">Icon</label>
+                <input type="text" name="icon" class="fi" placeholder="🔵" style="font-size:0.85rem;width:70px;text-align:center;">
+            </div>
+            <div>
+                <label style="font-size:0.78rem;font-weight:600;color:#374151;display:block;margin-bottom:3px;">Color</label>
+                <input type="color" name="color" value="#6b7280" style="width:42px;height:36px;border:1.5px solid #e2e8f0;border-radius:6px;padding:2px;cursor:pointer;">
+            </div>
+            <div>
+                <label style="font-size:0.78rem;font-weight:600;color:#374151;display:block;margin-bottom:3px;">Sort Order</label>
+                <input type="number" name="sort_order" value="0" class="fi" style="font-size:0.85rem;width:80px;">
+            </div>
+            <div style="display:flex;align-items:center;gap:6px;padding-bottom:2px;">
+                <input type="checkbox" name="is_active" id="add_is_active" checked style="width:16px;height:16px;accent-color:#7c3aed;cursor:pointer;">
+                <label for="add_is_active" style="font-size:0.82rem;font-weight:600;color:#374151;cursor:pointer;">Active</label>
+            </div>
+            <button type="submit" class="btn-primary" style="font-size:0.83rem;padding:7px 18px;">+ Add Status</button>
+        </form>
+    </div>
+
+    <div class="card-body" style="padding:0;">
+        {% if statuses %}
+        <table class="m-table">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Icon</th>
+                    <th>Name</th>
+                    <th>Slug</th>
+                    <th>Color</th>
+                    <th>Sort</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for s in statuses %}
+                <tr>
+                    <td style="color:var(--text3);font-size:0.78rem;">{{ loop.index }}</td>
+                    <td style="font-size:1.2rem;">{{ s.icon }}</td>
+                    <td style="font-weight:600;">
+                        <span class="status-pill" style="background:{{ s.color }}22;color:{{ s.color }};border:1px solid {{ s.color }}44;">
+                            <span class="color-dot" style="background:{{ s.color }};"></span>
+                            {{ s.name }}
+                        </span>
+                    </td>
+                    <td style="font-size:0.78rem;color:var(--text3);font-family:monospace;">{{ s.slug }}</td>
+                    <td>
+                        <div style="display:flex;align-items:center;gap:6px;">
+                            <span class="color-dot" style="background:{{ s.color }};width:18px;height:18px;"></span>
+                            <span style="font-size:0.78rem;font-family:monospace;color:var(--text3);">{{ s.color }}</span>
+                        </div>
+                    </td>
+                    <td style="color:var(--text3);">{{ s.sort_order }}</td>
+                    <td>
+                        <button onclick="toggleNpdStatus({{ s.id }}, this)" style="background:none;border:none;cursor:pointer;padding:0;">
+                            <span class="badge-{{ 'active' if s.is_active else 'inactive' }}">
+                                {{ '✅ Active' if s.is_active else '⛔ Inactive' }}
+                            </span>
+                        </button>
+                    </td>
+                    <td>
+                        <button onclick="openNpdStatusEdit({{ s.id }}, '{{ s.name|e }}', '{{ s.icon|e }}', '{{ s.color }}', {{ s.sort_order }}, {{ '1' if s.is_active else '0' }})"
+                                style="background:#eff6ff;color:#1d4ed8;border:none;padding:5px 10px;border-radius:6px;font-size:0.78rem;font-weight:600;cursor:pointer;">✏️ Edit</button>
+                        <form method="POST" action="{{ url_for('masters.npd_status_delete', id=s.id) }}" style="display:inline;"
+                              onsubmit="return confirm('Delete {{ s.name }}?')">
+                            <button type="submit" style="background:#fef2f2;color:#dc2626;border:none;padding:5px 10px;border-radius:6px;font-size:0.78rem;font-weight:600;cursor:pointer;margin-left:4px;">🗑 Delete</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div style="text-align:center;padding:3rem;color:var(--text3);">
+            <div style="font-size:2rem;margin-bottom:.5rem;">⚙️</div>
+            <div style="font-weight:600;">No NPD statuses yet</div>
+            <div style="font-size:0.82rem;margin-top:.25rem;">Add your first status above</div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{# Edit Modal #}
+<div id="npdStatusModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;align-items:center;justify-content:center;">
+    <div style="background:#fff;border-radius:12px;width:100%;max-width:460px;box-shadow:0 20px 60px rgba(0,0,0,.2);overflow:hidden;">
+        <div style="background:#1e3a5f;color:#fff;padding:.9rem 1.25rem;display:flex;align-items:center;justify-content:space-between;">
+            <span style="font-weight:700;">✏️ Edit NPD Status</span>
+            <button onclick="document.getElementById('npdStatusModal').style.display='none'" style="background:rgba(255,255,255,.15);border:none;color:#fff;width:26px;height:26px;border-radius:50%;cursor:pointer;">✕</button>
+        </div>
+        <form method="POST" id="npdStatusEditForm" action="">
+            <div style="padding:1.25rem;display:grid;grid-template-columns:1fr 1fr;gap:.85rem;">
+                <div style="grid-column:1/-1;">
+                    <label style="font-size:0.8rem;font-weight:600;color:#374151;display:block;margin-bottom:3px;">Status Name *</label>
+                    <input type="text" name="name" id="editNpdName" class="fi" required style="font-size:0.85rem;">
+                </div>
+                <div>
+                    <label style="font-size:0.8rem;font-weight:600;color:#374151;display:block;margin-bottom:3px;">Icon</label>
+                    <input type="text" name="icon" id="editNpdIcon" class="fi" style="font-size:0.85rem;text-align:center;">
+                </div>
+                <div>
+                    <label style="font-size:0.8rem;font-weight:600;color:#374151;display:block;margin-bottom:3px;">Color</label>
+                    <input type="color" name="color" id="editNpdColor" style="width:100%;height:38px;border:1.5px solid #e2e8f0;border-radius:6px;padding:2px;cursor:pointer;">
+                </div>
+                <div>
+                    <label style="font-size:0.8rem;font-weight:600;color:#374151;display:block;margin-bottom:3px;">Sort Order</label>
+                    <input type="number" name="sort_order" id="editNpdSort" class="fi" style="font-size:0.85rem;">
+                </div>
+                <div style="display:flex;align-items:center;gap:8px;padding-top:22px;">
+                    <input type="checkbox" name="is_active" id="editNpdActive" style="width:16px;height:16px;accent-color:#7c3aed;cursor:pointer;">
+                    <label for="editNpdActive" style="font-size:0.85rem;font-weight:600;color:#374151;cursor:pointer;">Active</label>
+                </div>
+            </div>
+            <div style="padding:.9rem 1.25rem;border-top:1px solid #e5e7eb;display:flex;justify-content:flex-end;gap:.5rem;background:#f9fafb;">
+                <button type="button" onclick="document.getElementById('npdStatusModal').style.display='none'" class="btn-outline" style="font-size:0.83rem;">Cancel</button>
+                <button type="submit" class="btn-primary" style="font-size:0.83rem;">Save Changes</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function openNpdStatusEdit(id, name, icon, color, sort, active) {
+    document.getElementById('npdStatusEditForm').action = '/masters/npd-status/' + id + '/edit';
+    document.getElementById('editNpdName').value   = name;
+    document.getElementById('editNpdIcon').value   = icon;
+    document.getElementById('editNpdColor').value  = color;
+    document.getElementById('editNpdSort').value   = sort;
+    document.getElementById('editNpdActive').checked = active == 1;
+    document.getElementById('npdStatusModal').style.display = 'flex';
+}
+document.getElementById('npdStatusModal').addEventListener('click', function(e){ if(e.target===this) this.style.display='none'; });
+
+function toggleNpdStatus(id, btn) {
+    fetch('/masters/npd-status/' + id + '/toggle', {method:'POST'})
+        .then(r=>r.json()).then(d=>{
+            const span = btn.querySelector('span');
+            span.className = d.is_active ? 'badge-active' : 'badge-inactive';
+            span.textContent = d.is_active ? '✅ Active' : '⛔ Inactive';
+        });
+}
+</script>
+{% endblock %}

@@ -1,0 +1,178 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit NPD Project' if edit else 'New NPD Project' }}{% endblock %}
+{% block page_title %}{{ 'Edit NPD Project' if edit else 'New NPD Project' }}{% endblock %}
+{% block bread %}NPD / NPD Projects / {{ 'Edit' if edit else 'New' }}{% endblock %}
+{% block extra_css %}
+.form-card{background:#fff;border:1px solid var(--border);border-radius:var(--r-lg);padding:1.5rem;margin-bottom:1rem;}
+.sec-title{font-size:.8rem;font-weight:800;color:#7c3aed;text-transform:uppercase;letter-spacing:.08em;margin-bottom:1rem;padding-bottom:.5rem;border-bottom:2px solid #f3e8ff;}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:1rem;}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;}
+.g4{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:1rem;}
+@media(max-width:900px){.g4{grid-template-columns:1fr 1fr;}}
+@media(max-width:640px){.g2,.g3,.g4{grid-template-columns:1fr;}}
+.fg{display:flex;flex-direction:column;gap:.35rem;}
+.fg label{font-size:.78rem;font-weight:600;color:var(--text2);}
+.req{color:#ef4444;margin-left:2px;}
+.fg input,.fg select,.fg textarea{padding:.5rem .75rem;border:1px solid var(--border);border-radius:var(--r-md);font-size:.85rem;color:var(--text);background:#fff;font-family:inherit;width:100%;}
+.fg input:focus,.fg select:focus,.fg textarea:focus{outline:none;border-color:#7c3aed;box-shadow:0 0 0 3px #f3e8ff;}
+.fg textarea{resize:vertical;min-height:80px;}
+.full{grid-column:1/-1;}
+.ms-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem;}
+@media(max-width:640px){.ms-grid{grid-template-columns:1fr 1fr;}}
+.ms-item{display:flex;align-items:center;gap:.5rem;padding:.5rem .7rem;border:1px solid var(--border);border-radius:var(--r-md);cursor:pointer;font-size:.8rem;}
+.ms-item:has(input:checked){border-color:#7c3aed;background:#f3e8ff;}
+.ms-item input{width:15px;height:15px;cursor:pointer;}
+{% endblock %}
+{% block content %}
+<div style="background:linear-gradient(135deg,#7c3aed15,#a855f710);border:2px solid #7c3aed33;border-radius:var(--r-lg);padding:.9rem 1.2rem;margin-bottom:1rem;display:flex;align-items:center;gap:.75rem;">
+    <span style="font-size:1.5rem;">🧪</span>
+    <div>
+        <div style="font-weight:800;font-size:.95rem;color:#4c1d95;">NPD — New Product Development</div>
+        <div style="font-size:.78rem;color:#6d28d9;">R&D formulation from scratch. Full sampling loop. ₹10,000 fee applicable.</div>
+    </div>
+    {% if prefill_lead %}<a href="{{ url_for('crm.lead_view', id=prefill_lead.id) }}" style="margin-left:auto;color:#7c3aed;font-weight:600;font-size:.82rem;white-space:nowrap;">← Back to Lead</a>{% endif %}
+</div>
+{% if prefill_lead %}
+<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:var(--r-lg);padding:.75rem 1.1rem;margin-bottom:1rem;font-size:.84rem;">
+    🔗 Lead se create: <strong>{{ prefill_lead.contact_name }}{% if prefill_lead.company_name %} / {{ prefill_lead.company_name }}{% endif %}</strong>
+</div>
+{% endif %}
+<form method="POST" enctype="multipart/form-data">
+<input type="hidden" name="project_type" value="npd">
+{% if prefill_lead %}<input type="hidden" name="from_lead_id" value="{{ prefill_lead.id }}">{% endif %}
+
+<!-- Basic Info -->
+<div class="form-card">
+    <div class="sec-title">📋 Basic Project Information</div>
+    <div class="g4">
+        {% if edit %}<div class="fg"><label>Project No</label><input type="text" value="{{ edit.code }}" disabled style="background:var(--bg);"></div>{% endif %}
+        <div class="fg{% if not edit %} full{% endif %}"><label>Product Name <span class="req">*</span></label><input type="text" name="product_name" value="{{ edit.product_name if edit else (prefill_lead.product_name if prefill_lead else '') }}" placeholder="Acne Clarifying Cleanser" required></div>
+        <div class="fg"><label>Client Name <span class="req">*</span></label><input type="text" name="client_name" value="{{ edit.client_name if edit else ((prefill_url.client_name if prefill_url and prefill_url.client_name else '') or (prefill_lead.contact_name if prefill_lead else '')) }}" placeholder="BHISHAM BHATEJA" required></div>
+        <div class="fg"><label>Category</label><input type="text" name="product_category" value="{{ edit.product_category if edit else (prefill_lead.category if prefill_lead else '') }}" placeholder="Skin Care, Hair Care"></div>
+        <div class="fg"><label>Company <span class="req">*</span></label><input type="text" name="client_company" value="{{ edit.client_company if edit else ((prefill_url.client_company if prefill_url and prefill_url.client_company else '') or (prefill_lead.company_name if prefill_lead else '')) }}" placeholder="PURESTA" required></div>
+        <div class="fg"><label>Client Co-Ordinator</label><input type="text" name="client_coordinator" value="{{ edit.client_coordinator if edit else '' }}" placeholder="Sneha Dagar"></div>
+        <div class="fg"><label>Status</label>
+            <select name="status">
+                <option value="lead_created" {% if not edit or edit.status=='lead_created' %}selected{% endif %}>Not Started</option>
+                <option value="formulation" {% if edit and edit.status=='formulation' %}selected{% endif %}>In Formulation</option>
+                <option value="sampling" {% if edit and edit.status=='sampling' %}selected{% endif %}>Sampling</option>
+                <option value="client_approved" {% if edit and edit.status=='client_approved' %}selected{% endif %}>Client Approved</option>
+                <option value="commercial" {% if edit and edit.status=='commercial' %}selected{% endif %}>Commercial</option>
+                <option value="complete" {% if edit and edit.status=='complete' %}selected{% endif %}>Completed</option>
+                <option value="cancelled" {% if edit and edit.status=='cancelled' %}selected{% endif %}>Cancelled</option>
+            </select>
+        </div>
+        <div class="fg"><label>Area of Application <span class="req">*</span></label><input type="text" name="area_of_application" value="{{ edit.area_of_application if edit else '' }}" placeholder="Face, Body, Hair" required></div>
+        <div class="fg"><label>Market Level <span class="req">*</span></label>
+            <select name="market_level">
+                <option value="">Select</option>
+                {% for lvl in ['Premium','Mass Market','Mid Range','Luxury','Economy'] %}
+                <option value="{{ lvl }}" {% if edit and edit.market_level==lvl %}selected{% endif %}>{{ lvl }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="fg"><label>Priority <span class="req">*</span></label>
+            <select name="priority">
+                {% for p in ['Urgent','High','Normal','Low'] %}
+                <option value="{{ p }}" {% if (edit and edit.priority==p) or (not edit and p=='Normal') %}selected{% endif %}>{{ p }}</option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+</div>
+
+<!-- Product Details -->
+<div class="form-card">
+    <div class="sec-title">🔬 Product Details</div>
+    <div class="g3">
+        <div class="fg"><label>No of Samples</label><input type="number" name="no_of_samples" value="{{ edit.no_of_samples if edit else 5 }}" min="0"></div>
+        <div class="fg"><label>MOQ</label><input type="text" name="moq" value="{{ edit.moq if edit else '' }}" placeholder="5000"></div>
+        <div class="fg"><label>Product Size</label><input type="text" name="product_size" value="{{ edit.product_size if edit else '' }}" placeholder="50ml, 100g"></div>
+        <div class="fg"><label>Variant / Variety / Type <span class="req">*</span></label><input type="text" name="variant_type" value="{{ edit.variant_type if edit else '' }}" placeholder="Face wash" required></div>
+        <div class="fg"><label>Packaging Type <span class="req">*</span></label><input type="text" name="packaging_type" value="{{ edit.packaging_type if edit else '' }}" placeholder="Fliptop cap with bottle" required></div>
+        <div class="fg"><label>Costing Range <span class="req">*</span></label><input type="text" name="costing_range" value="{{ edit.costing_range if edit else '' }}" placeholder="as per benchmark" required></div>
+        <div class="fg"><label>Ph <span class="req">*</span></label><input type="text" name="ph_value" value="{{ edit.ph_value if edit else '' }}" placeholder="5.5" required></div>
+        <div class="fg"><label>Viscosity <span class="req">*</span></label><input type="text" name="viscosity" value="{{ edit.viscosity if edit else '' }}" placeholder="As per benchmark" required></div>
+        <div class="fg"><label>Fragrance / Flavours <span class="req">*</span></label><input type="text" name="fragrance" value="{{ edit.fragrance if edit else '' }}" placeholder="Mild and pleasant fragrance" required></div>
+        <div class="fg"><label>Appearance <span class="req">*</span></label><input type="text" name="appearance" value="{{ edit.appearance if edit else '' }}" placeholder="Clear gel with smooth texture" required></div>
+        <div class="fg"><label>Order Quantity</label><input type="text" name="order_quantity" value="{{ edit.order_quantity if edit else (prefill_lead.order_quantity if prefill_lead else '') }}" placeholder="5000 units"></div>
+        <div class="fg"><label>Product Range</label><input type="text" name="product_range" value="{{ edit.product_range if edit else (prefill_lead.product_range if prefill_lead else '') }}" placeholder="Premium, Herbal"></div>
+        <div class="fg full"><label>Description <span class="req">*</span></label><textarea name="description" rows="3" placeholder="About this item — detailed product description..." required>{{ edit.description if edit else '' }}</textarea></div>
+        <div class="fg full"><label>Ingredients <span class="req">*</span></label><textarea name="ingredients" rows="3" placeholder="Aqua, Sodium Methyl Cocoyl Taurate..." required>{{ edit.ingredients if edit else '' }}</textarea></div>
+        <div class="fg full"><label>Active Ingredients Required <span class="req">*</span></label><input type="text" name="active_ingredients" value="{{ edit.active_ingredients if edit else '' }}" placeholder="2% Salicylic Acid + Niacinamide + Cica" required></div>
+        <div class="fg full"><label>Product Claim <span class="req">*</span></label><textarea name="product_claim" rows="2" placeholder="Helps fight acne and breakouts..." required>{{ edit.product_claim if edit else '' }}</textarea></div>
+        <div class="fg full"><label>Label Claim <span class="req">*</span></label><textarea name="label_claim" rows="2" placeholder="Helps maintain skin balance..." required>{{ edit.label_claim if edit else '' }}</textarea></div>
+        <div class="fg full"><label>Requirement Specification</label><textarea name="requirement_spec" rows="2" placeholder="Additional formulation requirements...">{{ edit.requirement_spec if edit else (prefill_lead.requirement_spec if prefill_lead else '') }}</textarea></div>
+    </div>
+</div>
+
+<!-- Reference -->
+<div class="form-card">
+    <div class="sec-title">🔗 Reference Product</div>
+    <div class="g3">
+        <div class="fg"><label>Reference Brand</label><input type="text" name="reference_brand" value="{{ edit.reference_brand if edit else '' }}" placeholder="Foxtale, Minimalist"></div>
+        <div class="fg"><label>Reference Product Name</label><input type="text" name="reference_product_name" value="{{ edit.reference_product_name if edit else '' }}" placeholder="Foxtale Oil & Acne Control Face Wash"></div>
+        <div class="fg"><label>Video Link</label><input type="url" name="video_link" value="{{ edit.video_link if edit else '' }}" placeholder="https://www.instagram.com/reel/..."></div>
+        <div class="fg full"><label>Reference / Existing HCP Product</label><input type="text" name="reference_product" value="{{ edit.reference_product if edit else '' }}" placeholder="HCP existing product reference"></div>
+    </div>
+</div>
+
+<!-- Team -->
+<div class="form-card">
+    <div class="sec-title">👥 Team Assignment</div>
+    <div class="g3">
+        <div class="fg"><label>Sales Coordinator (SC)</label><select name="assigned_sc"><option value="">— Select SC —</option>{% for u in users %}<option value="{{ u.id }}" {% if edit and edit.assigned_sc==u.id %}selected{% endif %}>{{ u.full_name }}</option>{% endfor %}</select></div>
+        <div class="fg"><label>R&D Person</label><select name="assigned_rd"><option value="">— Select R&D —</option>{% for u in users %}<option value="{{ u.id }}" {% if edit and edit.assigned_rd==u.id %}selected{% endif %}>{{ u.full_name }}</option>{% endfor %}</select></div>
+        <div class="fg"><label>NPD POC</label><select name="npd_poc"><option value="">— Select POC —</option>{% for u in users %}<option value="{{ u.id }}" {% if edit and edit.npd_poc==u.id %}selected{% endif %}>{{ u.full_name }}</option>{% endfor %}</select></div>
+        <div class="fg"><label>Client Email</label><input type="email" name="client_email" value="{{ edit.client_email if edit else ((prefill_url.client_email if prefill_url else '') or (prefill_lead.email if prefill_lead else '')) }}" placeholder="client@email.com"></div>
+        <div class="fg"><label>Client Phone</label><input type="text" name="client_phone" value="{{ edit.client_phone if edit else ((prefill_url.client_phone if prefill_url else '') or (prefill_lead.phone if prefill_lead else '')) }}" placeholder="+91 99999 99999"></div>
+        <div class="fg"><label>Link to Lead</label><select name="lead_id"><option value="">— Select Lead —</option>{% for lead in leads %}<option value="{{ lead.id }}" {% if (edit and edit.lead_id==lead.id) or (prefill_lead and lead.id==prefill_lead.id) %}selected{% endif %}>{{ lead.code or lead.id }} — {{ lead.contact_name }} / {{ lead.company_name or '' }}</option>{% endfor %}</select></div>
+    </div>
+</div>
+
+<!-- Timeline -->
+<div class="form-card">
+    <div class="sec-title">📅 Timeline</div>
+    <div class="g4">
+        <div class="fg"><label>Project Start Date <span class="req">*</span></label><input type="date" name="project_start_date" id="start_date" value="{{ edit.project_start_date.strftime('%Y-%m-%d') if edit and edit.project_start_date else '' }}" required></div>
+        <div class="fg"><label>Project Lead Time (No of days) <span class="req">*</span></label>
+            <select name="project_lead_days" id="lead_days">
+                <option value="">Select Days</option>
+                {% for d in [7,14,21,30,45,60,90,120] %}<option value="{{ d }}" {% if edit and edit.project_lead_days==d %}selected{% endif %}>{{ d }} days</option>{% endfor %}
+            </select>
+        </div>
+        <div class="fg"><label>Project End Date <span class="req">*</span></label><input type="date" name="project_end_date" id="end_date" value="{{ edit.project_end_date.strftime('%Y-%m-%d') if edit and edit.project_end_date else '' }}" required></div>
+        <div class="fg"><label>Target Sample Date</label><input type="date" name="target_sample_date" value="{{ edit.target_sample_date.strftime('%Y-%m-%d') if edit and edit.target_sample_date else '' }}"></div>
+    </div>
+</div>
+
+<!-- NPD Fee -->
+<div class="form-card">
+    <div class="sec-title">💰 NPD Fee</div>
+    <div class="g3">
+        <div class="fg"><label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;margin-top:1.2rem;"><input type="checkbox" name="npd_fee_paid" {% if edit and edit.npd_fee_paid %}checked{% endif %}><span>NPD Fee Received (₹10,000)</span></label></div>
+        <div class="fg"><label>Amount (₹)</label><input type="number" name="npd_fee_amount" value="{{ edit.npd_fee_amount if edit else 10000 }}" step="1"></div>
+        <div class="fg"><label>Fee Receipt</label><input type="file" name="npd_fee_receipt" accept=".pdf,.jpg,.jpeg,.png">{% if edit and edit.npd_fee_receipt %}<span style="font-size:.72rem;color:var(--text3);">{{ edit.npd_fee_receipt }}</span>{% endif %}</div>
+    </div>
+</div>
+
+{% if not edit %}
+<div class="form-card">
+    <div class="sec-title">⚙️ Select Milestones</div>
+    <div class="ms-grid">
+        {% for tmpl in default_milestones %}<label class="ms-item"><input type="checkbox" name="milestones" value="{{ tmpl.milestone_type }}" {{ 'checked' if tmpl.default_selected else '' }}><span>{{ tmpl.icon if tmpl.icon else '' }} {{ tmpl.title }}</span></label>{% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<div style="display:flex;gap:.5rem;justify-content:flex-end;margin-bottom:2rem;">
+    <a href="{{ url_for('npd.npd_dashboard') }}" class="btn btn-outline">Cancel</a>
+    <button type="submit" style="background:#7c3aed;color:#fff;border:none;padding:.55rem 1.6rem;font-size:.9rem;font-weight:700;border-radius:var(--r-md);cursor:pointer;">{{ '💾 Save Changes' if edit else '🧪 Create NPD Project' }}</button>
+</div>
+</form>
+<script>
+function calcEnd(){var s=document.getElementById('start_date').value;var d=document.getElementById('lead_days').value;if(s&&d){var dt=new Date(s);dt.setDate(dt.getDate()+parseInt(d));document.getElementById('end_date').value=dt.toISOString().split('T')[0];}}
+document.getElementById('start_date').addEventListener('change',calcEnd);
+document.getElementById('lead_days').addEventListener('change',calcEnd);
+</script>
+{% endblock %}

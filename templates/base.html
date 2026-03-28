@@ -1482,6 +1482,7 @@
             {% set _mod = 'crm' %}
         {% elif _pg in ('npd_dashboard','npd_projects','npd_reports','npd_milestone_master',
                         'npd_npd_dashboard','npd_npd_projects','npd_epd_dashboard','npd_epd_projects',
+                        'npd_status_master','milestone_status_master','npd_category_master',
                         'rd_dashboard','rd_projects','rd_trials','rd_executives','rd_performance',
                         'rd_discussion','rd_param_master') %}
             {% set _mod = 'rd' %}
@@ -1557,6 +1558,9 @@
                 {% if role == 'admin' %}
                 <div class="sb-acc-sub-lbl">⚙️ NPD Masters</div>
                 <a class="nav-a" href="/npd/milestone-master"><span class="nav-ic">🎯</span><span class="nav-txt">Milestone Master</span></a>
+                <a class="nav-a {% if _pg == 'npd_status_master' %}active{% endif %}" href="/masters/npd-status"><span class="nav-ic">⚙️</span><span class="nav-txt">NPD Status Master</span></a>
+                <a class="nav-a {% if _pg == 'npd_category_master' %}active{% endif %}" href="/masters/npd-category"><span class="nav-ic">🗂️</span><span class="nav-txt">NPD Category Master</span></a>
+                <a class="nav-a {% if _pg == 'milestone_status_master' %}active{% endif %}" href="/masters/milestone-status"><span class="nav-ic">🎖️</span><span class="nav-txt">Milestone Status</span></a>
                 <a class="nav-a" href="/rd/param-master"><span class="nav-ic">🔧</span><span class="nav-txt">Parameter Master</span></a>
                 <a class="nav-a" href="/npd/reports"><span class="nav-ic">📈</span><span class="nav-txt">Reports</span></a>
                 {% endif %}
@@ -1733,6 +1737,15 @@
             <div class="sb-sec-lbl">⚙️ NPD Masters</div>
             <a class="nav-a {% if _pg == 'npd_milestone_master' %}active{% endif %}" href="/npd/milestone-master">
                 <span class="nav-ic">🎯</span><span class="nav-txt">Milestone Master</span>
+            </a>
+            <a class="nav-a {% if _pg == 'npd_status_master' %}active{% endif %}" href="/masters/npd-status">
+                <span class="nav-ic">⚙️</span><span class="nav-txt">NPD Status Master</span>
+            </a>
+            <a class="nav-a {% if _pg == 'npd_category_master' %}active{% endif %}" href="/masters/npd-category">
+                <span class="nav-ic">🗂️</span><span class="nav-txt">NPD Category Master</span>
+            </a>
+            <a class="nav-a {% if _pg == 'milestone_status_master' %}active{% endif %}" href="/masters/milestone-status">
+                <span class="nav-ic">🎖️</span><span class="nav-txt">Milestone Status</span>
             </a>
             <a class="nav-a {% if _pg == 'rd_param_master' %}active{% endif %}" href="/rd/param-master">
                 <span class="nav-ic">🔧</span><span class="nav-txt">Parameter Master</span>

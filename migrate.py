@@ -1123,6 +1123,180 @@ with app.app_context():
         ok("npd_notes table created")
 
     # ══════════════════════════════════════════════════════
+    # STEP 11C — NPD Statuses table create + seed
+    # ══════════════════════════════════════════════════════
+    step("STEP 11C: npd_statuses table create kar raha hai...")
+    if not table_exists('npd_statuses'):
+        cur.execute("""
+            CREATE TABLE npd_statuses (
+                id          INT AUTO_INCREMENT PRIMARY KEY,
+                name        VARCHAR(100) NOT NULL,
+                slug        VARCHAR(60)  NOT NULL UNIQUE,
+                color       VARCHAR(20)  DEFAULT '#6b7280',
+                icon        VARCHAR(10)  DEFAULT '🔵',
+                sort_order  INT          DEFAULT 0,
+                is_active   TINYINT(1)   DEFAULT 1,
+                created_at  DATETIME     DEFAULT CURRENT_TIMESTAMP,
+                created_by  INT          NULL,
+                modified_by INT          NULL,
+                modified_at DATETIME     NULL
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        """)
+        raw.commit()
+        ok("npd_statuses table created")
+    else:
+        ok("npd_statuses table already exists")
+
+    # Seed default statuses (DELETE + re-seed for fresh data)
+    cur.execute("SELECT COUNT(*) FROM npd_statuses")
+    ns_count = cur.fetchone()[0]
+    if ns_count == 0:
+        npd_status_defaults = [
+            # (name,                                slug,                 color,     icon, sort)
+            # ── Project Statuses ──
+            ('Not Started',                         'not_started',        '#6b7280', '⭕', 1),
+            ('Sample Inprocess',                    'sample_inprocess',   '#8b5cf6', '🔄', 2),
+            ('Sample Send to Client',               'sample_sent',        '#06b6d4', '📤', 3),
+            ('On Hold',                             'on_hold',            '#f59e0b', '⏸️', 4),
+            ('Sample Rejected',                     'sample_rejected',    '#ef4444', '❌', 5),
+            ('Sample Approved',                     'sample_approved',    '#10b981', '✅', 6),
+            ('Cancelled',                           'cancelled',          '#dc2626', '🚫', 7),
+            ('Finish',                              'finish',             '#22c55e', '🏁', 8),
+            ('Sample Ready',                        'sample_ready',       '#3b82f6', '📦', 9),
+            ('Sent to Office',                      'sent_to_office',     '#6366f1', '🏢', 10),
+            ('Rejected by Office',                  'rejected_by_office', '#f97316', '🔴', 11),
+            ('Assign',                              'assign',             '#64748b', '👤', 12),
+            ('Assigned',                            'assigned',           '#7c3aed', '✔️', 13),
+            # ── Milestone Names ──
+            ('BOM',                                 'bom',                '#7c3aed', '📄', 14),
+            ('Ingredients List & Marketing Sheet',  'ingredients',        '#2563eb', '📋', 15),
+            ('Quotation',                           'quotation',          '#d97706', '💰', 16),
+            ('Packing Material',                    'packing_material',   '#059669', '📦', 17),
+            ('Artwork / Design',                    'artwork',            '#db2777', '🎨', 18),
+            ('Artwork QC Approval',                 'artwork_qc',         '#10b981', '✅', 19),
+            ('FDA',                                 'fda',                '#1d4ed8', '🏛️', 20),
+            ('Barcode',                             'barcode',            '#374151', '🔢', 21),
+        ]
+        for name, slug, color, icon, sort in npd_status_defaults:
+            cur.execute(
+                "INSERT IGNORE INTO npd_statuses (name, slug, color, icon, sort_order, is_active) VALUES (%s,%s,%s,%s,%s,1)",
+                (name, slug, color, icon, sort)
+            )
+        raw.commit()
+        ok(f"npd_statuses: {len(npd_status_defaults)} statuses seeded!")
+        for name, slug, color, icon, sort in npd_status_defaults:
+            print(f"     [{sort}] {icon} {name}  ({slug})")
+    else:
+        # Already seeded — missing milestone names add karo
+        milestone_names = [
+            ('BOM',                                 'bom',                '#7c3aed', '📄', 14),
+            ('Ingredients List & Marketing Sheet',  'ingredients',        '#2563eb', '📋', 15),
+            ('Quotation',                           'quotation',          '#d97706', '💰', 16),
+            ('Packing Material',                    'packing_material',   '#059669', '📦', 17),
+            ('Artwork / Design',                    'artwork',            '#db2777', '🎨', 18),
+            ('Artwork QC Approval',                 'artwork_qc',         '#10b981', '✅', 19),
+            ('FDA',                                 'fda',                '#1d4ed8', '🏛️', 20),
+            ('Barcode',                             'barcode',            '#374151', '🔢', 21),
+        ]
+        added = 0
+        for name, slug, color, icon, sort in milestone_names:
+            cur.execute("SELECT COUNT(*) FROM npd_statuses WHERE slug=%s", (slug,))
+            if cur.fetchone()[0] == 0:
+                cur.execute(
+                    "INSERT INTO npd_statuses (name, slug, color, icon, sort_order, is_active) VALUES (%s,%s,%s,%s,%s,1)",
+                    (name, slug, color, icon, sort)
+                )
+                added += 1
+        raw.commit()
+        ok(f"npd_statuses: {ns_count} existing + {added} milestone names added") if added else ok(f"npd_statuses: {ns_count} records already exist — skip")
+
+    # ══════════════════════════════════════════════════════
+    # STEP 11B — NPD Project: missing columns add karo
+    # ══════════════════════════════════════════════════════
+    step("STEP 11B: npd_projects — missing columns add kar raha hai...")
+
+    npd_cols = [
+        # Extended product fields (new form fields)
+        ('client_coordinator',      'VARCHAR(200)'),
+        ('area_of_application',     'VARCHAR(200)'),
+        ('assigned_members',        'VARCHAR(500)'),
+        ('assigned_rd_members',     'VARCHAR(500)'),
+        ('client_id',               'INT NULL'),
+        ('market_level',            'VARCHAR(300)'),
+        ('no_of_samples',           'INT DEFAULT 0'),
+        ('moq',                     'VARCHAR(100)'),
+        ('product_size',            'VARCHAR(100)'),
+        ('description',             'TEXT'),
+        ('ingredients',             'TEXT'),
+        ('active_ingredients',      'VARCHAR(500)'),
+        ('video_link',              'VARCHAR(500)'),
+        ('reference_brand',         'VARCHAR(200)'),
+        ('reference_product_name',  'VARCHAR(300)'),
+        ('variant_type',            'VARCHAR(200)'),
+        ('appearance',              'VARCHAR(500)'),
+        ('product_claim',           'TEXT'),
+        ('label_claim',             'TEXT'),
+        ('costing_range',           'VARCHAR(200)'),
+        ('ph_value',                'VARCHAR(50)'),
+        ('packaging_type',          'VARCHAR(200)'),
+        ('fragrance',               'VARCHAR(200)'),
+        ('viscosity',               'VARCHAR(200)'),
+        ('priority',                "VARCHAR(50) DEFAULT 'Normal'"),
+        ('project_start_date',      'DATE'),
+        ('project_lead_days',       'INT'),
+        ('project_end_date',        'DATE'),
+        # Fee
+        ('npd_fee_paid',            'TINYINT(1) DEFAULT 0'),
+        ('npd_fee_amount',          'DECIMAL(10,2) DEFAULT 10000'),
+        ('npd_fee_receipt',         'VARCHAR(300)'),
+        # Soft delete
+        ('is_deleted',              'TINYINT(1) NOT NULL DEFAULT 0'),
+        ('deleted_at',              'DATETIME NULL'),
+        ('deleted_by',              'INT NULL'),
+        # Audit
+        ('updated_by',              'INT NULL'),
+        ('updated_at',              'DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP'),
+        # Misc
+        ('last_connected',           'DATETIME NULL'),
+        ('cancel_reason',           'TEXT'),
+        ('cancelled_at',            'DATETIME'),
+        ('completed_at',            'DATETIME'),
+        ('target_sample_date',      'DATE'),
+        ('delay_reason',            'TEXT'),
+        ('last_delay_update',       'DATETIME'),
+        ('advance_paid',            'TINYINT(1) DEFAULT 0'),
+        ('advance_amount',          'DECIMAL(10,2) DEFAULT 2000'),
+        ('advance_receipt',         'VARCHAR(300)'),
+        ('converted_to_commercial', 'TINYINT(1) DEFAULT 0'),
+        ('commercial_converted_at', 'DATETIME'),
+        ('milestone_master_created','TINYINT(1) DEFAULT 0'),
+        ('rd_param_defaults',       'TEXT'),
+    ]
+    npd_added = sum(1 for col, defn in npd_cols if safe_add('npd_projects', col, defn))
+    ok(f"npd_projects: {npd_added} new columns added") if npd_added else ok("npd_projects: all columns already exist")
+
+    # milestone_masters missing columns
+    ms_cols = [
+        ('milestone_type',  'VARCHAR(50)'),
+        ('description',     'TEXT'),
+        ('is_selected',     'TINYINT(1) DEFAULT 1'),
+        ('sort_order',      'INT DEFAULT 0'),
+        ('target_date',     'DATE'),
+        ('completed_at',    'DATETIME'),
+        ('assigned_to',     'INT'),
+        ('approved_by',     'INT'),
+        ('approved_at',     'DATETIME'),
+        ('attachments',     'TEXT'),
+        ('notes',           'TEXT'),
+        ('reject_reason',   'TEXT'),
+        ('updated_at',      'DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP'),
+    ]
+    ms_added = sum(1 for col, defn in ms_cols if safe_add('milestone_masters', col, defn))
+    ok(f"milestone_masters: {ms_added} columns added") if ms_added else ok("milestone_masters: all columns already exist")
+
+    raw.commit()
+
+    # ══════════════════════════════════════════════════════
     # STEP 12 — R&D Test Parameter Master table + seed
     # ══════════════════════════════════════════════════════
     step("STEP 12: rd_test_parameters table create kar raha hai...")
@@ -1194,32 +1368,109 @@ with app.app_context():
     if not table_exists('npd_milestone_templates'):
         ok("npd_milestone_templates table exist nahi — skip (pehle migrate chalao)")
     else:
-        cur.execute("SELECT COUNT(*) FROM npd_milestone_templates")
-        ms_count = cur.fetchone()[0]
+        # Pehle purane sab delete karo, fresh seed karo
+        cur.execute("DELETE FROM npd_milestone_templates")
+        raw.commit()
 
-        if ms_count == 0:
-            default_milestones = [
-                # (milestone_type,  title,                                      icon,  applies_to, default_selected, is_mandatory, sort_order)
-                ('ingredients',     'Ingredients List & Marketing Sheet (BOM)', '📋', 'both',     1, 0, 1),
-                ('quotation',       'Quotation',                                '💰', 'both',     1, 0, 2),
-                ('packing_material','Packing Material (PM)',                    '📦', 'both',     1, 0, 3),
-                ('artwork',         'Artwork / Design',                         '🎨', 'both',     1, 0, 4),
-                ('qc_fda',          'QC Approval & FDA',                        '✅', 'both',     1, 0, 5),
-                ('barcode',         'Barcode',                                  '🔢', 'both',     1, 0, 6),
-            ]
-            seeded = 0
-            for mtype, title, icon, applies_to, default_sel, is_mandatory, sort in default_milestones:
-                cur.execute("""
-                    INSERT IGNORE INTO npd_milestone_templates
-                    (milestone_type, title, icon, applies_to, default_selected, is_mandatory, sort_order, is_active, created_by)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, 1, 1)
-                """, (mtype, title, icon, applies_to, default_sel, is_mandatory, sort))
-                if cur.rowcount > 0:
-                    seeded += 1
-            raw.commit()
-            ok(f"NPD Milestone Templates: {seeded} default milestones seeded!")
-        else:
-            ok(f"NPD Milestone Templates: {ms_count} records already exist — seed skip")
+        new_milestones = [
+            # (milestone_type,      title,                                icon,  applies_to, default_selected, is_mandatory, sort_order)
+            ('bom',                 'BOM',                                '📄', 'both', 1, 0, 1),
+            ('ingredients',         'Ingredients List & Marketing Sheet', '📋', 'both', 1, 0, 2),
+            ('quotation',           'Quotation',                          '💰', 'both', 1, 0, 3),
+            ('packing_material',    'Packing Material',                   '📦', 'both', 1, 0, 4),
+            ('artwork',             'Artwork / Design',                   '🎨', 'both', 1, 0, 5),
+            ('artwork_qc',          'Artwork QC Approval',                '✅', 'both', 1, 0, 6),
+            ('fda',                 'FDA',                                '🏛️', 'both', 1, 0, 7),
+            ('barcode',             'Barcode',                            '🔢', 'both', 1, 0, 8),
+        ]
+        seeded = 0
+        for mtype, title, icon, applies_to, default_sel, is_mandatory, sort in new_milestones:
+            cur.execute("""
+                INSERT INTO npd_milestone_templates
+                (milestone_type, title, icon, applies_to, default_selected, is_mandatory, sort_order, is_active, created_by)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, 1, 1)
+            """, (mtype, title, icon, applies_to, default_sel, is_mandatory, sort))
+            seeded += 1
+        raw.commit()
+        ok(f"NPD Milestone Templates: {seeded} milestones seeded!")
+
+        # Show current list
+        cur.execute("SELECT sort_order, icon, title FROM npd_milestone_templates ORDER BY sort_order")
+        for row in cur.fetchall():
+            print(f"     [{row[0]}] {row[1]} {row[2]}")
+
+    # ══════════════════════════════════════════════════════
+    # STEP 13B — Milestone Status Master table + seed
+    # ══════════════════════════════════════════════════════
+    step("STEP 13B: milestone_statuses table create kar raha hai...")
+
+    if not table_exists('milestone_statuses'):
+        cur.execute("""
+            CREATE TABLE milestone_statuses (
+                id          INT AUTO_INCREMENT PRIMARY KEY,
+                name        VARCHAR(100) NOT NULL,
+                slug        VARCHAR(60)  NOT NULL UNIQUE,
+                color       VARCHAR(20)  DEFAULT '#6b7280',
+                icon        VARCHAR(10)  DEFAULT '🔵',
+                sort_order  INT          DEFAULT 0,
+                is_active   TINYINT(1)   DEFAULT 1,
+                created_at  DATETIME     DEFAULT CURRENT_TIMESTAMP,
+                created_by  INT          NULL,
+                modified_by INT          NULL,
+                modified_at DATETIME     NULL
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        """)
+        raw.commit()
+        ok("milestone_statuses table created")
+    else:
+        ok("milestone_statuses table already exists")
+
+    # Seed statuses + milestone names
+    cur.execute("SELECT COUNT(*) FROM milestone_statuses")
+    ms_st_count = cur.fetchone()[0]
+    if ms_st_count == 0:
+        milestone_status_defaults = [
+            # (name,                                slug,                 color,     icon, sort)
+            # ── General statuses ──
+            ('Pending',                             'pending',            '#6b7280', '⏳', 1),
+            ('In Progress',                         'in_progress',        '#f59e0b', '🔄', 2),
+            ('Approved',                            'approved',           '#10b981', '✅', 3),
+            ('Rejected',                            'rejected',           '#ef4444', '❌', 4),
+            ('Skipped',                             'skipped',            '#94a3b8', '⏭️', 5),
+            # ── Milestone names ──
+            ('BOM',                                 'bom',                '#7c3aed', '📄', 6),
+            ('Ingredients List & Marketing Sheet',  'ingredients',        '#2563eb', '📋', 7),
+            ('Quotation',                           'quotation',          '#d97706', '💰', 8),
+            ('Packing Material',                    'packing_material',   '#059669', '📦', 9),
+            ('Artwork / Design',                    'artwork',            '#db2777', '🎨', 10),
+            ('Artwork QC Approval',                 'artwork_qc',         '#10b981', '✅', 11),
+            ('FDA',                                 'fda',                '#1d4ed8', '🏛️', 12),
+            ('Barcode',                             'barcode',            '#374151', '🔢', 13),
+        ]
+        for name, slug, color, icon, sort in milestone_status_defaults:
+            cur.execute(
+                "INSERT IGNORE INTO milestone_statuses (name, slug, color, icon, sort_order, is_active) VALUES (%s,%s,%s,%s,%s,1)",
+                (name, slug, color, icon, sort)
+            )
+        raw.commit()
+        ok(f"milestone_statuses: {len(milestone_status_defaults)} records seeded!")
+        for name, slug, color, icon, sort in milestone_status_defaults:
+            print(f"     [{sort}] {icon} {name}  ({slug})")
+    else:
+        # Already has some — just add missing milestone names
+        cur.execute("SELECT milestone_type, title, icon FROM npd_milestone_templates WHERE is_active=1 ORDER BY sort_order")
+        templates = cur.fetchall()
+        added = 0
+        for idx, (mtype, title, icon) in enumerate(templates, 20):
+            cur.execute("SELECT COUNT(*) FROM milestone_statuses WHERE slug=%s", (mtype,))
+            if cur.fetchone()[0] == 0:
+                cur.execute(
+                    "INSERT INTO milestone_statuses (name, slug, color, icon, sort_order, is_active) VALUES (%s,%s,'#6b7280',%s,%s,1)",
+                    (title, mtype, icon, idx)
+                )
+                added += 1
+        raw.commit()
+        ok(f"milestone_statuses: {ms_st_count} records exist, {added} milestone names added") if added else ok(f"milestone_statuses: {ms_st_count} records already exist — skip")
 
     # ══════════════════════════════════════════════════════
     # STEP 14 — User-wise Permission Table
@@ -1256,6 +1507,33 @@ with app.app_context():
         ok("user_permissions + role_permissions can_import column ready")
 
    
+    # ══════════════════════════════════════════════════════
+    # STEP 14B — Remove deprecated NPD columns
+    # ══════════════════════════════════════════════════════
+    step("STEP 14B: npd_projects se deprecated columns remove kar raha hai...")
+
+    def safe_drop(table, col):
+        """Drop column only if it exists."""
+        if table_exists(table) and col_exists(table, col):
+            try:
+                cur.execute(f"ALTER TABLE `{table}` DROP COLUMN `{col}`")
+                raw.commit()
+                ok(f"{table}.{col} dropped ✓")
+                return True
+            except Exception as e:
+                warn(f"Could not drop {table}.{col}: {e}")
+        else:
+            warn(f"{table}.{col} — already removed or doesn't exist, skip")
+        return False
+
+    drop_cols = [
+        ('npd_projects', 'assigned_sc'),
+        ('npd_projects', 'assigned_rd'),
+        ('npd_projects', 'npd_poc'),
+    ]
+    for table, col in drop_cols:
+        safe_drop(table, col)
+
     raw.close()
 
     # ══════════════════════════════════════════════════════

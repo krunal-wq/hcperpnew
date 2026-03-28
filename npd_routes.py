@@ -3,7 +3,7 @@ npd_routes.py — Product Development Workflow
 Blueprint: npd at /npd
 """
 
-import os, json
+import os, json, csv, io
 from datetime import datetime, date
 from flask import (Blueprint, render_template, redirect, url_for,
                    request, flash, jsonify, current_app)
@@ -16,6 +16,47 @@ from models import (db, User, Lead, NPDMilestoneTemplate,
 
 from permissions import get_perm, get_sub_perm
 npd = Blueprint('npd', __name__, url_prefix='/npd')
+
+# ── NPD Grid Columns ──
+NPD_COLS_DEFAULT = ['created_at','code','category','client_name','product_name','assigned_members','reference_brand','priority','last_connected','milestones','project_age','status','project_start_date']
+
+NPD_COLS_ALL = {
+    'created_at':        'Create Date',
+    'code':              'Project No',
+    'category':          'Category',
+    'client_name':       'Client Name',
+    'product_name':      'Product Name',
+    'assigned_members':  'Members',
+    'reference_brand':   'Reference Brand',
+    'priority':          'Priority',
+    'last_connected':    'Last Connected',
+    'milestones':        'Milestones',
+    'project_age':       'TAT',
+    'status':            'Status',
+    'project_start_date':'Start Date',
+    'client_company':    'Company',
+    'client_email':      'Client Email',
+    'client_phone':      'Client Phone',
+    'market_level':      'Market Level',
+    'npd_fee_paid':      'NPD Fee',
+    'product_category':  'Product Category',
+    'area_of_application':'Area of Application',
+    'viscosity':         'Viscosity',
+    'ph_value':          'pH',
+    'fragrance':         'Fragrance',
+    'packaging_type':    'Packaging',
+    'costing_range':     'Costing Range',
+}
+
+def _parse_date(val):
+    """Parse DD-MM-YYYY or YYYY-MM-DD date string, return date or None."""
+    if not val or not val.strip(): return None
+    val = val.strip()
+    from datetime import datetime
+    for fmt in ('%d-%m-%Y', '%Y-%m-%d', '%d/%m/%Y'):
+        try: return datetime.strptime(val, fmt).date()
+        except: pass
+    return None
 
 UPLOAD_FOLDER = os.path.join(os.path.dirname(__file__), 'static', 'uploads', 'npd')
 ALLOWED = {'pdf','png','jpg','jpeg','gif','doc','docx','xls','xlsx','txt','zip'}
@@ -114,7 +155,7 @@ def dashboard():
     total       = NPDProject.query.filter_by(is_deleted=False).count()
     active      = NPDProject.query.filter(
                     NPDProject.is_deleted==False,
-                    NPDProject.status.notin_(['complete','cancelled'])).count()
+                    NPDProject.status.notin_(['finish','cancelled'])).count()
     completed   = NPDProject.query.filter_by(is_deleted=False, status='complete').count()
     cancelled   = NPDProject.query.filter_by(is_deleted=False, status='cancelled').count()
     npd_count   = NPDProject.query.filter_by(is_deleted=False, project_type='npd').count()
@@ -149,13 +190,7 @@ def dashboard():
 
     # SC performance
     from sqlalchemy import case
-    sc_stats = db.session.query(
-        User.full_name,
-        func.count(NPDProject.id).label('total'),
-        func.sum(case((NPDProject.status=='complete',1),else_=0)).label('completed')
-    ).join(NPDProject, NPDProject.assigned_sc==User.id)\
-     .filter(NPDProject.is_deleted==False)\
-     .group_by(User.id, User.full_name).all()
+    sc_stats = []
 
     return render_template('npd/dashboard.html',
         active_page='npd_dashboard',
@@ -180,7 +215,7 @@ def projects():
     q        = request.args.get('q','').strip()
     ptype    = request.args.get('type','')
     status   = request.args.get('status','')
-    sc_id    = request.args.get('sc','')
+    sc_id  = ''
     page     = request.args.get('page', 1, type=int)
 
     query = NPDProject.query.filter_by(is_deleted=False)
@@ -198,8 +233,6 @@ def projects():
         query = query.filter_by(project_type=ptype)
     if status:
         query = query.filter_by(status=status)
-    if sc_id:
-        query = query.filter_by(assigned_sc=int(sc_id))
 
     projects = query.order_by(NPDProject.created_at.desc()).paginate(page=page, per_page=25)
 
@@ -241,14 +274,20 @@ def new_project():
             prefill_lead = LeadModel.query.get(int(prefill_lead_id))
         except: pass
 
-    # Also support direct client_* URL params (from client list page)
-    prefill_url = {
-        'client_name':    request.args.get('client_name', ''),
-        'client_company': request.args.get('client_company', ''),
-        'client_email':   request.args.get('client_email', ''),
-        'client_phone':   request.args.get('client_phone', ''),
-        'product_name':   request.args.get('product', ''),
-    }
+    # Support client_id param — fetch client data securely from DB
+    prefill_url = {'client_id': '', 'client_name': '', 'client_company': '', 'client_email': '', 'client_phone': '', 'product_name': request.args.get('product', '')}
+    _cid = request.args.get('client_id')
+    if _cid:
+        try:
+            from models.client import ClientMaster
+            _cl = ClientMaster.query.get(int(_cid))
+            if _cl:
+                prefill_url['client_id']      = str(_cl.id)
+                prefill_url['client_name']    = _cl.contact_name or ''
+                prefill_url['client_company'] = _cl.company_name or ''
+                prefill_url['client_email']   = _cl.email or ''
+                prefill_url['client_phone']   = _cl.mobile or ''
+        except: pass
 
     if request.method == 'POST':
         ptype       = request.form.get('project_type','npd')
@@ -269,9 +308,6 @@ def new_project():
             client_email    = request.form.get('client_email',''),
             client_phone    = request.form.get('client_phone',''),
             lead_id         = request.form.get('lead_id') or None,
-            assigned_sc     = request.form.get('assigned_sc') or None,
-            assigned_rd     = request.form.get('assigned_rd') or None,
-            npd_poc         = request.form.get('npd_poc') or None,
             requirement_spec= request.form.get('requirement_spec',''),
             reference_product= request.form.get('reference_product',''),
             custom_formulation= 'custom_formulation' in request.form,
@@ -456,9 +492,8 @@ def edit_project(pid):
         proj.client_email    = request.form.get('client_email', '')
         proj.client_phone    = request.form.get('client_phone', '')
         proj.lead_id         = request.form.get('lead_id') or None
-        proj.assigned_sc     = request.form.get('assigned_sc') or None
-        proj.assigned_rd     = request.form.get('assigned_rd') or None
-        proj.npd_poc         = request.form.get('npd_poc') or None
+        proj.assigned_members     = request.form.get('assigned_members', '')
+        proj.assigned_rd_members  = request.form.get('assigned_rd_members', '')
         proj.requirement_spec= request.form.get('requirement_spec', '')
         proj.reference_product= request.form.get('reference_product', '')
         proj.custom_formulation= 'custom_formulation' in request.form
@@ -487,9 +522,38 @@ def edit_project(pid):
     else:
         tmpl = 'npd/epd_form.html'
 
+    from models.employee import Employee
+    from models.master import NPDStatus, CategoryMaster
+    from models.client import ClientMaster
+    categories = CategoryMaster.query.filter_by(status=True, is_deleted=False).order_by(CategoryMaster.name).all()
+    employees = Employee.query.filter_by(is_deleted=False).order_by(Employee.first_name).all()
+    rd_employees = Employee.query.filter(
+        Employee.is_deleted==False,
+        db.or_(
+            Employee.department.ilike('%r&d%'),
+            Employee.department.ilike('%rd%'),
+            Employee.department.ilike('%research%'),
+            Employee.department.ilike('%r & d%'),
+            Employee.designation.ilike('%r&d%'),
+            Employee.designation.ilike('%r & d%'),
+            Employee.designation.ilike('%formulation%'),
+            Employee.designation.ilike('%scientist%'),
+            Employee.designation.ilike('%chemist%'),
+        )
+    ).order_by(Employee.first_name).all()
+    if not rd_employees:
+        rd_employees = employees
+    npd_statuses = NPDStatus.query.filter_by(is_active=True).order_by(NPDStatus.sort_order).all()
+    clients = ClientMaster.query.filter_by(is_deleted=False).order_by(ClientMaster.contact_name).all()
+
     return render_template(tmpl,
         active_page='npd_projects',
         edit=proj, users=users, leads=leads,
+        employees=employees,
+        rd_employees=rd_employees,
+        npd_statuses=npd_statuses,
+        clients=clients,
+        categories=categories,
         prefill_lead=None, prefill_url={},
         default_milestones=get_milestone_templates(proj.project_type),
     )
@@ -539,7 +603,19 @@ def delete_project(pid):
     proj.deleted_by = current_user.id
     db.session.commit()
     flash(f'Project {proj.code} deleted.', 'warning')
-    return redirect(url_for('npd.projects'))
+    return redirect(url_for('npd.npd_projects'))
+
+
+@npd.route('/projects/<int:pid>/restore', methods=['POST'])
+@login_required
+def restore_project(pid):
+    proj = NPDProject.query.filter_by(id=pid, is_deleted=True).first_or_404()
+    proj.is_deleted = False
+    proj.deleted_at = None
+    proj.deleted_by = None
+    db.session.commit()
+    flash(f'Project {proj.code} restored successfully!', 'success')
+    return redirect(url_for('npd.npd_projects'))
 
 
 # ══════════════════════════════════════════════════════════════
@@ -877,14 +953,7 @@ def reports():
     rejection_ratio = round((form_rejected/form_total)*100, 1) if form_total else 0
 
     # SC performance
-    sc_stats = db.session.query(
-        User.full_name,
-        func.count(NPDProject.id).label('total'),
-        func.sum(case((NPDProject.status=='complete',1),else_=0)).label('completed'),
-        func.sum(case((NPDProject.status=='cancelled',1),else_=0)).label('cancelled'),
-    ).join(NPDProject, NPDProject.assigned_sc==User.id)\
-     .filter(NPDProject.is_deleted==False)\
-     .group_by(User.id, User.full_name).all()
+    sc_stats = []
 
     # Milestone delay analysis
     overdue_ms = db.session.query(MilestoneMaster, NPDProject).join(
@@ -1112,7 +1181,6 @@ def convert_lead(lead_id, project_type):
         product_range    = lead.product_range or '',
         order_quantity   = lead.order_quantity or '',
         requirement_spec = lead.requirement_spec or lead.notes or '',
-        assigned_sc      = lead.assigned_to,
         npd_fee_paid     = False,
         npd_fee_amount   = 10000 if project_type == 'npd' else 0,
         milestone_master_created = True,
@@ -1233,7 +1301,7 @@ def npd_dashboard():
     projects = NPDProject.query.filter_by(is_deleted=False, project_type=ptype)\
                    .order_by(NPDProject.created_at.desc()).all()
     total     = len(projects)
-    active    = sum(1 for p in projects if p.status not in ('complete','cancelled'))
+    active    = sum(1 for p in projects if p.status not in ('finish','cancelled'))
     completed = sum(1 for p in projects if p.status == 'complete')
     cancelled = sum(1 for p in projects if p.status == 'cancelled')
 
@@ -1248,13 +1316,7 @@ def npd_dashboard():
                         MilestoneMaster.status=='approved').count()
     ms_pct   = round((ms_done/ms_total)*100, 1) if ms_total else 0
 
-    sc_stats = db.session.query(
-        User.full_name,
-        func.count(NPDProject.id).label('total'),
-        func.sum(case((NPDProject.status=='complete',1),else_=0)).label('completed')
-    ).join(NPDProject, NPDProject.assigned_sc==User.id)\
-     .filter(NPDProject.is_deleted==False, NPDProject.project_type==ptype)\
-     .group_by(User.id, User.full_name).all()
+    sc_stats = []
 
     perm = get_perm('npd')
     return render_template('npd/npd_dashboard.html',
@@ -1270,12 +1332,17 @@ def npd_dashboard():
 @npd.route('/npd-projects')
 @login_required
 def npd_projects():
-    q      = request.args.get('q','').strip()
-    status = request.args.get('status','')
-    sc_id  = request.args.get('sc','')
-    page   = request.args.get('page', 1, type=int)
+    q            = request.args.get('q','').strip()
+    status       = request.args.get('status','')
+    show_deleted = request.args.get('deleted','') == '1'
+    sc_id        = ''
+    page         = request.args.get('page', 1, type=int)
 
-    query = NPDProject.query.filter_by(is_deleted=False, project_type='npd')
+    if show_deleted:
+        query = NPDProject.query.filter_by(is_deleted=True, project_type='npd')
+    else:
+        query = NPDProject.query.filter_by(is_deleted=False, project_type='npd')
+
     if q:
         query = query.filter(db.or_(
             NPDProject.code.ilike(f'%{q}%'),
@@ -1283,21 +1350,283 @@ def npd_projects():
             NPDProject.client_name.ilike(f'%{q}%'),
             NPDProject.client_company.ilike(f'%{q}%'),
         ))
-    if status:
+    if status and not show_deleted:
         query = query.filter_by(status=status)
-    if sc_id:
-        query = query.filter_by(assigned_sc=int(sc_id))
 
+    deleted_count = NPDProject.query.filter_by(is_deleted=True, project_type='npd').count()
     projects = query.order_by(NPDProject.created_at.desc()).paginate(page=page, per_page=25)
     users    = get_users()
     perm = get_perm('npd')
+    from models.master import NPDStatus
+    from permissions import get_grid_columns
+    from datetime import datetime as _dt
+    npd_statuses = NPDStatus.query.filter_by(is_active=True).order_by(NPDStatus.sort_order).all()
+    grid_cols = get_grid_columns('npd_projects', NPD_COLS_DEFAULT, list(NPD_COLS_ALL.keys()))
     return render_template('npd/npd_projects.html',
         active_page='npd_npd_projects',
         projects=projects, q=q, status=status, sc_id=sc_id, users=users, perm=perm,
+        npd_statuses=npd_statuses,
+        grid_cols=grid_cols, all_cols=NPD_COLS_ALL,
+        now=_dt.now,
+        show_deleted=show_deleted,
+        deleted_count=deleted_count,
     )
 
 
-@npd.route('/npd-new', methods=['GET','POST'])
+@npd.route('/npd-projects/grid-config', methods=['POST'])
+@login_required
+def npd_grid_config():
+    from permissions import save_grid_columns
+    data = request.get_json()
+    cols = data.get('cols', [])
+    valid = [c for c in cols if c in NPD_COLS_ALL]
+    if not valid:
+        return jsonify(success=False, error='No valid columns')
+    save_grid_columns('npd_projects', valid)
+    return jsonify(success=True)
+
+
+# ══════════════════════════════════════════════════════════════
+# NPD EXPORT
+# ══════════════════════════════════════════════════════════════
+
+@npd.route('/npd-projects/bulk-delete', methods=['POST'])
+@login_required
+def npd_bulk_delete():
+    data = request.get_json()
+    ids  = data.get('ids', [])
+    if not ids:
+        return jsonify(success=False, error='No IDs')
+    NPDProject.query.filter(
+        NPDProject.id.in_([int(i) for i in ids]),
+        NPDProject.is_deleted==False
+    ).update({
+        'is_deleted': True,
+        'deleted_at': datetime.now(),
+        'deleted_by': current_user.id
+    }, synchronize_session=False)
+    db.session.commit()
+    return jsonify(success=True, deleted=len(ids))
+
+
+@npd.route('/npd-projects/export')
+@login_required
+def npd_export():
+    from models.employee import Employee
+    q      = request.args.get('q','').strip()
+    status = request.args.get('status','')
+    sc_id  = request.args.get('sc','')
+
+    query = NPDProject.query.filter_by(is_deleted=False, project_type='npd')
+    if q:
+        query = query.filter(db.or_(
+            NPDProject.code.ilike(f'%{q}%'),
+            NPDProject.product_name.ilike(f'%{q}%'),
+            NPDProject.client_name.ilike(f'%{q}%'),
+        ))
+    if status:
+        query = query.filter_by(status=status)
+    projects = query.order_by(NPDProject.created_at.desc()).all()
+
+    # Build employee id→name map
+    emp_map = {str(e.id): e.full_name for e in Employee.query.filter_by(is_deleted=False).all()}
+    user_map = {u.id: u.full_name for u in User.query.filter_by(is_active=True).all()}
+
+    def emp_names(ids_str):
+        if not ids_str: return ''
+        return ', '.join(emp_map.get(i.strip(), i.strip()) for i in ids_str.split(',') if i.strip())
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+
+    headers = [
+        'Project No', 'Type', 'Status', 'Priority',
+        'Product Name', 'Category', 'Product Range',
+        'Client Name', 'Client Company', 'Client Email', 'Client Phone', 'Client Coordinator',
+        'Area of Application', 'Market Level', 'No of Samples', 'MOQ', 'Product Size',
+        'Description', 'Ingredients', 'Active Ingredients',
+        'Reference Brand', 'Reference Product', 'Reference Product Name',
+        'Variant Type', 'Appearance', 'Product Claim', 'Label Claim',
+        'Costing Range', 'pH Value', 'Packaging Type', 'Fragrance', 'Viscosity',
+        'Video Link', 'Custom Formulation', 'Requirement Spec', 'Order Quantity',
+        'NPD Fee Paid', 'NPD Fee Amount',
+        'Assigned Members', 'Assigned RD Members',
+        'Project Start Date', 'Project End Date', 'Lead Days', 'Target Sample Date',
+        'Delay Reason', 'Converted to Commercial',
+        'Created At', 'Created By',
+    ]
+    writer.writerow(headers)
+
+    for p in projects:
+        writer.writerow([
+            p.code, p.project_type, p.status, p.priority,
+            p.product_name, p.product_category or '', p.product_range or '',
+            p.client_name or '', p.client_company or '', p.client_email or '', p.client_phone or '', p.client_coordinator or '',
+            p.area_of_application or '', p.market_level or '', p.no_of_samples or 0, p.moq or '', p.product_size or '',
+            p.description or '', p.ingredients or '', p.active_ingredients or '',
+            p.reference_brand or '', p.reference_product or '', p.reference_product_name or '',
+            p.variant_type or '', p.appearance or '', p.product_claim or '', p.label_claim or '',
+            p.costing_range or '', p.ph_value or '', p.packaging_type or '', p.fragrance or '', p.viscosity or '',
+            p.video_link or '', 'Yes' if p.custom_formulation else 'No', p.requirement_spec or '', p.order_quantity or '',
+            'Yes' if p.npd_fee_paid else 'No', float(p.npd_fee_amount) if p.npd_fee_amount else '',
+            emp_names(p.assigned_members), emp_names(p.assigned_rd_members),
+            p.project_start_date.strftime('%d-%m-%Y') if p.project_start_date else '',
+            p.project_end_date.strftime('%d-%m-%Y') if p.project_end_date else '',
+            p.project_lead_days or '',
+            p.target_sample_date.strftime('%d-%m-%Y') if p.target_sample_date else '',
+            p.delay_reason or '', 'Yes' if p.converted_to_commercial else 'No',
+            p.created_at.strftime('%d-%m-%Y %H:%M') if p.created_at else '',
+            user_map.get(p.created_by, '') if p.created_by else '',
+        ])
+
+    from flask import Response
+    output.seek(0)
+    filename = f"NPD_Projects_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+    return Response(
+        output.getvalue(),
+        mimetype='text/csv',
+        headers={'Content-Disposition': f'attachment; filename={filename}'}
+    )
+
+
+# ══════════════════════════════════════════════════════════════
+# NPD IMPORT
+# ══════════════════════════════════════════════════════════════
+
+@npd.route('/npd-projects/import', methods=['GET', 'POST'])
+@login_required
+def npd_import():
+    if request.method == 'GET':
+        # Return sample CSV template
+        output = io.StringIO()
+        writer = csv.writer(output)
+        writer.writerow([
+            'Product Name*', 'Category', 'Product Range', 'Status',
+            'Priority', 'Client Name', 'Client Company', 'Client Email', 'Client Phone',
+            'Client Coordinator', 'Area of Application', 'Market Level', 'No of Samples',
+            'MOQ', 'Product Size', 'Description', 'Ingredients', 'Active Ingredients',
+            'Reference Brand', 'Reference Product', 'Variant Type', 'Appearance',
+            'Product Claim', 'Label Claim', 'Costing Range', 'pH Value',
+            'Packaging Type', 'Fragrance', 'Viscosity', 'Order Quantity',
+            'Project Start Date (DD-MM-YYYY)', 'Project End Date (DD-MM-YYYY)',
+            'Target Sample Date (DD-MM-YYYY)', 'Requirement Spec',
+        ])
+        # Sample row
+        writer.writerow([
+            'Sample Face Wash', 'Skin Care', 'Herbal', 'not_started',
+            'Normal', 'John Doe', 'ABC Corp', 'john@abc.com', '9999999999',
+            'Sneha', 'Face', 'Premium', '3',
+            '1000 units', '100ml', 'Gentle face wash', '', '',
+            'Foxtale', 'Oil Face Wash', 'Regular', 'Clear gel',
+            '', '', 'As per benchmark', '5.5-6.5',
+            'Flip cap bottle', 'Fresh', 'Medium', '5000 units',
+            '01-04-2026', '30-06-2026', '15-04-2026', 'Must be SLS free',
+        ])
+        output.seek(0)
+        from flask import Response
+        return Response(
+            output.getvalue(),
+            mimetype='text/csv',
+            headers={'Content-Disposition': 'attachment; filename=NPD_Import_Template.csv'}
+        )
+
+    # POST — process uploaded CSV
+    if 'file' not in request.files:
+        flash('No file uploaded', 'error')
+        return redirect(url_for('npd.npd_projects'))
+
+    f = request.files['file']
+    if not f.filename.endswith('.csv'):
+        flash('Only CSV files are supported', 'error')
+        return redirect(url_for('npd.npd_projects'))
+
+    stream = io.StringIO(f.stream.read().decode('utf-8-sig'))
+    reader = csv.DictReader(stream)
+
+    added = 0
+    errors = []
+
+    for i, row in enumerate(reader, start=2):
+        product_name = (row.get('Product Name*') or row.get('Product Name') or '').strip()
+        if not product_name:
+            errors.append(f'Row {i}: Product Name is required')
+            continue
+        try:
+            def pd(val):
+                v = (val or '').strip()
+                if not v: return None
+                for fmt in ('%d-%m-%Y', '%Y-%m-%d', '%d/%m/%Y'):
+                    try: return datetime.strptime(v, fmt).date()
+                    except: pass
+                return None
+
+            proj = NPDProject(
+                code=gen_npd_code(),
+                project_type='npd',
+                product_name=product_name,
+                product_category=(row.get('Category') or '').strip(),
+                product_range=(row.get('Product Range') or '').strip(),
+                status=(row.get('Status') or 'not_started').strip(),
+                priority=(row.get('Priority') or 'Normal').strip(),
+                client_name=(row.get('Client Name') or '').strip(),
+                client_company=(row.get('Client Company') or '').strip(),
+                client_email=(row.get('Client Email') or '').strip(),
+                client_phone=(row.get('Client Phone') or '').strip(),
+                client_coordinator=(row.get('Client Coordinator') or '').strip(),
+                area_of_application=(row.get('Area of Application') or '').strip(),
+                market_level=(row.get('Market Level') or '').strip(),
+                no_of_samples=int(row.get('No of Samples') or 0),
+                moq=(row.get('MOQ') or '').strip(),
+                product_size=(row.get('Product Size') or '').strip(),
+                description=(row.get('Description') or '').strip(),
+                ingredients=(row.get('Ingredients') or '').strip(),
+                active_ingredients=(row.get('Active Ingredients') or '').strip(),
+                reference_brand=(row.get('Reference Brand') or '').strip(),
+                reference_product=(row.get('Reference Product') or '').strip(),
+                variant_type=(row.get('Variant Type') or '').strip(),
+                appearance=(row.get('Appearance') or '').strip(),
+                product_claim=(row.get('Product Claim') or '').strip(),
+                label_claim=(row.get('Label Claim') or '').strip(),
+                costing_range=(row.get('Costing Range') or '').strip(),
+                ph_value=(row.get('pH Value') or '').strip(),
+                packaging_type=(row.get('Packaging Type') or '').strip(),
+                fragrance=(row.get('Fragrance') or '').strip(),
+                viscosity=(row.get('Viscosity') or '').strip(),
+                order_quantity=(row.get('Order Quantity') or '').strip(),
+                requirement_spec=(row.get('Requirement Spec') or '').strip(),
+                project_start_date=pd(row.get('Project Start Date (DD-MM-YYYY)')),
+                project_end_date=pd(row.get('Project End Date (DD-MM-YYYY)')),
+                target_sample_date=pd(row.get('Target Sample Date (DD-MM-YYYY)')),
+                milestone_master_created=True,
+                created_by=current_user.id,
+            )
+            db.session.add(proj)
+            db.session.flush()
+            # Add default milestones
+            templates = get_milestone_templates('npd')
+            for tmpl in templates:
+                if tmpl.applies_to == 'existing': continue
+                db.session.add(MilestoneMaster(
+                    project_id=proj.id, milestone_type=tmpl.milestone_type,
+                    title=tmpl.title, sort_order=tmpl.sort_order,
+                    is_selected=True if tmpl.is_mandatory else tmpl.default_selected,
+                    status='pending', created_by=current_user.id,
+                ))
+            added += 1
+        except Exception as e:
+            errors.append(f'Row {i}: {str(e)}')
+
+    db.session.commit()
+
+    if added:
+        flash(f'✅ {added} project(s) imported successfully!', 'success')
+    if errors:
+        flash('⚠️ Errors: ' + ' | '.join(errors[:5]), 'warning')
+
+    return redirect(url_for('npd.npd_projects'))
+
+
+@npd.route('/npd-new', methods=['GET', 'POST'])
 @login_required
 def npd_new():
     """NPD only form"""
@@ -1308,12 +1637,19 @@ def npd_new():
     if prefill_lead_id:
         try: prefill_lead = Lead.query.get(int(prefill_lead_id))
         except: pass
-    prefill_url = {
-        'client_name':    request.args.get('client_name',''),
-        'client_company': request.args.get('client_company',''),
-        'client_email':   request.args.get('client_email',''),
-        'client_phone':   request.args.get('client_phone',''),
-    }
+    prefill_url = {'client_id': '', 'client_name': '', 'client_company': '', 'client_email': '', 'client_phone': ''}
+    _cid = request.args.get('client_id')
+    if _cid:
+        try:
+            from models.client import ClientMaster
+            _cl = ClientMaster.query.get(int(_cid))
+            if _cl:
+                prefill_url['client_id']      = str(_cl.id)
+                prefill_url['client_name']    = _cl.contact_name or ''
+                prefill_url['client_company'] = _cl.company_name or ''
+                prefill_url['client_email']   = _cl.email or ''
+                prefill_url['client_phone']   = _cl.mobile or ''
+        except: pass
 
     if request.method == 'POST':
         product_name = request.form.get('product_name','').strip()
@@ -1326,7 +1662,7 @@ def npd_new():
         g = request.form.get  # shorthand
         proj = NPDProject(
             code=gen_npd_code(), project_type='npd',
-            status=g('status','lead_created'),
+            status=g('status','not_started'),
             product_name=product_name,
             product_category=g('product_category',''),
             product_range=g('product_range',''),
@@ -1336,9 +1672,6 @@ def npd_new():
             client_phone=g('client_phone',''),
             client_coordinator=g('client_coordinator',''),
             lead_id=g('lead_id') or None,
-            assigned_sc=g('assigned_sc') or None,
-            assigned_rd=g('assigned_rd') or None,
-            npd_poc=g('npd_poc') or None,
             requirement_spec=g('requirement_spec',''),
             reference_product=g('reference_product',''),
             reference_brand=g('reference_brand',''),
@@ -1367,10 +1700,13 @@ def npd_new():
             fragrance=g('fragrance',''),
             viscosity=g('viscosity',''),
             priority=g('priority','Normal'),
-            project_start_date=g('project_start_date') or None,
+            project_start_date=_parse_date(g('project_start_date')),
             project_lead_days=int(g('project_lead_days') or 0) or None,
-            project_end_date=g('project_end_date') or None,
+            project_end_date=_parse_date(g('project_end_date')),
             target_sample_date=g('target_sample_date') or None,
+            assigned_members=g('assigned_members',''),
+            assigned_rd_members=g('assigned_rd_members',''),
+            client_id=g('client_id') or None,
             milestone_master_created=True,
             created_by=current_user.id,
         )
@@ -1397,12 +1733,42 @@ def npd_new():
         flash(f'NPD Project {proj.code} created!', 'success')
         return redirect(url_for('npd.project_view', pid=proj.id))
 
-    return render_template('npd/npd_form.html',
-        active_page='npd_npd_projects',
-        users=users, leads=leads, edit=None,
-        prefill_lead=prefill_lead, prefill_url=prefill_url,
-        default_milestones=get_milestone_templates('npd'),
-    )
+    if request.method == 'GET':
+        from models.employee import Employee
+        from models.master import NPDStatus, CategoryMaster
+        from models.client import ClientMaster
+        categories = CategoryMaster.query.filter_by(status=True, is_deleted=False).order_by(CategoryMaster.name).all()
+        employees = Employee.query.filter_by(is_deleted=False).order_by(Employee.first_name).all()
+        rd_employees = Employee.query.filter(
+            Employee.is_deleted==False,
+            db.or_(
+                Employee.department.ilike('%r&d%'),
+                Employee.department.ilike('%rd%'),
+                Employee.department.ilike('%research%'),
+                Employee.department.ilike('%r & d%'),
+                Employee.designation.ilike('%r&d%'),
+                Employee.designation.ilike('%r & d%'),
+                Employee.designation.ilike('%formulation%'),
+                Employee.designation.ilike('%scientist%'),
+                Employee.designation.ilike('%chemist%'),
+            )
+        ).order_by(Employee.first_name).all()
+        # Fallback: if no R&D-tagged employees found, show all employees
+        if not rd_employees:
+            rd_employees = employees
+        npd_statuses = NPDStatus.query.filter_by(is_active=True).order_by(NPDStatus.sort_order).all()
+        clients = ClientMaster.query.filter_by(is_deleted=False).order_by(ClientMaster.contact_name).all()
+        return render_template('npd/npd_form.html',
+            active_page='npd_npd_projects',
+            users=users, leads=leads, edit=None,
+            employees=employees,
+            rd_employees=rd_employees,
+            npd_statuses=npd_statuses,
+            clients=clients,
+            categories=categories,
+            prefill_lead=prefill_lead, prefill_url=prefill_url,
+            default_milestones=get_milestone_templates('npd'),
+        )
 
 
 # ══════════════════════════════════════════════════════════════
@@ -1417,7 +1783,7 @@ def epd_dashboard():
     projects = NPDProject.query.filter_by(is_deleted=False, project_type=ptype)\
                    .order_by(NPDProject.created_at.desc()).all()
     total     = len(projects)
-    active    = sum(1 for p in projects if p.status not in ('complete','cancelled'))
+    active    = sum(1 for p in projects if p.status not in ('finish','cancelled'))
     completed = sum(1 for p in projects if p.status == 'complete')
     cancelled = sum(1 for p in projects if p.status == 'cancelled')
 
@@ -1432,13 +1798,7 @@ def epd_dashboard():
                         MilestoneMaster.status=='approved').count()
     ms_pct   = round((ms_done/ms_total)*100, 1) if ms_total else 0
 
-    sc_stats = db.session.query(
-        User.full_name,
-        func.count(NPDProject.id).label('total'),
-        func.sum(case((NPDProject.status=='complete',1),else_=0)).label('completed')
-    ).join(NPDProject, NPDProject.assigned_sc==User.id)\
-     .filter(NPDProject.is_deleted==False, NPDProject.project_type==ptype)\
-     .group_by(User.id, User.full_name).all()
+    sc_stats = []
 
     return render_template('npd/epd_dashboard.html',
         active_page='npd_epd_dashboard',
@@ -1468,8 +1828,6 @@ def epd_projects():
         ))
     if status:
         query = query.filter_by(status=status)
-    if sc_id:
-        query = query.filter_by(assigned_sc=int(sc_id))
 
     projects = query.order_by(NPDProject.created_at.desc()).paginate(page=page, per_page=25)
     users    = get_users()
@@ -1490,12 +1848,19 @@ def epd_new():
     if prefill_lead_id:
         try: prefill_lead = Lead.query.get(int(prefill_lead_id))
         except: pass
-    prefill_url = {
-        'client_name':    request.args.get('client_name',''),
-        'client_company': request.args.get('client_company',''),
-        'client_email':   request.args.get('client_email',''),
-        'client_phone':   request.args.get('client_phone',''),
-    }
+    prefill_url = {'client_id': '', 'client_name': '', 'client_company': '', 'client_email': '', 'client_phone': ''}
+    _cid = request.args.get('client_id')
+    if _cid:
+        try:
+            from models.client import ClientMaster
+            _cl = ClientMaster.query.get(int(_cid))
+            if _cl:
+                prefill_url['client_id']      = str(_cl.id)
+                prefill_url['client_name']    = _cl.contact_name or ''
+                prefill_url['client_company'] = _cl.company_name or ''
+                prefill_url['client_email']   = _cl.email or ''
+                prefill_url['client_phone']   = _cl.mobile or ''
+        except: pass
 
     if request.method == 'POST':
         product_name = request.form.get('product_name','').strip()
@@ -1506,7 +1871,7 @@ def epd_new():
                                    prefill_url=prefill_url, edit=None)
 
         proj = NPDProject(
-            code=gen_npd_code(), project_type='existing', status='lead_created',
+            code=gen_npd_code(), project_type='existing', status='not_started',
             product_name=product_name,
             product_category=request.form.get('product_category',''),
             product_range=request.form.get('product_range',''),
@@ -1515,8 +1880,6 @@ def epd_new():
             client_email=request.form.get('client_email',''),
             client_phone=request.form.get('client_phone',''),
             lead_id=request.form.get('lead_id') or None,
-            assigned_sc=request.form.get('assigned_sc') or None,
-            assigned_rd=request.form.get('assigned_rd') or None,
             requirement_spec=request.form.get('requirement_spec',''),
             reference_product=request.form.get('reference_product',''),
             order_quantity=request.form.get('order_quantity',''),
@@ -1543,9 +1906,12 @@ def epd_new():
         flash(f'EPD Project {proj.code} created!', 'success')
         return redirect(url_for('npd.project_view', pid=proj.id))
 
+    from models.master import CategoryMaster
+    categories = CategoryMaster.query.filter_by(status=True, is_deleted=False).order_by(CategoryMaster.name).all()
     return render_template('npd/epd_form.html',
         active_page='npd_epd_projects',
         users=users, leads=leads, edit=None,
+        categories=categories,
         prefill_lead=prefill_lead, prefill_url=prefill_url,
         default_milestones=get_milestone_templates('existing'),
     )
