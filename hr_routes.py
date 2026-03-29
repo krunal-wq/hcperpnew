@@ -457,8 +457,10 @@ def emp_add():
         qr_b64  = request.form.get('qr_base64', '').strip() or None
 
         rto = request.form.get('reports_to', '').strip()
+        emp_id_val = request.form.get('employee_id', '').strip() or None
         e = Employee(
             employee_code   = emp_code,
+            employee_id     = emp_id_val,
             first_name      = request.form.get('first_name', '').strip(),
             last_name       = request.form.get('last_name', '').strip(),
             mobile          = request.form.get('mobile', '').strip(),
@@ -538,9 +540,12 @@ def emp_add():
         return redirect(url_for('hr.emp_id_card', id=e.id))
 
     all_employees = Employee.query.filter_by(status='active').order_by(Employee.first_name).all()
+    from models.employee import EmployeeTypeMaster, EmployeeLocationMaster
+    emp_types = EmployeeTypeMaster.query.filter_by(is_active=True).order_by(EmployeeTypeMaster.sort_order).all()
+    locations = EmployeeLocationMaster.query.filter_by(is_active=True).order_by(EmployeeLocationMaster.sort_order).all()
     return render_template('hr/employees/form.html',
         employee=None, contractors=contractors, perm=perm, active_page='hr_employees',
-        all_employees=all_employees)
+        all_employees=all_employees, emp_types=emp_types, locations=locations)
 
 
 @hr.route('/employees/<int:id>/edit', methods=['GET', 'POST'])
@@ -567,6 +572,14 @@ def emp_edit(id):
                 flash(f'Code "{new_code}" already in use.', 'error')
                 return redirect(url_for('hr.emp_edit', id=id))
             e.employee_code = new_code
+
+        # Employee ID (Biometric/Device) — editable only if currently blank
+        new_emp_id = request.form.get('employee_id', '').strip()
+        if not e.employee_id and new_emp_id:
+            if Employee.query.filter(Employee.employee_id == new_emp_id, Employee.id != e.id).first():
+                flash(f'Employee ID "{new_emp_id}" already in use.', 'error')
+                return redirect(url_for('hr.emp_edit', id=id))
+            e.employee_id = new_emp_id
 
         e.first_name     = request.form.get('first_name', e.first_name).strip()
         e.last_name      = request.form.get('last_name', e.last_name).strip()
@@ -682,9 +695,12 @@ def emp_edit(id):
         return redirect(url_for('hr.employees'))
 
     all_employees = Employee.query.filter_by(status='active').order_by(Employee.first_name).all()
+    from models.employee import EmployeeTypeMaster, EmployeeLocationMaster
+    emp_types = EmployeeTypeMaster.query.filter_by(is_active=True).order_by(EmployeeTypeMaster.sort_order).all()
+    locations = EmployeeLocationMaster.query.filter_by(is_active=True).order_by(EmployeeLocationMaster.sort_order).all()
     return render_template('hr/employees/form.html',
         employee=e, contractors=contractors, perm=perm, active_page='hr_employees',
-        all_employees=all_employees)
+        all_employees=all_employees, emp_types=emp_types, locations=locations)
 
 
 

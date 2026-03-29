@@ -113,9 +113,9 @@
             <hr class="divider">
             <div id="qrDisplay">
                 {% if employee and employee.qr_code_base64 %}
-                <div class="qr-box"><img src="{{ employee.qr_code_base64 }}" id="qrImg" alt="QR"><div class="qr-lbl">{{ employee.employee_code }}</div></div>
+                <div class="qr-box"><img src="{{ employee.qr_code_base64 }}" id="qrImg" alt="QR"><div class="qr-lbl">{{ employee.employee_id or employee.employee_code }}</div></div>
                 {% else %}
-                <div class="qr-pending" id="qrPending"><span style="font-size:1.6rem;">🔲</span><span>Enter code<br>to generate QR</span></div>
+                <div class="qr-pending" id="qrPending"><span style="font-size:1.6rem;">🔲</span><span>Enter Emp ID<br>to generate QR</span></div>
                 {% endif %}
             </div>
             <div id="qrStatus" class="qr-status"></div>
@@ -131,16 +131,24 @@
                     <input type="text" name="employee_code" id="empCodeInput" class="fi" value="{{ employee.employee_code }}" readonly style="background:#f8fafc;color:var(--text2);font-weight:700;">
                     {% else %}
                     <input type="text" name="employee_code" id="empCodeInput" class="fi" value="" placeholder="e.g. EMP1001">
-                    <span style="font-size:.7rem;color:var(--text3);margin-top:2px;display:block;">QR auto-generates on input</span>
                     {% endif %}
                     <div class="field-err-msg" id="err_emp_code">Employee Code is required.</div>
+                </div>
+                <div class="fg">
+                    <label class="fl">Employee ID <span style="font-size:.68rem;color:var(--text3);font-weight:400;">(Biometric / Device)</span></label>
+                    {% if employee and employee.employee_id %}
+                    <input type="text" name="employee_id" id="empIdInput" class="fi" value="{{ employee.employee_id }}" readonly style="background:#f8fafc;color:var(--text2);font-weight:700;">
+                    {% else %}
+                    <input type="text" name="employee_id" id="empIdInput" class="fi" value="" placeholder="e.g. 1001">
+                    {% endif %}
+                    <span style="font-size:.7rem;color:var(--text3);margin-top:2px;display:block;">QR auto-generates on input</span>
                 </div>
                 <div class="fg">
                     <label class="fl">Employee Type<span class="req-star">*</span></label>
                     <select name="employee_type" id="empTypeSelect" class="fi sd">
                         <option value="">Select</option>
-                        {% for t in ['Full Time','Part Time','Contract','Intern','Consultant'] %}
-                        <option value="{{ t }}" {{ 'selected' if employee and employee.employee_type==t }}>{{ t }}</option>
+                        {% for t in emp_types %}
+                        <option value="{{ t.name }}" {{ 'selected' if employee and employee.employee_type==t.name }}>{{ t.name }}</option>
                         {% endfor %}
                     </select>
                     <div class="field-err-msg" id="err_emp_type">Employee Type is required.</div>
@@ -237,7 +245,9 @@
                 <label class="fl">Location / Branch</label>
                 <select name="location" class="fi sd">
                     <option value="">Select</option>
-                    {% for l in ['Head Office','Branch Office','Site A','Site B','Remote','Warehouse','Factory'] %}<option value="{{ l }}" {{ 'selected' if employee and employee.location==l }}>{{ l }}</option>{% endfor %}
+                    {% for l in locations %}
+                    <option value="{{ l.name }}" {{ 'selected' if employee and employee.location==l.name }}>{{ l.name }}</option>
+                    {% endfor %}
                 </select>
             </div>
             <div class="fg">
@@ -576,15 +586,31 @@ function initQR(){
   qrReady=true;
   if(qrPending){_doGenerate(qrPending);qrPending=null;}
   else{
-    {% if employee and employee.employee_code and not employee.qr_code_base64 %}
-    _doGenerate('{{ employee.employee_code|e }}');
+    {% if employee and not employee.qr_code_base64 %}
+    {% if employee.employee_id %}_doGenerate('{{ employee.employee_id|e }}');
+    {% elif employee.employee_code %}_doGenerate('{{ employee.employee_code|e }}');{% endif %}
     {% endif %}
   }
 }
 function generateQR(code){if(!code||!code.trim())return;code=code.trim();if(!qrReady){qrPending=code;return;}_doGenerate(code);}
 function _doGenerate(code){var statusEl=document.getElementById('qrStatus');statusEl.innerHTML='<span style="color:#64748b;">⏳ Generating QR...</span>';var target=document.getElementById('qrRenderTarget');target.innerHTML='';try{qrObj=new QRCode(target,{text:code,width:200,height:200,colorDark:'#000000',colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.M});}catch(e){statusEl.innerHTML='<span style="color:red;">❌ QR error</span>';return;}var attempts=0;var poll=setInterval(function(){attempts++;var canvas=target.querySelector('canvas'),img=target.querySelector('img'),dataUrl=null;if(canvas&&canvas.width>0)dataUrl=canvas.toDataURL('image/png');else if(img&&img.src&&img.src.indexOf('data:')===0)dataUrl=img.src;if(dataUrl){clearInterval(poll);document.getElementById('qrBase64').value=dataUrl;document.getElementById('qrDisplay').innerHTML='<div class="qr-box"><img src="'+dataUrl+'" style="width:110px;height:110px;border:2px solid #e2e8f0;border-radius:10px;"><div class="qr-lbl">'+code+'</div></div>';statusEl.innerHTML='<span style="color:#16a34a;">✅ QR ready</span>';setTimeout(function(){statusEl.innerHTML='';},2500);}if(attempts>30){clearInterval(poll);statusEl.innerHTML='<span style="color:orange;">⚠️ QR slow</span>';}},100);}
-var codeTimer=null,codeInput=document.getElementById('empCodeInput');
-if(codeInput&&!codeInput.readOnly){codeInput.addEventListener('input',function(){clearTimeout(codeTimer);var val=this.value.trim();codeTimer=setTimeout(function(){if(val.length>=2)generateQR(val);},700);});}
+var codeTimer=null;
+// QR generate from empIdInput (primary), fallback to empCodeInput
+var empIdInput=document.getElementById('empIdInput');
+var codeInput=document.getElementById('empCodeInput');
+if(empIdInput&&!empIdInput.readOnly){
+  empIdInput.addEventListener('input',function(){
+    clearTimeout(codeTimer);
+    var val=this.value.trim();
+    codeTimer=setTimeout(function(){if(val.length>=1)generateQR(val);},700);
+  });
+} else if(codeInput&&!codeInput.readOnly){
+  codeInput.addEventListener('input',function(){
+    clearTimeout(codeTimer);
+    var val=this.value.trim();
+    codeTimer=setTimeout(function(){if(val.length>=2)generateQR(val);},700);
+  });
+}
 function toggleContractor(val){document.getElementById('contractorRow').style.display=val==='yes'?'':'none';}
 toggleContractor(document.getElementById('isContractorSel').value);
 function toggleMarriageDate(val){

@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+{% block title %}Raw Punch Logs{% endblock %}
+{% block page_title %}Raw Punch Logs{% endblock %}
+{% block bread %}HR / Attendance / Raw Logs{% endblock %}
+
+{% block extra_css %}
+.log-table { width:100%; border-collapse:collapse; font-size:.8rem; }
+.log-table th { text-align:left; padding:.5rem .9rem; font-size:.68rem; font-weight:700;
+                color:var(--text3); text-transform:uppercase; letter-spacing:.06em;
+                border-bottom:2px solid var(--border); background:#f8fafc; white-space:nowrap; }
+.log-table td { padding:.55rem .9rem; border-bottom:1px solid #f1f5f9; vertical-align:middle; }
+.log-table tr:hover td { background:#f8fafc; }
+.dir-in  { background:#dcfce7; color:#16a34a; padding:2px 9px; border-radius:12px;
+           font-size:.68rem; font-weight:700; }
+.dir-out { background:#eff6ff; color:#2563eb; padding:2px 9px; border-radius:12px;
+           font-size:.68rem; font-weight:700; }
+{% endblock %}
+
+{% block content %}
+<div style="background:#fff; border:1px solid var(--border); border-radius:14px;
+            padding:1rem 1.2rem; margin-bottom:1rem; box-shadow:0 1px 4px rgba(0,0,0,.04);">
+  <form method="get" style="display:flex; gap:.7rem; flex-wrap:wrap; align-items:flex-end;">
+    <div>
+      <label style="font-size:.7rem; font-weight:700; color:var(--text3);
+                    display:block; margin-bottom:.25rem;">EMPLOYEE CODE</label>
+      <input type="text" name="emp" value="{{ emp_search }}" placeholder="EMP001"
+             style="padding:.4rem .7rem; border:1px solid var(--border); border-radius:8px;
+                    font-size:.82rem; width:140px;">
+    </div>
+    <div>
+      <label style="font-size:.7rem; font-weight:700; color:var(--text3);
+                    display:block; margin-bottom:.25rem;">FROM</label>
+      <input type="date" name="from" value="{{ date_from }}"
+             style="padding:.4rem .7rem; border:1px solid var(--border); border-radius:8px; font-size:.82rem;">
+    </div>
+    <div>
+      <label style="font-size:.7rem; font-weight:700; color:var(--text3);
+                    display:block; margin-bottom:.25rem;">TO</label>
+      <input type="date" name="to" value="{{ date_to }}"
+             style="padding:.4rem .7rem; border:1px solid var(--border); border-radius:8px; font-size:.82rem;">
+    </div>
+    <button type="submit" style="padding:.4rem 1rem; background:#2563eb; color:#fff;
+            border:none; border-radius:8px; font-size:.82rem; font-weight:600; cursor:pointer;">
+      🔍 Filter
+    </button>
+    {% if emp_search or date_from or date_to %}
+    <a href="/hr/attendance/logs" style="padding:.4rem .9rem; border:1px solid var(--border);
+       border-radius:8px; font-size:.82rem; color:var(--text3); text-decoration:none;">✕ Clear</a>
+    {% endif %}
+  </form>
+</div>
+
+<div style="background:#fff; border:1px solid var(--border); border-radius:14px;
+            box-shadow:0 1px 4px rgba(0,0,0,.04); overflow:hidden;">
+  <div style="padding:.9rem 1.2rem; border-bottom:1px solid var(--border);
+              display:flex; align-items:center; justify-content:space-between;">
+    <span style="font-size:.72rem; font-weight:700; text-transform:uppercase;
+                 letter-spacing:.06em; color:var(--text3);">Raw Punch Logs</span>
+    <span style="font-size:.75rem; color:var(--text3);">
+      Total: <strong>{{ pagination.total }}</strong>
+    </span>
+  </div>
+  <div style="overflow-x:auto;">
+  <table class="log-table">
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Employee Code</th>
+        <th>Punch Date & Time</th>
+        <th>Direction</th>
+        <th>Device (Serial No)</th>
+        <th>Temperature</th>
+        <th>Temp State</th>
+        <th>Synced At</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for log in logs %}
+      <tr>
+        <td style="color:var(--text3); font-size:.72rem;">
+          {{ loop.index + (pagination.page-1)*50 }}
+        </td>
+        <td style="font-family:monospace; font-size:.8rem; font-weight:700;">
+          {{ log.employee_code }}
+        </td>
+        <td>
+          <span style="font-family:monospace; font-size:.8rem; font-weight:600;">
+            {{ log.log_date.strftime('%d %b %Y  %I:%M:%S %p') if log.log_date else '—' }}
+          </span>
+        </td>
+        <td>
+          {% if log.punch_direction == 'IN' %}
+            <span class="dir-in">IN</span>
+          {% elif log.punch_direction == 'OUT' %}
+            <span class="dir-out">OUT</span>
+          {% else %}
+            <span style="font-size:.75rem; color:var(--text3);">{{ log.punch_direction or '—' }}</span>
+          {% endif %}
+        </td>
+        <td style="font-size:.75rem; color:var(--text3); font-family:monospace;">
+          {{ log.serial_number or '—' }}
+        </td>
+        <td style="font-size:.78rem;">
+          {% if log.temperature and log.temperature != 0 %}
+            {{ log.temperature }}°C
+          {% else %}—{% endif %}
+        </td>
+        <td style="font-size:.75rem; color:var(--text3);">
+          {{ log.temperature_state or '—' }}
+        </td>
+        <td style="font-size:.72rem; color:var(--text3);">
+          {{ log.synced_at.strftime('%d %b, %I:%M %p') if log.synced_at else '—' }}
+        </td>
+      </tr>
+      {% else %}
+      <tr>
+        <td colspan="8" style="text-align:center; padding:2.5rem; color:var(--text3);">
+          <div style="font-size:2rem; margin-bottom:.4rem;">📭</div>
+          Koi logs nahi mile
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% if pagination.pages > 1 %}
+  <div style="padding:.9rem 1.2rem; border-top:1px solid var(--border);
+              display:flex; gap:.4rem; align-items:center; justify-content:center;">
+    {% if pagination.has_prev %}
+    <a href="?page={{ pagination.prev_num }}&emp={{ emp_search }}&from={{ date_from }}&to={{ date_to }}"
+       style="padding:.35rem .7rem; border:1px solid var(--border); border-radius:7px;
+              font-size:.78rem; text-decoration:none; color:var(--text);">← Prev</a>
+    {% endif %}
+    <span style="font-size:.78rem; color:var(--text3); padding:0 .5rem;">
+      Page {{ pagination.page }} of {{ pagination.pages }}
+    </span>
+    {% if pagination.has_next %}
+    <a href="?page={{ pagination.next_num }}&emp={{ emp_search }}&from={{ date_from }}&to={{ date_to }}"
+       style="padding:.35rem .7rem; border:1px solid var(--border); border-radius:7px;
+              font-size:.78rem; text-decoration:none; color:var(--text);">Next →</a>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

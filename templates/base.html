@@ -117,6 +117,7 @@
         }
         .nav-a:hover { background: var(--sb-hover); color: var(--text); }
         .nav-a.active { background: var(--sb-active-bg); color: var(--sb-active-text); font-weight: 700; }
+        .nav-sub { padding-left: 28px !important; font-size: .78rem !important; }
         .nav-a.active::before {
             content: ''; position: absolute; left: 0; top: 20%; bottom: 20%;
             width: 3px; border-radius: 0 3px 3px 0; background: var(--blue);
@@ -1488,7 +1489,7 @@
             {% set _mod = 'rd' %}
         {% elif _pg in ('cat_master','uom_master','hsn_master','masters') %}
             {% set _mod = 'masters' %}
-        {% elif _pg in ('hr_emp_dashboard','hr_employees','hr_contractors','hierarchy','salary_config') %}
+        {% elif _pg in ('hr_emp_dashboard','hr_employees','hr_contractors','hierarchy','salary_config','hr_attendance','att_manual','att_late','att_holidays','my_attendance','hr_masters','late_rules') %}
             {% set _mod = 'hr' %}
         {% elif _pg in ('approvals','permissions','audit_logs','users','admin_profile') %}
             {% set _mod = 'admin' %}
@@ -1777,12 +1778,33 @@
             <a class="nav-a {% if _pg == 'hierarchy' %}active{% endif %}" href="/hierarchy">
                 <span class="nav-ic">🏢</span><span class="nav-txt">Org Chart</span>
             </a>
+            <a class="nav-a {% if _pg == 'hr_attendance' %}active{% endif %}" href="/hr/attendance">
+                <span class="nav-ic">🕐</span><span class="nav-txt">Attendance</span>
+            </a>
+            <a class="nav-a nav-sub {% if _pg == 'att_manual' %}active{% endif %}" href="/hr/attendance/manual">
+                <span class="nav-ic">✏️</span><span class="nav-txt">Manual Entry</span>
+            </a>
+            <a class="nav-a nav-sub {% if _pg == 'att_late' %}active{% endif %}" href="/hr/attendance/late-absent">
+                <span class="nav-ic">⏰</span><span class="nav-txt">Late & Absent</span>
+            </a>
+            <a class="nav-a nav-sub {% if _pg == 'att_holidays' %}active{% endif %}" href="/hr/attendance/holidays">
+                <span class="nav-ic">🎉</span><span class="nav-txt">Holidays</span>
+            </a>
+            <a class="nav-a nav-sub {% if _pg == 'late_rules' %}active{% endif %}" href="/hr/late-rules/">
+                <span class="nav-ic">⏰</span><span class="nav-txt">Late Rules</span>
+            </a>
+            <a class="nav-a nav-sub {% if _pg == 'my_attendance' %}active{% endif %}" href="/hr/attendance/my">
+                <span class="nav-ic">👤</span><span class="nav-txt">My Attendance</span>
+            </a>
         </div>
         {% if role in ('admin', 'manager', 'hr') %}
         <div class="sb-sec">
             <div class="sb-sec-lbl">Configuration</div>
             <a class="nav-a {% if _pg == 'salary_config' %}active{% endif %}" href="/hr/salary-config/page">
                 <span class="nav-ic">⚙️</span><span class="nav-txt">Salary Config</span>
+            </a>
+            <a class="nav-a {% if _pg == 'hr_masters' %}active{% endif %}" href="/hr/masters/">
+                <span class="nav-ic">🗂️</span><span class="nav-txt">HR Masters</span>
             </a>
         </div>
         {% endif %}

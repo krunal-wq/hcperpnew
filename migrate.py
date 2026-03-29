@@ -98,6 +98,54 @@ with app.app_context():
     ok("db.create_all() done — sari tables ready")
 
     # ══════════════════════════════════════════════════════
+    # STEP 1B — Critical columns jo Step 7 se PEHLE chahiye
+    # ══════════════════════════════════════════════════════
+    step("STEP 1B: Critical missing columns add kar raha hai...")
+    import pymysql as _pymysql
+    _uri1b = db.engine.url
+    _con1b = _pymysql.connect(
+        host=str(_uri1b.host),
+        port=int(_uri1b.port or 3306),
+        user=str(_uri1b.username),
+        password=str(_uri1b.password),
+        database=str(_uri1b.database),
+        charset='utf8mb4'
+    )
+    _cur1b = _con1b.cursor()
+
+    _critical_cols = [
+        ("role_permissions", "can_import",   "TINYINT(1) NOT NULL DEFAULT 0"),
+        ("user_permissions", "can_import",   "TINYINT(1) NOT NULL DEFAULT 0"),
+        ("employees",        "employee_id",  "VARCHAR(50) DEFAULT NULL"),
+    ]
+    for _tbl, _col, _defn in _critical_cols:
+        try:
+            _cur1b.execute(f"SHOW COLUMNS FROM `{_tbl}` LIKE '{_col}'")
+            if not _cur1b.fetchone():
+                _cur1b.execute(f"ALTER TABLE `{_tbl}` ADD COLUMN `{_col}` {_defn}")
+                _con1b.commit()
+                ok(f"{_tbl}.{_col} column add kiya ✓")
+            else:
+                ok(f"{_tbl}.{_col} already exists ✓")
+        except Exception as _e:
+            ok(f"{_tbl}.{_col} skip: {_e}")
+
+    # Unique index for employees.employee_id
+    try:
+        _cur1b.execute("SHOW INDEX FROM `employees` WHERE Key_name = 'idx_employee_id'")
+        if not _cur1b.fetchone():
+            _cur1b.execute("ALTER TABLE `employees` ADD UNIQUE INDEX idx_employee_id (`employee_id`)")
+            _con1b.commit()
+            ok("employees.employee_id unique index added ✓")
+        else:
+            ok("employees.employee_id unique index already exists ✓")
+    except Exception as _e:
+        ok(f"employees.employee_id index skip: {_e}")
+
+    _cur1b.close()
+    _con1b.close()
+
+    # ══════════════════════════════════════════════════════
     # STEP 2 — Fix column types (MEDIUMTEXT for large data)
     # ══════════════════════════════════════════════════════
     step("STEP 2: Column types fix kar raha hai (MEDIUMTEXT)...")
@@ -519,6 +567,29 @@ with app.app_context():
     db.session.commit()
     ok(f"{mod_added} new modules added") if mod_added else ok("Modules already seeded")
 
+    # ── can_import column ensure karo BEFORE RolePermission query ──
+    try:
+        import pymysql
+        _db_uri = db.engine.url
+        _rc = pymysql.connect(
+            host=str(_db_uri.host), port=int(_db_uri.port or 3306),
+            user=str(_db_uri.username), password=str(_db_uri.password),
+            database=str(_db_uri.database), charset='utf8mb4'
+        )
+        _rc_cur = _rc.cursor()
+        for _fix_tbl in ('role_permissions', 'user_permissions'):
+            _rc_cur.execute(f"SHOW COLUMNS FROM `{_fix_tbl}` LIKE 'can_import'")
+            if not _rc_cur.fetchone():
+                _rc_cur.execute(f"ALTER TABLE `{_fix_tbl}` ADD COLUMN `can_import` TINYINT(1) NOT NULL DEFAULT 0")
+                _rc.commit()
+                ok(f"{_fix_tbl}.can_import column add kiya ✓")
+            else:
+                ok(f"{_fix_tbl}.can_import already exists ✓")
+        _rc_cur.close()
+        _rc.close()
+    except Exception as _fix_err:
+        warn(f"can_import fix attempt: {_fix_err}")
+
     roles = ["admin", "manager", "sales", "hr", "viewer"]
     all_mods = Module.query.all()
     perm_added = 0
@@ -532,7 +603,7 @@ with app.app_context():
                     role=role, module_id=mod.id,
                     can_view=True, can_add=can_write,
                     can_edit=can_write, can_delete=can_delete,
-                    can_export=can_export,
+                    can_export=can_export, can_import=False,
                 ))
                 perm_added += 1
     db.session.commit()
@@ -1589,6 +1660,199 @@ with app.app_context():
 
     db.session.commit()
     ok("Duplicate module cleanup done!")
+
+
+    # ══════════════════════════════════════════════════════
+    # STEP 16 — Attendance Tables
+    # ══════════════════════════════════════════════════════
+    step("STEP 16: Attendance tables create kar raha hai...")
+
+    from models.attendance import RawPunchLog, Attendance
+
+    # Tables already create ho jaayengi db.create_all() se (STEP 1)
+    # Lekin agar pehle se run ho chuki hai migration, manually ensure karein
+
+    import pymysql as _pym
+    _uri2 = db.engine.url
+    _ac = _pym.connect(
+        host=str(_uri2.host), port=int(_uri2.port or 3306),
+        user=str(_uri2.username), password=str(_uri2.password),
+        database=str(_uri2.database), charset='utf8mb4'
+    )
+    _ac_cur = _ac.cursor()
+
+    # raw_punch_logs table
+    _ac_cur.execute("""
+        CREATE TABLE IF NOT EXISTS `raw_punch_logs` (
+            `id`                INT(11) NOT NULL AUTO_INCREMENT,
+            `employee_code`     VARCHAR(100) NOT NULL,
+            `log_date`          DATETIME NOT NULL,
+            `serial_number`     VARCHAR(100) DEFAULT NULL,
+            `punch_direction`   VARCHAR(20) DEFAULT NULL,
+            `temperature`       DECIMAL(5,2) DEFAULT 0.00,
+            `temperature_state` VARCHAR(50) DEFAULT NULL,
+            `synced_at`         DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (`id`),
+            INDEX idx_emp_code (employee_code),
+            INDEX idx_log_date (log_date)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+    """)
+    _ac.commit()
+    ok("raw_punch_logs table ready")
+
+    # attendance table
+    _ac_cur.execute("""
+        CREATE TABLE IF NOT EXISTS `attendance` (
+            `id`              INT(11) NOT NULL AUTO_INCREMENT,
+            `employee_code`   VARCHAR(100) NOT NULL,
+            `attendance_date` DATE NOT NULL,
+            `punch_in`        DATETIME DEFAULT NULL,
+            `punch_out`       DATETIME DEFAULT NULL,
+            `in_device`       VARCHAR(100) DEFAULT NULL,
+            `out_device`      VARCHAR(100) DEFAULT NULL,
+            `total_hours`     DECIMAL(5,2) DEFAULT NULL,
+            `status`          ENUM('Present','Absent','Half Day','Holiday','MIS-PUNCH')
+                              NOT NULL DEFAULT 'Present',
+            `created_at`      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            `updated_at`      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+                              ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (`id`),
+            UNIQUE KEY uq_emp_date (`employee_code`, `attendance_date`),
+            INDEX idx_att_date (attendance_date)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+    """)
+    _ac.commit()
+    ok("attendance table ready")
+
+    # late_shift_rules table
+    _ac_cur.execute("""
+        CREATE TABLE IF NOT EXISTS `late_shift_rules` (
+            `id`              INT NOT NULL AUTO_INCREMENT,
+            `employee_type`   VARCHAR(100) NOT NULL,
+            `shift_start`     VARCHAR(5) DEFAULT '09:00',
+            `late_after`      VARCHAR(5) NOT NULL,
+            `half_day_after`  VARCHAR(5) DEFAULT NULL,
+            `absent_after`    VARCHAR(5) DEFAULT NULL,
+            `shift_end`       VARCHAR(5) DEFAULT '18:00',
+            `min_hours_full`  DECIMAL(4,2) DEFAULT 8.00,
+            `min_hours_half`  DECIMAL(4,2) DEFAULT 4.00,
+            `is_active`       TINYINT(1) DEFAULT 1,
+            `created_at`      DATETIME DEFAULT CURRENT_TIMESTAMP,
+            `created_by`      INT DEFAULT NULL,
+            `updated_at`      DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (`id`),
+            UNIQUE KEY uq_emp_type (`employee_type`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    """)
+    _ac.commit()
+    ok("late_shift_rules table ready")
+
+    # late_penalty_rules table
+    _ac_cur.execute("""
+        CREATE TABLE IF NOT EXISTS `late_penalty_rules` (
+            `id`              INT NOT NULL AUTO_INCREMENT,
+            `shift_rule_id`   INT NOT NULL,
+            `time_from`       VARCHAR(5) NOT NULL,
+            `time_to`         VARCHAR(5) DEFAULT NULL,
+            `from_count`      INT NOT NULL DEFAULT 1,
+            `to_count`        INT DEFAULT NULL,
+            `penalty_amount`  DECIMAL(8,2) NOT NULL DEFAULT 0,
+            `penalty_type`    VARCHAR(20) DEFAULT 'fixed',
+            `description`     VARCHAR(200) DEFAULT NULL,
+            `is_active`       TINYINT(1) DEFAULT 1,
+            `sort_order`      INT DEFAULT 0,
+            `created_at`      DATETIME DEFAULT CURRENT_TIMESTAMP,
+            `created_by`      INT DEFAULT NULL,
+            PRIMARY KEY (`id`),
+            KEY idx_shift_rule (`shift_rule_id`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    """)
+    _ac.commit()
+    ok("late_penalty_rules table ready")
+
+    # employee_type_master table
+    _ac_cur.execute("""
+        CREATE TABLE IF NOT EXISTS `employee_type_master` (
+            `id`         INT(11) NOT NULL AUTO_INCREMENT,
+            `name`       VARCHAR(100) NOT NULL,
+            `sort_order` INT DEFAULT 0,
+            `is_active`  TINYINT(1) DEFAULT 1,
+            `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
+            `created_by` INT DEFAULT NULL,
+            PRIMARY KEY (`id`),
+            UNIQUE KEY uq_et_name (`name`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    """)
+    _ac.commit()
+    ok("employee_type_master table ready")
+
+    # employee_location_master table
+    _ac_cur.execute("""
+        CREATE TABLE IF NOT EXISTS `employee_location_master` (
+            `id`         INT(11) NOT NULL AUTO_INCREMENT,
+            `name`       VARCHAR(100) NOT NULL,
+            `sort_order` INT DEFAULT 0,
+            `is_active`  TINYINT(1) DEFAULT 1,
+            `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
+            `created_by` INT DEFAULT NULL,
+            PRIMARY KEY (`id`),
+            UNIQUE KEY uq_el_name (`name`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    """)
+    _ac.commit()
+    ok("employee_location_master table ready")
+
+    # holiday_master table
+    _ac_cur.execute("""
+        CREATE TABLE IF NOT EXISTS `holiday_master` (
+            `id`           INT(11) NOT NULL AUTO_INCREMENT,
+            `title`        VARCHAR(200) NOT NULL,
+            `holiday_date` DATE NOT NULL,
+            `holiday_type` VARCHAR(50) DEFAULT 'National',
+            `description`  VARCHAR(300) DEFAULT NULL,
+            `is_active`    TINYINT(1) DEFAULT 1,
+            `created_at`   DATETIME DEFAULT CURRENT_TIMESTAMP,
+            `created_by`   INT DEFAULT NULL,
+            PRIMARY KEY (`id`),
+            UNIQUE KEY uq_holiday_date (`holiday_date`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+    """)
+    _ac.commit()
+    ok("holiday_master table ready")
+
+    _ac_cur.close()
+    _ac.close()
+
+    # Add 'hr_attendance' module to permissions
+    from models.permission import Module, RolePermission
+    att_mod = Module.query.filter_by(name='hr_attendance').first()
+    if not att_mod:
+        att_mod = Module(
+            name='hr_attendance', label='Attendance',
+            icon='🕐', url_prefix='/hr/attendance',
+            sort_order=50, is_active=True
+        )
+        db.session.add(att_mod)
+        db.session.flush()
+        ok("hr_attendance module added")
+
+        roles = ["admin", "manager", "sales", "hr", "viewer"]
+        for role in roles:
+            can_write  = role in ("admin", "manager", "hr")
+            can_delete = role == "admin"
+            can_export = role != "viewer"
+            db.session.add(RolePermission(
+                role=role, module_id=att_mod.id,
+                can_view=True, can_add=can_write,
+                can_edit=can_write, can_delete=can_delete,
+                can_export=can_export, can_import=False,
+            ))
+        ok("hr_attendance permissions seeded for all roles")
+    else:
+        ok("hr_attendance module already exists")
+
+    db.session.commit()
+    ok("Attendance migration complete!")
 
     # ══════════════════════════════════════════════════════
     # DONE

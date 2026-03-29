@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}Edit Attendance{% endblock %}
+{% block page_title %}Edit Attendance{% endblock %}
+{% block bread %}HR / Attendance / Edit{% endblock %}
+
+{% block extra_css %}
+.form-card { background:#fff; border:1px solid var(--border); border-radius:14px;
+             padding:1.4rem; box-shadow:0 1px 6px rgba(0,0,0,.05); }
+.fgrid { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:1rem; }
+.fg label { font-size:.69rem; font-weight:700; color:var(--text3); text-transform:uppercase;
+            letter-spacing:.06em; display:block; margin-bottom:.3rem; }
+.fg input, .fg select { width:100%; padding:.42rem .7rem; border:1px solid var(--border);
+                        border-radius:8px; font-size:.82rem; box-sizing:border-box; }
+.fg input:focus, .fg select:focus { outline:none; border-color:#2563eb; box-shadow:0 0 0 3px rgba(37,99,235,.1); }
+.msg-ok  { background:#f0fdf4; border:1px solid #bbf7d0; color:#16a34a; border-radius:8px; padding:.6rem 1rem; font-size:.8rem; font-weight:600; margin-bottom:1rem; }
+.msg-err { background:#fef2f2; border:1px solid #fecaca; color:#dc2626; border-radius:8px; padding:.6rem 1rem; font-size:.8rem; font-weight:600; margin-bottom:1rem; }
+{% endblock %}
+
+{% block content %}
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.1rem;flex-wrap:wrap;gap:.5rem;">
+  <div>
+    <h2 style="margin:0;font-size:1.15rem;font-weight:800;">Edit Attendance</h2>
+    <div style="font-size:.72rem;color:var(--text3);">
+      {{ att.employee.first_name + ' ' + att.employee.last_name if att.employee else att.employee_code }}
+      — {{ att.attendance_date.strftime('%d %b %Y') }}
+    </div>
+  </div>
+  <a href="/hr/attendance/manual" style="padding:.35rem .85rem;background:#f8fafc;border:1px solid var(--border);border-radius:8px;font-size:.76rem;font-weight:600;color:var(--text);text-decoration:none;">← Back</a>
+</div>
+
+{% if msg %}
+<div class="{{ 'msg-ok' if msg[0]=='success' else 'msg-err' }}">
+  {{ '✅' if msg[0]=='success' else '❌' }} {{ msg[1] }}
+</div>
+{% endif %}
+
+<div class="form-card">
+  <form method="post">
+    <div class="fgrid" style="margin-bottom:1rem;">
+      <div class="fg">
+        <label>Employee</label>
+        <input type="text" value="{{ att.employee.first_name + ' ' + att.employee.last_name if att.employee else att.employee_code }}" readonly style="background:#f8fafc;color:var(--text2);font-weight:700;">
+      </div>
+      <div class="fg">
+        <label>Date *</label>
+        <input type="date" name="attendance_date" value="{{ att.attendance_date.strftime('%Y-%m-%d') }}" required>
+      </div>
+      <div class="fg">
+        <label>Punch IN</label>
+        <input type="time" name="punch_in" value="{{ att.punch_in.strftime('%H:%M') if att.punch_in else '' }}">
+      </div>
+      <div class="fg">
+        <label>Punch OUT</label>
+        <input type="time" name="punch_out" value="{{ att.punch_out.strftime('%H:%M') if att.punch_out else '' }}">
+      </div>
+      <div class="fg">
+        <label>Status</label>
+        <select name="status">
+          {% for s in ['Present','Absent','Half Day','MIS-PUNCH','Holiday'] %}
+          <option value="{{ s }}" {{ 'selected' if att.status == s }}>{{ s }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="fg">
+        <label>Device / Remark</label>
+        <input type="text" name="in_device" value="{{ att.in_device or 'MANUAL' }}">
+      </div>
+    </div>
+    <div style="display:flex;gap:.7rem;align-items:center;">
+      <button type="submit" style="padding:.42rem 1.2rem;background:#2563eb;color:#fff;border:none;border-radius:8px;font-size:.83rem;font-weight:700;cursor:pointer;">
+        💾 Update
+      </button>
+      <a href="/hr/attendance/manual" style="font-size:.79rem;color:var(--text3);">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

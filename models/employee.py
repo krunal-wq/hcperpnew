@@ -51,6 +51,7 @@ class Employee(db.Model):
 
     id              = db.Column(db.Integer, primary_key=True)
     employee_code   = db.Column(db.String(50), unique=True, nullable=True)
+    employee_id     = db.Column(db.String(50), unique=True, nullable=True)  # Biometric/Device ID
     qr_code_base64  = db.Column(db.Text(16777215))   # MEDIUMTEXT — base64 QR image
 
     # Basic Info
@@ -301,3 +302,31 @@ class SalaryComponent(db.Model):
             'description':        self.description,
             'updated_by':         self.updated_by,
         }
+
+
+class EmployeeTypeMaster(db.Model):
+    """Employee Type Master — HCP OFFICE, HCP FACTORY STAFF, etc."""
+    __tablename__ = 'employee_type_master'
+
+    id         = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    name       = db.Column(db.String(100), nullable=False, unique=True)
+    sort_order = db.Column(db.Integer, default=0)
+    is_active  = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.now)
+    created_by = db.Column(db.Integer, nullable=True)
+
+    def __repr__(self): return f'<EmployeeTypeMaster {self.name}>'
+
+
+class EmployeeLocationMaster(db.Model):
+    """Employee Location/Branch Master — Office, Factory, etc."""
+    __tablename__ = 'employee_location_master'
+
+    id         = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    name       = db.Column(db.String(100), nullable=False, unique=True)
+    sort_order = db.Column(db.Integer, default=0)
+    is_active  = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.now)
+    created_by = db.Column(db.Integer, nullable=True)
+
+    def __repr__(self): return f'<EmployeeLocationMaster {self.name}>'

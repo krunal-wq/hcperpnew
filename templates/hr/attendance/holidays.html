@@ -1,0 +1,166 @@
+{% extends "base.html" %}
+{% block title %}Holiday Master{% endblock %}
+{% block page_title %}Holiday Master{% endblock %}
+{% block bread %}HR / Attendance / Holidays{% endblock %}
+
+{% block extra_css %}
+.hol-grid { display:grid; grid-template-columns:340px 1fr; gap:1.2rem; }
+@media(max-width:800px){ .hol-grid{ grid-template-columns:1fr; } }
+.card { background:#fff; border:1px solid var(--border); border-radius:14px;
+        box-shadow:0 1px 6px rgba(0,0,0,.05); }
+.card-hdr { padding:.85rem 1.1rem; border-bottom:1px solid var(--border);
+            font-size:.69rem; font-weight:700; text-transform:uppercase;
+            letter-spacing:.07em; color:var(--text3); }
+.card-body { padding:1.1rem; }
+.fg { margin-bottom:.85rem; }
+.fg label { font-size:.69rem; font-weight:700; color:var(--text3); text-transform:uppercase;
+            letter-spacing:.06em; display:block; margin-bottom:.28rem; }
+.fg input,.fg select,.fg textarea { width:100%; padding:.4rem .7rem;
+  border:1px solid var(--border); border-radius:8px; font-size:.82rem; box-sizing:border-box; }
+.fg input:focus,.fg select:focus,.fg textarea:focus { outline:none; border-color:#2563eb;
+  box-shadow:0 0 0 3px rgba(37,99,235,.1); }
+
+.msg-ok  { background:#f0fdf4; border:1px solid #bbf7d0; color:#16a34a; border-radius:8px; padding:.55rem 1rem; font-size:.79rem; font-weight:600; margin-bottom:.9rem; }
+.msg-err { background:#fef2f2; border:1px solid #fecaca; color:#dc2626; border-radius:8px; padding:.55rem 1rem; font-size:.79rem; font-weight:600; margin-bottom:.9rem; }
+
+.hol-tbl { width:100%; border-collapse:collapse; font-size:.79rem; }
+.hol-tbl th { text-align:left; padding:.45rem .85rem; font-size:.65rem; font-weight:700;
+              color:var(--text3); text-transform:uppercase; letter-spacing:.07em;
+              border-bottom:2px solid var(--border); background:#f8fafc; }
+.hol-tbl td { padding:.52rem .85rem; border-bottom:1px solid #f1f5f9; vertical-align:middle; }
+.hol-tbl tr:hover td { background:#f8fafc; }
+.hol-tbl tr:last-child td { border-bottom:none; }
+
+.type-pill { display:inline-block; padding:2px 9px; border-radius:20px; font-size:.67rem; font-weight:700; }
+.tp-National   { background:#fef9c3; color:#ca8a04; }
+.tp-Optional   { background:#eff6ff; color:#2563eb; }
+.tp-Restricted { background:#f3e8ff; color:#7c3aed; }
+.tp-Weekly-Off { background:#f0fdf4; color:#16a34a; }
+
+.month-chip { display:inline-block; background:#f1f5f9; color:var(--text3);
+              padding:2px 9px; border-radius:10px; font-size:.68rem; font-weight:600;
+              margin-right:.3rem; margin-bottom:.3rem; }
+{% endblock %}
+
+{% block content %}
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.1rem;flex-wrap:wrap;gap:.5rem;">
+  <div>
+    <h2 style="margin:0;font-size:1.15rem;font-weight:800;">Holiday Master</h2>
+    <div style="font-size:.72rem;color:var(--text3);">Company holidays manage karo</div>
+  </div>
+  <div style="display:flex;gap:.5rem;align-items:center;">
+    {% for y in [year-1, year, year+1] %}
+    <a href="?year={{ y }}" style="padding:.3rem .7rem;border:1px solid var(--border);border-radius:8px;font-size:.76rem;font-weight:{{ '700' if y==year else '500' }};color:{{ 'var(--blue)' if y==year else 'var(--text3)' }};text-decoration:none;background:{{ '#eff6ff' if y==year else '#fff' }};">
+      {{ y }}
+    </a>
+    {% endfor %}
+  </div>
+</div>
+
+{% if msg %}
+<div class="{{ 'msg-ok' if msg[0]=='success' else 'msg-err' }}">
+  {{ '✅' if msg[0]=='success' else '❌' }} {{ msg[1] }}
+</div>
+{% endif %}
+
+<div class="hol-grid">
+  {# ── Add Form ── #}
+  <div class="card">
+    <div class="card-hdr">➕ Add Holiday</div>
+    <div class="card-body">
+      <form method="post">
+        <div class="fg">
+          <label>Holiday Title *</label>
+          <input type="text" name="title" placeholder="e.g. Diwali, Holi, Republic Day">
+        </div>
+        <div class="fg">
+          <label>Date *</label>
+          <input type="date" name="holiday_date" value="{{ today }}">
+        </div>
+        <div class="fg">
+          <label>Type</label>
+          <select name="holiday_type">
+            <option value="National">🇮🇳 National Holiday</option>
+            <option value="Optional">📅 Optional Holiday</option>
+            <option value="Restricted">🔒 Restricted Holiday</option>
+            <option value="Weekly Off">📆 Weekly Off</option>
+          </select>
+        </div>
+        <div class="fg">
+          <label>Description</label>
+          <textarea name="description" rows="2" placeholder="Optional note..."></textarea>
+        </div>
+        <button type="submit" style="width:100%;padding:.45rem;background:#2563eb;color:#fff;border:none;border-radius:8px;font-size:.83rem;font-weight:700;cursor:pointer;">
+          💾 Add Holiday
+        </button>
+      </form>
+    </div>
+  </div>
+
+  {# ── Holiday List ── #}
+  <div class="card" style="overflow:hidden;">
+    <div style="padding:.85rem 1.1rem;border-bottom:1px solid var(--border);
+                display:flex;align-items:center;justify-content:space-between;">
+      <span style="font-size:.69rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text3);">
+        {{ year }} Holidays
+      </span>
+      <span style="font-size:.74rem;color:var(--text3);">
+        Total: <strong>{{ holidays|length }}</strong>
+      </span>
+    </div>
+    <div style="overflow-x:auto;">
+    <table class="hol-tbl">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Date</th>
+          <th>Day</th>
+          <th>Holiday</th>
+          <th>Type</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for h in holidays %}
+        <tr>
+          <td style="color:var(--text3);font-size:.71rem;">{{ loop.index }}</td>
+          <td style="font-weight:700;font-size:.8rem;white-space:nowrap;">
+            {{ h.holiday_date.strftime('%d %b %Y') }}
+          </td>
+          <td style="font-size:.75rem;color:var(--text3);">
+            {{ h.holiday_date.strftime('%A') }}
+          </td>
+          <td>
+            <div style="font-weight:600;font-size:.81rem;">{{ h.title }}</div>
+            {% if h.description %}
+            <div style="font-size:.69rem;color:var(--text3);">{{ h.description }}</div>
+            {% endif %}
+          </td>
+          <td>
+            <span class="type-pill tp-{{ h.holiday_type.replace(' ','-') }}">
+              {{ h.holiday_type }}
+            </span>
+          </td>
+          <td>
+            <form method="post" action="/hr/attendance/holidays/{{ h.id }}/delete"
+                  onsubmit="return confirm('Delete {{ h.title }}?')" style="display:inline;">
+              <button type="submit" style="background:none;border:none;color:#dc2626;cursor:pointer;font-size:.74rem;font-weight:600;">
+                🗑 Delete
+              </button>
+            </form>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="6" style="text-align:center;padding:2.5rem;color:var(--text3);">
+            <div style="font-size:1.8rem;margin-bottom:.4rem;">📅</div>
+            {{ year }} ke liye koi holidays nahi add hui
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

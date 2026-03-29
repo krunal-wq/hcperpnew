@@ -13,6 +13,9 @@ from approval_routes import approval_bp
 from mail_routes import mail_bp
 from npd_routes  import npd
 from rd_routes   import rd
+from attendance_routes import attendance_bp
+from hr_master_routes import hr_masters
+from late_rule_routes import late_rules_bp
 
 app = Flask(__name__)
 app.config.from_object(Config)
@@ -53,6 +56,17 @@ app.register_blueprint(approval_bp)
 app.register_blueprint(mail_bp)
 app.register_blueprint(npd)
 app.register_blueprint(rd)
+app.register_blueprint(attendance_bp)
+app.register_blueprint(hr_masters)
+app.register_blueprint(late_rules_bp)
+
+# Seed HR master defaults
+with app.app_context():
+    try:
+        from hr_master_routes import seed_defaults
+        seed_defaults()
+    except Exception:
+        pass
 
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'

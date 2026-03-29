@@ -1,0 +1,232 @@
+{% extends "base.html" %}
+{% block title %}My Attendance{% endblock %}
+{% block page_title %}My Attendance{% endblock %}
+{% block bread %}HR / My Attendance{% endblock %}
+
+{% block extra_css %}
+/* ── Summary Cards ── */
+.my-stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:.8rem; margin-bottom:1.3rem; }
+.my-card { background:#fff; border-radius:12px; padding:1rem 1.1rem; border:1px solid var(--border);
+           box-shadow:0 1px 5px rgba(0,0,0,.04); text-align:center; }
+.my-card .mc-val   { font-size:1.8rem; font-weight:800; line-height:1; }
+.my-card .mc-label { font-size:.68rem; font-weight:700; text-transform:uppercase;
+                     letter-spacing:.06em; color:var(--text3); margin-top:.25rem; }
+.mc-green  .mc-val { color:#16a34a; }
+.mc-red    .mc-val { color:#dc2626; }
+.mc-blue   .mc-val { color:#2563eb; }
+.mc-orange .mc-val { color:#d97706; }
+.mc-purple .mc-val { color:#7c3aed; }
+
+/* ── Calendar ── */
+.cal-wrap { background:#fff; border:1px solid var(--border); border-radius:14px;
+            box-shadow:0 1px 6px rgba(0,0,0,.05); overflow:hidden; margin-bottom:1.2rem; }
+.cal-hdr  { display:grid; grid-template-columns:repeat(7,1fr); border-bottom:1px solid var(--border); }
+.cal-hdr div { padding:.5rem; text-align:center; font-size:.68rem; font-weight:700;
+               color:var(--text3); text-transform:uppercase; letter-spacing:.05em; }
+.cal-hdr div:last-child { color:#dc2626; }
+.cal-grid { display:grid; grid-template-columns:repeat(7,1fr); }
+.cal-day  { min-height:60px; padding:.4rem .45rem; border-right:1px solid #f1f5f9;
+            border-bottom:1px solid #f1f5f9; position:relative; cursor:default; }
+.cal-day:nth-child(7n) { border-right:none; }
+.cal-day .cd-num { font-size:.72rem; font-weight:700; color:var(--text3); margin-bottom:.2rem; }
+.cal-day .cd-status { font-size:.62rem; font-weight:700; padding:1px 5px; border-radius:4px; display:inline-block; }
+.cal-day .cd-time { font-size:.6rem; color:var(--text3); margin-top:.15rem; font-family:monospace; }
+.cal-day.today-day { background:#eff6ff; }
+.cal-day.empty-day { background:#fafafa; }
+
+.s-Present   .cd-status { background:#dcfce7; color:#16a34a; }
+.s-Absent    .cd-status { background:#fee2e2; color:#dc2626; }
+.s-Half-Day  .cd-status { background:#eff6ff; color:#2563eb; }
+.s-Holiday   .cd-status { background:#f3e8ff; color:#7c3aed; }
+.s-MIS-PUNCH .cd-status { background:#fef9c3; color:#ca8a04; }
+.s-Future    .cd-status { display:none; }
+.s-No-Data   .cd-status { background:#f1f5f9; color:#94a3b8; }
+
+.s-Present   { background:#f0fdf4; }
+.s-Absent    { background:#fff5f5; }
+.s-Half-Day  { background:#f0f9ff; }
+.s-Holiday   { background:#faf5ff; }
+.s-MIS-PUNCH { background:#fffbeb; }
+
+/* ── Today Punches ── */
+.punch-timeline { display:flex; gap:.5rem; flex-wrap:wrap; padding:1rem 1.1rem; }
+.punch-item { display:flex; align-items:center; gap:.4rem; padding:.4rem .8rem;
+              border-radius:8px; border:1px solid var(--border); background:#f8fafc;
+              font-size:.78rem; }
+.punch-in-ic  { color:#16a34a; font-weight:700; }
+.punch-out-ic { color:#2563eb; font-weight:700; }
+
+/* ── Legend ── */
+.legend { display:flex; gap:.6rem; flex-wrap:wrap; padding:.8rem 1.1rem;
+          border-top:1px solid var(--border); }
+.leg-item { display:flex; align-items:center; gap:.3rem; font-size:.7rem;
+            font-weight:600; color:var(--text3); }
+.leg-dot { width:10px; height:10px; border-radius:3px; }
+{% endblock %}
+
+{% block content %}
+{# ── Employee Header ── #}
+<div style="background:#fff;border:1px solid var(--border);border-radius:14px;
+            padding:1rem 1.2rem;margin-bottom:1.2rem;box-shadow:0 1px 6px rgba(0,0,0,.05);
+            display:flex;align-items:center;gap:1rem;flex-wrap:wrap;">
+  <div style="width:52px;height:52px;border-radius:50%;background:#6366f1;color:#fff;
+              display:flex;align-items:center;justify-content:center;font-size:1.1rem;font-weight:800;flex-shrink:0;">
+    {{ emp.first_name[0] }}{{ emp.last_name[0] }}
+  </div>
+  <div style="flex:1;">
+    <div style="font-size:1rem;font-weight:800;">{{ emp.first_name }} {{ emp.last_name }}</div>
+    <div style="font-size:.74rem;color:var(--text3);margin-top:.1rem;">
+      {{ emp.designation or '' }}
+      {% if emp.department %} · {{ emp.department }}{% endif %}
+      {% if emp.employee_code %} · <span style="font-family:monospace;color:var(--blue);font-weight:700;">{{ emp.employee_code }}</span>{% endif %}
+    </div>
+  </div>
+  <div style="display:flex;gap:.5rem;align-items:center;">
+    {# Month navigation #}
+    {% set prev_month = month_start.replace(day=1) %}
+    <a href="?month={{ (month_start - timedelta(days=1)).strftime('%Y-%m') }}"
+       style="padding:.3rem .7rem;border:1px solid var(--border);border-radius:8px;font-size:.78rem;color:var(--text);text-decoration:none;">← Prev</a>
+    <span style="font-size:.82rem;font-weight:700;color:var(--text);">
+      {{ month_start.strftime('%B %Y') }}
+    </span>
+    <a href="?month={{ (month_end + timedelta(days=1)).strftime('%Y-%m') }}"
+       style="padding:.3rem .7rem;border:1px solid var(--border);border-radius:8px;font-size:.78rem;color:var(--text);text-decoration:none;">Next →</a>
+  </div>
+</div>
+
+{# ── Summary Cards ── #}
+<div class="my-stats">
+  <div class="my-card mc-green">
+    <div class="mc-val">{{ summary.get('Present',0) }}</div>
+    <div class="mc-label">Present</div>
+  </div>
+  <div class="my-card mc-blue">
+    <div class="mc-val">{{ summary.get('Half Day',0) }}</div>
+    <div class="mc-label">Half Day</div>
+  </div>
+  <div class="my-card mc-red">
+    <div class="mc-val">{{ summary.get('Absent',0) }}</div>
+    <div class="mc-label">Absent</div>
+  </div>
+  <div class="my-card mc-orange">
+    <div class="mc-val">{{ summary.get('MIS-PUNCH',0) }}</div>
+    <div class="mc-label">MIS-PUNCH</div>
+  </div>
+  <div class="my-card mc-purple">
+    <div class="mc-val">{{ summary.get('Holiday',0) }}</div>
+    <div class="mc-label">Holiday</div>
+  </div>
+</div>
+
+{# ── Today's Punches ── #}
+{% if today_punches %}
+<div style="background:#fff;border:1px solid var(--border);border-radius:14px;
+            box-shadow:0 1px 6px rgba(0,0,0,.05);margin-bottom:1.2rem;overflow:hidden;">
+  <div style="padding:.75rem 1.1rem;border-bottom:1px solid var(--border);
+              font-size:.69rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text3);">
+    🕐 Today's Punches — {{ today.strftime('%d %b %Y') }}
+  </div>
+  <div class="punch-timeline">
+    {% for p in today_punches %}
+    <div class="punch-item">
+      <span class="{{ 'punch-in-ic' if p.punch_direction=='IN' else 'punch-out-ic' }}">
+        {{ '▶ IN' if p.punch_direction=='IN' else '◀ OUT' }}
+      </span>
+      <span style="font-family:monospace;font-weight:700;">{{ p.log_date.strftime('%I:%M %p') }}</span>
+      {% if p.serial_number %}
+      <span style="font-size:.7rem;color:var(--text3);">{{ p.serial_number }}</span>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+{# ── Calendar ── #}
+<div class="cal-wrap">
+  <div style="padding:.75rem 1.1rem;border-bottom:1px solid var(--border);
+              font-size:.69rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text3);">
+    📅 {{ month_start.strftime('%B %Y') }} — Attendance Calendar
+  </div>
+
+  <div class="cal-hdr">
+    <div>Mon</div><div>Tue</div><div>Wed</div>
+    <div>Thu</div><div>Fri</div><div>Sat</div>
+    <div style="color:#dc2626;">Sun</div>
+  </div>
+
+  <div class="cal-grid">
+    {# Empty cells for first week #}
+    {% set first_weekday = month_start.weekday() %}
+    {% for i in range(first_weekday) %}
+    <div class="cal-day empty-day"></div>
+    {% endfor %}
+
+    {% for day in calendar_days %}
+    <div class="cal-day s-{{ day.status.replace(' ','-') }} {{ 'today-day' if day.date == today }}">
+      <div class="cd-num">{{ day.date.day }}</div>
+      <div class="cd-status">{{ day.status }}</div>
+      {% if day.punch_in %}
+      <div class="cd-time">▶ {{ day.punch_in }}</div>
+      {% endif %}
+      {% if day.punch_out %}
+      <div class="cd-time">◀ {{ day.punch_out }}</div>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+
+  <div class="legend">
+    <div class="leg-item"><div class="leg-dot" style="background:#dcfce7;border:1px solid #bbf7d0;"></div>Present</div>
+    <div class="leg-item"><div class="leg-dot" style="background:#fee2e2;border:1px solid #fecaca;"></div>Absent</div>
+    <div class="leg-item"><div class="leg-dot" style="background:#eff6ff;border:1px solid #bfdbfe;"></div>Half Day</div>
+    <div class="leg-item"><div class="leg-dot" style="background:#fef9c3;border:1px solid #fde68a;"></div>MIS-PUNCH</div>
+    <div class="leg-item"><div class="leg-dot" style="background:#f3e8ff;border:1px solid #e9d5ff;"></div>Holiday</div>
+    <div class="leg-item"><div class="leg-dot" style="background:#f1f5f9;"></div>No Data</div>
+  </div>
+</div>
+
+{# ── Detail Table ── #}
+<div style="background:#fff;border:1px solid var(--border);border-radius:14px;
+            box-shadow:0 1px 6px rgba(0,0,0,.05);overflow:hidden;">
+  <div style="padding:.75rem 1.1rem;border-bottom:1px solid var(--border);">
+    <span style="font-size:.69rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text3);">
+      Detail Records
+    </span>
+  </div>
+  <div style="overflow-x:auto;">
+  <table style="width:100%;border-collapse:collapse;font-size:.79rem;">
+    <thead>
+      <tr>
+        <th style="text-align:left;padding:.45rem .85rem;font-size:.65rem;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;border-bottom:2px solid var(--border);background:#f8fafc;">Date</th>
+        <th style="text-align:left;padding:.45rem .85rem;font-size:.65rem;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;border-bottom:2px solid var(--border);background:#f8fafc;">Day</th>
+        <th style="text-align:left;padding:.45rem .85rem;font-size:.65rem;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;border-bottom:2px solid var(--border);background:#f8fafc;">Punch IN</th>
+        <th style="text-align:left;padding:.45rem .85rem;font-size:.65rem;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;border-bottom:2px solid var(--border);background:#f8fafc;">Punch OUT</th>
+        <th style="text-align:left;padding:.45rem .85rem;font-size:.65rem;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;border-bottom:2px solid var(--border);background:#f8fafc;">Hours</th>
+        <th style="text-align:left;padding:.45rem .85rem;font-size:.65rem;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;border-bottom:2px solid var(--border);background:#f8fafc;">Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for rec in records %}
+      <tr>
+        <td style="padding:.52rem .85rem;border-bottom:1px solid #f1f5f9;font-weight:700;font-size:.79rem;white-space:nowrap;">{{ rec.attendance_date.strftime('%d %b %Y') }}</td>
+        <td style="padding:.52rem .85rem;border-bottom:1px solid #f1f5f9;font-size:.74rem;color:var(--text3);">{{ rec.attendance_date.strftime('%a') }}</td>
+        <td style="padding:.52rem .85rem;border-bottom:1px solid #f1f5f9;font-family:monospace;font-size:.79rem;font-weight:700;color:#16a34a;">{{ rec.punch_in.strftime('%I:%M %p') if rec.punch_in else '—' }}</td>
+        <td style="padding:.52rem .85rem;border-bottom:1px solid #f1f5f9;font-family:monospace;font-size:.79rem;font-weight:700;color:#2563eb;">{{ rec.punch_out.strftime('%I:%M %p') if rec.punch_out else '—' }}</td>
+        <td style="padding:.52rem .85rem;border-bottom:1px solid #f1f5f9;font-weight:700;font-size:.79rem;">{{ rec.working_hours_display }}</td>
+        <td style="padding:.52rem .85rem;border-bottom:1px solid #f1f5f9;">
+          <span style="display:inline-block;padding:2px 8px;border-radius:20px;font-size:.67rem;font-weight:700;"
+                class="sp-{{ rec.status.replace(' ','-') }}"
+                style="{% if rec.status=='Present' %}background:#dcfce7;color:#16a34a;{% elif rec.status=='Absent' %}background:#fee2e2;color:#dc2626;{% elif rec.status=='Half Day' %}background:#eff6ff;color:#2563eb;{% elif rec.status=='Holiday' %}background:#f3e8ff;color:#7c3aed;{% else %}background:#fef9c3;color:#ca8a04;{% endif %}">
+            {{ rec.status }}
+          </span>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text3);">Is mahine ka koi record nahi</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</div>
+{% endblock %}
