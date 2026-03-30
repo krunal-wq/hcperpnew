@@ -18,7 +18,7 @@
 
 /* Tabs */
 .tab-nav { display:flex; gap:0; border-bottom:2px solid var(--border); margin-bottom:1.25rem; flex-wrap:nowrap; position:relative; }
-.tab-nav-inner { display:flex; gap:0; overflow-x:auto; flex-wrap:nowrap; -webkit-overflow-scrolling:touch; scrollbar-width:none; flex:1; }
+.tab-nav-inner { display:flex; gap:0; overflow-x:auto; overflow-y:hidden; flex-wrap:nowrap; -webkit-overflow-scrolling:touch; scrollbar-width:none; flex:1; min-width:0; }
 .tab-nav-inner::-webkit-scrollbar { display:none; }
 .tab-btn { padding:10px 20px; font-size:0.85rem; font-weight:600; color:var(--text2); background:transparent; border:none; border-bottom:2px solid transparent; margin-bottom:-2px; cursor:pointer; transition:all .15s; text-decoration:none; white-space:nowrap; flex-shrink:0; }
 .tab-btn:hover { color:var(--blue); }
@@ -1386,9 +1386,12 @@ function switchTab(name, el) {
     document.getElementById('tab-' + name).classList.add('active');
     if (el) {
         el.classList.add('active');
-        // Scroll tab into view
-        var inner = document.getElementById('tabNavInner');
-        if (inner) inner.scrollLeft = el.offsetLeft - (inner.offsetWidth/2) + (el.offsetWidth/2);
+        // Scroll tab into view smoothly
+        var inner = document.getElementById('tabNavInner') || document.querySelector('.tab-nav-inner');
+        if (inner) {
+            var scrollTo = el.offsetLeft - (inner.offsetWidth/2) + (el.offsetWidth/2);
+            inner.scrollTo({ left: scrollTo, behavior: 'smooth' });
+        }
     } else {
         document.querySelectorAll('.tab-btn').forEach(b => {
             if (b.getAttribute('onclick') && b.getAttribute('onclick').includes("'" + name + "'")) {

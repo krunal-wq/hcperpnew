@@ -284,12 +284,13 @@
         .grid-search-wrap {
             display: flex; align-items: center; gap: 6px;
             background: #f8fafc; border: 1px solid var(--border);
-            border-radius: 7px; padding: 5px 10px; min-width: 180px;
+            border-radius: 7px; padding: 5px 10px; min-width: 160px;
+            flex: 1; max-width: 280px;
         }
         .grid-search-wrap svg { color: #94a3b8; flex-shrink: 0; }
         .grid-search-input {
             border: none; background: transparent; outline: none;
-            font-size: 13px; color: var(--text); font-family: inherit; width: 100%;
+            font-size: 13px; color: var(--text); font-family: inherit; width: 100%; min-width: 0;
         }
         .grid-search-input::placeholder { color: #94a3b8; }
 

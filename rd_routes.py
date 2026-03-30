@@ -119,7 +119,7 @@ def projects():
         User.role == 'rd_executive'
     ).all()}
 
-    CLOSED_STATUSES = {'completed', 'complete', 'closed', 'done', 'project_closed', 'cancelled'}
+    CLOSED_STATUSES = {'completed', 'complete', 'closed', 'done', 'project_closed', 'cancelled', 'finish', 'finished'}
 
     unallotted = [p for p in projects if (not p.assigned_rd or p.assigned_rd not in rd_exec_ids) and (p.status or '').lower() not in CLOSED_STATUSES]
     allotted   = [p for p in projects if p.assigned_rd and p.assigned_rd in rd_exec_ids and (p.status or '').lower() not in CLOSED_STATUSES]
@@ -642,6 +642,18 @@ def param_master():
     except Exception:
         params = []
     return render_template('rd/param_master.html', active_page='rd_param_master', params=params)
+
+@rd.route('/api/params')
+@login_required
+def api_params():
+    from flask import jsonify
+    try:
+        from models.npd import RDTestParameter
+        params = RDTestParameter.query.filter_by(is_active=True)\
+                     .order_by(RDTestParameter.sort_order, RDTestParameter.id).all()
+        return jsonify({'params': [{'name': p.name, 'unit': p.unit or '', 'default_val': p.default_val or ''} for p in params]})
+    except Exception:
+        return jsonify({'params': []})
 
 
 @rd.route('/param-master/add', methods=['POST'])

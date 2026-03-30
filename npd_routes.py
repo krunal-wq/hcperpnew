@@ -382,6 +382,22 @@ def project_view(pid):
     ms_done     = sum(1 for m in selected_ms if m.status=='approved')
     ms_pct      = round((ms_done/len(selected_ms))*100) if selected_ms else 0
 
+    # Team members — unique from assigned_members + assigned_rd_members
+    from models.employee import Employee
+    assigned_ids = set()
+    for field in [proj.assigned_members, proj.assigned_rd_members]:
+        if field:
+            for x in str(field).split(','):
+                x = x.strip()
+                if x and x.isdigit():
+                    assigned_ids.add(int(x))
+    team_members = []
+    if assigned_ids:
+        team_members = Employee.query.filter(
+            Employee.id.in_(assigned_ids),
+            Employee.is_deleted == False
+        ).order_by(Employee.first_name).all()
+
     from models.npd import NPDActivityLog, NPDComment, NPDNote
     activity_logs     = NPDActivityLog.query.filter_by(project_id=pid)                            .order_by(NPDActivityLog.created_at.desc()).all()
     disc_comments     = NPDComment.query.filter_by(project_id=pid, is_internal=False)                            .order_by(NPDComment.created_at.asc()).all()
@@ -392,6 +408,7 @@ def project_view(pid):
     return render_template('npd/project_view.html',
         active_page='npd_projects',
         proj=proj, users=users,
+        team_members=team_members,
         selected_ms=selected_ms, ms_done=ms_done, ms_pct=ms_pct,
         activity_logs=activity_logs,
         disc_comments=disc_comments,
@@ -484,29 +501,92 @@ def edit_project(pid):
     leads = Lead.query.filter_by(is_deleted=False).order_by(Lead.created_at.desc()).limit(200).all()
 
     if request.method == 'POST':
-        proj.product_name    = request.form.get('product_name', proj.product_name).strip()
-        proj.product_category= request.form.get('product_category', '')
-        proj.product_range   = request.form.get('product_range', '')
-        proj.client_name     = request.form.get('client_name', '')
-        proj.client_company  = request.form.get('client_company', '')
-        proj.client_email    = request.form.get('client_email', '')
-        proj.client_phone    = request.form.get('client_phone', '')
-        proj.lead_id         = request.form.get('lead_id') or None
+        proj.product_name        = request.form.get('product_name', proj.product_name).strip()
+        proj.product_category    = request.form.get('product_category', '')
+        proj.product_range       = request.form.get('product_range', '')
+        proj.client_name         = request.form.get('client_name', '')
+        proj.client_company      = request.form.get('client_company', '')
+        proj.client_email        = request.form.get('client_email', '')
+        proj.client_phone        = request.form.get('client_phone', '')
+        proj.client_coordinator  = request.form.get('client_coordinator', '')
+        proj.lead_id             = int(request.form.get('lead_id')) if request.form.get('lead_id') and request.form.get('lead_id').strip() not in ('', 'None') else None
+        proj.client_id           = int(request.form.get('client_id')) if request.form.get('client_id') and request.form.get('client_id').strip() not in ('', 'None') else None
+
+        # Status
+        new_status = request.form.get('status', '').strip()
+        if new_status:
+            proj.status = new_status
+
+        # Priority
+        proj.priority            = request.form.get('priority', 'Normal')
+
+        # Members
         proj.assigned_members     = request.form.get('assigned_members', '')
         proj.assigned_rd_members  = request.form.get('assigned_rd_members', '')
-        proj.requirement_spec= request.form.get('requirement_spec', '')
-        proj.reference_product= request.form.get('reference_product', '')
-        proj.custom_formulation= 'custom_formulation' in request.form
-        proj.order_quantity  = request.form.get('order_quantity', '')
-        proj.npd_fee_paid    = 'npd_fee_paid' in request.form
-        proj.npd_fee_amount  = request.form.get('npd_fee_amount', proj.npd_fee_amount) or proj.npd_fee_amount
-        proj.delay_reason    = request.form.get('delay_reason', '')
-        proj.updated_by      = current_user.id
+        proj.assigned_sc          = int(request.form.get('assigned_sc')) if request.form.get('assigned_sc') and request.form.get('assigned_sc').strip() not in ('', 'None') else None
+        proj.assigned_rd          = int(request.form.get('assigned_rd')) if request.form.get('assigned_rd') and request.form.get('assigned_rd').strip() not in ('', 'None') else None
+        proj.npd_poc              = int(request.form.get('npd_poc')) if request.form.get('npd_poc') and request.form.get('npd_poc').strip() not in ('', 'None') else None
+
+        # Product details
+        proj.area_of_application  = request.form.get('area_of_application', '')
+        proj.market_level         = request.form.get('market_level', '')
+        proj.no_of_samples        = int(request.form.get('no_of_samples') or 0)
+        proj.moq                  = request.form.get('moq', '')
+        proj.product_size         = request.form.get('product_size', '')
+        proj.order_quantity       = request.form.get('order_quantity', '')
+        proj.variant_type         = request.form.get('variant_type', '')
+        proj.appearance           = request.form.get('appearance', '')
+        proj.reference_brand      = request.form.get('reference_brand', '')
+        proj.reference_product_name = request.form.get('reference_product_name', '')
+        proj.reference_product    = request.form.get('reference_product', '')
+
+        # Formulation
+        proj.description          = request.form.get('description', '')
+        proj.ingredients          = request.form.get('ingredients', '')
+        proj.active_ingredients   = request.form.get('active_ingredients', '')
+        proj.product_claim        = request.form.get('product_claim', '')
+        proj.label_claim          = request.form.get('label_claim', '')
+        proj.requirement_spec     = request.form.get('requirement_spec', '')
+        proj.costing_range        = request.form.get('costing_range', '')
+        proj.ph_value             = request.form.get('ph_value', '')
+        proj.packaging_type       = request.form.get('packaging_type', '')
+        proj.fragrance            = request.form.get('fragrance', '')
+        proj.viscosity            = request.form.get('viscosity', '')
+        proj.video_link           = request.form.get('video_link', '')
+
+        # Dates
+        def pd(v):
+            from datetime import date
+            try:
+                from datetime import datetime as _dt
+                return _dt.strptime(v.strip(), '%Y-%m-%d').date() if v and v.strip() else None
+            except Exception:
+                return None
+        proj.project_start_date   = pd(request.form.get('project_start_date', '')) or proj.project_start_date
+        proj.project_end_date     = pd(request.form.get('project_end_date', '')) or proj.project_end_date
+        proj.target_sample_date   = pd(request.form.get('target_sample_date', '')) or proj.target_sample_date
+        proj.project_lead_days    = int(request.form.get('project_lead_days')) if request.form.get('project_lead_days') and request.form.get('project_lead_days').strip() not in ('', 'None') else proj.project_lead_days
+
+        # Fee & misc
+        proj.custom_formulation   = 'custom_formulation' in request.form
+        proj.npd_fee_paid         = 'npd_fee_paid' in request.form
+        proj.npd_fee_amount       = request.form.get('npd_fee_amount', proj.npd_fee_amount) or proj.npd_fee_amount
+        proj.delay_reason         = request.form.get('delay_reason', '')
+        proj.updated_by           = current_user.id
 
         if 'npd_fee_receipt' in request.files:
             f = request.files['npd_fee_receipt']
             if f and f.filename and allowed_file(f.filename):
                 proj.npd_fee_receipt = save_upload(f)
+
+        # Update milestone selection
+        milestone_ids = request.form.getlist('milestone_ids')
+        if milestone_ids:
+            from models.npd import MilestoneMaster
+            all_ms = MilestoneMaster.query.filter_by(project_id=proj.id).all()
+            selected_set = set(int(x) for x in milestone_ids if x.isdigit())
+            for ms in all_ms:
+                ms.is_selected = (ms.id in selected_set)
 
         log_npd(proj.id, f"Project updated by {current_user.full_name}")
         db.session.commit()
@@ -578,6 +658,17 @@ def change_status(pid):
     elif new_status == 'commercial':
         proj.converted_to_commercial   = True
         proj.commercial_converted_at   = datetime.now()
+    elif new_status == 'in_progress':
+        if not proj.started_at:
+            proj.started_at = datetime.now()
+    elif new_status == 'not_started':
+        proj.started_at = None
+    elif new_status in ('finish', 'finished', 'sample_ready'):
+        if not proj.finished_at:
+            proj.finished_at = datetime.now()
+        if proj.started_at and proj.finished_at:
+            delta = proj.finished_at - proj.started_at
+            proj.total_duration_seconds = int(delta.total_seconds())
 
     old_status = proj.status
     proj.status    = new_status

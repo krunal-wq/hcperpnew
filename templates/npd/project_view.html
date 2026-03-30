@@ -5,11 +5,49 @@
 
 {% block extra_css %}
 /* ── Same as lead_view theme ── */
+.pv-outer-wrap { padding: 0 100px; }
+@media (max-width: 1200px) { .pv-outer-wrap { padding: 0 40px; } }
+@media (max-width: 1100px) { .pv-outer-wrap { padding: 0 20px; } }
+@media (max-width: 900px)  { .pv-outer-wrap { padding: 0 10px; } }
+@media (max-width: 768px)  { .pv-outer-wrap { padding: 0 6px; } }
+
+/* Timer bar responsive */
+.pv-timer-grid { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 1rem; padding: 1rem 2.5rem; }
+.pv-timer-date { font-size: 18px; font-weight: 800; letter-spacing: .02em; white-space: nowrap; }
+@media (max-width: 1100px) {
+    .pv-timer-grid { padding: .85rem 1.2rem; gap: .5rem; }
+    .pv-timer-date { font-size: 15px !important; }
+}
+@media (max-width: 900px) {
+    .pv-timer-grid { grid-template-columns: 1fr; gap: .6rem; padding: .85rem 1rem; text-align: center; }
+    .pv-timer-right { justify-content: center !important; }
+    .pv-timer-left  { justify-content: center !important; }
+    .pv-timer-date  { font-size: 15px !important; }
+}
+@media (max-width: 768px) {
+    .pv-timer-grid { padding: .75rem; gap: .5rem; }
+    .pv-timer-date { font-size: 14px !important; }
+}
+
+/* Header responsive */
+@media (max-width: 960px) {
+    .pv-hdr-row  { flex-direction: column; gap: .5rem; }
+    .pv-hdr-btns { flex-wrap: wrap; gap: .4rem; }
+    h2.pv-title  { font-size: .92rem !important; }
+}
+@media (max-width: 768px) {
+    .lead-header { padding: .75rem 1rem; }
+    .pv-hdr-row  { flex-direction: column; gap: .5rem; }
+    .pv-hdr-btns { flex-wrap: wrap; gap: .4rem; }
+    .pv-info-inline { flex-direction: column; gap: .25rem; }
+    h2.pv-title { font-size: .95rem !important; }
+}
 .lead-header{background:#fff;border:1px solid var(--border);border-radius:var(--r-xl);padding:1rem 1.25rem;margin-bottom:1rem;box-shadow:var(--sh-sm);}
 .badge{display:inline-flex;align-items:center;padding:3px 10px;border-radius:6px;font-size:.75rem;font-weight:700;}
 .tab-nav{display:flex;gap:0;border-bottom:2px solid var(--border);margin-bottom:1.25rem;flex-wrap:nowrap;position:relative;}
-.tab-nav-inner{display:flex;gap:0;overflow-x:auto;flex-wrap:nowrap;-webkit-overflow-scrolling:touch;scrollbar-width:none;flex:1;}
+.tab-nav-inner{display:flex;gap:0;overflow-x:auto;overflow-y:hidden;flex-wrap:nowrap;-webkit-overflow-scrolling:touch;scrollbar-width:none;flex:1;min-width:0;}
 .tab-nav-inner::-webkit-scrollbar{display:none;}
+.tab-btn{padding:10px 20px;font-size:.85rem;font-weight:600;color:var(--text2);background:transparent;border:none;border-bottom:2px solid transparent;margin-bottom:-2px;cursor:pointer;transition:all .15s;text-decoration:none;white-space:nowrap;flex-shrink:0;}
 .tab-btn{padding:10px 20px;font-size:.85rem;font-weight:600;color:var(--text2);background:transparent;border:none;border-bottom:2px solid transparent;margin-bottom:-2px;cursor:pointer;transition:all .15s;text-decoration:none;white-space:nowrap;flex-shrink:0;}
 .tab-btn:hover{color:var(--blue);}
 .tab-btn.active{color:var(--blue);border-bottom-color:var(--blue);}
@@ -64,12 +102,13 @@
 {% endblock %}
 
 {% block content %}
+<div class="pv-outer-wrap">
 
 <!-- Project Header (same style as lead header) -->
 <div class="lead-header">
-    <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:.75rem;">
-        <div>
-            <h2 style="font-size:1.1rem;font-weight:800;color:var(--text);margin-bottom:.35rem;display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;">
+    <div class="pv-hdr-row" style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:.75rem;">
+        <div style="flex:1;min-width:0;">
+            <h2 class="pv-title" style="font-size:1.1rem;font-weight:800;color:var(--text);margin-bottom:0;display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;">
                 {{ proj.code }}
                 {% if proj.client_company or proj.client_name %}
                 <span style="color:var(--text3);">—</span>
@@ -79,20 +118,388 @@
                 <span>{{ proj.product_name }}</span>
                 <span style="color:var(--text3);">—</span>
                 <span class="badge" style="background:{{ proj.status_color }}18;color:{{ proj.status_color }};border:1px solid {{ proj.status_color }}44;">{{ proj.status_label }}</span>
+                <span style="color:var(--border);">|</span>
+                <span style="font-size:.77rem;font-weight:500;color:var(--text3);">📅 Create Date: <strong style="color:var(--text2);">{{ proj.created_at.strftime('%d-%m-%Y %I:%M:%S %p') if proj.created_at else '—' }}</strong></span>
+                <span style="font-size:.77rem;font-weight:500;color:var(--text3);">📅 Duration: <strong style="color:var(--text2);">{{ proj.project_age }} days</strong></span>
             </h2>
-            <div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap;font-size:.77rem;color:var(--text3);">
-                <span>📅 Create Date: <strong style="color:var(--text2);">{{ proj.created_at.strftime('%d-%m-%Y %I:%M:%S %p') if proj.created_at else '—' }}</strong></span>
-                <span>🏷️ Type: <strong style="color:var(--text2);">{{ 'NPD' if proj.project_type=='npd' else 'EPD' }}</strong></span>
-                <span>📅 Age: <strong style="color:var(--text2);">{{ proj.project_age }} days</strong></span>
-            </div>
         </div>
-        <div style="display:flex;gap:.4rem;flex-wrap:wrap;">
-            <button class="pv-btn" onclick="printDiscussion()">🖨️ Print</button>
-            <a href="/npd/projects/{{ proj.id }}/edit" class="pv-btn pv-btn-green">✏️ Edit {{ 'NPD' if proj.project_type=='npd' else 'EPD' }} Project</a>
 
+        <div class="pv-hdr-btns" style="display:flex;gap:.4rem;flex-wrap:wrap;align-items:flex-start;flex-shrink:0;">
+            <button class="pv-btn" onclick="printDiscussion()">🖨️ Print</button>
+
+            {# Decline Button — only when in_progress #}
+            {% if proj.status == 'in_progress' %}
+            <button onclick="openDeclineConfirm()" style="display:inline-flex;align-items:center;gap:5px;padding:7px 16px;background:#dc2626;color:#fff;border:none;border-radius:7px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">
+                ❌ Decline
+            </button>
+            {% endif %}
+
+            <a href="/npd/projects/{{ proj.id }}/edit" class="pv-btn pv-btn-green">✏️ Edit {{ 'NPD' if proj.project_type=='npd' else 'EPD' }} Project</a>
         </div>
     </div>
 </div>
+
+{# ── TIMER BAR — always shown ── #}
+{% if proj.status not in ('complete', 'completed', 'cancelled') %}
+<div style="background:var(--bg);margin-bottom:1rem;">
+  <div style="background:#fff;border:1px solid var(--border);border-radius:var(--r-xl);box-shadow:var(--sh-sm);">
+  <div class="pv-timer-grid">
+
+    {# Left: Start button (not started) OR START label + date (started) #}
+    <div class="pv-timer-left" style="display:flex;align-items:center;gap:10px;">
+        {% if proj.started_at %}
+        <div style="display:inline-flex;align-items:center;gap:6px;background:#16a34a;color:#fff;border-radius:7px;padding:5px 14px;font-size:13px;font-weight:700;white-space:nowrap;">
+            ▶ START
+        </div>
+        <div class="pv-timer-date" style="color:#16a34a;">
+            {{ proj.started_at.strftime('%d-%m-%Y %I:%M %p') }}
+        </div>
+        {% else %}
+        <button onclick="openStartConfirm()" style="display:inline-flex;align-items:center;gap:6px;background:#16a34a;color:#fff;border:none;border-radius:7px;padding:7px 18px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;">
+            ▶ START
+        </button>
+        {% endif %}
+    </div>
+
+    {# Center: Live timer OR total duration OR empty #}
+    <div style="display:flex;flex-direction:column;align-items:center;gap:5px;">
+        <div style="font-size:.72rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.08em;">⏱ Duration</div>
+        {% if proj.status == 'in_progress' %}
+        <div style="display:inline-flex;align-items:center;gap:10px;background:#f0fdf4;border:2px solid #bbf7d0;border-radius:100px;padding:8px 28px;">
+            <span style="width:11px;height:11px;border-radius:50%;background:#16a34a;display:inline-block;animation:pvPulse 1.2s infinite;flex-shrink:0;"></span>
+            <strong style="color:#16a34a;font-family:monospace;font-size:20px;font-weight:800;letter-spacing:.08em;" id="pvLiveTimer">00:00:00</strong>
+        </div>
+        {% else %}
+        {# Finished — calculate duration from started_at to finished_at #}
+        {% if proj.finished_at and proj.started_at %}
+        {% set td = ((proj.finished_at - proj.started_at).total_seconds())|int %}
+        {% set td_d = (td // 86400)|int %}
+        {% set td_h = ((td % 86400) // 3600)|int %}
+        {% set td_m = ((td % 3600) // 60)|int %}
+        {% set td_s = (td % 60)|int %}
+        <div style="display:inline-flex;align-items:center;gap:10px;background:#f1f5f9;border:2px solid #cbd5e1;border-radius:100px;padding:8px 28px;">
+            <span style="width:11px;height:11px;border-radius:50%;background:#6b7280;display:inline-block;flex-shrink:0;"></span>
+            <strong style="color:#475569;font-family:monospace;font-size:20px;font-weight:800;letter-spacing:.08em;">
+                {% if td_d > 0 %}{{ td_d }}d {% endif %}{{ "%02d" % td_h }}:{{ "%02d" % td_m }}:{{ "%02d" % td_s }}
+            </strong>
+        </div>
+        {% elif proj.total_duration_seconds %}
+        {% set td = proj.total_duration_seconds %}
+        {% set td_d = (td // 86400)|int %}
+        {% set td_h = ((td % 86400) // 3600)|int %}
+        {% set td_m = ((td % 3600) // 60)|int %}
+        {% set td_s = (td % 60)|int %}
+        <div style="display:inline-flex;align-items:center;gap:10px;background:#f1f5f9;border:2px solid #cbd5e1;border-radius:100px;padding:8px 28px;">
+            <span style="width:11px;height:11px;border-radius:50%;background:#6b7280;display:inline-block;flex-shrink:0;"></span>
+            <strong style="color:#475569;font-family:monospace;font-size:20px;font-weight:800;letter-spacing:.08em;">
+                {% if td_d > 0 %}{{ td_d }}d {% endif %}{{ "%02d" % td_h }}:{{ "%02d" % td_m }}:{{ "%02d" % td_s }}
+            </strong>
+        </div>
+        {% endif %}
+        {% if not proj.started_at %}
+        <div style="display:inline-flex;align-items:center;gap:10px;background:#f8fafc;border:2px solid #e2e8f0;border-radius:100px;padding:8px 28px;">
+            <strong style="color:#cbd5e1;font-family:monospace;font-size:20px;font-weight:800;letter-spacing:.08em;">--:--:--</strong>
+        </div>
+        {% endif %}
+        {% endif %}
+    </div>
+
+    {# Right: End button (in_progress) OR End time (finished) #}
+    <div class="pv-timer-right" style="display:flex;align-items:center;justify-content:flex-end;gap:10px;">
+        {% if proj.status == 'in_progress' %}
+        <form method="POST" action="/npd/projects/{{ proj.id }}/status" style="display:inline;">
+            <input type="hidden" name="status" value="sample_ready">
+            <input type="hidden" name="note" value="Sample ready">
+            <button type="submit" style="display:inline-flex;align-items:center;gap:6px;background:#2563eb;color:#fff;border:none;border-radius:7px;padding:5px 14px;font-size:13px;font-weight:700;white-space:nowrap;cursor:pointer;font-family:inherit;">
+                ⏹ END
+            </button>
+        </form>
+        {% else %}
+        {% if proj.finished_at %}
+        <div class="pv-timer-date" style="color:#dc2626;">
+            {{ proj.finished_at.strftime('%d-%m-%Y %I:%M %p') }}
+        </div>
+        <div style="display:inline-flex;align-items:center;gap:6px;background:#6b7280;color:#fff;border-radius:7px;padding:5px 14px;font-size:13px;font-weight:700;white-space:nowrap;">
+            ⏹ END
+        </div>
+        {% endif %}
+        {% endif %}
+    </div>
+
+  </div>
+  </div>
+</div>
+{% endif %}
+
+{# ── START CONFIRMATION MODAL ── #}
+<div id="startConfirmModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;align-items:center;justify-content:center;">
+    <div style="background:#fff;border-radius:14px;width:460px;max-width:95vw;box-shadow:0 20px 60px rgba(0,0,0,.2);overflow:hidden;">
+        <div style="padding:1.2rem 1.4rem;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;gap:.6rem;">
+            <span style="font-size:1.3rem;">▶️</span>
+            <div style="font-weight:800;font-size:1rem;">Start Project?</div>
+            <button onclick="closeStartConfirm()" style="margin-left:auto;background:none;border:none;font-size:1.2rem;cursor:pointer;color:#94a3b8;">✕</button>
+        </div>
+        <div style="padding:1.2rem 1.4rem;">
+            <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:.85rem 1rem;margin-bottom:1rem;">
+                <div style="font-size:.72rem;font-weight:700;color:#16a34a;text-transform:uppercase;letter-spacing:.05em;margin-bottom:.4rem;">📋 Project Brief</div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:.4rem .75rem;font-size:.83rem;">
+                    <div><span style="color:#6b7280;">Project No:</span> <strong>{{ proj.code }}</strong></div>
+                    <div><span style="color:#6b7280;">Product:</span> <strong>{{ proj.product_name }}</strong></div>
+                    <div><span style="color:#6b7280;">Client:</span> <strong>{{ proj.client_company or proj.client_name or '—' }}</strong></div>
+                    <div><span style="color:#6b7280;">Category:</span> <strong>{{ proj.product_category or '—' }}</strong></div>
+                    {% if proj.project_start_date %}<div><span style="color:#6b7280;">Start Date:</span> <strong>{{ proj.project_start_date.strftime('%d-%m-%Y') }}</strong></div>{% endif %}
+                    {% if proj.project_end_date %}<div><span style="color:#6b7280;">End Date:</span> <strong>{{ proj.project_end_date.strftime('%d-%m-%Y') }}</strong></div>{% endif %}
+                </div>
+            </div>
+            <p style="font-size:.85rem;color:#475569;margin:0 0 1rem;">Kya aap is project ko <strong>In Progress</strong> mark karna chahte hain?</p>
+            <div style="display:flex;gap:.5rem;justify-content:flex-end;">
+                <button onclick="closeStartConfirm()" style="padding:7px 18px;border:1px solid #e2e8f0;border-radius:7px;background:#f8fafc;font-size:.85rem;font-weight:600;cursor:pointer;">Cancel</button>
+                <form method="POST" action="/npd/projects/{{ proj.id }}/status" style="display:inline;">
+                    <input type="hidden" name="status" value="in_progress">
+                    <input type="hidden" name="note" value="Project started">
+                    <button type="submit" style="padding:7px 22px;background:#16a34a;color:#fff;border:none;border-radius:7px;font-size:.85rem;font-weight:700;cursor:pointer;">✅ Yes, Start</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+{# ── DECLINE CONFIRMATION MODAL ── #}
+<div id="declineConfirmModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;align-items:center;justify-content:center;">
+    <div style="background:#fff;border-radius:14px;width:420px;max-width:95vw;box-shadow:0 20px 60px rgba(0,0,0,.2);overflow:hidden;">
+        <div style="padding:1.1rem 1.4rem;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;gap:.6rem;">
+            <span style="font-size:1.3rem;">❌</span>
+            <div style="font-weight:800;font-size:1rem;">Decline Project?</div>
+            <button onclick="closeDeclineConfirm()" style="margin-left:auto;background:none;border:none;font-size:1.2rem;cursor:pointer;color:#94a3b8;">✕</button>
+        </div>
+        <div style="padding:1.2rem 1.4rem;">
+            <p style="font-size:.85rem;color:#475569;margin:0 0 1rem;">Kya aap is project ko <strong>Not Started</strong> mein wapas bhejana chahte hain? Status reset ho jaayega.</p>
+            <div style="display:flex;gap:.5rem;justify-content:flex-end;">
+                <button onclick="closeDeclineConfirm()" style="padding:7px 18px;border:1px solid #e2e8f0;border-radius:7px;background:#f8fafc;font-size:.85rem;font-weight:600;cursor:pointer;">Cancel</button>
+                <form method="POST" action="/npd/projects/{{ proj.id }}/status" style="display:inline;">
+                    <input type="hidden" name="status" value="not_started">
+                    <input type="hidden" name="note" value="Project declined — reset to Not Started">
+                    <button type="submit" style="padding:7px 22px;background:#dc2626;color:#fff;border:none;border-radius:7px;font-size:.85rem;font-weight:700;cursor:pointer;">✅ Yes, Decline</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+{# ── END / LOG TRIAL MODAL ── #}
+<div id="endTrialModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;align-items:center;justify-content:center;">
+    <div style="background:#fff;border-radius:14px;width:700px;max-width:96vw;max-height:92vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.2);">
+        <div style="padding:1.1rem 1.4rem;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;gap:.6rem;position:sticky;top:0;background:#fff;z-index:1;">
+            <span style="font-size:1.2rem;">⚗️</span>
+            <div style="font-weight:800;font-size:1rem;">Log New R&D Trial</div>
+            <button onclick="closeEndModal()" style="margin-left:auto;background:none;border:none;font-size:1.2rem;cursor:pointer;color:#94a3b8;">✕</button>
+        </div>
+        <div style="padding:1.4rem;">
+            {# Project Info Banner #}
+            <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:.65rem 1rem;margin-bottom:1rem;display:flex;align-items:center;gap:1.5rem;flex-wrap:wrap;">
+                <div><div style="font-size:.65rem;color:#6b7280;font-weight:700;">PROJECT</div><div style="font-size:.88rem;font-weight:800;">{{ proj.product_name }}</div></div>
+                <div style="width:1px;height:28px;background:#bfdbfe;"></div>
+                <div><div style="font-size:.65rem;color:#6b7280;font-weight:700;">CODE</div><div style="font-size:.82rem;font-weight:700;color:#2563eb;font-family:monospace;">{{ proj.code }}</div></div>
+                <div style="width:1px;height:28px;background:#bfdbfe;"></div>
+                <div><div style="font-size:.65rem;color:#6b7280;font-weight:700;">CLIENT</div><div style="font-size:.82rem;font-weight:700;">{{ proj.client_company or proj.client_name or '—' }}</div></div>
+            </div>
+
+            <form method="POST" action="/rd/trials/add" id="pvTrialForm">
+                <input type="hidden" name="project_id" value="{{ proj.id }}">
+
+                {# Sample No #}
+                <div style="margin-bottom:.85rem;">
+                    <label style="font-size:.78rem;font-weight:700;color:#475569;display:block;margin-bottom:.3rem;">Sample No.</label>
+                    <input type="text" name="formulation_name" placeholder="e.g. S-001"
+                        style="width:100%;padding:.45rem .75rem;border:1px solid #e2e8f0;border-radius:7px;font-size:.85rem;outline:none;font-family:inherit;box-sizing:border-box;"
+                        onfocus="this.style.borderColor='#2563eb'" onblur="this.style.borderColor='#e2e8f0'">
+                </div>
+
+                {# Test Parameters Table #}
+                <div style="margin-bottom:.85rem;">
+                    <label style="font-size:.78rem;font-weight:700;color:#475569;display:block;margin-bottom:.4rem;">Test Parameters</label>
+                    <div style="border:1.5px solid #e2e8f0;border-radius:10px;overflow:hidden;">
+                        <table style="width:100%;border-collapse:collapse;font-size:.84rem;" id="pvParamTable">
+                            <thead>
+                                <tr style="background:#f8fafc;">
+                                    <th style="padding:.5rem .85rem;text-align:left;font-size:.72rem;font-weight:800;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em;border-bottom:1.5px solid #e2e8f0;width:42%;">Parameter</th>
+                                    <th style="padding:.5rem .85rem;text-align:left;font-size:.72rem;font-weight:800;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em;border-bottom:1.5px solid #e2e8f0;">Result</th>
+                                </tr>
+                            </thead>
+                            <tbody id="pvParamTbody"></tbody>
+                        </table>
+                    </div>
+                    <textarea name="parameters" id="pvParamsHidden" style="display:none;"></textarea>
+                </div>
+
+                {# Status + Rejection #}
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:.85rem;">
+                    <div>
+                        <label style="font-size:.78rem;font-weight:700;color:#475569;display:block;margin-bottom:.3rem;">Status</label>
+                        <select name="status" id="pvStatusSel" onchange="pvOnStatusChange(this.value)"
+                            style="width:100%;padding:.45rem .75rem;border:1px solid #e2e8f0;border-radius:7px;font-size:.85rem;outline:none;font-family:inherit;">
+                            <option value="pending">⏳ Pending</option>
+                            <option value="approved">✅ Approved</option>
+                            <option value="rejected">❌ Rejected</option>
+                            <option value="submitted_npd">📤 Submitted to NPD Team</option>
+                            <option value="submitted_client">📨 Submitted to Client</option>
+                            <option value="client_approved">✅ Client Approved</option>
+                            <option value="client_rejected">❌ Client Rejected</option>
+                        </select>
+                    </div>
+                    <div id="pvRejectionRow" style="display:none;">
+                        <label style="font-size:.78rem;font-weight:700;color:#475569;display:block;margin-bottom:.3rem;">Rejection Reason <span style="color:#dc2626;">*</span></label>
+                        <input type="text" name="rejection_reason" id="pvRejectionInp" placeholder="Reason mandatory for rejection..."
+                            style="width:100%;padding:.45rem .75rem;border:1px solid #e2e8f0;border-radius:7px;font-size:.85rem;outline:none;font-family:inherit;box-sizing:border-box;">
+                    </div>
+                </div>
+
+                {# Observations #}
+                <div style="margin-bottom:1rem;">
+                    <label style="font-size:.78rem;font-weight:700;color:#475569;display:block;margin-bottom:.3rem;">Observations / Notes</label>
+                    <div id="pvObsEditor" style="min-height:100px;border:1px solid #e2e8f0;border-radius:7px;overflow:hidden;"></div>
+                    <textarea name="observations" id="pvObsHidden" style="display:none;"></textarea>
+                </div>
+
+                <div style="display:flex;gap:.5rem;justify-content:flex-end;">
+                    <button type="button" onclick="closeEndModal()" style="padding:7px 18px;border:1px solid #e2e8f0;border-radius:7px;background:#f8fafc;font-size:.85rem;font-weight:600;cursor:pointer;font-family:inherit;">Cancel</button>
+                    <button type="button" onclick="pvSubmitTrial()" style="padding:7px 22px;background:#2563eb;color:#fff;border:none;border-radius:7px;font-size:.85rem;font-weight:700;cursor:pointer;font-family:inherit;">⚗️ Log Trial</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+// ── Default test parameters (fallback)
+var PV_PARAMS = [
+    {name:'Appearance',unit:''},{name:'Color',unit:''},{name:'Odour',unit:''},
+    {name:'Transparency',unit:''},{name:'pH',unit:''},{name:'Viscosity',unit:'cP'},
+    {name:'Spindle No.',unit:''},{name:'RPM',unit:'rpm'}
+];
+
+// Load params from DB via API if available
+fetch('/rd/api/params')
+    .then(function(r){ return r.json(); })
+    .then(function(d){ if(d && d.params && d.params.length) PV_PARAMS = d.params; })
+    .catch(function(){});
+
+function buildPvParamTable(){
+    var tbody = document.getElementById('pvParamTbody');
+    tbody.innerHTML = '';
+    PV_PARAMS.forEach(function(p){
+        var tr = document.createElement('tr');
+        tr.style.borderBottom = '1px solid #f1f5f9';
+        tr.innerHTML = '<td style="padding:.55rem .85rem;font-weight:600;color:#1e293b;">' + p.name + (p.unit ? ' <span style="font-size:.72rem;color:#94a3b8;">(' + p.unit + ')</span>' : '') + '</td>' +
+            '<td style="padding:.4rem .85rem;"><input type="text" data-param="' + p.name + '" placeholder="Enter result..." style="width:100%;padding:.35rem .6rem;border:1px solid #e2e8f0;border-radius:6px;font-size:.83rem;outline:none;font-family:inherit;" onfocus="this.style.borderColor=\'#2563eb\'" onblur="this.style.borderColor=\'#e2e8f0\'"></td>';
+        tbody.appendChild(tr);
+    });
+}
+
+function pvSyncParams(){
+    var rows = document.querySelectorAll('#pvParamTable input[data-param]');
+    var result = {};
+    rows.forEach(function(inp){ result[inp.dataset.param] = inp.value; });
+    document.getElementById('pvParamsHidden').value = JSON.stringify(result);
+}
+
+function pvOnStatusChange(val){
+    var rej = document.getElementById('pvRejectionRow');
+    rej.style.display = (val === 'rejected' || val === 'client_rejected') ? 'block' : 'none';
+}
+
+// Rich text editor for observations
+var pvObsEditorReady = false;
+function pvInitObsEditor(){
+    if(pvObsEditorReady) return;
+    var container = document.getElementById('pvObsEditor');
+    var hidden = document.getElementById('pvObsHidden');
+    var toolbar = document.createElement('div');
+    toolbar.style.cssText = 'display:flex;gap:3px;padding:5px 8px;background:#f8fafc;border-bottom:1px solid #e2e8f0;flex-wrap:wrap;';
+    var btns = [{cmd:'bold',label:'<b>B</b>'},{cmd:'italic',label:'<i>I</i>'},{cmd:'underline',label:'<u>U</u>'},
+        {cmd:'sep'},{cmd:'insertUnorderedList',label:'• List'},{cmd:'insertOrderedList',label:'1. List'},
+        {cmd:'sep'},{cmd:'undo',label:'↩'},{cmd:'redo',label:'↪'}];
+    var area = document.createElement('div');
+    area.contentEditable = 'true';
+    area.style.cssText = 'min-height:90px;padding:.5rem .75rem;font-size:.85rem;font-family:inherit;outline:none;line-height:1.6;color:#1e293b;';
+    btns.forEach(function(b){
+        if(b.cmd==='sep'){var s=document.createElement('span');s.style.cssText='width:1px;background:#e2e8f0;margin:2px 3px;display:inline-block;';toolbar.appendChild(s);return;}
+        var btn=document.createElement('button');btn.type='button';btn.innerHTML=b.label;
+        btn.style.cssText='padding:3px 8px;border:1px solid #e2e8f0;border-radius:5px;background:#fff;cursor:pointer;font-size:.78rem;min-width:28px;font-family:inherit;';
+        btn.onmousedown=function(e){e.preventDefault();document.execCommand(b.cmd,false,null);area.focus();};
+        toolbar.appendChild(btn);
+    });
+    area.addEventListener('input',function(){ hidden.value = area.innerHTML; });
+    container.appendChild(toolbar);
+    container.appendChild(area);
+    pvObsEditorReady = true;
+}
+
+function pvSubmitTrial(){
+    pvSyncParams();
+    var obsArea = document.querySelector('#pvObsEditor [contenteditable]');
+    if(obsArea) document.getElementById('pvObsHidden').value = obsArea.innerHTML;
+    document.getElementById('pvTrialForm').submit();
+}
+
+// ── Modal controls ──
+function openStartConfirm(){
+    document.getElementById('startConfirmModal').style.display = 'flex';
+}
+function closeStartConfirm(){
+    document.getElementById('startConfirmModal').style.display = 'none';
+}
+function openDeclineConfirm(){
+    document.getElementById('declineConfirmModal').style.display = 'flex';
+}
+function closeDeclineConfirm(){
+    document.getElementById('declineConfirmModal').style.display = 'none';
+}
+function openEndModal(){
+    buildPvParamTable();
+    pvInitObsEditor();
+    document.getElementById('endTrialModal').style.display = 'flex';
+}
+function closeEndModal(){
+    document.getElementById('endTrialModal').style.display = 'none';
+}
+// Close on backdrop click
+['startConfirmModal','declineConfirmModal','endTrialModal'].forEach(function(id){
+    document.getElementById(id).addEventListener('click', function(e){ if(e.target===this) this.style.display='none'; });
+});
+
+// ── Live Running Timer ──
+{% if proj.started_at and proj.status == 'in_progress' %}
+(function(){
+    var startedAt = new Date({{ proj.started_at.strftime('%Y') }}, {{ proj.started_at.strftime('%m')|int - 1 }}, {{ proj.started_at.strftime('%d') }}, {{ proj.started_at.strftime('%H') }}, {{ proj.started_at.strftime('%M') }}, {{ proj.started_at.strftime('%S') }});
+    var timerEl = document.getElementById('pvLiveTimer');
+    if(!timerEl) return;
+    function updateTimer(){
+        var now = new Date();
+        var diff = Math.floor((now - startedAt) / 1000);
+        if(diff < 0) diff = 0;
+        var d = Math.floor(diff / 86400);
+        var h = Math.floor((diff % 86400) / 3600);
+        var m = Math.floor((diff % 3600) / 60);
+        var s = diff % 60;
+        var str = '';
+        if(d > 0) str = d + 'd ' + pad(h) + ':' + pad(m) + ':' + pad(s);
+        else str = pad(h) + ':' + pad(m) + ':' + pad(s);
+        timerEl.textContent = str;
+    }
+    function pad(n){ return n < 10 ? '0'+n : ''+n; }
+    updateTimer();
+    setInterval(updateTimer, 1000);
+})();
+{% endif %}
+</script>
+
+<style>
+@keyframes pvPulse {
+    0%,100% { opacity:1; transform:scale(1); }
+    50%      { opacity:.4; transform:scale(1.4); }
+}
+</style>
 
 <!-- Tabs (same as lead_view) -->
 <div class="tab-nav">
@@ -385,8 +792,20 @@ function switchTab(name, el) {
     document.querySelectorAll('.tab-pane').forEach(function(p){ p.classList.remove('active'); });
     document.querySelectorAll('.tab-btn').forEach(function(b){ b.classList.remove('active'); });
     document.getElementById('tab-'+name).classList.add('active');
-    if(el) el.classList.add('active');
-    else document.querySelectorAll('.tab-btn').forEach(function(b){ if(b.textContent.toLowerCase().includes(name)) b.classList.add('active'); });
+    if(el) {
+        el.classList.add('active');
+        // Auto-scroll tab into view
+        var inner = el.closest('.tab-nav-inner') || document.querySelector('.tab-nav-inner');
+        if(inner) {
+            var btnLeft = el.offsetLeft;
+            var btnWidth = el.offsetWidth;
+            var innerWidth = inner.offsetWidth;
+            var scrollTo = btnLeft - (innerWidth / 2) + (btnWidth / 2);
+            inner.scrollTo({ left: scrollTo, behavior: 'smooth' });
+        }
+    } else {
+        document.querySelectorAll('.tab-btn').forEach(function(b){ if(b.textContent.toLowerCase().includes(name)) b.classList.add('active'); });
+    }
 }
 
 // File name display
@@ -462,4 +881,6 @@ if(tabParam) {
     }
 }
 </script>
+
+</div>{# end 100px wrapper #}
 {% endblock %}

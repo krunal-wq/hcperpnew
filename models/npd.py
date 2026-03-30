@@ -111,6 +111,15 @@ class NPDProject(db.Model):
     cancel_reason   = db.Column(db.Text)
     cancelled_at    = db.Column(db.DateTime)
 
+    # Started
+    started_at      = db.Column(db.DateTime)
+
+    # Finished
+    finished_at     = db.Column(db.DateTime)
+
+    # Total duration in seconds (started_at to finished_at)
+    total_duration_seconds = db.Column(db.Integer, nullable=True)
+
     # Completion
     completed_at    = db.Column(db.DateTime)
 

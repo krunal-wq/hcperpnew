@@ -10,7 +10,7 @@
 .s-ic{width:42px;height:42px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:1.25rem;flex-shrink:0;}
 .s-num{font-size:1.9rem;font-weight:900;line-height:1;}
 .s-lbl{font-size:.72rem;color:var(--text3);margin-top:3px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;}
-.proj-table-wrap{background:#fff;border:1px solid var(--border);border-radius:var(--r-lg);overflow:hidden;}
+.proj-table-wrap{background:#fff;border:1px solid var(--border);border-radius:var(--r-lg);overflow:visible;}
 .proj-table{width:100%;border-collapse:collapse;font-size:.82rem;}
 .proj-table th{font-size:.68rem;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;padding:.55rem .9rem;border-bottom:2px solid var(--border);text-align:left;background:var(--bg);}
 .proj-table td{padding:.65rem .9rem;border-bottom:1px solid var(--border);color:var(--text);vertical-align:middle;}
@@ -98,7 +98,7 @@
         color: var(--text2); text-decoration: none;
     }
     .mobile-proj-list { display: none !important; }
-    .tbl-scroll { display: block; }
+    .tbl-scroll { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
 }
 {% endblock %}
 
@@ -202,7 +202,7 @@
             {% set done_ms = sel_ms|selectattr('status','eq','approved')|list %}
             {% set ms_pct2 = ((done_ms|length / sel_ms|length)*100)|round|int if sel_ms else 0 %}
             <tr>
-                <td><span style="font-family:var(--font-mono);font-weight:700;font-size:.8rem;color:#7c3aed;">{{ p.code }}</span></td>
+                <td><a href="/npd/projects/{{ p.id }}" style="font-family:var(--font-mono);font-weight:700;font-size:.8rem;color:#7c3aed;text-decoration:none;">{{ p.code }}</a></td>
                 <td style="max-width:160px;"><div style="font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="{{ p.product_name }}">{{ p.product_name }}</div>
                     {% if p.product_category %}<div style="font-size:.7rem;color:var(--text3);">{{ p.product_category }}</div>{% endif %}</td>
                 <td style="font-size:.8rem;">{{ p.client_company or p.client_name or '—' }}</td>
@@ -252,7 +252,21 @@
 </div>
 
 <script>
-function toggleAct(btn,e){e.stopPropagation();var m=btn.nextElementSibling;var o=m.classList.contains('open');document.querySelectorAll('.act-menu.open').forEach(function(x){x.classList.remove('open');});if(!o)m.classList.add('open');}
+function toggleAct(btn,e){
+  e.stopPropagation();e.preventDefault();
+  var m=btn.nextElementSibling;
+  var o=m.classList.contains('open');
+  document.querySelectorAll('.act-menu.open').forEach(function(x){x.classList.remove('open');});
+  if(!o){
+    var rect=btn.getBoundingClientRect();
+    m.style.position='fixed';
+    m.style.top=(rect.bottom+4)+'px';
+    m.style.right=(window.innerWidth-rect.right)+'px';
+    m.style.left='auto';
+    m.style.zIndex='9999';
+    m.classList.add('open');
+  }
+}
 document.addEventListener('click',function(){document.querySelectorAll('.act-menu.open').forEach(function(m){m.classList.remove('open');});});
 </script>
 {% endblock %}

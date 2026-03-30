@@ -313,10 +313,10 @@
     </div>
 
     {# Global Search (desktop) #}
-    <div class="mob-desktop-only" style="display:flex;align-items:center;gap:6px;border:1px solid var(--border);border-radius:var(--r-md);padding:.35rem .7rem;background:#fff;min-width:180px;">
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    <div style="display:inline-flex;align-items:center;gap:6px;border:1px solid var(--border);border-radius:var(--r-md);padding:.35rem .7rem;background:#fff;width:200px;flex-shrink:0;">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
       <input type="text" id="npd_search_desk" placeholder="Global Search..." value="{{ q }}"
-        style="border:none;outline:none;font-size:.82rem;color:var(--text);background:transparent;width:100%;font-family:inherit;"
+        style="border:none;outline:none;font-size:.82rem;color:var(--text);background:transparent;width:100%;min-width:0;font-family:inherit;white-space:nowrap;"
         oninput="npdSearch(this.value)">
     </div>
 
@@ -383,7 +383,7 @@
       </div>
 
       {# Bulk Delete #}
-      <button class="btn-grid-action danger mob-desktop-only" id="npdBulkDelBtn" style="display:none;" onclick="npdBulkDelete()">
+      <button class="btn-grid-action danger" id="npdBulkDelBtn" style="display:none;" onclick="npdBulkDelete()">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
         Delete Selected
       </button>
@@ -784,6 +784,7 @@
 <script>
 function toggleAct(btn,e){
   e.stopPropagation();
+  e.preventDefault();
   var m=btn.nextElementSibling;
   var isOpen=m.classList.contains('open');
   document.querySelectorAll('.act-menu.open').forEach(function(x){x.classList.remove('open');});
@@ -793,14 +794,20 @@ function toggleAct(btn,e){
     m.style.top=(rect.bottom+4)+'px';
     m.style.right=(window.innerWidth-rect.right)+'px';
     m.style.left='auto';
+    m.style.zIndex='9999';
     m.classList.add('open');
   }
 }
 document.addEventListener('click',function(e){
-  document.querySelectorAll('.act-menu.open').forEach(function(m){m.classList.remove('open');});
-  if(!document.getElementById('statusDdWrap').contains(e.target)) document.getElementById('statusDdMenu').style.display='none';
+  if(!e.target.closest('.act-wrap')){
+    document.querySelectorAll('.act-menu.open').forEach(function(m){m.classList.remove('open');});
+  }
+  var sdWrap=document.getElementById('statusDdWrap');
+  if(sdWrap && !sdWrap.contains(e.target)) document.getElementById('statusDdMenu').style.display='none';
 });
-window.addEventListener('scroll',function(){document.querySelectorAll('.act-menu.open').forEach(function(m){m.classList.remove('open');});},true);
+window.addEventListener('scroll',function(){
+  document.querySelectorAll('.act-menu.open').forEach(function(m){m.classList.remove('open');});
+}, false);
 
 /* ── Toolbar functions ── */
 function toggleNpdStatusDd(){
@@ -1042,7 +1049,7 @@ function toggleAll(cb){document.querySelectorAll('.row-check-item').forEach(c=>c
 function updateNpdBulk(){
   var n=document.querySelectorAll('.row-check-item:checked').length;
   var btn=document.getElementById('npdBulkDelBtn');
-  if(btn) btn.style.display=n>0?'':'none';
+  if(btn) btn.style.display=n>0?'inline-flex':'none';
 }
 function npdBulkDelete(){
   var ids=Array.from(document.querySelectorAll('.row-check-item:checked')).map(c=>c.value);
