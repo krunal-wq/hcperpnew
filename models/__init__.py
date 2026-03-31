@@ -13,7 +13,8 @@ from .approval   import ApprovalRequest, ApprovalLevel
 from .attendance import RawPunchLog, Attendance, HolidayMaster, LateShiftRule, LatePenaltyRule
 from .npd        import (NPDProject, MilestoneMaster, MilestoneLog, NPDMilestoneTemplate,
                          NPDFormulation, NPDPackingMaterial, NPDArtwork, NPDActivityLog,
-                         NPDComment, NPDNote)
+                         NPDComment, NPDNote,
+                         OfficeDispatchToken, OfficeDispatchItem)
 
 __all__ = [
     'db',
@@ -34,4 +35,5 @@ __all__ = [
     # NPD / Product Development
     'NPDProject', 'MilestoneMaster', 'MilestoneLog', 'NPDMilestoneTemplate',
     'NPDFormulation', 'NPDPackingMaterial', 'NPDArtwork', 'NPDActivityLog', 'NPDComment', 'NPDNote',
+    'OfficeDispatchToken', 'OfficeDispatchItem',
 ]

@@ -1540,6 +1540,8 @@
                 <div class="sb-acc-sub-lbl">🧪 NPD</div>
                 <a class="nav-a" href="/npd/npd-dashboard"><span class="nav-ic">📊</span><span class="nav-txt">NPD Dashboard</span></a>
                 <a class="nav-a" href="/npd/npd-projects"><span class="nav-ic">📋</span><span class="nav-txt">NPD Projects</span></a>
+                <a class="nav-a {% if _pg == 'npd_sample_ready' %}active{% endif %}" href="/npd/sample-ready"><span class="nav-ic">🧪</span><span class="nav-txt">Sample Ready</span></a>
+                <a class="nav-a {% if _pg == 'npd_sample_history' %}active{% endif %}" href="/npd/sample-history"><span class="nav-ic">📋</span><span class="nav-txt">Sample History</span></a>
                 <a class="nav-a" href="/npd/npd-new"><span class="nav-ic">➕</span><span class="nav-txt">New NPD Project</span></a>
 
                 {# ── EPD Section ── #}
@@ -1555,6 +1557,8 @@
                 <a class="nav-a" href="/rd/executives"><span class="nav-ic">◎</span><span class="nav-txt">Executives</span></a>
                 <a class="nav-a" href="/rd/performance"><span class="nav-ic">◑</span><span class="nav-txt">Performance</span></a>
                 <a class="nav-a" href="/rd/discussion"><span class="nav-ic">💬</span><span class="nav-txt">Discussion</span></a>
+                <a class="nav-a {% if _pg == 'npd_sample_ready' %}active{% endif %}" href="/npd/sample-ready"><span class="nav-ic">🧪</span><span class="nav-txt">Sample Ready</span></a>
+                <a class="nav-a {% if _pg == 'npd_sample_history' %}active{% endif %}" href="/npd/sample-history"><span class="nav-ic">📋</span><span class="nav-txt">Sample History</span></a>
 
                 {# ── NPD Masters (Admin only) ── #}
                 {% if role == 'admin' %}

@@ -1,0 +1,625 @@
+{% extends "base.html" %}
+{% block title %}Sample Ready — NPD{% endblock %}
+{% block page_title %}Sample Ready{% endblock %}
+{% block bread %}NPD / Sample Ready{% endblock %}
+
+{% block extra_css %}
+.sr-hdr{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.75rem;margin-bottom:1rem;}
+.sr-count-badge{display:inline-flex;align-items:center;gap:6px;background:#f0fdf4;border:1px solid #bbf7d0;color:#166534;padding:4px 12px;border-radius:100px;font-size:.78rem;font-weight:700;}
+.grid-toolbar{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;padding:12px 16px;background:#fff;border-bottom:1px solid var(--border);}
+.grid-search-wrap{display:flex;align-items:center;gap:6px;background:#f8fafc;border:1.5px solid var(--border);border-radius:8px;padding:6px 12px;min-width:220px;transition:border .15s;}
+.grid-search-wrap:focus-within{border-color:#7c3aed;background:#faf5ff;}
+.grid-search-wrap input{border:none;background:none;outline:none;font-size:.84rem;color:var(--text);width:100%;}
+.grid-search-wrap input::placeholder{color:var(--text3);}
+
+/* Table */
+.sr-table-wrap{background:#fff;border:1px solid var(--border);border-radius:12px;overflow:hidden;}
+.sr-table{width:100%;border-collapse:collapse;font-size:13px;}
+.sr-table thead{background:#f8fafc;}
+.sr-table th{font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em;padding:10px 14px;border-bottom:1px solid var(--border);text-align:left;white-space:nowrap;}
+.sr-table td{padding:11px 14px;border-bottom:1px solid #f1f5f9;color:var(--text);vertical-align:middle;font-size:13px;}
+.sr-table tbody tr:last-child td{border-bottom:none;}
+.sr-table tbody tr{background:#fff;transition:background .1s;}
+.sr-table tbody tr:hover td{background:#f8fff8;}
+.sr-table tbody tr.row-selected td{background:#f5f3ff;}
+
+/* Checkbox */
+.row-cb{width:16px;height:16px;accent-color:#7c3aed;cursor:pointer;border-radius:3px;}
+.row-check{width:44px;padding-left:16px !important;}
+
+/* Selection bar */
+.sel-bar{display:none;align-items:center;gap:10px;padding:10px 16px;background:#f5f3ff;border-bottom:2px solid #7c3aed;flex-wrap:wrap;}
+.sel-bar.show{display:flex;}
+.sel-bar-txt{font-size:.84rem;font-weight:700;color:#7c3aed;}
+.btn-send{display:inline-flex;align-items:center;gap:6px;padding:7px 18px;background:#7c3aed;color:#fff;border:none;border-radius:8px;font-size:.82rem;font-weight:700;cursor:pointer;transition:background .15s;}
+.btn-send:hover{background:#6d28d9;}
+.btn-send:disabled{opacity:.5;cursor:not-allowed;}
+.btn-deselect{padding:6px 14px;background:#fff;color:#7c3aed;border:1.5px solid #c4b5fd;border-radius:8px;font-size:.82rem;font-weight:600;cursor:pointer;}
+.btn-deselect:hover{background:#f5f3ff;}
+
+/* Status badge */
+.badge{display:inline-block;padding:2px 9px;border-radius:100px;font-size:.71rem;font-weight:700;}
+.tbl-action-btn{width:30px;height:30px;border-radius:7px;display:inline-flex;align-items:center;justify-content:center;border:none;cursor:pointer;text-decoration:none;transition:background .12s;vertical-align:middle;}
+.tbl-action-btn.view{background:#eff6ff;color:#1d4ed8;}
+.tbl-action-btn.view:hover{background:#dbeafe;}
+
+/* Empty */
+.empty-wrap{text-align:center;padding:64px 24px;}
+.empty-icon{font-size:3rem;margin-bottom:12px;}
+.empty-title{font-size:1.1rem;font-weight:700;color:var(--text);margin-bottom:6px;}
+.empty-sub{font-size:.84rem;color:var(--text3);}
+
+/* Pagination */
+.pg-wrap{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem;padding:12px 16px;border-top:1px solid var(--border);background:#fafbfc;}
+.pg-info{font-size:.8rem;color:var(--text3);}
+.pg-btns{display:flex;gap:4px;}
+.pg-btn{padding:5px 12px;border-radius:7px;border:1px solid var(--border);background:#fff;font-size:.8rem;font-weight:600;color:var(--text);cursor:pointer;text-decoration:none;transition:all .12s;}
+.pg-btn:hover{background:#f1f5f9;}
+.pg-btn.active{background:#7c3aed;color:#fff;border-color:#7c3aed;}
+.pg-btn.disabled{opacity:.4;pointer-events:none;}
+
+/* ── Modal ── */
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1000;align-items:center;justify-content:center;}
+.modal-bg.open{display:flex;}
+.modal-box{background:#fff;border-radius:16px;width:820px;max-width:96vw;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 24px 64px rgba(0,0,0,.22);overflow:visible;}
+.modal-hdr{display:flex;align-items:center;justify-content:space-between;padding:16px 22px;border-bottom:1px solid var(--border);flex-shrink:0;}
+.modal-hdr h3{font-size:1rem;font-weight:800;color:var(--text);margin:0;}
+.modal-close{width:30px;height:30px;border-radius:7px;border:none;background:#f1f5f9;cursor:pointer;font-size:1.1rem;display:flex;align-items:center;justify-content:center;color:var(--text2);}
+.modal-close:hover{background:#fee2e2;color:#dc2626;}
+.modal-body{padding:16px 22px;overflow-y:auto;overflow-x:visible;flex:1;}
+.modal-footer{display:flex;gap:8px;justify-content:flex-end;padding:14px 22px;border-top:1px solid var(--border);background:#fafbfc;flex-shrink:0;}
+.modal-summary{background:#f5f3ff;border:1px solid #ede9fe;border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:.84rem;color:#5b21b6;font-weight:600;}
+.modal-proj-list{margin-bottom:14px;}
+
+/* Row-wise card per project */
+.modal-proj-item{background:#fff;border:1.5px solid #ede9fe;border-radius:10px;margin-bottom:10px;overflow:visible;}
+.modal-proj-item:last-child{margin-bottom:0;}
+/* Info header strip */
+.proj-info-strip{display:grid;grid-template-columns:140px 1fr 160px;gap:0;background:#f5f3ff;border-bottom:1px solid #ede9fe;}
+.proj-info-cell{padding:8px 12px;border-right:1px solid #ede9fe;}
+.proj-info-cell:last-child{border-right:none;}
+.proj-info-lbl{font-size:.68rem;font-weight:700;color:#7c3aed;text-transform:uppercase;letter-spacing:.04em;margin-bottom:2px;}
+.proj-info-val{font-size:.82rem;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+/* Input row */
+.proj-input-row{display:grid;grid-template-columns:1fr 1fr 1.4fr;gap:0;background:#fff;overflow:visible;}
+.proj-input-cell{padding:10px 12px;border-right:1px solid #f1f5f9;}
+.proj-input-cell:last-child{border-right:none;}
+.proj-input-lbl{font-size:.68rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;}
+
+.modal-proj-code{font-weight:700;color:#7c3aed;font-family:monospace;font-size:.8rem;}
+.proj-remove-btn{width:24px;height:24px;border-radius:6px;border:none;background:#fee2e2;color:#dc2626;cursor:pointer;font-size:.85rem;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background .12s;}
+.proj-remove-btn:hover{background:#fecaca;}
+.modal-input{width:100%;padding:6px 10px;border:1.5px solid #e2e8f0;border-radius:7px;font-size:.82rem;font-family:inherit;outline:none;background:#fafbfc;transition:border .15s;box-sizing:border-box;}
+.modal-input.field-error{border-color:#ef4444!important;background:#fff5f5!important;}
+.field-err-msg{font-size:.7rem;color:#ef4444;font-weight:600;margin-top:3px;display:none;}
+.field-err-msg.show{display:block;}
+.modal-input:focus{border-color:#7c3aed;background:#fff;}
+.autocomplete-wrap{position:relative;}
+.ac-dropdown{display:none;position:absolute;top:calc(100% + 2px);left:0;right:0;background:#fff;border:1.5px solid #c4b5fd;border-radius:7px;box-shadow:0 8px 24px rgba(0,0,0,.15);z-index:9999;max-height:160px;overflow-y:auto;}
+.ac-dropdown.show{display:block;}
+.ac-item{padding:7px 12px;font-size:.82rem;cursor:pointer;transition:background .1s;}
+.ac-item:hover{background:#f5f3ff;color:#7c3aed;}
+.notes-input{width:100%;padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:.84rem;font-family:inherit;resize:vertical;min-height:56px;outline:none;transition:border .15s;}
+.notes-input:focus{border-color:#7c3aed;}
+.btn-cancel{padding:8px 18px;background:#f1f5f9;color:var(--text2);border:none;border-radius:8px;font-size:.84rem;font-weight:600;cursor:pointer;}
+.btn-confirm{padding:8px 22px;background:#7c3aed;color:#fff;border:none;border-radius:8px;font-size:.84rem;font-weight:700;cursor:pointer;}
+.btn-confirm:hover{background:#6d28d9;}
+.btn-confirm:disabled{opacity:.5;cursor:not-allowed;}
+
+/* ── Token Success Modal ── */
+.token-success{text-align:center;padding:10px 0 6px;}
+.token-badge{display:inline-block;background:#f0fdf4;border:2px solid #bbf7d0;color:#166534;padding:10px 28px;border-radius:12px;font-size:1.4rem;font-weight:800;letter-spacing:.05em;margin:10px 0;}
+
+@media(max-width:767px){
+  .grid-toolbar{flex-direction:column;align-items:stretch;padding:10px 12px;}
+  .grid-search-wrap{min-width:unset;}
+  .sr-table-wrap{border-radius:0;border-left:none;border-right:none;}
+  .sr-table thead{display:none;}
+  .sr-table tr{display:block;border-bottom:1px solid #f1f5f9;padding:12px 14px;}
+  .sr-table td{display:block;padding:3px 0;border:none;font-size:12.5px;}
+  .sr-table td::before{content:attr(data-label);font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;display:block;margin-bottom:2px;}
+}
+{% endblock %}
+
+{% block content %}
+<!-- Header -->
+<div class="sr-hdr">
+  <div style="display:flex;align-items:center;gap:10px;">
+    <span style="font-size:1.5rem;">🧪</span>
+    <div>
+      <h2 style="font-size:1.1rem;font-weight:800;color:var(--text);margin:0;">Sample Ready</h2>
+      <p style="font-size:.78rem;color:var(--text3);margin:0;">NPD projects jinka sample ready hai — select karke office bhejo</p>
+    </div>
+    <span class="sr-count-badge">✅ {{ total }} Project{{ 's' if total != 1 }}</span>
+  </div>
+  <!-- Dispatch Tokens History link -->
+  <a href="/npd/sample-history" style="display:inline-flex;align-items:center;gap:6px;padding:7px 14px;background:#fff;border:1.5px solid var(--border);border-radius:8px;font-size:.82rem;font-weight:600;color:var(--text2);text-decoration:none;">
+    📋 Sample History
+  </a>
+</div>
+
+<div class="sr-table-wrap">
+
+  <!-- Search toolbar -->
+  <form method="get" id="srSearchForm">
+    <div class="grid-toolbar">
+      <div class="grid-search-wrap" style="flex:1;max-width:320px;">
+        <svg width="14" height="14" fill="none" stroke="#94a3b8" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        <input type="text" name="q" value="{{ q }}" placeholder="Search project, client, product..." id="srSearchInput">
+        {% if q %}<a href="?" style="color:#94a3b8;text-decoration:none;font-size:.85rem;">✕</a>{% endif %}
+      </div>
+      <button type="submit" style="padding:7px 16px;background:#7c3aed;color:#fff;border:none;border-radius:8px;font-size:.82rem;font-weight:700;cursor:pointer;">Search</button>
+      {% if q %}<a href="?" style="padding:7px 14px;background:#f1f5f9;color:var(--text2);border-radius:8px;font-size:.82rem;font-weight:600;text-decoration:none;">Clear</a>{% endif %}
+    </div>
+  </form>
+
+  <!-- Selection bar (hidden until checkbox selected) -->
+  <div class="sel-bar" id="selBar">
+    <span class="sel-bar-txt" id="selCount">0 selected</span>
+    <button class="btn-send" id="btnSendOffice" onclick="openSendModal()">
+      🏢 Send to Office
+    </button>
+    <button class="btn-deselect" onclick="deselectAll()">✕ Deselect All</button>
+  </div>
+
+  {% if projects.items %}
+  <table class="sr-table">
+    <thead>
+      <tr>
+        <th class="row-check">
+          <input type="checkbox" class="row-cb" id="chkAll" onchange="toggleAll(this)" title="Select All">
+        </th>
+        <th>#</th>
+        <th>Project No</th>
+        <th>Product Name</th>
+        <th>Client</th>
+        <th>Category</th>
+        <th>Priority</th>
+        <th>Project Status</th>
+        <th>Start Date</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+    <tbody id="srTbody">
+      {% for p in projects.items %}
+      <tr id="row-{{ p.id }}">
+        <td class="row-check" data-label="">
+          <input type="checkbox" class="row-cb proj-cb"
+                 value="{{ p.id }}"
+                 data-name="{{ p.product_name }}"
+                 data-code="{{ p.code or '' }}"
+                 data-client="{{ p.client_name or '' }}"
+                 data-sc="{{ p.sc_user.full_name if p.sc_user else '' }}"
+                 data-rd="{{ rd_members_map[p.id][0] if rd_members_map[p.id] else '' }}"
+                 data-rd-list="{{ rd_members_map[p.id] | join('|') }}"
+                 onchange="updateSelection()">
+        </td>
+        <td data-label="Sr">
+          <span style="font-size:.78rem;color:var(--text3);font-weight:600;">{{ (projects.page-1)*25 + loop.index }}</span>
+        </td>
+        <td data-label="Project No">
+          <a href="/npd/project/{{ p.id }}" style="font-weight:700;color:#7c3aed;text-decoration:none;font-family:monospace;font-size:12.5px;">{{ p.code or '—' }}</a>
+        </td>
+        <td data-label="Product" style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+          <span style="font-weight:600;" title="{{ p.product_name }}">{{ p.product_name }}</span>
+        </td>
+        <td data-label="Client">
+          <div style="font-weight:600;font-size:12.5px;">{{ p.client_name or '—' }}</div>
+          {% if p.client_company %}<div style="font-size:11px;color:var(--text3);">{{ p.client_company }}</div>{% endif %}
+        </td>
+        <td data-label="Category">
+          {% if p.product_category %}
+          <span style="background:#f5f3ff;color:#7c3aed;padding:2px 8px;border-radius:6px;font-size:.72rem;font-weight:700;">{{ p.product_category }}</span>
+          {% else %}<span style="color:var(--text3);">—</span>{% endif %}
+        </td>
+        <td data-label="Priority">
+          {% set pc={'Urgent':'#ef4444','High':'#f97316','Normal':'#22c55e','Low':'#6b7280'} %}
+          {% set pv=p.priority or 'Normal' %}
+          <span style="background:{{ pc.get(pv,'#6b7280') }}18;color:{{ pc.get(pv,'#6b7280') }};padding:2px 9px;border-radius:100px;font-size:.72rem;font-weight:700;">{{ pv }}</span>
+        </td>
+        <td data-label="Status">
+          <span class="badge" style="background:{{ p.status_color }}22;color:{{ p.status_color }};">{{ p.status_label }}</span>
+        </td>
+        <td data-label="Start Date">
+          {% if p.project_start_date %}
+          <span style="font-size:.8rem;color:var(--text2);">{{ p.project_start_date.strftime('%d %b %Y') }}</span>
+          {% else %}<span style="color:var(--text3);">—</span>{% endif %}
+        </td>
+        <td data-label="Action">
+          <a href="/npd/project/{{ p.id }}" class="tbl-action-btn view" title="View Project">
+            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          </a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  {% if projects.pages > 1 %}
+  <div class="pg-wrap">
+    <span class="pg-info">Showing {{ (projects.page-1)*25+1 }}–{{ [projects.page*25, projects.total]|min }} of {{ projects.total }}</span>
+    <div class="pg-btns">
+      <a class="pg-btn {% if not projects.has_prev %}disabled{% endif %}" href="?page={{ projects.page-1 }}&q={{ q }}">← Prev</a>
+      {% for pg in projects.iter_pages(left_edge=1,right_edge=1,left_current=2,right_current=2) %}
+        {% if pg %}<a class="pg-btn {% if pg==projects.page %}active{% endif %}" href="?page={{ pg }}&q={{ q }}">{{ pg }}</a>
+        {% else %}<span class="pg-btn disabled">…</span>{% endif %}
+      {% endfor %}
+      <a class="pg-btn {% if not projects.has_next %}disabled{% endif %}" href="?page={{ projects.page+1 }}&q={{ q }}">Next →</a>
+    </div>
+  </div>
+  {% endif %}
+
+  {% else %}
+  <div class="empty-wrap">
+    <div class="empty-icon">🧪</div>
+    <div class="empty-title">Koi Sample Ready nahi hai</div>
+    <div class="empty-sub">
+      {% if q %}"{{ q }}" ke liye koi result nahi mila. <a href="?" style="color:#7c3aed;">Clear search</a>
+      {% else %}Jab kisi NPD project ka status Sample Ready hoga, woh yahan dikhega.{% endif %}
+    </div>
+  </div>
+  {% endif %}
+
+</div><!-- /sr-table-wrap -->
+
+
+<!-- ══ Send to Office Modal ══ -->
+<div class="modal-bg" id="sendModal">
+  <div class="modal-box">
+    <div class="modal-hdr">
+      <h3>🏢 Send to Office</h3>
+      <button class="modal-close" onclick="closeSendModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-summary" id="modalSummary"></div>
+      <div class="modal-proj-list" id="modalProjList"></div>
+      <label style="font-size:.8rem;font-weight:700;color:var(--text2);display:block;margin-bottom:5px;">Notes (optional)</label>
+      <textarea class="notes-input" id="dispatchNotes" placeholder="Koi notes likhna ho to..."></textarea>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeSendModal()">Cancel</button>
+      <button class="btn-confirm" id="btnConfirmSend" onclick="confirmSend()">✅ Confirm & Generate Token</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ Token Success Modal ══ -->
+<div class="modal-bg" id="tokenModal">
+  <div class="modal-box">
+    <div class="modal-hdr">
+      <h3>✅ Token Generated!</h3>
+      <button class="modal-close" onclick="closeTokenModal()">✕</button>
+    </div>
+    <div class="modal-body token-success">
+      <p style="color:var(--text2);font-size:.9rem;margin-bottom:6px;">Samples successfully sent to office.</p>
+      <p style="font-size:.8rem;color:var(--text3);">Your dispatch token:</p>
+      <div class="token-badge" id="tokenBadge">ODT-0001</div>
+      <p style="font-size:.8rem;color:var(--text3);margin-top:6px;" id="tokenCount"></p>
+    </div>
+    <div class="modal-footer" style="justify-content:center;gap:12px;">
+      <a id="tokenHistoryLink" href="/npd/sample-history" class="btn-confirm" style="text-decoration:none;">🏷️ View All Tokens</a>
+      <button class="btn-cancel" onclick="closeTokenModal()">Close</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// Users list for dropdowns (from server)
+const USERS_LIST = {{ users | map(attribute='full_name') | list | tojson }};
+// R&D members map per project: {project_id: ["name1","name2"]}
+const RD_MAP = {{ rd_members_map | tojson }};
+// All R&D employees (fallback when project has no RD assigned)
+const RD_ALL = {{ rd_all_names | tojson }};
+
+// ── Selection helpers ──
+function updateSelection() {
+  const cbs  = document.querySelectorAll('.proj-cb:checked');
+  const all  = document.querySelectorAll('.proj-cb');
+  const bar  = document.getElementById('selBar');
+  const cnt  = document.getElementById('selCount');
+  const chkAll = document.getElementById('chkAll');
+
+  cnt.textContent = cbs.length + ' project' + (cbs.length !== 1 ? 's' : '') + ' selected';
+  bar.classList.toggle('show', cbs.length > 0);
+  chkAll.indeterminate = cbs.length > 0 && cbs.length < all.length;
+  chkAll.checked = cbs.length === all.length && all.length > 0;
+
+  // Row highlight
+  all.forEach(cb => {
+    document.getElementById('row-' + cb.value)?.classList.toggle('row-selected', cb.checked);
+  });
+}
+
+function toggleAll(chkAll) {
+  document.querySelectorAll('.proj-cb').forEach(cb => {
+    cb.checked = chkAll.checked;
+  });
+  updateSelection();
+}
+
+function deselectAll() {
+  document.querySelectorAll('.proj-cb').forEach(cb => cb.checked = false);
+  document.getElementById('chkAll').checked = false;
+  updateSelection();
+}
+
+// ── Send to Office Modal ──
+function makeAC(id, pid, prefix, customList) {
+  const wrap = document.createElement('div');
+  wrap.className = 'autocomplete-wrap';
+  const inp = document.createElement('input');
+  inp.type = 'text'; inp.className = 'modal-input ac-input';
+  inp.id = id; inp.placeholder = 'Type name...'; inp.autocomplete = 'off';
+  if (customList) inp.dataset.customList = JSON.stringify(customList);
+  inp.addEventListener('input', function(){
+    this.classList.remove('field-error');
+    const e = this.closest('.proj-input-cell')?.querySelector('.field-err-msg');
+    if(e) e.classList.remove('show');
+    showAC(this, id);
+  });
+  inp.addEventListener('focus', function(){ showAC(this, id); });
+  inp.addEventListener('blur',  function(){ hideAC('acd_' + id); });
+  const dd = document.createElement('div');
+  dd.className = 'ac-dropdown'; dd.id = 'acd_' + id;
+  wrap.appendChild(inp); wrap.appendChild(dd);
+  return wrap;
+}
+
+function buildProjectRow(cb) {
+  const pid    = cb.value;
+  const code   = cb.dataset.code   || '—';
+  const name   = cb.dataset.name   || '';
+  const client = cb.dataset.client || '—';
+
+  // Outer card
+  const card = document.createElement('div');
+  card.className = 'modal-proj-item';
+  card.id = 'dispatch-card-' + pid;
+
+  // ── Row 1: Info strip (autofill) ──
+  const strip = document.createElement('div');
+  strip.className = 'proj-info-strip';
+  strip.innerHTML =
+    '<div class="proj-info-cell"><div class="proj-info-lbl">Project No</div>' +
+      '<div class="proj-info-val modal-proj-code">' + code + '</div></div>' +
+    '<div class="proj-info-cell"><div class="proj-info-lbl">Product Name</div>' +
+      '<div class="proj-info-val">' + name + '</div></div>' +
+    '<div class="proj-info-cell" style="display:flex;align-items:center;justify-content:space-between;">' +
+      '<div><div class="proj-info-lbl">Client Name</div>' +
+      '<div class="proj-info-val">' + client + '</div></div>' +
+      '<button class="proj-remove-btn" data-pid="' + pid + '" title="Remove from dispatch" type="button">✕</button>' +
+    '</div>';
+  // Attach remove event via addEventListener (no inline onclick = no quote issues)
+  strip.querySelector('.proj-remove-btn').addEventListener('click', function() {
+    removeFromDispatch(this.dataset.pid);
+  });
+  card.appendChild(strip);
+
+  // ── Row 2: Input row ──
+  const inputRow = document.createElement('div');
+  inputRow.className = 'proj-input-row';
+
+  // Handover To cell
+  const htCell = document.createElement('div');
+  htCell.className = 'proj-input-cell';
+  htCell.innerHTML = '<div class="proj-input-lbl">Handover To <span style="color:#ef4444;">*</span></div>';
+  htCell.appendChild(makeAC('ht_' + pid, pid, 'ht'));
+  inputRow.appendChild(htCell);
+
+  // Submitted By cell — auto-fill from R&D member, dropdown shows only RD members
+  const sbCell = document.createElement('div');
+  sbCell.className = 'proj-input-cell';
+  sbCell.innerHTML = '<div class="proj-input-lbl">Submitted By <span style="color:#ef4444;">*</span></div>';
+  const rdList = RD_MAP[pid] || RD_MAP[parseInt(pid)] || [];
+  // Dropdown mein hamesha saare R&D employees aayein (change kar sake)
+  // Auto-fill mein assigned RD member pehle aayega
+  const sbACWrap = makeAC('sb_' + pid, pid, 'sb', RD_ALL.length ? RD_ALL : null);
+  const sbInp = sbACWrap.querySelector('input');
+  if (rdList.length) sbInp.value = rdList[0];  // auto-fill assigned RD member
+  const sbErr = document.createElement('div');
+  sbErr.className = 'field-err-msg'; sbErr.textContent = 'Submitted By required hai';
+  sbCell.appendChild(sbACWrap); sbCell.appendChild(sbErr);
+  inputRow.appendChild(sbCell);
+
+  // Sample Code cell
+  const scCell = document.createElement('div');
+  scCell.className = 'proj-input-cell';
+  scCell.innerHTML = '<div class="proj-input-lbl">Sample Code(s) <span style="color:#ef4444;">*</span> <span style="font-weight:400;text-transform:none;color:#94a3b8;">(comma sep.)</span></div>';
+  const scInp = document.createElement('input');
+  scInp.type = 'text'; scInp.className = 'modal-input';
+  scInp.id = 'sc_' + pid; scInp.placeholder = 'e.g. AIMS300326, BGID300326/CW';
+  const scErr = document.createElement('div');
+  scErr.className = 'field-err-msg'; scErr.textContent = 'Sample Code required hai';
+  scCell.appendChild(scInp); scCell.appendChild(scErr);
+  inputRow.appendChild(scCell);
+
+  card.appendChild(inputRow);
+  return card;
+}
+
+function openSendModal() {
+  const selected = document.querySelectorAll('.proj-cb:checked');
+  if (!selected.length) return;
+
+  document.getElementById('modalSummary').innerHTML =
+    '📦 <strong>' + selected.length + ' project' + (selected.length > 1 ? 's' : '') +
+    '</strong> office bheje jayenge. Ek token generate hoga.';
+
+  const list = document.getElementById('modalProjList');
+  list.innerHTML = '';
+  selected.forEach(cb => list.appendChild(buildProjectRow(cb)));
+  document.getElementById('dispatchNotes').value = '';
+  document.getElementById('sendModal').classList.add('open');
+}
+
+function closeSendModal() {
+  document.getElementById('sendModal').classList.remove('open');
+}
+
+function removeFromDispatch(pid) {
+  // Card hide karo modal mein
+  const card = document.getElementById('dispatch-card-' + pid);
+  if (card) card.remove();
+
+  // Checkbox uncheck karo main table mein
+  const cb = document.querySelector('.proj-cb[value="' + pid + '"]');
+  if (cb) { cb.checked = false; updateSelection(); }
+
+  // Summary count update karo
+  const remaining = document.querySelectorAll('#modalProjList .modal-proj-item').length;
+  const sum = document.getElementById('modalSummary');
+  if (remaining === 0) {
+    closeSendModal();
+  } else {
+    sum.innerHTML = '📦 <strong>' + remaining + ' project' + (remaining > 1 ? 's' : '') + '</strong> office bheje jayenge. Ek token generate hoga.';
+  }
+}
+
+async function confirmSend() {
+  const selectedCbs = [...document.querySelectorAll('.proj-cb:checked')];
+  const selected    = selectedCbs.map(cb => cb.value);
+  const notes       = document.getElementById('dispatchNotes').value.trim();
+
+  // ── Validation ──
+  let hasError = false;
+  // Clear previous errors
+  document.querySelectorAll('.modal-input.field-error').forEach(el => el.classList.remove('field-error'));
+  document.querySelectorAll('.field-err-msg.show').forEach(el => el.classList.remove('show'));
+
+  selectedCbs.forEach(cb => {
+    const pid = cb.value;
+    const card = document.getElementById('dispatch-card-' + pid);
+    if (!card) return;
+    const htEl = document.getElementById('ht_' + pid);
+    const sbEl = document.getElementById('sb_' + pid);
+    const scEl = document.getElementById('sc_' + pid);
+    if (htEl && !htEl.value.trim()) {
+      htEl.classList.add('field-error');
+      const errEl = htEl.closest('.proj-input-cell')?.querySelector('.field-err-msg');
+      if (errEl) errEl.classList.add('show');
+      hasError = true;
+    }
+    if (sbEl && !sbEl.value.trim()) {
+      sbEl.classList.add('field-error');
+      const errEl = sbEl.closest('.proj-input-cell')?.querySelector('.field-err-msg');
+      if (errEl) errEl.classList.add('show');
+      hasError = true;
+    }
+    if (scEl && !scEl.value.trim()) {
+      scEl.classList.add('field-error');
+      const errEl = scEl.closest('.proj-input-cell')?.querySelector('.field-err-msg');
+      if (errEl) errEl.classList.add('show');
+      hasError = true;
+    }
+  });
+
+  if (hasError) {
+    // Scroll to first error
+    const firstErr = document.querySelector('.modal-input.field-error');
+    if (firstErr) firstErr.scrollIntoView({behavior:'smooth', block:'center'});
+    return;
+  }
+
+  // Collect values
+  const sample_codes  = {};
+  const handover_to   = {};
+  const submitted_by  = {};
+  selectedCbs.forEach(cb => {
+    const pid = cb.value;
+    const sc = document.getElementById('sc_' + pid);
+    const ht = document.getElementById('ht_' + pid);
+    const sb = document.getElementById('sb_' + pid);
+    if (sc && sc.value.trim()) sample_codes[pid] = sc.value.trim();
+    if (ht && ht.value.trim()) handover_to[pid]  = ht.value.trim();
+    if (sb && sb.value.trim()) submitted_by[pid]  = sb.value.trim();
+  });
+  const btn       = document.getElementById('btnConfirmSend');
+  btn.disabled    = true;
+  btn.textContent = 'Sending…';
+
+  try {
+    const res  = await fetch('/npd/sample-ready/send-to-office', {
+      method : 'POST',
+      headers: {'Content-Type':'application/json'},
+      body   : JSON.stringify({project_ids: selected, notes: notes, sample_codes: sample_codes, handover_to: handover_to, submitted_by: submitted_by}),
+    });
+    const data = await res.json();
+    if (data.success) {
+      closeSendModal();
+      document.getElementById('tokenBadge').textContent = data.token_no;
+      document.getElementById('tokenCount').textContent =
+        selected.length + ' sample' + (selected.length > 1 ? 's' : '') + ' included';
+      document.getElementById('tokenModal').classList.add('open');
+      deselectAll();
+    } else {
+      alert('Error: ' + (data.error || 'Unknown error'));
+    }
+  } catch(e) {
+    alert('Network error. Please try again.');
+  } finally {
+    btn.disabled    = false;
+    btn.textContent = '✅ Confirm & Generate Token';
+  }
+}
+
+function closeTokenModal() {
+  document.getElementById('tokenModal').classList.remove('open');
+}
+
+// ── Autocomplete ──
+function showAC(inp, fieldId) {
+  const q   = inp.value.toLowerCase().trim();
+  const dd  = document.getElementById('acd_' + fieldId);
+  if (!dd) return;
+  // Use custom list if set (e.g. RD members only), else fall back to all users
+  let sourceList = USERS_LIST;
+  let hasCustomList = false;
+  if (inp.dataset.customList) {
+    try {
+      const cl = JSON.parse(inp.dataset.customList);
+      sourceList = cl;   // could be empty — intentionally restrict
+      hasCustomList = true;
+    } catch(e) {}
+  }
+  // If custom list is empty (no RD members assigned), show nothing
+  if (hasCustomList && sourceList.length === 0) {
+    dd.classList.remove('show');
+    return;
+  }
+  const matches = sourceList.filter(u => !q || u.toLowerCase().includes(q));
+  if (!matches.length) { dd.classList.remove('show'); return; }
+  dd.innerHTML = '';
+  matches.slice(0, 8).forEach(function(u) {
+    const item = document.createElement('div');
+    item.className = 'ac-item';
+    item.textContent = u;
+    item.dataset.fieldId = fieldId;
+    item.dataset.val = u;
+    item.addEventListener('mousedown', function(e) {
+      e.preventDefault();
+      const el = document.getElementById(this.dataset.fieldId);
+      if (el) el.value = this.dataset.val;
+      const drop = document.getElementById('acd_' + this.dataset.fieldId);
+      if (drop) drop.classList.remove('show');
+    });
+    dd.appendChild(item);
+  });
+  dd.classList.add('show');
+}
+function hideAC(ddId) {
+  setTimeout(function() {
+    const dd = document.getElementById(ddId);
+    if (dd) dd.classList.remove('show');
+  }, 150);
+}
+
+// Close modals on backdrop click
+document.getElementById('sendModal').addEventListener('click', function(e){ if(e.target===this) closeSendModal(); });
+document.getElementById('tokenModal').addEventListener('click', function(e){ if(e.target===this) closeTokenModal(); });
+
+// Search on Enter
+document.getElementById('srSearchInput').addEventListener('keydown', function(e){
+  if(e.key==='Enter') document.getElementById('srSearchForm').submit();
+});
+</script>
+{% endblock %}

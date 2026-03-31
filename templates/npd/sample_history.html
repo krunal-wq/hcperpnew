@@ -1,0 +1,676 @@
+{% extends "base.html" %}
+{% block title %}Sample History{% endblock %}
+{% block page_title %}Sample History{% endblock %}
+{% block bread %}NPD / Sample History{% endblock %}
+
+{% block extra_css %}
+.dt-hdr{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.75rem;margin-bottom:1rem;}
+.dt-table-wrap{background:#fff;border:1px solid var(--border);border-radius:12px;overflow:visible;}
+.dt-table{width:100%;border-collapse:collapse;font-size:13px;}
+.dt-table thead{background:#f8fafc;}
+.dt-table th{font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em;padding:10px 14px;border-bottom:1px solid var(--border);text-align:left;white-space:nowrap;}
+.dt-table td{padding:12px 14px;border-bottom:1px solid #f1f5f9;color:var(--text);vertical-align:middle;font-size:13px;}
+.dt-table tbody tr:last-child td{border-bottom:none;}
+.dt-table tbody tr{background:#fff;transition:background .1s;cursor:pointer;}
+.dt-table tbody tr:hover td{background:#f5f3ff;}
+.token-chip{display:inline-block;background:#f0fdf4;border:1.5px solid #bbf7d0;color:#166534;padding:3px 12px;border-radius:100px;font-size:.8rem;font-weight:800;font-family:monospace;letter-spacing:.04em;}
+.cnt-chip{display:inline-flex;align-items:center;gap:4px;background:#eff6ff;color:#1d4ed8;padding:3px 10px;border-radius:100px;font-size:.78rem;font-weight:700;}
+.empty-wrap{text-align:center;padding:64px 24px;}
+.empty-icon{font-size:3rem;margin-bottom:12px;}
+.empty-title{font-size:1.1rem;font-weight:700;color:var(--text);margin-bottom:6px;}
+.empty-sub{font-size:.84rem;color:var(--text3);}
+.pg-wrap{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem;padding:12px 16px;border-top:1px solid var(--border);background:#fafbfc;}
+.pg-info{font-size:.8rem;color:var(--text3);}
+.pg-btns{display:flex;gap:4px;}
+.pg-btn{padding:5px 12px;border-radius:7px;border:1px solid var(--border);background:#fff;font-size:.8rem;font-weight:600;color:var(--text);text-decoration:none;transition:all .12s;}
+.pg-btn:hover{background:#f1f5f9;}
+.pg-btn.active{background:#7c3aed;color:#fff;border-color:#7c3aed;}
+.pg-btn.disabled{opacity:.4;pointer-events:none;}
+
+/* Modal */
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1000;align-items:center;justify-content:center;}
+.modal-bg.open{display:flex;}
+.modal-box{background:#fff;border-radius:16px;width:900px;max-width:96vw;max-height:90vh;box-shadow:0 20px 60px rgba(0,0,0,.2);overflow:hidden;display:flex;flex-direction:column;}
+.modal-hdr{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border);flex-shrink:0;}
+.modal-hdr h3{font-size:1rem;font-weight:800;color:var(--text);margin:0;}
+.modal-close{width:30px;height:30px;border-radius:7px;border:none;background:#f1f5f9;cursor:pointer;font-size:1rem;color:var(--text2);}
+.modal-close:hover{background:#fee2e2;color:#dc2626;}
+.modal-meta{display:flex;flex-wrap:wrap;gap:8px;padding:12px 20px;background:#f8fafc;border-bottom:1px solid var(--border);flex-shrink:0;}
+.meta-item{font-size:.78rem;color:var(--text3);}
+.meta-item strong{color:var(--text);font-weight:700;}
+.modal-body{padding:0;overflow-y:auto;flex:1;}
+.items-table{width:100%;border-collapse:collapse;font-size:12.5px;}
+.items-table th{font-size:10.5px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.04em;padding:8px 12px;border-bottom:1px solid var(--border);background:#fafbfc;text-align:left;white-space:nowrap;}
+.items-table td{padding:9px 12px;border-bottom:1px solid #f1f5f9;vertical-align:middle;font-size:12.5px;}
+.items-table tbody tr:last-child td{border-bottom:none;}
+.items-table tbody tr:hover td{background:#fafbff;}
+.modal-footer{padding:12px 20px;border-top:1px solid var(--border);background:#fafbfc;flex-shrink:0;display:flex;justify-content:flex-end;}
+.btn-close-modal{padding:7px 20px;background:#7c3aed;color:#fff;border:none;border-radius:8px;font-size:.84rem;font-weight:700;cursor:pointer;}
+.loading-row{text-align:center;padding:32px;color:var(--text3);font-size:.9rem;}
+/* Expand Row */
+.dt-table tbody tr.token-row{cursor:pointer;}
+.dt-table tbody tr.token-row:hover td{background:#f5f3ff;}
+.dt-table tbody tr.token-row.expanded td{background:#f5f3ff;border-bottom:none;}
+.expand-row{display:none;}
+.expand-row.open{display:table-row;}
+.expand-cell{padding:0!important;border-bottom:1px solid #e2e8f0;}
+.expand-inner{background:#fafbff;border-top:1px solid #ede9fe;padding:14px 16px;}
+.expand-arrow{display:inline-block;transition:transform .2s;font-size:.7rem;color:#94a3b8;margin-left:6px;}
+.token-row.expanded .expand-arrow{transform:rotate(180deg);}
+.expand-loading{color:var(--text3);font-size:.82rem;padding:8px 0;}
+/* Inline edit */
+.ie-input{padding:4px 8px;border:1.5px solid #c4b5fd;border-radius:6px;font-size:.78rem;font-family:inherit;outline:none;background:#fff;width:100%;box-sizing:border-box;}
+.ie-input:focus{border-color:#7c3aed;}
+.ie-cell{position:relative;}
+.btn-ie{width:26px;height:26px;border-radius:6px;border:none;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;font-size:.75rem;transition:background .12s;vertical-align:middle;}
+.btn-ie.edit{background:#eff6ff;color:#1d4ed8;}
+.btn-ie.edit:hover{background:#dbeafe;}
+.btn-ie.save{background:#dcfce7;color:#166534;}
+.btn-ie.save:hover{background:#bbf7d0;}
+.btn-ie.cancel-edit{background:#f1f5f9;color:#64748b;}
+.btn-ie.cancel-edit:hover{background:#e2e8f0;}
+.btn-ie.del-item{background:#fef2f2;color:#dc2626;}
+.btn-ie.del-item:hover{background:#fee2e2;}
+.ie-actions{display:flex;gap:4px;justify-content:center;}
+.ie-view{display:flex;align-items:center;gap:4px;}
+.btn-del-token{width:28px;height:28px;border-radius:7px;border:none;background:#fef2f2;color:#dc2626;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;font-size:.8rem;transition:background .12s;}
+.btn-del-token:hover{background:#fee2e2;}
+/* Delete Confirm Modal */
+.del-modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:10000;align-items:center;justify-content:center;}
+.del-modal-bg.open{display:flex;}
+.del-modal-box{background:#fff;border-radius:16px;width:420px;max-width:94vw;box-shadow:0 20px 60px rgba(0,0,0,.2);overflow:hidden;}
+.del-modal-icon{width:56px;height:56px;border-radius:50%;background:#fee2e2;display:flex;align-items:center;justify-content:center;font-size:1.6rem;margin:0 auto 12px;}
+.del-modal-hdr{padding:28px 24px 0;text-align:center;}
+.del-modal-title{font-size:1.05rem;font-weight:800;color:var(--text);margin-bottom:6px;}
+.del-modal-sub{font-size:.84rem;color:var(--text3);line-height:1.5;}
+.del-modal-token{display:inline-block;background:#fef2f2;border:1.5px solid #fecaca;color:#dc2626;padding:4px 14px;border-radius:8px;font-size:.85rem;font-weight:800;font-family:monospace;margin:10px 0;}
+.del-modal-warn{background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:10px 14px;margin:14px 24px 0;font-size:.8rem;color:#92400e;text-align:left;}
+.del-modal-footer{display:flex;gap:8px;padding:18px 24px;justify-content:flex-end;}
+.del-btn-cancel{padding:8px 20px;background:#f1f5f9;color:var(--text2);border:none;border-radius:8px;font-size:.84rem;font-weight:600;cursor:pointer;}
+.del-btn-cancel:hover{background:#e2e8f0;}
+.del-btn-confirm{padding:8px 20px;background:#dc2626;color:#fff;border:none;border-radius:8px;font-size:.84rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;}
+.del-btn-confirm:hover{background:#b91c1c;}
+.del-btn-confirm:disabled{opacity:.5;cursor:not-allowed;}
+/* Filter Bar */
+.filter-bar{display:flex;align-items:flex-end;gap:10px;flex-wrap:wrap;padding:14px 16px;background:#fff;border-bottom:1px solid var(--border);overflow:visible;position:relative;z-index:100;}
+.filter-group{display:flex;flex-direction:column;gap:4px;}
+.filter-lbl{font-size:.68rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.04em;}
+.filter-input{padding:6px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:.82rem;font-family:inherit;outline:none;background:#fafbfc;min-width:140px;transition:border .15s;}
+.filter-input:focus{border-color:#7c3aed;background:#fff;}
+.filter-select{padding:6px 28px 6px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:.82rem;font-family:inherit;outline:none;background:#fafbfc;min-width:160px;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%2394a3b8' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 8px center;cursor:pointer;}
+.filter-select:focus{border-color:#7c3aed;}
+.btn-filter{padding:7px 16px;background:#7c3aed;color:#fff;border:none;border-radius:8px;font-size:.82rem;font-weight:700;cursor:pointer;white-space:nowrap;}
+.btn-filter:hover{background:#6d28d9;}
+.btn-clear{padding:7px 12px;background:#f1f5f9;color:var(--text2);border:none;border-radius:8px;font-size:.82rem;font-weight:600;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;}
+.active-filter-chip{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;background:#f5f3ff;border:1px solid #ede9fe;border-radius:100px;font-size:.75rem;font-weight:600;color:#7c3aed;}
+{% endblock %}
+
+{% block extra_js %}
+<style>
+/* ── Custom Multi-Select Dropdown ── */
+.cms-wrap{position:relative;min-width:200px;}
+.cms-trigger{display:flex;align-items:center;justify-content:space-between;gap:6px;padding:6px 10px;border:1.5px solid #e2e8f0;border-radius:8px;background:#fafbfc;cursor:pointer;font-size:.82rem;color:var(--text);user-select:none;min-height:36px;transition:border .15s;}
+.cms-trigger:hover,.cms-wrap.open .cms-trigger{border-color:#7c3aed;background:#faf5ff;}
+.cms-trigger-txt{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text2);}
+.cms-trigger-txt.has-val{color:var(--text);font-weight:600;}
+.cms-arrow{font-size:.65rem;color:#94a3b8;transition:transform .2s;}
+.cms-wrap.open .cms-arrow{transform:rotate(180deg);}
+.cms-dropdown{display:none;position:absolute;top:calc(100% + 4px);left:0;min-width:220px;background:#fff;border:1.5px solid #c4b5fd;border-radius:10px;box-shadow:0 8px 24px rgba(124,58,237,.15);z-index:99999;overflow:hidden;}
+.cms-wrap.open .cms-dropdown{display:block;}
+.cms-search-wrap{padding:8px 10px;border-bottom:1px solid #f1f5f9;}
+.cms-search{width:100%;padding:5px 8px 5px 28px;border:1px solid #e2e8f0;border-radius:6px;font-size:.8rem;outline:none;background:#f8fafc url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='none' stroke='%2394a3b8' stroke-width='2' viewBox='0 0 24 24'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.35-4.35'/%3E%3C/svg%3E") no-repeat 8px center;box-sizing:border-box;}
+.cms-search:focus{border-color:#7c3aed;}
+.cms-list{max-height:180px;overflow-y:auto;padding:4px 0;}
+.cms-item{display:flex;align-items:center;gap:8px;padding:7px 12px;cursor:pointer;font-size:.82rem;transition:background .1s;}
+.cms-item:hover{background:#f5f3ff;}
+.cms-item input[type=checkbox]{accent-color:#7c3aed;width:15px;height:15px;cursor:pointer;flex-shrink:0;}
+.cms-item label{cursor:pointer;flex:1;color:var(--text);}
+.cms-footer{display:flex;gap:6px;padding:8px 10px;border-top:1px solid #f1f5f9;background:#fafbfc;}
+.cms-btn{flex:1;padding:5px 8px;border-radius:6px;border:1px solid #e2e8f0;font-size:.75rem;font-weight:700;cursor:pointer;background:#fff;color:var(--text2);transition:all .12s;}
+.cms-btn:hover{background:#f1f5f9;}
+.cms-btn.done{background:#7c3aed;color:#fff;border-color:#7c3aed;}
+.cms-btn.done:hover{background:#6d28d9;}
+/* Flatpickr overrides */
+.flatpickr-calendar{font-family:inherit!important;border-radius:12px!important;box-shadow:0 8px 28px rgba(0,0,0,.14)!important;border:1.5px solid #c4b5fd!important;}
+.flatpickr-day.selected,.flatpickr-day.selected:hover{background:#7c3aed!important;border-color:#7c3aed!important;}
+.flatpickr-day:hover{background:#f3e8ff!important;}
+.flatpickr-months .flatpickr-month{background:#7c3aed!important;border-radius:10px 10px 0 0!important;}
+.flatpickr-current-month .flatpickr-monthDropdown-months,
+.flatpickr-current-month input.cur-year{color:#fff!important;}
+.flatpickr-weekday{color:#7c3aed!important;font-weight:700!important;}
+.flatpickr-prev-month svg,.flatpickr-next-month svg{fill:#fff!important;}
+.flatpickr-input{cursor:pointer!important;}
+.date-input-wrap{position:relative;display:flex;align-items:center;}
+.date-input-wrap .fi-icon{position:absolute;right:9px;pointer-events:none;color:#94a3b8;font-size:.85rem;}
+</style>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="dt-hdr">
+  <div style="display:flex;align-items:center;gap:10px;">
+    <span style="font-size:1.5rem;">🏷️</span>
+    <div>
+      <h2 style="font-size:1.1rem;font-weight:800;color:var(--text);margin:0;">Sample History</h2>
+      <p style="font-size:.78rem;color:var(--text3);margin:0;">Sample Ready projects jo office bheje gaye — token wise history</p>
+    </div>
+  </div>
+  <a href="/npd/sample-ready" style="display:inline-flex;align-items:center;gap:6px;padding:7px 14px;background:#7c3aed;color:#fff;border-radius:8px;font-size:.82rem;font-weight:700;text-decoration:none;">
+    ← Back to Sample Ready
+  </a>
+</div>
+
+<div class="dt-table-wrap">
+  <!-- Filter Bar -->
+  <form method="get" id="filterForm">
+    <div class="filter-bar">
+      <!-- Product Name Search -->
+      <div class="filter-group">
+        <span class="filter-lbl">Product Name</span>
+        <input type="text" name="q" value="{{ q }}" class="filter-input" placeholder="Search product..." style="min-width:180px;">
+      </div>
+      <!-- From Date -->
+      <div class="filter-group">
+        <span class="filter-lbl">From Date</span>
+        <div class="date-input-wrap">
+          <input type="text" name="from_date" id="from_date" value="{{ from_date }}"
+                 class="filter-input" placeholder="DD-MM-YYYY" autocomplete="off" readonly style="padding-right:28px;min-width:140px;">
+          <span class="fi-icon">📅</span>
+        </div>
+      </div>
+      <!-- To Date -->
+      <div class="filter-group">
+        <span class="filter-lbl">To Date</span>
+        <div class="date-input-wrap">
+          <input type="text" name="to_date" id="to_date" value="{{ to_date }}"
+                 class="filter-input" placeholder="DD-MM-YYYY" autocomplete="off" readonly style="padding-right:28px;min-width:140px;">
+          <span class="fi-icon">📅</span>
+        </div>
+      </div>
+      <!-- Submitted By -->
+      <div class="filter-group">
+        <span class="filter-lbl">Submitted By</span>
+        <div class="cms-wrap" id="cms-sb">
+          <div class="cms-trigger" onclick="cmsToggle('cms-sb')">
+            <span class="cms-trigger-txt {% if submitted_by_list %}has-val{% endif %}" id="cms-sb-txt">
+              {% if submitted_by_list %}{{ submitted_by_list|join(', ') }}{% else %}Select R&D Member{% endif %}
+            </span>
+            <span class="cms-arrow">▼</span>
+          </div>
+          <div class="cms-dropdown">
+            <div class="cms-search-wrap"><input type="text" class="cms-search" placeholder="Search..." oninput="cmsSearch('cms-sb',this.value)"></div>
+            <div class="cms-list" id="cms-sb-list">
+              {% for n in rd_names %}
+              <div class="cms-item" data-val="{{ n }}">
+                <input type="checkbox" name="submitted_by" value="{{ n }}" id="sb_{{ loop.index }}" {% if n in submitted_by_list %}checked{% endif %}>
+                <label for="sb_{{ loop.index }}">{{ n }}</label>
+              </div>
+              {% endfor %}
+            </div>
+            <div class="cms-footer">
+              <button type="button" class="cms-btn" onclick="cmsSelectAll('cms-sb')">Select All</button>
+              <button type="button" class="cms-btn" onclick="cmsDeselectAll('cms-sb')">Deselect All</button>
+              <button type="button" class="cms-btn done" onclick="cmsClose('cms-sb')">Done</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- Handover To -->
+      <div class="filter-group">
+        <span class="filter-lbl">Handover To</span>
+        <div class="cms-wrap" id="cms-ht">
+          <div class="cms-trigger" onclick="cmsToggle('cms-ht')">
+            <span class="cms-trigger-txt {% if handover_to_list %}has-val{% endif %}" id="cms-ht-txt">
+              {% if handover_to_list %}{{ handover_to_list|join(', ') }}{% else %}Select Person{% endif %}
+            </span>
+            <span class="cms-arrow">▼</span>
+          </div>
+          <div class="cms-dropdown">
+            <div class="cms-search-wrap"><input type="text" class="cms-search" placeholder="Search..." oninput="cmsSearch('cms-ht',this.value)"></div>
+            <div class="cms-list" id="cms-ht-list">
+              {% for n in handover_names %}
+              <div class="cms-item" data-val="{{ n }}">
+                <input type="checkbox" name="handover_to" value="{{ n }}" id="ht_{{ loop.index }}" {% if n in handover_to_list %}checked{% endif %}>
+                <label for="ht_{{ loop.index }}">{{ n }}</label>
+              </div>
+              {% endfor %}
+            </div>
+            <div class="cms-footer">
+              <button type="button" class="cms-btn" onclick="cmsSelectAll('cms-ht')">Select All</button>
+              <button type="button" class="cms-btn" onclick="cmsDeselectAll('cms-ht')">Deselect All</button>
+              <button type="button" class="cms-btn done" onclick="cmsClose('cms-ht')">Done</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      {% if q or from_date or to_date or submitted_by_list or handover_to_list %}
+      <a href="/npd/sample-history" class="btn-clear" id="btnClear">✕ Clear All</a>
+      {% endif %}
+    </div>
+    <!-- Active filter chips -->
+    {% if q or from_date or to_date or submitted_by_list or handover_to_list %}
+    <div style="display:flex;flex-wrap:wrap;gap:6px;padding:8px 16px;background:#fafbfc;border-bottom:1px solid var(--border);">
+      {% if q %}<span class="active-filter-chip">Product: {{ q }}</span>{% endif %}
+      {% if from_date %}<span class="active-filter-chip">From: {{ from_date }}</span>{% endif %}
+      {% if to_date %}<span class="active-filter-chip">To: {{ to_date }}</span>{% endif %}
+      {% for n in submitted_by_list %}<span class="active-filter-chip">By: {{ n }}</span>{% endfor %}
+      {% for n in handover_to_list %}<span class="active-filter-chip">To: {{ n }}</span>{% endfor %}
+    </div>
+    {% endif %}
+  </form>
+
+  {% if tokens.items %}
+  <table class="dt-table">
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Token No</th>
+        <th>Date &amp; Time</th>
+        <th>Samples</th>
+        <th>Notes</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for t in tokens.items %}
+      <tr class="token-row" id="trow-{{ t.id }}" onclick="toggleExpand({{ t.id }})" title="Click to expand">
+        <td><span style="font-size:.78rem;color:var(--text3);font-weight:600;">{{ (tokens.page-1)*25 + loop.index }}</span></td>
+        <td><span class="token-chip">{{ t.token_no }}</span><span class="expand-arrow">▼</span></td>
+        <td>
+          <div style="font-size:12.5px;font-weight:600;">{{ t.dispatched_at.strftime('%d %b %Y') }}</div>
+          <div style="font-size:11px;color:var(--text3);">{{ t.dispatched_at.strftime('%I:%M %p') }}</div>
+        </td>
+        <td>
+          <span class="cnt-chip">📦 {{ t.items|length }} sample{{ 's' if t.items|length != 1 }}</span>
+        </td>
+        <td>
+          <span style="font-size:.78rem;color:var(--text3);">{{ t.notes[:40] + '…' if t.notes and t.notes|length > 40 else (t.notes or '—') }}</span>
+        </td>
+        <td onclick="event.stopPropagation()">
+          <button class="btn-del-token" data-tid="{{ t.id }}" data-token="{{ t.token_no }}" data-count="{{ t.items|length }}" title="Delete Token" onclick="deleteToken(this)">🗑️</button>
+        </td>
+      </tr>
+      <tr class="expand-row" id="exp-{{ t.id }}">
+        <td class="expand-cell" colspan="6">
+          <div class="expand-inner" id="exp-inner-{{ t.id }}">
+            <div class="expand-loading">⏳ Loading…</div>
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  {% if tokens.pages > 1 %}
+  <div class="pg-wrap">
+    <span class="pg-info">Showing {{ (tokens.page-1)*25+1 }}–{{ [tokens.page*25, tokens.total]|min }} of {{ tokens.total }}</span>
+    <div class="pg-btns">
+      <a class="pg-btn {% if not tokens.has_prev %}disabled{% endif %}" href="?page={{ tokens.page-1 }}&q={{ q }}&from_date={{ from_date }}&to_date={{ to_date }}&submitted_by={{ submitted_by }}&handover_to={{ handover_to }}">← Prev</a>
+      {% for pg in tokens.iter_pages(left_edge=1,right_edge=1,left_current=2,right_current=2) %}
+        {% if pg %}<a class="pg-btn {% if pg==tokens.page %}active{% endif %}" href="?page={{ pg }}&q={{ q }}&from_date={{ from_date }}&to_date={{ to_date }}&submitted_by={{ submitted_by }}&handover_to={{ handover_to }}">{{ pg }}</a>
+        {% else %}<span class="pg-btn disabled">…</span>{% endif %}
+      {% endfor %}
+      <a class="pg-btn {% if not tokens.has_next %}disabled{% endif %}" href="?page={{ tokens.page+1 }}&q={{ q }}&from_date={{ from_date }}&to_date={{ to_date }}&submitted_by={{ submitted_by }}&handover_to={{ handover_to }}">Next →</a>
+    </div>
+  </div>
+  {% endif %}
+
+  {% else %}
+  <div class="empty-wrap">
+    <div class="empty-icon">🏷️</div>
+    <div class="empty-title">Koi Dispatch Token nahi hai</div>
+    <div class="empty-sub">Jab Sample Ready projects office bheje jayenge, tokens yahan dikhenge.</div>
+  </div>
+  {% endif %}
+</div>
+
+<!-- Delete Confirm Modal -->
+<div class="del-modal-bg" id="delModal">
+  <div class="del-modal-box">
+    <div class="del-modal-hdr">
+      <div class="del-modal-icon">🗑️</div>
+      <div class="del-modal-title">Token Delete karna chahte ho?</div>
+      <div id="delModalToken" class="del-modal-token">ODT-0001</div>
+      <div class="del-modal-sub">Yeh action permanent hai.</div>
+    </div>
+    <div class="del-modal-warn">
+      ⚠️ Is token ke saare <strong id="delModalCount">0</strong> samples ka dispatch record delete ho jayega.
+      Projects wapas <strong>Sample Ready</strong> list mein dikh sakte hain.
+    </div>
+    <div class="del-modal-footer">
+      <button class="del-btn-cancel" onclick="closeDelModal()">Cancel</button>
+      <button class="del-btn-confirm" id="delBtnConfirm" onclick="confirmDelete()">
+        🗑️ Haan, Delete Karo
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Token Items — inline expand -->
+
+<script>
+// ── Auto-submit filter form ──
+var _filterTimer = null;
+function autoSubmit(delay) {
+  clearTimeout(_filterTimer);
+  _filterTimer = setTimeout(function() {
+    document.getElementById('filterForm').submit();
+  }, delay || 0);
+}
+
+// Product name — debounce 500ms
+var qInput = document.querySelector('input[name="q"]');
+if (qInput) {
+  qInput.addEventListener('input', function() { autoSubmit(500); });
+}
+
+// ── Flatpickr Date Pickers ──
+document.addEventListener('DOMContentLoaded', function() {
+  var fpFrom = flatpickr('#from_date', {
+    dateFormat: 'Y-m-d',
+    altInput: true,
+    altFormat: 'd M Y',
+    allowInput: false,
+    onChange: function(sel, dateStr) {
+      if (fpTo && sel[0]) fpTo.set('minDate', sel[0]);
+      autoSubmit(0);
+    }
+  });
+  var fpTo = flatpickr('#to_date', {
+    dateFormat: 'Y-m-d',
+    altInput: true,
+    altFormat: 'd M Y',
+    allowInput: false,
+    onChange: function(sel, dateStr) {
+      if (fpFrom && sel[0]) fpFrom.set('maxDate', sel[0]);
+      autoSubmit(0);
+    }
+  });
+});
+
+// ── Custom Multi-Select (CMS) ──
+function cmsToggle(id) {
+  var w = document.getElementById(id);
+  var isOpen = w.classList.contains('open');
+  document.querySelectorAll('.cms-wrap.open').forEach(function(el){ el.classList.remove('open'); });
+  if (!isOpen) w.classList.add('open');
+}
+function cmsClose(id) {
+  document.getElementById(id).classList.remove('open');
+  cmsUpdateTrigger(id);
+  autoSubmit(0);
+}
+function cmsSearch(id, q) {
+  var list = document.getElementById(id + '-list');
+  list.querySelectorAll('.cms-item').forEach(function(item) {
+    var val = (item.dataset.val || '').toLowerCase();
+    item.style.display = val.includes(q.toLowerCase()) ? '' : 'none';
+  });
+}
+function cmsSelectAll(id) {
+  document.getElementById(id + '-list').querySelectorAll('input[type=checkbox]').forEach(function(cb){ cb.checked = true; });
+  cmsUpdateTrigger(id);
+}
+function cmsDeselectAll(id) {
+  document.getElementById(id + '-list').querySelectorAll('input[type=checkbox]').forEach(function(cb){ cb.checked = false; });
+  cmsUpdateTrigger(id);
+}
+function cmsUpdateTrigger(id) {
+  var checked = [...document.getElementById(id + '-list').querySelectorAll('input:checked')].map(function(cb){ return cb.value; });
+  var txt = document.getElementById(id + '-txt');
+  if (checked.length) {
+    txt.textContent = checked.join(', ');
+    txt.classList.add('has-val');
+  } else {
+    txt.textContent = id === 'cms-sb' ? 'Select R&D Member' : 'Select Person';
+    txt.classList.remove('has-val');
+  }
+}
+// Update trigger on checkbox change
+document.addEventListener('change', function(e) {
+  if (e.target.type === 'checkbox' && e.target.closest('.cms-wrap')) {
+    cmsUpdateTrigger(e.target.closest('.cms-wrap').id);
+  }
+});
+// Close on outside click
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('.cms-wrap')) {
+    document.querySelectorAll('.cms-wrap.open').forEach(function(el){ el.classList.remove('open'); });
+  }
+});
+
+// ── Inline Item Edit ──
+function startEdit(iid) {
+  ['ht','sb','sc'].forEach(function(f) {
+    document.getElementById(f+'-view-'+iid).style.display = 'none';
+    document.getElementById(f+'-inp-'+iid).style.display  = 'block';
+  });
+  document.getElementById('ie-btns-'+iid).style.display = 'none';
+  document.getElementById('ie-save-'+iid).style.display = 'flex';
+}
+
+function cancelEdit(iid) {
+  ['ht','sb','sc'].forEach(function(f) {
+    document.getElementById(f+'-view-'+iid).style.display = '';
+    document.getElementById(f+'-inp-'+iid).style.display  = 'none';
+  });
+  document.getElementById('ie-btns-'+iid).style.display = 'flex';
+  document.getElementById('ie-save-'+iid).style.display = 'none';
+}
+
+async function saveEdit(iid) {
+  var ht = document.getElementById('ht-inp-'+iid).value.trim();
+  var sb = document.getElementById('sb-inp-'+iid).value.trim();
+  var sc = document.getElementById('sc-inp-'+iid).value.trim();
+  try {
+    var res = await fetch('/npd/sample-history/item/'+iid+'/update', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({handover_to:ht, submitted_by:sb, sample_code:sc})
+    });
+    var data = await res.json();
+    if (data.success) {
+      // Update view spans
+      document.getElementById('ht-view-'+iid).querySelector('span').textContent = ht || '—';
+      document.getElementById('sb-view-'+iid).querySelector('span').textContent = sb || '—';
+      // Update sample code chips
+      var scView = document.getElementById('sc-view-'+iid);
+      if (sc) {
+        scView.innerHTML = sc.split(',').map(function(s){ s=s.trim();
+          return s ? '<span style="display:inline-block;background:#f0fdf4;color:#166534;padding:2px 8px;border-radius:6px;font-size:.72rem;font-weight:700;font-family:monospace;border:1px solid #bbf7d0;margin:1px 2px;">'+s+'</span>' : '';
+        }).join('');
+      } else {
+        scView.innerHTML = '<span style="color:var(--text3);">—</span>';
+      }
+      cancelEdit(iid);
+    } else {
+      alert('Save failed: ' + (data.error || 'Unknown'));
+    }
+  } catch(e) { alert('Network error'); }
+}
+
+async function deleteItem(iid, btn) {
+  if (!confirm('Is sample ko delete karna chahte ho?')) return;
+  btn.disabled = true; btn.textContent = '⏳';
+  try {
+    var res = await fetch('/npd/sample-history/item/'+iid+'/delete', {
+      method:'POST', headers:{'Content-Type':'application/json'}, body:'{}'
+    });
+    var data = await res.json();
+    if (data.success) {
+      if (data.token_deleted) {
+        // Token bhi delete hua — page reload
+        location.reload();
+      } else {
+        // Sirf row remove
+        var row = document.getElementById('item-row-'+iid);
+        if (row) { row.style.opacity='0'; setTimeout(function(){ row.remove(); }, 250); }
+      }
+    } else {
+      alert('Delete failed'); btn.disabled=false; btn.textContent='🗑️';
+    }
+  } catch(e) { alert('Network error'); btn.disabled=false; btn.textContent='🗑️'; }
+}
+
+// ── Delete Token ──
+var _delTid = null;
+var _delRow = null;
+
+function deleteToken(btn) {
+  _delTid = btn.dataset.tid;
+  _delRow = btn.closest('tr');
+  var tname = btn.dataset.token;
+  var count = btn.dataset.count || '?';
+  document.getElementById('delModalToken').textContent = tname;
+  document.getElementById('delModalCount').textContent = count;
+  document.getElementById('delBtnConfirm').disabled = false;
+  document.getElementById('delBtnConfirm').innerHTML = '🗑️ Haan, Delete Karo';
+  document.getElementById('delModal').classList.add('open');
+}
+
+function closeDelModal() {
+  document.getElementById('delModal').classList.remove('open');
+  _delTid = null; _delRow = null;
+}
+
+async function confirmDelete() {
+  if (!_delTid) return;
+  var btn = document.getElementById('delBtnConfirm');
+  btn.disabled = true;
+  btn.innerHTML = '⏳ Deleting…';
+
+  // Get CSRF token from cookie or meta tag
+  function getCsrf() {
+    var m = document.cookie.match(/csrf_token=([^;]+)/);
+    return m ? decodeURIComponent(m[1]) : '';
+  }
+
+  try {
+    var res = await fetch('/npd/sample-history/' + _delTid + '/delete', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': getCsrf()
+      },
+      body: JSON.stringify({})
+    });
+    if (!res.ok) {
+      throw new Error('HTTP ' + res.status);
+    }
+    var data = await res.json();
+    if (data.success) {
+      closeDelModal();
+      if (_delRow) {
+        _delRow.style.transition = 'opacity .3s';
+        _delRow.style.opacity = '0';
+      }
+      setTimeout(function(){ location.reload(); }, 350);
+    } else {
+      alert('Delete failed: ' + (data.error || 'Unknown'));
+      btn.disabled = false;
+      btn.innerHTML = '🗑️ Haan, Delete Karo';
+    }
+  } catch(e) {
+    console.error('Delete error:', e);
+    // Fallback — form POST
+    var form = document.createElement('form');
+    form.method = 'POST';
+    form.action = '/npd/sample-history/' + _delTid + '/delete';
+    document.body.appendChild(form);
+    form.submit();
+  }
+}
+
+document.getElementById('delModal').addEventListener('click', function(e) {
+  if (e.target === this) closeDelModal();
+});
+
+var _loadedTids = {};
+
+async function toggleExpand(tid) {
+  var row    = document.getElementById('trow-' + tid);
+  var expRow = document.getElementById('exp-' + tid);
+  var inner  = document.getElementById('exp-inner-' + tid);
+  var isOpen = expRow.classList.contains('open');
+
+  // Close all others
+  document.querySelectorAll('.expand-row.open').forEach(function(r){ r.classList.remove('open'); });
+  document.querySelectorAll('.token-row.expanded').forEach(function(r){ r.classList.remove('expanded'); });
+
+  if (isOpen) return;
+
+  row.classList.add('expanded');
+  expRow.classList.add('open');
+
+  if (_loadedTids[tid]) return;
+  inner.innerHTML = '<div class="expand-loading">⏳ Loading samples…</div>';
+
+  try {
+    var res  = await fetch('/npd/sample-history/' + tid + '/items');
+    var data = await res.json();
+    _loadedTids[tid] = true;
+
+    if (!data.items.length) {
+      inner.innerHTML = '<div class="expand-loading">Koi sample nahi mila.</div>';
+      return;
+    }
+
+    var rows = '';
+    data.items.forEach(function(item, i) {
+      var iid = item.item_id;
+      var scHtml = (item.sample_code)
+        ? item.sample_code.split(',').map(function(s){ s=s.trim();
+            return s ? '<span style="display:inline-block;background:#f0fdf4;color:#166534;padding:2px 8px;border-radius:6px;font-size:.72rem;font-weight:700;font-family:monospace;border:1px solid #bbf7d0;margin:1px 2px;">' + s + '</span>' : '';
+          }).join('')
+        : '<span style="color:var(--text3);">—</span>';
+      rows +=
+        '<tr id="item-row-' + iid + '">' +
+        '<td style="color:var(--text3);font-size:.78rem;">' + (i+1) + '</td>' +
+        '<td><a href="/npd/project/' + item.project_id + '" style="font-weight:700;color:#7c3aed;text-decoration:none;font-family:monospace;" onclick="event.stopPropagation()">' + item.code + '</a></td>' +
+        '<td style="font-weight:600;">' + item.product_name + '</td>' +
+        '<td style="color:var(--text2);">' + item.client_name + '</td>' +
+        // Handover To — view + edit
+        '<td class="ie-cell" id="ht-cell-' + iid + '">' +
+          '<div class="ie-view" id="ht-view-' + iid + '">' +
+            '<span style="font-size:.8rem;font-weight:600;">' + (item.handover_to || '—') + '</span>' +
+          '</div>' +
+          '<input class="ie-input" id="ht-inp-' + iid + '" value="' + (item.handover_to || '') + '" style="display:none;">' +
+        '</td>' +
+        // Submitted By — view + edit
+        '<td class="ie-cell" id="sb-cell-' + iid + '">' +
+          '<div class="ie-view" id="sb-view-' + iid + '">' +
+            '<span style="font-size:.8rem;font-weight:600;">' + (item.submitted_by || '—') + '</span>' +
+          '</div>' +
+          '<input class="ie-input" id="sb-inp-' + iid + '" value="' + (item.submitted_by || '') + '" style="display:none;">' +
+        '</td>' +
+        // Sample Code — view + edit
+        '<td class="ie-cell" id="sc-cell-' + iid + '">' +
+          '<div id="sc-view-' + iid + '">' + scHtml + '</div>' +
+          '<input class="ie-input" id="sc-inp-' + iid + '" value="' + (item.sample_code || '') + '" style="display:none;">' +
+        '</td>' +
+        '<td style="white-space:nowrap;"><span style="background:' + item.status_color + '22;color:' + item.status_color + ';padding:2px 8px;border-radius:100px;font-size:.72rem;font-weight:700;">' + item.status_label + '</span></td>' +
+        // Action
+        '<td>' +
+          '<div class="ie-actions" id="ie-btns-' + iid + '">' +
+            '<button class="btn-ie edit" title="Edit" onclick="startEdit(' + iid + ')">✏️</button>' +
+            '<button class="btn-ie del-item" title="Delete" onclick="deleteItem(' + iid + ',this)">🗑️</button>' +
+          '</div>' +
+          '<div class="ie-actions" id="ie-save-' + iid + '" style="display:none;">' +
+            '<button class="btn-ie save" title="Save" onclick="saveEdit(' + iid + ')">✅</button>' +
+            '<button class="btn-ie cancel-edit" title="Cancel" onclick="cancelEdit(' + iid + ')">✕</button>' +
+          '</div>' +
+        '</td>' +
+        '</tr>';
+    });
+
+    inner.innerHTML =
+      '<table class="items-table" style="width:100%;">' +
+      '<thead><tr><th>#</th><th>Project No</th><th>Product Name</th><th>Client Name</th><th>Handover To</th><th>Submitted By</th><th>Sample Code</th><th>Status</th><th>Action</th></tr></thead>' +
+      '<tbody>' + rows + '</tbody></table>';
+
+  } catch(e) {
+    inner.innerHTML = '<div class="expand-loading">❌ Error. Please try again.</div>';
+  }
+}
+</script>
+{% endblock %}

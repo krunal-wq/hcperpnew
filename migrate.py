@@ -97,6 +97,57 @@ with app.app_context():
     db.create_all()
     ok("db.create_all() done — sari tables ready")
 
+    # ── Office Dispatch Tables (Sample Ready → Send to Office) ──
+    try:
+        with db.engine.connect() as _odc:
+            _odc.execute(db.text("""
+                CREATE TABLE IF NOT EXISTS `office_dispatch_tokens` (
+                    `id`             INT NOT NULL AUTO_INCREMENT,
+                    `token_no`       VARCHAR(30) NOT NULL UNIQUE,
+                    `dispatched_by`  INT DEFAULT NULL,
+                    `dispatched_at`  DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    `notes`          TEXT DEFAULT NULL,
+                    PRIMARY KEY (`id`),
+                    KEY idx_odt_by (`dispatched_by`)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+            """))
+            _odc.execute(db.text("""
+                CREATE TABLE IF NOT EXISTS `office_dispatch_items` (
+                    `id`           INT NOT NULL AUTO_INCREMENT,
+                    `token_id`     INT NOT NULL,
+                    `project_id`   INT NOT NULL,
+                    `sample_code`  VARCHAR(500) DEFAULT NULL,
+                    `handover_to`  VARCHAR(200) DEFAULT NULL,
+                    `submitted_by` VARCHAR(200) DEFAULT NULL,
+                    PRIMARY KEY (`id`),
+                    KEY idx_odi_token (`token_id`),
+                    KEY idx_odi_project (`project_id`)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+            """))
+            _odc.commit()
+        ok("office_dispatch_tokens + office_dispatch_items tables ready")
+    except Exception as _e:
+        warn(f"Office dispatch tables: {_e}")
+
+    # ── Add new columns to office_dispatch_items if missing ──
+    try:
+        with db.engine.connect() as _adc:
+            for _col, _defn in [
+                ('sample_code',  'VARCHAR(500) DEFAULT NULL'),
+                ('handover_to',  'VARCHAR(200) DEFAULT NULL'),
+                ('submitted_by', 'VARCHAR(200) DEFAULT NULL'),
+            ]:
+                _res = _adc.execute(db.text(
+                    "SELECT COUNT(*) FROM information_schema.columns "
+                    "WHERE table_schema=DATABASE() AND table_name='office_dispatch_items' AND column_name=:c"
+                ), {'c': _col})
+                if _res.scalar() == 0:
+                    _adc.execute(db.text(f"ALTER TABLE `office_dispatch_items` ADD COLUMN `{_col}` {_defn}"))
+                    ok(f"office_dispatch_items.{_col} column added")
+            _adc.commit()
+    except Exception as _e:
+        warn(f"office_dispatch_items alter: {_e}")
+
     # ══════════════════════════════════════════════════════
     # STEP 1B — Critical columns jo Step 7 se PEHLE chahiye
     # ══════════════════════════════════════════════════════

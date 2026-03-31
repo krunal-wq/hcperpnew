@@ -12,7 +12,8 @@ from werkzeug.utils import secure_filename
 
 from models import (db, User, Lead, NPDMilestoneTemplate,
                     NPDProject, MilestoneMaster, MilestoneLog,
-                    NPDFormulation, NPDPackingMaterial, NPDArtwork, NPDActivityLog)
+                    NPDFormulation, NPDPackingMaterial, NPDArtwork, NPDActivityLog,
+                    OfficeDispatchToken, OfficeDispatchItem)
 
 from permissions import get_perm, get_sub_perm
 npd = Blueprint('npd', __name__, url_prefix='/npd')
@@ -1464,6 +1465,109 @@ def npd_projects():
     )
 
 
+@npd.route('/sample-ready')
+@login_required
+def sample_ready():
+    from models.npd import NPDFormulation
+    q    = request.args.get('q', '').strip()
+    page = request.args.get('page', 1, type=int)
+
+    # Fix: NPD projects jinka status = 'sample_ready' ho
+    query = NPDProject.query.filter_by(
+        is_deleted=False,
+        project_type='npd',
+        status='sample_ready'
+    )
+
+    if q:
+        query = query.filter(db.or_(
+            NPDProject.code.ilike(f'%{q}%'),
+            NPDProject.product_name.ilike(f'%{q}%'),
+            NPDProject.client_name.ilike(f'%{q}%'),
+            NPDProject.client_company.ilike(f'%{q}%'),
+        ))
+
+    projects = query.order_by(NPDProject.created_at.desc()).paginate(page=page, per_page=25)
+
+    # Har project ki formulations fetch karo (saari - for context)
+    proj_ids = [p.id for p in projects.items]
+    formulations = []
+    if proj_ids:
+        formulations = NPDFormulation.query.filter(
+            NPDFormulation.project_id.in_(proj_ids)
+        ).order_by(NPDFormulation.iteration).all()
+    form_map = {}
+    for f in formulations:
+        form_map.setdefault(f.project_id, []).append(f)
+
+    perm  = get_perm('npd')
+    users = get_users()
+
+    # R&D members resolve karo — assigned_rd_members = comma-sep Employee IDs
+    from models.employee import Employee
+    rd_members_map = {}  # {project_id: ["Sneha Dagar", "Riya Chandesariya"]}
+
+    # Sab projects ke RD member IDs ek saath collect karo (efficient)
+    all_rd_ids = set()
+    for p in projects.items:
+        if p.assigned_rd_members:
+            for x in str(p.assigned_rd_members).split(','):
+                x = x.strip()
+                if x and x.isdigit():
+                    all_rd_ids.add(int(x))
+
+    # Batch fetch — Employee table se
+    emp_name_map = {}
+    if all_rd_ids:
+        emps = Employee.query.filter(
+            Employee.id.in_(all_rd_ids),
+            Employee.is_deleted == False
+        ).all()
+        for e in emps:
+            emp_name_map[e.id] = e.full_name
+
+    for p in projects.items:
+        names = []
+        # assigned_rd → single User (R&D head)
+        if p.rd_user and p.rd_user.full_name:
+            names.append(p.rd_user.full_name)
+        # assigned_rd_members → multiple Employees
+        if p.assigned_rd_members:
+            for x in str(p.assigned_rd_members).split(','):
+                x = x.strip()
+                if x and x.isdigit():
+                    n = emp_name_map.get(int(x))
+                    if n and n not in names:
+                        names.append(n)
+        rd_members_map[p.id] = names
+
+    # Saare R&D department employees (fallback dropdown)
+    from models.employee import Employee
+    rd_all = Employee.query.filter(
+        Employee.is_deleted == False,
+        Employee.department.ilike('%r&d%')
+    ).order_by(Employee.first_name).all()
+    # Agar R&D department filter se koi nahi mila to emp_name_map ke saare names use karo
+    if rd_all:
+        rd_all_names = [e.full_name for e in rd_all if e.full_name]
+    else:
+        # emp_name_map already built upar — saare assigned RD names
+        rd_all_names = list(set(emp_name_map.values()))
+        rd_all_names.sort()
+
+    return render_template('npd/sample_ready.html',
+        active_page='npd_sample_ready',
+        projects=projects,
+        q=q,
+        form_map=form_map,
+        perm=perm,
+        users=users,
+        rd_members_map=rd_members_map,
+        rd_all_names=rd_all_names,
+        total=projects.total,
+    )
+
+
 @npd.route('/npd-projects/grid-config', methods=['POST'])
 @login_required
 def npd_grid_config():
@@ -2015,3 +2119,217 @@ def serve_upload(filename):
     """Serve uploaded NPD files"""
     from flask import send_from_directory
     return send_from_directory(UPLOAD_FOLDER, filename)
+
+
+@npd.route('/sample-history/<int:tid>/delete', methods=['POST'])
+@login_required
+def sample_history_delete(tid):
+    try:
+        token = OfficeDispatchToken.query.get_or_404(tid)
+        # Projects ka status wapas sample_ready karo
+        for item in token.items:
+            proj = NPDProject.query.get(item.project_id)
+            if proj:
+                proj.status = 'sample_ready'
+        db.session.delete(token)
+        db.session.commit()
+        return jsonify(success=True)
+    except Exception as e:
+        db.session.rollback()
+        return jsonify(success=False, error=str(e)), 500
+
+
+@npd.route('/sample-ready/send-to-office', methods=['POST'])
+@login_required
+def send_to_office():
+    data     = request.get_json()
+    proj_ids = data.get('project_ids', [])
+    notes    = data.get('notes', '')
+    if not proj_ids:
+        return jsonify(success=False, error='Koi project select nahi kiya')
+
+    # Same day ka existing token check karo
+    today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    today_end   = datetime.now().replace(hour=23, minute=59, second=59, microsecond=999999)
+    token = OfficeDispatchToken.query.filter(
+        OfficeDispatchToken.dispatched_at >= today_start,
+        OfficeDispatchToken.dispatched_at <= today_end
+    ).order_by(OfficeDispatchToken.dispatched_at.desc()).first()
+
+    is_new_token = False
+    if not token:
+        last     = OfficeDispatchToken.query.order_by(OfficeDispatchToken.id.desc()).first()
+        next_num = (last.id + 1) if last else 1
+        token_no = f'ODT-{next_num:04d}'
+        token    = OfficeDispatchToken(token_no=token_no, dispatched_by=current_user.id,
+                                       dispatched_at=datetime.now(), notes=notes)
+        db.session.add(token)
+        db.session.flush()
+        is_new_token = True
+    else:
+        token_no = token.token_no
+        # Notes append karo agar naya notes hai
+        if notes:
+            token.notes = ((token.notes + ' | ') if token.notes else '') + notes
+    sample_codes  = data.get('sample_codes', {})   # {project_id: "SC-001, SC-002"}
+    handover_map  = data.get('handover_to', {})    # {project_id: "Sneha Dagar"}
+    submitted_map = data.get('submitted_by', {})   # {project_id: "Aaquib"}
+    # Existing items ke project IDs (duplicate avoid)
+    existing_pids = {item.project_id for item in token.items}
+    for pid in proj_ids:
+        if int(pid) in existing_pids:
+            continue  # Already is token mein hai
+        sc  = sample_codes.get(str(pid),  '').strip()
+        ht  = handover_map.get(str(pid),  '').strip()
+        sb  = submitted_map.get(str(pid), '').strip()
+        db.session.add(OfficeDispatchItem(
+            token_id     = token.id,
+            project_id   = int(pid),
+            sample_code  = sc if sc else None,
+            handover_to  = ht if ht else None,
+            submitted_by = sb if sb else None,
+        ))
+    # Project status → send_to_office + list se remove
+    for pid in proj_ids:
+        proj = NPDProject.query.get(int(pid))
+        if proj:
+            proj.status = 'sent_to_office'
+    db.session.commit()
+    return jsonify(success=True, token_no=token_no, token_id=token.id)
+
+
+@npd.route('/sample-history')
+@login_required
+def sample_history():
+    from models.employee import Employee
+    page         = request.args.get('page', 1, type=int)
+    q                = request.args.get('q', '').strip()
+    from_date        = request.args.get('from_date', '').strip()
+    to_date          = request.args.get('to_date', '').strip()
+    submitted_by_list = request.args.getlist('submitted_by')   # multi-select
+    handover_to_list  = request.args.getlist('handover_to')    # multi-select
+    submitted_by_list = [x.strip() for x in submitted_by_list if x.strip()]
+    handover_to_list  = [x.strip() for x in handover_to_list  if x.strip()]
+
+    # Base query
+    query = OfficeDispatchToken.query
+
+    # Date filter
+    if from_date:
+        try:
+            fd = datetime.strptime(from_date, '%Y-%m-%d')
+            query = query.filter(OfficeDispatchToken.dispatched_at >= fd)
+        except: pass
+    if to_date:
+        try:
+            td = datetime.strptime(to_date, '%Y-%m-%d')
+            from datetime import timedelta
+            query = query.filter(OfficeDispatchToken.dispatched_at < td + timedelta(days=1))
+        except: pass
+
+    # Product name / submitted_by / handover_to filter — via items join
+    if q or submitted_by_list or handover_to_list:
+        query = query.join(OfficeDispatchItem, OfficeDispatchItem.token_id == OfficeDispatchToken.id)
+        if q:
+            query = query.join(NPDProject, NPDProject.id == OfficeDispatchItem.project_id)                         .filter(NPDProject.product_name.ilike(f'%{q}%'))
+        if submitted_by_list:
+            query = query.filter(OfficeDispatchItem.submitted_by.in_(submitted_by_list))
+        if handover_to_list:
+            query = query.filter(OfficeDispatchItem.handover_to.in_(handover_to_list))
+        query = query.distinct()
+
+    tokens = query.order_by(OfficeDispatchToken.dispatched_at.desc()).paginate(page=page, per_page=25)
+
+    # Dropdowns — all R&D employees for submitted_by
+    rd_employees = Employee.query.filter(
+        Employee.is_deleted == False,
+        Employee.department.ilike('%r&d%')
+    ).order_by(Employee.first_name).all()
+    rd_names = [e.full_name for e in rd_employees if e.full_name]
+
+    # Handover To — saare employees EXCEPT R&D department
+    from models.employee import Employee as _Emp
+    handover_emps = _Emp.query.filter(
+        _Emp.is_deleted == False,
+        db.or_(
+            _Emp.department == None,
+            _Emp.department == '',
+            ~_Emp.department.ilike('%r&d%')
+        )
+    ).order_by(_Emp.first_name).all()
+    handover_names = [e.full_name for e in handover_emps if e.full_name]
+
+    return render_template('npd/sample_history.html',
+        active_page='npd_sample_history',
+        tokens=tokens,
+        q=q, from_date=from_date, to_date=to_date,
+        submitted_by_list=submitted_by_list, handover_to_list=handover_to_list,
+        rd_names=rd_names,
+        handover_names=handover_names,
+    )
+
+
+@npd.route('/sample-history/item/<int:iid>/delete', methods=['POST'])
+@login_required
+def sample_history_item_delete(iid):
+    try:
+        item = OfficeDispatchItem.query.get_or_404(iid)
+        token = item.token
+        # Project status wapas sample_ready
+        proj = NPDProject.query.get(item.project_id)
+        if proj:
+            proj.status = 'sample_ready'
+        db.session.delete(item)
+        # Agar token mein koi item nahi bacha to token bhi delete
+        db.session.flush()
+        remaining = OfficeDispatchItem.query.filter_by(token_id=token.id).count()
+        if remaining == 0:
+            db.session.delete(token)
+        db.session.commit()
+        return jsonify(success=True, token_deleted=(remaining == 0))
+    except Exception as e:
+        db.session.rollback()
+        return jsonify(success=False, error=str(e)), 500
+
+
+@npd.route('/sample-history/item/<int:iid>/update', methods=['POST'])
+@login_required
+def sample_history_item_update(iid):
+    try:
+        item  = OfficeDispatchItem.query.get_or_404(iid)
+        data  = request.get_json()
+        item.handover_to  = data.get('handover_to',  '').strip() or None
+        item.submitted_by = data.get('submitted_by', '').strip() or None
+        item.sample_code  = data.get('sample_code',  '').strip() or None
+        db.session.commit()
+        return jsonify(success=True)
+    except Exception as e:
+        db.session.rollback()
+        return jsonify(success=False, error=str(e)), 500
+
+
+@npd.route('/sample-history/<int:tid>/items')
+@login_required
+def sample_history_items(tid):
+    token = OfficeDispatchToken.query.get_or_404(tid)
+    items = []
+    for it in token.items:
+        p = it.project
+        items.append({
+            'item_id'     : it.id,
+            'project_id'  : p.id,
+            'code'        : p.code or '—',
+            'product_name': p.product_name,
+            'client_name' : p.client_name or '—',
+            'category'    : p.product_category or '—',
+            'priority'    : p.priority or 'Normal',
+            'status_label': p.status_label,
+            'status_color': p.status_color,
+            'sample_code' : it.sample_code or '',
+            'handover_to' : it.handover_to  or '',
+            'submitted_by': it.submitted_by or '',
+        })
+    return jsonify(token_no=token.token_no,
+        dispatched_at=token.dispatched_at.strftime('%d %b %Y, %I:%M %p'),
+        dispatcher=token.dispatcher.full_name if token.dispatcher else '—',
+        notes=token.notes or '', count=len(items), items=items)

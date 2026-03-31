@@ -549,3 +549,41 @@ class NPDMilestoneTemplate(db.Model):
 
     def __repr__(self):
         return f'<NPDMilestoneTemplate {self.milestone_type} — {self.title}>'
+
+
+# ─────────────────────────────────────────────────────────────
+# Office Dispatch Token  (Sample Ready → Send to Office)
+# ─────────────────────────────────────────────────────────────
+
+class OfficeDispatchToken(db.Model):
+    __tablename__ = 'office_dispatch_tokens'
+
+    id          = db.Column(db.Integer, primary_key=True)
+    token_no    = db.Column(db.String(30), unique=True, nullable=False)  # ODT-0001
+    dispatched_by   = db.Column(db.Integer, db.ForeignKey('users.id'))
+    dispatched_at   = db.Column(db.DateTime, default=datetime.now)
+    notes       = db.Column(db.Text)
+
+    dispatcher  = db.relationship('User', backref='dispatch_tokens', lazy=True)
+    items       = db.relationship('OfficeDispatchItem', backref='token', lazy=True,
+                                  cascade='all, delete-orphan',
+                                  order_by='OfficeDispatchItem.id')
+
+    def __repr__(self):
+        return f'<OfficeDispatchToken {self.token_no}>'
+
+
+class OfficeDispatchItem(db.Model):
+    __tablename__ = 'office_dispatch_items'
+
+    id           = db.Column(db.Integer, primary_key=True)
+    token_id     = db.Column(db.Integer, db.ForeignKey('office_dispatch_tokens.id'), nullable=False)
+    project_id   = db.Column(db.Integer, db.ForeignKey('npd_projects.id'), nullable=False)
+    sample_code  = db.Column(db.String(500), nullable=True)   # comma-sep e.g. SC-001, SC-002
+    handover_to  = db.Column(db.String(200), nullable=True)   # free text — person name
+    submitted_by = db.Column(db.String(200), nullable=True)   # free text — person name
+
+    project      = db.relationship('NPDProject', backref='dispatch_items', lazy=True)
+
+    def __repr__(self):
+        return f'<OfficeDispatchItem token={self.token_id} project={self.project_id}>'
