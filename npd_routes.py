@@ -2333,3 +2333,248 @@ def sample_history_items(tid):
         dispatched_at=token.dispatched_at.strftime('%d %b %Y, %I:%M %p'),
         dispatcher=token.dispatcher.full_name if token.dispatcher else '—',
         notes=token.notes or '', count=len(items), items=items)
+
+# ── Sample Label PDF ──
+@npd.route('/sample-label/<int:pid>')
+@login_required
+def sample_label_pdf(pid):
+    from reportlab.lib.pagesizes import mm
+    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+    from reportlab.lib.styles import ParagraphStyle
+    from reportlab.lib import colors
+    from reportlab.lib.enums import TA_CENTER
+    from io import BytesIO
+    from flask import Response
+
+    proj = NPDProject.query.filter_by(id=pid, is_deleted=False).first_or_404()
+
+    COPIES    = 3
+    W, H      = 40*mm, 20*mm   # per sticker
+    COLS      = 2
+    PAGE_W    = W * COLS
+    PAGE_H    = H * ((COPIES + COLS - 1) // COLS)
+
+    buf = BytesIO()
+    doc = SimpleDocTemplate(buf,
+        pagesize=(PAGE_W, PAGE_H),
+        leftMargin=0, rightMargin=0,
+        topMargin=0,  bottomMargin=0)
+
+    name_style = ParagraphStyle('n',
+        fontName='Helvetica-Bold', fontSize=7,
+        alignment=TA_CENTER, leading=9, textColor=colors.black)
+    code_style = ParagraphStyle('c',
+        fontName='Courier', fontSize=6,
+        alignment=TA_CENTER, leading=8, textColor=colors.black)
+
+    product_name = (proj.product_name or '-').encode('ascii', 'replace').decode('ascii')
+    project_code = (proj.code or '-').encode('ascii', 'replace').decode('ascii')
+
+    def make_cell(product, code):
+        return [Paragraph(product, name_style),
+                Spacer(1, 1*mm),
+                Paragraph(code, code_style)]
+
+    # Build cells list (COPIES items + padding to multiple of COLS)
+    cells = [make_cell(product_name, project_code) for _ in range(COPIES)]
+    while len(cells) % COLS != 0:
+        cells.append('')   # empty padding cell
+
+    # Group into rows of COLS
+    rows = [cells[i:i+COLS] for i in range(0, len(cells), COLS)]
+
+    tbl = Table(rows,
+        colWidths=[W]*COLS,
+        rowHeights=[H]*len(rows))
+
+    tbl.setStyle(TableStyle([
+        ('BOX',          (0,0), (-1,-1), 0.5, colors.black),
+        ('INNERGRID',    (0,0), (-1,-1), 0.5, colors.black),
+        ('VALIGN',       (0,0), (-1,-1), 'MIDDLE'),
+        ('ALIGN',        (0,0), (-1,-1), 'CENTER'),
+        ('TOPPADDING',   (0,0), (-1,-1), 2),
+        ('BOTTOMPADDING',(0,0), (-1,-1), 2),
+    ]))
+
+    doc.build([tbl])
+    buf.seek(0)
+    return Response(buf.read(),
+        mimetype='application/pdf',
+        headers={'Content-Disposition': 'inline; filename=label_{}.pdf'.format(project_code)})
+
+# ── Token Sample Label PDF ──
+@npd.route('/token-label/<int:tid>')
+@login_required
+def token_label_pdf(tid):
+    from reportlab.lib.pagesizes import mm
+    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+    from reportlab.lib.styles import ParagraphStyle
+    from reportlab.lib import colors
+    from reportlab.lib.enums import TA_CENTER
+    from io import BytesIO
+    from flask import Response
+
+    token = OfficeDispatchToken.query.get_or_404(tid)
+
+    # 1 label per sample_code entry
+    labels = []
+    for it in token.items:
+        p = it.project
+        codes = [c.strip() for c in (it.sample_code or '').split(',') if c.strip()]
+        if not codes:
+            codes = ['-']
+        for sc in codes:
+            labels.append({
+                'product': (p.product_name or '-').encode('ascii','replace').decode('ascii'),
+                'code':    sc.encode('ascii','replace').decode('ascii'),
+                'client':  (p.client_name or '-').encode('ascii','replace').decode('ascii'),
+            })
+
+    if not labels:
+        return Response('No samples found.', mimetype='text/plain')
+
+    COLS   = 2
+    W, H   = 40*mm, 20*mm
+    PAGE_W = W * COLS
+    total_rows = (len(labels) + COLS - 1) // COLS
+    PAGE_H = H * total_rows
+
+    buf = BytesIO()
+    from reportlab.pdfgen import canvas as pdfcanvas
+    c = pdfcanvas.Canvas(buf, pagesize=(PAGE_W, PAGE_H))
+
+    name_style = ParagraphStyle('n', fontName='Helvetica-Bold', fontSize=7,
+        alignment=TA_CENTER, leading=9, textColor=colors.black)
+    code_style = ParagraphStyle('c', fontName='Helvetica-Bold', fontSize=6,
+        alignment=TA_CENTER, leading=8, textColor=colors.black)
+    client_style = ParagraphStyle('cl', fontName='Helvetica-Bold', fontSize=6,
+        alignment=TA_CENTER, leading=8, textColor=colors.black)
+
+    def make_cell(l):
+        return [Paragraph(l['product'], name_style),
+                Spacer(1, 0.2*mm),
+                Paragraph(l['code'], code_style),
+                Spacer(1, 0.2*mm),
+                Paragraph('_'*20, code_style),
+                Spacer(1, 0.2*mm),
+                Paragraph('HCP WELLNESS', client_style)]
+
+    cells = [make_cell(l) for l in labels]
+    while len(cells) % COLS != 0:
+        cells.append('')
+
+    rows = [cells[i:i+COLS] for i in range(0, len(cells), COLS)]
+
+    tbl = Table(rows, colWidths=[W]*COLS, rowHeights=[H]*total_rows)
+    tbl.setStyle(TableStyle([
+        ('BOX',          (0,0), (-1,-1), 0.5, colors.black),
+        ('INNERGRID',    (0,0), (-1,-1), 0.5, colors.black),
+        ('VALIGN',       (0,0), (-1,-1), 'MIDDLE'),
+        ('ALIGN',        (0,0), (-1,-1), 'CENTER'),
+        ('TOPPADDING',   (0,0), (-1,-1), 1),
+        ('BOTTOMPADDING',(0,0), (-1,-1), 1),
+    ]))
+
+    tbl.wrapOn(c, PAGE_W, PAGE_H)
+    tbl.drawOn(c, 0, 0)
+    c.save()
+    buf.seek(0)
+    return Response(buf.read(), mimetype='application/pdf',
+        headers={'Content-Disposition': 'inline; filename=labels_{}.pdf'.format(token.token_no)})
+
+# ── NPD Milestones GET ──
+@npd.route('/<int:pid>/milestones')
+@login_required
+def get_npd_milestones(pid):
+    import json
+    proj = NPDProject.query.filter_by(id=pid, is_deleted=False).first_or_404()
+    data = {}
+    if proj.npd_milestone_data:
+        try: data = json.loads(proj.npd_milestone_data)
+        except: data = {}
+    return jsonify(milestones=data)
+
+# ── NPD Milestones UPDATE ──
+@npd.route('/<int:pid>/milestones/update', methods=['POST'])
+@login_required
+def update_npd_milestone(pid):
+    import json
+    from datetime import datetime
+    proj = NPDProject.query.filter_by(id=pid, is_deleted=False).first_or_404()
+    body = request.get_json()
+    key    = body.get('key', '')
+    status = body.get('status', 'pending')
+    note   = body.get('note', None)
+    if not key:
+        return jsonify(success=False, error='No key')
+    data = {}
+    if proj.npd_milestone_data:
+        try: data = json.loads(proj.npd_milestone_data)
+        except: data = {}
+    date_str = datetime.now().strftime('%d-%m-%Y') if status == 'done' else (data.get(key, {}).get('date', ''))
+    if key not in data:
+        data[key] = {}
+    data[key]['status'] = status
+    data[key]['date']   = date_str
+    if note is not None:
+        data[key]['note'] = note
+    proj.npd_milestone_data = json.dumps(data)
+    db.session.commit()
+    return jsonify(success=True, date=date_str)
+
+# ── Milestone Discussion — GET comments ──
+@npd.route('/<int:pid>/milestone-comments/<ms_key>')
+@login_required
+def get_milestone_comments(pid, ms_key):
+    from models.npd import NPDComment
+    comments = NPDComment.query.filter_by(
+        project_id=pid, milestone_key=ms_key
+    ).order_by(NPDComment.created_at.asc()).all()
+    result = []
+    for c in comments:
+        result.append({
+            'id'        : c.id,
+            'user'      : c.user.full_name if c.user else 'Unknown',
+            'comment'   : c.comment,
+            'attachment': c.attachment or '',
+            'created_at': c.created_at.strftime('%d-%m-%Y %H:%M') if c.created_at else ''
+        })
+    return jsonify(comments=result)
+
+# ── Milestone Discussion — POST comment ──
+@npd.route('/<int:pid>/milestone-comments/<ms_key>/add', methods=['POST'])
+@login_required
+def add_milestone_comment(pid, ms_key):
+    import os, time
+    from models.npd import NPDComment
+    comment_text = request.form.get('comment', '').strip()
+    file = request.files.get('attachment')
+    att_str = ''
+    if file and file.filename:
+        import werkzeug.utils
+        safe_name = werkzeug.utils.secure_filename(file.filename)
+        ts = time.strftime('%Y%m%d%H%M%S')
+        fname = f"{ts}_{safe_name}"
+        upload_dir = os.path.join('static', 'uploads', 'npd')
+        os.makedirs(upload_dir, exist_ok=True)
+        file.save(os.path.join(upload_dir, fname))
+        att_str = f"{fname}|{safe_name}"
+    if not comment_text and not att_str:
+        return jsonify(success=False, error='Empty')
+    c = NPDComment(
+        project_id=pid,
+        user_id=current_user.id,
+        comment=comment_text or ('📎 ' + (att_str.split('|')[1] if '|' in att_str else att_str)),
+        is_internal=False,
+        milestone_key=ms_key,
+        attachment=att_str or None
+    )
+    db.session.add(c)
+    db.session.commit()
+    return jsonify(success=True, comment={
+        'id'        : c.id,
+        'user'      : current_user.full_name,
+        'comment'   : c.comment,
+        'attachment': c.attachment or '',
+        'created_at': c.created_at.strftime('%d-%m-%Y %H:%M')
+    })

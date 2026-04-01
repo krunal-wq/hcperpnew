@@ -119,6 +119,18 @@
   .sr-table td{display:block;padding:3px 0;border:none;font-size:12.5px;}
   .sr-table td::before{content:attr(data-label);font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;display:block;margin-bottom:2px;}
 }
+/* ── Print Styles ── */
+@media print {
+  body * { visibility: hidden; }
+  #printArea, #printArea * { visibility: visible; }
+  #printArea { position: fixed; top: 0; left: 0; width: 100%; padding: 20px; background: #fff; }
+}
+.print-table { width: 100%; border-collapse: collapse; font-size: 12px; font-family: Arial, sans-serif; }
+.print-table th { background: #f8fafc; font-size: 11px; font-weight: 700; text-transform: uppercase; padding: 8px 10px; border: 1px solid #cbd5e1; text-align: left; }
+.print-table td { padding: 7px 10px; border: 1px solid #cbd5e1; font-size: 12px; vertical-align: middle; }
+.print-table tbody tr:nth-child(even) td { background: #f8fafc; }
+.btn-print { display: inline-flex; align-items: center; gap: 6px; padding: 7px 16px; background: #0f172a; color: #fff; border: none; border-radius: 8px; font-size: .82rem; font-weight: 700; cursor: pointer; text-decoration: none; transition: background .15s; }
+.btn-print:hover { background: #1e293b; color: #fff; }
 {% endblock %}
 
 {% block content %}
@@ -133,9 +145,14 @@
     <span class="sr-count-badge">✅ {{ total }} Project{{ 's' if total != 1 }}</span>
   </div>
   <!-- Dispatch Tokens History link -->
-  <a href="/npd/sample-history" style="display:inline-flex;align-items:center;gap:6px;padding:7px 14px;background:#fff;border:1.5px solid var(--border);border-radius:8px;font-size:.82rem;font-weight:600;color:var(--text2);text-decoration:none;">
-    📋 Sample History
-  </a>
+  <div style="display:flex;gap:8px;align-items:center;">
+    <a href="/npd/sample-history" style="display:inline-flex;align-items:center;gap:6px;padding:7px 14px;background:#fff;border:1.5px solid var(--border);border-radius:8px;font-size:.82rem;font-weight:600;color:var(--text2);text-decoration:none;">
+      📋 Sample History
+    </a>
+    <button class="btn-print" onclick="printSampleList()">
+      🖨️ Print List
+    </button>
+  </div>
 </div>
 
 <div class="sr-table-wrap">
@@ -198,7 +215,7 @@
           <span style="font-size:.78rem;color:var(--text3);font-weight:600;">{{ (projects.page-1)*25 + loop.index }}</span>
         </td>
         <td data-label="Project No">
-          <a href="/npd/project/{{ p.id }}" style="font-weight:700;color:#7c3aed;text-decoration:none;font-family:monospace;font-size:12.5px;">{{ p.code or '—' }}</a>
+          <a href="/npd/projects/{{ p.id }}" style="font-weight:700;color:#7c3aed;text-decoration:none;font-family:monospace;font-size:12.5px;">{{ p.code or '—' }}</a>
         </td>
         <td data-label="Product" style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
           <span style="font-weight:600;" title="{{ p.product_name }}">{{ p.product_name }}</span>
@@ -226,8 +243,13 @@
           {% else %}<span style="color:var(--text3);">—</span>{% endif %}
         </td>
         <td data-label="Action">
-          <a href="/npd/project/{{ p.id }}" class="tbl-action-btn view" title="View Project">
+          <a href="/npd/projects/{{ p.id }}" class="tbl-action-btn view" title="View Project">
             <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          </a>
+          <a href="/npd/sample-label/{{ p.id }}" target="_blank"
+             class="tbl-action-btn" title="Print Label"
+             style="background:#eff6ff;color:#1d4ed8;margin-left:4px;text-decoration:none;">
+            🏷️
           </a>
         </td>
       </tr>
@@ -621,5 +643,120 @@ document.getElementById('tokenModal').addEventListener('click', function(e){ if(
 document.getElementById('srSearchInput').addEventListener('keydown', function(e){
   if(e.key==='Enter') document.getElementById('srSearchForm').submit();
 });
+
+// ── Print Function ──
+function printSampleList() {
+  const today = new Date();
+  const dateStr = today.toLocaleDateString('en-IN', { day:'2-digit', month:'2-digit', year:'numeric' });
+
+  const rows = document.querySelectorAll('#srTbody tr');
+  if (!rows.length) { alert('Koi data nahi hai print karne ke liye.'); return; }
+
+  let tableRows = '';
+  let sr = 1;
+  rows.forEach(function(tr) {
+    const tds = tr.querySelectorAll('td');
+    if (!tds.length) return;
+    const projectNo = tds[2] ? tds[2].innerText.trim() : '—';
+    const productName = tds[3] ? tds[3].innerText.trim() : '—';
+    const client = tds[4] ? tds[4].innerText.trim() : '—';
+    const category = tds[5] ? tds[5].innerText.trim() : '—';
+    const priority = tds[6] ? tds[6].innerText.trim() : '—';
+    const status = tds[7] ? tds[7].innerText.trim() : '—';
+    const startDate = tds[8] ? tds[8].innerText.trim() : '—';
+    tableRows += '<tr>' +
+      '<td style="text-align:center;">' + sr++ + '</td>' +
+      '<td>' + projectNo + '</td>' +
+      '<td>' + productName + '</td>' +
+      '<td>' + client + '</td>' +
+      '<td>' + category + '</td>' +
+      '<td>' + priority + '</td>' +
+      '<td>' + status + '</td>' +
+      '<td>' + startDate + '</td>' +
+    '</tr>';
+  });
+
+  const printContent = `
+    <div style="font-family:Arial,sans-serif;padding:20px;">
+      <div style="text-align:center;margin-bottom:16px;">
+        <div style="font-size:15px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;">R&amp;D Sample Ready List</div>
+        <div style="font-size:12px;color:#64748b;margin-top:4px;">Date: ${dateStr}</div>
+      </div>
+      <table style="width:100%;border-collapse:collapse;font-size:11.5px;font-family:Arial,sans-serif;">
+        <thead>
+          <tr style="background:#f8fafc;">
+            <th style="border:1px solid #cbd5e1;padding:7px 8px;text-align:center;font-weight:700;text-transform:uppercase;font-size:10px;">SR.</th>
+            <th style="border:1px solid #cbd5e1;padding:7px 8px;font-weight:700;text-transform:uppercase;font-size:10px;">Project No</th>
+            <th style="border:1px solid #cbd5e1;padding:7px 8px;font-weight:700;text-transform:uppercase;font-size:10px;">Product Name</th>
+            <th style="border:1px solid #cbd5e1;padding:7px 8px;font-weight:700;text-transform:uppercase;font-size:10px;">Client Name</th>
+            <th style="border:1px solid #cbd5e1;padding:7px 8px;font-weight:700;text-transform:uppercase;font-size:10px;">Category</th>
+            <th style="border:1px solid #cbd5e1;padding:7px 8px;font-weight:700;text-transform:uppercase;font-size:10px;">Priority</th>
+            <th style="border:1px solid #cbd5e1;padding:7px 8px;font-weight:700;text-transform:uppercase;font-size:10px;">Status</th>
+            <th style="border:1px solid #cbd5e1;padding:7px 8px;font-weight:700;text-transform:uppercase;font-size:10px;">Start Date</th>
+          </tr>
+        </thead>
+        <tbody>${tableRows}</tbody>
+      </table>
+      <div style="margin-top:14px;font-size:10px;color:#94a3b8;text-align:right;">Total: ${sr-1} project(s)</div>
+    </div>`;
+
+  const pw = window.open('', '_blank', 'width=1000,height=700');
+  pw.document.write('<html><head><title>Sample Ready List</title><style>body{margin:0;}table tr:nth-child(even) td{background:#f8fafc;}@media print{@page{margin:15mm;}}</style></head><body>' + printContent + '</body></html>');
+  pw.document.close();
+  pw.focus();
+  setTimeout(function(){ pw.print(); }, 400);
+// ── Print Project Label (40mm x 20mm, 2 per row, 3 copies) ──
+function printProjectLabel(productName, projectNo) {
+  var copies = 3;
+
+  var labels = [];
+  for (var i = 0; i < copies; i++) {
+    labels.push({ product: productName, code: projectNo });
+  }
+
+  // Pad to multiple of 2
+  while (labels.length % 2 !== 0) {
+    labels.push(null);
+  }
+
+  var totalRows = labels.length / 2;
+  var pageH     = totalRows * 20;
+
+  var cell = function(l) {
+    if (!l) return '<td class="empty"></td>';
+    return '<td class="lbl">' +
+      '<div class="pname">' + l.product + '</div>' +
+      '<div class="pno">' + l.code + '</div>' +
+    '</td>';
+  };
+
+  var rows = '';
+  for (var i = 0; i < labels.length; i += 2) {
+    rows += '<tr>' + cell(labels[i]) + cell(labels[i+1]) + '</tr>';
+  }
+
+  var html =
+    '<html><head><title>Sample Sticker</title>' +
+    '<style>' +
+    '*{margin:0;padding:0;box-sizing:border-box;}' +
+    '@page{margin:0;size:80mm ' + pageH + 'mm;}' +
+    'html,body{width:80mm;height:' + pageH + 'mm;margin:0;padding:0;}' +
+    'table{width:80mm;border-collapse:collapse;table-layout:fixed;}' +
+    'td.lbl{width:40mm;height:20mm;border:1px solid #000;text-align:center;vertical-align:middle;padding:1.5mm;}' +
+    'td.empty{width:40mm;height:20mm;border:1px dashed #ccc;}' +
+    '.pname{font-size:7pt;font-weight:800;font-family:Arial;line-height:1.3;margin-bottom:1.5mm;}' +
+    '.pno{font-size:6pt;font-family:monospace;color:#333;}' +
+    '</style></head><body>' +
+    '<table>' + rows + '</table>' +
+    '</body></html>';
+
+  var winW = Math.ceil(80  * 3.7795) + 40;
+  var winH = Math.ceil(pageH * 3.7795) + 80;
+  var pw = window.open('', '_blank', 'width=' + winW + ',height=' + winH);
+  pw.document.write(html);
+  pw.document.close();
+  pw.focus();
+  setTimeout(function(){ pw.print(); }, 400);
+}
 </script>
 {% endblock %}

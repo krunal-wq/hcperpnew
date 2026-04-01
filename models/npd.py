@@ -125,6 +125,7 @@ class NPDProject(db.Model):
 
     # R&D pre-defined parameter defaults per project (stored as JSON)
     rd_param_defaults = db.Column(db.Text, nullable=True)
+    npd_milestone_data = db.Column(db.Text, nullable=True)  # JSON: {ms_1:{status,date}, ...}
 
     # Soft delete
     is_deleted      = db.Column(db.Boolean, default=False, nullable=False, server_default='0')
@@ -473,7 +474,8 @@ class NPDComment(db.Model):
     project_id  = db.Column(db.Integer, db.ForeignKey('npd_projects.id'), nullable=False)
     user_id     = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     comment     = db.Column(db.Text, nullable=False)
-    is_internal = db.Column(db.Boolean, default=False)   # False = Discussion, True = Internal
+    is_internal = db.Column(db.Boolean, default=False)
+    milestone_key = db.Column(db.String(20), nullable=True)   # e.g. 'ms_1', 'ms_2'
     attachment  = db.Column(db.String(300), nullable=True)
     created_at  = db.Column(db.DateTime, default=datetime.now)
 

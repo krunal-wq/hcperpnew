@@ -162,7 +162,7 @@
         {% set sel_ms = p.milestones|selectattr('is_selected')|list %}
         {% set done_ms = sel_ms|selectattr('status','eq','approved')|list %}
         {% set ms_pct2 = ((done_ms|length / sel_ms|length)*100)|round|int if sel_ms else 0 %}
-        <a href="/npd/project/{{ p.id }}" class="m-proj-card">
+        <a href="/npd/projects/{{ p.id }}" class="m-proj-card">
             <div class="m-proj-avatar">{{ p.product_name[0]|upper }}</div>
             <div class="m-proj-info">
                 <div class="m-proj-name">{{ p.product_name }}</div>

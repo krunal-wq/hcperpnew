@@ -53,6 +53,7 @@
 .tab-btn.active{color:var(--blue);border-bottom-color:var(--blue);}
 .tab-pane{display:none;}
 .tab-pane.active{display:block;}
+[contenteditable=true]:empty:before{content:attr(placeholder);color:#94a3b8;pointer-events:none;}
 .card{background:#fff;border:1px solid var(--border);border-radius:var(--r-xl);overflow:hidden;box-shadow:var(--sh-sm);margin-bottom:1rem;}
 .card-hdr{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
 .card-title{font-weight:700;font-size:.9rem;color:var(--text);}
@@ -510,6 +511,7 @@ function closeEndModal(){
         <a href="#" class="tab-btn" onclick="switchTab('activity',this);return false;">Activity Log</a>
         <a href="#" class="tab-btn" onclick="switchTab('attachments',this);return false;">Attachments List</a>
         <a href="#" class="tab-btn" onclick="switchTab('note',this);return false;">Note</a>
+        <a href="#" class="tab-btn" onclick="switchTab('milestones',this);return false;">Milestones</a>
     </div>
 </div>
 
@@ -575,10 +577,16 @@ function closeEndModal(){
                     <div class="info-row">
                         <span class="info-lbl">Team Members</span>
                         <span class="info-val" style="display:flex;flex-wrap:wrap;gap:3px;">
-                            {% for u in users[:15] %}
-                            {% set ini=(u.full_name.split()[0][0]+u.full_name.split()[-1][0]).upper() if u.full_name.split()|length>1 else u.full_name[:2].upper() %}
-                            <span title="{{ u.full_name }}" style="width:26px;height:26px;border-radius:50%;background:var(--blue-lt);color:var(--blue);display:inline-flex;align-items:center;justify-content:center;font-size:.6rem;font-weight:800;border:2px solid #fff;margin-left:-4px;flex-shrink:0;">{{ ini }}</span>
-                            {% endfor %}
+                            {% if team_members %}
+                                {% for u in team_members %}
+                                {% set full = (u.first_name or '') + ' ' + (u.last_name or '') %}
+                                {% set parts = full.strip().split() %}
+                                {% set ini = (parts[0][0] + parts[-1][0]).upper() if parts|length > 1 else parts[0][:2].upper() if parts else '?' %}
+                                <span title="{{ full.strip() }}" style="width:26px;height:26px;border-radius:50%;background:var(--blue-lt);color:var(--blue);display:inline-flex;align-items:center;justify-content:center;font-size:.6rem;font-weight:800;border:2px solid #fff;margin-left:-4px;flex-shrink:0;">{{ ini }}</span>
+                                {% endfor %}
+                            {% else %}
+                                <span style="color:var(--text3);font-size:.82rem;">No members assigned</span>
+                            {% endif %}
                         </span>
                     </div>
                 </div>
@@ -591,27 +599,47 @@ function closeEndModal(){
 <div id="tab-discussion" class="tab-pane">
     <div class="card">
         <div class="card-hdr"><div class="card-title">Discussion Board</div></div>
-        <div class="card-body">
+        <!-- Compose at TOP -->
+        <div style="border-bottom:1px solid var(--border);padding:.75rem 1rem;background:#fff;">
             <form method="POST" action="{{ url_for('npd.add_comment', pid=proj.id) }}" enctype="multipart/form-data" id="discForm">
                 <input type="hidden" name="is_internal" value="0">
+                <input type="hidden" name="comment" id="discCommentHidden">
                 <div style="display:flex;gap:.75rem;align-items:flex-start;">
                     {% set ini=(current_user.full_name.split()[0][0]+current_user.full_name.split()[-1][0]).upper() if current_user.full_name and current_user.full_name.split()|length>1 else 'Me' %}
-                    <div class="disc-avatar">{{ ini }}</div>
+                    <div class="disc-avatar" style="flex-shrink:0;">{{ ini }}</div>
                     <div style="flex:1;min-width:0;">
-                        <textarea name="comment" class="disc-input" placeholder="Add a comment..." id="discBox"></textarea>
-                        <div class="drop-zone" id="discDropZone" onclick="document.getElementById('discFile').click()" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="handleDrop(event,'disc')">
-                            <span style="font-size:1.3rem;">📎</span><br>
-                            <span style="font-size:.84rem;color:var(--text3);">Drag & drop files here, or <span class="drop-browse" onclick="event.stopPropagation();document.getElementById('discFile').click()">browse</span></span>
-                            <br><span style="font-size:.75rem;color:var(--text3);">Any file type supported</span>
-                            <input type="file" name="attachment" id="discFile" style="display:none;" onchange="showFileName(this,'discLabel')">
-                        </div>
-                        <div id="discLabel" style="font-size:.78rem;color:var(--blue);margin-top:.3rem;"></div>
-                        <div style="display:flex;justify-content:flex-end;margin-top:.65rem;">
-                            <button type="submit" class="btn-add-new" style="font-size:.83rem;padding:7px 20px;">💬 Post Comment</button>
+                        <div style="border:1.5px solid var(--border);border-radius:10px;overflow:hidden;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.06);">
+                            <div style="display:flex;align-items:center;gap:2px;padding:5px 8px;background:#f8fafc;border-bottom:1px solid var(--border);flex-wrap:wrap;">
+                                <button type="button" onclick="document.execCommand('bold')" style="width:28px;height:28px;border:none;background:none;cursor:pointer;border-radius:4px;font-weight:800;font-size:.85rem;" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='none'"><b>B</b></button>
+                                <button type="button" onclick="document.execCommand('italic')" style="width:28px;height:28px;border:none;background:none;cursor:pointer;border-radius:4px;font-size:.85rem;" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='none'"><i>I</i></button>
+                                <button type="button" onclick="document.execCommand('underline')" style="width:28px;height:28px;border:none;background:none;cursor:pointer;border-radius:4px;font-size:.85rem;" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='none'"><u>U</u></button>
+                                <div style="width:1px;height:18px;background:var(--border);margin:0 3px;"></div>
+                                <button type="button" onclick="document.execCommand('insertUnorderedList')" style="width:28px;height:28px;border:none;background:none;cursor:pointer;border-radius:4px;" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='none'">•≡</button>
+                                <button type="button" onclick="document.execCommand('insertOrderedList')" style="width:28px;height:28px;border:none;background:none;cursor:pointer;border-radius:4px;" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='none'">1≡</button>
+                                <div style="width:1px;height:18px;background:var(--border);margin:0 3px;"></div>
+                                <button type="button" onclick="document.getElementById('discImgPaste').click()" style="width:28px;height:28px;border:none;background:none;cursor:pointer;border-radius:4px;" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='none'">🖼</button>
+                                <button type="button" onclick="document.getElementById('discFile').click()" style="width:28px;height:28px;border:none;background:none;cursor:pointer;border-radius:4px;" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='none'">📎</button>
+                                <input type="file" id="discImgPaste" accept="image/*" style="display:none;" onchange="insertImgInline(this,'discEditor')">
+                                <input type="file" name="attachment" id="discFile" style="display:none;" onchange="showFileName(this,'discLabel')">
+                            </div>
+                            <div id="discEditor" contenteditable="true"
+                                 style="min-height:80px;max-height:200px;overflow-y:auto;padding:10px 14px;font-size:.88rem;font-family:inherit;outline:none;line-height:1.7;color:var(--text);"
+                                 placeholder="Write a message..."
+                                 onpaste="handleImgPaste(event,'discEditor')"
+                                 ondragover="event.preventDefault();this.style.outline='2px dashed var(--blue)';this.style.background='#f0f7ff'"
+                                 ondragleave="this.style.outline='';this.style.background=''"
+                                 ondrop="dropToEditor(event,'discEditor','discFile','discLabel')"></div>
+                            <div style="display:flex;align-items:center;justify-content:space-between;padding:7px 12px;border-top:1px solid var(--border);background:#f8fafc;">
+                                <div id="discLabel" style="font-size:.75rem;color:var(--blue);"></div>
+                                <button type="submit" onclick="document.getElementById('discCommentHidden').value=document.getElementById('discEditor').innerHTML;" class="btn-add-new" style="font-size:.83rem;padding:6px 20px;">Send ➤</button>
+                            </div>
                         </div>
                     </div>
                 </div>
             </form>
+        </div>
+        <!-- Comments area -->
+        <div style="padding:1rem 1.25rem;" id="disc-comments-area">
             {% if disc_comments %}
             {% for c in disc_comments %}
             {% set ci=(c.user.full_name.split()[0][0]+c.user.full_name.split()[-1][0]).upper() if c.user and c.user.full_name.split()|length>1 else (c.user.full_name[:2].upper() if c.user else 'U') %}
@@ -620,23 +648,28 @@ function closeEndModal(){
                 <div class="disc-content">
                     <div class="disc-meta"><strong>{{ c.user.full_name if c.user else 'Unknown' }}</strong> · {{ c.created_at.strftime('%d-%m-%Y %H:%M:%S') if c.created_at else '' }}</div>
                     {% if c.comment and not c.comment.startswith('📎 File attached:') %}
-                    <div class="disc-text">{{ c.comment }}</div>
+                    <div class="disc-text">{{ c.comment|safe }}</div>
                     {% endif %}
                     {% if c.attachment %}
                     {% set att_parts = c.attachment.split('|') %}
                     {% set att_file = att_parts[0] %}
                     {% set att_name = att_parts[1] if att_parts|length > 1 else att_parts[0] %}
-                    <div class="disc-attach" style="margin-top:.4rem;">
-                        <a href="/static/uploads/npd/{{ att_file }}" target="_blank" class="attach-chip">
-                            📎 {{ att_name }}
-                        </a>
+                    {% set att_ext = att_name.rsplit('.',1)[-1].lower() if '.' in att_name else '' %}
+                    <div class="disc-attach" style="margin-top:.6rem;">
+                        {% if att_ext in ['jpg','jpeg','png','gif','webp','bmp'] %}
+                        <img src="/static/uploads/npd/{{ att_file }}" alt="{{ att_name }}"
+                             style="max-width:480px;width:100%;border-radius:8px;border:1px solid var(--border);cursor:pointer;"
+                             onclick="window.open(this.src,'_blank')">
+                        {% else %}
+                        <a href="/static/uploads/npd/{{ att_file }}" target="_blank" class="attach-chip">📎 {{ att_name }}</a>
+                        {% endif %}
                     </div>
                     {% endif %}
                 </div>
             </div>
             {% endfor %}
             {% else %}
-            <p style="color:var(--text3);text-align:center;padding:2rem;font-size:.85rem;">No comments yet.</p>
+            <p style="color:var(--text3);text-align:center;padding:3rem;font-size:.85rem;">No comments yet.</p>
             {% endif %}
         </div>
     </div>
@@ -646,27 +679,47 @@ function closeEndModal(){
 <div id="tab-internal" class="tab-pane">
     <div class="card">
         <div class="card-hdr"><div class="card-title">Internal Discussion Board</div></div>
-        <div class="card-body">
+        <!-- Compose at TOP -->
+        <div style="border-bottom:1px solid var(--border);padding:.75rem 1rem;background:#fff;">
             <form method="POST" action="{{ url_for('npd.add_comment', pid=proj.id) }}" enctype="multipart/form-data">
                 <input type="hidden" name="is_internal" value="1">
+                <input type="hidden" name="comment" id="intCommentHidden">
                 <div style="display:flex;gap:.75rem;align-items:flex-start;">
                     {% set ini=(current_user.full_name.split()[0][0]+current_user.full_name.split()[-1][0]).upper() if current_user.full_name and current_user.full_name.split()|length>1 else 'Me' %}
-                    <div class="disc-avatar" style="background:#059669;">{{ ini }}</div>
+                    <div class="disc-avatar" style="background:#059669;flex-shrink:0;">{{ ini }}</div>
                     <div style="flex:1;min-width:0;">
-                        <textarea name="comment" class="disc-input" placeholder="Add an internal comment..."></textarea>
-                        <div class="drop-zone" onclick="document.getElementById('intFile').click()" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="handleDrop(event,'int')">
-                            <span style="font-size:1.3rem;">📎</span><br>
-                            <span style="font-size:.84rem;color:var(--text3);">Drag & drop files here, or <span class="drop-browse" onclick="event.stopPropagation();document.getElementById('intFile').click()">browse</span></span>
-                            <br><span style="font-size:.75rem;color:var(--text3);">Any file type supported</span>
-                            <input type="file" name="attachment" id="intFile" style="display:none;" onchange="showFileName(this,'intLabel')">
-                        </div>
-                        <div id="intLabel" style="font-size:.78rem;color:var(--blue);margin-top:.3rem;"></div>
-                        <div style="display:flex;justify-content:flex-end;margin-top:.65rem;">
-                            <button type="submit" class="btn-add-new" style="font-size:.83rem;padding:7px 20px;background:#059669;">💬 Post Internal</button>
+                        <div style="border:1.5px solid #a7f3d0;border-radius:10px;overflow:hidden;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.06);">
+                            <div style="display:flex;align-items:center;gap:2px;padding:5px 8px;background:#f0fdf4;border-bottom:1px solid #a7f3d0;flex-wrap:wrap;">
+                                <button type="button" onclick="document.execCommand('bold')" style="width:28px;height:28px;border:none;background:none;cursor:pointer;border-radius:4px;font-weight:800;font-size:.85rem;" onmouseover="this.style.background='#d1fae5'" onmouseout="this.style.background='none'"><b>B</b></button>
+                                <button type="button" onclick="document.execCommand('italic')" style="width:28px;height:28px;border:none;background:none;cursor:pointer;border-radius:4px;font-size:.85rem;" onmouseover="this.style.background='#d1fae5'" onmouseout="this.style.background='none'"><i>I</i></button>
+                                <button type="button" onclick="document.execCommand('underline')" style="width:28px;height:28px;border:none;background:none;cursor:pointer;border-radius:4px;font-size:.85rem;" onmouseover="this.style.background='#d1fae5'" onmouseout="this.style.background='none'"><u>U</u></button>
+                                <div style="width:1px;height:18px;background:#a7f3d0;margin:0 3px;"></div>
+                                <button type="button" onclick="document.execCommand('insertUnorderedList')" style="width:28px;height:28px;border:none;background:none;cursor:pointer;border-radius:4px;" onmouseover="this.style.background='#d1fae5'" onmouseout="this.style.background='none'">•≡</button>
+                                <button type="button" onclick="document.execCommand('insertOrderedList')" style="width:28px;height:28px;border:none;background:none;cursor:pointer;border-radius:4px;" onmouseover="this.style.background='#d1fae5'" onmouseout="this.style.background='none'">1≡</button>
+                                <div style="width:1px;height:18px;background:#a7f3d0;margin:0 3px;"></div>
+                                <button type="button" onclick="document.getElementById('intImgPaste').click()" style="width:28px;height:28px;border:none;background:none;cursor:pointer;border-radius:4px;" onmouseover="this.style.background='#d1fae5'" onmouseout="this.style.background='none'">🖼</button>
+                                <button type="button" onclick="document.getElementById('intFile').click()" style="width:28px;height:28px;border:none;background:none;cursor:pointer;border-radius:4px;" onmouseover="this.style.background='#d1fae5'" onmouseout="this.style.background='none'">📎</button>
+                                <input type="file" id="intImgPaste" accept="image/*" style="display:none;" onchange="insertImgInline(this,'intEditor')">
+                                <input type="file" name="attachment" id="intFile" style="display:none;" onchange="showFileName(this,'intLabel')">
+                            </div>
+                            <div id="intEditor" contenteditable="true"
+                                 style="min-height:80px;max-height:200px;overflow-y:auto;padding:10px 14px;font-size:.88rem;font-family:inherit;outline:none;line-height:1.7;color:var(--text);"
+                                 placeholder="Write a message..."
+                                 onpaste="handleImgPaste(event,'intEditor')"
+                                 ondragover="event.preventDefault();this.style.outline='2px dashed #059669';this.style.background='#f0fdf4'"
+                                 ondragleave="this.style.outline='';this.style.background=''"
+                                 ondrop="dropToEditor(event,'intEditor','intFile','intLabel')"></div>
+                            <div style="display:flex;align-items:center;justify-content:space-between;padding:7px 12px;border-top:1px solid #a7f3d0;background:#f0fdf4;">
+                                <div id="intLabel" style="font-size:.75rem;color:#059669;"></div>
+                                <button type="submit" onclick="document.getElementById('intCommentHidden').value=document.getElementById('intEditor').innerHTML;" class="btn-add-new" style="font-size:.83rem;padding:6px 20px;background:#059669;">Send ➤</button>
+                            </div>
                         </div>
                     </div>
                 </div>
             </form>
+        </div>
+        <!-- Comments area -->
+        <div style="padding:1rem 1.25rem;">
             {% if internal_comments %}
             {% for c in internal_comments %}
             {% set ci=(c.user.full_name.split()[0][0]+c.user.full_name.split()[-1][0]).upper() if c.user and c.user.full_name.split()|length>1 else 'U' %}
@@ -675,23 +728,28 @@ function closeEndModal(){
                 <div class="disc-content">
                     <div class="disc-meta"><strong>{{ c.user.full_name if c.user else 'Unknown' }}</strong> · {{ c.created_at.strftime('%d-%m-%Y %H:%M:%S') if c.created_at else '' }}</div>
                     {% if c.comment and not c.comment.startswith('📎 File attached:') %}
-                    <div class="disc-text">{{ c.comment }}</div>
+                    <div class="disc-text">{{ c.comment|safe }}</div>
                     {% endif %}
                     {% if c.attachment %}
                     {% set att_parts = c.attachment.split('|') %}
                     {% set att_file = att_parts[0] %}
                     {% set att_name = att_parts[1] if att_parts|length > 1 else att_parts[0] %}
-                    <div class="disc-attach" style="margin-top:.4rem;">
-                        <a href="/static/uploads/npd/{{ att_file }}" target="_blank" class="attach-chip">
-                            📎 {{ att_name }}
-                        </a>
+                    {% set att_ext = att_name.rsplit('.',1)[-1].lower() if '.' in att_name else '' %}
+                    <div class="disc-attach" style="margin-top:.6rem;">
+                        {% if att_ext in ['jpg','jpeg','png','gif','webp','bmp'] %}
+                        <img src="/static/uploads/npd/{{ att_file }}" alt="{{ att_name }}"
+                             style="max-width:480px;width:100%;border-radius:8px;border:1px solid var(--border);cursor:pointer;"
+                             onclick="window.open(this.src,'_blank')">
+                        {% else %}
+                        <a href="/static/uploads/npd/{{ att_file }}" target="_blank" class="attach-chip">📎 {{ att_name }}</a>
+                        {% endif %}
                     </div>
                     {% endif %}
                 </div>
             </div>
             {% endfor %}
             {% else %}
-            <p style="color:var(--text3);text-align:center;padding:2rem;font-size:.85rem;">No internal comments yet.</p>
+            <p style="color:var(--text3);text-align:center;padding:3rem;font-size:.85rem;">No internal comments yet.</p>
             {% endif %}
         </div>
     </div>
@@ -786,6 +844,315 @@ function closeEndModal(){
     </div>
 </div>
 
+<!-- TAB 7: MILESTONES -->
+<div id="tab-milestones" class="tab-pane">
+  <div style="display:flex;align-items:flex-start;border:1px solid var(--border);border-radius:12px;overflow:visible;background:#fff;">
+
+    <!-- LEFT SIDEBAR — Sticky -->
+    <div style="width:260px;flex-shrink:0;border-right:1px solid var(--border);background:#f8fafc;position:sticky;top:80px;max-height:calc(100vh - 100px);overflow-y:auto;align-self:flex-start;">
+      <div style="padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
+        <span style="font-size:.8rem;font-weight:800;color:var(--text);text-transform:uppercase;letter-spacing:.04em;">Milestones</span>
+        <span style="font-size:.75rem;color:var(--text3);font-weight:600;" id="ms-done-count-hdr">0 / 8 done</span>
+      </div>
+      {% set ms_names = ['BOM','Ingredients List & Marketing Sheet','Quotation','Packing Material','Artwork Design','Artwork QC Approval','FDA','Barcode'] %}
+      {% for ms_name in ms_names %}
+      <div id="ms-item-{{ loop.index }}"
+           onclick="selectMilestone({{ loop.index }})"
+           style="padding:13px 16px;cursor:pointer;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;gap:10px;transition:background .12s;">
+        <span id="ms-icon-{{ loop.index }}" style="font-size:.9rem;flex-shrink:0;">⏳</span>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:.82rem;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ ms_name }}</div>
+          <div id="ms-sub-{{ loop.index }}" style="font-size:.72rem;color:var(--text3);margin-top:1px;">Pending</div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+
+    <!-- RIGHT PANEL — No fixed height, page scrolls naturally -->
+    <div style="flex:1;min-width:0;padding:28px 32px;" id="ms-detail-panel">
+      <div style="text-align:center;padding:60px 20px;color:var(--text3);">
+        <div style="font-size:2.5rem;margin-bottom:12px;">📋</div>
+        <div style="font-size:.9rem;font-weight:600;">Select a milestone from the left</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ── Milestone Data ──
+var MS_STATE = {};
+var MS_NAMES = ['BOM','Ingredients List & Marketing Sheet','Quotation','Packing Material','Artwork Design','Artwork QC Approval','FDA','Barcode'];
+var MS_SELECTED = null;
+var PROJ_ID = {{ proj.id }};
+
+(function loadMilestones() {
+  fetch('/npd/' + PROJ_ID + '/milestones')
+    .then(function(r){ return r.json(); })
+    .then(function(data) {
+      MS_STATE = data.milestones || {};
+      updateAllSidebarItems();
+    })
+    .catch(function(){});
+})();
+
+function updateAllSidebarItems() {
+  var done = 0;
+  for (var i = 1; i <= 8; i++) {
+    var key = 'ms_' + i;
+    var st  = (MS_STATE[key] || {}).status || 'pending';
+    var dt  = (MS_STATE[key] || {}).date   || '';
+    var icon = document.getElementById('ms-icon-' + i);
+    var sub  = document.getElementById('ms-sub-'  + i);
+    if (st === 'done') {
+      done++;
+      if (icon) icon.textContent = '✅';
+      if (sub)  sub.textContent  = 'Done' + (dt ? ' · ' + dt : '');
+    } else {
+      if (icon) icon.textContent = '⏳';
+      if (sub)  sub.textContent  = 'Pending';
+    }
+  }
+  var hdr = document.getElementById('ms-done-count-hdr');
+  if (hdr) hdr.textContent = done + ' / 8 done';
+  // Refresh detail panel if one is selected
+  if (MS_SELECTED) renderDetail(MS_SELECTED);
+}
+
+function selectMilestone(idx) {
+  MS_SELECTED = idx;
+  // Highlight selected item
+  for (var i = 1; i <= 8; i++) {
+    var el = document.getElementById('ms-item-' + i);
+    if (el) el.style.background = (i === idx) ? '#eff6ff' : '';
+    if (el) el.style.borderLeft = (i === idx) ? '3px solid var(--blue)' : '3px solid transparent';
+  }
+  renderDetail(idx);
+}
+
+function renderDetail(idx) {
+  var key  = 'ms_' + idx;
+  var name = MS_NAMES[idx - 1];
+  var st   = (MS_STATE[key] || {}).status || 'pending';
+  var isDone = (st === 'done');
+
+  // Artwork Design=5, Artwork QC Approval=6 → Discussion Board
+  // All others → Simple Notes
+  var isDiscussion = (idx === 5 || idx === 6);
+
+  var header =
+    '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">' +
+      '<div style="font-size:1.05rem;font-weight:800;color:var(--text);">' + name + '</div>' +
+      '<button onclick="toggleMilestone(' + idx + ')" id="ms-detail-btn"' +
+        ' style="padding:6px 18px;border-radius:8px;font-size:.82rem;font-weight:700;border:none;cursor:pointer;flex-shrink:0;' +
+        (isDone ? 'background:#dcfce7;color:#16a34a;' : 'background:#7c3aed;color:#fff;') + '">' +
+        (isDone ? '✅ Mark as Pending' : '✅ Mark as Done') +
+      '</button>' +
+    '</div>';
+
+  var panel = document.getElementById('ms-detail-panel');
+
+  if (isDiscussion) {
+    // ── Gmail-style Discussion Board ──
+    panel.innerHTML =
+      '<div>' + header +
+        // Card 1: Compose
+        '<div style="border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:16px;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.05);">' +
+          '<div style="padding:8px 14px;background:#f8fafc;border-bottom:1px solid var(--border);font-size:.75rem;font-weight:800;color:var(--text);text-transform:uppercase;letter-spacing:.04em;">✏️ New Message</div>' +
+          '<div style="display:flex;align-items:center;gap:2px;padding:6px 10px;background:#fff;border-bottom:1px solid var(--border);flex-wrap:wrap;">' +
+            '<button type="button" onclick="document.execCommand(\'bold\')" style="width:26px;height:26px;border:none;background:none;cursor:pointer;border-radius:4px;font-weight:800;font-size:.82rem;" onmouseover="this.style.background=\'#e2e8f0\'" onmouseout="this.style.background=\'none\'"><b>B</b></button>' +
+            '<button type="button" onclick="document.execCommand(\'italic\')" style="width:26px;height:26px;border:none;background:none;cursor:pointer;border-radius:4px;font-size:.82rem;" onmouseover="this.style.background=\'#e2e8f0\'" onmouseout="this.style.background=\'none\'"><i>I</i></button>' +
+            '<button type="button" onclick="document.execCommand(\'underline\')" style="width:26px;height:26px;border:none;background:none;cursor:pointer;border-radius:4px;font-size:.82rem;" onmouseover="this.style.background=\'#e2e8f0\'" onmouseout="this.style.background=\'none\'"><u>U</u></button>' +
+            '<div style="width:1px;height:18px;background:var(--border);margin:0 3px;"></div>' +
+            '<button type="button" onclick="document.execCommand(\'insertUnorderedList\')" style="width:26px;height:26px;border:none;background:none;cursor:pointer;border-radius:4px;" onmouseover="this.style.background=\'#e2e8f0\'" onmouseout="this.style.background=\'none\'">•≡</button>' +
+            '<button type="button" onclick="document.execCommand(\'insertOrderedList\')" style="width:26px;height:26px;border:none;background:none;cursor:pointer;border-radius:4px;" onmouseover="this.style.background=\'#e2e8f0\'" onmouseout="this.style.background=\'none\'">1≡</button>' +
+            '<div style="width:1px;height:18px;background:var(--border);margin:0 3px;"></div>' +
+            '<button type="button" onclick="document.getElementById(\'ms-disc-img\').click()" style="width:26px;height:26px;border:none;background:none;cursor:pointer;border-radius:4px;" onmouseover="this.style.background=\'#e2e8f0\'" onmouseout="this.style.background=\'none\'">🖼</button>' +
+            '<button type="button" onclick="document.getElementById(\'ms-disc-file\').click()" style="width:26px;height:26px;border:none;background:none;cursor:pointer;border-radius:4px;" onmouseover="this.style.background=\'#e2e8f0\'" onmouseout="this.style.background=\'none\'">📎</button>' +
+            '<input type="file" id="ms-disc-img" accept="image/*" style="display:none;" onchange="insertImgInline(this,\'ms-disc-editor\')">' +
+            '<input type="file" id="ms-disc-file" style="display:none;" onchange="showMsFileName(this)">' +
+          '</div>' +
+          '<div id="ms-disc-editor" contenteditable="true" placeholder="Write a comment..."' +
+            ' style="min-height:80px;max-height:200px;overflow-y:auto;padding:10px 14px;font-size:.84rem;font-family:inherit;outline:none;line-height:1.6;color:var(--text);"' +
+            ' onpaste="handleImgPaste(event,\'ms-disc-editor\')"' +
+            ' ondragover="event.preventDefault();this.style.outline=\'2px dashed var(--blue)\';this.style.background=\'#f0f7ff\'"' +
+            ' ondragleave="this.style.outline=\'\';this.style.background=\'\'"' +
+            ' ondrop="handleMsEditorDrop(event)"></div>' +
+          '<div style="display:flex;align-items:center;justify-content:space-between;padding:7px 12px;border-top:1px solid var(--border);background:#f8fafc;">' +
+            '<span id="ms-disc-fname" style="font-size:.72rem;color:var(--blue);"></span>' +
+            '<button onclick="postMsComment(' + idx + ')" style="padding:5px 18px;background:#7c3aed;color:#fff;border:none;border-radius:7px;font-size:.8rem;font-weight:700;cursor:pointer;">Send ➤</button>' +
+          '</div>' +
+        '</div>' +
+        // Card 2: Comments
+        '<div style="border:1px solid var(--border);border-radius:10px;overflow:hidden;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.05);">' +
+          '<div style="padding:8px 14px;background:#f8fafc;border-bottom:1px solid var(--border);font-size:.75rem;font-weight:800;color:var(--text);text-transform:uppercase;letter-spacing:.04em;">💬 Discussion</div>' +
+          '<div id="ms-disc-list" style="padding:10px 14px;"></div>' +
+        '</div>' +
+      '</div>';
+    loadMsComments(idx);
+
+  } else {
+    // ── Simple Notes ──
+    var noteKey = 'note_' + key;
+    var savedNote = (MS_STATE[key] || {}).note || '';
+    panel.innerHTML =
+      '<div>' + header +
+        '<div style="border:1px solid var(--border);border-radius:10px;overflow:hidden;">' +
+          '<div style="padding:10px 14px;background:#f8fafc;border-bottom:1px solid var(--border);font-size:.78rem;font-weight:800;color:var(--text);text-transform:uppercase;letter-spacing:.04em;">📝 Notes</div>' +
+          '<textarea id="ms-note-input" placeholder="Add notes for ' + name + '..." rows="6"' +
+            ' style="width:100%;border:none;outline:none;padding:14px;font-size:.86rem;font-family:inherit;resize:vertical;color:var(--text);box-sizing:border-box;">' + savedNote + '</textarea>' +
+          '<div style="display:flex;justify-content:flex-end;padding:8px 12px;border-top:1px solid var(--border);background:#f8fafc;">' +
+            '<button onclick="saveMsNote(' + idx + ')" style="padding:5px 18px;background:#7c3aed;color:#fff;border:none;border-radius:7px;font-size:.8rem;font-weight:700;cursor:pointer;">💾 Save</button>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+  }
+}
+
+function loadMsComments(idx) {
+  var key = 'ms_' + idx;
+  fetch('/npd/' + PROJ_ID + '/milestone-comments/' + key)
+    .then(function(r){ return r.json(); })
+    .then(function(data) {
+      var list = document.getElementById('ms-disc-list');
+      if (!list) return;
+      if (!data.comments.length) {
+        list.innerHTML = '<div style="text-align:center;padding:16px;color:var(--text3);font-size:.82rem;">No comments yet.</div>';
+        return;
+      }
+      list.innerHTML = data.comments.map(function(c) {
+        var attHtml = '';
+        if (c.attachment) {
+          var parts = c.attachment.split('|');
+          var fname = parts[0], dname = parts[1] || parts[0];
+          var ext = dname.split('.').pop().toLowerCase();
+          var imgExts = ['jpg','jpeg','png','gif','webp','bmp'];
+          if (imgExts.indexOf(ext) >= 0) {
+            attHtml = '<div style="margin-top:6px;"><img src="/static/uploads/npd/' + fname + '" style="max-width:100%;border-radius:6px;border:1px solid var(--border);cursor:pointer;" onclick="window.open(this.src,\'_blank\')"></div>';
+          } else {
+            attHtml = '<div style="margin-top:5px;"><a href="/static/uploads/npd/' + fname + '" target="_blank" style="font-size:.75rem;color:var(--blue);">📎 ' + dname + '</a></div>';
+          }
+        }
+        return '<div style="margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid #f1f5f9;">' +
+          '<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">' +
+            '<span style="width:22px;height:22px;border-radius:50%;background:var(--blue-lt);color:var(--blue);display:inline-flex;align-items:center;justify-content:center;font-size:.58rem;font-weight:800;flex-shrink:0;">' +
+              (c.user.split(' ').length > 1 ? c.user.split(' ')[0][0]+c.user.split(' ')[1][0] : c.user.slice(0,2)).toUpperCase() +
+            '</span>' +
+            '<strong style="font-size:.78rem;">' + c.user + '</strong>' +
+            '<span style="font-size:.7rem;color:var(--text3);">· ' + c.created_at + '</span>' +
+          '</div>' +
+          '<div style="font-size:.82rem;color:var(--text);line-height:1.5;margin-left:28px;">' + c.comment + attHtml + '</div>' +
+        '</div>';      }).join('');
+      list.scrollTop = list.scrollHeight;
+    });
+}
+
+function saveMsNote(idx) {
+  var key  = 'ms_' + idx;
+  var note = document.getElementById('ms-note-input');
+  if (!note) return;
+  fetch('/npd/' + PROJ_ID + '/milestones/update', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({key: key, status: (MS_STATE[key]||{}).status||'pending', note: note.value})
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(data){
+    if (data.success) {
+      if (!MS_STATE[key]) MS_STATE[key] = {};
+      MS_STATE[key].note = note.value;
+      var btn = document.querySelector('#ms-detail-panel button[onclick^="saveMsNote"]');
+      if (btn) { btn.textContent = '✅ Saved'; setTimeout(function(){ btn.textContent = '💾 Save'; }, 1500); }
+    }
+  });
+}
+
+function showMsFileName(input) {
+  var el = document.getElementById('ms-disc-fname');
+  if (el && input.files.length) el.textContent = '📎 ' + input.files[0].name;
+}
+
+function handleMsEditorDrop(e) {
+  e.preventDefault();
+  var el = document.getElementById('ms-disc-editor');
+  el.style.outline = '';
+  el.style.background = '';
+  var files = e.dataTransfer.files;
+  for (var i = 0; i < files.length; i++) {
+    var file = files[i];
+    if (file.type.indexOf('image') !== -1) {
+      (function(f) {
+        var reader = new FileReader();
+        reader.onload = function(ev) {
+          el.focus();
+          var range;
+          if (document.caretRangeFromPoint) range = document.caretRangeFromPoint(e.clientX, e.clientY);
+          if (range) { var sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(range); }
+          document.execCommand('insertImage', false, ev.target.result);
+        };
+        reader.readAsDataURL(f);
+      })(file);
+    } else {
+      // Non-image: set as attachment
+      try {
+        var dt = new DataTransfer();
+        dt.items.add(file);
+        var fileEl = document.getElementById('ms-disc-file');
+        if (fileEl) { fileEl.files = dt.files; showMsFileName(fileEl); }
+      } catch(ex) {}
+    }
+  }
+}
+
+function postMsComment(idx) {
+  var key     = 'ms_' + idx;
+  var editor  = document.getElementById('ms-disc-editor');
+  var fileEl  = document.getElementById('ms-disc-file');
+  var comment = editor ? editor.innerHTML.trim() : '';
+  var file    = fileEl && fileEl.files.length ? fileEl.files[0] : null;
+  if ((!comment || comment === '<br>') && !file) return;
+
+  var fd = new FormData();
+  fd.append('comment', comment);
+  if (file) fd.append('attachment', file);
+
+  fetch('/npd/' + PROJ_ID + '/milestone-comments/' + key + '/add', {
+    method: 'POST', body: fd
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(data) {
+    if (data.success) {
+      if (editor) editor.innerHTML = '';
+      if (fileEl) fileEl.value = '';
+      var fn = document.getElementById('ms-disc-fname');
+      if (fn) fn.textContent = '';
+      loadMsComments(idx);
+    }
+  })
+  .catch(function(){ alert('Error posting comment.'); });
+}
+
+function toggleMilestone(idx) {
+  var key = 'ms_' + idx;
+  var cur = (MS_STATE[key] || {}).status || 'pending';
+  var newStatus = (cur === 'done') ? 'pending' : 'done';
+
+  fetch('/npd/' + PROJ_ID + '/milestones/update', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({key: key, status: newStatus})
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(data) {
+    if (data.success) {
+      MS_STATE[key] = {status: newStatus, date: data.date};
+      updateAllSidebarItems();
+    }
+  })
+  .catch(function(){ alert('Error saving milestone.'); });
+}
+</script>
+
 <script>
 // Tab switching
 function switchTab(name, el) {
@@ -813,6 +1180,144 @@ function showFileName(input, labelId) {
     var label = document.getElementById(labelId);
     if(label && input.files.length > 0) label.textContent = '📎 ' + input.files[0].name;
 }
+
+// ── Gmail-style inline image helpers ──
+function dropToEditor(e, editorId, fileInputId, labelId) {
+    e.preventDefault();
+    var el = document.getElementById(editorId);
+    el.style.outline = '';
+    el.style.background = '';
+    var files = e.dataTransfer.files;
+    for (var i = 0; i < files.length; i++) {
+        var file = files[i];
+        if (file.type.indexOf('image') !== -1) {
+            (function(f) {
+                var reader = new FileReader();
+                reader.onload = function(ev) {
+                    el.focus();
+                    var range;
+                    if (document.caretRangeFromPoint) range = document.caretRangeFromPoint(e.clientX, e.clientY);
+                    if (range) { var sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(range); }
+                    document.execCommand('insertImage', false, ev.target.result);
+                };
+                reader.readAsDataURL(f);
+            })(file);
+        } else {
+            try {
+                var dt = new DataTransfer();
+                dt.items.add(file);
+                var fi = document.getElementById(fileInputId);
+                if (fi) { fi.files = dt.files; showFileName(fi, labelId); }
+            } catch(ex) {}
+        }
+    }
+}
+
+function insertImgInline(input, editorId) {
+    if (!input.files.length) return;
+    var file = input.files[0];
+    var reader = new FileReader();
+    reader.onload = function(e) {
+        var editor = document.getElementById(editorId);
+        editor.focus();
+        var img = document.createElement('img');
+        img.src = e.target.result;
+        img.style.maxWidth = '100%';
+        img.style.borderRadius = '6px';
+        img.style.margin = '4px 0';
+        img.style.display = 'block';
+        var sel = window.getSelection();
+        if (sel.rangeCount) {
+            var range = sel.getRangeAt(0);
+            range.insertNode(img);
+            range.collapse(false);
+        } else {
+            editor.appendChild(img);
+        }
+    };
+    reader.readAsDataURL(file);
+    input.value = '';
+}
+
+function handleImgPaste(e, editorId) {
+    var items = (e.clipboardData || e.originalEvent.clipboardData).items;
+    for (var i = 0; i < items.length; i++) {
+        if (items[i].type.indexOf('image') !== -1) {
+            e.preventDefault();
+            var file = items[i].getAsFile();
+            var reader = new FileReader();
+            reader.onload = function(ev) {
+                document.getElementById(editorId).focus();
+                document.execCommand('insertImage', false, ev.target.result);
+            };
+            reader.readAsDataURL(file);
+        }
+    }
+}
+
+// ── Drag & Drop for editors ──
+function initEditorDragDrop(editorId) {
+    var el = document.getElementById(editorId);
+    if (!el) return;
+    el.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        el.style.outline = '2px dashed var(--blue)';
+        el.style.background = '#f0f7ff';
+    });
+    el.addEventListener('dragleave', function(e) {
+        el.style.outline = '';
+        el.style.background = '';
+    });
+    el.addEventListener('drop', function(e) {
+        e.preventDefault();
+        el.style.outline = '';
+        el.style.background = '';
+        var files = e.dataTransfer.files;
+        for (var i = 0; i < files.length; i++) {
+            var file = files[i];
+            if (file.type.indexOf('image') !== -1) {
+                (function(f) {
+                    var reader = new FileReader();
+                    reader.onload = function(ev) {
+                        el.focus();
+                        var range;
+                        if (document.caretRangeFromPoint) {
+                            range = document.caretRangeFromPoint(e.clientX, e.clientY);
+                        } else if (e.rangeParent) {
+                            range = document.createRange();
+                            range.setStart(e.rangeParent, e.rangeOffset);
+                        }
+                        if (range) {
+                            var sel = window.getSelection();
+                            sel.removeAllRanges();
+                            sel.addRange(range);
+                        }
+                        document.execCommand('insertImage', false, ev.target.result);
+                    };
+                    reader.readAsDataURL(f);
+                })(file);
+            } else {
+              try {
+                var dt2 = new DataTransfer();
+                dt2.items.add(file);
+                var attachEl = el.id === 'discEditor'
+                  ? document.getElementById('discFile')
+                  : document.getElementById('intFile');
+                if (attachEl) {
+                  attachEl.files = dt2.files;
+                  var labelId = el.id === 'discEditor' ? 'discLabel' : 'intLabel';
+                  showFileName(attachEl, labelId);
+                }
+              } catch(ex) {}
+            }
+        }
+    });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    initEditorDragDrop('discEditor');
+    initEditorDragDrop('intEditor');
+});
 
 // Drag & drop
 function handleDrop(e, prefix) {

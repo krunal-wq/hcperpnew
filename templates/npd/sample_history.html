@@ -289,6 +289,8 @@
         </td>
         <td onclick="event.stopPropagation()">
           <button class="btn-del-token" data-tid="{{ t.id }}" data-token="{{ t.token_no }}" data-count="{{ t.items|length }}" title="Delete Token" onclick="deleteToken(this)">🗑️</button>
+          <button class="btn-del-token" style="background:#f0fdf4;color:#166534;margin-left:4px;" title="Print List" onclick="printToken({{ t.id }}, '{{ t.token_no }}', '{{ t.dispatched_at.strftime('%d/%m/%Y') }}')">🖨️</button>
+          <button class="btn-del-token" style="background:#eff6ff;color:#1d4ed8;margin-left:4px;" title="Print Sample Labels" onclick="window.open('/npd/token-label/{{ t.id }}', '_blank')">🏷️</button>
         </td>
       </tr>
       <tr class="expand-row" id="exp-{{ t.id }}">
@@ -626,7 +628,7 @@ async function toggleExpand(tid) {
       rows +=
         '<tr id="item-row-' + iid + '">' +
         '<td style="color:var(--text3);font-size:.78rem;">' + (i+1) + '</td>' +
-        '<td><a href="/npd/project/' + item.project_id + '" style="font-weight:700;color:#7c3aed;text-decoration:none;font-family:monospace;" onclick="event.stopPropagation()">' + item.code + '</a></td>' +
+        '<td><a href="/npd/projects/' + item.project_id + '" style="font-weight:700;color:#7c3aed;text-decoration:none;font-family:monospace;" onclick="event.stopPropagation()">' + item.code + '</a></td>' +
         '<td style="font-weight:600;">' + item.product_name + '</td>' +
         '<td style="color:var(--text2);">' + item.client_name + '</td>' +
         // Handover To — view + edit
@@ -671,6 +673,150 @@ async function toggleExpand(tid) {
   } catch(e) {
     inner.innerHTML = '<div class="expand-loading">❌ Error. Please try again.</div>';
   }
+}
+
+// ── Print Token ──
+async function printToken(tid, tokenNo, tokenDate) {
+  // Fetch items if not already loaded
+  var inner = document.getElementById('exp-inner-' + tid);
+  var items = null;
+
+  try {
+    var res  = await fetch('/npd/sample-history/' + tid + '/items');
+    var data = await res.json();
+    items = data.items;
+  } catch(e) {
+    alert('Data load karne mein error aaya. Pehle token open karo aur phir print karo.');
+    return;
+  }
+
+  if (!items || !items.length) {
+    alert('Is token mein koi sample nahi hai.');
+    return;
+  }
+
+  var tableRows = '';
+  items.forEach(function(item, i) {
+    var sc = (item.sample_code || '—').split(',').map(function(s){ return s.trim(); }).filter(Boolean).join(' , ');
+    tableRows +=
+      '<tr>' +
+      '<td style="text-align:center;border:1px solid #cbd5e1;padding:7px 8px;">' + (i+1) + '</td>' +
+      '<td style="border:1px solid #cbd5e1;padding:7px 8px;font-family:monospace;font-weight:700;">' + (item.code || '—') + '</td>' +
+      '<td style="border:1px solid #cbd5e1;padding:7px 8px;font-weight:600;">' + (item.product_name || '—') + '</td>' +
+      '<td style="border:1px solid #cbd5e1;padding:7px 8px;">' + (item.client_name || '—') + '</td>' +
+      '<td style="border:1px solid #cbd5e1;padding:7px 8px;font-weight:600;">' + (item.handover_to || '—') + '</td>' +
+      '<td style="border:1px solid #cbd5e1;padding:7px 8px;">' + (item.submitted_by || '—') + '</td>' +
+      '<td style="border:1px solid #cbd5e1;padding:7px 8px;font-family:monospace;font-size:11px;">' + sc + '</td>' +
+      '</tr>';
+  });
+
+  var printContent =
+    '<div style="font-family:Arial,sans-serif;padding:24px;">' +
+      '<table style="width:100%;border-collapse:collapse;border:2px solid #000;margin-bottom:0;">' +
+        '<tr><td colspan="7" style="text-align:center;padding:10px;font-size:14px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;border:2px solid #000;">R&amp;D SAMPLES (' + tokenDate + ')&nbsp;&nbsp;|&nbsp;&nbsp;Token: ' + tokenNo + '</td></tr>' +
+        '<tr style="background:#f8fafc;">' +
+          '<th style="border:1px solid #cbd5e1;padding:8px;font-size:10px;text-transform:uppercase;text-align:center;">SR. NO.</th>' +
+          '<th style="border:1px solid #cbd5e1;padding:8px;font-size:10px;text-transform:uppercase;">PROJECT NO.</th>' +
+          '<th style="border:1px solid #cbd5e1;padding:8px;font-size:10px;text-transform:uppercase;">PRODUCT NAME</th>' +
+          '<th style="border:1px solid #cbd5e1;padding:8px;font-size:10px;text-transform:uppercase;">CLIENT NAME</th>' +
+          '<th style="border:1px solid #cbd5e1;padding:8px;font-size:10px;text-transform:uppercase;">HANDOVER TO</th>' +
+          '<th style="border:1px solid #cbd5e1;padding:8px;font-size:10px;text-transform:uppercase;">SUBMITTED BY</th>' +
+          '<th style="border:1px solid #cbd5e1;padding:8px;font-size:10px;text-transform:uppercase;">SAMPLE CODE</th>' +
+        '</tr>' +
+        tableRows +
+      '</table>' +
+      '<div style="margin-top:10px;font-size:10px;color:#94a3b8;text-align:right;">Total Samples: ' + items.length + '</div>' +
+    '</div>';
+
+  var pw = window.open('', '_blank', 'width=1100,height=700');
+  pw.document.write('<html><head><title>Token ' + tokenNo + ' — R&D Samples</title>' +
+    '<style>body{margin:0;}table tr:nth-child(even) td{background:#f8fafc;}' +
+    'th{font-weight:700;text-align:left;}' +
+    '@media print{@page{margin:12mm;size:landscape;}}</style>' +
+    '</head><body>' + printContent + '</body></html>');
+  pw.document.close();
+  pw.focus();
+  setTimeout(function(){ pw.print(); }, 400);
+}
+
+// ── Print Sample Labels (4 per row, 1 label per sample code) ──
+async function printLabels(tid) {
+  var items = null;
+  try {
+    var res  = await fetch('/npd/sample-history/' + tid + '/items');
+    var data = await res.json();
+    items = data.items;
+  } catch(e) {
+    alert('Data load karne mein error aaya.');
+    return;
+  }
+  if (!items || !items.length) {
+    alert('Is token mein koi sample nahi hai.');
+    return;
+  }
+
+  // Expand: 1 label per sample_code entry
+  var labels = [];
+  items.forEach(function(item) {
+    var codes = (item.sample_code || '').split(',').map(function(s){ return s.trim(); }).filter(Boolean);
+    if (!codes.length) codes = ['—'];
+    codes.forEach(function(sc) {
+      labels.push({
+        product : item.product_name || '—',
+        code    : sc,
+        company : item.client_name  || '—'
+      });
+    });
+  });
+
+  var totalRows  = Math.ceil(labels.length / 2);
+  var pageH      = totalRows * 20;
+
+  var cellHtml = labels.map(function(l) {
+    return '<td>' +
+      '<div class="pname">' + l.product + '</div>' +
+      '<div class="scode">' + l.code + '</div>' +
+      '<hr>' +
+      '<div class="cname">' + l.company + '</div>' +
+    '</td>';
+  });
+
+  // Pad to multiple of 2
+  while (cellHtml.length % 2 !== 0) {
+    cellHtml.push('<td class="empty"></td>');
+  }
+
+  var rows = '';
+  for (var i = 0; i < cellHtml.length; i += 2) {
+    rows += '<tr>' + cellHtml[i] + cellHtml[i+1] + '</tr>';
+  }
+
+  var html =
+    '<html><head><title>Sample Labels</title>' +
+    '<style>' +
+    '*{margin:0;padding:0;box-sizing:border-box;}' +
+    '@page{margin:0;size:80mm ' + pageH + 'mm;}' +
+    'html{width:80mm;height:' + pageH + 'mm;}' +
+    'body{width:80mm;height:' + pageH + 'mm;margin:0;padding:0;display:flex;align-items:flex-start;justify-content:flex-start;}' +
+    'table{width:80mm;border-collapse:collapse;table-layout:fixed;}' +
+    'td{width:40mm;height:20mm;border:1px solid #000;text-align:center;vertical-align:middle;padding:1mm;}' +
+    'td.empty{border:1px dashed #ccc;}' +
+    '.pname{font-size:6pt;font-weight:700;font-family:Arial;margin-bottom:1mm;line-height:1.1;}' +
+    '.scode{font-size:5pt;font-family:Arial;color:#222;margin-bottom:1mm;}' +
+    'hr{border:none;border-top:0.5px solid #000;width:80%;margin:0 auto 1mm;}' +
+    '.cname{font-size:5pt;font-weight:800;font-family:Arial;text-transform:uppercase;letter-spacing:.02em;}' +
+    '</style></head><body>' +
+    '<table>' + rows + '</table>' +
+    '</body></html>';
+
+  // Convert mm to px for window size (1mm ≈ 3.7795px at 96dpi)
+  var winW = Math.ceil(80  * 3.7795) + 40;
+  var winH = Math.ceil(pageH * 3.7795) + 80;
+  var pw = window.open('', '_blank', 'width=' + winW + ',height=' + winH);
+  pw.document.write(html);
+  pw.document.close();
+  pw.focus();
+  setTimeout(function(){ pw.print(); }, 400);
 }
 </script>
 {% endblock %}
