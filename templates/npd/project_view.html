@@ -61,6 +61,203 @@
 /* Info rows */
 .info-2col{display:grid;grid-template-columns:1fr 1fr;gap:1rem;}
 @media(max-width:768px){.info-2col{grid-template-columns:1fr;}}
+/* ═══════════════════════════════════════════════════
+   MOBILE & TABLET — Android App Feel
+   ═══════════════════════════════════════════════════ */
+
+/* ── Milestone layout: stack on mobile ── */
+@media (max-width: 768px) {
+  /* Milestone container — full stack */
+  #tab-milestones > div {
+    flex-direction: column !important;
+    border-radius: 0 !important;
+    border-left: none !important;
+    border-right: none !important;
+  }
+
+  /* Sidebar becomes horizontal scroll chip bar */
+  #tab-milestones > div > div:first-child {
+    width: 100% !important;
+    position: relative !important;
+    top: 0 !important;
+    max-height: none !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    border-right: none !important;
+    border-bottom: 2px solid var(--border) !important;
+    display: flex !important;
+    flex-direction: row !important;
+    align-self: auto !important;
+    background: #fff !important;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  #tab-milestones > div > div:first-child::-webkit-scrollbar { display: none; }
+
+  /* Hide sidebar header on mobile */
+  #tab-milestones > div > div:first-child > div:first-child {
+    display: none !important;
+  }
+
+  /* Each milestone item → compact horizontal chip */
+  [id^="ms-item-"] {
+    flex-direction: column !important;
+    padding: 10px 14px !important;
+    border-bottom: none !important;
+    border-right: 1px solid #f1f5f9 !important;
+    min-width: 90px !important;
+    flex-shrink: 0 !important;
+    align-items: center !important;
+    text-align: center !important;
+    gap: 4px !important;
+  }
+  [id^="ms-item-"] > div > div:first-child {
+    font-size: .72rem !important;
+    white-space: normal !important;
+    text-align: center !important;
+    line-height: 1.3 !important;
+  }
+  [id^="ms-item-"] > div > div:last-child {
+    font-size: .65rem !important;
+  }
+
+  /* Detail panel full width */
+  #ms-detail-panel {
+    padding: 16px 14px !important;
+    width: 100% !important;
+  }
+}
+
+/* ── Header — stacked on mobile ── */
+@media (max-width: 600px) {
+  .lead-header { padding: .75rem .9rem !important; border-radius: 10px !important; }
+  .pv-hdr-row  { flex-direction: column !important; gap: .5rem !important; }
+  .pv-hdr-btns { flex-wrap: wrap !important; gap: .35rem !important; }
+  .pv-info-inline { flex-direction: column !important; gap: .2rem !important; }
+  h2.pv-title  { font-size: .88rem !important; }
+  .badge       { font-size: .7rem !important; padding: 2px 7px !important; }
+}
+
+/* ── Tab nav — scrollable chips ── */
+@media (max-width: 768px) {
+  .tab-nav { margin-bottom: .75rem !important; }
+  .tab-btn { padding: 8px 14px !important; font-size: .78rem !important; }
+  .pv-outer-wrap { padding: 0 4px !important; }
+}
+
+/* ── Timer bar — compact ── */
+@media (max-width: 600px) {
+  .pv-timer-grid { padding: .6rem .85rem !important; gap: .3rem !important; }
+  .pv-timer-date { font-size: 13px !important; }
+}
+
+/* ── Cards & content ── */
+@media (max-width: 600px) {
+  .card { border-radius: 10px !important; margin-bottom: .75rem !important; }
+  .card-hdr { padding: 10px 12px !important; }
+  .card-body { padding: 10px 12px !important; }
+  .info-lbl { min-width: 110px !important; font-size: .8rem !important; }
+  .info-val  { font-size: .8rem !important; }
+  .disc-avatar { width: 32px !important; height: 32px !important; font-size: .7rem !important; }
+  .disc-item { gap: .6rem !important; padding: .75rem 0 !important; }
+}
+
+/* ── Discussion Board compose area ── */
+@media (max-width: 600px) {
+  #tab-discussion .card > div:nth-child(2) > div > div:first-child > div:last-child {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+  }
+}
+
+/* ── BOM Table — mobile optimized ── */
+@media (max-width: 600px) {
+  /* BOM product info — stack vertically */
+  #ms-detail-panel [style*="grid-template-columns:1fr 1fr"] {
+    display: flex !important;
+    flex-direction: column !important;
+  }
+  #ms-detail-panel [style*="grid-template-columns:1fr 1fr"] > div {
+    border-right: none !important;
+    border-bottom: 1px solid #b7e4c7 !important;
+  }
+  /* BOM table INCI input — full width feel */
+  .bom-inci { font-size: .78rem !important; }
+  .bom-qty  { width: 65px !important; font-size: .78rem !important; }
+  /* BOM buttons bar */
+  #ms-detail-panel [style*="justify-content:space-between"][style*="padding:10px 16px"] {
+    padding: 8px 10px !important;
+  }
+}
+
+/* ── Milestone detail — Mark as Done button ── */
+@media (max-width: 480px) {
+  #ms-detail-panel [style*="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px"] {
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+  }
+}
+
+/* ── Modal — full screen on small phones ── */
+@media (max-width: 480px) {
+  #bomAlertModal > div,
+  #startConfirmModal > div,
+  #declineConfirmModal > div,
+  #endTrialModal > div {
+    width: 96vw !important;
+    border-radius: 12px !important;
+  }
+}
+
+/* ── Activity log — compact ── */
+@media (max-width: 600px) {
+  .activity-avatar { width: 30px !important; height: 30px !important; font-size: .7rem !important; }
+  .activity-action { font-size: .8rem !important; }
+  .activity-when   { font-size: .68rem !important; }
+}
+
+/* ── Attachments ── */
+@media (max-width: 600px) {
+  .att-item { padding: .6rem !important; border-radius: 8px !important; }
+}
+
+/* ── Touch-friendly tap targets ── */
+@media (max-width: 768px) {
+  .tab-btn, [id^="ms-item-"], .pv-btn, button {
+    -webkit-tap-highlight-color: transparent;
+  }
+  /* Larger tap areas for milestone items */
+  [id^="ms-item-"] {
+    min-height: 56px;
+  }
+}
+
+/* ── Prevent horizontal overflow ── */
+@media (max-width: 768px) {
+  .tab-pane { overflow-x: hidden; }
+  img { max-width: 100% !important; }
+}
+
+/* ── Info 2col → 1col on tablet too ── */
+@media (max-width: 900px) {
+  .info-2col { grid-template-columns: 1fr !important; }
+}
+
+/* ═══ TABLET (768px - 1024px) ═══ */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .pv-outer-wrap { padding: 0 16px !important; }
+
+  /* Milestone sidebar narrower on tablet */
+  #tab-milestones > div > div:first-child {
+    width: 200px !important;
+  }
+  #ms-detail-panel { padding: 20px 20px !important; }
+
+  /* BOM table comfortable on tablet */
+  .bom-inci { font-size: .8rem !important; }
+}
+
+
 .info-section-title{font-weight:700;font-size:.88rem;color:var(--text);padding-bottom:.5rem;border-bottom:1px solid var(--border);margin-bottom:.75rem;}
 .info-row{display:flex;padding:.45rem 0;border-bottom:1px solid var(--border);font-size:.85rem;}
 .info-row:last-child{border-bottom:none;}
@@ -100,6 +297,8 @@
 .pv-btn-green:hover{background:#047857;}
 .pv-btn-blue{background:#0ea5e9;color:#fff;border-color:#0ea5e9;}
 .pv-btn-blue:hover{background:#0284c7;}
+
+
 {% endblock %}
 
 {% block content %}
@@ -233,6 +432,85 @@
 {% endif %}
 
 {# ── START CONFIRMATION MODAL ── #}
+
+
+
+
+
+{# ── FDA DELETE CONFIRM MODAL ── #}
+<div id="fdaDeleteModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:10000;align-items:center;justify-content:center;">
+    <div style="background:#fff;border-radius:14px;width:380px;max-width:92vw;box-shadow:0 20px 60px rgba(0,0,0,.22);overflow:hidden;animation:bomAlertIn .2s ease;">
+        <div style="padding:1rem 1.2rem;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;gap:.6rem;">
+            <span style="font-size:1.3rem;">🗑️</span>
+            <div style="font-weight:800;font-size:.95rem;color:#1e293b;">Delete FDA Entry?</div>
+            <button onclick="document.getElementById('fdaDeleteModal').style.display='none'" style="margin-left:auto;background:none;border:none;font-size:1.2rem;cursor:pointer;color:#94a3b8;">✕</button>
+        </div>
+        <div style="padding:1.1rem 1.2rem;">
+            <p style="font-size:.85rem;color:#475569;margin:0 0 1rem;">This will permanently delete this FDA entry and its uploaded document.</p>
+            <div style="display:flex;gap:.5rem;justify-content:flex-end;">
+                <button onclick="document.getElementById('fdaDeleteModal').style.display='none'" style="padding:7px 18px;border:1px solid #e2e8f0;border-radius:7px;background:#f8fafc;font-size:.85rem;font-weight:600;cursor:pointer;">Cancel</button>
+                <button onclick="confirmFdaDelete()" style="padding:7px 20px;background:#dc2626;color:#fff;border:none;border-radius:7px;font-size:.85rem;font-weight:700;cursor:pointer;">🗑 Delete</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{# ── BARCODE DELETE CONFIRM MODAL ── #}
+<div id="bcDeleteModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:10000;align-items:center;justify-content:center;">
+    <div style="background:#fff;border-radius:14px;width:380px;max-width:92vw;box-shadow:0 20px 60px rgba(0,0,0,.22);overflow:hidden;animation:bomAlertIn .2s ease;">
+        <div style="padding:1rem 1.2rem;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;gap:.6rem;">
+            <span style="font-size:1.3rem;">🗑️</span>
+            <div style="font-weight:800;font-size:.95rem;color:#1e293b;">Delete Design?</div>
+            <button onclick="document.getElementById('bcDeleteModal').style.display='none'" style="margin-left:auto;background:none;border:none;font-size:1.2rem;cursor:pointer;color:#94a3b8;">✕</button>
+        </div>
+        <div style="padding:1.1rem 1.2rem;">
+            <p style="font-size:.85rem;color:#475569;margin:0 0 1rem;">This will delete the design and its associated barcode upload. Cannot be undone.</p>
+            <div style="display:flex;gap:.5rem;justify-content:flex-end;">
+                <button onclick="document.getElementById('bcDeleteModal').style.display='none'" style="padding:7px 18px;border:1px solid #e2e8f0;border-radius:7px;background:#f8fafc;font-size:.85rem;font-weight:600;cursor:pointer;">Cancel</button>
+                <button onclick="confirmBcDelete()" style="padding:7px 20px;background:#dc2626;color:#fff;border:none;border-radius:7px;font-size:.85rem;font-weight:700;cursor:pointer;">🗑 Delete</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{# ── BOM DELETE CONFIRM MODAL ── #}
+<div id="bomDeleteModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:10000;align-items:center;justify-content:center;">
+    <div style="background:#fff;border-radius:14px;width:380px;max-width:92vw;box-shadow:0 20px 60px rgba(0,0,0,.22);overflow:hidden;animation:bomAlertIn .2s ease;">
+        <div style="padding:1rem 1.2rem;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;gap:.6rem;">
+            <span style="font-size:1.3rem;">🗑️</span>
+            <div style="font-weight:800;font-size:.95rem;color:#1e293b;">Delete BOM?</div>
+            <button onclick="document.getElementById('bomDeleteModal').style.display='none'" style="margin-left:auto;background:none;border:none;font-size:1.2rem;cursor:pointer;color:#94a3b8;">✕</button>
+        </div>
+        <div style="padding:1.1rem 1.2rem;">
+            <p style="font-size:.85rem;color:#475569;margin:0 0 1rem;">Are you sure you want to delete this BOM? This action cannot be undone.</p>
+            <div style="display:flex;gap:.5rem;justify-content:flex-end;">
+                <button onclick="document.getElementById('bomDeleteModal').style.display='none'" style="padding:7px 18px;border:1px solid #e2e8f0;border-radius:7px;background:#f8fafc;font-size:.85rem;font-weight:600;cursor:pointer;">Cancel</button>
+                <button onclick="confirmBomDelete()" style="padding:7px 20px;background:#dc2626;color:#fff;border:none;border-radius:7px;font-size:.85rem;font-weight:700;cursor:pointer;">🗑 Delete</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{# ── BOM ALERT MODAL ── #}
+<div id="bomAlertModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:10000;align-items:center;justify-content:center;" onclick="if(event.target===this)closeBomAlert()">
+    <div style="background:#fff;border-radius:14px;width:420px;max-width:92vw;box-shadow:0 20px 60px rgba(0,0,0,.22);overflow:hidden;animation:bomAlertIn .2s ease;">
+        <div style="padding:1rem 1.2rem;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;gap:.6rem;">
+            <span id="bomAlertIcon" style="font-size:1.3rem;">⚠️</span>
+            <div id="bomAlertTitle" style="font-weight:800;font-size:.95rem;color:#1e293b;">Validation Error</div>
+            <button onclick="closeBomAlert()" style="margin-left:auto;background:none;border:none;font-size:1.2rem;cursor:pointer;color:#94a3b8;line-height:1;">✕</button>
+        </div>
+        <div style="padding:1.1rem 1.2rem;">
+            <div id="bomAlertBody" style="font-size:.85rem;color:#475569;line-height:1.7;white-space:pre-wrap;"></div>
+            <div style="display:flex;justify-content:flex-end;margin-top:1rem;">
+                <button onclick="closeBomAlert()" style="padding:7px 26px;background:#2d6a4f;color:#fff;border:none;border-radius:8px;font-size:.85rem;font-weight:700;cursor:pointer;">OK</button>
+            </div>
+        </div>
+    </div>
+</div>
+<style>
+@keyframes bomAlertIn { from { transform:scale(.92);opacity:0; } to { transform:scale(1);opacity:1; } }
+</style>
+
 <div id="startConfirmModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;align-items:center;justify-content:center;">
     <div style="background:#fff;border-radius:14px;width:460px;max-width:95vw;box-shadow:0 20px 60px rgba(0,0,0,.2);overflow:hidden;">
         <div style="padding:1.2rem 1.4rem;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;gap:.6rem;">
@@ -313,7 +591,7 @@
                     <label style="font-size:.78rem;font-weight:700;color:#475569;display:block;margin-bottom:.3rem;">Sample No.</label>
                     <input type="text" name="formulation_name" placeholder="e.g. S-001"
                         style="width:100%;padding:.45rem .75rem;border:1px solid #e2e8f0;border-radius:7px;font-size:.85rem;outline:none;font-family:inherit;box-sizing:border-box;"
-                        onfocus="this.style.borderColor='#2563eb'" onblur="this.style.borderColor='#e2e8f0'">
+                       >
                 </div>
 
                 {# Test Parameters Table #}
@@ -392,7 +670,7 @@ function buildPvParamTable(){
         var tr = document.createElement('tr');
         tr.style.borderBottom = '1px solid #f1f5f9';
         tr.innerHTML = '<td style="padding:.55rem .85rem;font-weight:600;color:#1e293b;">' + p.name + (p.unit ? ' <span style="font-size:.72rem;color:#94a3b8;">(' + p.unit + ')</span>' : '') + '</td>' +
-            '<td style="padding:.4rem .85rem;"><input type="text" data-param="' + p.name + '" placeholder="Enter result..." style="width:100%;padding:.35rem .6rem;border:1px solid #e2e8f0;border-radius:6px;font-size:.83rem;outline:none;font-family:inherit;" onfocus="this.style.borderColor=\'#2563eb\'" onblur="this.style.borderColor=\'#e2e8f0\'"></td>';
+            '<td style="padding:.4rem .85rem;"><input type="text" data-param="' + p.name + '" placeholder="Enter result..." style="width:100%;padding:.35rem .6rem;border:1px solid #e2e8f0;border-radius:6px;font-size:.83rem;outline:none;font-family:inherit;"></td>';
         tbody.appendChild(tr);
     });
 }
@@ -441,6 +719,17 @@ function pvSubmitTrial(){
     var obsArea = document.querySelector('#pvObsEditor [contenteditable]');
     if(obsArea) document.getElementById('pvObsHidden').value = obsArea.innerHTML;
     document.getElementById('pvTrialForm').submit();
+}
+
+
+// ── BOM Alert Modal ──
+function showBomAlert(msg, icon) {
+  document.getElementById('bomAlertBody').textContent = msg;
+  document.getElementById('bomAlertIcon').textContent = icon || '⚠️';
+  document.getElementById('bomAlertModal').style.display = 'flex';
+}
+function closeBomAlert() {
+  document.getElementById('bomAlertModal').style.display = 'none';
 }
 
 // ── Modal controls ──
@@ -639,7 +928,7 @@ function closeEndModal(){
             </form>
         </div>
         <!-- Comments area -->
-        <div style="padding:1rem 1.25rem;" id="disc-comments-area">
+        <div style="padding:1rem 1.25rem;display:flex;flex-direction:column;gap:.5rem;" id="disc-comments-area">
             {% if disc_comments %}
             {% for c in disc_comments %}
             {% set ci=(c.user.full_name.split()[0][0]+c.user.full_name.split()[-1][0]).upper() if c.user and c.user.full_name.split()|length>1 else (c.user.full_name[:2].upper() if c.user else 'U') %}
@@ -719,7 +1008,7 @@ function closeEndModal(){
             </form>
         </div>
         <!-- Comments area -->
-        <div style="padding:1rem 1.25rem;">
+        <div style="padding:1rem 1.25rem;display:flex;flex-direction:column;gap:.5rem;">
             {% if internal_comments %}
             {% for c in internal_comments %}
             {% set ci=(c.user.full_name.split()[0][0]+c.user.full_name.split()[-1][0]).upper() if c.user and c.user.full_name.split()|length>1 else 'U' %}
@@ -883,6 +1172,7 @@ function closeEndModal(){
 // ── Milestone Data ──
 var MS_STATE = {};
 var MS_NAMES = ['BOM','Ingredients List & Marketing Sheet','Quotation','Packing Material','Artwork Design','Artwork QC Approval','FDA','Barcode'];
+var FDA_DOC_TYPES = ['Free Sale Certificate', 'Product Permission', 'MSDS', 'Dossier'];
 var MS_SELECTED = null;
 var PROJ_ID = {{ proj.id }};
 
@@ -892,6 +1182,8 @@ var PROJ_ID = {{ proj.id }};
     .then(function(data) {
       MS_STATE = data.milestones || {};
       updateAllSidebarItems();
+      // Auto-select first milestone on load
+      if (!MS_SELECTED) selectMilestone(1);
     })
     .catch(function(){});
 })();
@@ -924,10 +1216,26 @@ function selectMilestone(idx) {
   // Highlight selected item
   for (var i = 1; i <= 8; i++) {
     var el = document.getElementById('ms-item-' + i);
-    if (el) el.style.background = (i === idx) ? '#eff6ff' : '';
-    if (el) el.style.borderLeft = (i === idx) ? '3px solid var(--blue)' : '3px solid transparent';
+    if (!el) continue;
+    if (window.innerWidth <= 768) {
+      // Mobile: horizontal chip bar — highlight with bottom border
+      el.style.background   = (i === idx) ? '#eff6ff' : '';
+      el.style.borderBottom = (i === idx) ? '3px solid var(--blue)' : 'none';
+      el.style.borderLeft   = 'none';
+    } else {
+      el.style.background = (i === idx) ? '#eff6ff' : '';
+      el.style.borderLeft = (i === idx) ? '3px solid var(--blue)' : '3px solid transparent';
+    }
   }
   renderDetail(idx);
+
+  // Mobile: scroll selected chip into view + scroll detail panel into view
+  if (window.innerWidth <= 768) {
+    var chip = document.getElementById('ms-item-' + idx);
+    if (chip) chip.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+    var panel = document.getElementById('ms-detail-panel');
+    if (panel) setTimeout(function(){ panel.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 100);
+  }
 }
 
 function renderDetail(idx) {
@@ -935,10 +1243,18 @@ function renderDetail(idx) {
   var name = MS_NAMES[idx - 1];
   var st   = (MS_STATE[key] || {}).status || 'pending';
   var isDone = (st === 'done');
+  window._msLocked = isDone;  // Global lock flag for all action functions
 
+  // BOM=1 → Formulation Sheet
+  // BOM=1 → Formulation Sheet
   // Artwork Design=5, Artwork QC Approval=6 → Discussion Board
   // All others → Simple Notes
+  var isBOM        = (idx === 1);
+  var isEditor     = (idx === 2);   // Ingredients List & Marketing Sheet
+  var isQuotation  = (idx === 3);   // Quotation
   var isDiscussion = (idx === 5 || idx === 6);
+  var isFDA        = (idx === 7);   // FDA
+  var isBarcode    = (idx === 8);   // Barcode
 
   var header =
     '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">' +
@@ -952,7 +1268,74 @@ function renderDetail(idx) {
 
   var panel = document.getElementById('ms-detail-panel');
 
-  if (isDiscussion) {
+  if (isBOM) {
+    // ── NPD BOM — List + Form ──
+    panel.innerHTML =
+      '<div>' + header +
+        '<div id="bom-list-view">' +
+          // List header
+          '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">' +
+            '<div style="font-size:.88rem;font-weight:800;color:#1b4332;">📋 BOM List</div>' +
+            '<button onclick="openBomForm(null)" style="padding:6px 16px;background:#2d6a4f;color:#fff;border:none;border-radius:7px;font-size:.8rem;font-weight:700;cursor:pointer;">＋ New BOM</button>' +
+          '</div>' +
+          '<div id="bom-list-table" style="border:1px solid #b7e4c7;border-radius:10px;overflow:hidden;background:#fff;">' +
+            '<div style="padding:30px;text-align:center;color:var(--text3);font-size:.85rem;">Loading...</div>' +
+          '</div>' +
+        '</div>' +
+
+        '<div id="bom-form-view" style="display:none;">' +
+          '<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">' +
+            '<button onclick="closeBomForm()" style="background:#f1f5f9;border:none;border-radius:7px;padding:5px 12px;cursor:pointer;font-size:.8rem;font-weight:700;color:#475569;">← Back</button>' +
+            '<div id="bom-form-title" style="font-size:.88rem;font-weight:800;color:#1b4332;">New BOM</div>' +
+          '</div>' +
+          '<input type="hidden" id="bom-editing-id" value="">' +
+          '<div style="border:2px solid #2d6a4f;border-radius:10px;overflow:hidden;background:#fff;box-shadow:0 2px 8px rgba(0,0,0,.08);">' +
+            '<div style="background:#1b4332;color:#fff;text-align:center;padding:10px 16px;font-size:.88rem;font-weight:800;letter-spacing:.05em;">HCP Wellness PVT LTD</div>' +
+            '<div style="display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid #b7e4c7;">' +
+              '<div style="padding:8px 14px;border-right:1px solid #b7e4c7;font-size:.82rem;">' +
+                '<span style="font-weight:700;">Product Name:&nbsp;</span>' +
+                '<input id="bom-product-name" style="border:none;border-bottom:1.5px solid #2d6a4f;outline:none;font-size:.82rem;font-family:inherit;width:calc(100% - 110px);background:transparent;" placeholder="Enter product name">' +
+              '</div>' +
+              '<div style="padding:8px 14px;font-size:.82rem;display:flex;gap:12px;align-items:center;">' +
+                '<span><span style="font-weight:700;">Code:&nbsp;</span><input id="bom-product-code" style="border:none;border-bottom:1.5px solid #2d6a4f;outline:none;font-size:.82rem;font-family:inherit;width:70px;background:transparent;" placeholder="Code"></span>' +
+                '<span><span style="font-weight:700;">Variant:&nbsp;</span><input id="bom-variant" style="border:none;border-bottom:1.5px solid #2d6a4f;outline:none;font-size:.82rem;font-family:inherit;width:80px;background:transparent;" placeholder="Variant"></span>' +
+              '</div>' +
+            '</div>' +
+            '<div style="background:#d8f3dc;text-align:center;padding:7px;font-weight:800;font-size:.83rem;border-bottom:1px solid #b7e4c7;letter-spacing:.03em;">📋 NPD BOM — Formulation Sheet</div>' +
+            '<div style="overflow-x:auto;">' +
+              '<table style="width:100%;border-collapse:collapse;font-size:.82rem;">' +
+                '<thead><tr style="background:#d8f3dc;">' +
+                  '<th style="padding:9px 10px;border:1px solid #b7e4c7;text-align:center;width:54px;font-weight:800;">Sr. No.</th>' +
+                  '<th style="padding:9px 10px;border:1px solid #b7e4c7;text-align:left;font-weight:800;">INCI NAMES</th>' +
+                  '<th style="padding:9px 10px;border:1px solid #b7e4c7;text-align:center;width:150px;font-weight:800;">Std. Qty. in % w/w</th>' +
+                  '<th style="padding:9px 10px;border:1px solid #b7e4c7;text-align:center;width:36px;"></th>' +
+                '</tr></thead>' +
+                '<tbody id="bom-tbody"></tbody>' +
+                '<tfoot><tr style="background:#d8f3dc;font-weight:800;">' +
+                  '<td colspan="2" style="padding:9px 10px;border:1px solid #b7e4c7;text-align:center;">TOTAL</td>' +
+                  '<td style="padding:9px 10px;border:1px solid #b7e4c7;text-align:center;" id="bom-total">0.000%</td>' +
+                  '<td style="border:1px solid #b7e4c7;"></td>' +
+                '</tr></tfoot>' +
+              '</table>' +
+            '</div>' +
+            '<div style="padding:10px 16px;display:flex;justify-content:space-between;align-items:center;background:#f0fdf4;border-top:1px solid #b7e4c7;">' +
+              '<button onclick="addBomRow()" style="padding:6px 18px;background:#2d6a4f;color:#fff;border:none;border-radius:7px;font-size:.8rem;font-weight:700;cursor:pointer;">＋ Add Row</button>' +
+              '<button onclick="saveBOM(' + idx + ')" style="padding:6px 20px;background:#7c3aed;color:#fff;border:none;border-radius:7px;font-size:.8rem;font-weight:700;cursor:pointer;">💾 Save BOM</button>' +
+            '</div>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+    loadBomList();
+    setTimeout(_applyLockOverlay, 500);
+
+  } else if (isQuotation) {
+    // ── Quotation Inline Form ──
+    panel.innerHTML =
+      '<div>' + header + '<div id="npd-qt-wrap"></div></div>';
+    renderNpdQuotationForm();
+    setTimeout(_applyLockOverlay, 200);
+
+  } else if (isDiscussion) {
     // ── Gmail-style Discussion Board ──
     panel.innerHTML =
       '<div>' + header +
@@ -990,6 +1373,133 @@ function renderDetail(idx) {
         '</div>' +
       '</div>';
     loadMsComments(idx);
+    setTimeout(_applyLockOverlay, 400);
+
+  } else if (isFDA) {
+    // ── FDA Panel ──
+    panel.innerHTML =
+      '<div>' + header +
+        '<div style="border:1px solid var(--border);border-radius:10px;overflow:hidden;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.05);">' +
+          // Header
+          '<div style="padding:10px 16px;background:#0f172a;color:#fff;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">' +
+            '<div style="font-size:.85rem;font-weight:800;letter-spacing:.04em;">🏛 FDA ENTRIES</div>' +
+            '<button onclick="openFdaForm(null)" style="padding:6px 14px;background:#3b82f6;color:#fff;border:none;border-radius:7px;font-size:.78rem;font-weight:700;cursor:pointer;">＋ Add FDA</button>' +
+          '</div>' +
+          // List
+          '<div id="fda-list-wrap" style="padding:12px 14px;">' +
+            '<div style="text-align:center;padding:40px;color:var(--text3);font-size:.85rem;">Loading...</div>' +
+          '</div>' +
+        '</div>' +
+        // Inline add/edit form (hidden by default)
+        '<div id="fda-form-wrap" style="display:none;margin-top:14px;border:1.5px solid #3b82f6;border-radius:10px;overflow:hidden;background:#fff;">' +
+          '<div style="padding:10px 16px;background:#eff6ff;border-bottom:1px solid #bfdbfe;display:flex;align-items:center;justify-content:space-between;">' +
+            '<div id="fda-form-title" style="font-size:.85rem;font-weight:800;color:#1e40af;">➕ New FDA Entry</div>' +
+            '<button onclick="closeFdaForm()" style="background:none;border:none;color:#94a3b8;font-size:1.1rem;cursor:pointer;">✕</button>' +
+          '</div>' +
+          '<div style="padding:14px 16px;display:flex;flex-direction:column;gap:10px;">' +
+            '<input type="hidden" id="fda-editing-id" value="">' +
+            '<div>' +
+              '<label style="font-size:.75rem;font-weight:700;color:#374151;display:block;margin-bottom:4px;">Product Name <span style="color:#ef4444;">*</span></label>' +
+              '<input id="fda-product" type="text" placeholder="Enter Product Name..." style="width:100%;padding:8px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:.85rem;font-family:inherit;outline:none;box-sizing:border-box;">' +
+            '</div>' +
+            '<div>' +
+              '<div style="font-size:.75rem;font-weight:700;color:#374151;margin-bottom:8px;">📄 Document Types</div>' +
+              '<div style="display:flex;flex-direction:column;gap:8px;">' +
+                FDA_DOC_TYPES.map(function(dt) {
+                  var key = dt.replace(/ /g, '_');
+                  return '<div style="display:grid;grid-template-columns:1fr 1fr;align-items:center;gap:10px;padding:10px 14px;border:1.5px solid #e2e8f0;border-radius:8px;background:#f8fafc;">' +
+                    '<div style="font-size:.83rem;font-weight:600;color:#374151;">' + dt + '</div>' +
+                    '<div>' +
+                      '<div id="fda-docup-info-' + key + '" style="font-size:.72rem;color:#059669;margin-bottom:3px;"></div>' +
+                      '<label style="display:inline-flex;align-items:center;gap:5px;padding:5px 12px;background:#fff;border:1.5px solid #bfdbfe;border-radius:7px;font-size:.75rem;font-weight:700;color:#1e40af;cursor:pointer;">' +
+                        '📎 Choose File' +
+                        '<input type="file" data-doc-key="' + key + '" style="display:none;" onchange="fdaFormDocChosen(this)">' +
+                      '</label>' +
+                    '</div>' +
+                  '</div>';
+                }).join('') +
+              '</div>' +
+            '</div>' +
+            '<div style="display:flex;justify-content:flex-end;gap:8px;padding-top:4px;">' +
+              '<button onclick="closeFdaForm()" style="padding:7px 18px;border:1px solid #e2e8f0;border-radius:8px;background:#f8fafc;font-size:.83rem;font-weight:600;cursor:pointer;">Cancel</button>' +
+              '<button onclick="saveFdaEntry(' + idx + ')" style="padding:7px 20px;background:#3b82f6;color:#fff;border:none;border-radius:8px;font-size:.83rem;font-weight:700;cursor:pointer;">💾 Save</button>' +
+            '</div>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+    loadFdaList();
+    setTimeout(_applyLockOverlay, 400);
+
+  } else if (isBarcode) {
+    // ── Barcode Upload Panel ──
+    panel.innerHTML =
+      '<div>' + header +
+        '<div style="border:1px solid var(--border);border-radius:10px;overflow:hidden;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.05);">' +
+          // Header bar
+          '<div style="padding:10px 16px;background:#1e1b4b;color:#fff;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">' +
+            '<div style="font-size:.85rem;font-weight:800;letter-spacing:.04em;">🔢 BARCODE DESIGNS</div>' +
+            '<label style="padding:6px 14px;background:#4f46e5;color:#fff;border:none;border-radius:7px;font-size:.78rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:5px;">' +
+              '📤 Upload Design' +
+              '<input type="file" id="bc-design-input" accept="image/*" style="display:none;" onchange="bcDesignerUpload(this)">' +
+            '</label>' +
+          '</div>' +
+          '<div style="padding:8px 14px;background:#ede9fe;border-bottom:1px solid #c4b5fd;font-size:.75rem;color:#4c1d95;">📐 Designer: Upload 1024 × 1024 px image only &nbsp;|&nbsp; 🔢 Barcode Team: Upload barcode file against each design</div>' +
+          '<div id="bc-list-wrap" style="padding:12px 14px;">' +
+            '<div style="text-align:center;padding:40px;color:var(--text3);font-size:.85rem;">Loading...</div>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+    loadBarcodeList();
+    setTimeout(_applyLockOverlay, 400);
+
+  } else if (isEditor) {
+    // ── Rich Text Editor (Ingredients List & Marketing Sheet) ──
+    var savedNote = (MS_STATE[key] || {}).note || '';
+    panel.innerHTML =
+      '<div>' + header +
+        '<div style="border:1px solid var(--border);border-radius:10px;overflow:hidden;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.05);">' +
+          '<div style="padding:8px 14px;background:#f8fafc;border-bottom:1px solid var(--border);font-size:.78rem;font-weight:800;color:var(--text);text-transform:uppercase;letter-spacing:.04em;">📋 ' + name + '</div>' +
+          // Toolbar
+          '<div id="ms-editor-toolbar" style="display:flex;align-items:center;gap:2px;padding:6px 10px;background:#fff;border-bottom:1px solid var(--border);flex-wrap:wrap;">' +
+            '<button type="button" data-cmd="bold" class="ms-tb-btn" style="width:28px;height:28px;border:none;background:none;cursor:pointer;border-radius:4px;font-weight:800;font-size:.85rem;"><b>B</b></button>' +
+            '<button type="button" data-cmd="italic" class="ms-tb-btn" style="width:28px;height:28px;border:none;background:none;cursor:pointer;border-radius:4px;font-size:.85rem;"><i>I</i></button>' +
+            '<button type="button" data-cmd="underline" class="ms-tb-btn" style="width:28px;height:28px;border:none;background:none;cursor:pointer;border-radius:4px;font-size:.85rem;"><u>U</u></button>' +
+            '<div style="width:1px;height:18px;background:var(--border);margin:0 4px;"></div>' +
+            '<button type="button" data-cmd="insertUnorderedList" class="ms-tb-btn" style="width:28px;height:28px;border:none;background:none;cursor:pointer;border-radius:4px;font-size:.85rem;">•≡</button>' +
+            '<button type="button" data-cmd="insertOrderedList" class="ms-tb-btn" style="width:28px;height:28px;border:none;background:none;cursor:pointer;border-radius:4px;font-size:.85rem;">1≡</button>' +
+            '<div style="width:1px;height:18px;background:var(--border);margin:0 4px;"></div>' +
+            '<button type="button" data-cmd="justifyLeft" class="ms-tb-btn" style="width:28px;height:28px;border:none;background:none;cursor:pointer;border-radius:4px;font-size:.8rem;">⬅</button>' +
+            '<button type="button" data-cmd="justifyCenter" class="ms-tb-btn" style="width:28px;height:28px;border:none;background:none;cursor:pointer;border-radius:4px;font-size:.8rem;">☰</button>' +
+            '<button type="button" data-cmd="justifyRight" class="ms-tb-btn" style="width:28px;height:28px;border:none;background:none;cursor:pointer;border-radius:4px;font-size:.8rem;">➡</button>' +
+            '<div style="width:1px;height:18px;background:var(--border);margin:0 4px;"></div>' +
+            '<button type="button" data-cmd="removeFormat" class="ms-tb-btn" style="width:28px;height:28px;border:none;background:none;cursor:pointer;border-radius:4px;font-size:.8rem;">✕</button>' +
+          '</div>' +
+          // Editor area
+          '<div id="ms-note-input" contenteditable="true"' +
+            ' style="min-height:280px;max-height:500px;overflow-y:auto;padding:14px 16px;font-size:.86rem;font-family:inherit;outline:none;line-height:1.7;color:var(--text);"' +
+            ' placeholder="Write ingredients list and marketing sheet content...">' +
+          '</div>' +
+          '<div style="display:flex;justify-content:flex-end;padding:8px 12px;border-top:1px solid var(--border);background:#f8fafc;">' +
+            '<button onclick="saveMsNote(' + idx + ')" style="padding:5px 18px;background:#7c3aed;color:#fff;border:none;border-radius:7px;font-size:.8rem;font-weight:700;cursor:pointer;">💾 Save</button>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+    // Load saved HTML content into editor
+    var ed = document.getElementById('ms-note-input');
+    if (ed && savedNote) ed.innerHTML = savedNote;
+    setTimeout(_applyLockOverlay, 100);
+
+    // Toolbar button event delegation
+    var toolbar = document.getElementById('ms-editor-toolbar');
+    if (toolbar) {
+      toolbar.addEventListener('mousedown', function(e) {
+        var btn = e.target.closest('[data-cmd]');
+        if (!btn) return;
+        e.preventDefault();
+        document.execCommand(btn.getAttribute('data-cmd'), false, null);
+        ed && ed.focus();
+      });
+    }
 
   } else {
     // ── Simple Notes ──
@@ -1006,7 +1516,909 @@ function renderDetail(idx) {
           '</div>' +
         '</div>' +
       '</div>';
+    setTimeout(_applyLockOverlay, 100);
   }
+}
+
+
+
+
+// ═══ FDA MILESTONE JS ════════════════════════════════════════
+
+
+function loadFdaList() {
+  fetch('/npd/' + PROJ_ID + '/fda/list')
+    .then(function(r){ return r.json(); })
+    .then(function(d) {
+      var wrap = document.getElementById('fda-list-wrap');
+      if (!wrap) return;
+      var entries = d.entries || [];
+      if (!entries.length) {
+        wrap.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text3);font-size:.85rem;">No FDA entries yet.<br>Click <strong>＋ Add FDA</strong> to add one.</div>';
+        return;
+      }
+
+      var html = '';
+      entries.forEach(function(e, i) {
+        var mainFileHtml = e.file
+          ? '<a href="/static/uploads/npd/' + e.file + '" target="_blank" style="color:#3b82f6;font-size:.78rem;font-weight:600;">📎 FDA Doc</a>'
+          : '<span style="color:#94a3b8;font-size:.75rem;">—</span>';
+
+        // Build documents section for this entry
+        var docs = e.documents || {};
+        var docRows = FDA_DOC_TYPES.map(function(dtype) {
+          var key    = dtype.replace(/ /g,'_');
+          var docObj = docs[key] || {};
+          var hasFile = docObj.file ? true : false;
+          var fileHtml = hasFile
+            ? '<a href="/static/uploads/npd/' + docObj.file + '" target="_blank" style="color:#059669;font-size:.78rem;font-weight:700;">📎 View</a>'
+            : '<span style="color:#94a3b8;font-size:.75rem;">—</span>';
+
+          return '<tr style="border-bottom:1px solid #f0f9f0;">' +
+            '<td style="padding:6px 10px;font-size:.78rem;color:#374151;font-weight:600;width:180px;">' + dtype + '</td>' +
+            '<td style="padding:6px 10px;">' + fileHtml + '</td>' +
+            '<td style="padding:6px 10px;font-size:.7rem;color:#94a3b8;">' + (docObj.uploaded_by ? 'By ' + docObj.uploaded_by + ' · ' + (docObj.uploaded_at||'') : '') + '</td>' +
+          '</tr>';
+        }).join('');
+
+        html +=
+          '<div style="border:1px solid #e2e8f0;border-radius:10px;margin-bottom:12px;overflow:hidden;">' +
+            // Entry header
+            '<div style="background:#f1f5f9;padding:9px 14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">' +
+              '<span style="font-size:.8rem;font-weight:800;color:#1e40af;min-width:24px;">' + (i+1) + '</span>' +
+              '<span style="font-size:.82rem;font-weight:700;font-family:monospace;color:#1e40af;">' + (e.fda_no||'—') + '</span>' +
+              '<span style="font-size:.82rem;color:#374151;flex:1;">' + (e.product_name||'—') + '</span>' +
+              mainFileHtml +
+              '<div style="display:flex;gap:5px;margin-left:auto;">' +
+                '<button onclick="openFdaForm(\'' + e.id + '\')" style="padding:3px 10px;background:#eff6ff;color:#2563eb;border:1px solid #bfdbfe;border-radius:6px;font-size:.73rem;font-weight:700;cursor:pointer;">✏️</button>' +
+                '<button onclick="deleteFdaEntry(\'' + e.id + '\')" style="padding:3px 10px;background:#fff7f7;color:#dc2626;border:1px solid #fecaca;border-radius:6px;font-size:.73rem;font-weight:700;cursor:pointer;">🗑</button>' +
+              '</div>' +
+            '</div>' +
+            // Documents sub-section
+            '<div style="padding:0 14px 10px;">' +
+              '<div style="font-size:.7rem;font-weight:800;color:#64748b;text-transform:uppercase;letter-spacing:.05em;padding:8px 0 4px;">📄 Documents</div>' +
+              '<table style="width:100%;border-collapse:collapse;border:1px solid #d1fae5;border-radius:8px;overflow:hidden;">' +
+                '<thead><tr style="background:#ecfdf5;">' +
+                  '<th style="padding:6px 10px;font-size:.7rem;font-weight:800;color:#065f46;text-align:left;border-bottom:1px solid #d1fae5;">Document Type</th>' +
+                  '<th style="padding:6px 10px;font-size:.7rem;font-weight:800;color:#065f46;text-align:left;border-bottom:1px solid #d1fae5;">File</th>' +
+                  '<th style="padding:6px 10px;font-size:.7rem;font-weight:800;color:#065f46;text-align:left;border-bottom:1px solid #d1fae5;">Uploaded By</th>' +
+                '</tr></thead>' +
+                '<tbody>' + docRows + '</tbody>' +
+              '</table>' +
+            '</div>' +
+          '</div>';
+      });
+      wrap.innerHTML = html;
+    });
+}
+
+function fdaDocTypeToggle(checkbox) {
+  var key      = checkbox.getAttribute('data-doc-key');
+  var label    = checkbox.value;
+  var container = document.getElementById('fda-doc-uploads');
+  if (!container) return;
+  var existing = document.getElementById('fda-docup-' + key);
+  if (checkbox.checked) {
+    if (!existing) {
+      var div = document.createElement('div');
+      div.id = 'fda-docup-' + key;
+      div.style.cssText = 'display:flex;align-items:center;gap:10px;padding:8px 12px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;';
+      div.innerHTML =
+        '<span style="font-size:.78rem;font-weight:700;color:#065f46;flex:1;">📄 ' + label + '</span>' +
+        '<div id="fda-docup-info-' + key + '" style="font-size:.72rem;color:#059669;"></div>' +
+        '<label style="padding:5px 12px;background:#fff;border:1.5px solid #86efac;border-radius:6px;font-size:.75rem;font-weight:700;color:#059669;cursor:pointer;white-space:nowrap;">' +
+          '📎 Choose' +
+          '<input type="file" data-doc-key="' + key + '" style="display:none;" onchange="fdaFormDocChosen(this)">' +
+        '</label>';
+      container.appendChild(div);
+    }
+  } else {
+    if (existing) existing.remove();
+  }
+}
+
+function fdaFormDocChosen(input) {
+  var key = input.getAttribute('data-doc-key');
+  var info = document.getElementById('fda-docup-info-' + key);
+  if (info && input.files.length) info.textContent = '✅ ' + input.files[0].name;
+}
+
+function openFdaForm(entryId) {
+  if (window._msLocked) return;
+  document.getElementById('fda-form-wrap').style.display = 'block';
+  document.getElementById('fda-editing-id').value = entryId || '';
+  document.getElementById('fda-form-title').textContent = entryId ? '✏️ Edit FDA Entry' : '➕ New FDA Entry';
+  document.getElementById('fda-product').value = '';
+  // Reset doc file inputs
+  document.querySelectorAll('#fda-form-wrap input[type="file"]').forEach(function(inp){
+    inp.value = '';
+  });
+  // Reset doc info labels
+  FDA_DOC_TYPES.forEach(function(dt){
+    var key = dt.replace(/ /g,'_');
+    var info = document.getElementById('fda-docup-info-' + key);
+    if (info) info.textContent = '';
+  });
+
+  if (entryId) {
+    fetch('/npd/' + PROJ_ID + '/fda/list')
+      .then(function(r){ return r.json(); })
+      .then(function(d) {
+        var entry = (d.entries||[]).find(function(e){ return e.id === entryId; });
+        if (!entry) return;
+        document.getElementById('fda-product').value = entry.product_name || '';
+        // Show existing doc files
+        var docs = entry.documents || {};
+        FDA_DOC_TYPES.forEach(function(dt) {
+          var key = dt.replace(/ /g,'_');
+          var info = document.getElementById('fda-docup-info-' + key);
+          if (info && docs[key] && docs[key].file) info.textContent = '✅ ' + docs[key].file;
+        });
+      });
+  }
+  // Scroll to form
+  setTimeout(function(){
+    var fw = document.getElementById('fda-form-wrap');
+    if (fw) fw.scrollIntoView({behavior:'smooth', block:'nearest'});
+  }, 100);
+}
+
+function closeFdaForm() {
+  document.getElementById('fda-form-wrap').style.display = 'none';
+}
+
+function fdaFileChosen(input) {
+  var fi = document.getElementById('fda-file-info');
+  if (fi && input.files.length) fi.textContent = '📎 ' + input.files[0].name;
+}
+
+function saveFdaEntry(msIdx) {
+  if (window._msLocked) return;
+  var product = (document.getElementById('fda-product') || {}).value || '';
+  var editId  = (document.getElementById('fda-editing-id') || {}).value || '';
+
+  // Validate
+  if (!product.trim()) {
+    var el = document.getElementById('fda-product');
+    if (el) el.style.borderColor = '#ef4444';
+    showBomAlert('Please fill: Product Name', '⚠️');
+    return;
+  } else {
+    var el = document.getElementById('fda-product');
+    if (el) el.style.borderColor = '#e2e8f0';
+  }
+
+  var fd = new FormData();
+  fd.append('fda_no',       product.trim()); // use product name as fda_no too
+  fd.append('product_name', product.trim());
+  fd.append('entry_id',     editId);
+  // Append doc type files from form
+  var docFileInputs = document.querySelectorAll('#fda-form-wrap input[type="file"][data-doc-key]');
+  docFileInputs.forEach(function(inp) {
+    if (inp.files && inp.files.length) {
+      var dk = inp.getAttribute('data-doc-key');
+      fd.append('fda_doc_' + dk, inp.files[0]);
+    }
+  });
+
+  var btn = document.querySelector('[onclick="saveFdaEntry(' + msIdx + ')"]');
+  if (btn) { btn.textContent = '...'; btn.disabled = true; }
+
+  fetch('/npd/' + PROJ_ID + '/fda/save', { method:'POST', body: fd })
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      if (btn) { btn.disabled = false; btn.textContent = '💾 Save'; }
+      if (d.success) { closeFdaForm(); loadFdaList(); }
+      else showBomAlert('Save failed: ' + (d.error||'Unknown'), '❌');
+    })
+    .catch(function(){ if(btn){btn.disabled=false;btn.textContent='💾 Save';} showBomAlert('Save failed.','❌'); });
+}
+
+function deleteFdaEntry(entryId) {
+  if (window._msLocked) return;
+  _fdaDeleteId = entryId;
+  document.getElementById('fdaDeleteModal').style.display = 'flex';
+}
+var _fdaDeleteId = null;
+function confirmFdaDelete() {
+  if (!_fdaDeleteId) return;
+  fetch('/npd/' + PROJ_ID + '/fda/delete', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({entry_id: _fdaDeleteId})
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(d){
+    document.getElementById('fdaDeleteModal').style.display = 'none';
+    _fdaDeleteId = null;
+    if(d.success) loadFdaList();
+  })
+  .catch(function(){ document.getElementById('fdaDeleteModal').style.display='none'; });
+}
+
+
+function fdaDocUpload(input, entryId, docKey) {
+  if (window._msLocked) { input.value=''; return; }
+  var file = input.files[0];
+  if (!file || !entryId || !docKey) return;
+  var fd = new FormData();
+  fd.append('fda_doc', file);
+  fd.append('entry_id', entryId);
+  fd.append('doc_key', docKey);
+  input.disabled = true;
+  fetch('/npd/' + PROJ_ID + '/fda/doc/upload', { method:'POST', body: fd })
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      input.disabled = false;
+      input.value = '';
+      if (d.success) loadFdaList();
+      else showBomAlert('Upload failed: ' + (d.error||'Unknown'), '❌');
+    })
+    .catch(function(){ input.disabled=false; showBomAlert('Upload failed. Try again.','❌'); });
+}
+
+// ═══ BARCODE MILESTONE JS ═══════════════════════════════════
+
+function loadBarcodeList() {
+  fetch('/npd/' + PROJ_ID + '/barcode/list')
+    .then(function(r){ return r.json(); })
+    .then(function(d) {
+      var wrap = document.getElementById('bc-list-wrap');
+      if (!wrap) return;
+      var designs = d.designs || [];
+      if (!designs.length) {
+        wrap.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text3);font-size:.85rem;">No designs uploaded yet.<br>Designer can upload using the <strong>Upload Design</strong> button above.</div>';
+        return;
+      }
+      var html = '';
+      designs.forEach(function(des, i) {
+        var imgUrl = '/static/uploads/npd/' + des.design_file;
+        var hasBc  = des.barcode_file ? true : false;
+        var bcUrl  = hasBc ? '/static/uploads/npd/' + des.barcode_file : '';
+        var ext    = des.design_file ? des.design_file.split('.').pop().toLowerCase() : '';
+        var isImg  = ['jpg','jpeg','png','gif','webp','bmp'].indexOf(ext) >= 0;
+        html +=
+          '<div style="border:1px solid #e2e8f0;border-radius:10px;margin-bottom:12px;overflow:hidden;">' +
+            // Row header
+            '<div style="background:#f8fafc;padding:8px 14px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #e2e8f0;">' +
+              '<div style="font-size:.8rem;font-weight:700;color:#1e1b4b;">Design #' + (i+1) + '</div>' +
+              '<div style="font-size:.72rem;color:var(--text3);">By ' + (des.design_by||'—') + ' &nbsp;·&nbsp; ' + (des.design_at||'') + '</div>' +
+              '<button onclick="bcDeleteDesign(\'' + des.id + '\')" style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:.82rem;padding:2px 6px;" title="Delete">🗑</button>' +
+            '</div>' +
+            '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0;">' +
+              // Designer column
+              '<div style="padding:12px 14px;border-right:1px solid #e2e8f0;">' +
+                '<div style="font-size:.72rem;font-weight:800;color:#4f46e5;text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px;">🎨 Designer Upload</div>' +
+                (isImg
+                  ? '<a href="' + imgUrl + '" target="_blank"><img src="' + imgUrl + '" style="width:100%;max-width:180px;border-radius:8px;border:1px solid #e2e8f0;cursor:pointer;display:block;margin-bottom:6px;" alt="Design"></a>'
+                  : '<a href="' + imgUrl + '" target="_blank" style="font-size:.8rem;color:#4f46e5;">📎 ' + (des.design_file||'') + '</a>') +
+                '<div style="font-size:.72rem;color:var(--text3);margin-top:4px;">📐 1024 × 1024 px</div>' +
+              '</div>' +
+              // Barcode team column
+              '<div style="padding:12px 14px;">' +
+                '<div style="font-size:.72rem;font-weight:800;color:#059669;text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px;">🔢 Barcode Team Upload</div>' +
+                (hasBc
+                  ? '<div>' +
+                      '<a href="' + bcUrl + '" target="_blank" style="font-size:.8rem;color:#059669;font-weight:600;">📎 ' + des.barcode_file + '</a>' +
+                      '<div style="font-size:.7rem;color:var(--text3);margin-top:3px;">By ' + (des.barcode_by||'—') + ' · ' + (des.barcode_at||'') + '</div>' +
+                      '<label style="display:inline-flex;align-items:center;gap:4px;margin-top:6px;padding:4px 10px;background:#f0fdf4;border:1px solid #86efac;border-radius:6px;font-size:.75rem;font-weight:700;color:#059669;cursor:pointer;">' +
+                        '🔄 Re-upload' +
+                        '<input type="file" style="display:none;" onchange="bcTeamUpload(this,\'' + des.id + '\')">' +
+                      '</label>' +
+                    '</div>'
+                  : '<label style="display:inline-flex;align-items:center;gap:6px;padding:8px 14px;background:#f0fdf4;border:2px dashed #86efac;border-radius:8px;font-size:.8rem;font-weight:700;color:#059669;cursor:pointer;">' +
+                      '📤 Upload Barcode' +
+                      '<input type="file" style="display:none;" onchange="bcTeamUpload(this,\'' + des.id + '\')">' +
+                    '</label>') +
+              '</div>' +
+            '</div>' +
+          '</div>';
+      });
+      wrap.innerHTML = html;
+    })
+    .catch(function(){ });
+}
+
+function bcDesignerUpload(input) {
+  if (window._msLocked) { input.value=''; return; }
+  var file = input.files[0];
+  if (!file) return;
+
+  // Validate image dimensions = 1024x1024
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var img = new Image();
+    img.onload = function() {
+      if (img.width !== 1024 || img.height !== 1024) {
+        showBomAlert('Image must be exactly 1024 × 1024 px.\nYour image: ' + img.width + ' × ' + img.height + ' px', '📐');
+        input.value = '';
+        return;
+      }
+      // Upload
+      var fd = new FormData();
+      fd.append('design_file', file);
+      input.disabled = true;
+      fetch('/npd/' + PROJ_ID + '/barcode/design/add', { method:'POST', body: fd })
+        .then(function(r){ return r.json(); })
+        .then(function(d){
+          input.disabled = false;
+          input.value = '';
+          if (d.success) loadBarcodeList();
+          else showBomAlert('Upload failed: ' + (d.error||'Unknown'), '❌');
+        })
+        .catch(function(){ input.disabled = false; showBomAlert('Upload failed. Try again.','❌'); });
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function bcTeamUpload(input, designId) {
+  if (window._msLocked) { input.value=''; return; }
+  var file = input.files[0];
+  if (!file || !designId) return;
+  var fd = new FormData();
+  fd.append('barcode_file', file);
+  fd.append('design_id', designId);
+  input.disabled = true;
+  fetch('/npd/' + PROJ_ID + '/barcode/upload', { method:'POST', body: fd })
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      input.disabled = false;
+      if (d.success) loadBarcodeList();
+      else showBomAlert('Upload failed: ' + (d.error||'Unknown'), '❌');
+    })
+    .catch(function(){ input.disabled = false; showBomAlert('Upload failed. Try again.','❌'); });
+}
+
+function bcDeleteDesign(designId) {
+  if (window._msLocked) return;
+  _bcDeleteId = designId;
+  document.getElementById('bcDeleteModal').style.display = 'flex';
+}
+var _bcDeleteId = null;
+function confirmBcDelete() {
+  if (!_bcDeleteId) return;
+  fetch('/npd/' + PROJ_ID + '/barcode/design/delete', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({design_id: _bcDeleteId})
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(d){
+    document.getElementById('bcDeleteModal').style.display = 'none';
+    _bcDeleteId = null;
+    if(d.success) loadBarcodeList();
+  })
+  .catch(function(){ document.getElementById('bcDeleteModal').style.display = 'none'; });
+}
+
+
+
+
+
+// ═══ NPD QUOTATION INLINE FORM ════════════════════════════════
+var _npdQtRowCount = 0;
+
+function renderNpdQuotationForm() {
+  var wrap = document.getElementById('npd-qt-wrap');
+  if (!wrap) return;
+
+  // Fetch next quot number + UOM + Category then render
+  Promise.all([
+    fetch('/crm/quotations/next-number').then(r=>r.json()).catch(()=>({})),
+    fetch('/masters/uom-options').then(r=>r.json()).catch(()=>[]),
+    fetch('/masters/category-options').then(r=>r.json()).catch(()=>[])
+  ]).then(function(res) {
+    var nextNum = res[0].quot_number || '';
+    window._npdQtUom = res[1];
+    window._npdQtCat = res[2];
+
+    var today = new Date().toISOString().split('T')[0];
+    var d30   = new Date(); d30.setDate(d30.getDate()+30);
+    var d30s  = d30.toISOString().split('T')[0];
+
+    wrap.innerHTML =
+      '<form id="npdQtForm" method="POST" action="{{ url_for('npd.npd_create_quotation', pid=proj.id) }}" novalidate>' +
+        '<div style="background:#fff;border:1px solid var(--border);border-radius:10px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.05);">' +
+
+          // Header
+          '<div style="background:#1e3a5f;color:#fff;padding:10px 16px;font-size:.85rem;font-weight:800;letter-spacing:.04em;">📄 Create Quotation</div>' +
+
+          // Bill To + Quotation Details
+          '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0;border-bottom:1px solid var(--border);">' +
+            '<div style="padding:14px 16px;border-right:1px solid var(--border);">' +
+              '<div style="font-size:.68rem;font-weight:800;letter-spacing:.07em;color:#64748b;text-transform:uppercase;margin-bottom:8px;">BILL TO</div>' +
+              '<input type="text" name="bill_company" value="{{ proj.client_company or proj.client_name or '' }}" placeholder="Company Name" class="fi" style="margin-bottom:6px;font-weight:600;">' +
+              '<textarea name="bill_address" class="fi" rows="2" placeholder="Address" style="resize:none;margin-bottom:6px;"></textarea>' +
+              '<input type="text" name="bill_phone" value="{{ proj.client_phone or '' }}" placeholder="Phone" class="fi" style="margin-bottom:6px;">' +
+              '<input type="text" name="bill_email" value="{{ proj.client_email or '' }}" placeholder="Email" class="fi" style="margin-bottom:6px;">' +
+              '<input type="text" name="bill_gst" placeholder="GST Number (optional)" class="fi">' +
+            '</div>' +
+            '<div style="padding:14px 16px;">' +
+              '<div style="font-size:.68rem;font-weight:800;letter-spacing:.07em;color:#64748b;text-transform:uppercase;margin-bottom:8px;">QUOTATION DETAILS</div>' +
+              '<div style="display:grid;grid-template-columns:auto 1fr;gap:.4rem .75rem;align-items:center;">' +
+                '<label style="font-size:.82rem;color:#374151;font-weight:500;white-space:nowrap;">Quot. No :</label>' +
+                '<input type="text" name="quot_number" id="npdQtNum" value="' + nextNum + '" class="fi" style="font-size:.82rem;background:#f8fafc;" required>' +
+                '<label style="font-size:.82rem;color:#374151;font-weight:500;white-space:nowrap;">Date :</label>' +
+                '<input type="date" name="quot_date" value="' + today + '" class="fi" style="font-size:.82rem;" required>' +
+                '<label style="font-size:.82rem;color:#374151;font-weight:500;white-space:nowrap;">Valid Until :</label>' +
+                '<input type="date" name="valid_until" value="' + d30s + '" class="fi" style="font-size:.82rem;">' +
+                '<label style="font-size:.82rem;color:#374151;font-weight:500;white-space:nowrap;">GST % :</label>' +
+                '<select name="quot_gst_pct" id="npdQtGstPct" class="fi" style="font-size:.82rem;" onchange="npdQtCalcTotal()">' +
+                  '<option value="0">0%</option><option value="5">5%</option><option value="12">12%</option><option value="18" selected>18%</option><option value="28">28%</option>' +
+                '</select>' +
+                '<label style="font-size:.82rem;color:#374151;font-weight:500;white-space:nowrap;">Subject :</label>' +
+                '<input type="text" name="quot_subject" value="Quotation for {{ proj.client_company or proj.client_name or '' }}" class="fi" style="font-size:.82rem;">' +
+              '</div>' +
+            '</div>' +
+          '</div>' +
+
+          // Products table
+          '<div style="padding:10px 16px 0;">' +
+            '<div style="font-size:.68rem;font-weight:800;letter-spacing:.07em;color:#64748b;text-transform:uppercase;margin-bottom:8px;">PRODUCTS / ITEMS</div>' +
+            '<div style="overflow-x:auto;border:1px solid #e2e8f0;border-radius:8px;">' +
+              '<table style="width:100%;border-collapse:collapse;min-width:950px;">' +
+                '<thead><tr style="background:linear-gradient(135deg,#1e3a5f,#2d5a8e);">' +
+                  '<th style="padding:9px 8px;font-size:.7rem;font-weight:700;color:#fff;text-align:left;min-width:130px;">PRODUCT NAME</th>' +
+                  '<th style="padding:9px 6px;font-size:.7rem;font-weight:700;color:#fff;text-align:center;width:60px;">SIZE</th>' +
+                  '<th style="padding:9px 8px;font-size:.7rem;font-weight:700;color:#fff;text-align:center;width:80px;">CODE</th>' +
+                  '<th style="padding:9px 8px;font-size:.7rem;font-weight:700;color:#fff;text-align:center;width:90px;">UOM</th>' +
+                  '<th style="padding:9px 8px;font-size:.7rem;font-weight:700;color:#fff;text-align:right;width:80px;">COST (₹)</th>' +
+                  '<th style="padding:9px 8px;font-size:.7rem;font-weight:700;color:#fff;text-align:center;width:70px;">MOQ</th>' +
+                  '<th style="padding:9px 8px;font-size:.7rem;font-weight:700;color:#fff;text-align:left;min-width:120px;">PM SPEC.</th>' +
+                  '<th style="padding:9px 8px;font-size:.7rem;font-weight:700;color:#fff;text-align:right;width:80px;">PM COST</th>' +
+                  '<th style="padding:9px 8px;font-size:.7rem;font-weight:700;color:#fff;text-align:right;width:80px;">FG COST</th>' +
+                  '<th style="padding:9px 8px;font-size:.7rem;font-weight:700;color:#fff;text-align:center;width:110px;">CATEGORY</th>' +
+                  '<th style="padding:9px 8px;font-size:.7rem;font-weight:700;color:#fff;text-align:right;width:90px;">FINAL COST</th>' +
+                  '<th style="width:32px;"></th>' +
+                '</tr></thead>' +
+                '<tbody id="npdQtItems"></tbody>' +
+              '</table>' +
+            '</div>' +
+            '<button type="button" onclick="npdQtAddRow()" style="width:100%;background:#fff;color:#1e3a5f;border:1.5px dashed #1e3a5f;padding:9px;border-radius:8px;font-size:.83rem;font-weight:700;cursor:pointer;margin:8px 0;">+ Add Row</button>' +
+          '</div>' +
+
+          // Totals
+          '<div style="margin:0 16px 12px;border:1.5px solid #e2e8f0;border-radius:8px;overflow:hidden;">' +
+            '<div style="display:flex;justify-content:space-between;padding:8px 14px;font-size:.83rem;border-bottom:1px solid #e5e7eb;"><span style="color:#6b7280;">Sub Total</span><span id="npdQtSubTotal" style="font-weight:600;">₹ 0.00</span></div>' +
+            '<div style="display:flex;justify-content:space-between;padding:8px 14px;font-size:.83rem;border-bottom:1px solid #e5e7eb;"><span style="color:#6b7280;">GST (<span id="npdQtGstLbl">18</span>%)</span><span id="npdQtGstAmt" style="font-weight:600;">₹ 0.00</span></div>' +
+            '<div style="display:flex;justify-content:space-between;padding:10px 14px;font-size:.9rem;font-weight:800;background:#f0f4ff;color:#1e3a5f;"><span>Total Amount</span><span id="npdQtTotal">₹ 0.00</span></div>' +
+          '</div>' +
+
+          // Terms + Notes
+          '<div style="padding:0 16px 12px;display:grid;grid-template-columns:1fr 1fr;gap:10px;">' +
+            '<div>' +
+              '<label style="font-size:.73rem;font-weight:700;color:#374151;display:block;margin-bottom:4px;">Terms & Conditions</label>' +
+              '<textarea name="terms" class="fi" rows="3" style="font-size:.82rem;resize:vertical;">Payment: Advance\nDelivery: 7-10 working days\nPrices are exclusive of GST and transportation charges.\nQuotation valid for 30 days from date of issue.</textarea>' +
+            '</div>' +
+            '<div>' +
+              '<label style="font-size:.73rem;font-weight:700;color:#374151;display:block;margin-bottom:4px;">Notes (optional)</label>' +
+              '<textarea name="notes" class="fi" rows="3" placeholder="Any additional notes..." style="font-size:.82rem;resize:vertical;"></textarea>' +
+            '</div>' +
+          '</div>' +
+
+          // Footer
+          '<div style="padding:10px 16px;border-top:1px solid #e5e7eb;background:#f9fafb;display:flex;align-items:center;justify-content:space-between;">' +
+            '<span style="font-size:.75rem;color:#94a3b8;">📋 PDF (A4) generate hogi — Quotations list se download kar sakte hain</span>' +
+            '<button type="button" id="npdQtSubmitBtn" onclick="npdQtSubmit()" style="padding:9px 24px;background:#1e3a5f;color:#fff;border:none;border-radius:8px;font-size:.85rem;font-weight:700;cursor:pointer;">⬇ Generate PDF</button>' +
+          '</div>' +
+
+        '</div>' +
+      '</form>';
+
+    _npdQtRowCount = 0;
+    npdQtAddRow();
+  });
+}
+
+function npdQtAddRow() {
+  var tbody = document.getElementById('npdQtItems');
+  if (!tbody) return;
+
+  // Guard: last row Product Name must be filled
+  var allRows = tbody.querySelectorAll('tr');
+  if (allRows.length > 0) {
+    var lastRow = allRows[allRows.length - 1];
+    var lastName = lastRow.querySelector('input[name="item_name[]"]');
+    if (lastName && !lastName.value.trim()) {
+      lastName.style.border = '1.5px solid #ef4444';
+      lastName.focus();
+      lastName.placeholder = 'Pehle yeh fill karo!';
+      setTimeout(function() {
+        lastName.style.border = '1.5px solid #e8edf5';
+        lastName.placeholder = 'Product name';
+      }, 2000);
+      return;
+    }
+  }
+
+  _npdQtRowCount++;
+  var rid = 'npdqt_' + _npdQtRowCount;
+  var isFirst = (allRows.length === 0);
+  var inp = 'width:100%;border:1.5px solid #e8edf5;border-radius:5px;padding:4px 6px;font-size:.8rem;outline:none;background:transparent;';
+  var tr = document.createElement('tr');
+  tr.id = rid;
+  tr.style.borderBottom = '1px solid #f1f5f9';
+  var delBtn = isFirst
+    ? '<td style="padding:4px 5px;text-align:center;"><button type="button" style="background:#fee2e2;color:#dc2626;border:none;width:22px;height:22px;border-radius:4px;font-size:.75rem;cursor:not-allowed;visibility:hidden;">✕</button></td>'
+    : '<td style="padding:4px 5px;text-align:center;"><button type="button" onclick="npdQtDelRow(this)" style="background:#fee2e2;color:#dc2626;border:none;width:22px;height:22px;border-radius:4px;font-size:.75rem;cursor:pointer;">✕</button></td>';
+  tr.innerHTML =
+    '<td style="padding:4px 6px;border-right:1px solid #f1f5f9;"><input type="text" name="item_name[]" placeholder="Product name" style="' + inp + '"></td>' +
+    '<td style="padding:4px 5px;border-right:1px solid #f1f5f9;"><input type="number" name="item_size[]" placeholder="0.0" min="0" step="any" style="' + inp + 'text-align:center;width:52px;"></td>' +
+    '<td style="padding:4px 6px;border-right:1px solid #f1f5f9;"><input type="text" name="item_code[]" placeholder="Code" style="' + inp + 'text-align:center;"></td>' +
+    '<td style="padding:4px 5px;border-right:1px solid #f1f5f9;"><select name="item_uom[]" style="width:100%;border:1.5px solid #e8edf5;border-radius:5px;padding:4px 3px;font-size:.8rem;"><option value="">--UOM--</option></select></td>' +
+    '<td style="padding:4px 6px;border-right:1px solid #f1f5f9;"><input type="number" name="item_cost[]" placeholder="0.00" min="0" step="any" style="' + inp + 'text-align:right;" oninput="npdQtAutoFinal(this)"></td>' +
+    '<td style="padding:4px 6px;border-right:1px solid #f1f5f9;"><input type="number" name="item_moq[]" placeholder="Qty" min="0" style="' + inp + 'text-align:center;" oninput="npdQtCalcTotal()"></td>' +
+    '<td style="padding:4px 6px;border-right:1px solid #f1f5f9;"><textarea name="item_pm_spec[]" placeholder="PM spec..." rows="2" style="' + inp + 'resize:vertical;min-height:34px;"></textarea></td>' +
+    '<td style="padding:4px 6px;border-right:1px solid #f1f5f9;"><input type="number" name="item_pm_cost[]" placeholder="0.00" min="0" step="any" style="' + inp + 'text-align:right;" oninput="npdQtAutoFinal(this)"></td>' +
+    '<td style="padding:4px 6px;border-right:1px solid #f1f5f9;"><input type="number" name="item_fg_cost[]" placeholder="0.00" min="0" step="any" style="' + inp + 'text-align:right;" oninput="npdQtAutoFinal(this)"></td>' +
+    '<td style="padding:4px 5px;border-right:1px solid #f1f5f9;"><select name="item_category[]" style="width:100%;border:1.5px solid #e8edf5;border-radius:5px;padding:4px 3px;font-size:.8rem;"><option value="">--Cat--</option></select></td>' +
+    '<td style="padding:4px 6px;border-right:1px solid #f1f5f9;"><input type="number" name="item_final_cost[]" placeholder="0.00" min="0" step="any" style="' + inp + 'text-align:right;font-weight:700;background:#f0f6ff;border-color:#c7d7f5;" oninput="npdQtCalcTotal()"></td>' +
+    delBtn;
+  tbody.appendChild(tr);
+
+  var uomSel = tr.querySelector('select[name="item_uom[]"]');
+  if (uomSel && window._npdQtUom) window._npdQtUom.forEach(function(o){
+    var opt = document.createElement('option'); opt.value=o.code; opt.textContent=o.code+(o.name?' - '+o.name:''); uomSel.appendChild(opt);
+  });
+  var catSel = tr.querySelector('select[name="item_category[]"]');
+  if (catSel && window._npdQtCat) window._npdQtCat.forEach(function(o){
+    var opt = document.createElement('option'); opt.value=o.name; opt.textContent=o.name; catSel.appendChild(opt);
+  });
+
+  tr.querySelector('input[name="item_name[]"]').focus();
+  npdQtCalcTotal();
+}
+
+function npdQtDelRow(btn) {
+  var tbody = document.getElementById('npdQtItems');
+  if (!tbody) return;
+  var tr = btn.closest('tr');
+  if (tbody.querySelectorAll('tr')[0] === tr) return; // Never delete first row
+  tr.remove();
+  npdQtCalcTotal();
+}
+
+
+function npdQtAutoFinal(input) {
+  var tr = input.closest('tr');
+  if (!tr) return;
+  var cost   = parseFloat(tr.querySelector('input[name="item_cost[]"]')?.value)    || 0;
+  var pmCost = parseFloat(tr.querySelector('input[name="item_pm_cost[]"]')?.value) || 0;
+  var fgCost = parseFloat(tr.querySelector('input[name="item_fg_cost[]"]')?.value) || 0;
+  var fcInp  = tr.querySelector('input[name="item_final_cost[]"]');
+  if (fcInp) { fcInp.value = (cost + pmCost + fgCost).toFixed(2); }
+  npdQtCalcTotal();
+}
+
+function npdQtCalcTotal() {
+  var sub = 0;
+  document.querySelectorAll('#npdQtItems tr').forEach(function(tr) {
+    var fc  = parseFloat(tr.querySelector('input[name="item_final_cost[]"]')?.value) || 0;
+    var moq = parseFloat(tr.querySelector('input[name="item_moq[]"]')?.value) || 0;
+    sub += fc * moq;
+  });
+  var gst = parseFloat(document.getElementById('npdQtGstPct')?.value) || 0;
+  var gstAmt = sub * gst / 100;
+  var fmt = function(v){ return '₹ ' + v.toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2}); };
+  var el1=document.getElementById('npdQtSubTotal'); if(el1) el1.textContent=fmt(sub);
+  var el2=document.getElementById('npdQtGstAmt');   if(el2) el2.textContent=fmt(gstAmt);
+  var el3=document.getElementById('npdQtTotal');    if(el3) el3.textContent=fmt(sub+gstAmt);
+  var el4=document.getElementById('npdQtGstLbl');   if(el4) el4.textContent=gst;
+}
+
+function npdQtSubmit() {
+  var form = document.getElementById('npdQtForm');
+  if (!form) return;
+  // Basic validation
+  var qtNum = document.getElementById('npdQtNum');
+  if (qtNum && !qtNum.value.trim()) { qtNum.focus(); showBomAlert('Quotation Number required', '⚠️'); return; }
+  var rows = document.querySelectorAll('#npdQtItems tr');
+  if (!rows.length) { showBomAlert('At least one product row required', '⚠️'); return; }
+  var hasItem = false;
+  rows.forEach(function(tr){
+    var n = tr.querySelector('input[name="item_name[]"]');
+    if (n && n.value.trim()) hasItem = true;
+  });
+  if (!hasItem) { showBomAlert('Please add at least one product', '⚠️'); return; }
+  var btn = document.getElementById('npdQtSubmitBtn');
+  if (btn) { btn.disabled=true; btn.textContent='Generating...'; }
+  form.submit();
+}
+
+// ── BOM Multi-List JS ──
+function loadBomList() {
+  fetch('/npd/' + PROJ_ID + '/bom/list')
+    .then(function(r){ return r.json(); })
+    .then(function(d) {
+      var listDiv = document.getElementById('bom-list-table');
+      if (!listDiv) return;
+      var boms = d.boms || [];
+      if (!boms.length) {
+        listDiv.innerHTML = '<div style="padding:40px;text-align:center;color:var(--text3);font-size:.85rem;">No BOMs yet. Click <strong>+ New BOM</strong> to create one.</div>';
+        return;
+      }
+      var html = '<table style="width:100%;border-collapse:collapse;font-size:.82rem;">' +
+        '<thead><tr style="background:#d8f3dc;">' +
+          '<th style="padding:10px 14px;border-bottom:1px solid #b7e4c7;text-align:left;font-weight:800;width:50px;">#</th>' +
+          '<th style="padding:10px 14px;border-bottom:1px solid #b7e4c7;text-align:left;font-weight:800;">Product Name</th>' +
+          '<th style="padding:10px 14px;border-bottom:1px solid #b7e4c7;text-align:left;font-weight:800;">Code</th>' +
+          '<th style="padding:10px 14px;border-bottom:1px solid #b7e4c7;text-align:left;font-weight:800;">Variant</th>' +
+          '<th style="padding:10px 14px;border-bottom:1px solid #b7e4c7;text-align:left;font-weight:800;">Rows</th>' +
+          '<th style="padding:10px 14px;border-bottom:1px solid #b7e4c7;text-align:center;font-weight:800;width:100px;">Actions</th>' +
+        '</tr></thead><tbody>';
+      boms.forEach(function(b, i) {
+        html +=
+          '<tr style="border-bottom:1px solid #f0fdf4;' + (i%2===1?'background:#f9fff9;':'') + '">' +
+            '<td style="padding:10px 14px;color:#2d6a4f;font-weight:700;">' + (i+1) + '</td>' +
+            '<td style="padding:10px 14px;font-weight:600;">' + (b.product_name||'—') + '</td>' +
+            '<td style="padding:10px 14px;font-family:monospace;font-size:.78rem;color:#475569;">' + (b.product_code||'—') + '</td>' +
+            '<td style="padding:10px 14px;color:#475569;">' + (b.variant||'—') + '</td>' +
+            '<td style="padding:10px 14px;color:#475569;">' + (b.rows?b.rows.length:0) + ' ingredients</td>' +
+            '<td style="padding:10px 14px;text-align:center;">' +
+              '<div style="display:flex;gap:6px;justify-content:center;">' +
+                '<button onclick="openBomForm(\'' + b.id + '\')" style="padding:4px 12px;background:#eff6ff;color:#2563eb;border:1px solid #bfdbfe;border-radius:6px;font-size:.75rem;font-weight:700;cursor:pointer;">✏️ Edit</button>' +
+                '<button onclick="deleteBomEntry(\'' + b.id + '\')" style="padding:4px 10px;background:#fff7f7;color:#dc2626;border:1px solid #fecaca;border-radius:6px;font-size:.75rem;font-weight:700;cursor:pointer;">🗑</button>' +
+              '</div>' +
+            '</td>' +
+          '</tr>';
+      });
+      html += '</tbody></table>';
+      listDiv.innerHTML = html;
+    });
+}
+
+function openBomForm(bomId) {
+  if (window._msLocked) return;
+  // Switch view
+  document.getElementById('bom-list-view').style.display = 'none';
+  document.getElementById('bom-form-view').style.display = 'block';
+  document.getElementById('bom-editing-id').value = bomId || '';
+  document.getElementById('bom-form-title').textContent = bomId ? '✏️ Edit BOM' : '➕ New BOM';
+
+  // Reset form
+  var tbody = document.getElementById('bom-tbody');
+  if (tbody) tbody.innerHTML = '';
+  var pn = document.getElementById('bom-product-name');
+  var pc = document.getElementById('bom-product-code');
+  var pv = document.getElementById('bom-variant');
+  if (pn) pn.value = '';
+  if (pc) pc.value = '';
+  if (pv) pv.value = '';
+  calcBomTotal();
+
+  if (bomId) {
+    // Load existing BOM data
+    fetch('/npd/' + PROJ_ID + '/bom/list')
+      .then(function(r){ return r.json(); })
+      .then(function(d) {
+        var bom = (d.boms||[]).find(function(b){ return b.id === bomId; });
+        if (!bom) return;
+        if (pn) pn.value = bom.product_name || '';
+        if (pc) pc.value = bom.product_code || '';
+        if (pv) pv.value = bom.variant || '';
+        (bom.rows||[]).forEach(function(row){
+          addBomRow(row.inci||'', row.qty||'');
+        });
+        if (!bom.rows||!bom.rows.length) addBomRow('','');
+        calcBomTotal();
+      });
+  } else {
+    addBomRow('', '');
+  }
+}
+
+function closeBomForm() {
+  document.getElementById('bom-list-view').style.display = 'block';
+  document.getElementById('bom-form-view').style.display = 'none';
+  loadBomList();
+}
+
+function deleteBomEntry(bomId) {
+  if (window._msLocked) return;
+  _bomDeleteId = bomId;
+  document.getElementById('bomDeleteModal').style.display = 'flex';
+}
+var _bomDeleteId = null;
+function confirmBomDelete() {
+  if (!_bomDeleteId) return;
+  fetch('/npd/' + PROJ_ID + '/bom/delete', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({bom_id: String(_bomDeleteId)})
+  })
+  .then(function(r){
+    if (!r.ok) throw new Error('Server error: ' + r.status);
+    return r.json();
+  })
+  .then(function(d){
+    document.getElementById('bomDeleteModal').style.display = 'none';
+    _bomDeleteId = null;
+    if(d.success) loadBomList();
+    else showBomAlert('Delete failed: ' + (d.error||'Unknown error'), '❌');
+  })
+  .catch(function(e){
+    document.getElementById('bomDeleteModal').style.display = 'none';
+    showBomAlert('Delete failed. Please refresh and try again.\n' + e.message, '❌');
+  });
+}
+
+function _bomRenumber() {
+  // Renumber all rows and show/hide delete buttons
+  var tbody = document.getElementById('bom-tbody');
+  if (!tbody) return;
+  Array.from(tbody.rows).forEach(function(tr, i) {
+    var sr  = tr.querySelector('.bom-sr');
+    var btn = tr.querySelector('.bom-del');
+    if (sr)  sr.textContent = i + 1;
+    // First row: never show delete button
+    if (btn) btn.style.visibility = (i === 0) ? 'hidden' : 'visible';
+  });
+}
+
+function addBomRow(inci, qty) {
+  if (window._msLocked && inci === undefined) return;
+  var tbody = document.getElementById('bom-tbody');
+  if (!tbody) return;
+
+  // ── Guard: last row INCI must be filled before adding new ──
+  var allRows = tbody.rows;
+  if (allRows.length > 0 && !(inci !== undefined)) {
+    // called from button (not from loadBOM)
+
+    // Block if total already 100%
+    var currentTotal = 0;
+    document.querySelectorAll('.bom-qty').forEach(function(inp) {
+      currentTotal += parseFloat(inp.value) || 0;
+    });
+    if (Math.round(currentTotal * 1000) >= 100000) {
+      var totalEl = document.getElementById('bom-total');
+      if (totalEl) { totalEl.style.color = '#ef4444'; setTimeout(function(){ totalEl.style.color = ''; }, 2000); }
+      showBomAlert('Total is already 100%.\nYou cannot add more rows.', '🚫');
+      return;
+    }
+
+    var lastInci = allRows[allRows.length - 1].querySelector('.bom-inci');
+    if (lastInci && !lastInci.value.trim()) {
+      lastInci.style.border = '1.5px solid #ef4444';
+      lastInci.style.borderRadius = '4px';
+      lastInci.focus();
+      lastInci.placeholder = 'Please fill this first!';
+      setTimeout(function() {
+        lastInci.style.border = 'none';
+        lastInci.placeholder = 'Enter INCI Name...';
+      }, 2000);
+      return;
+    }
+  }
+
+  var rowIdx = allRows.length + 1;
+  var tr = document.createElement('tr');
+  tr.style.background = (rowIdx % 2 === 0) ? '#f0fdf4' : '#fff';
+  tr.innerHTML =
+    '<td style="padding:7px 8px;border:1px solid #b7e4c7;text-align:center;font-weight:700;color:#1b4332;" class="bom-sr">' + rowIdx + '</td>' +
+    '<td style="padding:4px 6px;border:1px solid #b7e4c7;">' +
+      '<input class="bom-inci" style="width:100%;border:none;outline:none;font-size:.82rem;font-family:inherit;padding:4px 6px;background:transparent;" placeholder="Enter INCI Name..." value="' + (inci||'') + '">' +
+    '</td>' +
+    '<td style="padding:4px 6px;border:1px solid #b7e4c7;text-align:center;">' +
+      '<div style="display:flex;align-items:center;justify-content:center;gap:2px;">' +
+        '<input class="bom-qty" type="number" step="0.001" min="0" style="width:80px;border:1px solid #d1fae5;border-radius:4px;outline:none;font-size:.82rem;font-family:inherit;text-align:center;padding:3px 4px;background:#f0fdf4;" placeholder="0.000" value="' + (qty||'') + '" oninput="calcBomTotal()">' +
+        '<span style="font-size:.75rem;color:#2d6a4f;font-weight:600;">%</span>' +
+      '</div>' +
+    '</td>' +
+    '<td style="padding:4px 6px;border:1px solid #b7e4c7;text-align:center;">' +
+      '<button class="bom-del" onclick="deleteBomRow(this)" style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:.88rem;padding:2px 6px;border-radius:4px;visibility:' + (rowIdx === 1 ? 'hidden' : 'visible') + ';" title="Delete row">✕</button>' +
+    '</td>';
+  tbody.appendChild(tr);
+  calcBomTotal();
+  _bomRenumber();
+}
+
+function deleteBomRow(btn) {
+  var tbody = document.getElementById('bom-tbody');
+  if (!tbody) return;
+  // Never delete first row
+  var row = btn.closest('tr');
+  var allRows = Array.from(tbody.rows);
+  if (allRows.indexOf(row) === 0) return;
+  if (row) row.remove();
+  calcBomTotal();
+  _bomRenumber();
+}
+
+function calcBomTotal() {
+  var total = 0;
+  document.querySelectorAll('.bom-qty').forEach(function(inp) {
+    total += parseFloat(inp.value) || 0;
+  });
+  var el = document.getElementById('bom-total');
+  if (el) el.textContent = total.toFixed(3) + '%';
+}
+
+function saveBOM(idx) {
+  if (window._msLocked) return;
+  // ── Validation: all INCI names + qty must be filled ──
+  var errors = [];
+  var tbody = document.getElementById('bom-tbody');
+  if (tbody) {
+    Array.from(tbody.rows).forEach(function(tr, i) {
+      var inci = tr.querySelector('.bom-inci');
+      var qty  = tr.querySelector('.bom-qty');
+      var hasErr = false;
+      if (!inci || !inci.value.trim()) {
+        if (inci) { inci.style.border = '1.5px solid #ef4444'; inci.style.borderRadius = '4px'; }
+        hasErr = true;
+      } else {
+        if (inci) inci.style.border = '';
+      }
+      if (!qty || !qty.value || parseFloat(qty.value) <= 0) {
+        if (qty) { qty.style.border = '1.5px solid #ef4444'; }
+        hasErr = true;
+      } else {
+        if (qty) qty.style.border = '1px solid #d1fae5';
+      }
+      if (hasErr) errors.push('Row ' + (i + 1));
+    });
+  }
+  // Check product name
+  var pn = document.getElementById('bom-product-name');
+  if (pn && !pn.value.trim()) {
+    pn.style.borderBottom = '2px solid #ef4444';
+    errors.push('Product Name');
+  } else if (pn) { pn.style.borderBottom = '1.5px solid #2d6a4f'; }
+
+  if (errors.length) {
+    showBomAlert('Please fill all fields before saving:\n\u2022 ' + errors.join('\n\u2022 '), '⚠️');
+    return;
+  }
+
+  // Total must be exactly 100%
+  var saveTotal = 0;
+  document.querySelectorAll('.bom-qty').forEach(function(inp) {
+    saveTotal += parseFloat(inp.value) || 0;
+  });
+  if (Math.round(saveTotal * 1000) !== 100000) {
+    var totalEl = document.getElementById('bom-total');
+    if (totalEl) { totalEl.style.color = '#ef4444'; setTimeout(function(){ totalEl.style.color = ''; }, 2500); }
+    showBomAlert('Total must be exactly 100% to save.\nCurrent total: ' + saveTotal.toFixed(3) + '%', '📊');
+    return;
+  }
+
+  var rows = [];
+  if (tbody) {
+    Array.from(tbody.rows).forEach(function(tr) {
+      var inci = tr.querySelector('.bom-inci');
+      var qty  = tr.querySelector('.bom-qty');
+      rows.push({ inci: inci ? inci.value.trim() : '', qty: qty ? qty.value : '' });
+    });
+  }
+  var editingId = (document.getElementById('bom-editing-id') || {}).value || '';
+  var payload = {
+    bom_id      : editingId || null,
+    product_name: (document.getElementById('bom-product-name') || {}).value || '',
+    product_code: (document.getElementById('bom-product-code') || {}).value || '',
+    variant:      (document.getElementById('bom-variant') || {}).value || '',
+    rows: rows
+  };
+  var saveBtn = document.querySelector('[onclick="saveBOM(' + idx + ')"]');
+  if (saveBtn) { saveBtn.textContent = '...'; saveBtn.disabled = true; }
+  fetch('/npd/' + PROJ_ID + '/bom/save', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify(payload)
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(d) {
+    if (saveBtn) { saveBtn.disabled = false; }
+    if (d.success) {
+      if (saveBtn) { saveBtn.innerHTML = '✅ Saved!'; }
+      setTimeout(function(){
+        if (saveBtn) saveBtn.innerHTML = '💾 Save BOM';
+        closeBomForm();
+      }, 900);
+    }
+  })
+  .catch(function() { if (saveBtn) { saveBtn.disabled = false; saveBtn.innerHTML = '💾 Save BOM'; } });
 }
 
 function loadMsComments(idx) {
@@ -1043,26 +2455,29 @@ function loadMsComments(idx) {
           '</div>' +
           '<div style="font-size:.82rem;color:var(--text);line-height:1.5;margin-left:28px;">' + c.comment + attHtml + '</div>' +
         '</div>';      }).join('');
-      list.scrollTop = list.scrollHeight;
+      list.scrollTop = 0;
     });
 }
 
 function saveMsNote(idx) {
+  if (window._msLocked) return;
   var key  = 'ms_' + idx;
   var note = document.getElementById('ms-note-input');
   if (!note) return;
+  // Rich text editor uses innerHTML, textarea uses value
+  var noteVal = note.contentEditable === 'true' ? note.innerHTML : note.value;
   fetch('/npd/' + PROJ_ID + '/milestones/update', {
     method: 'POST',
     headers: {'Content-Type':'application/json'},
-    body: JSON.stringify({key: key, status: (MS_STATE[key]||{}).status||'pending', note: note.value})
+    body: JSON.stringify({key: key, status: (MS_STATE[key]||{}).status||'pending', note: noteVal})
   })
   .then(function(r){ return r.json(); })
   .then(function(data){
     if (data.success) {
       if (!MS_STATE[key]) MS_STATE[key] = {};
-      MS_STATE[key].note = note.value;
+      MS_STATE[key].note = noteVal;
       var btn = document.querySelector('#ms-detail-panel button[onclick^="saveMsNote"]');
-      if (btn) { btn.textContent = '✅ Saved'; setTimeout(function(){ btn.textContent = '💾 Save'; }, 1500); }
+      if (btn) { btn.innerHTML = '✅ Saved'; setTimeout(function(){ btn.innerHTML = '💾 Save'; }, 1500); }
     }
   });
 }
@@ -1105,6 +2520,7 @@ function handleMsEditorDrop(e) {
 }
 
 function postMsComment(idx) {
+  if (window._msLocked) return;
   var key     = 'ms_' + idx;
   var editor  = document.getElementById('ms-disc-editor');
   var fileEl  = document.getElementById('ms-disc-file');
@@ -1130,6 +2546,53 @@ function postMsComment(idx) {
     }
   })
   .catch(function(){ alert('Error posting comment.'); });
+}
+
+function _applyLockOverlay() {
+  // Called after each panel renders — if locked, disable all interactive elements
+  if (!window._msLocked) return;
+  var panel = document.getElementById('ms-detail-panel');
+  if (!panel) return;
+
+  // Show locked banner
+  var banner = document.createElement('div');
+  banner.id = 'ms-lock-banner';
+  banner.style.cssText = 'background:#fef3c7;border:1.5px solid #f59e0b;border-radius:10px;padding:10px 16px;margin-bottom:12px;display:flex;align-items:center;gap:8px;font-size:.82rem;font-weight:700;color:#92400e;';
+  banner.innerHTML = '🔒 This milestone is marked as Done. Editing is disabled. Mark as Pending to make changes.';
+  var firstChild = panel.querySelector('div > div:not(#ms-lock-banner)');
+  var container = panel.querySelector('div');
+  if (container) container.insertBefore(banner, container.children[1]);
+
+  // Disable all buttons except Mark as Pending
+  panel.querySelectorAll('button, input, textarea, [contenteditable], label, select').forEach(function(el) {
+    if (el.id === 'ms-detail-btn') return;           // Keep Mark as Done/Pending button
+    if (el.tagName === 'BUTTON') {
+      el.disabled = true;
+      el.style.opacity = '0.4';
+      el.style.cursor  = 'not-allowed';
+    }
+    if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT') {
+      el.disabled = true;
+      el.style.opacity = '0.5';
+      el.style.background = '#f1f5f9';
+    }
+    if (el.getAttribute('contenteditable') === 'true') {
+      el.setAttribute('contenteditable', 'false');
+      el.style.opacity = '0.5';
+      el.style.background = '#f1f5f9';
+      el.style.cursor = 'not-allowed';
+    }
+    if (el.tagName === 'LABEL' && el.querySelector('input[type="file"]')) {
+      el.style.opacity = '0.4';
+      el.style.cursor  = 'not-allowed';
+      el.style.pointerEvents = 'none';
+    }
+  });
+
+  // Hide add/upload action buttons (New BOM, Add FDA, Upload Design, Add Row etc.)
+  panel.querySelectorAll('[onclick^="openBomForm"], [onclick^="openFdaForm"], [onclick^="addBomRow"], [onclick^="bcDesignerUpload"], [onclick^="saveBOM"], [onclick^="saveFdaEntry"], [onclick^="saveMsNote"]').forEach(function(el){
+    el.style.display = 'none';
+  });
 }
 
 function toggleMilestone(idx) {

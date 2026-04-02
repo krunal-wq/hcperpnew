@@ -401,8 +401,8 @@ def project_view(pid):
 
     from models.npd import NPDActivityLog, NPDComment, NPDNote
     activity_logs     = NPDActivityLog.query.filter_by(project_id=pid)                            .order_by(NPDActivityLog.created_at.desc()).all()
-    disc_comments     = NPDComment.query.filter_by(project_id=pid, is_internal=False)                            .order_by(NPDComment.created_at.asc()).all()
-    internal_comments = NPDComment.query.filter_by(project_id=pid, is_internal=True)                            .order_by(NPDComment.created_at.asc()).all()
+    disc_comments     = NPDComment.query.filter_by(project_id=pid, is_internal=False)                            .order_by(NPDComment.created_at.desc()).all()
+    internal_comments = NPDComment.query.filter_by(project_id=pid, is_internal=True)                            .order_by(NPDComment.created_at.desc()).all()
     note              = NPDNote.query.filter_by(project_id=pid).first()
     active_tab        = request.args.get('tab', 'overview')
 
@@ -2529,7 +2529,7 @@ def get_milestone_comments(pid, ms_key):
     from models.npd import NPDComment
     comments = NPDComment.query.filter_by(
         project_id=pid, milestone_key=ms_key
-    ).order_by(NPDComment.created_at.asc()).all()
+    ).order_by(NPDComment.created_at.desc()).all()
     result = []
     for c in comments:
         result.append({
@@ -2578,3 +2578,372 @@ def add_milestone_comment(pid, ms_key):
         'attachment': c.attachment or '',
         'created_at': c.created_at.strftime('%d-%m-%Y %H:%M')
     })
+
+# ── BOM Formulation Sheet — GET ──
+# ── BOM List — GET all BOMs ──
+@npd.route('/<int:pid>/bom/list', methods=['GET'])
+@login_required
+def get_bom_list(pid):
+    import json
+    proj = NPDProject.query.filter_by(id=pid, is_deleted=False).first_or_404()
+    data = {}
+    if proj.npd_milestone_data:
+        try: data = json.loads(proj.npd_milestone_data)
+        except: data = {}
+    boms = data.get('boms', [])
+    return jsonify(boms=boms)
+
+# ── BOM Save (create or update) ──
+@npd.route('/<int:pid>/bom/save', methods=['POST'])
+@login_required
+def save_bom(pid):
+    import json, time
+    proj = NPDProject.query.filter_by(id=pid, is_deleted=False).first_or_404()
+    body = request.get_json(force=True, silent=True) or {}
+    data = {}
+    if proj.npd_milestone_data:
+        try: data = json.loads(proj.npd_milestone_data)
+        except: data = {}
+    boms = data.get('boms', [])
+    bom_id = body.get('bom_id')  # None = new, else = edit
+    bom_entry = {
+        'id'          : bom_id or str(int(time.time() * 1000)),
+        'product_name': body.get('product_name', ''),
+        'product_code': body.get('product_code', ''),
+        'variant'     : body.get('variant', ''),
+        'rows'        : body.get('rows', [])
+    }
+    if bom_id:
+        # Update existing
+        boms = [bom_entry if b['id'] == bom_id else b for b in boms]
+    else:
+        boms.append(bom_entry)
+    data['boms'] = boms
+    proj.npd_milestone_data = json.dumps(data)
+    db.session.commit()
+    return jsonify(success=True, bom_id=bom_entry['id'])
+
+# ── BOM Delete ──
+@npd.route('/<int:pid>/bom/delete', methods=['POST'])
+@login_required
+def delete_bom(pid):
+    import json
+    proj = NPDProject.query.filter_by(id=pid, is_deleted=False).first_or_404()
+    body = request.get_json(force=True, silent=True) or {}
+    bom_id = body.get('bom_id')
+    if not bom_id:
+        return jsonify(success=False, error='No bom_id')
+    data = {}
+    if proj.npd_milestone_data:
+        try: data = json.loads(proj.npd_milestone_data)
+        except: data = {}
+    boms = data.get('boms', [])
+    data['boms'] = [b for b in boms if str(b.get('id','')) != str(bom_id)]
+    proj.npd_milestone_data = json.dumps(data)
+    db.session.commit()
+    return jsonify(success=True)
+
+# ═══ BARCODE MILESTONE ═══════════════════════════════════════
+
+# ── GET all barcode designs ──
+@npd.route('/<int:pid>/barcode/list', methods=['GET'])
+@login_required
+def barcode_list(pid):
+    import json
+    proj = NPDProject.query.filter_by(id=pid, is_deleted=False).first_or_404()
+    data = {}
+    if proj.npd_milestone_data:
+        try: data = json.loads(proj.npd_milestone_data)
+        except: data = {}
+    return jsonify(designs=data.get('barcode_designs', []))
+
+# ── Designer uploads design image ──
+@npd.route('/<int:pid>/barcode/design/add', methods=['POST'])
+@login_required
+def barcode_design_add(pid):
+    import json, time
+    proj = NPDProject.query.filter_by(id=pid, is_deleted=False).first_or_404()
+    f = request.files.get('design_file')
+    if not f or not f.filename:
+        return jsonify(success=False, error='No file')
+    # Save file
+    fname = save_upload(f)
+    data = {}
+    if proj.npd_milestone_data:
+        try: data = json.loads(proj.npd_milestone_data)
+        except: data = {}
+    designs = data.get('barcode_designs', [])
+    designs.append({
+        'id'           : str(int(time.time() * 1000)),
+        'design_file'  : fname,
+        'design_by'    : current_user.full_name,
+        'design_at'    : datetime.now().strftime('%d-%m-%Y %H:%M'),
+        'barcode_file' : None,
+        'barcode_by'   : None,
+        'barcode_at'   : None,
+    })
+    data['barcode_designs'] = designs
+    proj.npd_milestone_data = json.dumps(data)
+    db.session.commit()
+    return jsonify(success=True, fname=fname)
+
+# ── Barcode team uploads barcode file against a design ──
+@npd.route('/<int:pid>/barcode/upload', methods=['POST'])
+@login_required
+def barcode_upload(pid):
+    import json
+    proj = NPDProject.query.filter_by(id=pid, is_deleted=False).first_or_404()
+    design_id = request.form.get('design_id')
+    f = request.files.get('barcode_file')
+    if not f or not f.filename or not design_id:
+        return jsonify(success=False, error='Missing data')
+    fname = save_upload(f)
+    data = {}
+    if proj.npd_milestone_data:
+        try: data = json.loads(proj.npd_milestone_data)
+        except: data = {}
+    designs = data.get('barcode_designs', [])
+    for d in designs:
+        if d['id'] == design_id:
+            d['barcode_file'] = fname
+            d['barcode_by']   = current_user.full_name
+            d['barcode_at']   = datetime.now().strftime('%d-%m-%Y %H:%M')
+            break
+    data['barcode_designs'] = designs
+    proj.npd_milestone_data = json.dumps(data)
+    db.session.commit()
+    return jsonify(success=True, fname=fname)
+
+# ── Delete a design entry ──
+@npd.route('/<int:pid>/barcode/design/delete', methods=['POST'])
+@login_required
+def barcode_design_delete(pid):
+    import json
+    proj = NPDProject.query.filter_by(id=pid, is_deleted=False).first_or_404()
+    body = request.get_json(force=True, silent=True) or {}
+    design_id = body.get('design_id')
+    data = {}
+    if proj.npd_milestone_data:
+        try: data = json.loads(proj.npd_milestone_data)
+        except: data = {}
+    data['barcode_designs'] = [d for d in data.get('barcode_designs', []) if d['id'] != design_id]
+    proj.npd_milestone_data = json.dumps(data)
+    db.session.commit()
+    return jsonify(success=True)
+
+# ═══ FDA MILESTONE ═══════════════════════════════════════════
+
+@npd.route('/<int:pid>/fda/list', methods=['GET'])
+@login_required
+def fda_list(pid):
+    import json
+    proj = NPDProject.query.filter_by(id=pid, is_deleted=False).first_or_404()
+    data = {}
+    if proj.npd_milestone_data:
+        try: data = json.loads(proj.npd_milestone_data)
+        except: data = {}
+    return jsonify(entries=data.get('fda_entries', []))
+
+@npd.route('/<int:pid>/fda/save', methods=['POST'])
+@login_required
+def fda_save(pid):
+    import json, time
+    proj = NPDProject.query.filter_by(id=pid, is_deleted=False).first_or_404()
+    fda_no      = request.form.get('fda_no', '').strip()
+    product_name= request.form.get('product_name', '').strip()
+    entry_id    = request.form.get('entry_id', '').strip()
+    if not fda_no or not product_name:
+        return jsonify(success=False, error='FDA No and Product Name are required')
+
+    # Handle main FDA file
+    fname = None
+    f = request.files.get('fda_file')
+    if f and f.filename:
+        fname = save_upload(f)
+
+    # Handle per-doc-type files (keys like fda_doc_Free_Sale_Certificate)
+    doc_files = {}
+    for key, file_obj in request.files.items():
+        if key.startswith('fda_doc_') and file_obj.filename:
+            doc_key = key[len('fda_doc_'):]
+            doc_files[doc_key] = save_upload(file_obj)
+
+    data = {}
+    if proj.npd_milestone_data:
+        try: data = json.loads(proj.npd_milestone_data)
+        except: data = {}
+    entries = data.get('fda_entries', [])
+    now_str = datetime.now().strftime('%d-%m-%Y %H:%M')
+
+    if entry_id:
+        for e in entries:
+            if e['id'] == entry_id:
+                e['fda_no']      = fda_no
+                e['product_name']= product_name
+                if fname: e['file'] = fname
+                e['updated_by']  = current_user.full_name
+                e['updated_at']  = now_str
+                # Merge doc files
+                if 'documents' not in e: e['documents'] = {}
+                for dk, df in doc_files.items():
+                    e['documents'][dk] = {'file': df, 'uploaded_by': current_user.full_name, 'uploaded_at': now_str}
+                break
+    else:
+        new_entry = {
+            'id'          : str(int(time.time() * 1000)),
+            'fda_no'      : fda_no,
+            'product_name': product_name,
+            'file'        : fname,
+            'added_by'    : current_user.full_name,
+            'added_at'    : now_str,
+            'documents'   : {},
+        }
+        for dk, df in doc_files.items():
+            new_entry['documents'][dk] = {'file': df, 'uploaded_by': current_user.full_name, 'uploaded_at': now_str}
+        entries.append(new_entry)
+
+    data['fda_entries'] = entries
+    proj.npd_milestone_data = json.dumps(data)
+    db.session.commit()
+    return jsonify(success=True)
+
+@npd.route('/<int:pid>/fda/delete', methods=['POST'])
+@login_required
+def fda_delete(pid):
+    import json
+    proj = NPDProject.query.filter_by(id=pid, is_deleted=False).first_or_404()
+    body = request.get_json(force=True, silent=True) or {}
+    entry_id = body.get('entry_id')
+    data = {}
+    if proj.npd_milestone_data:
+        try: data = json.loads(proj.npd_milestone_data)
+        except: data = {}
+    data['fda_entries'] = [e for e in data.get('fda_entries', []) if e['id'] != entry_id]
+    proj.npd_milestone_data = json.dumps(data)
+    db.session.commit()
+    return jsonify(success=True)
+
+
+# ═══ NPD QUOTATION ═══════════════════════════════════════════
+@npd.route('/projects/<int:pid>/quotation', methods=['POST'])
+@login_required
+def npd_create_quotation(pid):
+    """Generate Quotation for NPD project — uses lead_id if linked, else creates with dummy lead."""
+    import json as _json
+    from crm_routes import _next_quot_number
+    from models.lead import Quotation, Lead
+    from models.base import db
+
+    proj = NPDProject.query.filter_by(id=pid, is_deleted=False).first_or_404()
+
+    # Use linked lead_id if exists, else use first lead or error gracefully
+    lead_id = proj.lead_id
+    if not lead_id:
+        # Try to find any lead linked to this client
+        lead = Lead.query.filter_by(company_name=proj.client_name or proj.client_company, is_deleted=False).first()
+        lead_id = lead.id if lead else None
+
+    if not lead_id:
+        return jsonify(success=False, error='No CRM Lead linked to this NPD project. Please link a lead first.'), 400
+
+    quot_number   = request.form.get('quot_number', '') or _next_quot_number()
+    quot_date_s   = request.form.get('quot_date', date.today().strftime('%Y-%m-%d'))
+    valid_until_s = request.form.get('valid_until', '')
+    subject       = request.form.get('quot_subject', '')
+    bill_company  = request.form.get('bill_company', proj.client_company or proj.client_name or '')
+    bill_address  = request.form.get('bill_address', '')
+    bill_phone    = request.form.get('bill_phone', proj.client_phone or '')
+    bill_email    = request.form.get('bill_email', proj.client_email or '')
+    bill_gst      = request.form.get('bill_gst', '')
+    terms         = request.form.get('terms', 'Payment: Advance\nDelivery: 7-10 working days\nQuotation valid as mentioned above.')
+    notes         = request.form.get('notes', '')
+
+    item_names    = request.form.getlist('item_name[]')
+    item_sizes    = request.form.getlist('item_size[]')
+    item_codes    = request.form.getlist('item_code[]')
+    item_uoms     = request.form.getlist('item_uom[]')
+    item_costs    = request.form.getlist('item_cost[]')
+    item_moqs     = request.form.getlist('item_moq[]')
+    item_pm_specs = request.form.getlist('item_pm_spec[]')
+    item_pm_costs = request.form.getlist('item_pm_cost[]')
+    item_fg_costs = request.form.getlist('item_fg_cost[]')
+    item_cats     = request.form.getlist('item_category[]')
+    item_finals   = request.form.getlist('item_final_cost[]')
+
+    items_list = []
+    sub_total  = 0.0
+    for i, name in enumerate(item_names):
+        if not name.strip(): continue
+        def _f(lst, idx):
+            try: return float(lst[idx]) if idx < len(lst) and lst[idx].strip() else 0.0
+            except: return 0.0
+        def _s(lst, idx): return lst[idx] if idx < len(lst) else ''
+        final_cost = _f(item_finals, i)
+        moq        = _f(item_moqs, i)
+        sub_total += final_cost * moq
+        items_list.append({
+            'name': name, 'size': _s(item_sizes,i), 'code': _s(item_codes,i),
+            'uom': _s(item_uoms,i), 'cost': _f(item_costs,i), 'moq': moq,
+            'pm_spec': _s(item_pm_specs,i), 'pm_cost': _f(item_pm_costs,i),
+            'fg_cost': _f(item_fg_costs,i), 'category': _s(item_cats,i),
+            'final_cost': final_cost,
+        })
+
+    gst_pct      = float(request.form.get('quot_gst_pct', 0) or 0)
+    gst_amount   = sub_total * gst_pct / 100
+    total_amount = sub_total + gst_amount
+
+    try:    quot_date_obj   = datetime.strptime(quot_date_s, '%Y-%m-%d').date()
+    except: quot_date_obj   = date.today()
+    try:    valid_until_obj = datetime.strptime(valid_until_s, '%Y-%m-%d').date() if valid_until_s else None
+    except: valid_until_obj = None
+
+    quot = Quotation(
+        quot_number=quot_number, lead_id=lead_id,
+        quot_date=quot_date_obj, valid_until=valid_until_obj,
+        subject=subject, bill_company=bill_company, bill_address=bill_address,
+        bill_phone=bill_phone, bill_email=bill_email, bill_gst=bill_gst,
+        gst_pct=gst_pct, sub_total=sub_total, gst_amount=gst_amount,
+        total_amount=total_amount, items_json=_json.dumps(items_list),
+        terms=terms, notes=notes, status='draft', created_by=current_user.id,
+    )
+    db.session.add(quot)
+    db.session.commit()
+    flash(f'✅ Quotation {quot_number} created! Download PDF from Quotations list.', 'success')
+    return redirect(url_for('npd.project_view', pid=pid) + '?tab=milestones')
+
+# ── FDA Document Upload (per document type) ──
+@npd.route('/<int:pid>/fda/doc/upload', methods=['POST'])
+@login_required
+def fda_doc_upload(pid):
+    import json
+    proj = NPDProject.query.filter_by(id=pid, is_deleted=False).first_or_404()
+    entry_id = request.form.get('entry_id', '').strip()
+    doc_key  = request.form.get('doc_key', '').strip()
+    f        = request.files.get('fda_doc')
+
+    if not entry_id or not doc_key or not f or not f.filename:
+        return jsonify(success=False, error='Missing data')
+
+    fname = save_upload(f)
+    data = {}
+    if proj.npd_milestone_data:
+        try: data = json.loads(proj.npd_milestone_data)
+        except: data = {}
+
+    entries = data.get('fda_entries', [])
+    for e in entries:
+        if e['id'] == entry_id:
+            if 'documents' not in e:
+                e['documents'] = {}
+            e['documents'][doc_key] = {
+                'file'       : fname,
+                'uploaded_by': current_user.full_name,
+                'uploaded_at': datetime.now().strftime('%d-%m-%Y %H:%M'),
+            }
+            break
+
+    data['fda_entries'] = entries
+    proj.npd_milestone_data = json.dumps(data)
+    db.session.commit()
+    return jsonify(success=True, fname=fname)

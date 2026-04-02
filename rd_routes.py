@@ -399,10 +399,10 @@ def discussion():
     if pid:
         selected_project = NPDProject.query.filter_by(id=pid, is_deleted=False).first()
         if selected_project:
-            comments = NPDComment.query.filter_by(project_id=pid)                           .order_by(NPDComment.created_at.asc()).all()
+            comments = NPDComment.query.filter_by(project_id=pid)                           .order_by(NPDComment.created_at.desc()).all()
     elif projects:
         selected_project = projects[0]
-        comments = NPDComment.query.filter_by(project_id=projects[0].id)                       .order_by(NPDComment.created_at.asc()).all()
+        comments = NPDComment.query.filter_by(project_id=projects[0].id)                       .order_by(NPDComment.created_at.desc()).all()
 
     return render_template('rd/discussion.html',
         active_page='rd_discussion',
@@ -421,7 +421,7 @@ def discussion_messages():
     pid = request.args.get('pid', type=int)
     if not pid:
         return jsonify(comments=[])
-    comments = NPDComment.query.filter_by(project_id=pid)                   .order_by(NPDComment.created_at.asc()).all()
+    comments = NPDComment.query.filter_by(project_id=pid)                   .order_by(NPDComment.created_at.desc()).all()
     return jsonify(comments=[{
         'id':       c.id,
         'message':  c.comment,
