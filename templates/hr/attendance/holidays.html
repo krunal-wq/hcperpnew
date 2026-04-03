@@ -4,6 +4,7 @@
 {% block bread %}HR / Attendance / Holidays{% endblock %}
 
 {% block extra_css %}
+<style>
 .hol-grid { display:grid; grid-template-columns:340px 1fr; gap:1.2rem; }
 @media(max-width:800px){ .hol-grid{ grid-template-columns:1fr; } }
 .card { background:#fff; border:1px solid var(--border); border-radius:14px;
@@ -40,6 +41,7 @@
 .month-chip { display:inline-block; background:#f1f5f9; color:var(--text3);
               padding:2px 9px; border-radius:10px; font-size:.68rem; font-weight:600;
               margin-right:.3rem; margin-bottom:.3rem; }
+</style>
 {% endblock %}
 
 {% block content %}

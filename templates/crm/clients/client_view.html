@@ -4,6 +4,7 @@
 {% block bread %}CRM / Client Master / {{ client.contact_name }}{% endblock %}
 
 {% block extra_css %}
+<style>
 .info-grid { display:grid; grid-template-columns:1fr 1fr; gap:0.5rem 2rem; }
 .info-row { display:flex; gap:0.5rem; padding:0.4rem 0; border-bottom:1px solid var(--border); }
 .info-lbl { font-size:0.82rem; font-weight:600; color:var(--text2); min-width:130px; }
@@ -11,6 +12,7 @@
 .brand-card { background:#f8fafc; border:1.5px solid var(--border); border-radius:10px; padding:0.85rem 1rem; margin-bottom:0.5rem; }
 .brand-name { font-weight:700; font-size:0.95rem; color:var(--text); }
 .brand-cat  { font-size:0.78rem; color:var(--blue); background:#eff6ff; padding:2px 8px; border-radius:100px; font-weight:600; }
+</style>
 {% endblock %}
 
 {% block content %}

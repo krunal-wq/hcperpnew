@@ -3,6 +3,7 @@
 {% block page_title %}{{ 'Edit NPD Project' if edit else 'New NPD Project' }}{% endblock %}
 {% block bread %}NPD / NPD Projects / {{ 'Edit' if edit else 'New' }}{% endblock %}
 {% block extra_css %}
+<style>
 /* ── Form width ── */
 .npd-wrap{max-width:860px;margin:0 auto;}
 .form-card{background:#fff;border:1px solid var(--border);border-radius:var(--r-lg);padding:1.25rem;margin-bottom:.85rem;}
@@ -60,20 +61,13 @@ textarea.fi{resize:vertical;min-height:72px;}
 .val-toast{position:fixed;top:20px;left:50%;transform:translateX(-50%) translateY(-100px);background:#dc2626;color:#fff;padding:10px 20px;border-radius:10px;font-size:.82rem;font-weight:600;z-index:99999;transition:transform .3s cubic-bezier(.34,1.56,.64,1);box-shadow:0 4px 20px rgba(220,38,38,.35);white-space:nowrap;}
 .val-toast.show{transform:translateX(-50%) translateY(0);}
 /* ── Flatpickr custom theme ── */
-.flatpickr-calendar{font-family:'Inter',sans-serif!important;border-radius:12px!important;box-shadow:0 8px 28px rgba(0,0,0,.14)!important;border:1.5px solid var(--border)!important;}
-.flatpickr-day.selected,.flatpickr-day.selected:hover{background:#7c3aed!important;border-color:#7c3aed!important;}
-.flatpickr-day:hover{background:#f3e8ff!important;}
-.flatpickr-months .flatpickr-month{background:#7c3aed!important;border-radius:10px 10px 0 0!important;}
-.flatpickr-current-month .flatpickr-monthDropdown-months,.flatpickr-current-month input.cur-year{color:#fff!important;}
-.flatpickr-weekday{color:#7c3aed!important;font-weight:700!important;}
-.flatpickr-prev-month svg,.flatpickr-next-month svg{fill:#fff!important;}
+/* Flatpickr theme handled globally in base.html */
 .fi-date{cursor:pointer;}
 @keyframes spin{to{transform:rotate(360deg);}}
+</style>
 {% endblock %}
 
 {% block content %}
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.css">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.js"></script>
 <div class="npd-wrap">
 <div style="background:linear-gradient(135deg,#7c3aed15,#a855f710);border:2px solid #7c3aed33;border-radius:var(--r-lg);padding:.8rem 1rem;margin-bottom:.85rem;display:flex;align-items:center;gap:.75rem;">
     <span style="font-size:1.3rem;">🧪</span>
@@ -369,8 +363,8 @@ textarea.fi{resize:vertical;min-height:72px;}
     <div class="g3">
         <div class="fg">
             <label>Project Start Date</label>
-            <input type="text" name="project_start_date" id="start_date" class="fi fi-date" readonly
-                value="{{ edit.project_start_date.strftime('%d-%m-%Y') if edit and edit.project_start_date else '' }}"
+            <input type="date" name="project_start_date" id="start_date" class="fi" data-no-flatpickr
+                value="{{ edit.project_start_date.strftime('%Y-%m-%d') if edit and edit.project_start_date else '' }}"
                 placeholder="DD-MM-YYYY">
         </div>
         <div class="fg">
@@ -381,8 +375,8 @@ textarea.fi{resize:vertical;min-height:72px;}
         </div>
         <div class="fg">
             <label>Project End Date</label>
-            <input type="text" name="project_end_date" id="end_date" class="fi fi-date" readonly
-                value="{{ edit.project_end_date.strftime('%d-%m-%Y') if edit and edit.project_end_date else '' }}"
+            <input type="date" name="project_end_date" id="end_date" class="fi" data-no-flatpickr
+                value="{{ edit.project_end_date.strftime('%Y-%m-%d') if edit and edit.project_end_date else '' }}"
                 placeholder="DD-MM-YYYY">
         </div>
     </div>
@@ -626,28 +620,23 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 })();
 fpStart = flatpickr('#start_date', {
-    dateFormat: 'd-m-Y',
-    allowInput: false,
-    disableMobile: true,
-    maxDate: 'today',
-    onChange: function(selectedDates) {
-        if(selectedDates[0]) {
-            if(fpEnd) fpEnd.set('minDate', selectedDates[0]);
-            calcEndFromStart();
-        }
+    dateFormat: 'Y-m-d', altInput:true, altFormat:'d-m-Y',
+    allowInput:true, locale:{firstDayOfWeek:1},
+    defaultDate: document.getElementById('start_date').value || null,
+    onChange: function(sel, dateStr) {
+      if(fpEnd) fpEnd.set('minDate', dateStr);
+      updateLeadDays();
     }
-});
+  });
 fpEnd = flatpickr('#end_date', {
-    dateFormat: 'd-m-Y',
-    allowInput: false,
-    disableMobile: true,
-    onChange: function(selectedDates) {
-        if(selectedDates[0] && fpStart && fpStart.selectedDates[0]) {
-            var diff = Math.round((selectedDates[0] - fpStart.selectedDates[0]) / (1000*60*60*24));
-            if(diff > 0) document.getElementById('lead_days').value = diff;
-        }
+    dateFormat: 'Y-m-d', altInput:true, altFormat:'d-m-Y',
+    allowInput:true, locale:{firstDayOfWeek:1},
+    defaultDate: document.getElementById('end_date').value || null,
+    onChange: function(sel, dateStr) {
+      if(fpStart) fpStart.set('maxDate', dateStr);
+      updateLeadDays();
     }
-});
+  });
 document.getElementById('lead_days').addEventListener('input', calcEndFromStart);
 }); // end DOMContentLoaded
 

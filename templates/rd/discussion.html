@@ -3,6 +3,7 @@
 {% block page_title %}R&D Discussion Board{% endblock %}
 {% block bread %}R&D / Discussion{% endblock %}
 {% block extra_css %}
+<style>
 .disc-layout{display:grid;grid-template-columns:250px 1fr;gap:14px;height:calc(100vh - 140px);min-height:480px;}
 @media(max-width:768px){.disc-layout{grid-template-columns:1fr;height:auto;}}
 .disc-sb{background:var(--white);border:1px solid var(--border);border-radius:var(--r-xl);display:flex;flex-direction:column;overflow:hidden;box-shadow:var(--sh-sm);}
@@ -92,7 +93,7 @@
     cursor: pointer; display: flex; align-items: center; justify-content: center;
     flex-shrink: 0; box-shadow: 0 2px 8px rgba(37,99,235,.3);
 }
-
+</style>
 {% endblock %}
 
 {% block content %}

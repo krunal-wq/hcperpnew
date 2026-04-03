@@ -4,6 +4,7 @@
 {% block bread %}CRM / Clients / {{ 'Edit' if client else 'Add' }}{% endblock %}
 
 {% block extra_css %}
+<style>
 /* ── Brand Block ── */
 .brand-block {
     border: 2px solid #bfdbfe;
@@ -121,6 +122,7 @@
 .field-err-msg { font-size: .72rem; color: #dc2626; font-weight: 600; margin-top: 3px; display: none; }
 .field-err-msg.show { display: block; }
 @keyframes spin { to { transform: rotate(360deg); } }
+</style>
 {% endblock %}
 
 {% block content %}

@@ -3,6 +3,7 @@
 {% block page_title %}NPD Projects{% endblock %}
 {% block bread %}NPD / NPD Projects{% endblock %}
 {% block extra_css %}
+<style>
 .hdr{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.75rem;margin-bottom:1rem;}
 .proj-table-wrap{background:var(--white);border:1px solid var(--border);border-radius:12px;overflow:hidden;}
 .proj-table{width:100%;border-collapse:collapse;font-size:13px;}
@@ -200,9 +201,10 @@
 </div>
     </div>
   </div>
-
+</style>
 {% endblock %}
 
+<link rel="stylesheet" href="{{ url_for('static', filename='css/modules/npd-npd-projects.css') }}">
 {% block content %}
 <div class="hdr">
     <div>
@@ -958,12 +960,7 @@ function saveNpdCols(){
   </div>
 </div>
 
-<style>
-@keyframes fadeUp {
-  from { opacity:0; transform:translateY(16px); }
-  to   { opacity:1; transform:translateY(0); }
-}
-</style>
+
 
 <script>
 // ── Mobile Select Mode ──

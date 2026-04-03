@@ -4,6 +4,7 @@
 {% block bread %}R&D / Dashboard{% endblock %}
 
 {% block extra_css %}
+<style>
 /* ── R&D Module Styles ── */
 .rd-stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:1.1rem;}
 @media(max-width:900px){.rd-stat-grid{grid-template-columns:repeat(2,1fr);}}
@@ -47,6 +48,7 @@
 
 /* ── Workload ── */
 .wl-av{width:28px;height:28px;border-radius:8px;background:var(--blue-lt);color:var(--blue);display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:800;flex-shrink:0;}
+</style>
 {% endblock %}
 
 {% block content %}

@@ -4,6 +4,7 @@
 {% block bread %}CRM / Points Config{% endblock %}
 
 {% block extra_css %}
+<style>
 .cfg-row { display:grid; grid-template-columns:40px 1fr 2fr 130px; gap:1rem; align-items:center; padding:0.85rem 1rem; border-bottom:1px solid #f1f5f9; transition:background .12s; }
 .cfg-row:hover { background:#fafafa; }
 .cfg-label { font-weight:700; font-size:0.88rem; color:var(--text); }
@@ -19,6 +20,7 @@
     .cfg-desc { display:none !important; }
     .pts-input { width:60px !important; font-size:0.9rem !important; }
 }
+</style>
 {% endblock %}
 
 {% block content %}

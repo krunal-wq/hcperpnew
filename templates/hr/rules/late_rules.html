@@ -1,0 +1,566 @@
+{% extends "base.html" %}
+{% block title %}Late & Early Coming Rules{% endblock %}
+{% block page_title %}Late & Early Coming Rules{% endblock %}
+{% block bread %}HR / Attendance / Late & Early Rules{% endblock %}
+
+{% block extra_css %}
+<style>
+.rules-wrap { display:flex; flex-direction:column; gap:1.2rem; }
+.rule-card  { background:#fff; border:1px solid var(--border); border-radius:14px;
+              box-shadow:0 1px 6px rgba(0,0,0,.05); overflow:hidden; }
+.rule-hdr   { padding:.85rem 1.1rem; border-bottom:1px solid var(--border);
+              display:flex; align-items:center; gap:.7rem; flex-wrap:wrap; }
+.rule-emp-type { font-size:.9rem; font-weight:800; }
+.rule-badge { font-size:.68rem; font-weight:700; padding:2px 9px; border-radius:20px; }
+.rb-active   { background:#dcfce7; color:#16a34a; }
+.rb-inactive { background:#fee2e2; color:#dc2626; }
+
+.shift-info { display:flex; gap:.8rem; flex-wrap:wrap; padding:.75rem 1.1rem;
+              background:#f8fafc; border-bottom:1px solid var(--border); }
+.si-item { display:flex; flex-direction:column; gap:.1rem; }
+.si-label { font-size:.62rem; font-weight:700; color:var(--text3); text-transform:uppercase; letter-spacing:.06em; }
+.si-val   { font-size:.82rem; font-weight:700; font-family:monospace; color:var(--text); }
+.si-val.late-red { color:#dc2626; }
+
+/* Slab table */
+.slab-tbl { width:100%; border-collapse:collapse; font-size:.79rem; }
+.slab-tbl th { text-align:left; padding:.42rem .9rem; font-size:.63rem; font-weight:700;
+               color:var(--text3); text-transform:uppercase; letter-spacing:.07em;
+               border-bottom:1px solid var(--border); background:#fafafa; }
+.slab-tbl td { padding:.5rem .9rem; border-bottom:1px solid #f1f5f9; vertical-align:middle; }
+.slab-tbl tr:last-child td { border-bottom:none; }
+.slab-tbl tr:hover td { background:#f8fafc; }
+
+.amt-badge { display:inline-block; background:#fef9c3; color:#92400e;
+             border:1px solid #fde68a; padding:3px 10px; border-radius:20px;
+             font-size:.75rem; font-weight:800; }
+
+/* Add slab form */
+.add-slab-form { padding:.85rem 1.1rem; background:#f0f9ff;
+                 border-top:2px dashed #bfdbfe; }
+.add-slab-form .form-title { font-size:.69rem; font-weight:700; text-transform:uppercase;
+                              letter-spacing:.07em; color:#2563eb; margin-bottom:.7rem; }
+.slab-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:.6rem; margin-bottom:.7rem; }
+.fg label { font-size:.66rem; font-weight:700; color:var(--text3); text-transform:uppercase;
+            letter-spacing:.06em; display:block; margin-bottom:.2rem; }
+.fg input, .fg select { width:100%; padding:.36rem .6rem; border:1px solid var(--border);
+                        border-radius:7px; font-size:.8rem; box-sizing:border-box; }
+.fg input:focus, .fg select:focus { outline:none; border-color:#2563eb; box-shadow:0 0 0 3px rgba(37,99,235,.1); }
+
+.add-btn { padding:.36rem .9rem; background:#2563eb; color:#fff; border:none;
+           border-radius:7px; font-size:.78rem; font-weight:700; cursor:pointer; }
+.del-btn { background:none; border:1px solid #fecaca; border-radius:6px;
+           color:#dc2626; font-size:.72rem; padding:2px 7px; cursor:pointer; font-weight:600; }
+.edit-btn { background:none; border:1px solid var(--border); border-radius:6px;
+            color:var(--text3); font-size:.72rem; padding:2px 7px; cursor:pointer; font-weight:600; }
+
+/* Add shift rule */
+.add-shift-card { background:#fff; border:2px dashed #bfdbfe; border-radius:14px; padding:1.1rem; }
+.add-shift-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:.7rem; margin-bottom:.8rem; }
+
+.flash-ok  { background:#f0fdf4; border:1px solid #bbf7d0; color:#16a34a; border-radius:8px; padding:.55rem 1rem; font-size:.79rem; font-weight:600; margin-bottom:.9rem; }
+.flash-err { background:#fef2f2; border:1px solid #fecaca; color:#dc2626; border-radius:8px; padding:.55rem 1rem; font-size:.79rem; font-weight:600; margin-bottom:.9rem; }
+
+.edit-rule-form { display:none; background:#fffbeb; border-top:1px solid #fde68a;
+                  padding:.85rem 1.1rem; }
+.edit-rule-form.open { display:block; }
+
+/* Tabs */
+.rules-tabs { display:flex; gap:0; border-bottom:2px solid var(--border); margin-bottom:1.25rem; }
+.rtab { padding:10px 20px; font-size:.85rem; font-weight:700; color:var(--text2); background:transparent;
+        border:none; border-bottom:2px solid transparent; margin-bottom:-2px; cursor:pointer;
+        transition:all .15s; font-family:inherit; }
+.rtab:hover { color:var(--blue); }
+.rtab.active { color:var(--blue); border-bottom-color:var(--blue); }
+.rtab-pane { display:none; }
+.rtab-pane.active { display:block; }
+
+/* Early Coming Cards */
+.early-card { background:#fff; border:1px solid var(--border); border-radius:14px;
+              box-shadow:0 1px 6px rgba(0,0,0,.05); overflow:hidden; margin-bottom:1.2rem; }
+.early-hdr { padding:.85rem 1.1rem; border-bottom:1px solid var(--border);
+             display:flex; align-items:center; gap:.7rem; flex-wrap:wrap;
+             background:linear-gradient(135deg,#f0fdf4,#fff); }
+.early-meta { display:flex; gap:.8rem; flex-wrap:wrap; padding:.75rem 1.1rem;
+              background:#f0fdf4; border-bottom:1px solid #bbf7d0; }
+.em-item { display:flex; flex-direction:column; gap:.1rem; }
+.em-label { font-size:.62rem; font-weight:700; color:#16a34a; text-transform:uppercase; letter-spacing:.06em; }
+.em-val   { font-size:.82rem; font-weight:700; font-family:monospace; color:var(--text); }
+.reward-badge { display:inline-flex; align-items:center; gap:4px; padding:3px 10px;
+                border-radius:20px; font-size:.72rem; font-weight:700; }
+.rb-none    { background:#f1f5f9; color:#64748b; }
+.rb-amount  { background:#fef9c3; color:#92400e; }
+.rb-points  { background:#ede9fe; color:#5b21b6; }
+.rb-compoff { background:#dbeafe; color:#1d4ed8; }
+.add-early-card { background:#fff; border:2px dashed #bbf7d0; border-radius:14px; padding:1.1rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:.5rem;">
+  <div>
+    <h2 style="margin:0;font-size:1.18rem;font-weight:800;">⏰ Late &amp; Early Coming Rules</h2>
+    <div style="font-size:.72rem;color:var(--text3);">Employee type wise late/early time aur penalty/reward slabs configure karo</div>
+  </div>
+  <a href="/hr/attendance" style="padding:.35rem .85rem;background:#f8fafc;border:1px solid var(--border);border-radius:8px;font-size:.76rem;font-weight:600;color:var(--text);text-decoration:none;">← Dashboard</a>
+</div>
+
+<!-- Tabs -->
+<div class="rules-tabs">
+  <button class="rtab active" onclick="switchTab('late',this)">⏰ Late Coming Rules</button>
+  <button class="rtab" onclick="switchTab('early',this)">🌅 Early Coming Rules</button>
+</div>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% for cat, msg in messages %}
+  <div class="{{ 'flash-ok' if cat=='success' else 'flash-err' }}">{{ '✅' if cat=='success' else '❌' }} {{ msg }}</div>
+  {% endfor %}
+{% endwith %}
+
+<!-- ═══ LATE COMING TAB ═══ -->
+<div id="tab-late" class="rtab-pane active">
+<div class="rules-wrap">
+
+  {# ── Existing Rules ── #}
+  {% for rule in rules %}
+  <div class="rule-card">
+
+    {# Header #}
+    <div class="rule-hdr">
+      <div style="flex:1;">
+        <div class="rule-emp-type">👔 {{ rule.employee_type }}</div>
+      </div>
+      <span class="rule-badge {{ 'rb-active' if rule.is_active else 'rb-inactive' }}">
+        {{ 'Active' if rule.is_active else 'Inactive' }}
+      </span>
+      <button class="edit-btn" onclick="toggleEditRule({{ rule.id }})">✏️ Edit Shift</button>
+      <form method="post" action="/hr/late-rules/shift/{{ rule.id }}/delete"
+            onsubmit="return confirm('Delete {{ rule.employee_type }} rule?')" style="display:inline;">
+        <button type="submit" class="del-btn">🗑</button>
+      </form>
+    </div>
+
+    {# Shift Info #}
+    <div class="shift-info">
+      <div class="si-item">
+        <span class="si-label">Shift Start</span>
+        <span class="si-val">{{ rule.shift_start }}</span>
+      </div>
+      <div class="si-item">
+        <span class="si-label">Late After</span>
+        <span class="si-val late-red">⏰ {{ rule.late_after }}</span>
+      </div>
+      {% if rule.half_day_after %}
+      <div class="si-item">
+        <span class="si-label">Half Day After</span>
+        <span class="si-val" style="color:#d97706;">🌓 {{ rule.half_day_after }}</span>
+      </div>
+      {% endif %}
+      {% if rule.absent_after %}
+      <div class="si-item">
+        <span class="si-label">Absent After</span>
+        <span class="si-val" style="color:#dc2626;">❌ {{ rule.absent_after }}</span>
+      </div>
+      {% endif %}
+      <div class="si-item">
+        <span class="si-label">Shift End</span>
+        <span class="si-val">{{ rule.shift_end }}</span>
+      </div>
+      <div class="si-item">
+        <span class="si-label">Full Day Min</span>
+        <span class="si-val">{{ rule.min_hours_full }}h</span>
+      </div>
+      <div class="si-item">
+        <span class="si-label">Half Day Min</span>
+        <span class="si-val">{{ rule.min_hours_half }}h</span>
+      </div>
+    </div>
+
+    {# Edit Shift Form #}
+    <div class="edit-rule-form" id="edit_rule_{{ rule.id }}">
+      <div style="font-size:.69rem;font-weight:700;color:#92400e;text-transform:uppercase;letter-spacing:.07em;margin-bottom:.7rem;">✏️ Edit Shift Rule</div>
+      <form method="post" action="/hr/late-rules/shift/{{ rule.id }}/edit">
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:.6rem;margin-bottom:.7rem;">
+          <div class="fg"><label>Shift Start</label><input type="time" name="shift_start" value="{{ rule.shift_start }}"></div>
+          <div class="fg"><label>Late After *</label><input type="time" name="late_after" value="{{ rule.late_after }}" required></div>
+          <div class="fg"><label>Half Day After</label><input type="time" name="half_day_after" value="{{ rule.half_day_after or '' }}"></div>
+          <div class="fg"><label>Absent After</label><input type="time" name="absent_after" value="{{ rule.absent_after or '' }}"></div>
+          <div class="fg"><label>Shift End</label><input type="time" name="shift_end" value="{{ rule.shift_end }}"></div>
+          <div class="fg"><label>Full Day (hrs)</label><input type="number" name="min_hours_full" value="{{ rule.min_hours_full }}" step="0.5" min="1" max="12"></div>
+          <div class="fg"><label>Half Day (hrs)</label><input type="number" name="min_hours_half" value="{{ rule.min_hours_half }}" step="0.5" min="1" max="8"></div>
+          <div class="fg"><label>Status</label>
+            <select name="is_active">
+              <option value="1" {{ 'selected' if rule.is_active }}>Active</option>
+              <option value="0" {{ 'selected' if not rule.is_active }}>Inactive</option>
+            </select>
+          </div>
+        </div>
+        <button type="submit" class="add-btn">💾 Save Changes</button>
+        <button type="button" onclick="toggleEditRule({{ rule.id }})"
+                style="margin-left:.5rem;padding:.36rem .8rem;border:1px solid var(--border);border-radius:7px;font-size:.78rem;cursor:pointer;background:#fff;">Cancel</button>
+      </form>
+    </div>
+
+    {# Penalty Slabs #}
+    {% if rule.penalty_rules %}
+    <div style="padding:.6rem 1.1rem .3rem;font-size:.67rem;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;">
+      Penalty Slabs ({{ rule.penalty_rules|length }})
+    </div>
+    <table class="slab-tbl">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Time Band (Punch IN)</th>
+          <th>Late Count Band</th>
+          <th>Description</th>
+          <th>Penalty</th>
+          <th>Type</th>
+          <th>Status</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for slab in rule.penalty_rules %}
+        <tr style="{{ 'opacity:.5;' if not slab.is_active }}">
+          <td style="color:var(--text3);font-size:.7rem;">{{ loop.index }}</td>
+          <td>
+            <span style="font-family:monospace;font-weight:700;font-size:.8rem;">
+              {{ slab.time_from }}
+              {% if slab.time_to %} – {{ slab.time_to }}{% else %} aur baad{% endif %}
+            </span>
+          </td>
+          <td>
+            <span style="font-weight:600;font-size:.8rem;">
+              {{ slab.from_count }}
+              {% if slab.to_count %} – {{ slab.to_count }} baar{% else %}+ baar{% endif %}
+            </span>
+          </td>
+          <td style="font-size:.76rem;color:var(--text3);">{{ slab.description or '—' }}</td>
+          <td><span class="amt-badge">₹{{ '%.0f'|format(slab.penalty_amount) }}</span></td>
+          <td style="font-size:.73rem;color:var(--text3);">{{ slab.penalty_type }}</td>
+          <td>
+            <span style="font-size:.67rem;font-weight:700;padding:1px 7px;border-radius:10px;
+                         background:{{ '#dcfce7' if slab.is_active else '#fee2e2' }};
+                         color:{{ '#16a34a' if slab.is_active else '#dc2626' }};">
+              {{ 'Active' if slab.is_active else 'Inactive' }}
+            </span>
+          </td>
+          <td style="display:flex;gap:.3rem;align-items:center;">
+            <button class="edit-btn" onclick="toggleEditSlab({{ slab.id }})">✏️</button>
+            <form method="post" action="/hr/late-rules/penalty/{{ slab.id }}/delete"
+                  onsubmit="return confirm('Delete this slab?')" style="display:inline;">
+              <button type="submit" class="del-btn">🗑</button>
+            </form>
+          </td>
+        </tr>
+        {# Inline edit slab #}
+        <tr id="edit_slab_{{ slab.id }}" style="display:none;background:#fffbeb;">
+          <td colspan="8" style="padding:.7rem 1rem;">
+            <form method="post" action="/hr/late-rules/penalty/{{ slab.id }}/edit">
+              <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:.5rem;margin-bottom:.6rem;">
+                <div class="fg"><label>Time From *</label><input type="time" name="time_from" value="{{ slab.time_from }}" required></div>
+                <div class="fg"><label>Time To</label><input type="time" name="time_to" value="{{ slab.time_to or '' }}"></div>
+                <div class="fg"><label>From Count *</label><input type="number" name="from_count" value="{{ slab.from_count }}" min="1" required></div>
+                <div class="fg"><label>To Count</label><input type="number" name="to_count" value="{{ slab.to_count or '' }}" min="1"></div>
+                <div class="fg"><label>Amount (₹) *</label><input type="number" name="penalty_amount" value="{{ slab.penalty_amount }}" step="0.01" min="0" required></div>
+                <div class="fg"><label>Type</label>
+                  <select name="penalty_type">
+                    <option value="fixed" {{ 'selected' if slab.penalty_type=='fixed' }}>Fixed</option>
+                    <option value="per_day" {{ 'selected' if slab.penalty_type=='per_day' }}>Per Day</option>
+                  </select>
+                </div>
+                <div class="fg"><label>Status</label>
+                  <select name="is_active">
+                    <option value="1" {{ 'selected' if slab.is_active }}>Active</option>
+                    <option value="0" {{ 'selected' if not slab.is_active }}>Inactive</option>
+                  </select>
+                </div>
+                <div class="fg"><label>Description</label><input type="text" name="description" value="{{ slab.description or '' }}" placeholder="Optional"></div>
+              </div>
+              <button type="submit" class="add-btn">💾 Update Slab</button>
+              <button type="button" onclick="toggleEditSlab({{ slab.id }})"
+                      style="margin-left:.5rem;padding:.33rem .7rem;border:1px solid var(--border);border-radius:7px;font-size:.76rem;cursor:pointer;background:#fff;">Cancel</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div style="padding:1rem 1.1rem;font-size:.78rem;color:var(--text3);">
+      ⚠️ Koi penalty slabs nahi hain — Neeche se add karo
+    </div>
+    {% endif %}
+
+    {# Add Penalty Slab Form #}
+    <div class="add-slab-form">
+      <div class="add-slab-form form-title">➕ Add Penalty Slab</div>
+      <form method="post" action="/hr/late-rules/penalty/add">
+        <input type="hidden" name="shift_rule_id" value="{{ rule.id }}">
+        <div class="slab-grid">
+          <div class="fg">
+            <label>Time From * <span style="font-size:.6rem;color:var(--text3);">(Punch IN)</span></label>
+            <input type="time" name="time_from" placeholder="10:46" required>
+          </div>
+          <div class="fg">
+            <label>Time To <span style="font-size:.6rem;color:var(--text3);">(blank = no limit)</span></label>
+            <input type="time" name="time_to" placeholder="10:59">
+          </div>
+          <div class="fg">
+            <label>Late Count From *</label>
+            <input type="number" name="from_count" placeholder="3" min="1" required>
+          </div>
+          <div class="fg">
+            <label>Late Count To <span style="font-size:.6rem;color:var(--text3);">(blank = no limit)</span></label>
+            <input type="number" name="to_count" placeholder="3" min="1">
+          </div>
+          <div class="fg">
+            <label>Penalty Amount (₹) *</label>
+            <input type="number" name="penalty_amount" placeholder="120" step="0.01" min="0" required>
+          </div>
+          <div class="fg">
+            <label>Type</label>
+            <select name="penalty_type">
+              <option value="fixed">Fixed Amount</option>
+              <option value="per_day">Per Late Day</option>
+            </select>
+          </div>
+          <div class="fg">
+            <label>Description</label>
+            <input type="text" name="description" placeholder="e.g. 3 baar late penalty">
+          </div>
+        </div>
+        <button type="submit" class="add-btn">➕ Add Slab</button>
+      </form>
+    </div>
+  </div>
+  {% endfor %}
+
+  {# ── Add New Shift Rule ── #}
+  <div class="add-shift-card">
+    <div style="font-size:.78rem;font-weight:800;margin-bottom:.9rem;color:#2563eb;">
+      ➕ New Employee Type ke liye Late Rule Add karo
+    </div>
+    {% if available %}
+    <form method="post" action="/hr/late-rules/shift/add">
+      <div class="add-shift-grid">
+        <div class="fg">
+          <label>Employee Type *</label>
+          <select name="employee_type" required>
+            <option value="">Select</option>
+            {% for t in available %}
+            <option value="{{ t.name }}">{{ t.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="fg">
+          <label>Shift Start</label>
+          <input type="time" name="shift_start" value="09:00">
+        </div>
+        <div class="fg">
+          <label>Late After * <span style="font-size:.6rem;color:#dc2626;">Is time ke baad late</span></label>
+          <input type="time" name="late_after" value="10:46" required>
+        </div>
+        <div class="fg">
+          <label>Half Day After</label>
+          <input type="time" name="half_day_after" placeholder="Optional">
+        </div>
+        <div class="fg">
+          <label>Absent After</label>
+          <input type="time" name="absent_after" placeholder="Optional">
+        </div>
+        <div class="fg">
+          <label>Shift End</label>
+          <input type="time" name="shift_end" value="18:00">
+        </div>
+        <div class="fg">
+          <label>Full Day Min Hours</label>
+          <input type="number" name="min_hours_full" value="8" step="0.5" min="1" max="12">
+        </div>
+        <div class="fg">
+          <label>Half Day Min Hours</label>
+          <input type="number" name="min_hours_half" value="4" step="0.5" min="1" max="8">
+        </div>
+      </div>
+      <button type="submit" class="add-btn">💾 Create Shift Rule</button>
+    </form>
+    {% else %}
+    <div style="font-size:.79rem;color:var(--text3);">
+      Sabhi employee types ke rules already set hain.
+      <a href="/hr/masters/" style="color:#2563eb;">HR Masters</a> mein naye types add karo.
+    </div>
+    {% endif %}
+  </div>
+
+</div>
+</div><!-- end rules-wrap -->
+</div><!-- end tab-late -->
+
+<!-- ═══ EARLY COMING TAB ═══ -->
+<div id="tab-early" class="rtab-pane">
+
+  {% if early_rules %}
+  {% for rule in early_rules %}
+  <div class="early-card">
+    <div class="early-hdr">
+      <div style="flex:1;">
+        <div style="font-size:.9rem;font-weight:800;">🌅 {{ rule.employee_type }}</div>
+      </div>
+      <span class="reward-badge {{ 'rb-amount' if rule.reward_type=='amount' else 'rb-points' if rule.reward_type=='points' else 'rb-compoff' if rule.reward_type=='compoff' else 'rb-none' }}">
+        {% if rule.reward_type == 'amount' %}💰 ₹{{ '%.0f'|format(rule.reward_amount) }}/day
+        {% elif rule.reward_type == 'points' %}⭐ {{ rule.reward_points }} pts/day
+        {% elif rule.reward_type == 'compoff' %}🔄 Comp Off
+        {% else %}📊 Track Only{% endif %}
+      </span>
+      <span class="rule-badge {{ 'rb-active' if rule.is_active else 'rb-inactive' }}">
+        {{ 'Active' if rule.is_active else 'Inactive' }}
+      </span>
+      <button class="edit-btn" onclick="toggleEarlyEdit({{ rule.id }})">✏️ Edit</button>
+      <form method="post" action="/hr/late-rules/early/{{ rule.id }}/delete"
+            onsubmit="return confirm('Delete {{ rule.employee_type }} early rule?')" style="display:inline;">
+        <button type="submit" class="del-btn">🗑</button>
+      </form>
+    </div>
+
+    <div class="early-meta">
+      <div class="em-item"><span class="em-label">Shift Start</span><span class="em-val">{{ rule.shift_start }}</span></div>
+      <div class="em-item"><span class="em-label">Early Before</span><span class="em-val" style="color:#16a34a;">{{ rule.early_before }}</span></div>
+      <div class="em-item"><span class="em-label">Min Early</span><span class="em-val">{{ rule.min_early_minutes }} min</span></div>
+      <div class="em-item"><span class="em-label">Min/Month</span><span class="em-val">{{ rule.min_per_month }} days</span></div>
+    </div>
+
+    {% if rule.notes %}
+    <div style="padding:.5rem 1.1rem;font-size:.76rem;color:var(--text3);">📝 {{ rule.notes }}</div>
+    {% endif %}
+
+    {# Inline edit form #}
+    <div class="edit-rule-form" id="early_edit_{{ rule.id }}">
+      <form method="post" action="/hr/late-rules/early/{{ rule.id }}/edit">
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:.5rem;margin-bottom:.6rem;">
+          <div class="fg"><label>Shift Start</label><input type="time" name="shift_start" value="{{ rule.shift_start }}"></div>
+          <div class="fg"><label>Early Before *</label><input type="time" name="early_before" value="{{ rule.early_before }}" required></div>
+          <div class="fg"><label>Min Early (min)</label><input type="number" name="min_early_minutes" value="{{ rule.min_early_minutes }}" min="1"></div>
+          <div class="fg"><label>Reward Type</label>
+            <select name="reward_type">
+              <option value="none" {{ 'selected' if rule.reward_type=='none' }}>Track Only</option>
+              <option value="amount" {{ 'selected' if rule.reward_type=='amount' }}>₹ Amount</option>
+              <option value="points" {{ 'selected' if rule.reward_type=='points' }}>Points</option>
+              <option value="compoff" {{ 'selected' if rule.reward_type=='compoff' }}>Comp Off</option>
+            </select>
+          </div>
+          <div class="fg"><label>Reward Amount (₹)</label><input type="number" name="reward_amount" value="{{ rule.reward_amount }}" step="0.01" min="0"></div>
+          <div class="fg"><label>Reward Points</label><input type="number" name="reward_points" value="{{ rule.reward_points }}" min="0"></div>
+          <div class="fg"><label>Min Days/Month</label><input type="number" name="min_per_month" value="{{ rule.min_per_month }}" min="0"></div>
+          <div class="fg"><label>Status</label>
+            <select name="is_active">
+              <option value="1" {{ 'selected' if rule.is_active }}>Active</option>
+              <option value="0" {{ 'selected' if not rule.is_active }}>Inactive</option>
+            </select>
+          </div>
+        </div>
+        <div class="fg" style="margin-bottom:.6rem;"><label>Notes</label><input type="text" name="notes" value="{{ rule.notes or '' }}" placeholder="Optional"></div>
+        <button type="submit" class="add-btn">💾 Update Rule</button>
+        <button type="button" onclick="toggleEarlyEdit({{ rule.id }})"
+                style="margin-left:.5rem;padding:.33rem .7rem;border:1px solid var(--border);border-radius:7px;font-size:.76rem;cursor:pointer;background:#fff;">Cancel</button>
+      </form>
+    </div>
+  </div>
+  {% endfor %}
+  {% else %}
+  <div style="text-align:center;padding:2rem;color:var(--text3);font-size:.82rem;">
+    🌅 Koi early coming rules nahi — Neeche se add karo
+  </div>
+  {% endif %}
+
+  {# ── Add New Early Rule ── #}
+  <div class="add-early-card">
+    <div style="font-size:.78rem;font-weight:800;margin-bottom:.9rem;color:#16a34a;">
+      ➕ New Employee Type ke liye Early Coming Rule Add karo
+    </div>
+    {% if early_available %}
+    <form method="post" action="/hr/late-rules/early/add">
+      <div class="add-shift-grid">
+        <div class="fg">
+          <label>Employee Type *</label>
+          <select name="employee_type" required>
+            <option value="">Select</option>
+            {% for t in early_available %}
+            <option value="{{ t.name }}">{{ t.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="fg">
+          <label>Shift Start</label>
+          <input type="time" name="shift_start" value="09:00">
+        </div>
+        <div class="fg">
+          <label>Early Before * <span style="font-size:.6rem;color:#16a34a;">Is se pehle aana = Early</span></label>
+          <input type="time" name="early_before" value="08:45" required>
+        </div>
+        <div class="fg">
+          <label>Min Early Minutes</label>
+          <input type="number" name="min_early_minutes" value="15" min="1" max="120">
+        </div>
+        <div class="fg">
+          <label>Reward Type</label>
+          <select name="reward_type">
+            <option value="none">Track Only (No Reward)</option>
+            <option value="amount">₹ Amount per day</option>
+            <option value="points">Points per day</option>
+            <option value="compoff">Comp Off</option>
+          </select>
+        </div>
+        <div class="fg">
+          <label>Reward Amount (₹)</label>
+          <input type="number" name="reward_amount" value="0" step="0.01" min="0">
+        </div>
+        <div class="fg">
+          <label>Reward Points</label>
+          <input type="number" name="reward_points" value="0" min="0">
+        </div>
+        <div class="fg">
+          <label>Min Days/Month for Reward</label>
+          <input type="number" name="min_per_month" value="0" min="0">
+        </div>
+      </div>
+      <div class="fg" style="margin-bottom:.6rem;">
+        <label>Notes (optional)</label>
+        <input type="text" name="notes" placeholder="Any notes about this rule...">
+      </div>
+      <input type="hidden" name="track_only" value="0">
+      <button type="submit" class="add-btn" style="background:#16a34a;">🌅 Create Early Rule</button>
+    </form>
+    {% else %}
+    <div style="font-size:.79rem;color:var(--text3);">
+      Sabhi employee types ke early rules already set hain.
+      <a href="/hr/masters/" style="color:#2563eb;">HR Masters</a> mein naye types add karo.
+    </div>
+    {% endif %}
+  </div>
+
+</div><!-- end tab-early -->
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function switchTab(tab, btn) {
+  document.querySelectorAll('.rtab-pane').forEach(function(p){ p.classList.remove('active'); });
+  document.querySelectorAll('.rtab').forEach(function(b){ b.classList.remove('active'); });
+  document.getElementById('tab-' + tab).classList.add('active');
+  btn.classList.add('active');
+}
+function toggleEditRule(id) {
+  var el = document.getElementById('edit_rule_' + id);
+  el.classList.toggle('open');
+}
+function toggleEditSlab(id) {
+  var row = document.getElementById('edit_slab_' + id);
+  row.style.display = row.style.display === 'none' ? '' : 'none';
+}
+function toggleEarlyEdit(id) {
+  var el = document.getElementById('early_edit_' + id);
+  el.classList.toggle('open');
+}
+</script>
+{% endblock %}

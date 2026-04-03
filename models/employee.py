@@ -38,6 +38,25 @@ class Contractor(db.Model):
     modified_by    = db.Column(db.String(255))
     modified_date  = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
 
+    # ── Document Numbers ────────────────────────────────────────────────
+    aadhaar_no       = db.Column(db.String(14))    # XXXX XXXX XXXX
+    msme_no          = db.Column(db.String(25))    # UDYAM-XX-00-0000000
+    trade_license_no = db.Column(db.String(50))
+    bank_account_no  = db.Column(db.String(20))
+    ifsc_code        = db.Column(db.String(11))
+
+    # ── Document File Paths (stored in static/uploads/contractors/) ──
+    aadhaar_file  = db.Column(db.String(255))
+    pan_file      = db.Column(db.String(255))
+    gst_file      = db.Column(db.String(255))
+    msme_file     = db.Column(db.String(255))
+    trade_file    = db.Column(db.String(255))
+    bank_file     = db.Column(db.String(255))
+
+    # ── Other / Extra Documents (JSON list) ────────────────────────
+    # Format: [{"type": "ISO Certificate", "doc_no": "...", "file": "path/..."}, ...]
+    other_docs    = db.Column(db.Text)  # JSON string
+
     # Relationship
     employees = db.relationship('Employee', backref='contractor_rel', lazy=True,
                                 foreign_keys='Employee.contractor_id')
@@ -330,3 +349,33 @@ class EmployeeLocationMaster(db.Model):
     created_by = db.Column(db.Integer, nullable=True)
 
     def __repr__(self): return f'<EmployeeLocationMaster {self.name}>'
+
+
+class DepartmentMaster(db.Model):
+    """Department Master — Sales, HR, IT, etc."""
+    __tablename__ = 'department_master'
+
+    id         = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    name       = db.Column(db.String(100), nullable=False, unique=True)
+    code       = db.Column(db.String(20))
+    sort_order = db.Column(db.Integer, default=0)
+    is_active  = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.now)
+    created_by = db.Column(db.Integer, nullable=True)
+
+    def __repr__(self): return f'<DepartmentMaster {self.name}>'
+
+
+class DesignationMaster(db.Model):
+    """Designation Master — Manager, Executive, etc."""
+    __tablename__ = 'designation_master'
+
+    id         = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    name       = db.Column(db.String(100), nullable=False, unique=True)
+    department = db.Column(db.String(100))   # Optional: link to dept
+    sort_order = db.Column(db.Integer, default=0)
+    is_active  = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.now)
+    created_by = db.Column(db.Integer, nullable=True)
+
+    def __repr__(self): return f'<DesignationMaster {self.name}>'

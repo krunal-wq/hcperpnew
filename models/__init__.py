@@ -10,7 +10,10 @@ from .master     import LeadStatus, LeadSource, LeadCategory, ProductRange, Cate
 from .employee   import Employee, Contractor, WishLog, SalaryConfig, SalaryComponent, EmployeeTypeMaster, EmployeeLocationMaster
 from .permission import Module, RolePermission, UserGridConfig, UserPermission
 from .approval   import ApprovalRequest, ApprovalLevel
-from .attendance import RawPunchLog, Attendance, HolidayMaster, LateShiftRule, LatePenaltyRule
+from .attendance import RawPunchLog, Attendance, HolidayMaster, LateShiftRule, LatePenaltyRule, EarlyComingRule
+from .hr_rules import (HRShift, HRLocation, HRLateRule, HRLatePenaltySlab,
+                       HREarlyGoingRule, HROvertimeRule, HRLeavePolicy, HRLeaveType,
+                       HRLOPRule, HRAbsentRule, HRCompOffRule)
 from .npd        import (NPDProject, MilestoneMaster, MilestoneLog, NPDMilestoneTemplate,
                          NPDFormulation, NPDPackingMaterial, NPDArtwork, NPDActivityLog,
                          NPDComment, NPDNote,
@@ -31,7 +34,11 @@ __all__ = [
     'Module', 'RolePermission', 'UserGridConfig', 'UserPermission',
     'AuditLog',
     'ApprovalRequest', 'ApprovalLevel',
-    'RawPunchLog', 'Attendance', 'HolidayMaster', 'LateShiftRule', 'LatePenaltyRule',
+    'RawPunchLog', 'Attendance', 'HolidayMaster', 'LateShiftRule', 'LatePenaltyRule', 'EarlyComingRule',
+    'DepartmentMaster', 'DesignationMaster',
+    'HRShift', 'HRLocation', 'HRLateRule', 'HRLatePenaltySlab',
+    'HREarlyGoingRule', 'HROvertimeRule', 'HRLeavePolicy', 'HRLeaveType',
+    'HRLOPRule', 'HRAbsentRule', 'HRCompOffRule',
     # NPD / Product Development
     'NPDProject', 'MilestoneMaster', 'MilestoneLog', 'NPDMilestoneTemplate',
     'NPDFormulation', 'NPDPackingMaterial', 'NPDArtwork', 'NPDActivityLog', 'NPDComment', 'NPDNote',

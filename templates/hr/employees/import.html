@@ -4,6 +4,7 @@
 {% block bread %}HR / Employees / Import{% endblock %}
 
 {% block extra_css %}
+<style>
 .imp-tabs{display:flex;gap:0;border-bottom:2px solid var(--border);margin-bottom:1.5rem;}
 .imp-tab{padding:.5rem 1.1rem;font-size:.78rem;font-weight:700;color:var(--text2);border:none;background:none;cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-2px;border-radius:8px 8px 0 0;transition:all .15s;}
 .imp-tab:hover{color:var(--blue);background:#f0f7ff;}
@@ -20,6 +21,7 @@
 .step-num{width:28px;height:28px;border-radius:50%;background:var(--blue);color:#fff;font-size:.78rem;font-weight:900;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
 .prog-bar{height:8px;border-radius:99px;background:#e2e8f0;overflow:hidden;}
 .prog-fill{height:100%;border-radius:99px;background:linear-gradient(90deg,#3b82f6,#10b981);transition:width .4s;}
+</style>
 {% endblock %}
 
 {% block content %}

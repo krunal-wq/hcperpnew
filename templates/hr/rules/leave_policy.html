@@ -1,0 +1,218 @@
+{% extends "base.html" %}
+{% block title %}Leave Policy{% endblock %}
+{% block page_title %}Leave Policy{% endblock %}
+{% block bread %}HR / Rules / Leave Policy{% endblock %}
+{% block extra_css %}
+<style>
+.rule-page-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:.5rem;}
+.policy-card{background:#fff;border:1px solid var(--border);border-radius:14px;overflow:hidden;box-shadow:0 1px 6px rgba(0,0,0,.05);margin-bottom:1rem;}
+.policy-hdr{display:flex;align-items:center;gap:.7rem;padding:.85rem 1.1rem;border-bottom:1px solid var(--border);background:#f8fafc;}
+.policy-title{font-size:.9rem;font-weight:800;flex:1;}
+.badge-active{background:#dcfce7;color:#16a34a;font-size:.65rem;font-weight:700;padding:2px 8px;border-radius:20px;}
+.leave-type-row{display:flex;align-items:center;gap:.6rem;padding:.6rem 1.1rem;border-bottom:1px solid #f1f5f9;}
+.lt-icon{font-size:1.1rem;flex-shrink:0;}
+.lt-name{font-size:.83rem;font-weight:700;flex:1;}
+.lt-days{background:#eff6ff;color:#1d4ed8;padding:2px 9px;border-radius:20px;font-size:.72rem;font-weight:800;}
+.lt-code{background:#f1f5f9;color:var(--text2);padding:2px 7px;border-radius:6px;font-size:.7rem;font-weight:700;font-family:monospace;}
+.add-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1000;align-items:center;justify-content:center;padding:1rem;}
+.add-modal.open{display:flex;}
+.add-modal-box{background:#fff;border-radius:14px;width:640px;max-width:96vw;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.2);}
+.add-modal-hdr{display:flex;align-items:center;justify-content:space-between;padding:.85rem 1.1rem;border-bottom:1px solid var(--border);background:#f8fafc;border-radius:14px 14px 0 0;}
+.add-modal-body{padding:1rem 1.1rem;}
+.add-modal-footer{display:flex;gap:.5rem;justify-content:flex-end;padding:.75rem 1.1rem;border-top:1px solid var(--border);}
+.fg2{display:flex;flex-direction:column;gap:.25rem;margin-bottom:.65rem;}
+.fg2 label{font-size:.67rem;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;}
+.fg2 input,.fg2 select,.fg2 textarea{padding:.38rem .65rem;border:1.5px solid var(--border);border-radius:8px;font-size:.82rem;font-family:inherit;outline:none;transition:border .15s;}
+.fg2 input:focus,.fg2 select:focus{border-color:#2563eb;box-shadow:0 0 0 3px rgba(37,99,235,.1);}
+.fgrid2{display:grid;grid-template-columns:1fr 1fr;gap:.65rem;}
+.fgrid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:.65rem;}
+.save-btn2{padding:.42rem 1.1rem;background:#2563eb;color:#fff;border:none;border-radius:8px;font-size:.82rem;font-weight:700;cursor:pointer;}
+.cancel-btn2{padding:.42rem .9rem;background:#f1f5f9;color:var(--text2);border:1px solid var(--border);border-radius:8px;font-size:.82rem;font-weight:600;cursor:pointer;}
+.del-btn2{padding:.28rem .75rem;border-radius:7px;font-size:.72rem;font-weight:700;cursor:pointer;border:1px solid #fecaca;background:#fff;color:#dc2626;}
+.del-btn2:hover{background:#fee2e2;}
+.toggle-row{display:flex;align-items:center;gap:.5rem;margin-bottom:.5rem;}
+.toggle-row label{font-size:.8rem;font-weight:600;color:var(--text2);cursor:pointer;}
+.flash-ok{background:#f0fdf4;border:1px solid #bbf7d0;color:#16a34a;border-radius:8px;padding:.55rem 1rem;font-size:.79rem;font-weight:600;margin-bottom:.9rem;}
+.flash-err{background:#fef2f2;border:1px solid #fecaca;color:#dc2626;border-radius:8px;padding:.55rem 1rem;font-size:.79rem;font-weight:600;margin-bottom:.9rem;}
+.divider{font-size:.68rem;font-weight:800;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;padding:.4rem 0;border-bottom:1px dashed var(--border);margin:.6rem 0 .8rem;}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="rule-page-hdr">
+  <div>
+    <h2 style="margin:0;font-size:1.15rem;font-weight:800;">🏖️ Leave Policy</h2>
+    <div style="font-size:.72rem;color:var(--text3);">Location aur employee type wise leave policy define karo</div>
+  </div>
+  <button class="btn-primary" onclick="document.getElementById('addPolicyModal').classList.add('open')">+ Add Policy</button>
+</div>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% for cat, msg in messages %}
+  <div class="{{ 'flash-ok' if cat=='success' else 'flash-err' }}">{{ '✅' if cat=='success' else '❌' }} {{ msg }}</div>
+  {% endfor %}
+{% endwith %}
+
+{% for p in policies %}
+<div class="policy-card">
+  <div class="policy-hdr">
+    <div class="policy-title">🏖️ {{ p.name }}
+      {% if p.location %}<span style="font-size:.72rem;color:var(--text3);font-weight:500;">— {{ p.location.name }}</span>{% endif %}
+      {% if p.employee_type %}<span style="font-size:.72rem;color:var(--text3);font-weight:500;">— {{ p.employee_type }}</span>{% endif %}
+    </div>
+    <span class="{{ 'badge-active' if p.is_active else 'badge-inactive' }}">{{ 'Active' if p.is_active else 'Inactive' }}</span>
+    <div style="display:flex;gap:.3rem;margin-left:.5rem;">
+      <button class="cancel-btn2" style="padding:.25rem .7rem;font-size:.72rem;" onclick="openAddLT({{ p.id }})">+ Leave Type</button>
+      <form method="post" style="display:inline;" onsubmit="return confirm('Delete Policy?')">
+        <input type="hidden" name="action" value="delete_policy">
+        <input type="hidden" name="id" value="{{ p.id }}">
+        <button type="submit" class="del-btn2">🗑</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Policy meta -->
+  <div style="display:flex;gap:1.5rem;flex-wrap:wrap;padding:.6rem 1.1rem;background:#fafbfc;border-bottom:1px solid #f1f5f9;font-size:.75rem;">
+    <span>📅 Accrual: <strong>{{ p.accrual_type|title }}</strong></span>
+    <span>🔄 Carry Forward: <strong>{{ 'Yes (max '+p.max_carry_forward|string+' days)' if p.carry_forward else 'No' }}</strong></span>
+    <span>💰 Encashment: <strong>{{ 'Yes (max '+p.max_encashment|string+' days)' if p.encashment else 'No' }}</strong></span>
+    <span>🥪 Sandwich Rule: <strong>{{ 'Yes' if p.sandwich_rule else 'No' }}</strong></span>
+    <span>🔰 Probation Leave: <strong>{{ 'Allowed' if p.probation_leave_allowed else 'Not Allowed' }}</strong></span>
+  </div>
+
+  <!-- Leave Types -->
+  {% if p.leave_types %}
+    {% for lt in p.leave_types %}
+    <div class="leave-type-row">
+      <span class="lt-icon">{{ lt.icon or '📅' }}</span>
+      <span class="lt-code">{{ lt.code }}</span>
+      <span class="lt-name">{{ lt.name }}</span>
+      <span class="lt-days">{{ lt.days_per_year }} days/yr</span>
+      {% if not lt.paid %}<span style="background:#fee2e2;color:#dc2626;font-size:.65rem;font-weight:700;padding:2px 7px;border-radius:10px;">Unpaid</span>{% endif %}
+      {% if lt.gender %}<span style="background:#f5f3ff;color:#7c3aed;font-size:.65rem;font-weight:700;padding:2px 7px;border-radius:10px;">{{ lt.gender }} only</span>{% endif %}
+      <form method="post" style="display:inline;margin-left:auto;" onsubmit="return confirm('Delete leave type?')">
+        <input type="hidden" name="action" value="delete_leave_type">
+        <input type="hidden" name="id" value="{{ lt.id }}">
+        <button type="submit" class="del-btn2" style="padding:2px 7px;">🗑</button>
+      </form>
+    </div>
+    {% endfor %}
+  {% else %}
+    <div style="text-align:center;padding:1.5rem;color:var(--text3);font-size:.8rem;">No leave types — "+ Leave Type" se add karo</div>
+  {% endif %}
+</div>
+{% else %}
+<div style="text-align:center;padding:3rem;color:var(--text3);">
+  <div style="font-size:2.5rem;margin-bottom:.5rem;">🏖️</div>
+  <div style="font-weight:700;">Koi policy nahi</div>
+  <div style="font-size:.8rem;margin-top:.3rem;">Upar "+ Add Policy" se banao</div>
+</div>
+{% endfor %}
+
+<!-- Add Policy Modal -->
+<div class="add-modal" id="addPolicyModal">
+  <div class="add-modal-box">
+    <div class="add-modal-hdr">
+      <span style="font-size:.9rem;font-weight:800;">➕ Add Leave Policy</span>
+      <button class="cancel-btn2" onclick="document.getElementById('addPolicyModal').classList.remove('open')">✕</button>
+    </div>
+    <form method="post">
+      <input type="hidden" name="action" value="add_policy">
+      <div class="add-modal-body">
+        <div class="fg2"><label>Policy Name *</label><input type="text" name="name" placeholder="e.g. Office Staff Leave Policy" required></div>
+        <div class="fgrid2">
+          <div class="fg2"><label>Location</label>
+            <select name="location_id">
+              <option value="">— All Locations —</option>
+              {% for l in locations %}<option value="{{ l.id }}">{{ l.name }}</option>{% endfor %}
+            </select>
+          </div>
+          <div class="fg2"><label>Employee Type</label><input type="text" name="employee_type" placeholder="Leave blank for all"></div>
+        </div>
+        <div class="fgrid2">
+          <div class="fg2"><label>Accrual Type</label>
+            <select name="accrual_type">
+              <option value="yearly">Yearly</option>
+              <option value="monthly">Monthly</option>
+            </select>
+          </div>
+          <div class="fg2"><label>Max Carry Forward Days</label><input type="number" name="max_carry_forward" value="15" min="0"></div>
+        </div>
+        <div class="fgrid3" style="margin-bottom:.5rem;">
+          <div class="toggle-row"><input type="checkbox" name="sandwich_rule" id="sw1" checked><label for="sw1">Sandwich Rule</label></div>
+          <div class="toggle-row"><input type="checkbox" name="carry_forward" id="cf1" checked><label for="cf1">Carry Forward</label></div>
+          <div class="toggle-row"><input type="checkbox" name="encashment" id="enc1"><label for="enc1">Encashment</label></div>
+          <div class="toggle-row"><input type="checkbox" name="probation_leave_allowed" id="prob1"><label for="prob1">Probation Leave</label></div>
+          <div class="toggle-row"><input type="checkbox" name="allow_negative_leave" id="neg1"><label for="neg1">Negative Leave</label></div>
+        </div>
+        <div class="fg2"><label>Notes</label><textarea name="notes" rows="2" placeholder="Any notes..."></textarea></div>
+      </div>
+      <div class="add-modal-footer">
+        <button type="button" class="cancel-btn2" onclick="document.getElementById('addPolicyModal').classList.remove('open')">Cancel</button>
+        <button type="submit" class="save-btn2">💾 Save Policy</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Add Leave Type Modal -->
+<div class="add-modal" id="addLTModal">
+  <div class="add-modal-box">
+    <div class="add-modal-hdr">
+      <span style="font-size:.9rem;font-weight:800;">➕ Add Leave Type</span>
+      <button class="cancel-btn2" onclick="document.getElementById('addLTModal').classList.remove('open')">✕</button>
+    </div>
+    <form method="post">
+      <input type="hidden" name="action" value="add_leave_type">
+      <input type="hidden" name="policy_id" id="lt_policy_id">
+      <div class="add-modal-body">
+        <div class="fgrid2">
+          <div class="fg2"><label>Leave Name *</label><input type="text" name="lt_name" placeholder="e.g. Annual Leave" required></div>
+          <div class="fg2"><label>Code *</label><input type="text" name="lt_code" placeholder="e.g. AL" maxlength="5" required></div>
+        </div>
+        <div class="fgrid3">
+          <div class="fg2"><label>Days Per Year *</label><input type="number" name="days_per_year" value="12" step="0.5" min="0" required></div>
+          <div class="fg2"><label>Min Duration</label><input type="number" name="min_days" value="0.5" step="0.5" min="0.5"></div>
+          <div class="fg2"><label>Max Continuous</label><input type="number" name="max_days" placeholder="No limit" step="1" min="1"></div>
+        </div>
+        <div class="fgrid3">
+          <div class="fg2"><label>Advance Notice Days</label><input type="number" name="advance_notice_days" value="0" min="0"></div>
+          <div class="fg2"><label>Gender</label>
+            <select name="gender">
+              <option value="">All</option>
+              <option value="Male">Male only</option>
+              <option value="Female">Female only</option>
+            </select>
+          </div>
+          <div class="fg2"><label>Color</label><input type="color" name="color" value="#2563eb" style="height:38px;padding:2px 4px;"></div>
+        </div>
+        <div style="display:flex;gap:1.5rem;flex-wrap:wrap;margin-bottom:.5rem;">
+          <div class="toggle-row"><input type="checkbox" name="lt_carry_forward" id="ltcf" checked><label for="ltcf">Carry Forward</label></div>
+          <div class="toggle-row"><input type="checkbox" name="encashable" id="ltenc"><label for="ltenc">Encashable</label></div>
+          <div class="toggle-row"><input type="checkbox" name="paid" id="ltpaid" checked><label for="ltpaid">Paid Leave</label></div>
+        </div>
+        <div class="fg2"><label>Icon (emoji)</label><input type="text" name="icon" value="📅" maxlength="5" placeholder="📅"></div>
+      </div>
+      <div class="add-modal-footer">
+        <button type="button" class="cancel-btn2" onclick="document.getElementById('addLTModal').classList.remove('open')">Cancel</button>
+        <button type="submit" class="save-btn2">💾 Add Leave Type</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function openAddLT(pid){
+  document.getElementById('lt_policy_id').value=pid;
+  document.getElementById('addLTModal').classList.add('open');
+}
+document.addEventListener('click',function(e){
+  ['addPolicyModal','addLTModal'].forEach(function(id){
+    var m=document.getElementById(id);
+    if(e.target===m) m.classList.remove('open');
+  });
+});
+</script>
+{% endblock %}

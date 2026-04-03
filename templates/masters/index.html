@@ -4,6 +4,7 @@
 {% block bread %}CRM / Masters{% endblock %}
 
 {% block extra_css %}
+<style>
 .master-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.2rem; }
 @media(max-width:900px){ .master-grid { grid-template-columns: 1fr; } }
 
@@ -97,6 +98,7 @@
 .edit-modal h3 { font-size: .95rem; font-weight: 800; margin-bottom: 1rem; }
 .edit-modal .fg { margin-bottom: .75rem; }
 .edit-modal-actions { display: flex; gap: .5rem; justify-content: flex-end; margin-top: 1rem; }
+</style>
 {% endblock %}
 
 {% block content %}

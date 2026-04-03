@@ -1,0 +1,180 @@
+{% extends "base.html" %}
+{% block title %}Location Master{% endblock %}
+{% block page_title %}Location Master{% endblock %}
+{% block bread %}HR / Rules / Locations{% endblock %}
+
+{% block extra_css %}
+<style>
+.rule-page-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:.5rem;}
+.loc-table{width:100%;border-collapse:collapse;font-size:.83rem;}
+.loc-table th{font-size:.67rem;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;padding:.6rem 1rem;border-bottom:1px solid var(--border);background:#f8fafc;text-align:left;}
+.loc-table td{padding:.7rem 1rem;border-bottom:1px solid #f1f5f9;vertical-align:middle;}
+.loc-table tbody tr:hover td{background:#f8fafc;}
+.badge-active{background:#dcfce7;color:#16a34a;font-size:.65rem;font-weight:700;padding:2px 8px;border-radius:20px;}
+.badge-inactive{background:#fee2e2;color:#dc2626;font-size:.65rem;font-weight:700;padding:2px 8px;border-radius:20px;}
+.ra-btn2{padding:.28rem .75rem;border-radius:7px;font-size:.72rem;font-weight:700;cursor:pointer;border:1px solid var(--border);background:#fff;color:var(--text2);transition:all .12s;}
+.ra-btn2:hover{background:#f1f5f9;}
+.ra-btn2.danger{border-color:#fecaca;color:#dc2626;}
+.ra-btn2.danger:hover{background:#fee2e2;}
+.add-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1000;align-items:center;justify-content:center;padding:1rem;}
+.add-modal.open{display:flex;}
+.add-modal-box{background:#fff;border-radius:14px;width:560px;max-width:96vw;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.2);}
+.add-modal-hdr{display:flex;align-items:center;justify-content:space-between;padding:.85rem 1.1rem;border-bottom:1px solid var(--border);background:#f8fafc;border-radius:14px 14px 0 0;}
+.add-modal-title{font-size:.9rem;font-weight:800;}
+.add-modal-body{padding:1rem 1.1rem;}
+.add-modal-footer{display:flex;gap:.5rem;justify-content:flex-end;padding:.75rem 1.1rem;border-top:1px solid var(--border);}
+.fg2{display:flex;flex-direction:column;gap:.25rem;margin-bottom:.65rem;}
+.fg2 label{font-size:.67rem;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;}
+.fg2 input,.fg2 select,.fg2 textarea{padding:.38rem .65rem;border:1.5px solid var(--border);border-radius:8px;font-size:.82rem;font-family:inherit;outline:none;transition:border .15s;}
+.fg2 input:focus,.fg2 select:focus,.fg2 textarea:focus{border-color:#2563eb;box-shadow:0 0 0 3px rgba(37,99,235,.1);}
+.fgrid2{display:grid;grid-template-columns:1fr 1fr;gap:.65rem;}
+.save-btn2{padding:.42rem 1.1rem;background:#2563eb;color:#fff;border:none;border-radius:8px;font-size:.82rem;font-weight:700;cursor:pointer;}
+.cancel-btn2{padding:.42rem .9rem;background:#f1f5f9;color:var(--text2);border:1px solid var(--border);border-radius:8px;font-size:.82rem;font-weight:600;cursor:pointer;}
+.flash-ok{background:#f0fdf4;border:1px solid #bbf7d0;color:#16a34a;border-radius:8px;padding:.55rem 1rem;font-size:.79rem;font-weight:600;margin-bottom:.9rem;}
+.flash-err{background:#fef2f2;border:1px solid #fecaca;color:#dc2626;border-radius:8px;padding:.55rem 1rem;font-size:.79rem;font-weight:600;margin-bottom:.9rem;}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="rule-page-hdr">
+  <div>
+    <h2 style="margin:0;font-size:1.15rem;font-weight:800;">📍 Location Master</h2>
+    <div style="font-size:.72rem;color:var(--text3);">Company locations aur branches manage karo</div>
+  </div>
+  <button class="btn-primary" onclick="document.getElementById('addLocModal').classList.add('open')">
+    + Add Location
+  </button>
+</div>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% for cat, msg in messages %}
+  <div class="{{ 'flash-ok' if cat=='success' else 'flash-err' }}">{{ '✅' if cat=='success' else '❌' }} {{ msg }}</div>
+  {% endfor %}
+{% endwith %}
+
+<div class="card">
+  <div class="tbl-wrap">
+    <table class="loc-table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Location Name</th>
+          <th>Code</th>
+          <th>City</th>
+          <th>State</th>
+          <th>Address</th>
+          <th>Status</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for l in locations %}
+        <tr>
+          <td style="color:var(--text3);font-size:.75rem;">{{ loop.index }}</td>
+          <td style="font-weight:700;">📍 {{ l.name }}</td>
+          <td><span style="background:#eff6ff;color:#1d4ed8;font-family:monospace;padding:2px 8px;border-radius:6px;font-size:.75rem;font-weight:700;">{{ l.code or '—' }}</span></td>
+          <td>{{ l.city or '—' }}</td>
+          <td>{{ l.state or '—' }}</td>
+          <td style="font-size:.75rem;color:var(--text2);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ l.address or '—' }}</td>
+          <td><span class="{{ 'badge-active' if l.is_active else 'badge-inactive' }}">{{ 'Active' if l.is_active else 'Inactive' }}</span></td>
+          <td>
+            <div style="display:flex;gap:.3rem;flex-wrap:wrap;">
+              <button class="ra-btn2" onclick="openEditLoc({{ l.id }},'{{ l.name }}','{{ l.code or '' }}','{{ l.city or '' }}','{{ l.state or '' }}','{{ (l.address or '')|replace("'","\\'") }}')">✏️</button>
+              <form method="post" style="display:inline;" onsubmit="return confirm('Delete {{ l.name }}?')">
+                <input type="hidden" name="action" value="delete">
+                <input type="hidden" name="id" value="{{ l.id }}">
+                <button type="submit" class="ra-btn2 danger">🗑</button>
+              </form>
+              <form method="post" style="display:inline;">
+                <input type="hidden" name="action" value="toggle">
+                <input type="hidden" name="id" value="{{ l.id }}">
+                <button type="submit" class="ra-btn2">{{ '⏸' if l.is_active else '▶' }}</button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="8" style="text-align:center;padding:2.5rem;color:var(--text3);">Koi location nahi — Add karo</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Add Modal -->
+<div class="add-modal" id="addLocModal">
+  <div class="add-modal-box">
+    <div class="add-modal-hdr">
+      <span class="add-modal-title">➕ Add Location</span>
+      <button class="cancel-btn2" onclick="document.getElementById('addLocModal').classList.remove('open')">✕</button>
+    </div>
+    <form method="post">
+      <input type="hidden" name="action" value="add">
+      <div class="add-modal-body">
+        <div class="fgrid2">
+          <div class="fg2"><label>Location Name *</label><input type="text" name="name" placeholder="e.g. HCP OFFICE" required></div>
+          <div class="fg2"><label>Code *</label><input type="text" name="code" placeholder="e.g. OFFICE" maxlength="20" required></div>
+        </div>
+        <div class="fgrid2">
+          <div class="fg2"><label>City</label><input type="text" name="city" placeholder="Surat"></div>
+          <div class="fg2"><label>State</label><input type="text" name="state" placeholder="Gujarat"></div>
+        </div>
+        <div class="fg2"><label>Full Address</label><textarea name="address" rows="2" placeholder="Complete address..."></textarea></div>
+      </div>
+      <div class="add-modal-footer">
+        <button type="button" class="cancel-btn2" onclick="document.getElementById('addLocModal').classList.remove('open')">Cancel</button>
+        <button type="submit" class="save-btn2">💾 Save Location</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Edit Modal -->
+<div class="add-modal" id="editLocModal">
+  <div class="add-modal-box">
+    <div class="add-modal-hdr">
+      <span class="add-modal-title">✏️ Edit Location</span>
+      <button class="cancel-btn2" onclick="document.getElementById('editLocModal').classList.remove('open')">✕</button>
+    </div>
+    <form method="post">
+      <input type="hidden" name="action" value="edit">
+      <input type="hidden" name="id" id="edit_loc_id">
+      <div class="add-modal-body">
+        <div class="fgrid2">
+          <div class="fg2"><label>Location Name *</label><input type="text" name="name" id="edit_loc_name" required></div>
+          <div class="fg2"><label>Code *</label><input type="text" name="code" id="edit_loc_code" maxlength="20" required></div>
+        </div>
+        <div class="fgrid2">
+          <div class="fg2"><label>City</label><input type="text" name="city" id="edit_loc_city"></div>
+          <div class="fg2"><label>State</label><input type="text" name="state" id="edit_loc_state"></div>
+        </div>
+        <div class="fg2"><label>Full Address</label><textarea name="address" id="edit_loc_addr" rows="2"></textarea></div>
+      </div>
+      <div class="add-modal-footer">
+        <button type="button" class="cancel-btn2" onclick="document.getElementById('editLocModal').classList.remove('open')">Cancel</button>
+        <button type="submit" class="save-btn2">💾 Update</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function openEditLoc(id,name,code,city,state,addr){
+  document.getElementById('edit_loc_id').value=id;
+  document.getElementById('edit_loc_name').value=name;
+  document.getElementById('edit_loc_code').value=code;
+  document.getElementById('edit_loc_city').value=city;
+  document.getElementById('edit_loc_state').value=state;
+  document.getElementById('edit_loc_addr').value=addr;
+  document.getElementById('editLocModal').classList.add('open');
+}
+document.addEventListener('click',function(e){
+  ['addLocModal','editLocModal'].forEach(function(id){
+    var m=document.getElementById(id);
+    if(e.target===m) m.classList.remove('open');
+  });
+});
+</script>
+{% endblock %}

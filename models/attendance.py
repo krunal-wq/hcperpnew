@@ -201,3 +201,41 @@ class LatePenaltyRule(db.Model):
 
     def __repr__(self):
         return f'<LatePenaltyRule shift={self.shift_rule_id} {self.time_from}-{self.time_to} count={self.from_count}-{self.to_count} amt={self.penalty_amount}>'
+
+
+class EarlyComingRule(db.Model):
+    """
+    Employee Type wise early coming rules.
+    Shift se pehle aane wale employees ke liye tracking + reward rules.
+    e.g. HCP OFFICE = 09:00 shift, 08:30 se pehle aaye = early coming
+    Table: early_coming_rules
+    """
+    __tablename__ = 'early_coming_rules'
+
+    id              = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    employee_type   = db.Column(db.String(100), nullable=False, unique=True)
+    shift_start     = db.Column(db.String(5), default='09:00')    # HH:MM
+    early_before    = db.Column(db.String(5), nullable=False)      # HH:MM — is se pehle aaye = early
+    # e.g. 08:45 — 08:45 se pehle aana = early coming
+    min_early_minutes = db.Column(db.Integer, default=15)          # Minimum minutes early to count
+    # Reward
+    reward_type     = db.Column(db.String(20), default='none')     # none / points / amount / compoff
+    reward_amount   = db.Column(db.Numeric(8,2), default=0)        # Reward per early day
+    reward_points   = db.Column(db.Integer, default=0)             # Points per early day
+    # Count thresholds
+    min_per_month   = db.Column(db.Integer, default=0)             # Monthly min early days to get reward
+    # Tracking only (no reward)
+    track_only      = db.Column(db.Boolean, default=True)          # Sirf track karo, reward mat do
+    is_active       = db.Column(db.Boolean, default=True)
+    notes           = db.Column(db.Text)
+    created_at      = db.Column(db.DateTime, default=datetime.now)
+    created_by      = db.Column(db.Integer)
+    updated_at      = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
+
+    def early_before_dt(self, d):
+        """Date + early_before time ka datetime object."""
+        h, m = map(int, self.early_before.split(':'))
+        return datetime(d.year, d.month, d.day, h, m, 0)
+
+    def __repr__(self):
+        return f'<EarlyComingRule {self.employee_type} early_before={self.early_before}>'

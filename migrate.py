@@ -371,6 +371,36 @@ with app.app_context():
     ok(f"{added} columns added to other tables") if added else ok("Other tables: all columns already exist")
 
     # ══════════════════════════════════════════════════════
+    # STEP 5F — Contractor Document Fields
+    # ══════════════════════════════════════════════════════
+    step("STEP 5F: contractors table — document fields add kar raha hai...")
+    contractor_doc_cols = [
+        # Document Numbers
+        ('aadhaar_no',       'VARCHAR(14)'),
+        ('msme_no',          'VARCHAR(25)'),
+        ('trade_license_no', 'VARCHAR(50)'),
+        ('bank_account_no',  'VARCHAR(20)'),
+        ('ifsc_code',        'VARCHAR(11)'),
+        # Document File Paths
+        ('aadhaar_file',     'VARCHAR(255)'),
+        ('pan_file',         'VARCHAR(255)'),
+        ('gst_file',         'VARCHAR(255)'),
+        ('msme_file',        'VARCHAR(255)'),
+        ('trade_file',       'VARCHAR(255)'),
+        ('bank_file',        'VARCHAR(255)'),
+        # Other docs (JSON)
+        ('other_docs',       'TEXT'),
+    ]
+    ctr_added = sum(1 for col, defn in contractor_doc_cols if safe_add('contractors', col, defn))
+    ok(f"contractors: {ctr_added} document columns added") if ctr_added else ok("contractors: document columns already exist")
+
+    # Create upload directory for contractor documents
+    import os as _os
+    _ctr_upload = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), 'static', 'uploads', 'contractors')
+    _os.makedirs(_ctr_upload, exist_ok=True)
+    ok(f"contractors upload dir ready: static/uploads/contractors/")
+
+    # ══════════════════════════════════════════════════════
     # STEP 5B — Soft Delete columns (is_deleted + deleted_at)
     # ══════════════════════════════════════════════════════
     step("STEP 5B: Soft Delete columns add kar raha hai...")
@@ -1907,6 +1937,378 @@ with app.app_context():
 
     db.session.commit()
     ok("Attendance migration complete!")
+
+
+    # ══════════════════════════════════════════════════════
+    # STEP 17 — Comprehensive HR Rules Tables
+    # ══════════════════════════════════════════════════════
+    step("STEP 17: HR Rules tables create kar raha hai (Shift/Location/Leave/OT/LOP/CompOff)...")
+
+    import pymysql as _pym17
+    _uri17 = db.engine.url
+    _c17 = _pym17.connect(
+        host=str(_uri17.host), port=int(_uri17.port or 3306),
+        user=str(_uri17.username), password=str(_uri17.password),
+        database=str(_uri17.database), charset='utf8mb4'
+    )
+    _cur17 = _c17.cursor()
+
+    def _t(t): 
+        _cur17.execute("SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name=%s", (t,))
+        return _cur17.fetchone()[0] > 0
+
+    # 1. Shift Master
+    if not _t('hr_shifts'):
+        _cur17.execute("""
+            CREATE TABLE hr_shifts (
+                id              INT AUTO_INCREMENT PRIMARY KEY,
+                name            VARCHAR(100) NOT NULL,
+                code            VARCHAR(20) NOT NULL UNIQUE,
+                shift_start     VARCHAR(5) NOT NULL,
+                shift_end       VARCHAR(5) NOT NULL,
+                late_after      VARCHAR(5),
+                half_day_after  VARCHAR(5),
+                absent_after    VARCHAR(5),
+                early_go_before VARCHAR(5),
+                min_hours_full  DECIMAL(4,2) DEFAULT 8.00,
+                min_hours_half  DECIMAL(4,2) DEFAULT 4.00,
+                break_minutes   INT DEFAULT 60,
+                weekly_off      VARCHAR(50) DEFAULT 'Sunday',
+                color           VARCHAR(10) DEFAULT '#2563eb',
+                is_active       TINYINT(1) DEFAULT 1,
+                created_at      DATETIME DEFAULT CURRENT_TIMESTAMP,
+                created_by      INT,
+                updated_at      DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        """)
+        _c17.commit()
+        # Seed default shifts
+        _shifts = [
+            ('General',  'GEN',  '09:00','18:00','09:15','13:00','14:00','17:30', 8.0, 4.0, 60, 'Sunday',    '#2563eb'),
+            ('Morning',  'MORN', '06:00','14:00','06:15','10:00','11:00','13:30', 8.0, 4.0, 30, 'Sunday',    '#16a34a'),
+            ('Evening',  'EVE',  '14:00','22:00','14:15','18:00','19:00','21:30', 8.0, 4.0, 30, 'Sunday',    '#d97706'),
+            ('Night',    'NGHT', '22:00','06:00','22:15','02:00','03:00','05:30', 8.0, 4.0, 30, 'Sunday',    '#7c3aed'),
+            ('Half Day', 'HALF', '09:00','13:00','09:15','11:00', None,   '12:30', 4.0, 4.0, 0,  'Sunday',    '#0d9488'),
+        ]
+        for name,code,ss,se,la,hda,aa,egb,mhf,mhh,brk,woff,color in _shifts:
+            _cur17.execute(
+                "INSERT IGNORE INTO hr_shifts (name,code,shift_start,shift_end,late_after,half_day_after,absent_after,early_go_before,min_hours_full,min_hours_half,break_minutes,weekly_off,color) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+                (name,code,ss,se,la,hda,aa,egb,mhf,mhh,brk,woff,color)
+            )
+        _c17.commit()
+        ok(f"hr_shifts: created + {len(_shifts)} default shifts seeded")
+    else:
+        ok("hr_shifts: already exists")
+
+    # 2. Location Master
+    if not _t('hr_locations'):
+        _cur17.execute("""
+            CREATE TABLE hr_locations (
+                id         INT AUTO_INCREMENT PRIMARY KEY,
+                name       VARCHAR(100) NOT NULL UNIQUE,
+                code       VARCHAR(20) NOT NULL UNIQUE,
+                address    TEXT,
+                city       VARCHAR(100),
+                state      VARCHAR(100),
+                is_active  TINYINT(1) DEFAULT 1,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                created_by INT
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        """)
+        _c17.commit()
+        _locs = [('HCP OFFICE','OFFICE','Surat','Gujarat'),('HCP FACTORY','FACTORY','Surat','Gujarat'),('WFH','WFH','',''),('OTHER','OTHER','','')]
+        for name,code,city,state in _locs:
+            _cur17.execute("INSERT IGNORE INTO hr_locations (name,code,city,state) VALUES (%s,%s,%s,%s)", (name,code,city,state))
+        _c17.commit()
+        ok(f"hr_locations: created + {len(_locs)} locations seeded")
+    else:
+        ok("hr_locations: already exists")
+
+    # 3. HR Late Rules
+    if not _t('hr_late_rules'):
+        _cur17.execute("""
+            CREATE TABLE hr_late_rules (
+                id                   INT AUTO_INCREMENT PRIMARY KEY,
+                location_id          INT, shift_id INT, employee_type VARCHAR(100),
+                grace_minutes        INT DEFAULT 0,
+                late_after           VARCHAR(5),
+                half_day_after       VARCHAR(5),
+                absent_after         VARCHAR(5),
+                free_lates_per_month INT DEFAULT 0,
+                auto_deduct_lop      TINYINT(1) DEFAULT 0,
+                is_active            TINYINT(1) DEFAULT 1,
+                notes                TEXT,
+                created_at           DATETIME DEFAULT CURRENT_TIMESTAMP,
+                created_by           INT,
+                updated_at           DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                FOREIGN KEY (location_id) REFERENCES hr_locations(id),
+                FOREIGN KEY (shift_id)    REFERENCES hr_shifts(id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        """)
+        _c17.commit()
+        ok("hr_late_rules: created")
+    else:
+        ok("hr_late_rules: already exists")
+
+    # 4. HR Late Penalty Slabs
+    if not _t('hr_late_penalty_slabs'):
+        _cur17.execute("""
+            CREATE TABLE hr_late_penalty_slabs (
+                id             INT AUTO_INCREMENT PRIMARY KEY,
+                late_rule_id   INT NOT NULL,
+                time_from      VARCHAR(5) NOT NULL,
+                time_to        VARCHAR(5),
+                from_count     INT DEFAULT 1,
+                to_count       INT,
+                penalty_amount DECIMAL(8,2) DEFAULT 0,
+                penalty_type   VARCHAR(20) DEFAULT 'fixed',
+                description    VARCHAR(200),
+                sort_order     INT DEFAULT 0,
+                is_active      TINYINT(1) DEFAULT 1,
+                created_at     DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (late_rule_id) REFERENCES hr_late_rules(id) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        """)
+        _c17.commit()
+        ok("hr_late_penalty_slabs: created")
+    else:
+        ok("hr_late_penalty_slabs: already exists")
+
+    # 5. Early Going Rules
+    if not _t('hr_early_going_rules'):
+        _cur17.execute("""
+            CREATE TABLE hr_early_going_rules (
+                id                   INT AUTO_INCREMENT PRIMARY KEY,
+                location_id          INT, shift_id INT, employee_type VARCHAR(100),
+                name                 VARCHAR(150) NOT NULL,
+                grace_minutes        INT DEFAULT 0,
+                half_day_before      VARCHAR(5),
+                absent_before        VARCHAR(5),
+                free_early_per_month INT DEFAULT 0,
+                penalty_per_early    DECIMAL(8,2) DEFAULT 0,
+                penalty_type         VARCHAR(20) DEFAULT 'fixed',
+                auto_deduct_lop      TINYINT(1) DEFAULT 0,
+                is_active            TINYINT(1) DEFAULT 1,
+                notes                TEXT,
+                created_at           DATETIME DEFAULT CURRENT_TIMESTAMP,
+                created_by           INT,
+                updated_at           DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                FOREIGN KEY (location_id) REFERENCES hr_locations(id),
+                FOREIGN KEY (shift_id)    REFERENCES hr_shifts(id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        """)
+        _c17.commit()
+        ok("hr_early_going_rules: created")
+    else:
+        ok("hr_early_going_rules: already exists")
+
+    # 6. Overtime Rules
+    if not _t('hr_overtime_rules'):
+        _cur17.execute("""
+            CREATE TABLE hr_overtime_rules (
+                id                    INT AUTO_INCREMENT PRIMARY KEY,
+                location_id           INT, shift_id INT, employee_type VARCHAR(100),
+                name                  VARCHAR(150) NOT NULL,
+                ot_after_minutes      INT DEFAULT 30,
+                min_ot_minutes        INT DEFAULT 60,
+                max_ot_hours_day      DECIMAL(4,2) DEFAULT 4,
+                max_ot_hours_month    DECIMAL(6,2) DEFAULT 50,
+                ot_rate_type          VARCHAR(20) DEFAULT '1.5x',
+                ot_fixed_rate         DECIMAL(8,2),
+                weekend_ot_rate       VARCHAR(20) DEFAULT '2x',
+                holiday_ot_rate       VARCHAR(20) DEFAULT '2x',
+                give_compoff          TINYINT(1) DEFAULT 0,
+                compoff_min_hours     DECIMAL(4,2) DEFAULT 4,
+                is_active             TINYINT(1) DEFAULT 1,
+                notes                 TEXT,
+                created_at            DATETIME DEFAULT CURRENT_TIMESTAMP,
+                created_by            INT,
+                updated_at            DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                FOREIGN KEY (location_id) REFERENCES hr_locations(id),
+                FOREIGN KEY (shift_id)    REFERENCES hr_shifts(id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        """)
+        _c17.commit()
+        ok("hr_overtime_rules: created")
+    else:
+        ok("hr_overtime_rules: already exists")
+
+    # 7. Leave Policies
+    if not _t('hr_leave_policies'):
+        _cur17.execute("""
+            CREATE TABLE hr_leave_policies (
+                id                     INT AUTO_INCREMENT PRIMARY KEY,
+                name                   VARCHAR(150) NOT NULL,
+                location_id            INT,
+                employee_type          VARCHAR(100),
+                applicable_from        DATE,
+                accrual_type           VARCHAR(20) DEFAULT 'yearly',
+                sandwich_rule          TINYINT(1) DEFAULT 1,
+                carry_forward          TINYINT(1) DEFAULT 1,
+                max_carry_forward      INT DEFAULT 15,
+                encashment             TINYINT(1) DEFAULT 0,
+                max_encashment         INT DEFAULT 10,
+                probation_leave_allowed TINYINT(1) DEFAULT 0,
+                allow_negative_leave   TINYINT(1) DEFAULT 0,
+                max_negative_days      INT DEFAULT 0,
+                is_active              TINYINT(1) DEFAULT 1,
+                notes                  TEXT,
+                created_at             DATETIME DEFAULT CURRENT_TIMESTAMP,
+                created_by             INT,
+                updated_at             DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                FOREIGN KEY (location_id) REFERENCES hr_locations(id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        """)
+        _c17.commit()
+        ok("hr_leave_policies: created")
+    else:
+        ok("hr_leave_policies: already exists")
+
+    # 8. Leave Types
+    if not _t('hr_leave_types'):
+        _cur17.execute("""
+            CREATE TABLE hr_leave_types (
+                id                  INT AUTO_INCREMENT PRIMARY KEY,
+                policy_id           INT NOT NULL,
+                name                VARCHAR(100) NOT NULL,
+                code                VARCHAR(20) NOT NULL,
+                days_per_year       DECIMAL(5,1) NOT NULL,
+                min_days            DECIMAL(3,1) DEFAULT 0.5,
+                max_days            DECIMAL(5,1),
+                advance_notice_days INT DEFAULT 0,
+                carry_forward       TINYINT(1) DEFAULT 1,
+                max_carry_forward   INT,
+                encashable          TINYINT(1) DEFAULT 0,
+                paid                TINYINT(1) DEFAULT 1,
+                gender              VARCHAR(10),
+                color               VARCHAR(10) DEFAULT '#2563eb',
+                icon                VARCHAR(10) DEFAULT '📅',
+                sort_order          INT DEFAULT 0,
+                is_active           TINYINT(1) DEFAULT 1,
+                created_at          DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (policy_id) REFERENCES hr_leave_policies(id) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        """)
+        _c17.commit()
+        ok("hr_leave_types: created")
+    else:
+        ok("hr_leave_types: already exists")
+
+    # 9. LOP Rules
+    if not _t('hr_lop_rules'):
+        _cur17.execute("""
+            CREATE TABLE hr_lop_rules (
+                id                       INT AUTO_INCREMENT PRIMARY KEY,
+                name                     VARCHAR(150) NOT NULL,
+                location_id              INT,
+                employee_type            VARCHAR(100),
+                lop_basis                VARCHAR(20) DEFAULT 'working_days',
+                paid_days_basis          VARCHAR(20) DEFAULT 'actual',
+                absent_triggers_lop      TINYINT(1) DEFAULT 1,
+                late_triggers_lop        TINYINT(1) DEFAULT 0,
+                late_lop_after_count     INT DEFAULT 3,
+                lop_per_late_count       INT DEFAULT 3,
+                half_day_lop_after_count INT DEFAULT 3,
+                daily_rate_formula       VARCHAR(50) DEFAULT 'basic_gross/working_days',
+                include_allowances       TINYINT(1) DEFAULT 1,
+                is_active                TINYINT(1) DEFAULT 1,
+                notes                    TEXT,
+                created_at               DATETIME DEFAULT CURRENT_TIMESTAMP,
+                created_by               INT,
+                updated_at               DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                FOREIGN KEY (location_id) REFERENCES hr_locations(id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        """)
+        _c17.commit()
+        ok("hr_lop_rules: created")
+    else:
+        ok("hr_lop_rules: already exists")
+
+    # 10. Absent Rules
+    if not _t('hr_absent_rules'):
+        _cur17.execute("""
+            CREATE TABLE hr_absent_rules (
+                id                      INT AUTO_INCREMENT PRIMARY KEY,
+                name                    VARCHAR(150) NOT NULL,
+                location_id             INT, employee_type VARCHAR(100),
+                absent_days_from        INT DEFAULT 1,
+                absent_days_to          INT,
+                penalty_per_day         DECIMAL(8,2) DEFAULT 0,
+                penalty_type            VARCHAR(20) DEFAULT 'fixed',
+                consecutive_absent_days INT DEFAULT 3,
+                auto_terminate_days     INT,
+                notify_hr               TINYINT(1) DEFAULT 1,
+                is_active               TINYINT(1) DEFAULT 1,
+                notes                   TEXT,
+                created_at              DATETIME DEFAULT CURRENT_TIMESTAMP,
+                created_by              INT,
+                updated_at              DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                FOREIGN KEY (location_id) REFERENCES hr_locations(id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        """)
+        _c17.commit()
+        ok("hr_absent_rules: created")
+    else:
+        ok("hr_absent_rules: already exists")
+
+    # 11. Comp Off Rules
+    if not _t('hr_compoff_rules'):
+        _cur17.execute("""
+            CREATE TABLE hr_compoff_rules (
+                id                     INT AUTO_INCREMENT PRIMARY KEY,
+                name                   VARCHAR(150) NOT NULL,
+                location_id            INT, employee_type VARCHAR(100),
+                min_hours_worked       DECIMAL(4,2) DEFAULT 4,
+                comp_off_days          DECIMAL(3,1) DEFAULT 1,
+                applicable_on_sunday   TINYINT(1) DEFAULT 1,
+                applicable_on_holiday  TINYINT(1) DEFAULT 1,
+                applicable_on_saturday TINYINT(1) DEFAULT 1,
+                comp_off_validity_days INT DEFAULT 30,
+                needs_approval         TINYINT(1) DEFAULT 1,
+                max_comp_off_balance   DECIMAL(4,1) DEFAULT 6,
+                is_active              TINYINT(1) DEFAULT 1,
+                notes                  TEXT,
+                created_at             DATETIME DEFAULT CURRENT_TIMESTAMP,
+                created_by             INT,
+                updated_at             DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                FOREIGN KEY (location_id) REFERENCES hr_locations(id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        """)
+        _c17.commit()
+        ok("hr_compoff_rules: created")
+    else:
+        ok("hr_compoff_rules: already exists")
+
+
+    # ── Early Coming Rules table ──
+    if not _t('early_coming_rules'):
+        _cur17.execute("""
+            CREATE TABLE early_coming_rules (
+                id                INT AUTO_INCREMENT PRIMARY KEY,
+                employee_type     VARCHAR(100) NOT NULL UNIQUE,
+                shift_start       VARCHAR(5) DEFAULT '09:00',
+                early_before      VARCHAR(5) NOT NULL,
+                min_early_minutes INT DEFAULT 15,
+                reward_type       VARCHAR(20) DEFAULT 'none',
+                reward_amount     DECIMAL(8,2) DEFAULT 0,
+                reward_points     INT DEFAULT 0,
+                min_per_month     INT DEFAULT 0,
+                track_only        TINYINT(1) DEFAULT 1,
+                is_active         TINYINT(1) DEFAULT 1,
+                notes             TEXT,
+                created_at        DATETIME DEFAULT CURRENT_TIMESTAMP,
+                created_by        INT,
+                updated_at        DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        """)
+        _c17.commit()
+        ok("early_coming_rules: created")
+    else:
+        ok("early_coming_rules: already exists")
+
+    _cur17.close()
+    _c17.close()
+    ok("✅ All HR Rules tables ready!")
 
     # ══════════════════════════════════════════════════════
     # DONE

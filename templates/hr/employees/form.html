@@ -4,6 +4,7 @@
 {% block bread %}HR / Employees / {{ 'Edit' if employee else 'Add' }}{% endblock %}
 
 {% block extra_css %}
+<style>
 .tab-nav{display:flex;gap:0;border-bottom:2px solid var(--border);margin-bottom:1.25rem;overflow-x:auto;background:#fff;border-radius:12px 12px 0 0;padding:.5rem .75rem 0;flex-wrap:nowrap;}
 .tab-btn{padding:.55rem 1rem;font-size:.78rem;font-weight:700;color:var(--text2);border:none;background:none;cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-2px;white-space:nowrap;border-radius:8px 8px 0 0;transition:all .15s;font-family:inherit;display:flex;align-items:center;gap:.35rem;}
 .tab-btn:hover{color:var(--blue);background:#f0f7ff;}
@@ -56,6 +57,7 @@
 .field-err-msg.show{display:block;}
 @keyframes empShake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-5px)}40%,80%{transform:translateX(5px)}}
 .tab-btn.tab-needs-fix{border-bottom-color:#ef4444 !important;color:#ef4444 !important;}
+</style>
 {% endblock %}
 
 {% block content %}
@@ -228,10 +230,21 @@
         <div class="fgrid-3">
             <div class="fg">
                 <label class="fl">Department</label>
-                <input type="text" name="department" class="fi" list="deptList" value="{{ employee.department if employee else '' }}" placeholder="e.g. Sales, HR, IT">
-                <datalist id="deptList">{% for d in ['Sales','HR','IT','Finance','Operations','Marketing','Production','Quality','Admin','Legal','R&D'] %}<option value="{{ d }}">{% endfor %}</datalist>
+                <select name="department" class="fi">
+                  <option value="">-- Select Department --</option>
+                  {% for d in departments %}
+                  <option value="{{ d.name }}" {{ 'selected' if employee and employee.department==d.name }}>{{ d.name }}</option>
+                  {% endfor %}
+                </select>
             </div>
-            <div class="fg"><label class="fl">Designation</label><input type="text" name="designation" class="fi" value="{{ employee.designation if employee else '' }}" placeholder="e.g. Manager"></div>
+            <div class="fg"><label class="fl">Designation</label>
+                <select name="designation" class="fi">
+                  <option value="">-- Select Designation --</option>
+                  {% for d in designations %}
+                  <option value="{{ d.name }}" {{ 'selected' if employee and employee.designation==d.name }}>{{ d.name }}</option>
+                  {% endfor %}
+                </select>
+              </div>
             <div class="fg">
                 <label class="fl">Pay Grade</label>
                 <select name="pay_grade" class="fi sd">

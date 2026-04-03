@@ -3,6 +3,7 @@
 {% block page_title %}EPD Dashboard{% endblock %}
 {% block bread %}EPD / Dashboard{% endblock %}
 {% block extra_css %}
+<style>
 .hdr{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.75rem;margin-bottom:1rem;}
 .stat-row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:1rem;}
 @media(max-width:800px){.stat-row{grid-template-columns:repeat(2,1fr);}}
@@ -100,6 +101,7 @@
     .mobile-proj-list { display: none !important; }
     .tbl-scroll { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
 }
+</style>
 {% endblock %}
 
 {% block content %}

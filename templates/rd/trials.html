@@ -35,6 +35,8 @@
 {% block page_title %}R&D Trials{% endblock %}
 {% block bread %}R&D / Trials{% endblock %}
 {% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/modules/rd-trials.css') }}">
+<style>
 .rd-tbl{width:100%;border-collapse:collapse;font-size:.82rem;}
 .rd-tbl th{font-size:.68rem;font-weight:800;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;padding:.5rem .9rem;border-bottom:2px solid var(--border);text-align:left;background:var(--bg);}
 .rd-tbl td{padding:.65rem .9rem;border-bottom:1px solid var(--border);color:var(--text);vertical-align:middle;}
@@ -166,7 +168,7 @@
     }
     #trial-modal button[onclick*="printTrialLabels"] { display: none !important; }
 }
-
+</style>
 {% endblock %}
 {% block content %}
 <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.75rem;margin-bottom:1rem;">
@@ -308,15 +310,7 @@
 
 <!-- CKEditor 5 via cdnjs -->
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-<style>
-.ck-editor__editable{min-height:100px!important;font-size:.85rem!important;font-family:inherit!important;}
-.pinp-focus{border:1px solid var(--blue)!important;background:var(--white)!important;box-shadow:0 0 0 2px var(--blue-lt);}
-#param-table tr:last-child td{border-bottom:none;}
-#param-table tbody tr:hover td{background:var(--blue-lt);}
-.ck.ck-toolbar{border-radius:var(--r-sm) var(--r-sm) 0 0!important;background:var(--bg)!important;border-color:var(--border)!important;}
-.ck.ck-editor__main>.ck-editor__editable{border-radius:0 0 var(--r-sm) var(--r-sm)!important;border-color:var(--border)!important;}
-.ck.ck-editor__main>.ck-editor__editable:focus{border-color:var(--blue)!important;box-shadow:0 0 0 3px var(--blue-lt)!important;}
-</style>
+
 
 <!-- Trial & Project Data for JS -->
 
@@ -1219,16 +1213,7 @@ function printTrialLabels() {
     var labelsRow = '<div class="labels-grid">' + labelCard + labelCard + '</div>';
 
     var win = window.open('', '_blank', 'width=600,height=400');
-    win.document.write('<!DOCTYPE html><html><head><meta charset="utf-8"><title>Print Labels</title><style>' +
-        '* { margin:0; padding:0; box-sizing:border-box; }' +
-        'body { background:#fff; font-family: Arial, sans-serif; }' +
-        '.labels-grid { display:flex; flex-wrap:wrap; gap:0; padding:5mm; }' +
-        '.label-card { width:40mm; height:20mm; border:0.6mm solid #000; display:flex; flex-direction:column; align-items:center; justify-content:space-between; padding:1.5mm 2mm; overflow:hidden; }' +
-        '.label-proj  { font-size:7.5pt; font-weight:900; text-align:center; line-height:1.3; flex:1; display:flex; align-items:center; justify-content:center; }' +
-        '.label-sample{ font-size:7pt; font-weight:700; color:#222; text-align:center; }' +
-        '.label-footer{ font-size:5.5pt; font-weight:800; border-top:0.4mm solid #000; padding-top:1mm; width:100%; text-align:center; letter-spacing:.08em; }' +
-        '@media print { @page { margin:4mm; size:A4; } body { margin:0; } }' +
-        '</style></head><body>' +
+    win.document.write('<!DOCTYPE html><html><head><meta charset="utf-8"><title>Print Labels</title></head><body>' +
         labelsRow +
         '<script>window.onload=function(){ window.print(); }<' + '/script>' +
         '</body></html>');

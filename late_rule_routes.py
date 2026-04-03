@@ -5,7 +5,7 @@ Blueprint: late_rules at /hr/late-rules
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import login_required, current_user
 from models import db
-from models.attendance import LateShiftRule, LatePenaltyRule
+from models.attendance import LateShiftRule, LatePenaltyRule, EarlyComingRule
 from datetime import datetime
 
 late_rules_bp = Blueprint('late_rules', __name__, url_prefix='/hr/late-rules')
@@ -31,8 +31,13 @@ def index():
     existing   = {r.employee_type for r in rules}
     available  = [t for t in emp_types if t.name not in existing]
 
+    early_rules   = EarlyComingRule.query.order_by(EarlyComingRule.employee_type).all()
+    early_existing = {r.employee_type for r in early_rules}
+    early_available = [t for t in emp_types if t.name not in early_existing]
+
     return render_template('hr/attendance/late_rules.html',
         rules=rules, available=available,
+        early_rules=early_rules, early_available=early_available,
         active_page='late_rules'
     )
 
@@ -178,6 +183,76 @@ def penalty_delete(id):
     db.session.delete(slab)
     db.session.commit()
     flash('Slab deleted.', 'success')
+    return redirect(url_for('late_rules.index'))
+
+
+
+# ══════════════════════════════════════════════════════════════
+# EARLY COMING RULE — Add
+# ══════════════════════════════════════════════════════════════
+@late_rules_bp.route('/early/add', methods=['POST'])
+@login_required
+def early_add():
+    _admin_only()
+    emp_type     = request.form.get('employee_type', '').strip()
+    early_before = request.form.get('early_before', '').strip()
+
+    if not emp_type or not early_before:
+        flash('Employee Type aur Early Before time required hai.', 'error')
+        return redirect(url_for('late_rules.index'))
+
+    if EarlyComingRule.query.filter_by(employee_type=emp_type).first():
+        flash(f'"{emp_type}" ka early rule already exist karta hai.', 'error')
+        return redirect(url_for('late_rules.index'))
+
+    rule = EarlyComingRule(
+        employee_type     = emp_type,
+        shift_start       = request.form.get('shift_start', '09:00'),
+        early_before      = early_before,
+        min_early_minutes = int(request.form.get('min_early_minutes', 15) or 15),
+        reward_type       = request.form.get('reward_type', 'none'),
+        reward_amount     = float(request.form.get('reward_amount', 0) or 0),
+        reward_points     = int(request.form.get('reward_points', 0) or 0),
+        min_per_month     = int(request.form.get('min_per_month', 0) or 0),
+        track_only        = request.form.get('track_only') == '1',
+        notes             = request.form.get('notes', '').strip(),
+        created_by        = current_user.id,
+    )
+    db.session.add(rule)
+    db.session.commit()
+    flash(f'"{emp_type}" early coming rule added!', 'success')
+    return redirect(url_for('late_rules.index'))
+
+
+@late_rules_bp.route('/early/<int:id>/edit', methods=['POST'])
+@login_required
+def early_edit(id):
+    _admin_only()
+    rule = EarlyComingRule.query.get_or_404(id)
+    rule.shift_start       = request.form.get('shift_start', rule.shift_start)
+    rule.early_before      = request.form.get('early_before', rule.early_before)
+    rule.min_early_minutes = int(request.form.get('min_early_minutes', rule.min_early_minutes) or 15)
+    rule.reward_type       = request.form.get('reward_type', rule.reward_type)
+    rule.reward_amount     = float(request.form.get('reward_amount', 0) or 0)
+    rule.reward_points     = int(request.form.get('reward_points', 0) or 0)
+    rule.min_per_month     = int(request.form.get('min_per_month', 0) or 0)
+    rule.track_only        = request.form.get('track_only') == '1'
+    rule.notes             = request.form.get('notes', '').strip()
+    rule.is_active         = request.form.get('is_active', '1') == '1'
+    rule.updated_at        = datetime.now()
+    db.session.commit()
+    flash('Early coming rule updated!', 'success')
+    return redirect(url_for('late_rules.index'))
+
+
+@late_rules_bp.route('/early/<int:id>/delete', methods=['POST'])
+@login_required
+def early_delete(id):
+    _admin_only()
+    rule = EarlyComingRule.query.get_or_404(id)
+    db.session.delete(rule)
+    db.session.commit()
+    flash(f'"{rule.employee_type}" early rule deleted.', 'success')
     return redirect(url_for('late_rules.index'))
 
 

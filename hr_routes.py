@@ -59,6 +59,62 @@ CTR_COLS_ALL = {
 # EMPLOYEE
 # ══════════════════════════════════════
 
+
+# ── Contractor Document Upload Helper ─────────────────────────────────────────
+import os, json, uuid as _uuid
+from werkzeug.utils import secure_filename as _secure_filename
+
+_CTR_UPLOAD_DIR = os.path.join(os.path.dirname(__file__), 'static', 'uploads', 'contractors')
+_CTR_ALLOWED    = {'.pdf', '.jpg', '.jpeg', '.png'}
+
+def _save_contractor_file(file_obj, old_path=None):
+    """Save uploaded file, return relative path for DB. Returns None if no file."""
+    if not file_obj or not file_obj.filename:
+        return old_path  # keep existing
+    ext = os.path.splitext(_secure_filename(file_obj.filename))[1].lower()
+    if ext not in _CTR_ALLOWED:
+        return old_path
+    os.makedirs(_CTR_UPLOAD_DIR, exist_ok=True)
+    fname = _uuid.uuid4().hex + ext
+    file_obj.save(os.path.join(_CTR_UPLOAD_DIR, fname))
+    return f'uploads/contractors/{fname}'
+
+def _collect_contractor_docs(c):
+    """Read form + files and update contractor doc fields."""
+    from flask import request
+    # Numbers
+    c.aadhaar_no       = request.form.get('aadhaar_no', '').strip().replace(' ','') or None
+    c.pancard          = request.form.get('pancard', '').strip().upper() or None
+    c.gstno            = request.form.get('gstno', '').strip().upper() or None
+    c.msme_no          = request.form.get('msme_no', '').strip().upper() or None
+    c.trade_license_no = request.form.get('trade_license_no', '').strip() or None
+    c.bank_account_no  = request.form.get('bank_account_no', '').strip() or None
+    c.ifsc_code        = request.form.get('ifsc_code', '').strip().upper() or None
+    # Files
+    c.aadhaar_file = _save_contractor_file(request.files.get('aadhaar_file'), getattr(c,'aadhaar_file',None))
+    c.pan_file     = _save_contractor_file(request.files.get('pan_file'),     getattr(c,'pan_file',None))
+    c.gst_file     = _save_contractor_file(request.files.get('gst_file'),     getattr(c,'gst_file',None))
+    c.msme_file    = _save_contractor_file(request.files.get('msme_file'),    getattr(c,'msme_file',None))
+    c.trade_file   = _save_contractor_file(request.files.get('trade_file'),   getattr(c,'trade_file',None))
+    c.bank_file    = _save_contractor_file(request.files.get('bank_file'),    getattr(c,'bank_file',None))
+    # Other docs
+    other = []
+    i = 1
+    while True:
+        dtype = request.form.get(f'other_doc_type_{i}')
+        if dtype is None:
+            break
+        dno   = request.form.get(f'other_doc_no_{i}', '').strip()
+        dfile = _save_contractor_file(request.files.get(f'other_doc_file_{i}'))
+        if dtype or dno or dfile:
+            other.append({'type': dtype, 'doc_no': dno, 'file': dfile})
+        i += 1
+    # Merge with existing other_docs
+    existing = json.loads(c.other_docs) if getattr(c, 'other_docs', None) else []
+    if other:
+        c.other_docs = json.dumps(other)
+    return c
+
 @hr.route('/employees')
 @login_required
 def employees():
@@ -540,12 +596,15 @@ def emp_add():
         return redirect(url_for('hr.emp_id_card', id=e.id))
 
     all_employees = Employee.query.filter_by(status='active').order_by(Employee.first_name).all()
-    from models.employee import EmployeeTypeMaster, EmployeeLocationMaster
-    emp_types = EmployeeTypeMaster.query.filter_by(is_active=True).order_by(EmployeeTypeMaster.sort_order).all()
-    locations = EmployeeLocationMaster.query.filter_by(is_active=True).order_by(EmployeeLocationMaster.sort_order).all()
+    from models.employee import EmployeeTypeMaster, EmployeeLocationMaster, DepartmentMaster, DesignationMaster
+    emp_types    = EmployeeTypeMaster.query.filter_by(is_active=True).order_by(EmployeeTypeMaster.sort_order).all()
+    locations    = EmployeeLocationMaster.query.filter_by(is_active=True).order_by(EmployeeLocationMaster.sort_order).all()
+    departments  = DepartmentMaster.query.filter_by(is_active=True).order_by(DepartmentMaster.sort_order).all()
+    designations = DesignationMaster.query.filter_by(is_active=True).order_by(DesignationMaster.sort_order).all()
     return render_template('hr/employees/form.html',
         employee=None, contractors=contractors, perm=perm, active_page='hr_employees',
-        all_employees=all_employees, emp_types=emp_types, locations=locations)
+        all_employees=all_employees, emp_types=emp_types, locations=locations,
+        departments=departments, designations=designations)
 
 
 @hr.route('/employees/<int:id>/edit', methods=['GET', 'POST'])
@@ -695,12 +754,15 @@ def emp_edit(id):
         return redirect(url_for('hr.employees'))
 
     all_employees = Employee.query.filter_by(status='active').order_by(Employee.first_name).all()
-    from models.employee import EmployeeTypeMaster, EmployeeLocationMaster
-    emp_types = EmployeeTypeMaster.query.filter_by(is_active=True).order_by(EmployeeTypeMaster.sort_order).all()
-    locations = EmployeeLocationMaster.query.filter_by(is_active=True).order_by(EmployeeLocationMaster.sort_order).all()
+    from models.employee import EmployeeTypeMaster, EmployeeLocationMaster, DepartmentMaster, DesignationMaster
+    emp_types    = EmployeeTypeMaster.query.filter_by(is_active=True).order_by(EmployeeTypeMaster.sort_order).all()
+    locations    = EmployeeLocationMaster.query.filter_by(is_active=True).order_by(EmployeeLocationMaster.sort_order).all()
+    departments  = DepartmentMaster.query.filter_by(is_active=True).order_by(DepartmentMaster.sort_order).all()
+    designations = DesignationMaster.query.filter_by(is_active=True).order_by(DesignationMaster.sort_order).all()
     return render_template('hr/employees/form.html',
         employee=e, contractors=contractors, perm=perm, active_page='hr_employees',
-        all_employees=all_employees, emp_types=emp_types, locations=locations)
+        all_employees=all_employees, emp_types=emp_types, locations=locations,
+        departments=departments, designations=designations)
 
 
 
@@ -1092,8 +1154,6 @@ def contractor_add():
         c = Contractor(
             company_name   = request.form.get('company_name', '').strip(),
             supply         = request.form.get('supply', '').strip(),
-            pancard        = request.form.get('pancard', '').strip(),
-            gstno          = request.form.get('gstno', '').strip(),
             remarks        = request.form.get('remarks', '').strip(),
             contract_id    = f"CTR-{num:04d}",
             contact_person = request.form.get('contact_person', '').strip(),
@@ -1103,9 +1163,10 @@ def contractor_add():
             status         = 1,
             created_by     = current_user.full_name or current_user.username,
         )
+        _collect_contractor_docs(c)
         db.session.add(c)
         db.session.commit()
-        audit('hr','CONTRACTOR_ADD', c.id, c.contract_id, f'Contractor added by {current_user.username}: {c.full_name} ({c.contract_id})')
+        audit('hr','CONTRACTOR_ADD', c.id, c.contract_id, f'Contractor added by {current_user.username}: {c.company_name} ({c.contract_id})')
         flash(f'Contractor {c.contract_id} added!', 'success')
         return redirect(url_for('hr.contractors'))
 
@@ -1124,8 +1185,6 @@ def contractor_edit(id):
     if request.method == 'POST':
         c.company_name   = request.form.get('company_name', '').strip()
         c.supply         = request.form.get('supply', '').strip()
-        c.pancard        = request.form.get('pancard', '').strip()
-        c.gstno          = request.form.get('gstno', '').strip()
         c.remarks        = request.form.get('remarks', '').strip()
         c.contact_person = request.form.get('contact_person', '').strip()
         c.contact_no     = request.form.get('contact_no', '').strip()
@@ -1134,8 +1193,9 @@ def contractor_edit(id):
         c.status         = int(request.form.get('status', 1))
         c.modified_by    = current_user.full_name or current_user.username
         c.modified_date  = datetime.utcnow()
+        _collect_contractor_docs(c)
         db.session.commit()
-        audit('hr','CONTRACTOR_EDIT', con.id, con.contract_id, f'Contractor updated by {current_user.username}: {con.full_name}')
+        audit('hr','CONTRACTOR_EDIT', c.id, c.contract_id, f'Contractor updated by {current_user.username}: {con.company_name}')
         flash('Contractor updated!', 'success')
         return redirect(url_for('hr.contractors'))
 

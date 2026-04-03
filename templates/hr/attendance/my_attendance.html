@@ -4,6 +4,7 @@
 {% block bread %}HR / My Attendance{% endblock %}
 
 {% block extra_css %}
+<style>
 /* ── Summary Cards ── */
 .my-stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:.8rem; margin-bottom:1.3rem; }
 .my-card { background:#fff; border-radius:12px; padding:1rem 1.1rem; border:1px solid var(--border);
@@ -62,6 +63,7 @@
 .leg-item { display:flex; align-items:center; gap:.3rem; font-size:.7rem;
             font-weight:600; color:var(--text3); }
 .leg-dot { width:10px; height:10px; border-radius:3px; }
+</style>
 {% endblock %}
 
 {% block content %}

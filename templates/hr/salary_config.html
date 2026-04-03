@@ -4,6 +4,7 @@
 {% block bread %}HR / Salary Configuration{% endblock %}
 
 {% block extra_css %}
+<style>
 .sc-wrap { max-width: 980px; margin: 0 auto; }
 
 .sc-card { background:var(--card); border:1px solid var(--border); border-radius:12px; overflow:hidden; margin-bottom:1.4rem; box-shadow:0 1px 4px rgba(0,0,0,.05); }
@@ -91,6 +92,7 @@
 @keyframes scSlideIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
 .sc-toast.success{background:#d1fae5;color:#065f46;border:1px solid #6ee7b7;display:flex}
 .sc-toast.error{background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;display:flex}
+</style>
 {% endblock %}
 
 {% block content %}

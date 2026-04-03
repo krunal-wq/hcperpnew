@@ -4,6 +4,7 @@
 {% block bread %}Admin / User Permissions{% endblock %}
 
 {% block extra_css %}
+<style>
 .user-card {
     display:flex; align-items:center; gap:14px;
     padding:14px 18px; border:1px solid var(--border);
@@ -28,6 +29,7 @@
 .role-hr      { background:#f0fdf4; color:#16a34a; }
 .role-user    { background:#f5f3ff; color:#7c3aed; }
 .perm-indicator { font-size:.72rem; color:var(--text3); margin-top:2px; }
+</style>
 {% endblock %}
 
 {% block content %}

@@ -4,6 +4,7 @@
 {% block bread %}Masters / Mail Templates / {{ t.name }}{% endblock %}
 
 {% block extra_css %}
+<style>
 .var-chip { display:inline-block; background:#eff6ff; color:#1e3a5f; border:1px solid #bfdbfe; border-radius:6px; padding:3px 10px; font-size:0.78rem; font-family:monospace; font-weight:700; cursor:pointer; margin:3px; transition:background .12s; }
 .var-chip:hover { background:#dbeafe; }
 .editor-wrap { border:1.5px solid var(--border); border-radius:10px; overflow:hidden; }
@@ -16,6 +17,7 @@
     #bodyEditor { min-height:280px !important; }
     .fi { font-size:0.9rem !important; }
 }
+</style>
 {% endblock %}
 
 {% block content %}

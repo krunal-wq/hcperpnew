@@ -4,6 +4,7 @@
 {% block bread %}Masters / Mail Templates{% endblock %}
 
 {% block extra_css %}
+<style>
 .tpl-card { background:#fff; border:1.5px solid var(--border); border-radius:12px; padding:1rem 1.25rem; margin-bottom:0.75rem; display:flex; align-items:center; justify-content:space-between; gap:1rem; transition:box-shadow .15s; }
 .tpl-card:hover { box-shadow:0 4px 16px rgba(0,0,0,0.07); }
 .tpl-icon { width:40px; height:40px; border-radius:10px; background:#eff6ff; display:flex; align-items:center; justify-content:center; font-size:1.2rem; flex-shrink:0; }
@@ -21,6 +22,7 @@
     .tpl-card > div:last-child { width:100%; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:6px; }
     .tpl-card > div:last-child a { flex:1; text-align:center; }
 }
+</style>
 {% endblock %}
 
 {% block content %}

@@ -5,6 +5,7 @@
 {% block bread %}CRM / Leads{% endblock %}
 
 {% block extra_css %}
+<style>
 /* Status badge colours for leads */
 .sbadge.open       { background:#e0e7ff; color:#3730a3; }
 /* Trash / Soft-delete styles */
@@ -125,7 +126,7 @@
     #listViewWrap .tbl-wrap { display:none; }
     #listViewWrap .grid-footer .rows-selector { display:none; }
 }
-
+</style>
 {% endblock %}
 
 {% block content %}
@@ -406,11 +407,11 @@
       <div class="fs-field" id="customRangeWrap" style="{{ 'display:none;' if not (date_from or date_to) }}grid-column:span 2; position:relative;">
         <label>Custom Range</label>
         <div style="display:flex; align-items:center; gap:8px;">
-          <input type="text" id="dp_from_display" placeholder="From date" readonly onclick="openDp('from')"
+          <input type="date" id="dp_from_display" name="date_from_fp" placeholder="From date" data-no-flatpickr
                  value="{{ date_from|replace('-','/') if date_from else '' }}"
                  style="padding:6px 10px; border:1.5px solid var(--border); border-radius:7px; font-size:.8rem; cursor:pointer; width:110px; outline:none; background:#fff;">
           <span style="color:var(--text3); font-size:13px;">→</span>
-          <input type="text" id="dp_to_display" placeholder="To date" readonly onclick="openDp('to')"
+          <input type="date" id="dp_to_display" name="date_to_fp" placeholder="To date" data-no-flatpickr
                  value="{{ date_to|replace('-','/') if date_to else '' }}"
                  style="padding:6px 10px; border:1.5px solid var(--border); border-radius:7px; font-size:.8rem; cursor:pointer; width:110px; outline:none; background:#fff;">
           <button id="dpClearBtn" onclick="clearDateRange()"
@@ -1422,6 +1423,30 @@ document.addEventListener('click', function(e) {
         var menu = document.getElementById('statusDdMenu');
         if (menu) menu.style.display = 'none';
     }
+});
+
+// Flatpickr for date range filter
+var _fpFrom = flatpickr('#dp_from_display', {
+  dateFormat: 'Y-m-d',
+  altInput: true, altFormat: 'd-m-Y',
+  allowInput: true,
+  locale: { firstDayOfWeek: 1 },
+  onChange: function(sel, dateStr) {
+    var hidden = document.getElementById('ld_date_from');
+    if (hidden) hidden.value = dateStr;
+    if (_fpTo) _fpTo.set('minDate', dateStr);
+  }
+});
+var _fpTo = flatpickr('#dp_to_display', {
+  dateFormat: 'Y-m-d',
+  altInput: true, altFormat: 'd-m-Y',
+  allowInput: true,
+  locale: { firstDayOfWeek: 1 },
+  onChange: function(sel, dateStr) {
+    var hidden = document.getElementById('ld_date_to');
+    if (hidden) hidden.value = dateStr;
+    if (_fpFrom) _fpFrom.set('maxDate', dateStr);
+  }
 });
 </script>
 {% endblock %}

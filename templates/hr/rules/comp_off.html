@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+{% block title %}Comp Off Rules{% endblock %}
+{% block page_title %}Comp Off Rules{% endblock %}
+{% block bread %}HR / Rules / Comp Off Rules{% endblock %}
+{% block extra_css %}
+<style>
+.rule-page-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:.5rem;}
+.rule-table{width:100%;border-collapse:collapse;font-size:.83rem;}
+.rule-table th{font-size:.67rem;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;padding:.6rem 1rem;border-bottom:1px solid var(--border);background:#f8fafc;text-align:left;}
+.rule-table td{padding:.7rem 1rem;border-bottom:1px solid #f1f5f9;vertical-align:middle;}
+.rule-table tbody tr:hover td{background:#f8fafc;}
+.badge-active{background:#dcfce7;color:#16a34a;font-size:.65rem;font-weight:700;padding:2px 8px;border-radius:20px;}
+.badge-inactive{background:#fee2e2;color:#dc2626;font-size:.65rem;font-weight:700;padding:2px 8px;border-radius:20px;}
+.add-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1000;align-items:center;justify-content:center;padding:1rem;}
+.add-modal.open{display:flex;}
+.add-modal-box{background:#fff;border-radius:14px;width:620px;max-width:96vw;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.2);}
+.add-modal-hdr{display:flex;align-items:center;justify-content:space-between;padding:.85rem 1.1rem;border-bottom:1px solid var(--border);background:#f8fafc;border-radius:14px 14px 0 0;}
+.add-modal-body{padding:1rem 1.1rem;}
+.add-modal-footer{display:flex;gap:.5rem;justify-content:flex-end;padding:.75rem 1.1rem;border-top:1px solid var(--border);}
+.fg2{display:flex;flex-direction:column;gap:.25rem;margin-bottom:.65rem;}
+.fg2 label{font-size:.67rem;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;}
+.fg2 input,.fg2 select,.fg2 textarea{padding:.38rem .65rem;border:1.5px solid var(--border);border-radius:8px;font-size:.82rem;font-family:inherit;outline:none;transition:border .15s;}
+.fg2 input:focus,.fg2 select:focus{border-color:#2563eb;box-shadow:0 0 0 3px rgba(37,99,235,.1);}
+.fgrid2{display:grid;grid-template-columns:1fr 1fr;gap:.65rem;}
+.fgrid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:.65rem;}
+.save-btn2{padding:.42rem 1.1rem;background:#2563eb;color:#fff;border:none;border-radius:8px;font-size:.82rem;font-weight:700;cursor:pointer;}
+.cancel-btn2{padding:.42rem .9rem;background:#f1f5f9;color:var(--text2);border:1px solid var(--border);border-radius:8px;font-size:.82rem;font-weight:600;cursor:pointer;}
+.del-btn2{padding:.28rem .75rem;border-radius:7px;font-size:.72rem;font-weight:700;cursor:pointer;border:1px solid #fecaca;background:#fff;color:#dc2626;}
+.del-btn2:hover{background:#fee2e2;}
+.flash-ok{background:#f0fdf4;border:1px solid #bbf7d0;color:#16a34a;border-radius:8px;padding:.55rem 1rem;font-size:.79rem;font-weight:600;margin-bottom:.9rem;}
+.flash-err{background:#fef2f2;border:1px solid #fecaca;color:#dc2626;border-radius:8px;padding:.55rem 1rem;font-size:.79rem;font-weight:600;margin-bottom:.9rem;}
+.check-row{display:flex;align-items:center;gap:.4rem;font-size:.82rem;}
+.check-row input{width:15px;height:15px;accent-color:#2563eb;}
+</style>
+{% endblock %}
+{% block content %}
+<div class="rule-page-hdr">
+  <div>
+    <h2 style="margin:0;font-size:1.15rem;font-weight:800;">🔄 Comp Off Rules</h2>
+    <div style="font-size:.72rem;color:var(--text3);">Location aur shift wise rules configure karo</div>
+  </div>
+  <button class="btn-primary" onclick="document.getElementById('addModal').classList.add('open')">+ Add Rule</button>
+</div>
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% for cat, msg in messages %}
+  <div class="{{ 'flash-ok' if cat=='success' else 'flash-err' }}">{{ '✅' if cat=='success' else '❌' }} {{ msg }}</div>
+  {% endfor %}
+{% endwith %}
+<div class="card">
+  <div class="tbl-wrap">
+    <table class="rule-table">
+      <thead>
+        <tr>
+          <th>#</th><th>Rule Name</th><th>Location</th><th>Shift</th><th>Emp Type</th><th>Status</th><th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in rules %}
+        <tr>
+          <td style="color:var(--text3);font-size:.75rem;">{{ loop.index }}</td>
+          <td style="font-weight:700;">🔄 {{ r.name }}</td>
+          <td>{{ r.location.name if r.location else '— All —' }}</td>
+          <td>{{ r.shift.name if r.shift else '— All —' }}</td>
+          <td>{{ r.employee_type or '— All —' }}</td>
+          <td><span class="{{ 'badge-active' if r.is_active else 'badge-inactive' }}">{{ 'Active' if r.is_active else 'Inactive' }}</span></td>
+          <td>
+            <div style="display:flex;gap:.3rem;">
+              <form method="post" style="display:inline;" onsubmit="return confirm('Delete?')">
+                <input type="hidden" name="action" value="delete">
+                <input type="hidden" name="id" value="{{ r.id }}">
+                <button type="submit" class="del-btn2">🗑 Delete</button>
+              </form>
+              <form method="post" style="display:inline;">
+                <input type="hidden" name="action" value="toggle">
+                <input type="hidden" name="id" value="{{ r.id }}">
+                <button type="submit" style="padding:.28rem .75rem;border-radius:7px;font-size:.72rem;font-weight:700;cursor:pointer;border:1px solid var(--border);background:#fff;color:var(--text2);">{{ '⏸' if r.is_active else '▶' }}</button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="7" style="text-align:center;padding:2.5rem;color:var(--text3);">🔄 Koi rule nahi — Add karo</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Add Rule Modal -->
+<div class="add-modal" id="addModal">
+  <div class="add-modal-box">
+    <div class="add-modal-hdr">
+      <span style="font-size:.9rem;font-weight:800;">➕ Add Comp Off Rules</span>
+      <button class="cancel-btn2" onclick="document.getElementById('addModal').classList.remove('open')">✕</button>
+    </div>
+    <form method="post">
+      <input type="hidden" name="action" value="add">
+      <div class="add-modal-body">
+        <div class="fg2"><label>Rule Name *</label><input type="text" name="name" placeholder="Rule name" required></div>
+        <div class="fgrid3">
+          <div class="fg2"><label>Location</label>
+            <select name="location_id">
+              <option value="">— All Locations —</option>
+              {% for l in locations %}<option value="{{ l.id }}">{{ l.name }}</option>{% endfor %}
+            </select>
+          </div>
+          <div class="fg2"><label>Shift</label>
+            <select name="shift_id">
+              <option value="">— All Shifts —</option>
+              {% for s in shifts %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}
+            </select>
+          </div>
+          <div class="fg2"><label>Employee Type</label>
+            <input type="text" name="employee_type" placeholder="Leave blank for all">
+          </div>
+        </div>
+        {% include 'hr/rules/_comp_off_fields.html' ignore missing %}
+        <div class="fg2" style="margin-top:.5rem;"><label>Notes</label><textarea name="notes" rows="2" placeholder="Any notes..."></textarea></div>
+      </div>
+      <div class="add-modal-footer">
+        <button type="button" class="cancel-btn2" onclick="document.getElementById('addModal').classList.remove('open')">Cancel</button>
+        <button type="submit" class="save-btn2">💾 Save Rule</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+document.addEventListener('click',function(e){
+  var m=document.getElementById('addModal');
+  if(e.target===m) m.classList.remove('open');
+});
+</script>
+{% endblock %}

@@ -3,6 +3,7 @@
 {% block page_title %}{{ 'Edit EPD Project' if edit else 'New EPD Project' }}{% endblock %}
 {% block bread %}NPD / EPD Projects / {{ 'Edit' if edit else 'New' }}{% endblock %}
 {% block extra_css %}
+<style>
 .form-card{background:#fff;border:1px solid var(--border);border-radius:var(--r-lg);padding:1.5rem;margin-bottom:1rem;}
 .form-section-title{font-size:.8rem;font-weight:800;color:#059669;text-transform:uppercase;letter-spacing:.08em;margin-bottom:1rem;padding-bottom:.5rem;border-bottom:2px solid #d1fae5;}
 .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem;}
@@ -19,6 +20,7 @@
 .ms-item{display:flex;align-items:center;gap:.5rem;padding:.5rem .7rem;border:1px solid var(--border);border-radius:var(--r-md);cursor:pointer;font-size:.8rem;}
 .ms-item:has(input:checked){border-color:#059669;background:#d1fae5;}
 .ms-item input{width:15px;height:15px;cursor:pointer;}
+</style>
 {% endblock %}
 {% block content %}
 

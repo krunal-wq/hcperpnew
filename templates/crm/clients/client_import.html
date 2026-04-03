@@ -4,6 +4,7 @@
 {% block bread %}CRM / Client Master / Import{% endblock %}
 
 {% block extra_css %}
+<style>
 .import-box { background:#fff; border:1.5px solid var(--border); border-radius:14px; padding:2rem; }
 .drop-zone { border:2.5px dashed var(--border); border-radius:12px; padding:3rem 1.5rem; text-align:center; cursor:pointer; transition:all .2s; position:relative; background:#fafcff; }
 .drop-zone:hover,.drop-zone.drag-over { border-color:var(--blue); background:#eff6ff; }
@@ -24,6 +25,7 @@
     .page-hdr { flex-direction:column !important; align-items:flex-start !important; gap:8px !important; }
     .page-hdr a { width:100%; text-align:center; box-sizing:border-box; }
 }
+</style>
 {% endblock %}
 
 {% block content %}

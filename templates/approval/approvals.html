@@ -4,6 +4,7 @@
 {% block bread %}Approvals{% endblock %}
 
 {% block extra_css %}
+<style>
 .apr-card { background:#fff; border:1.5px solid var(--border); border-radius:12px; padding:1rem 1.25rem; margin-bottom:.6rem; display:flex; align-items:center; gap:1rem; }
 .apr-card:hover { border-color:#94a3b8; }
 .apr-mod  { padding:3px 10px; border-radius:99px; font-size:.7rem; font-weight:800; background:#eff6ff; color:#1d4ed8; }
@@ -11,6 +12,7 @@
 .apr-status-pending  { background:#fef3c7; color:#d97706; padding:3px 10px; border-radius:99px; font-size:.7rem; font-weight:800; }
 .apr-status-approved { background:#dcfce7; color:#16a34a; padding:3px 10px; border-radius:99px; font-size:.7rem; font-weight:800; }
 .apr-status-rejected { background:#fee2e2; color:#dc2626; padding:3px 10px; border-radius:99px; font-size:.7rem; font-weight:800; }
+</style>
 {% endblock %}
 
 {% block content %}

@@ -16,6 +16,7 @@ from rd_routes   import rd
 from attendance_routes import attendance_bp
 from hr_master_routes import hr_masters
 from late_rule_routes import late_rules_bp
+from hr_rules_routes import hr_rules_bp
 
 app = Flask(__name__)
 app.config.from_object(Config)
@@ -59,6 +60,7 @@ app.register_blueprint(rd)
 app.register_blueprint(attendance_bp)
 app.register_blueprint(hr_masters)
 app.register_blueprint(late_rules_bp)
+app.register_blueprint(hr_rules_bp)
 
 # Seed HR master defaults
 with app.app_context():

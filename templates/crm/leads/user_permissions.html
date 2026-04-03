@@ -4,6 +4,7 @@
 {% block bread %}Admin / User Permissions / {{ target_user.full_name }}{% endblock %}
 
 {% block extra_css %}
+<style>
 .pm-table { width:100%; border-collapse:collapse; font-size:.82rem; }
 .pm-table th {
     padding:.6rem .9rem; background:var(--bg2); border-bottom:2px solid var(--border);
@@ -43,6 +44,7 @@
 .role-ref { font-size:.7rem; color:var(--text3); margin-top:2px; }
 .role-ref .on  { color:#16a34a; font-weight:700; }
 .role-ref .off { color:#d1d5db; }
+</style>
 {% endblock %}
 
 {% block content %}

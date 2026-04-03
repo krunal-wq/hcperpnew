@@ -2,9 +2,48 @@
 {% block title %}{{ 'Edit' if contractor else 'Add' }} Contractor{% endblock %}
 {% block page_title %}{{ 'Edit' if contractor else 'Add' }} Contractor{% endblock %}
 {% block bread %}HR / Contractors / {{ 'Edit' if contractor else 'Add' }}{% endblock %}
+
+{% block extra_css %}
+<style>
+.doc-grid { display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-bottom:.5rem; }
+@media(max-width:640px){ .doc-grid { grid-template-columns:1fr; } }
+.doc-card { border:1.5px solid var(--border); border-radius:12px; overflow:hidden; transition:border-color .15s; background:var(--white); }
+.doc-card:focus-within { border-color:var(--blue); }
+.doc-card-hdr { display:flex; align-items:center; gap:8px; padding:9px 12px; background:var(--bg); border-bottom:1px solid var(--border); }
+.doc-icon { font-size:1.1rem; flex-shrink:0; }
+.doc-title { font-size:.78rem; font-weight:800; color:var(--text); flex:1; }
+.doc-status-dot { width:8px; height:8px; border-radius:50%; background:#d1d5db; flex-shrink:0; transition:background .2s; }
+.doc-card.has-number .doc-status-dot { background:#f59e0b; }
+.doc-card.has-file .doc-status-dot { background:#22c55e; }
+.doc-card.has-file.has-number .doc-status-dot { background:#22c55e; }
+.doc-card-body { padding:10px 12px; display:flex; flex-direction:column; gap:8px; }
+.doc-num-label { font-size:.68rem; font-weight:700; color:var(--text3); text-transform:uppercase; letter-spacing:.04em; margin-bottom:3px; display:block; }
+.doc-num-input { width:100%; padding:6px 10px; border:1.5px solid var(--border); border-radius:7px; font-size:.82rem; font-family:inherit; color:var(--text); background:var(--white); outline:none; transition:border .15s; box-sizing:border-box; letter-spacing:.03em; }
+.doc-num-input:focus { border-color:var(--blue); box-shadow:0 0 0 3px rgba(37,99,235,.08); }
+.doc-num-input::placeholder { color:var(--text4); letter-spacing:0; }
+.doc-upload-area { border:1.5px dashed #d1d5db; border-radius:8px; padding:10px 12px; text-align:center; cursor:pointer; transition:all .15s; position:relative; background:#fafbfc; }
+.doc-upload-area:hover, .doc-upload-area.drag-over { border-color:var(--blue); background:var(--blue-lt); }
+.doc-upload-area input[type=file] { position:absolute; inset:0; opacity:0; cursor:pointer; width:100%; height:100%; }
+.doc-upload-txt { font-size:.75rem; color:var(--text3); pointer-events:none; }
+.doc-upload-txt strong { color:var(--blue); font-weight:700; }
+.doc-file-chip { display:none; align-items:center; gap:6px; padding:5px 10px; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:7px; font-size:.75rem; color:#166534; font-weight:600; }
+.doc-file-chip.show { display:flex; }
+.doc-file-name { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.doc-file-remove { cursor:pointer; color:#dc2626; font-size:.9rem; font-weight:800; line-height:1; flex-shrink:0; background:none; border:none; padding:0 2px; }
+.doc-file-remove:hover { color:#991b1b; }
+.doc-existing { display:flex; align-items:center; gap:6px; font-size:.75rem; color:var(--blue); font-weight:600; margin-bottom:5px; }
+.doc-existing a { color:inherit; text-decoration:none; }
+.doc-existing a:hover { text-decoration:underline; }
+.other-doc-row { display:grid; grid-template-columns:150px 1fr auto; gap:6px; align-items:center; margin-bottom:6px; }
+.other-doc-remove { width:26px; height:26px; border-radius:6px; background:#fef2f2; border:none; color:#dc2626; cursor:pointer; font-size:.8rem; font-weight:800; display:flex; align-items:center; justify-content:center; flex-shrink:0; transition:background .12s; }
+.other-doc-remove:hover { background:#fee2e2; }
+.btn-add-doc { display:inline-flex; align-items:center; gap:5px; padding:5px 12px; border:1.5px dashed var(--border); border-radius:7px; background:none; cursor:pointer; font-size:.78rem; font-weight:600; color:var(--text2); transition:all .15s; font-family:inherit; margin-top:4px; }
+.btn-add-doc:hover { border-color:var(--blue); color:var(--blue); background:var(--blue-lt); }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="fp-wrap">
-
   <div class="fp-header">
     <div class="fp-hdr-actions">
       <a href="{{ url_for('hr.contractors') }}" class="fp-hbtn">
@@ -16,12 +55,13 @@
     </div>
   </div>
 
-  <!-- Validation error banner -->
   <div id="valBanner" style="display:none;background:#fef2f2;border:1.5px solid #fca5a5;border-radius:10px;padding:.65rem 1rem;margin-bottom:1rem;font-size:.82rem;color:#dc2626;font-weight:600;">
     ⚠️ <span id="valBannerMsg">Please fill all required fields.</span>
   </div>
 
-  <form method="POST" id="contractorForm" novalidate>
+  <form method="POST" id="contractorForm" enctype="multipart/form-data" novalidate>
+
+    <!-- CONTRACTOR INFO -->
     <div class="fp-section">
       <div class="fp-sec-hdr">
         <div class="fp-sec-title">
@@ -36,7 +76,7 @@
           <div class="fg">
             <label class="fl">Company Name <span style="color:#ef4444;">*</span></label>
             <input type="text" name="company_name" id="company_name" class="fi" value="{{ contractor.company_name if contractor else '' }}" placeholder="Company name">
-            <div class="fi-err" id="err_company_name" style="display:none;font-size:.72rem;color:#dc2626;margin-top:3px;">⚠️ Company Name required</div>
+            <div id="err_company_name" style="display:none;font-size:.72rem;color:#dc2626;margin-top:3px;">⚠️ Company Name required</div>
           </div>
           <div class="fg">
             <label class="fl">Supply / Service</label>
@@ -45,7 +85,7 @@
           <div class="fg">
             <label class="fl">Contact Person <span style="color:#ef4444;">*</span></label>
             <input type="text" name="contact_person" id="contact_person" class="fi" value="{{ contractor.contact_person if contractor else '' }}" placeholder="Contact person name">
-            <div class="fi-err" id="err_contact_person" style="display:none;font-size:.72rem;color:#dc2626;margin-top:3px;">⚠️ Contact Person required</div>
+            <div id="err_contact_person" style="display:none;font-size:.72rem;color:#dc2626;margin-top:3px;">⚠️ Contact Person required</div>
           </div>
           <div class="fg">
             <label class="fl">Contact No</label>
@@ -54,14 +94,6 @@
           <div class="fg">
             <label class="fl">Email Address</label>
             <input type="email" name="email_address" class="fi" value="{{ contractor.email_address if contractor else '' }}" placeholder="email@company.com">
-          </div>
-          <div class="fg">
-            <label class="fl">PAN Card</label>
-            <input type="text" name="pancard" class="fi" value="{{ contractor.pancard if contractor else '' }}" placeholder="ABCDE1234F" style="text-transform:uppercase;">
-          </div>
-          <div class="fg">
-            <label class="fl">GST No</label>
-            <input type="text" name="gstno" class="fi" value="{{ contractor.gstno if contractor else '' }}" placeholder="22AAAAA0000A1Z5">
           </div>
           {% if contractor %}
           <div class="fg">
@@ -75,6 +107,89 @@
         </div>
         <div class="frow"><label class="fl">Address</label><textarea name="address" class="fi" rows="3" placeholder="Full address">{{ contractor.address if contractor else '' }}</textarea></div>
         <div class="frow"><label class="fl">Remarks</label><textarea name="remarks" class="fi" rows="2" placeholder="Any additional remarks">{{ contractor.remarks if contractor else '' }}</textarea></div>
+      </div>
+    </div>
+
+    <!-- DOCUMENTS SECTION -->
+    <div class="fp-section">
+      <div class="fp-sec-hdr">
+        <div class="fp-sec-title">
+          <div class="fp-sec-icon blue">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#1e40af" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          </div>Documents &amp; ID Proof
+        </div>
+        <span class="fp-sec-badge blue">Upload</span>
+      </div>
+      <div class="fp-sec-body">
+
+        <div class="doc-grid">
+
+          {% set docs = [
+            ('aadhaar','🪪','Aadhaar Card','aadhaar_no','Aadhaar Number','XXXX XXXX XXXX','aadhaar_file',12),
+            ('pan','💳','PAN Card','pancard','PAN Number','ABCDE1234F','pan_file',10),
+            ('gst','🏛️','GST Certificate','gstno','GST Number','22AAAAA0000A1Z5','gst_file',15),
+            ('msme','🏭','MSME / Udyam','msme_no','Udyam Reg. No','UDYAM-XX-00-0000000','msme_file',19),
+            ('trade','📜','Trade License','trade_license_no','License Number','License number','trade_file',30),
+            ('bank','🏦','Bank / Cancelled Cheque','bank_account_no','Account Number','Account number','bank_file',18),
+          ] %}
+
+          {% for key, icon, title, field_name, num_label, num_ph, file_field, maxlen in docs %}
+          <div class="doc-card" id="dc-{{ key }}">
+            <div class="doc-card-hdr">
+              <span class="doc-icon">{{ icon }}</span>
+              <span class="doc-title">{{ title }}</span>
+              <span class="doc-status-dot"></span>
+            </div>
+            <div class="doc-card-body">
+              <div>
+                <span class="doc-num-label">{{ num_label }}</span>
+                <input type="text" name="{{ field_name }}" class="doc-num-input"
+                  maxlength="{{ maxlen }}" placeholder="{{ num_ph }}"
+                  value="{{ contractor[field_name] if contractor and contractor[field_name] else '' }}"
+                  {% if field_name in ('pancard','gstno','msme_no','trade_license_no') %}style="text-transform:uppercase;"{% endif %}
+                  oninput="docNumChange(this,'{{ key }}')">
+              </div>
+              {% if key == 'bank' %}
+              <div>
+                <span class="doc-num-label">IFSC Code</span>
+                <input type="text" name="ifsc_code" class="doc-num-input" maxlength="11"
+                  placeholder="SBIN0001234" style="text-transform:uppercase;"
+                  value="{{ contractor.ifsc_code if contractor else '' }}">
+              </div>
+              {% endif %}
+              <div>
+                {% if contractor and contractor[file_field] %}
+                <div class="doc-existing">
+                  📎 <a href="/static/{{ contractor[file_field] }}" target="_blank">View Uploaded</a>
+                  <span style="color:var(--text3);font-weight:400;">· Replace:</span>
+                </div>
+                {% endif %}
+                <div class="doc-upload-area" id="ua-{{ key }}" ondragover="dragOver(event,this)" ondragleave="dragLeave(this)" ondrop="dropFile(event,'{{ key }}')">
+                  <input type="file" name="{{ file_field }}" accept=".pdf,.jpg,.jpeg,.png" onchange="fileChosen(this,'{{ key }}')">
+                  <div class="doc-upload-txt">📎 <strong>Browse</strong> or drag &amp; drop<br><span style="font-size:.68rem;">PDF, JPG, PNG · Max 5MB</span></div>
+                </div>
+                <div class="doc-file-chip" id="chip-{{ key }}">
+                  <span>📄</span>
+                  <span class="doc-file-name" id="chipname-{{ key }}"></span>
+                  <button type="button" class="doc-file-remove" onclick="clearFile('{{ key }}')">✕</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+
+        </div>
+
+        <!-- OTHER DOCUMENTS -->
+        <div style="margin-top:.75rem;">
+          <div style="font-size:.72rem;font-weight:800;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.5rem;">📂 Other Documents</div>
+          <div id="otherDocsList"></div>
+          <button type="button" class="btn-add-doc" onclick="addOtherDoc()">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Add Other Document
+          </button>
+        </div>
+
       </div>
     </div>
 
@@ -95,56 +210,112 @@ var REQUIRED_FIELDS = [
   { id: 'company_name',   label: 'Company Name' },
   { id: 'contact_person', label: 'Contact Person' },
 ];
-
 function _setErr(id, show) {
   var inp = document.getElementById(id);
   var err = document.getElementById('err_' + id);
   if (!inp) return;
-  if (show) {
-    inp.style.borderColor = '#ef4444';
-    inp.style.background  = '#fff5f5';
-    if (err) err.style.display = 'block';
-  } else {
-    inp.style.borderColor = '';
-    inp.style.background  = '';
-    if (err) err.style.display = 'none';
-  }
+  if (show) { inp.style.borderColor='#ef4444'; inp.style.background='#fff5f5'; if(err)err.style.display='block'; }
+  else       { inp.style.borderColor=''; inp.style.background=''; if(err)err.style.display='none'; }
 }
-
-// Clear error on input
-REQUIRED_FIELDS.forEach(function(f) {
-  var el = document.getElementById(f.id);
-  if (el) el.addEventListener('input', function() { _setErr(f.id, false); });
+REQUIRED_FIELDS.forEach(function(f){
+  var el=document.getElementById(f.id);
+  if(el) el.addEventListener('input',function(){_setErr(f.id,false);});
 });
-
 function submitContractorForm() {
-  var errors = [];
-  REQUIRED_FIELDS.forEach(function(f) {
-    var el = document.getElementById(f.id);
-    if (!el || !el.value.trim()) {
-      _setErr(f.id, true);
-      errors.push(f.label);
-    } else {
-      _setErr(f.id, false);
-    }
+  var errors=[];
+  REQUIRED_FIELDS.forEach(function(f){
+    var el=document.getElementById(f.id);
+    if(!el||!el.value.trim()){_setErr(f.id,true);errors.push(f.label);}
+    else _setErr(f.id,false);
   });
-
-  if (errors.length) {
-    var banner = document.getElementById('valBanner');
-    document.getElementById('valBannerMsg').textContent =
-      'Please fill required fields: ' + errors.join(', ');
-    banner.style.display = 'block';
-    // Scroll to first error
-    var firstErr = document.getElementById(REQUIRED_FIELDS.find(function(f){
-      return errors.indexOf(f.label) >= 0;
-    }).id);
-    if (firstErr) firstErr.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    firstErr.focus();
+  if(errors.length){
+    document.getElementById('valBannerMsg').textContent='Please fill required fields: '+errors.join(', ');
+    document.getElementById('valBanner').style.display='block';
+    var fid=REQUIRED_FIELDS.find(function(f){return errors.indexOf(f.label)>=0;}).id;
+    var fe=document.getElementById(fid);
+    if(fe){fe.scrollIntoView({behavior:'smooth',block:'center'});fe.focus();}
     return;
   }
-
-  document.getElementById('valBanner').style.display = 'none';
+  document.getElementById('valBanner').style.display='none';
   document.getElementById('contractorForm').submit();
+}
+
+// Document helpers
+function fileChosen(input, key) {
+  if (!input.files||!input.files[0]) return;
+  var f=input.files[0];
+  if (f.size > 5*1024*1024) { alert('Max 5MB allowed!'); input.value=''; return; }
+  document.getElementById('chipname-'+key).textContent = f.name;
+  document.getElementById('chip-'+key).classList.add('show');
+  document.getElementById('ua-'+key).style.display = 'none';
+  document.getElementById('dc-'+key).classList.add('has-file');
+}
+function clearFile(key) {
+  document.getElementById('chip-'+key).classList.remove('show');
+  var ua=document.getElementById('ua-'+key);
+  ua.style.display='';
+  ua.querySelector('input[type=file]').value='';
+  document.getElementById('dc-'+key).classList.remove('has-file');
+}
+function docNumChange(inp, key) {
+  var dc=document.getElementById('dc-'+key);
+  if(dc) dc.classList.toggle('has-number', inp.value.trim().length > 0);
+}
+function dragOver(e,el){e.preventDefault();el.classList.add('drag-over');}
+function dragLeave(el){el.classList.remove('drag-over');}
+function dropFile(e,key){
+  e.preventDefault();
+  var ua=document.getElementById('ua-'+key);
+  ua.classList.remove('drag-over');
+  if(!e.dataTransfer.files[0]) return;
+  var fi=ua.querySelector('input[type=file]');
+  var dt=new DataTransfer(); dt.items.add(e.dataTransfer.files[0]); fi.files=dt.files;
+  fileChosen(fi, key);
+}
+
+// Init has-number on edit
+document.querySelectorAll('.doc-num-input').forEach(function(inp){
+  if(inp.value.trim()){
+    var key=inp.closest('.doc-card').id.replace('dc-','');
+    document.getElementById('dc-'+key).classList.add('has-number');
+  }
+});
+
+// Other documents
+var _oc=0;
+var _docTypes=['Incorporation Certificate','Shop Act License','Labour License','ISO Certificate','Passport','Driving License','Pollution Certificate','Work Order','Agreement / Contract','Other'];
+function addOtherDoc(){
+  _oc++;
+  var idx=_oc;
+  var row=document.createElement('div');
+  row.className='other-doc-row'; row.id='odr-'+idx;
+  // type select
+  var sel=document.createElement('select');
+  sel.name='other_doc_type_'+idx; sel.className='fi';
+  sel.style.cssText='font-size:.78rem;padding:5px 8px;';
+  _docTypes.forEach(function(t){var o=document.createElement('option');o.value=t;o.textContent=t;sel.appendChild(o);});
+  // doc number input
+  var numInp=document.createElement('input');
+  numInp.type='text'; numInp.name='other_doc_no_'+idx;
+  numInp.placeholder='Document number (optional)';
+  numInp.className='fi'; numInp.style.cssText='font-size:.78rem;padding:5px 8px;';
+  // file label
+  var wrap=document.createElement('div');
+  wrap.style.cssText='position:relative;min-width:120px;';
+  var lbl=document.createElement('label');
+  lbl.style.cssText='display:inline-flex;align-items:center;gap:5px;padding:5px 10px;border:1.5px dashed #d1d5db;border-radius:7px;cursor:pointer;font-size:.75rem;color:var(--text2);background:#fafbfc;white-space:nowrap;transition:all .15s;';
+  lbl.innerHTML='📎 <span id="olbl-'+idx+'">File</span>';
+  var fi=document.createElement('input');
+  fi.type='file'; fi.name='other_doc_file_'+idx; fi.accept='.pdf,.jpg,.jpeg,.png';
+  fi.style.cssText='position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;';
+  fi.onchange=function(){if(fi.files&&fi.files[0]){document.getElementById('olbl-'+idx).textContent=fi.files[0].name.slice(0,12)+'…';lbl.style.borderColor='#22c55e';lbl.style.color='#166534';}};
+  lbl.appendChild(fi); wrap.appendChild(lbl);
+  // remove btn
+  var rm=document.createElement('button');
+  rm.type='button'; rm.className='other-doc-remove'; rm.innerHTML='✕';
+  rm.onclick=function(){document.getElementById('odr-'+idx).remove();};
+  row.appendChild(sel); row.appendChild(numInp); row.appendChild(wrap); row.appendChild(rm);
+  document.getElementById('otherDocsList').appendChild(row);
 }
 </script>
 {% endblock %}
