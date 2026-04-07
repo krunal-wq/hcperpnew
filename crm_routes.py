@@ -72,6 +72,37 @@ def log_activity(lead_id, action, user_id=None):
     db.session.add(LeadActivityLog(lead_id=lead_id, user_id=uid, action=action))
 
 
+def get_team_users():
+    """Sirf Admin, NPD, Sales, Management department ke users return karo."""
+    from models.employee import Employee
+    # Get user_ids linked to allowed departments
+    allowed_depts = ['admin', 'npd', 'sales', 'management', 'it',
+                     'Admin', 'NPD', 'Sales', 'Management', 'IT',
+                     'Administration', 'administration']
+    # Users with role admin/manager always included
+    admin_users = User.query.filter(
+        User.is_active == True,
+        User.role.in_(['admin', 'manager'])
+    ).all()
+    admin_ids = {u.id for u in admin_users}
+
+    # Employees in allowed departments
+    dept_emps = Employee.query.filter(
+        Employee.is_deleted == False,
+        Employee.status == 'active',
+        db.or_(*[Employee.department.ilike(f'%{d}%') for d in ['admin','npd','sales','management','it']])
+    ).all()
+    dept_user_ids = {e.user_id for e in dept_emps if e.user_id}
+
+    # Combine
+    all_ids = admin_ids | dept_user_ids
+    if all_ids:
+        users = User.query.filter(User.id.in_(all_ids), User.is_active == True).order_by(User.full_name).all()
+    else:
+        users = admin_users
+    return users
+
+
 def add_contribution(lead_id, action_type, user_id=None, note=''):
     """Track contribution points for a user on a lead."""
     uid = user_id or (current_user.id if current_user.is_authenticated else None)
@@ -589,7 +620,7 @@ def leads():
     all_categories= [r[0] for r in db.session.query(Lead.category).distinct().all() if r[0]]
     all_ranges    = [r[0] for r in db.session.query(Lead.product_range).distinct().all() if r[0]]
     all_cities    = [r[0] for r in db.session.query(Lead.city).distinct().all() if r[0]]
-    all_users     = User.query.filter_by(is_active=True).all()
+    all_users     = get_team_users()
     grid_cols     = get_grid_columns('leads', LEAD_COLS_DEFAULT, list(LEAD_COLS_ALL.keys()))
     lead_statuses  = LeadStatus.query.filter_by(is_active=True).order_by(LeadStatus.sort_order).all()
     lead_sources   = LeadSource.query.filter_by(is_active=True).order_by(LeadSource.sort_order).all()
@@ -1082,7 +1113,7 @@ def lead_add():
             return redirect(request.url)
 
     clients      = ClientMaster.query.filter_by(status='active').order_by(ClientMaster.contact_name).all()
-    all_users    = User.query.filter_by(is_active=True).all()
+    all_users    = get_team_users()
     lead_statuses  = LeadStatus.query.filter_by(is_active=True).order_by(LeadStatus.sort_order).all()
     lead_sources   = LeadSource.query.filter_by(is_active=True).order_by(LeadSource.sort_order).all()
     lead_categories= LeadCategory.query.filter_by(is_active=True).order_by(LeadCategory.sort_order).all()
@@ -1151,7 +1182,7 @@ def lead_edit(id):
             return redirect(request.url)
 
     clients        = ClientMaster.query.filter_by(status='active').order_by(ClientMaster.contact_name).all()
-    all_users      = User.query.filter_by(is_active=True).all()
+    all_users      = get_team_users()
     lead_statuses  = LeadStatus.query.filter_by(is_active=True).order_by(LeadStatus.sort_order).all()
     lead_sources   = LeadSource.query.filter_by(is_active=True).order_by(LeadSource.sort_order).all()
     lead_categories= LeadCategory.query.filter_by(is_active=True).order_by(LeadCategory.sort_order).all()
@@ -1196,23 +1227,33 @@ def lead_view(id):
     activity    = LeadActivityLog.query.filter_by(lead_id=id).order_by(LeadActivityLog.created_at.desc()).all()
     attachments = LeadAttachment.query.filter_by(lead_id=id).order_by(LeadAttachment.created_at.desc()).all()
     team_members = l.get_team_member_objects()
-    all_users   = User.query.filter_by(is_active=True).all()
+    all_users   = get_team_users()
     audit('leads','VIEW', id, f'{l.contact_name}', obj=l)
     _view_statuses = LeadStatus.query.filter_by(is_active=True).order_by(LeadStatus.sort_order).all()
 
     # Permissions
     perm = get_perm('crm_leads')
     from permissions import get_sub_perm
+    _is_admin = current_user.role in ('admin', 'manager')
     sub_perms = {
-        'discussion_board' : get_sub_perm('crm_leads', 'discussion_board'),
-        'activity_log'     : get_sub_perm('crm_leads', 'activity_log'),
-        'reminder'         : get_sub_perm('crm_leads', 'reminder'),
-        'quotation'        : get_sub_perm('crm_leads', 'quotation'),
-        'sample_order'     : get_sub_perm('crm_leads', 'sample_order'),
-        'attachments'      : get_sub_perm('crm_leads', 'attachments'),
-        'whatsapp'         : get_sub_perm('crm_leads', 'whatsapp'),
+        'discussion_board' : _is_admin or get_sub_perm('crm_leads', 'discussion_board'),
+        'activity_log'     : _is_admin or get_sub_perm('crm_leads', 'activity_log'),
+        'reminder'         : _is_admin or get_sub_perm('crm_leads', 'reminder'),
+        'quotation'        : _is_admin or get_sub_perm('crm_leads', 'quotation'),
+        'sample_order'     : _is_admin or get_sub_perm('crm_leads', 'sample_order'),
+        'attachments'      : _is_admin or get_sub_perm('crm_leads', 'attachments'),
+        'whatsapp'         : _is_admin or get_sub_perm('crm_leads', 'whatsapp'),
         'personal_notes'   : True,
     }
+
+    # Build mention list — assigned user + team members
+    _mention_ids = set()
+    if l.assigned_to: _mention_ids.add(l.assigned_to)
+    if l.team_members:
+        for _tid in str(l.team_members).split(','):
+            if _tid.strip().isdigit(): _mention_ids.add(int(_tid.strip()))
+    _mention_ids.discard(current_user.id)  # exclude self
+    mention_users = User.query.filter(User.id.in_(_mention_ids), User.is_active==True).order_by(User.full_name).all() if _mention_ids else []
 
     return render_template('crm/leads/lead_view.html',
         lead=l, tab=tab,
@@ -1220,6 +1261,7 @@ def lead_view(id):
         notes_list=notes_list, activity=activity,
         attachments=attachments, team_members=team_members,
         all_users=all_users,
+        mention_users=mention_users,
         lead_statuses=_view_statuses,
         perm=perm,
         sub_perms=sub_perms,
@@ -1275,6 +1317,65 @@ def lead_discussion_add(id):
     return redirect(url_for('crm.lead_view', id=id, tab='discussion'))
 
 
+@crm.route('/leads/discussion/<int:did>/edit', methods=['POST'])
+@login_required
+def lead_discussion_edit(did):
+    d = LeadDiscussion.query.get_or_404(did)
+    if d.user_id != current_user.id and current_user.role not in ('admin', 'manager'):
+        return jsonify(success=False, error='Permission denied'), 403
+    new_comment = request.form.get('comment', '').strip()
+    if not new_comment:
+        return jsonify(success=False, error='Comment cannot be empty')
+    d.comment = new_comment
+    # Check if new files uploaded
+    files = [f for f in request.files.getlist('attachments[]') if f and f.filename]
+    if files:
+        # Delete existing attachments from DB (cascade deletes them)
+        for old_att in list(d.attachments):
+            # Optionally delete physical file too
+            old_fpath = os.path.join(os.path.dirname(UPLOAD_FOLDER), 'static', old_att.file_path)
+            try:
+                if os.path.exists(old_fpath): os.remove(old_fpath)
+            except: pass
+            db.session.delete(old_att)
+        db.session.flush()
+        # Add new files
+        for f in files:
+            if allowed_file(f.filename):
+                os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+                fname = secure_filename(f.filename)
+                fpath = os.path.join(UPLOAD_FOLDER, fname)
+                f.save(fpath)
+                att = LeadAttachment(
+                    lead_id       = d.lead_id,
+                    discussion_id = d.id,
+                    file_name     = fname,
+                    file_path     = f'uploads/{fname}',
+                    file_type     = f.content_type,
+                    uploaded_by   = current_user.id
+                )
+                db.session.add(att)
+    db.session.commit()
+    log_activity(d.lead_id, f'Comment edited by {current_user.full_name}')
+    # Return updated attachments
+    all_atts = [{'name': a.file_name, 'path': a.file_path} for a in d.attachments]
+    return jsonify(success=True, comment=d.comment, attachments=all_atts)
+
+
+@crm.route('/leads/discussion/<int:did>/delete', methods=['POST'])
+@login_required
+def lead_discussion_delete(did):
+    d = LeadDiscussion.query.get_or_404(did)
+    lid = d.lead_id
+    # Only author or admin can delete
+    if d.user_id != current_user.id and current_user.role not in ('admin', 'manager'):
+        return jsonify(success=False, error='Permission denied'), 403
+    db.session.delete(d)
+    db.session.commit()
+    log_activity(lid, f'Comment deleted by {current_user.full_name}')
+    return jsonify(success=True)
+
+
 # ── Reminders (Followup) ──
 
 @crm.route('/leads/<int:id>/reminder/add', methods=['POST'])
@@ -1287,10 +1388,16 @@ def lead_reminder_add(id):
         flash('Title and reminder date/time required!', 'warning')
         return redirect(url_for('crm.lead_view', id=id, tab='reminder'))
 
-    try:
-        remind_dt = datetime.strptime(remind_str, '%Y-%m-%dT%H:%M')
-    except:
-        remind_dt = datetime.strptime(remind_str, '%Y-%m-%d %H:%M')
+    remind_dt = None
+    for fmt in ['%Y-%m-%dT%H:%M', '%Y-%m-%d %H:%M', '%d-%m-%Y %H:%M', '%d/%m/%Y %H:%M', '%Y-%m-%d']:
+        try:
+            remind_dt = datetime.strptime(remind_str.strip(), fmt)
+            break
+        except:
+            continue
+    if not remind_dt:
+        flash('Invalid date/time format. Please use the date picker.', 'warning')
+        return redirect(url_for('crm.lead_view', id=id, tab='reminder'))
 
     r = LeadReminder(
         lead_id     = id,
@@ -1304,8 +1411,13 @@ def lead_reminder_add(id):
     add_contribution(id, 'reminder', note=f'Reminder: {title}')
     db.session.commit()
     audit('leads','REMINDER', id, f'Lead #{id}', f'Reminder set: {title}')
-    flash('Reminder added!', 'success')
-    return redirect(url_for('crm.lead_view', id=id, tab='reminder'))
+    return jsonify(
+        success=True,
+        id=r.id,
+        title=r.title,
+        remind_at=r.remind_at.strftime('%d-%m-%Y %H:%M'),
+        description=r.description or ''
+    )
 
 
 @crm.route('/leads/reminder/<int:rid>/done', methods=['POST'])
@@ -1314,7 +1426,7 @@ def lead_reminder_done(rid):
     r = LeadReminder.query.get_or_404(rid)
     r.is_done = not r.is_done
     db.session.commit()
-    return redirect(url_for('crm.lead_view', id=r.lead_id, tab='reminder'))
+    return jsonify(success=True, is_done=r.is_done)
 
 
 @crm.route('/leads/reminder/<int:rid>/delete', methods=['POST'])
@@ -1324,8 +1436,7 @@ def lead_reminder_delete(rid):
     lid = r.lead_id
     db.session.delete(r)
     db.session.commit()
-    flash('Reminder deleted!', 'success')
-    return redirect(url_for('crm.lead_view', id=lid, tab='reminder'))
+    return jsonify(success=True)
 
 
 # ── Personal Notes ──
@@ -3168,7 +3279,7 @@ def contribution_config_save():
     for action_type, label, default_pts, desc in DEFAULT_CONTRIB_CONFIG:
         pts_str = request.form.get(f'pts_{action_type}', str(default_pts))
         try:
-            pts = max(0, int(pts_str))
+            pts = max(-100, min(100, int(pts_str)))  # allow negative points
         except ValueError:
             pts = default_pts
         cfg = ContributionConfig.query.filter_by(action_type=action_type).first()

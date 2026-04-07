@@ -492,6 +492,24 @@
     </div>
 </div>
 
+{# ── PACKING MATERIAL DELETE CONFIRM MODAL ── #}
+<div id="pmDeleteModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:10000;align-items:center;justify-content:center;" onclick="if(event.target===this)closePmDeleteModal()">
+    <div style="background:#fff;border-radius:14px;width:380px;max-width:92vw;box-shadow:0 20px 60px rgba(0,0,0,.22);overflow:hidden;animation:bomAlertIn .2s ease;">
+        <div style="padding:1rem 1.2rem;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;gap:.6rem;">
+            <span style="font-size:1.3rem;">🗑️</span>
+            <div style="font-weight:800;font-size:.95rem;color:#1e293b;">Delete Packing Row?</div>
+            <button onclick="closePmDeleteModal()" style="margin-left:auto;background:none;border:none;font-size:1.2rem;cursor:pointer;color:#94a3b8;">✕</button>
+        </div>
+        <div style="padding:1.1rem 1.2rem;">
+            <p style="font-size:.85rem;color:#475569;margin:0 0 1.2rem;">Are you sure you want to delete this packing material row? This action cannot be undone.</p>
+            <div style="display:flex;gap:.5rem;justify-content:flex-end;">
+                <button onclick="closePmDeleteModal()" style="padding:7px 18px;border:1px solid #e2e8f0;border-radius:7px;background:#f8fafc;font-size:.85rem;font-weight:600;cursor:pointer;">Cancel</button>
+                <button onclick="confirmPmDelete()" style="padding:7px 20px;background:#dc2626;color:#fff;border:none;border-radius:7px;font-size:.85rem;font-weight:700;cursor:pointer;">🗑 Delete</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 {# ── BOM ALERT MODAL ── #}
 <div id="bomAlertModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:10000;align-items:center;justify-content:center;" onclick="if(event.target===this)closeBomAlert()">
     <div style="background:#fff;border-radius:14px;width:420px;max-width:92vw;box-shadow:0 20px 60px rgba(0,0,0,.22);overflow:hidden;animation:bomAlertIn .2s ease;">
@@ -1129,22 +1147,40 @@ function closeEndModal(){
 
 <!-- TAB 7: MILESTONES -->
 <div id="tab-milestones" class="tab-pane">
+
+  {# ── Close Project Button — visible only when all milestones done + permission ── #}
+  {% if can_close_project %}
+  <div id="close-project-banner" style="display:{% if all_ms_done %}flex{% else %}none{% endif %};align-items:center;justify-content:space-between;background:linear-gradient(135deg,#064e3b,#065f46);border-radius:12px;padding:14px 20px;margin-bottom:16px;gap:16px;flex-wrap:wrap;">
+    <div style="display:flex;align-items:center;gap:12px;">
+      <span style="font-size:1.6rem;">🏁</span>
+      <div>
+        <div style="font-size:.92rem;font-weight:800;color:#fff;">Saare Milestones Complete Ho Gaye!</div>
+        <div style="font-size:.75rem;color:#6ee7b7;margin-top:2px;">Ab project close karke lead bhi automatically close ho jaayegi.</div>
+      </div>
+    </div>
+    {% if proj.status != "finish" %}
+    <button onclick="openCloseProjectModal()" style="padding:9px 22px;background:#10b981;color:#fff;border:none;border-radius:8px;font-size:.84rem;font-weight:800;cursor:pointer;white-space:nowrap;box-shadow:0 2px 8px rgba(16,185,129,.4);">✅ Close Project</button>
+    {% else %}
+    <div style="padding:7px 18px;background:#065f46;color:#6ee7b7;border:1.5px solid #059669;border-radius:8px;font-size:.82rem;font-weight:700;">🔒 Project Already Closed</div>
+    {% endif %}
+  </div>
+  {% endif %}
+
   <div style="display:flex;align-items:flex-start;border:1px solid var(--border);border-radius:12px;overflow:visible;background:#fff;">
 
     <!-- LEFT SIDEBAR — Sticky -->
     <div style="width:260px;flex-shrink:0;border-right:1px solid var(--border);background:#f8fafc;position:sticky;top:80px;max-height:calc(100vh - 100px);overflow-y:auto;align-self:flex-start;">
       <div style="padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
         <span style="font-size:.8rem;font-weight:800;color:var(--text);text-transform:uppercase;letter-spacing:.04em;">Milestones</span>
-        <span style="font-size:.75rem;color:var(--text3);font-weight:600;" id="ms-done-count-hdr">0 / 8 done</span>
+        <span style="font-size:.75rem;color:var(--text3);font-weight:600;" id="ms-done-count-hdr">0 / {{ selected_ms|length }} done</span>
       </div>
-      {% set ms_names = ['BOM','Ingredients List & Marketing Sheet','Quotation','Packing Material','Artwork Design','Artwork QC Approval','FDA','Barcode'] %}
-      {% for ms_name in ms_names %}
+      {% for ms in selected_ms %}
       <div id="ms-item-{{ loop.index }}"
            onclick="selectMilestone({{ loop.index }})"
            style="padding:13px 16px;cursor:pointer;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;gap:10px;transition:background .12s;">
         <span id="ms-icon-{{ loop.index }}" style="font-size:.9rem;flex-shrink:0;">⏳</span>
         <div style="flex:1;min-width:0;">
-          <div style="font-size:.82rem;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ ms_name }}</div>
+          <div style="font-size:.82rem;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ ms.title }}</div>
           <div id="ms-sub-{{ loop.index }}" style="font-size:.72rem;color:var(--text3);margin-top:1px;">Pending</div>
         </div>
       </div>
@@ -1162,10 +1198,37 @@ function closeEndModal(){
   </div>
 </div>
 
+{# ── CLOSE PROJECT CONFIRM MODAL ── #}
+<div id="closeProjectModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:10000;align-items:center;justify-content:center;" onclick="if(event.target===this)closeProjectModal()">
+  <div style="background:#fff;border-radius:16px;width:420px;max-width:94vw;box-shadow:0 24px 64px rgba(0,0,0,.25);overflow:hidden;animation:bomAlertIn .2s ease;">
+    <div style="background:linear-gradient(135deg,#064e3b,#065f46);padding:1.2rem 1.4rem;display:flex;align-items:center;gap:.8rem;">
+      <span style="font-size:1.5rem;">🏁</span>
+      <div style="font-weight:800;font-size:1rem;color:#fff;">Project Close Karna Hai?</div>
+      <button onclick="closeProjectModal()" style="margin-left:auto;background:rgba(255,255,255,.15);border:none;border-radius:6px;width:28px;height:28px;font-size:1rem;cursor:pointer;color:#fff;">✕</button>
+    </div>
+    <div style="padding:1.2rem 1.4rem;">
+      <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:12px 14px;margin-bottom:14px;">
+        <div style="font-size:.82rem;font-weight:700;color:#166534;margin-bottom:6px;">✅ Yeh actions honge:</div>
+        <ul style="margin:0;padding-left:16px;font-size:.8rem;color:#15803d;line-height:1.8;">
+          <li>NPD Project status → <strong>Finish</strong></li>
+          <li>Linked Lead status → <strong>Closed</strong></li>
+        </ul>
+      </div>
+      <p style="font-size:.83rem;color:#475569;margin:0 0 1.1rem;">Yeh action reverse nahi hogi. Kya aap confirm karte hain?</p>
+      <div style="display:flex;gap:.6rem;justify-content:flex-end;">
+        <button onclick="closeProjectModal()" style="padding:8px 20px;border:1.5px solid #e2e8f0;border-radius:8px;background:#f8fafc;font-size:.84rem;font-weight:600;cursor:pointer;color:#475569;">Cancel</button>
+        <button onclick="confirmCloseProject()" id="close-proj-confirm-btn" style="padding:8px 22px;background:#059669;color:#fff;border:none;border-radius:8px;font-size:.84rem;font-weight:800;cursor:pointer;">🏁 Haan, Close Karo</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script>
 // ── Milestone Data ──
 var MS_STATE = {};
-var MS_NAMES = ['BOM','Ingredients List & Marketing Sheet','Quotation','Packing Material','Artwork Design','Artwork QC Approval','FDA','Barcode'];
+// Dynamic milestone list from project's selected milestones
+var MS_NAMES = [{% for ms in selected_ms %}'{{ ms.title|replace("'", "\'")|safe }}'{% if not loop.last %},{% endif %}{% endfor %}];
+var MS_TYPES = [{% for ms in selected_ms %}'{{ ms.milestone_type }}'{% if not loop.last %},{% endif %}{% endfor %}];  // milestone_type per slot
 var FDA_DOC_TYPES = ['Free Sale Certificate', 'Product Permission', 'MSDS', 'Dossier'];
 var MS_SELECTED = null;
 var PROJ_ID = {{ proj.id }};
@@ -1183,11 +1246,12 @@ var PROJ_ID = {{ proj.id }};
 })();
 
 function updateAllSidebarItems() {
-  var done = 0;
-  for (var i = 1; i <= 8; i++) {
-    var key = 'ms_' + i;
-    var st  = (MS_STATE[key] || {}).status || 'pending';
-    var dt  = (MS_STATE[key] || {}).date   || '';
+  var done  = 0;
+  var total = MS_NAMES.length;
+  for (var i = 1; i <= total; i++) {
+    var key  = 'ms_' + i;
+    var st   = (MS_STATE[key] || {}).status || 'pending';
+    var dt   = (MS_STATE[key] || {}).date   || '';
     var icon = document.getElementById('ms-icon-' + i);
     var sub  = document.getElementById('ms-sub-'  + i);
     if (st === 'done') {
@@ -1200,19 +1264,22 @@ function updateAllSidebarItems() {
     }
   }
   var hdr = document.getElementById('ms-done-count-hdr');
-  if (hdr) hdr.textContent = done + ' / 8 done';
-  // Refresh detail panel if one is selected
+  if (hdr) hdr.textContent = done + ' / ' + total + ' done';
+  // Show/hide close project banner dynamically
+  var banner = document.getElementById('close-project-banner');
+  if (banner && total > 0) {
+    banner.style.display = (done === total) ? 'flex' : 'none';
+  }
   if (MS_SELECTED) renderDetail(MS_SELECTED);
 }
 
 function selectMilestone(idx) {
   MS_SELECTED = idx;
   // Highlight selected item
-  for (var i = 1; i <= 8; i++) {
+  for (var i = 1; i <= MS_NAMES.length; i++) {
     var el = document.getElementById('ms-item-' + i);
     if (!el) continue;
     if (window.innerWidth <= 768) {
-      // Mobile: horizontal chip bar — highlight with bottom border
       el.style.background   = (i === idx) ? '#eff6ff' : '';
       el.style.borderBottom = (i === idx) ? '3px solid var(--blue)' : 'none';
       el.style.borderLeft   = 'none';
@@ -1239,16 +1306,15 @@ function renderDetail(idx) {
   var isDone = (st === 'done');
   window._msLocked = isDone;  // Global lock flag for all action functions
 
-  // BOM=1 → Formulation Sheet
-  // BOM=1 → Formulation Sheet
-  // Artwork Design=5, Artwork QC Approval=6 → Discussion Board
-  // All others → Simple Notes
-  var isBOM        = (idx === 1);
-  var isEditor     = (idx === 2);   // Ingredients List & Marketing Sheet
-  var isQuotation  = (idx === 3);   // Quotation
-  var isDiscussion = (idx === 5 || idx === 6);
-  var isFDA        = (idx === 7);   // FDA
-  var isBarcode    = (idx === 8);   // Barcode
+  // Detect milestone type dynamically from MS_TYPES array
+  var mtype = (MS_TYPES[idx - 1] || '').toLowerCase();
+  var isBOM            = (mtype === 'bom');
+  var isEditor         = (mtype === 'ingredients');
+  var isQuotation      = (mtype === 'quotation');
+  var isPackingMaterial= (mtype === 'packing_material');
+  var isDiscussion     = (mtype === 'artwork' || mtype === 'kld_mockup' || mtype === 'artwork_design' || mtype === 'artwork_qc_approval');
+  var isFDA            = (mtype === 'fda' || mtype === 'qc_fda');
+  var isBarcode        = (mtype === 'barcode');
 
   var header =
     '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">' +
@@ -1321,6 +1387,33 @@ function renderDetail(idx) {
       '</div>';
     loadBomList();
     setTimeout(_applyLockOverlay, 500);
+
+  } else if (isPackingMaterial) {
+    // ── Packing Material Table ──
+    panel.innerHTML =
+      '<div>' + header +
+        '<div style="border:1px solid var(--border);border-radius:10px;overflow:hidden;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.05);">' +
+          '<div style="padding:10px 16px;background:#1e3a5f;color:#fff;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">' +
+            '<div style="font-size:.85rem;font-weight:800;letter-spacing:.04em;">📦 PACKING MATERIAL</div>' +
+            '<button onclick="pmAddRow()" style="padding:6px 14px;background:#f59e0b;color:#fff;border:none;border-radius:7px;font-size:.78rem;font-weight:700;cursor:pointer;">＋ Add Row</button>' +
+          '</div>' +
+          '<div style="overflow-x:auto;">' +
+            '<table style="width:100%;border-collapse:collapse;font-size:.82rem;">' +
+              '<thead><tr style="background:#e8f0fe;">' +
+                '<th style="padding:9px 10px;border:1px solid #c7d7f4;text-align:center;width:40px;font-weight:800;">#</th>' +
+                '<th style="padding:9px 10px;border:1px solid #c7d7f4;text-align:left;font-weight:800;min-width:140px;">Category</th>' +
+                '<th style="padding:9px 10px;border:1px solid #c7d7f4;text-align:left;font-weight:800;min-width:160px;">Vendor Name</th>' +
+                '<th style="padding:9px 10px;border:1px solid #c7d7f4;text-align:left;font-weight:800;min-width:110px;">Cost</th>' +
+                '<th style="padding:9px 10px;border:1px solid #c7d7f4;text-align:center;font-weight:800;min-width:130px;">Image</th>' +
+                '<th style="padding:9px 10px;border:1px solid #c7d7f4;text-align:center;width:50px;font-weight:800;"></th>' +
+              '</tr></thead>' +
+              '<tbody id="pm-tbody"><tr><td colspan="6" style="text-align:center;padding:30px;color:var(--text3);">Loading...</td></tr></tbody>' +
+            '</table>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+    loadPmRows();
+    setTimeout(_applyLockOverlay, 400);
 
   } else if (isQuotation) {
     // ── Quotation Inline Form ──
@@ -1516,6 +1609,180 @@ function renderDetail(idx) {
 
 
 
+
+// ═══ CLOSE PROJECT JS ═══════════════════════════════════════
+
+function openCloseProjectModal() {
+  document.getElementById('closeProjectModal').style.display = 'flex';
+}
+
+function closeProjectModal() {
+  document.getElementById('closeProjectModal').style.display = 'none';
+}
+
+function confirmCloseProject() {
+  var btn = document.getElementById('close-proj-confirm-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Closing...'; }
+  fetch('/npd/' + PROJ_ID + '/close-project', { method: 'POST' })
+    .then(function(r){ return r.json(); })
+    .then(function(d) {
+      closeProjectModal();
+      if (d.success) {
+        // Update banner to "Already Closed" state
+        var banner = document.getElementById('close-project-banner');
+        if (banner) {
+          banner.innerHTML =
+            '<div style="display:flex;align-items:center;gap:12px;">' +
+              '<span style="font-size:1.6rem;">🏁</span>' +
+              '<div>' +
+                '<div style="font-size:.92rem;font-weight:800;color:#fff;">Project Successfully Closed!</div>' +
+                '<div style="font-size:.75rem;color:#6ee7b7;margin-top:2px;">NPD Project aur Lead dono close ho gaye.</div>' +
+              '</div>' +
+            '</div>' +
+            '<div style="padding:7px 18px;background:#065f46;color:#6ee7b7;border:1.5px solid #059669;border-radius:8px;font-size:.82rem;font-weight:700;">🔒 Project Closed</div>';
+        }
+        // Show success toast
+        showToast('✅ ' + (d.message || 'Project close ho gaya!'), 'success');
+      } else {
+        showToast('❌ ' + (d.error || 'Kuch error aayi. Dobara try karo.'), 'error');
+        if (btn) { btn.disabled = false; btn.textContent = '🏁 Haan, Close Karo'; }
+      }
+    })
+    .catch(function() {
+      closeProjectModal();
+      showToast('❌ Network error. Dobara try karo.', 'error');
+      if (btn) { btn.disabled = false; btn.textContent = '🏁 Haan, Close Karo'; }
+    });
+}
+
+function showToast(msg, type) {
+  var t = document.createElement('div');
+  t.textContent = msg;
+  t.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);z-index:99999;' +
+    'padding:12px 24px;border-radius:10px;font-size:.85rem;font-weight:700;box-shadow:0 4px 20px rgba(0,0,0,.2);' +
+    (type === 'success' ? 'background:#059669;color:#fff;' : 'background:#dc2626;color:#fff;');
+  document.body.appendChild(t);
+  setTimeout(function(){ t.remove(); }, 3500);
+}
+
+// ═══ PACKING MATERIAL MILESTONE JS ═══════════════════════════
+
+var PM_CATEGORIES = ['Primary', 'Secondary', 'Legendry'];
+
+function loadPmRows() {
+  fetch('/npd/' + PROJ_ID + '/packing/list')
+    .then(function(r){ return r.json(); })
+    .then(function(d) {
+      var tbody = document.getElementById('pm-tbody');
+      if (!tbody) return;
+      var rows = d.rows || [];
+      if (!rows.length) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:30px;color:var(--text3);font-size:.85rem;">No rows yet. Click <strong>＋ Add Row</strong> to begin.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = rows.map(function(r, i) {
+        return pmRowHtml(r, i + 1);
+      }).join('');
+    })
+    .catch(function(){ 
+      var tbody = document.getElementById('pm-tbody');
+      if (tbody) tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;color:#ef4444;">Failed to load rows.</td></tr>';
+    });
+}
+
+function pmRowHtml(r, srno) {
+  var imgHtml = r.image
+    ? '<div style="display:flex;align-items:center;gap:6px;">' +
+        '<a href="/static/uploads/npd/' + r.image + '" target="_blank">' +
+          '<img src="/static/uploads/npd/' + r.image + '" style="width:40px;height:40px;object-fit:cover;border-radius:5px;border:1px solid #e2e8f0;" onerror="this.style.display=\'none\'">' +
+        '</a>' +
+        '<label style="font-size:.7rem;color:#6366f1;cursor:pointer;font-weight:700;">' +
+          '📷 Change' +
+          '<input type="file" accept="image/*" style="display:none;" onchange="pmUploadImage(this,' + r.id + ')">' +
+        '</label>' +
+      '</div>'
+    : '<label style="font-size:.75rem;color:#6366f1;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:4px;">' +
+        '📤 Upload' +
+        '<input type="file" accept="image/*" style="display:none;" onchange="pmUploadImage(this,' + r.id + ')">' +
+      '</label>';
+
+  var catOptions = PM_CATEGORIES.map(function(c) {
+    return '<option value="' + c + '"' + (r.category === c ? ' selected' : '') + '>' + c + '</option>';
+  }).join('');
+
+  return '<tr id="pm-row-' + r.id + '" style="border-bottom:1px solid #f1f5f9;">' +
+    '<td style="padding:8px 10px;border:1px solid #e8effc;text-align:center;color:#94a3b8;font-weight:700;">' + srno + '</td>' +
+    '<td style="padding:6px 8px;border:1px solid #e8effc;">' +
+      '<select onchange="pmSaveField(' + r.id + ',\'category\',this.value)" style="border:1px solid #d1d5db;border-radius:5px;padding:5px 8px;font-size:.8rem;font-family:inherit;width:100%;background:#fff;outline:none;">' +
+        catOptions +
+      '</select>' +
+    '</td>' +
+    '<td style="padding:6px 8px;border:1px solid #e8effc;">' +
+      '<input type="text" value="' + (r.vendor_name||'') + '" placeholder="Vendor name..." onblur="pmSaveField(' + r.id + ',\'vendor_name\',this.value)" style="border:1px solid #d1d5db;border-radius:5px;padding:5px 8px;font-size:.8rem;font-family:inherit;width:100%;box-sizing:border-box;outline:none;">' +
+    '</td>' +
+    '<td style="padding:6px 8px;border:1px solid #e8effc;">' +
+      '<input type="text" value="' + (r.cost||'') + '" placeholder="₹ Cost..." onblur="pmSaveField(' + r.id + ',\'cost\',this.value)" style="border:1px solid #d1d5db;border-radius:5px;padding:5px 8px;font-size:.8rem;font-family:inherit;width:100%;box-sizing:border-box;outline:none;">' +
+    '</td>' +
+    '<td style="padding:6px 8px;border:1px solid #e8effc;text-align:center;">' + imgHtml + '</td>' +
+    '<td style="padding:6px 8px;border:1px solid #e8effc;text-align:center;">' +
+      '<button onclick="pmDeleteRow(' + r.id + ')" title="Delete row" style="background:#fee2e2;border:none;border-radius:5px;padding:4px 8px;cursor:pointer;color:#dc2626;font-weight:800;font-size:.75rem;">✕</button>' +
+    '</td>' +
+  '</tr>';
+}
+
+function pmAddRow() {
+  if (window._msLocked) { alert('Milestone is marked as Done. Mark as Pending to make changes.'); return; }
+  var fd = new FormData();
+  fd.append('category', 'Primary');
+  fd.append('vendor_name', '');
+  fd.append('cost', '');
+  fetch('/npd/' + PROJ_ID + '/packing/row/add', { method: 'POST', body: fd })
+    .then(function(r){ return r.json(); })
+    .then(function(d) {
+      if (d.success) loadPmRows();
+    });
+}
+
+function pmSaveField(pmid, field, value) {
+  if (window._msLocked) return;
+  var fd = new FormData();
+  fd.append(field, value);
+  fetch('/npd/' + PROJ_ID + '/packing/row/' + pmid + '/update', { method: 'POST', body: fd });
+}
+
+function pmUploadImage(input, pmid) {
+  if (window._msLocked) { alert('Milestone is marked as Done. Mark as Pending to make changes.'); return; }
+  if (!input.files || !input.files[0]) return;
+  var fd = new FormData();
+  fd.append('image', input.files[0]);
+  fetch('/npd/' + PROJ_ID + '/packing/row/' + pmid + '/update', { method: 'POST', body: fd })
+    .then(function(r){ return r.json(); })
+    .then(function(d) { if (d.success) loadPmRows(); });
+}
+
+var _pmDeleteId = null;
+
+function pmDeleteRow(pmid) {
+  if (window._msLocked) { alert('Milestone is marked as Done. Mark as Pending to make changes.'); return; }
+  _pmDeleteId = pmid;
+  var modal = document.getElementById('pmDeleteModal');
+  modal.style.display = 'flex';
+}
+
+function closePmDeleteModal() {
+  document.getElementById('pmDeleteModal').style.display = 'none';
+  _pmDeleteId = null;
+}
+
+function confirmPmDelete() {
+  if (!_pmDeleteId) return;
+  fetch('/npd/' + PROJ_ID + '/packing/row/' + _pmDeleteId + '/delete', { method: 'POST' })
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      closePmDeleteModal();
+      if (d.success) loadPmRows();
+    });
+}
 
 // ═══ FDA MILESTONE JS ════════════════════════════════════════
 

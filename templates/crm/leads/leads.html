@@ -132,7 +132,7 @@
 {% block content %}
 
 <!-- ── Stat Strip — fully dynamic from DB ── -->
-<div class="stat-strip" style="grid-template-columns:repeat({{ lead_statuses|length + 1 }},1fr);">
+<div class="stat-strip" id="stat-strip-leads">
     <a href="{{ url_for('crm.leads') }}" class="stat-item blue {{ 'active blue' if not status and not show_trash }}"
        style="border-left-color:#3b82f6;">
       <div style="width:40px;height:40px;border-radius:10px;background:#dbeafe;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:1.2rem;">📋</div>
@@ -142,7 +142,7 @@
     <a href="{{ url_for('crm.leads', status=ls.name) }}"
        class="stat-item {{ 'active' if status==ls.name }}"
        style="border-left-color:{{ ls.color }};{% if status==ls.name %}background:{{ ls.color }}0d;{% endif %}">
-      <div style="width:40px;height:40px;border-radius:10px;background:{{ ls.color }}18;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:1.25rem;">{{ ls.icon }}</div>
+      <div style="width:40px;height:40px;border-radius:10px;background:{{ ls.color }}18;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:1.25rem;">{% if ls.icon %}{{ ls.icon }}{% elif ls.name=="open" %}✉️{% elif ls.name=="in_process" %}⚙️{% elif ls.name=="close" %}✅{% elif ls.name=="cancel" %}❌{% else %}📌{% endif %}</div>
       <div>
         <div class="stat-num" style="color:{{ ls.color }};">{{ counts.get(ls.name, 0) }}</div>
         <div class="stat-lbl">{{ ls.name.replace('_',' ')|title }}</div>
@@ -201,7 +201,7 @@
         <a href="{{ url_for('crm.leads', status=ls.name) }}"
            class="status-dd-item {{ 'active' if status==ls.name }}"
            style="display:flex;align-items:center;gap:.5rem;padding:.55rem .9rem;font-size:.83rem;font-weight:600;color:var(--text);text-decoration:none;transition:background .1s;{% if status==ls.name %}background:{{ ls.color }}15;{% endif %}">
-          <span style="width:18px;text-align:center;">{{ ls.icon }}</span>
+          <span style="width:18px;text-align:center;">{% if ls.icon %}{{ ls.icon }}{% elif ls.name=="open" %}✉️{% elif ls.name=="in_process" %}⚙️{% elif ls.name=="close" %}✅{% elif ls.name=="cancel" %}❌{% else %}📌{% endif %}</span>
           <span style="{% if status==ls.name %}color:{{ ls.color }};{% endif %}">{{ ls.name.replace('_',' ')|title }}</span>
           <span style="margin-left:auto;font-size:.75rem;font-weight:700;color:{{ ls.color }};">{{ counts.get(ls.name, 0) }}</span>
         </a>
@@ -500,7 +500,7 @@
           {% set _st_icon = '' %}
           {% for ls in lead_statuses if ls.name == l.status %}
             {% set _st_color = ls.color %}
-            {% set _st_icon = ls.icon %}
+            {% set _st_icon = ls.icon if ls.icon else ("✉️" if ls.name=="open" else ("⚙️" if ls.name=="in_process" else ("✅" if ls.name=="close" else ("❌" if ls.name=="cancel" else "📌")))) %}
           {% endfor %}
           <span class="ld-sbadge {{ (l.status or 'open')|replace(' ','_')|lower }}"
             {% if l.status not in ('open','in_process','close','cancel') and _st_color %}

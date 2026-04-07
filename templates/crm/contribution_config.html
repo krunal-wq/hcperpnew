@@ -55,7 +55,7 @@
                 <div class="cfg-desc">Lead {{ label }} mein close ho to — active members mein divide</div>
                 <div style="display:flex;align-items:center;gap:5px;">
                     <input type="number" class="pts-input" name="pts_{{ at }}"
-                           value="{{ cfg.points if cfg else 0 }}" min="0" max="100"
+                           value="{{ cfg.points if cfg else 0 }}" min="-100" max="100"
                            style="color:{{ color }};">
                     <span style="font-size:0.75rem;color:var(--text3);">pts</span>
                 </div>
@@ -83,7 +83,7 @@
                 <div class="cfg-desc">{{ desc }}</div>
                 <div style="display:flex;align-items:center;gap:5px;">
                     <input type="number" class="pts-input" name="pts_{{ at }}"
-                           value="{{ cfg.points if cfg else 0 }}" min="0" max="100"
+                           value="{{ cfg.points if cfg else 0 }}" min="-100" max="100"
                            style="color:{{ color }};">
                     <span style="font-size:0.75rem;color:var(--text3);">pts</span>
                 </div>

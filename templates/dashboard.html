@@ -211,6 +211,29 @@
     .welcome-card { padding:1.25rem; }
     .wc-title { font-size:1.1rem; }
 }
+/* ═══ DASHBOARD ls-card style ═══ */
+.dash-ls-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 1.1rem;
+}
+.dash-ls-card {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-left: 4px solid transparent;
+    border-radius: 13px;
+    padding: 20px 24px;
+    display: flex; align-items: center; gap: 16px;
+    text-decoration: none; color: var(--text);
+    transition: transform .15s, box-shadow .15s;
+    cursor: pointer; min-height: 82px;
+}
+.dash-ls-card:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,.1); }
+.dash-ls-lbl { font-size: .63rem; font-weight: 800; text-transform: uppercase; letter-spacing: .09em; color: var(--text3); margin-bottom: 4px; }
+.dash-ls-num { font-size: 2.1rem; font-weight: 900; line-height: 1; letter-spacing: -0.03em; }
+@media(max-width:900px) { .dash-ls-grid { grid-template-columns: repeat(2,1fr); } }
+@media(max-width:500px)  { .dash-ls-grid { grid-template-columns: repeat(2,1fr); gap:8px; } .dash-ls-num { font-size:1.6rem; } }
 </style>
 {% endblock %}
 
@@ -234,37 +257,33 @@
     <span class="sec-lbl-dot" style="background:#3b82f6;"></span>
     Quick Overview
 </div>
-<div class="qo-grid">
-    <a href="/crm/leads" class="qo-card c-blue">
-        <div class="qo-icon c-blue">📋</div>
+<div class="dash-ls-grid">
+    <a href="/crm/leads" class="dash-ls-card" style="border-left-color:#3b82f6;">
+        <span style="font-size:1.4rem;flex-shrink:0;opacity:.85;">📋</span>
         <div>
-            <div class="qo-lbl">Total Leads</div>
-            <div class="qo-num c-blue">{{ lead_counts.total }}</div>
-            <div class="qo-hint">{{ lead_counts.open }} open</div>
+            <div class="dash-ls-lbl">Total Leads</div>
+            <div class="dash-ls-num" style="color:#2563eb;">{{ lead_counts.total }}</div>
         </div>
     </a>
-    <a href="/crm/clients" class="qo-card c-purple">
-        <div class="qo-icon c-purple">👥</div>
+    <a href="/crm/clients" class="dash-ls-card" style="border-left-color:#8b5cf6;">
+        <span style="font-size:1.4rem;flex-shrink:0;opacity:.85;">👥</span>
         <div>
-            <div class="qo-lbl">Clients</div>
-            <div class="qo-num c-purple">{{ total_clients }}</div>
-            <div class="qo-hint">Client master</div>
+            <div class="dash-ls-lbl">Clients</div>
+            <div class="dash-ls-num" style="color:#7c3aed;">{{ total_clients }}</div>
         </div>
     </a>
-    <a href="/crm/leads?status=close" class="qo-card c-green">
-        <div class="qo-icon c-green">✅</div>
+    <a href="/crm/leads?status=close" class="dash-ls-card" style="border-left-color:#10b981;">
+        <span style="font-size:1.4rem;flex-shrink:0;opacity:.85;">✅</span>
         <div>
-            <div class="qo-lbl">Closed</div>
-            <div class="qo-num c-green">{{ lead_counts.close }}</div>
-            <div class="qo-hint">{% if lead_counts.total > 0 %}{{ ((lead_counts.close/lead_counts.total)*100)|round(1) }}%{% else %}0%{% endif %} conversion</div>
+            <div class="dash-ls-lbl">Closed</div>
+            <div class="dash-ls-num" style="color:#059669;">{{ lead_counts.close }}</div>
         </div>
     </a>
-    <a href="/crm/leads?status=in_process" class="qo-card c-amber">
-        <div class="qo-icon c-amber">⚙️</div>
+    <a href="/crm/leads?status=in_process" class="dash-ls-card" style="border-left-color:#f59e0b;">
+        <span style="font-size:1.4rem;flex-shrink:0;opacity:.85;">⚙️</span>
         <div>
-            <div class="qo-lbl">In Process</div>
-            <div class="qo-num c-amber">{{ lead_counts.in_process }}</div>
-            <div class="qo-hint">Active pipeline</div>
+            <div class="dash-ls-lbl">In Process</div>
+            <div class="dash-ls-num" style="color:#d97706;">{{ lead_counts.in_process }}</div>
         </div>
     </a>
 </div>
@@ -323,33 +342,33 @@
     <span class="sec-lbl-dot" style="background:#f59e0b;"></span>
     Lead Status
 </div>
-<div class="lead-status-grid">
-    <a href="/crm/leads" class="ls-card open">
-        <span class="ls-icon">✉️</span>
+<div class="dash-ls-grid">
+    <a href="/crm/leads?status=open" class="dash-ls-card" style="border-left-color:#6366f1;">
+        <span style="font-size:1.4rem;flex-shrink:0;opacity:.85;">✉️</span>
         <div>
-            <div class="ls-lbl">Open</div>
-            <div class="ls-num">{{ lead_counts.open }}</div>
+            <div class="dash-ls-lbl">Open</div>
+            <div class="dash-ls-num" style="color:#4f46e5;">{{ lead_counts.open }}</div>
         </div>
     </a>
-    <a href="/crm/leads?status=in_process" class="ls-card in_process">
-        <span class="ls-icon">⚙️</span>
+    <a href="/crm/leads?status=in_process" class="dash-ls-card" style="border-left-color:#1e2d5e;">
+        <span style="font-size:1.4rem;flex-shrink:0;opacity:.85;">⚙️</span>
         <div>
-            <div class="ls-lbl">In Process</div>
-            <div class="ls-num">{{ lead_counts.in_process }}</div>
+            <div class="dash-ls-lbl">In Process</div>
+            <div class="dash-ls-num" style="color:#1e2d5e;">{{ lead_counts.in_process }}</div>
         </div>
     </a>
-    <a href="/crm/leads?status=close" class="ls-card close">
-        <span class="ls-icon">✅</span>
+    <a href="/crm/leads?status=close" class="dash-ls-card" style="border-left-color:#0d9488;">
+        <span style="font-size:1.4rem;flex-shrink:0;opacity:.85;">✅</span>
         <div>
-            <div class="ls-lbl">Closed</div>
-            <div class="ls-num">{{ lead_counts.close }}</div>
+            <div class="dash-ls-lbl">Close</div>
+            <div class="dash-ls-num" style="color:#0d9488;">{{ lead_counts.close }}</div>
         </div>
     </a>
-    <a href="/crm/leads?status=cancel" class="ls-card cancel">
-        <span class="ls-icon">❌</span>
+    <a href="/crm/leads?status=cancel" class="dash-ls-card" style="border-left-color:#ef4444;">
+        <span style="font-size:1.4rem;flex-shrink:0;opacity:.85;">❌</span>
         <div>
-            <div class="ls-lbl">Cancelled</div>
-            <div class="ls-num">{{ lead_counts.cancel }}</div>
+            <div class="dash-ls-lbl">Cancel</div>
+            <div class="dash-ls-num" style="color:#ef4444;">{{ lead_counts.cancel }}</div>
         </div>
     </a>
 </div>

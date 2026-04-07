@@ -706,7 +706,12 @@ with app.app_context():
     ]
     s_added = 0
     for name, icon, color, sort in statuses:
-        if not LeadStatus.query.filter_by(name=name).first():
+        existing = LeadStatus.query.filter_by(name=name).first()
+        if existing:
+            # Update icon/color if missing
+            if not existing.icon: existing.icon = icon
+            if not existing.color: existing.color = color
+        else:
             db.session.add(LeadStatus(name=name, icon=icon, color=color,
                                        sort_order=sort, is_active=True))
             s_added += 1
@@ -2309,6 +2314,41 @@ with app.app_context():
     _cur17.close()
     _c17.close()
     ok("✅ All HR Rules tables ready!")
+
+    # ══════════════════════════════════════════════════════
+    # PACKING MATERIAL — new columns (fresh connection)
+    # ══════════════════════════════════════════════════════
+    step("Packing Material columns add kar raha hai...")
+    try:
+        _pm_uri = db.engine.url
+        _pm_con = pymysql.connect(
+            host=str(_pm_uri.host),
+            port=int(_pm_uri.port or 3306),
+            user=str(_pm_uri.username),
+            password=str(_pm_uri.password),
+            database=str(_pm_uri.database),
+            charset='utf8mb4'
+        )
+        _pm_cur = _pm_con.cursor()
+        for _col, _defn in [
+            ('cost',       "VARCHAR(100) DEFAULT ''"),
+            ('is_deleted', 'TINYINT(1) NOT NULL DEFAULT 0'),
+        ]:
+            _pm_cur.execute(
+                "SELECT COUNT(*) FROM information_schema.columns "
+                "WHERE table_schema=DATABASE() AND table_name='npd_packing_materials' AND column_name=%s",
+                (_col,)
+            )
+            if _pm_cur.fetchone()[0] == 0:
+                _pm_cur.execute(f"ALTER TABLE `npd_packing_materials` ADD COLUMN `{_col}` {_defn}")
+                _pm_con.commit()
+                ok(f"npd_packing_materials.{_col} column add kiya ✓")
+            else:
+                ok(f"npd_packing_materials.{_col} already exists ✓")
+        _pm_cur.close()
+        _pm_con.close()
+    except Exception as _pm_e:
+        warn(f"Packing Material columns: {_pm_e}")
 
     # ══════════════════════════════════════════════════════
     # DONE

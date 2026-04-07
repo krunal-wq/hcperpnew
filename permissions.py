@@ -36,6 +36,7 @@ MODULE_SUB_PERMS = {
         ('milestone',        'Milestone'),
         ('epd',              'EPD'),
         ('reports',          'Reports'),
+        ('close_project',    'Close Project (All Milestones Done)'),
     ],
     'rd': [
         ('create_project',   'Create Project'),

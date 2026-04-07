@@ -387,26 +387,28 @@ textarea.fi{resize:vertical;min-height:72px;}
 <div class="form-card">
     <div class="sec-title">⚙️ Select Milestones</div>
     {% if edit %}
-    {% set existing_ms = edit.milestones|list %}
-    {% if existing_ms %}
+    {# Build a map of milestone_type -> MilestoneMaster row for this project #}
+    {% set existing_map = {} %}
+    {% for ms in edit.milestones %}
+        {% if existing_map.update({ms.milestone_type: ms}) %}{% endif %}
+    {% endfor %}
     <div class="ms-grid">
-        {% for ms in existing_ms %}
-        <label class="ms-item" style="{{ 'background:#f5f3ff;border-color:#7c3aed;' if ms.is_selected }}">
-            <input type="checkbox" name="milestone_ids" value="{{ ms.id }}" {{ 'checked' if ms.is_selected }}>
-            <span>{{ ms.icon if ms.icon else '' }} {{ ms.title }}</span>
-            {% if ms.status and ms.status != 'pending' %}
+        {% for tmpl in default_milestones %}
+        {% set ms = existing_map.get(tmpl.milestone_type) %}
+        {% set is_sel = ms.is_selected if ms else false %}
+        <label class="ms-item" style="{{ 'background:#f5f3ff;border-color:#7c3aed;' if is_sel }}">
+            {% if ms %}
+            <input type="checkbox" name="milestone_ids" value="{{ ms.id }}" {{ 'checked' if is_sel }}>
+            {% else %}
+            <input type="checkbox" name="milestones" value="{{ tmpl.milestone_type }}">
+            {% endif %}
+            <span>{{ tmpl.icon if tmpl.icon else '' }} {{ tmpl.title }}</span>
+            {% if ms and ms.status and ms.status != 'pending' %}
             <span style="font-size:.68rem;font-weight:700;padding:1px 6px;border-radius:100px;background:{% if ms.status=='approved' %}#dcfce7{% else %}#fef9c3{% endif %};color:{% if ms.status=='approved' %}#16a34a{% else %}#854d0e{% endif %};margin-left:auto;">{{ ms.status|title }}</span>
             {% endif %}
         </label>
         {% endfor %}
     </div>
-    {% else %}
-    <div class="ms-grid">
-        {% for tmpl in default_milestones %}
-        <label class="ms-item"><input type="checkbox" name="milestones" value="{{ tmpl.milestone_type }}"><span>{{ tmpl.icon if tmpl.icon else '' }} {{ tmpl.title }}</span></label>
-        {% endfor %}
-    </div>
-    {% endif %}
     {% else %}
     <div class="ms-grid">
         {% for tmpl in default_milestones %}

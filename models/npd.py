@@ -374,6 +374,8 @@ class NPDPackingMaterial(db.Model):
 
     notes       = db.Column(db.Text)
     attachments = db.Column(db.Text)
+    cost        = db.Column(db.String(100), default='')
+    is_deleted  = db.Column(db.Boolean, default=False)
 
     created_by  = db.Column(db.Integer, db.ForeignKey('users.id'))
     created_at  = db.Column(db.DateTime, default=datetime.now)

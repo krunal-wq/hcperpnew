@@ -525,7 +525,21 @@ def sample_order_send(id):
         flash(f'❌ No email found for order {so.order_number}. Please add email to lead/order first.', 'danger')
         return back
 
-    success, err = _send_smtp(to_email, subject, body, from_email, from_name)
+    # Generate PDF attachment
+    pdf_bytes = None
+    pdf_name  = f'{so.order_number}.pdf'
+    try:
+        from crm_routes import _build_sample_order_pdf
+        pdf_buf   = _build_sample_order_pdf(so, lead)
+        pdf_bytes = pdf_buf.getvalue()
+    except Exception as pdf_err:
+        current_app.logger.warning(f'PDF generation failed: {pdf_err}')
+
+    success, err = _send_smtp(
+        to_email, subject, body, from_email, from_name,
+        attachment_bytes=pdf_bytes,
+        attachment_name=pdf_name
+    )
 
     if success:
         db.session.add(LeadActivityLog(

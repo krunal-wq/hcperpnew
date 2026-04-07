@@ -155,8 +155,7 @@
                         <span>{% if row.pm_cost and row.pm_cost != 0 %}₹{{ '{:,.0f}'.format(row.pm_cost|float) }}{% else %}—{% endif %}</span>
                     </div>
                     <div class="qp-cost-item">
-                        <label>FG Cost</label>
-                        <span>{% if row.fg_cost and row.fg_cost != 0 %}₹{{ '{:,.0f}'.format(row.fg_cost|float) }}{% else %}—{% endif %}</span>
+
                     </div>
                 </div>
                 {% if row.pm_spec and row.pm_spec != '—' %}
@@ -196,7 +195,7 @@
                     <th style="text-align:center;">MOQ</th>
                     <th style="min-width:120px;">PM Specification</th>
                     <th style="text-align:right;">PM Cost</th>
-                    <th style="text-align:right;">FG Cost</th>
+                    
                     <th>Category</th>
                     <th style="text-align:right;">Final Cost</th>
                 </tr>
@@ -213,7 +212,6 @@
                     <td style="text-align:center;font-weight:600;">{% if row.moq %}{{ '{:,}'.format(row.moq|int) }}{% else %}—{% endif %}</td>
                     <td style="font-size:0.78rem;color:#6b7280;">{{ row.pm_spec if row.pm_spec and row.pm_spec != '—' else '—' }}</td>
                     <td style="text-align:right;">{% if row.pm_cost and row.pm_cost != 0 %}₹ {{ '{:,.2f}'.format(row.pm_cost|float) }}{% else %}—{% endif %}</td>
-                    <td style="text-align:right;">{% if row.fg_cost and row.fg_cost != 0 %}₹ {{ '{:,.2f}'.format(row.fg_cost|float) }}{% else %}—{% endif %}</td>
                     <td style="font-size:0.8rem;">{{ row.category if row.category and row.category != '—' else '—' }}</td>
                     <td style="text-align:right;font-weight:700;color:#1e3a5f;font-size:0.85rem;">{% if row.final_cost and row.final_cost != 0 %}₹ {{ '{:,.2f}'.format(row.final_cost|float) }}{% else %}—{% endif %}</td>
                 </tr>
@@ -329,7 +327,6 @@ function qpRenderCards(rows) {
                 <div class="qp-card-costs">
                     <div class="qp-cost-item"><label>Cost</label><span>${costFmt(row.cost)}</span></div>
                     <div class="qp-cost-item"><label>PM Cost</label><span>${costFmt(row.pm_cost)}</span></div>
-                    <div class="qp-cost-item"><label>FG Cost</label><span>${costFmt(row.fg_cost)}</span></div>
                 </div>
                 ${pmSpec}
             </div>
@@ -364,7 +361,6 @@ function qpRenderTable(rows) {
             <td style="text-align:center;font-weight:600;">${row.moq ? Number(row.moq).toLocaleString('en-IN') : '—'}</td>
             <td style="font-size:0.78rem;color:#6b7280;">${(row.pm_spec && row.pm_spec !== '—') ? esc(row.pm_spec) : '—'}</td>
             <td style="text-align:right;">${fmt(row.pm_cost)}</td>
-            <td style="text-align:right;">${fmt(row.fg_cost)}</td>
             <td style="font-size:0.8rem;">${(row.category && row.category !== '—') ? esc(row.category) : '—'}</td>
             <td style="text-align:right;font-weight:700;color:#1e3a5f;font-size:0.85rem;">${fmt(row.final_cost)}</td>
         </tr>`).join('');

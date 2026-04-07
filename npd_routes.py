@@ -65,19 +65,14 @@ ALLOWED = {'pdf','png','jpg','jpeg','gif','doc','docx','xls','xlsx','txt','zip'}
 # ── Default Milestone types ──
 # Static fallback (used only if DB has no templates yet)
 DEFAULT_MILESTONES = [
-    ('ingredients',     'Ingredients List & Marketing Sheet', '📋', 1),
-    ('quotation',       'Quotation',                          '💰', 2),
-    ('packing_material','Packing Material (PM)',              '📦', 3),
-    ('filling_trial',   'Filling Trial',                      '🧪', 4),
+    ('bom',             'BOM',                                '📄', 1),
+    ('ingredients',     'Ingredients List & Marketing Sheet', '📋', 2),
+    ('quotation',       'Quotation',                          '💰', 3),
+    ('packing_material','Packing Material',                   '📦', 4),
     ('artwork',         'Artwork / Design',                   '🎨', 5),
-    ('kld_mockup',      'KLD & Mockup Approval',             '🖼️', 6),
-    ('qc_fda',          'QC Approval & FDA',                 '✅', 7),
+    ('artwork_qc',      'Artwork QC Approval',                '✅', 6),
+    ('fda',             'FDA',                                '🏛️', 7),
     ('barcode',         'Barcode',                            '🔢', 8),
-    ('po_draft',        'Final PO Draft',                     '📄', 9),
-    ('pi_po',           'PI Against PO',                      '🧾', 10),
-    ('documents',       'Documents Upload',                   '📁', 11),
-    ('po_processing',   'PO Processing Form',                 '⚙️', 12),
-    ('handover',        'Project Handover',                   '🏁', 13),
 ]
 
 
@@ -406,6 +401,18 @@ def project_view(pid):
     note              = NPDNote.query.filter_by(project_id=pid).first()
     active_tab        = request.args.get('tab', 'overview')
 
+    from permissions import get_sub_perm as _gsp
+    can_close_project = _gsp('npd', 'close_project') or (current_user.role == 'admin')
+    # All selected milestones done? — check npd_milestone_data JSON (JS writes 'done' there)
+    import json as _json
+    _ms_data = {}
+    try: _ms_data = _json.loads(proj.npd_milestone_data or '{}')
+    except: _ms_data = {}
+    all_ms_done = bool(selected_ms) and all(
+        (_ms_data.get('ms_' + str(i+1), {}).get('status') == 'done')
+        for i, _ in enumerate(selected_ms)
+    )
+
     return render_template('npd/project_view.html',
         active_page='npd_projects',
         proj=proj, users=users,
@@ -416,6 +423,8 @@ def project_view(pid):
         internal_comments=internal_comments,
         note=note, active_tab=active_tab,
         now=datetime.now,
+        can_close_project=can_close_project,
+        all_ms_done=all_ms_done,
     )
 
 
@@ -580,14 +589,39 @@ def edit_project(pid):
             if f and f.filename and allowed_file(f.filename):
                 proj.npd_fee_receipt = save_upload(f)
 
-        # Update milestone selection
-        milestone_ids = request.form.getlist('milestone_ids')
-        if milestone_ids:
-            from models.npd import MilestoneMaster
-            all_ms = MilestoneMaster.query.filter_by(project_id=proj.id).all()
-            selected_set = set(int(x) for x in milestone_ids if x.isdigit())
-            for ms in all_ms:
-                ms.is_selected = (ms.id in selected_set)
+        # ── Update milestone selection ──
+        from models.npd import MilestoneMaster as _MS, NPDMilestoneTemplate as _TMPL
+        _all_ms = _MS.query.filter_by(project_id=proj.id).all()
+
+        if _all_ms:
+            # CASE 1: MilestoneMaster rows exist → update is_selected via checkbox IDs
+            milestone_ids = request.form.getlist('milestone_ids')
+            _selected_set = set(int(x) for x in milestone_ids if x.isdigit())
+            _mandatory_types = set(
+                t.milestone_type for t in _TMPL.query.filter_by(is_mandatory=True).all()
+            )
+            for _ms in _all_ms:
+                if _ms.milestone_type not in _mandatory_types:
+                    _ms.is_selected = (_ms.id in _selected_set)
+            log_npd(proj.id, f"Milestones updated: {len(_selected_set)} selected")
+        else:
+            # CASE 2: No MilestoneMaster rows yet → create them from template
+            _selected_types = set(request.form.getlist('milestones'))
+            _templates = get_milestone_templates(proj.project_type)
+            for _tmpl in _templates:
+                _is_sel = True if _tmpl.is_mandatory else (_tmpl.milestone_type in _selected_types)
+                _new_ms = _MS(
+                    project_id    = proj.id,
+                    milestone_type= _tmpl.milestone_type,
+                    title         = _tmpl.title,
+                    sort_order    = _tmpl.sort_order,
+                    is_selected   = _is_sel,
+                    status        = 'pending',
+                    created_by    = current_user.id,
+                )
+                db.session.add(_new_ms)
+            proj.milestone_master_created = True
+            log_npd(proj.id, f"Milestones created for project during edit")
 
         log_npd(proj.id, f"Project updated by {current_user.full_name}")
         db.session.commit()
@@ -909,6 +943,122 @@ def update_packing(pmid):
     db.session.commit()
     flash('Packing material updated!', 'success')
     return redirect(url_for('npd.project_view', pid=pid))
+
+
+# ══════════════════════════════════════════════════════════════
+# PACKING MATERIAL — JSON API (Milestone Table View)
+# ══════════════════════════════════════════════════════════════
+
+@npd.route('/<int:pid>/packing/list', methods=['GET'])
+@login_required
+def packing_list(pid):
+    rows = NPDPackingMaterial.query.filter_by(project_id=pid, is_deleted=False).order_by(NPDPackingMaterial.id).all()
+    result = []
+    for r in rows:
+        result.append({
+            'id':          r.id,
+            'category':    r.pm_type or '',
+            'vendor_name': r.supplier or '',
+            'cost':        r.cost or '',
+            'image':       r.attachments or '',
+        })
+    return jsonify(rows=result)
+
+
+@npd.route('/<int:pid>/packing/row/add', methods=['POST'])
+@login_required
+def packing_row_add(pid):
+    category    = request.form.get('category', '')
+    vendor_name = request.form.get('vendor_name', '')
+    cost        = request.form.get('cost', '')
+    image_file  = None
+    if 'image' in request.files:
+        f = request.files['image']
+        if f and f.filename and allowed_file(f.filename):
+            image_file = save_upload(f)
+    pm = NPDPackingMaterial(
+        project_id  = pid,
+        pm_type     = category,
+        supplier    = vendor_name,
+        cost        = cost,
+        attachments = image_file or '',
+        status      = 'pending',
+        created_by  = current_user.id,
+    )
+    db.session.add(pm)
+    log_npd(pid, f"Packing Material row added ({category})")
+    db.session.commit()
+    return jsonify(success=True, id=pm.id, image=pm.attachments or '')
+
+
+@npd.route('/<int:pid>/packing/row/<int:pmid>/update', methods=['POST'])
+@login_required
+def packing_row_update(pid, pmid):
+    pm = NPDPackingMaterial.query.filter_by(id=pmid, project_id=pid).first_or_404()
+    pm.pm_type  = request.form.get('category', pm.pm_type)
+    pm.supplier = request.form.get('vendor_name', pm.supplier)
+    pm.cost     = request.form.get('cost', pm.cost)
+    if 'image' in request.files:
+        f = request.files['image']
+        if f and f.filename and allowed_file(f.filename):
+            pm.attachments = save_upload(f)
+    db.session.commit()
+    return jsonify(success=True, image=pm.attachments or '')
+
+
+@npd.route('/<int:pid>/packing/row/<int:pmid>/delete', methods=['POST'])
+@login_required
+def packing_row_delete(pid, pmid):
+    pm = NPDPackingMaterial.query.filter_by(id=pmid, project_id=pid).first_or_404()
+    pm.is_deleted = True
+    db.session.commit()
+    return jsonify(success=True)
+
+
+# ══════════════════════════════════════════════════════════════
+# CLOSE PROJECT — All Milestones Completed
+# ══════════════════════════════════════════════════════════════
+
+@npd.route('/<int:pid>/close-project', methods=['POST'])
+@login_required
+def close_project(pid):
+    from permissions import get_sub_perm
+    if not (get_sub_perm('npd', 'close_project') or (current_user.role == 'admin')):
+        return jsonify(success=False, error='Permission denied'), 403
+
+    proj = NPDProject.query.filter_by(id=pid, is_deleted=False).first_or_404()
+
+    # Verify all selected milestones are done — check npd_milestone_data JSON
+    import json as _json
+    selected_ms = [m for m in proj.milestones if m.is_selected]
+    if not selected_ms:
+        return jsonify(success=False, error='No milestones found'), 400
+    _ms_data = {}
+    try: _ms_data = _json.loads(proj.npd_milestone_data or '{}')
+    except: _ms_data = {}
+    _all_done = all(
+        _ms_data.get('ms_' + str(i+1), {}).get('status') == 'done'
+        for i in range(len(selected_ms))
+    )
+    if not _all_done:
+        return jsonify(success=False, error='Saare milestones complete nahi hue hain'), 400
+
+    # Close NPD project
+    proj.status = 'finish'
+    proj.updated_by = current_user.id
+
+    # Close linked Lead if exists
+    if proj.lead_id:
+        from models import Lead as LeadModel
+        lead = LeadModel.query.get(proj.lead_id)
+        if lead and lead.status not in ('close', 'cancel'):
+            lead.status = 'close'
+            from datetime import datetime as _dt
+            lead.closed_at = _dt.now()
+
+    log_npd(pid, f"Project closed by {current_user.full_name} — all milestones completed")
+    db.session.commit()
+    return jsonify(success=True, message='Project successfully closed!')
 
 
 # ══════════════════════════════════════════════════════════════

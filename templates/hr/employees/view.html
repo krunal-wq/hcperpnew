@@ -307,6 +307,7 @@
 
 {% endblock %}
 {% block extra_js %}
+<script>
 // ── Tab switcher ──────────────────────────────────────
 function vwTab(id, btn) {
   document.querySelectorAll('.vw-pane').forEach(function(p){ p.classList.remove('active'); });
@@ -340,4 +341,5 @@ function vwTab(id, btn) {
     grid.appendChild(item);
   });
 })();
+</script>
 {% endblock %}

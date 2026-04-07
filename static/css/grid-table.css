@@ -75,7 +75,9 @@
 
         /* Stat summary cards (Total / Pending / Received / Submitted / Overdue) */
         .stat-strip {
-            display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 12px;
             margin-bottom: 14px;
         }
         .stat-strip.cols-4 { grid-template-columns: repeat(4, 1fr); }
@@ -140,12 +142,32 @@
             /* Stat strip — 2 columns on mobile */
             .stat-strip.cols-4,
             .stat-strip.cols-3,
-            .stat-strip { grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
-            .stat-item { padding: 12px 14px; gap: 10px; border-radius: 12px; }
-            .stat-icon-box { width: 36px; height: 36px; border-radius: 9px; }
+            .stat-strip {
+                grid-template-columns: 1fr 1fr !important;
+                gap: 8px;
+                margin-bottom: 10px;
+            }
+            .stat-item {
+                padding: 12px 14px;
+                gap: 10px;
+                border-radius: 12px;
+                min-height: 68px;
+                align-items: center;
+            }
+            .stat-icon-box {
+                width: 38px; height: 38px;
+                border-radius: 10px;
+                font-size: 1.2rem;
+                flex-shrink: 0;
+            }
             .stat-icon-box svg { width: 17px; height: 17px; }
-            .stat-num { font-size: 1.35rem; }
-            .stat-lbl { font-size: 9px; }
+            .stat-num { font-size: 1.4rem; }
+            .stat-lbl {
+                font-size: 9px;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
 
             /* ── TOOLBAR: Android App Style ── */
             .grid-toolbar {

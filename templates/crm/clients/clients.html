@@ -816,18 +816,30 @@ function doExport(){
 // ── Client 3-dot dropdown ──
 function toggleClDd(btn, e) {
     e.stopPropagation();
+    e.preventDefault();
     var menu = btn.nextElementSibling;
     var isOpen = menu.classList.contains('open');
     // Close all open menus first
-    document.querySelectorAll('.cl-dd-menu.open').forEach(function(m){ m.classList.remove('open'); });
+    document.querySelectorAll('.cl-dd-menu.open').forEach(function(m) {
+        m.classList.remove('open');
+        m.style.position = '';
+        m.style.top = ''; m.style.left = '';
+        m.style.bottom = ''; m.style.right = '';
+    });
     if (!isOpen) {
-        menu.classList.add('open');
-        // Auto flip if near bottom
-        var rect = menu.getBoundingClientRect();
-        if (rect.bottom > window.innerHeight) {
+        // Use fixed positioning to avoid scroll/overflow issues
+        var btnRect = btn.getBoundingClientRect();
+        menu.style.position = 'fixed';
+        menu.style.right = 'auto';
+        menu.style.bottom = 'auto';
+        menu.style.left = (btnRect.right - 210) + 'px';
+        menu.style.top = (btnRect.bottom + 4) + 'px';
+        // Flip up if near bottom of screen
+        if (btnRect.bottom + 180 > window.innerHeight) {
             menu.style.top = 'auto';
-            menu.style.bottom = 'calc(100% + 4px)';
+            menu.style.bottom = (window.innerHeight - btnRect.top + 4) + 'px';
         }
+        menu.classList.add('open');
     }
 }
 document.addEventListener('click', function() {

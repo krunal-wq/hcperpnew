@@ -47,52 +47,7 @@
 .ls-lbl  { font-size: .63rem; font-weight: 800; text-transform: uppercase; letter-spacing: .09em; color: var(--text3); margin-bottom: 4px; }
 .ls-num  { font-size: 2.1rem; font-weight: 900; line-height: 1; letter-spacing: -0.03em; color: var(--text); }
 
-/* ── KEY METRICS — white cards with right border (exact screenshot) ── */
-.km-grid {
-    display: grid;
-    grid-template-columns: repeat(4,1fr);
-    gap: 12px;
-    margin-bottom: 1.1rem;
-}
-.km-card {
-    background: #fff;
-    border: 1px solid #e2e8f0;
-    border-radius: 14px;
-    padding: 16px 18px;
-    display: flex; align-items: center; gap: 13px;
-    text-decoration: none; color: var(--text);
-    transition: transform .15s, box-shadow .15s;
-    position: relative; overflow: hidden;
-}
-.km-card:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,.08); }
-/* right border accent */
-.km-card::after {
-    content: ''; position: absolute;
-    top: 0; right: 0; width: 4px; height: 100%;
-    border-radius: 0 14px 14px 0;
-}
-.km-card.c-blue::after   { background: #3b82f6; }
-.km-card.c-purple::after { background: #8b5cf6; }
-.km-card.c-green::after  { background: #10b981; }
-.km-card.c-red::after    { background: #ef4444; }
-
-.km-icon {
-    width: 44px; height: 44px; border-radius: 11px;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 1.25rem; flex-shrink: 0;
-}
-.km-icon.c-blue   { background: #eff6ff; }
-.km-icon.c-purple { background: #f5f3ff; }
-.km-icon.c-green  { background: #f0fdf4; }
-.km-icon.c-red    { background: #fff7ed; }
-
-.km-lbl { font-size: .65rem; font-weight: 800; color: var(--text3); text-transform: uppercase; letter-spacing: .08em; margin-bottom: 2px; }
-.km-num { font-size: 1.65rem; font-weight: 900; line-height: 1; letter-spacing: -0.03em; }
-.km-num.c-blue   { color: #2563eb; }
-.km-num.c-purple { color: #7c3aed; }
-.km-num.c-green  { color: #059669; }
-.km-num.c-red    { color: #ea580c; }
-.km-hint { font-size: 11.5px; color: var(--text3); margin-top: 3px; }
+/* km-* styles removed — using ls-card style */
 
 /* Charts */
 .charts-row1 { display:grid; grid-template-columns:2fr 1fr; gap:1rem; margin-bottom:1rem; }
@@ -125,17 +80,23 @@
 
 /* Responsive */
 @media(max-width:1100px) {
-    .ls-grid,.km-grid { grid-template-columns:repeat(2,1fr); }
+    .ls-grid { grid-template-columns:repeat(2,1fr); }
     .charts-row1,.charts-row2,.bottom-grid { grid-template-columns:1fr; }
 }
 @media(max-width:767px) {
-    /* Stat grids — 2 col */
-    .ls-grid,.km-grid { grid-template-columns:repeat(2,1fr); gap:8px; }
-    .ls-item,.km-item { padding:12px 14px; min-height:auto; border-radius:12px; }
-    .ls-num  { font-size:1.6rem; }
-    .km-num  { font-size:1.35rem; }
-    .km-icon { width:36px; height:36px; border-radius:9px; }
-    .km-icon svg { width:17px; height:17px; }
+    /* Stat grids — 2 col on mobile */
+    .ls-grid { grid-template-columns:repeat(2,1fr); gap:8px; }
+    /* ls-card mobile fix — stack icon+text properly, show everything */
+    .ls-card {
+        padding: 14px 14px;
+        min-height: 72px;
+        gap: 10px;
+        flex-direction: row;
+        align-items: center;
+    }
+    .ls-card span[style] { font-size:1.2rem !important; }
+    .ls-lbl { font-size:.58rem; }
+    .ls-num { font-size:1.5rem; }
 
     /* Charts — single column, reduced height */
     .charts-row1,.charts-row2,.bottom-grid { grid-template-columns:1fr; gap:10px; }
@@ -195,7 +156,7 @@
     {% for ls in lead_statuses %}
     <a href="/crm/leads?status={{ ls.name }}" class="ls-card ls-{{ ls.name|replace(' ','_')|lower }}"
        style="border-left-color:{{ ls.color }};">
-        <span style="font-size:1.4rem;flex-shrink:0;opacity:.85;">{{ ls.icon }}</span>
+        <span style="font-size:1.4rem;flex-shrink:0;opacity:.85;">{% if ls.icon %}{{ ls.icon }}{% elif ls.name == "open" %}✉️{% elif ls.name == "in_process" %}⚙️{% elif ls.name == "close" %}✅{% elif ls.name == "cancel" %}❌{% else %}📌{% endif %}</span>
         <div>
             <div class="ls-lbl">{{ ls.name.replace('_',' ')|title }}</div>
             <div class="ls-num" style="color:{{ ls.color }};">{{ lead_counts.get(ls.name, 0) }}</div>
@@ -205,40 +166,33 @@
 </div>
 
 <!-- ── KEY METRICS ── -->
-<div class="sec-lbl">Key Metrics</div>
-<div class="km-grid">
-    <a href="/crm/leads" class="km-card c-blue">
-        <div class="km-icon c-blue">📋</div>
+<div class="ls-grid">
+    <a href="/crm/leads" class="ls-card" style="border-left-color:#3b82f6;">
+        <span style="font-size:1.4rem;flex-shrink:0;opacity:.85;">📋</span>
         <div>
-            <div class="km-lbl">Total Leads</div>
-            <div class="km-num c-blue">{{ lead_counts.total }}</div>
-            <div class="km-hint">All time</div>
+            <div class="ls-lbl">Total Leads</div>
+            <div class="ls-num" style="color:#2563eb;">{{ lead_counts.total }}</div>
         </div>
     </a>
-    <a href="/crm/clients" class="km-card c-purple">
-        <div class="km-icon c-purple">👥</div>
+    <a href="/crm/clients" class="ls-card" style="border-left-color:#8b5cf6;">
+        <span style="font-size:1.4rem;flex-shrink:0;opacity:.85;">👥</span>
         <div>
-            <div class="km-lbl">Clients</div>
-            <div class="km-num c-purple">{{ total_clients }}</div>
-            <div class="km-hint">Active</div>
+            <div class="ls-lbl">Clients</div>
+            <div class="ls-num" style="color:#7c3aed;">{{ total_clients }}</div>
         </div>
     </a>
-    <a href="/crm/leads?status=close" class="km-card c-green">
-        <div class="km-icon c-green">✅</div>
+    <a href="/crm/leads?status=close" class="ls-card" style="border-left-color:#10b981;">
+        <span style="font-size:1.4rem;flex-shrink:0;opacity:.85;">✅</span>
         <div>
-            <div class="km-lbl">Conversion</div>
-            <div class="km-num c-green">
-                {% if lead_counts.total > 0 %}{{ ((lead_counts.close/lead_counts.total)*100)|round(1) }}%{% else %}0%{% endif %}
-            </div>
-            <div class="km-hint">{{ lead_counts.close }} closed</div>
+            <div class="ls-lbl">Closed</div>
+            <div class="ls-num" style="color:#059669;">{{ lead_counts.get('close', 0) }}</div>
         </div>
     </a>
-    <a href="/crm/leads?status=cancel" class="km-card c-red">
-        <div class="km-icon c-red">❌</div>
+    <a href="/crm/leads?status=in_process" class="ls-card" style="border-left-color:#f59e0b;">
+        <span style="font-size:1.4rem;flex-shrink:0;opacity:.85;">⚙️</span>
         <div>
-            <div class="km-lbl">Cancelled</div>
-            <div class="km-num c-red">{{ lead_counts.cancel }}</div>
-            <div class="km-hint">Lost leads</div>
+            <div class="ls-lbl">In Process</div>
+            <div class="ls-num" style="color:#d97706;">{{ lead_counts.get('in_process', 0) }}</div>
         </div>
     </a>
 </div>
