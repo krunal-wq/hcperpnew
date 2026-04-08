@@ -1452,6 +1452,8 @@ var _fpTo = flatpickr('#dp_to_display', {
 {% endblock %}
 
 {% block extra_js %}
+<script>
+
 (function(){
   var sb=document.getElementById('ld_sort_by');
   var fc={{ _fc }};
@@ -1467,4 +1469,6 @@ var _fpTo = flatpickr('#dp_to_display', {
     if(fTab) fTab.classList.add('active');
   }
 })();
+
+</script>
 {% endblock %}

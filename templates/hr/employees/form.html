@@ -846,8 +846,10 @@ function _collectTab(tab) {
     if(tab==='basic'){
         d.photo_base64=(_inp('photo_base64')||document.getElementById('photoBase64').value||'');
         d.qr_base64=(document.getElementById('qrBase64')||{value:''}).value;
-        d.employee_code=_inp('employee_code'); d.first_name=_inp('first_name'); d.last_name=_inp('last_name');
+        d.employee_code=_inp('employee_code'); d.employee_id=_inp('employee_id');
+        d.first_name=_inp('first_name'); d.last_name=_inp('last_name');
         d.mobile=_inp('mobile'); d.email=_inp('email'); d.gender=_sel('gender');
+        d.employee_type=_sel('employee_type');
         d.date_of_birth=_inp('date_of_birth'); d.blood_group=_sel('blood_group');
         d.marital_status=_sel('marital_status'); d.marriage_anniversary=_inp('marriage_anniversary');
         d.address=_inp('address'); d.city=_inp('city'); d.state=_inp('state');

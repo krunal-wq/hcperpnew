@@ -597,14 +597,16 @@ def emp_add():
 
     all_employees = Employee.query.filter_by(status='active').order_by(Employee.first_name).all()
     from models.employee import EmployeeTypeMaster, EmployeeLocationMaster, DepartmentMaster, DesignationMaster
+    from models.hr_rules import HRShift
     emp_types    = EmployeeTypeMaster.query.filter_by(is_active=True).order_by(EmployeeTypeMaster.sort_order).all()
     locations    = EmployeeLocationMaster.query.filter_by(is_active=True).order_by(EmployeeLocationMaster.sort_order).all()
     departments  = DepartmentMaster.query.filter_by(is_active=True).order_by(DepartmentMaster.sort_order).all()
     designations = DesignationMaster.query.filter_by(is_active=True).order_by(DesignationMaster.sort_order).all()
+    shifts       = HRShift.query.filter_by(is_active=True).order_by(HRShift.name).all()
     return render_template('hr/employees/form.html',
         employee=None, contractors=contractors, perm=perm, active_page='hr_employees',
         all_employees=all_employees, emp_types=emp_types, locations=locations,
-        departments=departments, designations=designations)
+        departments=departments, designations=designations, shifts=shifts)
 
 
 @hr.route('/employees/<int:id>/edit', methods=['GET', 'POST'])
@@ -755,14 +757,16 @@ def emp_edit(id):
 
     all_employees = Employee.query.filter_by(status='active').order_by(Employee.first_name).all()
     from models.employee import EmployeeTypeMaster, EmployeeLocationMaster, DepartmentMaster, DesignationMaster
+    from models.hr_rules import HRShift
     emp_types    = EmployeeTypeMaster.query.filter_by(is_active=True).order_by(EmployeeTypeMaster.sort_order).all()
     locations    = EmployeeLocationMaster.query.filter_by(is_active=True).order_by(EmployeeLocationMaster.sort_order).all()
     departments  = DepartmentMaster.query.filter_by(is_active=True).order_by(DepartmentMaster.sort_order).all()
     designations = DesignationMaster.query.filter_by(is_active=True).order_by(DesignationMaster.sort_order).all()
+    shifts       = HRShift.query.filter_by(is_active=True).order_by(HRShift.name).all()
     return render_template('hr/employees/form.html',
         employee=e, contractors=contractors, perm=perm, active_page='hr_employees',
         all_employees=all_employees, emp_types=emp_types, locations=locations,
-        departments=departments, designations=designations)
+        departments=departments, designations=designations, shifts=shifts)
 
 
 
@@ -796,11 +800,13 @@ def emp_ajax_init():
     rto = data.get('reports_to', '')
     e = Employee(
         employee_code  = emp_code,
+        employee_id    = (data.get('employee_id') or '').strip() or None,
         first_name     = (data.get('first_name') or '').strip(),
         last_name      = (data.get('last_name') or '').strip(),
         mobile         = (data.get('mobile') or '').strip(),
         email          = email,
         gender         = data.get('gender', ''),
+        employee_type  = data.get('employee_type', ''),
         profile_photo  = data.get('photo_base64') or None,
         qr_code_base64 = data.get('qr_base64') or None,
         date_of_birth  = _parse_date(data.get('date_of_birth')),
@@ -871,6 +877,15 @@ def emp_ajax_save_tab(id):
                 return {'ok': False, 'error': f'Email "{new_email}" already in use by {dup.employee_code}'}, 400
         e.email          = new_email
         e.gender         = data.get('gender', '')
+        # Save employee_id if not already set or update it
+        new_emp_id = (data.get('employee_id') or '').strip()
+        if new_emp_id and new_emp_id != e.employee_id:
+            dup_id = Employee.query.filter(Employee.employee_id == new_emp_id, Employee.id != id).first()
+            if not dup_id:
+                e.employee_id = new_emp_id
+        # Save employee_type in basic tab too
+        if data.get('employee_type'):
+            e.employee_type = data.get('employee_type', '')
         e.date_of_birth  = _parse_date(data.get('date_of_birth'))
         e.blood_group    = (data.get('blood_group') or '').strip()
         e.marital_status = data.get('marital_status', '')
@@ -1357,6 +1372,7 @@ def emp_import():
 
                     e = Employee(
                         employee_code   = emp_code,
+                        employee_id     = _gv(row,'Employee ID','Biometric ID','employee_id') or None,
                         first_name      = _gv(row,'First Name','first_name'),
                         last_name       = _gv(row,'Last Name','last_name'),
                         mobile          = _gv(row,'Mobile','mobile'),
@@ -1548,9 +1564,9 @@ def emp_import_template():
     # ── Sheet 1: Basic Info ──
     ws1 = wb.active; ws1.title = "1 - Basic Info"
     build_tpl(ws1, "1E3A5F",
-        ["Employee Code","First Name","Last Name","Mobile","Email","Gender","Date of Birth","Blood Group","Marital Status","Marriage Anniversary","Address","City","State","Country","ZIP","LinkedIn","Facebook","Status"],
-        ["Required. Unique code","Required","Optional","10 digits","Valid email","Male/Female/Other","DD-MM-YYYY","A+/B+/O+...","Single/Married/Divorced","DD-MM-YYYY if Married","Street address","City","State","Default: India","Pincode","URL optional","URL optional","active/inactive"],
-        ["EMP0001","Krunal","Chandi","9876543210","krunal@hcp.com","Male","15-06-1990","A+","Married","20-02-2015","123 MG Road","Ahmedabad","Gujarat","India","380001","","","active"]
+        ["Employee Code","Employee ID","First Name","Last Name","Mobile","Email","Gender","Date of Birth","Blood Group","Marital Status","Marriage Anniversary","Address","City","State","Country","ZIP","LinkedIn","Facebook","Status"],
+        ["Required. Unique code","Biometric/Device ID (optional)","Required","Optional","10 digits","Valid email","Male/Female/Other","DD-MM-YYYY","A+/B+/O+...","Single/Married/Divorced","DD-MM-YYYY if Married","Street address","City","State","Default: India","Pincode","URL optional","URL optional","active/inactive"],
+        ["EMP0001","1001","Krunal","Chandi","9876543210","krunal@hcp.com","Male","15-06-1990","A+","Married","20-02-2015","123 MG Road","Ahmedabad","Gujarat","India","380001","","","active"]
     )
 
     # ── Sheet 2: Professional ──
