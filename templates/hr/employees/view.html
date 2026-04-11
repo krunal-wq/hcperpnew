@@ -45,8 +45,7 @@
     <div style="display:flex;gap:.5rem;flex-wrap:wrap;">
         {% if perm.can_edit %}<a href="{{ url_for('hr.emp_edit', id=employee.id) }}" class="btn-primary" style="font-size:.82rem;">✏️ Edit</a>{% endif %}
         <a href="{{ url_for('hr.emp_export_single', id=employee.id) }}" class="btn-outline" style="font-size:.82rem;">📥 Export Excel</a>
-        <a href="{{ url_for('hr.emp_id_card', id=employee.id) }}" class="btn-outline" style="font-size:.82rem;background:#f0fdf4;border-color:#86efac;color:#166534;">🪪 Download ID Card</a>
-        <a href="{{ url_for('hr.emp_id_card', id=employee.id, action='view') }}" target="_blank" class="btn-outline" style="font-size:.82rem;">👁 View ID Card</a>
+        <a href="{{ url_for('hr.emp_id_card', id=employee.id) }}" target="_blank" class="btn-outline" style="font-size:.82rem;background:#f0fdf4;border-color:#86efac;color:#166534;">🪪 ID Card</a>
         <a href="{{ url_for('hr.employees') }}" class="btn-outline" style="font-size:.82rem;">← Back</a>
     </div>
 </div>
@@ -68,7 +67,7 @@
         <div class="vcard">
             <div class="vcard-hdr">👤 Basic Information</div>
             {% for l,v in [
-                ('Employee Code', employee.employee_code),('First Name', employee.first_name),('Last Name', employee.last_name),
+                ('Employee Code', employee.employee_code),('First Name', employee.first_name),('Middle Name', employee.middle_name),('Last Name', employee.last_name),
                 ('Mobile', employee.mobile),('Email', employee.email),('Gender', employee.gender),
                 ('Date of Birth', employee.date_of_birth.strftime('%d %b %Y') if employee.date_of_birth else None),
                 ('Blood Group', employee.blood_group),('Marital Status', employee.marital_status),

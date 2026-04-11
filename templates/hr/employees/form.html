@@ -115,9 +115,9 @@
             <hr class="divider">
             <div id="qrDisplay">
                 {% if employee and employee.qr_code_base64 %}
-                <div class="qr-box"><img src="{{ employee.qr_code_base64 }}" id="qrImg" alt="QR"><div class="qr-lbl">{{ employee.employee_id or employee.employee_code }}</div></div>
+                <div class="qr-box"><img src="{{ employee.qr_code_base64 }}" id="qrImg" alt="QR"><div class="qr-lbl">{{ employee.employee_code or employee.employee_id }}</div></div>
                 {% else %}
-                <div class="qr-pending" id="qrPending"><span style="font-size:1.6rem;">🔲</span><span>Enter Emp ID<br>to generate QR</span></div>
+                <div class="qr-pending" id="qrPending"><span style="font-size:1.6rem;">🔲</span><span>Enter Emp Code<br>to generate QR</span></div>
                 {% endif %}
             </div>
             <div id="qrStatus" class="qr-status"></div>
@@ -133,6 +133,7 @@
                     <input type="text" name="employee_code" id="empCodeInput" class="fi" value="{{ employee.employee_code }}" readonly style="background:#f8fafc;color:var(--text2);font-weight:700;">
                     {% else %}
                     <input type="text" name="employee_code" id="empCodeInput" class="fi" value="" placeholder="e.g. EMP1001">
+                    <span style="font-size:.7rem;color:var(--text3);margin-top:2px;display:block;">QR auto-generates on input</span>
                     {% endif %}
                     <div class="field-err-msg" id="err_emp_code">Employee Code is required.</div>
                 </div>
@@ -143,7 +144,7 @@
                     {% else %}
                     <input type="text" name="employee_id" id="empIdInput" class="fi" value="" placeholder="e.g. 1001">
                     {% endif %}
-                    <span style="font-size:.7rem;color:var(--text3);margin-top:2px;display:block;">QR auto-generates on input</span>
+                    <span style="font-size:.7rem;color:var(--text3);margin-top:2px;display:block;">Optional biometric device ID</span>
                 </div>
                 <div class="fg">
                     <label class="fl">Employee Type<span class="req-star">*</span></label>
@@ -167,6 +168,7 @@
             </div>
             <div class="fgrid-2">
                 <div class="fg"><label class="fl">First Name<span class="req-star">*</span></label><input type="text" name="first_name" id="empFirstName" class="fi" value="{{ employee.first_name if employee else '' }}" placeholder="First name"><div class="field-err-msg" id="err_first_name">First name is required.</div></div>
+                <div class="fg"><label class="fl">Middle Name</label><input type="text" name="middle_name" id="empMiddleName" class="fi" value="{{ employee.middle_name if employee else '' }}" placeholder="Middle name (optional)"></div>
                 <div class="fg"><label class="fl">Last Name<span class="req-star">*</span></label><input type="text" name="last_name" id="empLastName" class="fi" value="{{ employee.last_name if employee else '' }}" placeholder="Last name"><div class="field-err-msg" id="err_last_name">Last name is required.</div></div>
                 <div class="fg"><label class="fl">Mobile<span class="req-star">*</span></label><input type="text" name="mobile" id="empMobile" class="fi" value="{{ employee.mobile if employee else '' }}" placeholder="9999999999"><div class="field-err-msg" id="err_mobile">Mobile number is required.</div></div>
                 <div class="fg"><label class="fl">Email Address</label><input type="email" name="email" class="fi" value="{{ employee.email if employee else '' }}" placeholder="email@company.com"></div>
@@ -600,29 +602,34 @@ function initQR(){
   if(qrPending){_doGenerate(qrPending);qrPending=null;}
   else{
     {% if employee and not employee.qr_code_base64 %}
-    {% if employee.employee_id %}_doGenerate('{{ employee.employee_id|e }}');
-    {% elif employee.employee_code %}_doGenerate('{{ employee.employee_code|e }}');{% endif %}
+    {% if employee.employee_code %}_doGenerate('{{ employee.employee_code|e }}');
+    {% elif employee.employee_id %}_doGenerate('{{ employee.employee_id|e }}');{% endif %}
     {% endif %}
   }
 }
 function generateQR(code){if(!code||!code.trim())return;code=code.trim();if(!qrReady){qrPending=code;return;}_doGenerate(code);}
 function _doGenerate(code){var statusEl=document.getElementById('qrStatus');statusEl.innerHTML='<span style="color:#64748b;">⏳ Generating QR...</span>';var target=document.getElementById('qrRenderTarget');target.innerHTML='';try{qrObj=new QRCode(target,{text:code,width:200,height:200,colorDark:'#000000',colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.M});}catch(e){statusEl.innerHTML='<span style="color:red;">❌ QR error</span>';return;}var attempts=0;var poll=setInterval(function(){attempts++;var canvas=target.querySelector('canvas'),img=target.querySelector('img'),dataUrl=null;if(canvas&&canvas.width>0)dataUrl=canvas.toDataURL('image/png');else if(img&&img.src&&img.src.indexOf('data:')===0)dataUrl=img.src;if(dataUrl){clearInterval(poll);document.getElementById('qrBase64').value=dataUrl;document.getElementById('qrDisplay').innerHTML='<div class="qr-box"><img src="'+dataUrl+'" style="width:110px;height:110px;border:2px solid #e2e8f0;border-radius:10px;"><div class="qr-lbl">'+code+'</div></div>';statusEl.innerHTML='<span style="color:#16a34a;">✅ QR ready</span>';setTimeout(function(){statusEl.innerHTML='';},2500);}if(attempts>30){clearInterval(poll);statusEl.innerHTML='<span style="color:orange;">⚠️ QR slow</span>';}},100);}
 var codeTimer=null;
-// QR generate from empIdInput (primary), fallback to empCodeInput
-var empIdInput=document.getElementById('empIdInput');
+// QR generate ALWAYS from empCodeInput (employee_code) only
 var codeInput=document.getElementById('empCodeInput');
-if(empIdInput&&!empIdInput.readOnly){
-  empIdInput.addEventListener('input',function(){
-    clearTimeout(codeTimer);
-    var val=this.value.trim();
-    codeTimer=setTimeout(function(){if(val.length>=1)generateQR(val);},700);
-  });
-} else if(codeInput&&!codeInput.readOnly){
-  codeInput.addEventListener('input',function(){
-    clearTimeout(codeTimer);
-    var val=this.value.trim();
-    codeTimer=setTimeout(function(){if(val.length>=2)generateQR(val);},700);
-  });
+if(codeInput){
+  if(!codeInput.readOnly){
+    // New employee: type karne pe generate
+    codeInput.addEventListener('input',function(){
+      clearTimeout(codeTimer);
+      var val=this.value.trim();
+      codeTimer=setTimeout(function(){if(val.length>=1)generateQR(val);},700);
+    });
+  } else {
+    // Existing employee: already has code, generate on load if no QR
+    var existingCode=codeInput.value.trim();
+    if(existingCode){
+      var existingQR=document.getElementById('qrBase64').value.trim();
+      if(!existingQR){
+        if(qrReady){_doGenerate(existingCode);}else{qrPending=existingCode;}
+      }
+    }
+  }
 }
 function toggleContractor(val){document.getElementById('contractorRow').style.display=val==='yes'?'':'none';}
 toggleContractor(document.getElementById('isContractorSel').value);
@@ -838,7 +845,18 @@ function _updateSaveBtn() {
 
 // _showSaveMsg defined above
 
-function _inp(name){var e=document.querySelector('[name="'+name+'"]');return e?e.value:'';}
+function _inp(name){
+    var e=document.querySelector('[name="'+name+'"]');
+    if(!e) return '';
+    // If flatpickr instance attached, get YYYY-MM-DD directly
+																		   
+    if(e._flatpickr && e._flatpickr.selectedDates[0]){
+        var d=e._flatpickr.selectedDates[0];
+        return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+								  
+    }
+    return e.value;
+}
 function _sel(name){var e=document.querySelector('select[name="'+name+'"]');return e?e.value:'';}
 
 function _collectTab(tab) {
@@ -847,24 +865,26 @@ function _collectTab(tab) {
         d.photo_base64=(_inp('photo_base64')||document.getElementById('photoBase64').value||'');
         d.qr_base64=(document.getElementById('qrBase64')||{value:''}).value;
         d.employee_code=_inp('employee_code'); d.employee_id=_inp('employee_id');
-        d.first_name=_inp('first_name'); d.last_name=_inp('last_name');
+        d.first_name=_inp('first_name'); d.middle_name=_inp('middle_name'); d.last_name=_inp('last_name');
         d.mobile=_inp('mobile'); d.email=_inp('email'); d.gender=_sel('gender');
         d.employee_type=_sel('employee_type');
         d.date_of_birth=_inp('date_of_birth'); d.blood_group=_sel('blood_group');
         d.marital_status=_sel('marital_status'); d.marriage_anniversary=_inp('marriage_anniversary');
         d.address=_inp('address'); d.city=_inp('city'); d.state=_inp('state');
         d.country=_inp('country'); d.zip_code=_inp('zip_code');
-        d.linkedin=_inp('linkedin'); d.facebook=_inp('facebook'); d.reports_to=_inp('reports_to');
+       
     } else if(tab==='professional'){
         d.department=_inp('department'); d.designation=_inp('designation'); d.employee_type=_sel('employee_type');
-        d.date_of_joining=_inp('date_of_joining'); d.location=_inp('location');
-        d.pay_grade=_inp('pay_grade'); d.shift=_inp('shift'); d.weekly_off=_inp('weekly_off');
+        d.date_of_joining=_inp('date_of_joining'); d.location=_sel('location');
+        d.pay_grade=_sel('pay_grade'); d.shift=_sel('shift'); d.weekly_off=_sel('weekly_off');
         d.work_hours_per_day=_inp('work_hours_per_day'); d.notice_period_days=_inp('notice_period_days');
         d.is_contractor=_sel('is_contractor'); d.contractor_id=_inp('contractor_id');
         d.is_block=_sel('is_block'); d.is_late=_sel('is_late'); d.is_probation=_sel('is_probation');
         d.status=_sel('status'); d.remark=_inp('remark');
         d.confirmation_date=_inp('confirmation_date'); d.resignation_date=_inp('resignation_date');
         d.last_working_date=_inp('last_working_date'); d.rehire_eligible=_sel('rehire_eligible');
+		d.linkedin=_inp('linkedin'); d.facebook=_inp('facebook');
+        d.reports_to=_sel('reports_to');								
     } else if(tab==='kyc'){
         d.nationality=_inp('nationality'); d.religion=_inp('religion'); d.caste=_inp('caste');
         d.physically_handicapped=_sel('physically_handicapped');

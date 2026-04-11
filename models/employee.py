@@ -75,6 +75,7 @@ class Employee(db.Model):
 
     # Basic Info
     first_name      = db.Column(db.String(100), nullable=False)
+    middle_name     = db.Column(db.String(100), nullable=True)
     last_name       = db.Column(db.String(100), nullable=False)
     mobile          = db.Column(db.String(20), nullable=False)
     email           = db.Column(db.String(150))
@@ -203,7 +204,8 @@ class Employee(db.Model):
 
     @property
     def full_name(self):
-        return f"{self.first_name} {self.last_name}".strip()
+        parts = [self.first_name, self.middle_name or '', self.last_name]
+        return ' '.join(p for p in parts if p).strip()
 
     def __repr__(self):
         return f'<Employee {self.employee_code} {self.full_name}>'

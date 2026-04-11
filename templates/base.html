@@ -1672,9 +1672,9 @@ document.addEventListener('click', function(e) {
 // ══ GLOBAL FLATPICKR — All date inputs auto-initialized ══════════
 (function() {
   var FP_CONFIG = {
-    dateFormat: 'd-m-Y',        // Display: DD-MM-YYYY
+    dateFormat: 'Y-m-d',        // Internal: YYYY-MM-DD (backend compatible)
     altInput: true,
-    altFormat: 'd-m-Y',
+    altFormat: 'd-m-Y',         // Display: DD-MM-YYYY
     allowInput: true,
     disableMobile: false,
     locale: {
@@ -1714,9 +1714,19 @@ document.addEventListener('click', function(e) {
       if (val && val.split('-')[0].length === 4) cfg.defaultDate = val;
 
       cfg.onChange = function(selectedDates, dateStr, fp) {
-        if (selectedDates[0]) fp.element.value = toYMD(selectedDates[0]);
+        // fp.element.value is auto-set to YYYY-MM-DD by dateFormat:'Y-m-d'
+        // No manual override needed
       };
-      flatpickr(el, cfg);
+      cfg.onReady = function(selectedDates, dateStr, fp) {
+        fp.altInput.classList.add('fi');
+        fp.altInput.placeholder = 'DD-MM-YYYY';
+        fp.element._flatpickr = fp;
+        // fp.element.value already YYYY-MM-DD via dateFormat:'Y-m-d'
+																		 
+      };
+      var fpInst = flatpickr(el, cfg);
+      // Also attach directly
+      el._flatpickr = fpInst;
     });
 
     // ── DATETIME-LOCAL fields ──

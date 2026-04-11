@@ -7,7 +7,7 @@ from .lead       import (Lead, LeadDiscussion, LeadAttachment,
                          SampleOrder, Quotation, EmailTemplate, LeadContribution, ContributionConfig)
 from .legacy     import Customer, CustomerAddress
 from .master     import LeadStatus, LeadSource, LeadCategory, ProductRange, CategoryMaster, UOMMaster, HSNCode, NPDStatus, MilestoneStatus
-from .employee   import Employee, Contractor, WishLog, SalaryConfig, SalaryComponent, EmployeeTypeMaster, EmployeeLocationMaster
+from .employee   import Employee, Contractor, WishLog, SalaryConfig, SalaryComponent, EmployeeTypeMaster, EmployeeLocationMaster, DepartmentMaster, DesignationMaster
 from .permission import Module, RolePermission, UserGridConfig, UserPermission
 from .approval   import ApprovalRequest, ApprovalLevel
 from .attendance import RawPunchLog, Attendance, HolidayMaster, LateShiftRule, LatePenaltyRule, EarlyComingRule

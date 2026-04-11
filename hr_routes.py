@@ -2,22 +2,27 @@
 hr_routes.py — HR Module: Employee & Contractor CRUD
 """
 import base64, io, json
-from flask import Blueprint, render_template, redirect, url_for, request, flash, jsonify, send_file, Response
+from flask import Blueprint, render_template, redirect, url_for, request, flash, jsonify
 from flask_login import login_required, current_user
 from audit_helper import audit, snapshot
 from datetime import datetime
-from models import db, User, Employee, Contractor, WishLog, SalaryConfig, SalaryComponent
+from models import db, User, Employee, Contractor, WishLog, SalaryConfig, SalaryComponent, EmployeeTypeMaster, EmployeeLocationMaster, DepartmentMaster, DesignationMaster
 from permissions import get_perm, get_grid_columns, save_grid_columns
-from id_card_generator import generate_id_card_pdf
 
 hr = Blueprint('hr', __name__, url_prefix='/hr')
 
 
 def _parse_date(val):
-    try:
-        return datetime.strptime(val, '%Y-%m-%d').date() if val else None
-    except ValueError:
+    if not val:
         return None
+    val = str(val).strip()
+    # Try DD-MM-YYYY (flatpickr format)
+    for fmt in ('%d-%m-%Y', '%Y-%m-%d', '%d/%m/%Y', '%m/%d/%Y', '%d %b %Y', '%d-%b-%Y'):
+        try:
+            return datetime.strptime(val, fmt).date()
+        except ValueError:
+            continue
+    return None
 
 
 # Default grid columns
@@ -58,62 +63,6 @@ CTR_COLS_ALL = {
 # ══════════════════════════════════════
 # EMPLOYEE
 # ══════════════════════════════════════
-
-
-# ── Contractor Document Upload Helper ─────────────────────────────────────────
-import os, json, uuid as _uuid
-from werkzeug.utils import secure_filename as _secure_filename
-
-_CTR_UPLOAD_DIR = os.path.join(os.path.dirname(__file__), 'static', 'uploads', 'contractors')
-_CTR_ALLOWED    = {'.pdf', '.jpg', '.jpeg', '.png'}
-
-def _save_contractor_file(file_obj, old_path=None):
-    """Save uploaded file, return relative path for DB. Returns None if no file."""
-    if not file_obj or not file_obj.filename:
-        return old_path  # keep existing
-    ext = os.path.splitext(_secure_filename(file_obj.filename))[1].lower()
-    if ext not in _CTR_ALLOWED:
-        return old_path
-    os.makedirs(_CTR_UPLOAD_DIR, exist_ok=True)
-    fname = _uuid.uuid4().hex + ext
-    file_obj.save(os.path.join(_CTR_UPLOAD_DIR, fname))
-    return f'uploads/contractors/{fname}'
-
-def _collect_contractor_docs(c):
-    """Read form + files and update contractor doc fields."""
-    from flask import request
-    # Numbers
-    c.aadhaar_no       = request.form.get('aadhaar_no', '').strip().replace(' ','') or None
-    c.pancard          = request.form.get('pancard', '').strip().upper() or None
-    c.gstno            = request.form.get('gstno', '').strip().upper() or None
-    c.msme_no          = request.form.get('msme_no', '').strip().upper() or None
-    c.trade_license_no = request.form.get('trade_license_no', '').strip() or None
-    c.bank_account_no  = request.form.get('bank_account_no', '').strip() or None
-    c.ifsc_code        = request.form.get('ifsc_code', '').strip().upper() or None
-    # Files
-    c.aadhaar_file = _save_contractor_file(request.files.get('aadhaar_file'), getattr(c,'aadhaar_file',None))
-    c.pan_file     = _save_contractor_file(request.files.get('pan_file'),     getattr(c,'pan_file',None))
-    c.gst_file     = _save_contractor_file(request.files.get('gst_file'),     getattr(c,'gst_file',None))
-    c.msme_file    = _save_contractor_file(request.files.get('msme_file'),    getattr(c,'msme_file',None))
-    c.trade_file   = _save_contractor_file(request.files.get('trade_file'),   getattr(c,'trade_file',None))
-    c.bank_file    = _save_contractor_file(request.files.get('bank_file'),    getattr(c,'bank_file',None))
-    # Other docs
-    other = []
-    i = 1
-    while True:
-        dtype = request.form.get(f'other_doc_type_{i}')
-        if dtype is None:
-            break
-        dno   = request.form.get(f'other_doc_no_{i}', '').strip()
-        dfile = _save_contractor_file(request.files.get(f'other_doc_file_{i}'))
-        if dtype or dno or dfile:
-            other.append({'type': dtype, 'doc_no': dno, 'file': dfile})
-        i += 1
-    # Merge with existing other_docs
-    existing = json.loads(c.other_docs) if getattr(c, 'other_docs', None) else []
-    if other:
-        c.other_docs = json.dumps(other)
-    return c
 
 @hr.route('/employees')
 @login_required
@@ -513,11 +462,11 @@ def emp_add():
         qr_b64  = request.form.get('qr_base64', '').strip() or None
 
         rto = request.form.get('reports_to', '').strip()
-        emp_id_val = request.form.get('employee_id', '').strip() or None
         e = Employee(
             employee_code   = emp_code,
-            employee_id     = emp_id_val,
+            employee_id     = request.form.get('employee_id', '').strip() or None,
             first_name      = request.form.get('first_name', '').strip(),
+            middle_name     = request.form.get('middle_name', '').strip(),
             last_name       = request.form.get('last_name', '').strip(),
             mobile          = request.form.get('mobile', '').strip(),
             email           = request.form.get('email', '').strip(),
@@ -591,22 +540,18 @@ def emp_add():
             e.user_id = u.id
 
         db.session.commit()
-        audit('hr','EMP_ADD', e.id, emp_code, f'Employee added by {current_user.username}: {e.full_name} ({emp_code}) | Dept: {e.department}')
         flash(f'Employee {emp_code} added! Login: {uname} / HCP@123', 'success')
-        return redirect(url_for('hr.emp_id_card', id=e.id))
+        return redirect(url_for('hr.employees'))
 
     all_employees = Employee.query.filter_by(status='active').order_by(Employee.first_name).all()
-    from models.employee import EmployeeTypeMaster, EmployeeLocationMaster, DepartmentMaster, DesignationMaster
-    from models.hr_rules import HRShift
-    emp_types    = EmployeeTypeMaster.query.filter_by(is_active=True).order_by(EmployeeTypeMaster.sort_order).all()
-    locations    = EmployeeLocationMaster.query.filter_by(is_active=True).order_by(EmployeeLocationMaster.sort_order).all()
-    departments  = DepartmentMaster.query.filter_by(is_active=True).order_by(DepartmentMaster.sort_order).all()
-    designations = DesignationMaster.query.filter_by(is_active=True).order_by(DesignationMaster.sort_order).all()
-    shifts       = HRShift.query.filter_by(is_active=True).order_by(HRShift.name).all()
+    emp_types     = EmployeeTypeMaster.query.order_by(EmployeeTypeMaster.name).all()
+    departments   = DepartmentMaster.query.order_by(DepartmentMaster.name).all()
+    designations  = DesignationMaster.query.order_by(DesignationMaster.name).all()
+    locations     = EmployeeLocationMaster.query.order_by(EmployeeLocationMaster.name).all()
     return render_template('hr/employees/form.html',
         employee=None, contractors=contractors, perm=perm, active_page='hr_employees',
-        all_employees=all_employees, emp_types=emp_types, locations=locations,
-        departments=departments, designations=designations, shifts=shifts)
+        all_employees=all_employees, emp_types=emp_types,
+        departments=departments, designations=designations, locations=locations)
 
 
 @hr.route('/employees/<int:id>/edit', methods=['GET', 'POST'])
@@ -634,15 +579,9 @@ def emp_edit(id):
                 return redirect(url_for('hr.emp_edit', id=id))
             e.employee_code = new_code
 
-        # Employee ID (Biometric/Device) — editable only if currently blank
-        new_emp_id = request.form.get('employee_id', '').strip()
-        if not e.employee_id and new_emp_id:
-            if Employee.query.filter(Employee.employee_id == new_emp_id, Employee.id != e.id).first():
-                flash(f'Employee ID "{new_emp_id}" already in use.', 'error')
-                return redirect(url_for('hr.emp_edit', id=id))
-            e.employee_id = new_emp_id
-
+        e.employee_id    = request.form.get('employee_id', '').strip() or None
         e.first_name     = request.form.get('first_name', e.first_name).strip()
+        e.middle_name    = request.form.get('middle_name', e.middle_name or '').strip()
         e.last_name      = request.form.get('last_name', e.last_name).strip()
         e.mobile         = request.form.get('mobile', e.mobile).strip()
         e.email          = request.form.get('email', '').strip()
@@ -666,7 +605,10 @@ def emp_edit(id):
         e.status         = request.form.get('status', 'active')
         e.remark         = request.form.get('remark', '').strip()
         rto = request.form.get('reports_to', '').strip()
-        e.reports_to     = int(rto) if rto else None
+        try:
+            e.reports_to = int(rto) if rto else None
+        except (ValueError, TypeError):
+            e.reports_to = None
 
         # Professional
         e.pay_grade      = request.form.get('pay_grade','').strip()
@@ -751,22 +693,18 @@ def emp_edit(id):
 
         e.updated_at     = datetime.utcnow()
         db.session.commit()
-        audit('hr','EMP_EDIT', e.id, e.employee_code, f'Employee updated by {current_user.username}: {e.full_name} ({e.employee_code})')
         flash('Employee updated!', 'success')
         return redirect(url_for('hr.employees'))
 
     all_employees = Employee.query.filter_by(status='active').order_by(Employee.first_name).all()
-    from models.employee import EmployeeTypeMaster, EmployeeLocationMaster, DepartmentMaster, DesignationMaster
-    from models.hr_rules import HRShift
-    emp_types    = EmployeeTypeMaster.query.filter_by(is_active=True).order_by(EmployeeTypeMaster.sort_order).all()
-    locations    = EmployeeLocationMaster.query.filter_by(is_active=True).order_by(EmployeeLocationMaster.sort_order).all()
-    departments  = DepartmentMaster.query.filter_by(is_active=True).order_by(DepartmentMaster.sort_order).all()
-    designations = DesignationMaster.query.filter_by(is_active=True).order_by(DesignationMaster.sort_order).all()
-    shifts       = HRShift.query.filter_by(is_active=True).order_by(HRShift.name).all()
+    emp_types     = EmployeeTypeMaster.query.order_by(EmployeeTypeMaster.name).all()
+    departments   = DepartmentMaster.query.order_by(DepartmentMaster.name).all()
+    designations  = DesignationMaster.query.order_by(DesignationMaster.name).all()
+    locations     = EmployeeLocationMaster.query.order_by(EmployeeLocationMaster.name).all()
     return render_template('hr/employees/form.html',
         employee=e, contractors=contractors, perm=perm, active_page='hr_employees',
-        all_employees=all_employees, emp_types=emp_types, locations=locations,
-        departments=departments, designations=designations, shifts=shifts)
+        all_employees=all_employees, emp_types=emp_types,
+        departments=departments, designations=designations, locations=locations)
 
 
 
@@ -798,15 +736,19 @@ def emp_ajax_init():
         return {'ok': False, 'error': f'Email "{email}" already in use'}, 400
 
     rto = data.get('reports_to', '')
+    try:
+        rto_id = int(rto) if rto and str(rto).strip() else None
+    except (ValueError, TypeError):
+        rto_id = None
     e = Employee(
         employee_code  = emp_code,
         employee_id    = (data.get('employee_id') or '').strip() or None,
         first_name     = (data.get('first_name') or '').strip(),
+        middle_name    = (data.get('middle_name') or '').strip(),
         last_name      = (data.get('last_name') or '').strip(),
         mobile         = (data.get('mobile') or '').strip(),
         email          = email,
         gender         = data.get('gender', ''),
-        employee_type  = data.get('employee_type', ''),
         profile_photo  = data.get('photo_base64') or None,
         qr_code_base64 = data.get('qr_base64') or None,
         date_of_birth  = _parse_date(data.get('date_of_birth')),
@@ -820,9 +762,21 @@ def emp_ajax_init():
         zip_code       = (data.get('zip_code') or '').strip(),
         linkedin       = (data.get('linkedin') or '').strip(),
         facebook       = (data.get('facebook') or '').strip(),
+        reports_to     = rto_id,
+        department     = (data.get('department') or '').strip(),
+        designation    = (data.get('designation') or '').strip(),
+        employee_type  = data.get('employee_type', ''),
+        date_of_joining      = _parse_date(data.get('date_of_joining')),
+        confirmation_date    = _parse_date(data.get('confirmation_date')),
+        resignation_date     = _parse_date(data.get('resignation_date')),
+        last_working_date    = _parse_date(data.get('last_working_date')),
+        location       = (data.get('location') or '').strip(),
+        pay_grade      = (data.get('pay_grade') or '').strip(),
+        shift          = (data.get('shift') or '').strip(),
+        weekly_off     = (data.get('weekly_off') or '').strip(),
         status         = 'active',
         created_by     = current_user.id,
-        reports_to     = int(rto) if rto else None,
+        documents_json = data.get('documents_json', '[]'),
     )
     db.session.add(e)
     db.session.flush()
@@ -867,7 +821,9 @@ def emp_ajax_save_tab(id):
         if photo: e.profile_photo = photo
         qr = (data.get('qr_base64') or '').strip()
         if qr: e.qr_code_base64 = qr
+        e.employee_id    = (data.get('employee_id') or '').strip() or None
         e.first_name     = (data.get('first_name') or '').strip()
+        e.middle_name    = (data.get('middle_name') or '').strip()
         e.last_name      = (data.get('last_name') or '').strip()
         e.mobile         = (data.get('mobile') or '').strip()
         new_email        = (data.get('email') or '').strip()
@@ -877,15 +833,6 @@ def emp_ajax_save_tab(id):
                 return {'ok': False, 'error': f'Email "{new_email}" already in use by {dup.employee_code}'}, 400
         e.email          = new_email
         e.gender         = data.get('gender', '')
-        # Save employee_id if not already set or update it
-        new_emp_id = (data.get('employee_id') or '').strip()
-        if new_emp_id and new_emp_id != e.employee_id:
-            dup_id = Employee.query.filter(Employee.employee_id == new_emp_id, Employee.id != id).first()
-            if not dup_id:
-                e.employee_id = new_emp_id
-        # Save employee_type in basic tab too
-        if data.get('employee_type'):
-            e.employee_type = data.get('employee_type', '')
         e.date_of_birth  = _parse_date(data.get('date_of_birth'))
         e.blood_group    = (data.get('blood_group') or '').strip()
         e.marital_status = data.get('marital_status', '')
@@ -895,10 +842,7 @@ def emp_ajax_save_tab(id):
         e.state          = (data.get('state') or '').strip()
         e.country        = (data.get('country') or '').strip()
         e.zip_code       = (data.get('zip_code') or '').strip()
-        e.linkedin       = (data.get('linkedin') or '').strip()
-        e.facebook       = (data.get('facebook') or '').strip()
-        rto = data.get('reports_to', '')
-        e.reports_to     = int(rto) if rto else None
+        
 
     elif tab == 'professional':
         e.department     = (data.get('department') or '').strip()
@@ -923,6 +867,13 @@ def emp_ajax_save_tab(id):
         e.resignation_date   = _parse_date(data.get('resignation_date'))
         e.last_working_date  = _parse_date(data.get('last_working_date'))
         e.rehire_eligible    = data.get('rehire_eligible') == 'yes'
+        e.linkedin       = (data.get('linkedin') or '').strip()
+        e.facebook       = (data.get('facebook') or '').strip()
+        rto = data.get('reports_to', '')
+        try:
+            e.reports_to = int(rto) if rto and str(rto).strip() else None
+        except (ValueError, TypeError):
+            e.reports_to = None
 
     elif tab == 'kyc':
         e.nationality        = (data.get('nationality') or 'Indian').strip()
@@ -987,7 +938,6 @@ def emp_ajax_save_tab(id):
         return {'ok': False, 'error': f'Unknown tab: {tab}'}, 400
 
     e.updated_at = datetime.utcnow()
-    audit('hr', 'EMP_TAB_SAVE', e.id, e.employee_code, f'Employee {tab} tab saved by {current_user.username}: {e.full_name}')
     db.session.commit()
     return {'ok': True, 'msg': f'{tab.title()} saved successfully!'}
 
@@ -1000,15 +950,105 @@ def emp_view(id):
     e = Employee.query.get_or_404(id)
     audit('employees','VIEW', id, f'{e.employee_code or id} / {e.full_name}', obj=e)
     from datetime import date
-    from permissions import get_sub_perm
     sub_perms = {
-        'salary_details' : get_sub_perm('hr_employees', 'salary_details'),
-        'documents'      : get_sub_perm('hr_employees', 'documents'),
-        'bank_details'   : get_sub_perm('hr_employees', 'bank_details'),
-        'kyc_details'    : get_sub_perm('hr_employees', 'kyc_details'),
+        'kyc_details'    : True,
+        'bank_details'   : True,
+        'salary_details' : perm.can_view if perm else False,
+        'documents'      : True,
     }
-    return render_template('hr/employees/view.html', employee=e, perm=perm,
-        sub_perms=sub_perms, active_page='hr_employees', today=date.today())
+    return render_template('hr/employees/view.html',
+        employee=e, perm=perm, sub_perms=sub_perms,
+        active_page='hr_employees', today=date.today())
+
+
+
+@hr.route('/employees/<int:id>/id-card')
+@login_required
+def emp_id_card(id):
+    perm = get_perm('hr_employees')
+    if not perm or not perm.can_view:
+        flash('Access denied.', 'error'); return redirect(url_for('hr.employees'))
+    e = Employee.query.get_or_404(id)
+    from datetime import date
+    LOGO_SRC = 'data:image/png;base64,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'
+    if e.profile_photo and e.profile_photo.startswith('data:image'):
+        photo_html = '<img src="' + e.profile_photo + '" style="width:100%;height:100%;object-fit:cover;">'
+    else:
+        initial = (e.first_name or e.full_name or '?')[:1].upper()
+        photo_html = '<div style="font-size:60px;font-weight:900;color:#fff;line-height:1;">' + initial + '</div>'
+    if e.qr_code_base64 and e.qr_code_base64.startswith('data:image'):
+        qr_html = '<img src="' + e.qr_code_base64 + '" style="width:100%;height:100%;">'
+    else:
+        qr_html = ''
+    issue_date = date.today().strftime('%d-%m-%Y')
+    dept = (e.department or '').upper()
+    html = (
+        '<!DOCTYPE html><html><head><meta charset="UTF-8">'
+        '<title>ID Card - ' + (e.employee_code or '') + '</title>'
+        '<style>'
+        '@page { size: 100mm 70mm; margin: 0; }'
+        '* { margin:0; padding:0; box-sizing:border-box; }'
+        'html, body { width:100mm; height:70mm; background:#fff; }'
+        'body { display:flex; flex-direction:column; align-items:center; justify-content:flex-start; }'
+        '.card { width:100mm; height:70mm; background:#fff; border:1.5px solid #111; overflow:hidden; display:flex; flex-direction:column; }'
+        '.hdr { display:flex; align-items:center; padding:2.5mm 3mm; border-bottom:1.5px solid #111; position:relative; overflow:hidden; }'
+        '.hdr-logo { width:14mm; flex-shrink:0; margin-right:3mm; }'
+        '.hdr-logo img { width:100%; display:block; }'
+        '.hdr-text h1 { font-size:8.5pt; font-weight:900; color:#111; line-height:1.2; white-space:nowrap; }'
+        '.hdr-text p { font-size:4pt; color:#555; line-height:1.5; margin-top:1mm; }'
+        '.corner { position:absolute; top:0; right:0; width:0; height:0; border-top:12mm solid #111; border-left:12mm solid transparent; }'
+        '.id-bar { background:#111; display:flex; flex-shrink:0; }'
+        '.id-cell { flex:1; padding:1.5mm 3mm; }'
+        '.id-cell+.id-cell { border-left:1px solid #555; }'
+        '.id-label { font-size:4.5pt; font-weight:700; color:#aaa; letter-spacing:0.5pt; text-transform:uppercase; margin-bottom:0.5mm; }'
+        '.id-value { font-size:11pt; font-weight:900; color:#fff; letter-spacing:0.5pt; }'
+        '.body { display:flex; align-items:center; padding:2.5mm 3mm; gap:3mm; flex:1; }'
+        '.photo { width:22mm; height:22mm; background:#F5A800; flex-shrink:0; display:flex; align-items:center; justify-content:center; overflow:hidden; }'
+        '.info { flex:1; }'
+        '.emp-name { font-size:9pt; font-weight:900; color:#111; margin-bottom:1mm; }'
+        '.emp-gender { font-size:7pt; font-weight:700; color:#333; margin-bottom:2mm; }'
+        '.emp-meta { font-size:6pt; color:#333; line-height:1.8; }'
+        '.emp-meta strong { font-weight:700; }'
+        '.qr { width:18mm; height:18mm; flex-shrink:0; }'
+        '.note { padding:1.5mm 3mm; font-size:4pt; color:#888; border-top:0.5px solid #ddd; flex-shrink:0; }'
+        '.footer { background:#111; text-align:center; padding:2mm; flex-shrink:0; }'
+        '.footer span { font-size:7pt; font-weight:900; color:#fff; letter-spacing:2pt; }'
+        '@media screen { body { background:#e0e0e0; min-height:100vh; justify-content:center; } .card { box-shadow:0 4px 20px rgba(0,0,0,0.3); } }'
+        '@media print { html,body { width:100mm; height:70mm; } .no-print { display:none!important; } }'
+        '</style></head><body>'
+        '<div class="card">'
+          '<div class="hdr">'
+            '<div class="hdr-logo"><img src="' + LOGO_SRC + '"></div>'
+            '<div class="hdr-text">'
+              '<h1>HCP WELLNESS PVT. LTD.</h1>'
+              '<p>#8, Ozone Industrial Park, Nr. Kerala GIDC, Bhayla, Bavla, Ahmedabad<br>382220, Gujarat, India. &nbsp;www.hcpwellness.in &nbsp;|&nbsp; Email: info@hcpwellness.in</p>'
+            '</div>'
+            '<div class="corner"></div>'
+          '</div>'
+          '<div class="id-bar">'
+            '<div class="id-cell"><div class="id-label">Employee ID</div><div class="id-value">' + (e.employee_code or '—') + '</div></div>'
+            '<div class="id-cell"><div class="id-label">Department</div><div class="id-value">' + (dept or '—') + '</div></div>'
+          '</div>'
+          '<div class="body">'
+            '<div class="photo">' + photo_html + '</div>'
+            '<div class="info">'
+              '<div class="emp-name">' + e.full_name + '</div>'
+              '<div class="emp-gender">' + (e.gender or '') + '</div>'
+              '<div class="emp-meta">Issue Date : <strong>' + issue_date + '</strong><br>Issue By : <strong>HR HCP</strong></div>'
+            '</div>'
+            '<div class="qr">' + qr_html + '</div>'
+          '</div>'
+          '<div class="note">This Card is System Generated, Doesn\'t Require Signature</div>'
+          '<div class="footer"><span>HCP WELLNESS PVT. LTD.</span></div>'
+        '</div>'
+        '<div class="no-print" style="margin-top:8mm;display:flex;gap:8px;">'
+          '<button onclick="window.print()" style="background:#111;color:#fff;border:none;padding:8px 20px;border-radius:6px;font-size:13px;cursor:pointer;font-weight:700;">&#128424; Print / Save PDF</button>'
+          '<button onclick="window.close()" style="background:#f1f5f9;color:#111;border:1px solid #ccc;padding:8px 20px;border-radius:6px;font-size:13px;cursor:pointer;">Close</button>'
+        '</div>'
+        '</body></html>'
+    )
+    from flask import Response
+    return Response(html, mimetype='text/html')
 
 
 @hr.route('/employees/<int:id>/delete', methods=['POST'])
@@ -1022,7 +1062,6 @@ def emp_delete(id):
     e.is_deleted = True
     e.deleted_at = datetime.utcnow()
     db.session.commit()
-    audit('hr','EMP_DELETE', id, name, f'Employee deleted by {current_user.username}: {name}')
     flash(f'Employee "{name}" moved to trash.', 'warning')
     return redirect(url_for('hr.employees'))
 
@@ -1037,7 +1076,6 @@ def emp_restore(id):
     e.is_deleted = False
     e.deleted_at = None
     db.session.commit()
-    audit('hr','EMP_RESTORE', id, e.emp_code, f'Employee restored by {current_user.username}: {e.full_name}')
     flash(f'Employee "{e.full_name}" restored successfully!', 'success')
     return redirect(url_for('hr.employees', trash=1))
 
@@ -1075,40 +1113,12 @@ def emp_create_login(id):
     db.session.flush()
     e.user_id = u.id
     db.session.commit()
-    audit('hr','LOGIN_CREATE', e.id, e.employee_code, f'Login created by {current_user.username} for {e.full_name}: username={uname}')
     flash(f'Login created! Username: {uname}  Password: HCP@123', 'success')
     return redirect(url_for('hr.employees'))
 
 # ══════════════════════════════════════
 # CONTRACTOR
 # ══════════════════════════════════════
-
-@hr.route('/employees/<int:id>/id-card')
-@login_required
-def emp_id_card(id):
-    """Download or view employee ID card as 100×70mm PDF."""
-    e = Employee.query.get_or_404(id)
-    try:
-        pdf_bytes = generate_id_card_pdf(e)
-    except Exception as ex:
-        flash(f'ID Card generation failed: {ex}', 'error')
-        return redirect(url_for('hr.emp_view', id=id))
-
-    filename = f'ID_Card_{e.employee_code or id}.pdf'
-    action = request.args.get('action', 'download')   # ?action=view  to open in browser
-
-    if action == 'view':
-        return Response(pdf_bytes, mimetype='application/pdf',
-                        headers={'Content-Disposition': f'inline; filename="{filename}"'})
-    else:
-        return send_file(
-            io.BytesIO(pdf_bytes),
-            mimetype='application/pdf',
-            as_attachment=True,
-            download_name=filename
-        )
-
-
 
 @hr.route('/contractors')
 @login_required
@@ -1169,6 +1179,8 @@ def contractor_add():
         c = Contractor(
             company_name   = request.form.get('company_name', '').strip(),
             supply         = request.form.get('supply', '').strip(),
+            pancard        = request.form.get('pancard', '').strip(),
+            gstno          = request.form.get('gstno', '').strip(),
             remarks        = request.form.get('remarks', '').strip(),
             contract_id    = f"CTR-{num:04d}",
             contact_person = request.form.get('contact_person', '').strip(),
@@ -1178,10 +1190,8 @@ def contractor_add():
             status         = 1,
             created_by     = current_user.full_name or current_user.username,
         )
-        _collect_contractor_docs(c)
         db.session.add(c)
         db.session.commit()
-        audit('hr','CONTRACTOR_ADD', c.id, c.contract_id, f'Contractor added by {current_user.username}: {c.company_name} ({c.contract_id})')
         flash(f'Contractor {c.contract_id} added!', 'success')
         return redirect(url_for('hr.contractors'))
 
@@ -1200,6 +1210,8 @@ def contractor_edit(id):
     if request.method == 'POST':
         c.company_name   = request.form.get('company_name', '').strip()
         c.supply         = request.form.get('supply', '').strip()
+        c.pancard        = request.form.get('pancard', '').strip()
+        c.gstno          = request.form.get('gstno', '').strip()
         c.remarks        = request.form.get('remarks', '').strip()
         c.contact_person = request.form.get('contact_person', '').strip()
         c.contact_no     = request.form.get('contact_no', '').strip()
@@ -1208,9 +1220,7 @@ def contractor_edit(id):
         c.status         = int(request.form.get('status', 1))
         c.modified_by    = current_user.full_name or current_user.username
         c.modified_date  = datetime.utcnow()
-        _collect_contractor_docs(c)
         db.session.commit()
-        audit('hr','CONTRACTOR_EDIT', c.id, c.contract_id, f'Contractor updated by {current_user.username}: {con.company_name}')
         flash('Contractor updated!', 'success')
         return redirect(url_for('hr.contractors'))
 
@@ -1229,7 +1239,6 @@ def contractor_delete(id):
     c.deleted_at = datetime.utcnow()
     c.modified_by = current_user.full_name or current_user.username
     db.session.commit()
-    audit('hr','CONTRACTOR_DELETE', id, c.company_name, f'Contractor deleted by {current_user.username}: {c.company_name}')
     flash(f'Contractor "{c.company_name}" moved to trash.', 'warning')
     return redirect(url_for('hr.contractors'))
 
@@ -1245,7 +1254,6 @@ def contractor_restore(id):
     c.deleted_at = None
     c.modified_by = current_user.full_name or current_user.username
     db.session.commit()
-    audit('hr','CONTRACTOR_RESTORE', id, c.company_name, f'Contractor restored by {current_user.username}: {c.company_name}')
     flash(f'Contractor "{c.company_name}" restored successfully!', 'success')
     return redirect(url_for('hr.contractors', trash=1))
 
@@ -1351,10 +1359,7 @@ def emp_import():
                     errors.append(f'Row {i}: Employee Code missing — skipped')
                     continue
 
-                if Employee.query.filter(Employee.employee_code.ilike(emp_code)).first():
-                    skipped += 1
-                    errors.append(f'Row {i}: Code "{emp_code}" already exists — skipped')
-                    continue
+                existing = Employee.query.filter(Employee.employee_code.ilike(emp_code)).first()
 
                 try:
                     p  = prof_idx.get(emp_code.upper(), {})
@@ -1364,16 +1369,98 @@ def emp_import():
                     ed = edu_idx.get(emp_code.upper(), {})
 
                     email = _gv(row,'Email','email')
-                    # Avoid duplicate email
-                    if email and Employee.query.filter_by(email=email).first():
-                        email = ''
+                    if email:
+                        email_owner = Employee.query.filter_by(email=email).first()
+                        if email_owner and (not existing or email_owner.id != existing.id):
+                            email = ''
 
                     marital = _gv(row,'Marital Status','marital_status') or 'Single'
 
-                    e = Employee(
+                    if existing:
+                        # ── UPDATE existing employee ──
+                        e = existing
+                        eid = _gv(row,'Employee ID','employee_id')
+                        if eid: e.employee_id = eid                           
+                        fn = _gv(row,'First Name','first_name')
+                        mn = _gv(row,'Middle Name','middle_name')
+                        ln = _gv(row,'Last Name','last_name')
+                        if fn: e.first_name   = fn
+                        if mn: e.middle_name  = mn
+                        if ln: e.last_name    = ln
+                        if email: e.email     = email
+                        mob = _gv(row,'Mobile','mobile')
+                        if mob: e.mobile      = mob
+                        gen = _gv(row,'Gender','gender')
+                        if gen: e.gender      = gen
+                        dob = _pd(_gv(row,'DOB','Date of Birth','date_of_birth'))
+                        if dob: e.date_of_birth = dob
+                        bg = _gv(row,'Blood Group','blood_group')
+                        if bg: e.blood_group  = bg
+                        e.marital_status = marital
+                        addr = _gv(row,'Address','address')
+                        if addr: e.address    = addr
+                        city = _gv(row,'City','city')
+                        if city: e.city       = city
+                        st = _gv(row,'State','state')
+                        if st: e.state        = st
+                        cntry = _gv(row,'Country','country')
+                        if cntry: e.country   = cntry
+                        zp = _gv(row,'ZIP','Zip Code','zip_code')
+                        if zp: e.zip_code     = zp
+                        sts = (_gv(row,'Status','status') or '').lower().replace(' ','_')
+                        if sts: e.status      = sts
+                        # Professional
+                        dept = _gv(p,'Department','department') or _gv(row,'Department')
+                        if dept: e.department = dept
+                        desig = _gv(p,'Designation','designation') or _gv(row,'Designation')
+                        if desig: e.designation = desig
+                        et = _gv(p,'Employee Type','employee_type') or _gv(row,'Employee Type')
+                        if et: e.employee_type = et
+                        loc = _gv(p,'Location','location') or _gv(row,'Location')
+                        if loc: e.location    = loc
+                        doj = _pd(_gv(p,'DOJ','Date of Joining','date_of_joining') or _gv(row,'DOJ','Date of Joining'))
+                        if doj: e.date_of_joining = doj
+                        conf = _pd(_gv(p,'Confirmation','Confirmation Date'))
+                        if conf: e.confirmation_date = conf
+                        resign = _pd(_gv(p,'Resignation Date','resignation_date'))
+                        if resign: e.resignation_date = resign
+                        lwd = _pd(_gv(p,'Last Working Date','last_working_date'))
+                        if lwd: e.last_working_date = lwd
+                        # KYC
+                        pe = _pd(_gv(k,'Passport Expiry','passport_expiry'))
+                        if pe: e.passport_expiry = pe
+                        dle = _pd(_gv(k,'DL Expiry','dl_expiry'))
+                        if dle: e.dl_expiry = dle
+                        # Bank
+                        bn = _gv(bk,'Bank Name','bank_name')
+                        if bn: e.bank_name   = bn
+                        ban = _gv(bk,'Account Number','bank_account_number')
+                        if ban: e.bank_account_number = ban
+                        ifsc = (_gv(bk,'IFSC Code','IFSC','bank_ifsc') or '').upper()
+                        if ifsc: e.bank_ifsc = ifsc
+                        bat = _gv(bk,'Account Type','bank_account_type')
+                        if bat: e.bank_account_type = bat
+                        # Salary
+                        ctc = _dec(_gv(sl,'CTC Annual','salary_ctc'))
+                        if ctc: e.salary_ctc = ctc
+                        net = _dec(_gv(sl,'Net Salary','salary_net'))
+                        if net: e.salary_net = net
+                        # Education - prev dates
+                        pfd = _pd(_gv(ed,'Prev From','prev_from_date'))
+                        if pfd: e.prev_from_date = pfd
+                        ptd = _pd(_gv(ed,'Prev To','prev_to_date'))
+                        if ptd: e.prev_to_date = ptd
+
+                        skipped += 1
+                        errors.append(f'Row {i}: Code "{emp_code}" updated \u2705')
+
+                    else:
+                        # ── CREATE new employee ──
+                        e = Employee(
                         employee_code   = emp_code,
-                        employee_id     = _gv(row,'Employee ID','Biometric ID','employee_id') or None,
+                        employee_id     = _gv(row,'Employee ID','employee_id') or None,                                                               
                         first_name      = _gv(row,'First Name','first_name'),
+                        middle_name     = _gv(row,'Middle Name','middle_name'),
                         last_name       = _gv(row,'Last Name','last_name'),
                         mobile          = _gv(row,'Mobile','mobile'),
                         email           = email,
@@ -1564,9 +1651,9 @@ def emp_import_template():
     # ── Sheet 1: Basic Info ──
     ws1 = wb.active; ws1.title = "1 - Basic Info"
     build_tpl(ws1, "1E3A5F",
-        ["Employee Code","Employee ID","First Name","Last Name","Mobile","Email","Gender","Date of Birth","Blood Group","Marital Status","Marriage Anniversary","Address","City","State","Country","ZIP","LinkedIn","Facebook","Status"],
-        ["Required. Unique code","Biometric/Device ID (optional)","Required","Optional","10 digits","Valid email","Male/Female/Other","DD-MM-YYYY","A+/B+/O+...","Single/Married/Divorced","DD-MM-YYYY if Married","Street address","City","State","Default: India","Pincode","URL optional","URL optional","active/inactive"],
-        ["EMP0001","1001","Krunal","Chandi","9876543210","krunal@hcp.com","Male","15-06-1990","A+","Married","20-02-2015","123 MG Road","Ahmedabad","Gujarat","India","380001","","","active"]
+        ["Employee Code","Employee ID","First Name","Middle Name","Last Name","Mobile","Email","Gender","Date of Birth","Blood Group","Marital Status","Marriage Anniversary","Address","City","State","Country","ZIP","LinkedIn","Facebook","Status"],
+        ["Required. Unique code","Biometric/Device ID","Required","Optional","Optional","10 digits","Valid email","Male/Female/Other","DD-MM-YYYY","A+/B+/O+...","Single/Married/Divorced","DD-MM-YYYY if Married","Street address","City","State","Default: India","Pincode","URL optional","URL optional","active/inactive"],
+        ["EMP0001","1001","Krunal","Naresh","Chandi","9876543210","krunal@hcp.com","Male","15-06-1990","A+","Married","20-02-2015","123 MG Road","Ahmedabad","Gujarat","India","380001","","","active"]
     )
 
     # ── Sheet 2: Professional ──
@@ -1914,7 +2001,7 @@ def emp_export():
     from models.user import User as UserModel
     users = {u.id: u.full_name for u in UserModel.query.all()}
 
-    headers = ["Employee Code","First Name","Last Name","Full Name","Mobile","Email","Gender",
+    headers = ["Employee Code","First Name","Middle Name","Last Name","Full Name","Mobile","Email","Gender",
                "Department","Designation","Employee Type","Date of Joining","Location",
                "Date of Birth","Blood Group","Marital Status","Status",
                "Is Contractor","Is Block","Is Late","Is Probation",
@@ -1922,9 +2009,10 @@ def emp_export():
 
     rows = []
     for e in emps:
-        full = (e.first_name or '') + ' ' + (e.last_name or '')
+        full = (e.first_name or '') + ' ' + (e.middle_name or '') + ' ' + (e.last_name or '')
         rows.append([
-            e.employee_code or '', e.first_name or '', e.last_name or '', full.strip(),
+            e.employee_code or '', e.first_name or '', e.middle_name or '', e.last_name or '', full.strip(),
+            e.employee_code or '', e.first_name or '', e.middle_name or '', e.last_name or '', full.strip(),
             e.mobile or '', e.email or '', e.gender or '',
             e.department or '', e.designation or '', e.employee_type or '',
             e.date_of_joining.strftime('%d-%m-%Y') if e.date_of_joining else '',
@@ -2157,7 +2245,6 @@ def salary_component_add():
             updated_by         = current_user.full_name or current_user.username,
         )
         db.session.add(comp)
-        audit('hr','SALARY_COMP_ADD', comp.id, comp.code, f'Salary component added by {current_user.username}: {comp.name} ({comp.code})')
         db.session.commit()
         return jsonify(ok=True, component=comp.to_dict())
     except Exception as e:
@@ -2182,7 +2269,6 @@ def salary_component_edit(cid):
         comp.description        = d.get('description', comp.description)
         comp.updated_by         = current_user.full_name or current_user.username
         comp.updated_at         = datetime.utcnow()
-        audit('hr','SALARY_COMP_EDIT', comp.id, comp.code, f'Salary component updated by {current_user.username}: {comp.name}')
         db.session.commit()
         return jsonify(ok=True, component=comp.to_dict())
     except Exception as e:
@@ -2197,7 +2283,6 @@ def salary_component_delete(cid):
         comp = SalaryComponent.query.get_or_404(cid)
         if comp.is_system:
             return jsonify(ok=False, error='System components cannot be deleted'), 400
-        audit('hr','SALARY_COMP_DELETE', comp.id, comp.code, f'Salary component deleted by {current_user.username}: {comp.name}')
         db.session.delete(comp)
         db.session.commit()
         return jsonify(ok=True)

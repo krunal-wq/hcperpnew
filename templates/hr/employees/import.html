@@ -157,6 +157,7 @@
         ('Employee Code','req','Unique code. e.g. EMP0001'),
         ('Employee ID','opt','Biometric / Device ID. e.g. 1001'),
         ('First Name','req','Employee first name'),
+        ('Middle Name','opt','Middle name (optional)'),
         ('Last Name','opt','Last name'),
         ('Mobile','req','10-digit mobile number'),
         ('Email','opt','Valid email (skipped if duplicate)'),
@@ -310,7 +311,7 @@
         <div class="card" style="padding:1.1rem;margin-bottom:1rem;">
             <div style="font-size:.85rem;font-weight:800;margin-bottom:.9rem;">❌ Don'ts</div>
             {% for tip in [
-                ('⛔','Duplicate Employee Code mat dalna — skip ho jayega'),
+                ('🔄','Duplicate Employee Code — existing record update ho jayega'),
                 ('⛔','Sheet names rename mat karo'),
                 ('⛔','Date format ₹ comma ke saath mat dena'),
                 ('⛔','Employee Code blank mat chhodo — row skip hoga'),
