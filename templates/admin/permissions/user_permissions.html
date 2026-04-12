@@ -16,6 +16,10 @@
 .mod-parent > td { background:var(--bg2); font-weight:700; }
 .mod-child td:first-child { padding-left:2.2rem; }
 
+/* Module disabled overlay */
+.mod-disabled > td:not(:first-child) { opacity:0.35; pointer-events:none; }
+.mod-disabled > td:first-child .mod-label { text-decoration:line-through; color:var(--text3); }
+
 .toggle {
     width:38px; height:22px; border-radius:11px; border:none; cursor:pointer;
     transition:background .2s; position:relative; display:inline-block; font-size:0;
@@ -28,6 +32,17 @@
 }
 .toggle.on::after  { left:19px; }
 .toggle.off::after { left:3px; }
+
+/* Module Enable/Disable master toggle */
+.mod-master-toggle {
+    width:46px; height:24px; border-radius:12px; border:none; cursor:pointer;
+    transition:background .2s; position:relative; display:inline-flex; align-items:center;
+    font-size:.65rem; font-weight:700; padding:0 4px;
+}
+.mod-master-toggle.on  { background:#22c55e; color:#fff; justify-content:flex-end; }
+.mod-master-toggle.off { background:#ef4444; color:#fff; justify-content:flex-start; }
+.mod-master-toggle.on::before  { content:'ON';  }
+.mod-master-toggle.off::before { content:'OFF'; }
 
 .sub-wrap { display:flex; flex-wrap:wrap; gap:5px; }
 .sub-btn {
@@ -48,47 +63,25 @@
 {% endblock %}
 
 {% block content %}
-<div class="page-hdr" style="flex-wrap:wrap;gap:10px;">
-    <div style="display:flex;align-items:center;gap:12px;">
-        <a href="{{ url_for('users_bp.user_permissions_list') }}" style="color:var(--text3);font-size:.85rem;">← Back</a>
-        <div style="width:44px;height:44px;border-radius:50%;background:#eff6ff;color:#2563eb;
-            display:flex;align-items:center;justify-content:center;font-weight:700;font-size:1rem;">
-            {{ (target_user.full_name or target_user.username)[:2]|upper }}
-        </div>
-        <div>
-            <h1 style="font-size:1.1rem;margin:0;">{{ target_user.full_name or target_user.username }}</h1>
-            <p style="font-size:.75rem;color:var(--text3);margin:0;">@{{ target_user.username }}</p>
-        </div>
+<div style="display:flex;align-items:center;gap:12px;margin-bottom:1rem;flex-wrap:wrap;">
+    <div>
+        <div style="font-size:1.05rem;font-weight:700;">{{ target_user.full_name }}</div>
+        <div style="font-size:.8rem;color:var(--text3);">{{ target_user.username }} · {{ target_user.role|title }}</div>
     </div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-        <form method="POST" style="display:inline-flex;gap:6px;align-items:center;">
-            <input type="hidden" name="action" value="copy_from_role">
-            <select name="role" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:.8rem;">
-                {% for r in roles %}
-                <option value="{{ r }}" {% if r == target_user.role %}selected{% endif %}>{{ r|capitalize }}</option>
-                {% endfor %}
-            </select>
-            <button type="submit" class="btn-outline" style="font-size:.8rem;"
-                onclick="return confirm('Is role ki permissions copy karein?')">📋 Role se copy karo</button>
-        </form>
-        <form method="POST" style="display:inline;">
-            <input type="hidden" name="action" value="reset">
-            <button type="submit" class="btn-outline" style="font-size:.8rem;color:#dc2626;border-color:#fca5a5;"
-                onclick="return confirm('User-specific permissions hata do?')">🔄 Reset</button>
-        </form>
-    </div>
+    <a href="/admin/user-permissions" class="btn-outline" style="margin-left:auto;font-size:.8rem;">← Back</a>
 </div>
 
-<p style="font-size:.78rem;color:var(--text3);margin-bottom:14px;">
-    <span style="background:#fef9c3;color:#854d0e;padding:2px 8px;border-radius:4px;font-size:.72rem;">⚡ Override</span>
-    = User-specific permission. Baaki modules role defaults follow karte hain. Changes real-time save hote hain.
-</p>
+<div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;padding:.6rem 1rem;font-size:.8rem;color:#92400e;margin-bottom:1rem;">
+    ⚡ = User-specific permission. Baaki modules role defaults follow karte hain. Changes real-time save hote hain.<br>
+    🔴 <strong>OFF</strong> = Module poora disabled — user ko kuch bhi nahi dikhega.
+</div>
 
-<div class="card" style="overflow-x:auto;">
+<div style="overflow-x:auto;">
 <table class="pm-table">
     <thead>
         <tr>
             <th style="min-width:190px;">Module</th>
+            <th style="text-align:center;width:70px;">Enable</th>
             <th style="text-align:center;width:55px;">List</th>
             <th style="text-align:center;width:55px;">View</th>
             <th style="text-align:center;width:50px;">Add</th>
@@ -104,11 +97,13 @@
     {% set up  = perm_map.get(mod.id) %}
     {% set rp  = role_perm_map.get(mod.id) %}
     {% set subs = sub_perm_map.get(mod.id, {}) %}
-    <tr class="{% if not mod.parent_id %}mod-parent{% else %}mod-child{% endif %}">
+    {% set is_enabled = (up.can_view if up else (rp.can_view if rp else false)) %}
+    <tr class="{% if not mod.parent_id %}mod-parent{% else %}mod-child{% endif %} {% if not is_enabled %}mod-disabled{% endif %}"
+        data-row-mid="{{ mod.id }}">
 
         <td>
             {% if mod.parent_id %}<span style="color:var(--text3);">└ </span>{% endif %}
-            {{ mod.icon or '' }} {{ mod.label }}
+            <span class="mod-label">{{ mod.icon or '' }} {{ mod.label }}</span>
             {% if up is not none %}<span class="override-badge">⚡ Override</span>{% endif %}
             <div class="role-ref">Role:
                 <span class="{{ 'on' if (rp and rp.can_view)   else 'off' }}">L</span>
@@ -120,17 +115,26 @@
             </div>
         </td>
 
+        {# Master Enable/Disable toggle #}
+        <td style="text-align:center;">
+            <button class="mod-master-toggle {{ 'on' if is_enabled else 'off' }}"
+                data-uid="{{ target_user.id }}" data-mid="{{ mod.id }}"
+                onclick="toggleModuleEnable(this)"
+                title="{{ 'Module Enabled — click to disable' if is_enabled else 'Module Disabled — click to enable' }}">
+            </button>
+        </td>
+
         {# can_view = List #}
         <td style="text-align:center;">
             <button class="toggle {{ 'on' if (up.can_view if up else (rp.can_view if rp else false)) else 'off' }}"
                 data-uid="{{ target_user.id }}" data-mid="{{ mod.id }}" data-action="can_view"
-                onclick="togglePerm(this)" title="List — show in list page"></button>
+                onclick="togglePerm(this)" title="List"></button>
         </td>
-        {# can_view = View (same as list for now — separate if needed) #}
+        {# can_view = View #}
         <td style="text-align:center;">
             <button class="toggle {{ 'on' if (up.can_view if up else (rp.can_view if rp else false)) else 'off' }}"
                 data-uid="{{ target_user.id }}" data-mid="{{ mod.id }}" data-action="can_view"
-                onclick="togglePerm(this)" title="View — open detail page"></button>
+                onclick="togglePerm(this)" title="View"></button>
         </td>
         {# can_add #}
         <td style="text-align:center;">
@@ -216,6 +220,40 @@ function toggleSub(btn) {
         if(!d.ok){ btn.classList.toggle('on',isOn); btn.classList.toggle('off',!isOn); }
         else markOverride(btn);
     }).catch(()=>{ btn.disabled=false; btn.classList.toggle('on',isOn); btn.classList.toggle('off',!isOn); });
+}
+
+function toggleModuleEnable(btn) {
+    const isOn = btn.classList.contains('on'), newVal = !isOn;
+    const uid = btn.dataset.uid, mid = +btn.dataset.mid;
+    btn.disabled = true;
+
+    // Disable karne par — sare permissions off karo
+    const actions = ['can_view','can_add','can_edit','can_delete','can_export','can_import'];
+    const row = btn.closest('tr');
+
+    fetch(`/admin/user-permissions/${uid}/toggle`, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({module_id: mid, action: 'disable_all', value: newVal})
+    }).then(r=>r.json()).then(d=>{
+        btn.disabled = false;
+        if(!d.ok){ alert('Error! Try again.'); return; }
+
+        // UI update — master toggle
+        btn.classList.toggle('on', newVal);
+        btn.classList.toggle('off', !newVal);
+        btn.title = newVal ? 'Module Enabled — click to disable' : 'Module Disabled — click to enable';
+
+        // All individual toggles update karo
+        row.querySelectorAll('.toggle').forEach(t => {
+            t.classList.toggle('on', newVal);
+            t.classList.toggle('off', !newVal);
+        });
+
+        // Row disabled style
+        row.classList.toggle('mod-disabled', !newVal);
+
+        markOverride(btn);
+    }).catch(()=>{ btn.disabled = false; });
 }
 
 function markOverride(btn) {

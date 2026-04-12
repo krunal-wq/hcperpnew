@@ -12,38 +12,85 @@ from models import db, RolePermission, Module, UserGridConfig, UserPermission
 # Ye dict define karta hai har module ke andar kaunse granular sub-permissions hain
 MODULE_SUB_PERMS = {
     'crm_leads': [
-        ('discussion_board', 'Discussion Board'),
-        ('activity_log',     'Activity Log'),
-        ('reminder',         'Reminder'),
-        ('quotation',        'Quotation'),
-        ('sample_order',     'Sample Order'),
-        ('attachments',      'Attachments List'),
-        ('whatsapp',         'WhatsApp'),
+        ('filter',            'Filter'),
+        ('sort',              'Sort'),
+        ('columns',           'Columns'),
+        ('discussion_board',  'Discussion Board'),
+        ('activity_log',      'Activity Log'),
+        ('reminder',          'Reminder'),
+        ('personal_notes',    'Personal Notes'),
+        ('whatsapp',          'WhatsApp'),
+        ('sample_order',      'Sample Order'),
+        ('quotation',         'Quotation'),
+        ('send_npd',          'Send NPD'),
+        ('create_npd',        'Create NPD Project'),
+        ('create_epd',        'Create EPD Project'),
+        ('change_status',     'Change Status'),
+        ('inline_edit',       'Inline Edit'),
+        ('restore',           'Restore'),
+        ('permanent_delete',  'Permanent Delete'),
     ],
     'crm_clients': [
-        ('create_npd',       'Create NPD Project'),
-        ('create_epd',       'Create EPD Project'),
-        ('npd_quote',        'NPD Quote'),
+        ('filter',            'Filter'),
+        ('sort',              'Sort'),
+        ('columns',           'Columns'),
+        ('inline_edit',       'Inline Edit'),
+        ('create_npd',        'Create NPD Project'),
+        ('create_epd',        'Create EPD Project'),
+        ('npd_quote',         'NPD Quote'),
+        ('restore',           'Restore'),
+        ('permanent_delete',  'Permanent Delete'),
     ],
     'hr_employees': [
-        ('salary_details',   'Salary Details'),
-        ('documents',        'Documents'),
-        ('bank_details',     'Bank Details'),
-        ('kyc_details',      'KYC Details'),
+        ('salary_details',    'Salary Details'),
+        ('bank_details',      'Bank Details'),
+        ('kyc_details',       'KYC Details'),
+        ('documents',         'Documents'),
+        ('filter',            'Filter'),
+        ('sort',              'Sort'),
+        ('columns',           'Columns'),
+        ('inline_edit',       'Inline Edit'),
+        ('id_card',           'ID Card'),
+        ('org_chart',         'Org Chart'),
+        ('restore',           'Restore'),
+        ('permanent_delete',  'Permanent Delete'),
+    ],
+    'hr': [
+        ('manual_entry',      'Manual Entry'),
+        ('late_absent',       'Late & Absent'),
+        ('holiday',           'Holiday'),
+    ],
+    'hr_contractors': [
+        ('filter',            'Filter'),
+        ('sort',              'Sort'),
+        ('columns',           'Columns'),
+        ('inline_edit',       'Inline Edit'),
+        ('restore',           'Restore'),
+        ('permanent_delete',  'Permanent Delete'),
     ],
     'npd': [
-        ('create_project',   'Create Project'),
-        ('milestone',        'Milestone'),
-        ('epd',              'EPD'),
-        ('reports',          'Reports'),
-        ('close_project',    'Close Project (All Milestones Done)'),
+        ('create_project',    'Create Project'),
+        ('inline_edit',       'Inline Edit'),
+        ('milestone',         'Milestone'),
+        ('epd',               'EPD'),
+        ('print',             'Print'),
+        ('discussion_board',  'Discussion Board'),
+        ('internal_discussion','Internal Discussion'),
+        ('activity_log',      'Activity Log'),
+        ('attachments',       'Attachments'),
+        ('notes',             'Notes'),
+        ('reports',           'Reports'),
+        ('close_project',     'Close Project'),
+        ('restore',           'Restore'),
+        ('permanent_delete',  'Permanent Delete'),
     ],
     'rd': [
-        ('create_project',   'Create Project'),
-        ('trials',           'Trials'),
-        ('discussion',       'Discussion'),
-        ('performance',      'Performance'),
-        ('settings',         'Settings'),
+        ('create_project',    'Create Project'),
+        ('trials',            'Trials'),
+        ('assign',            'Assign NPD'),
+        ('discussion',        'Discussion'),
+        ('performance',       'Performance'),
+        ('settings',          'Settings'),
     ],
 }
 
@@ -52,18 +99,24 @@ MODULE_SUB_PERMS = {
 def get_perm(module_name):
     """
     Priority:
-    1. UserPermission record hai → use that (ALL users including admin)
-    2. Warna role_permissions se fallback
-    3. Koi record nahi → no perm
+    1. UserPermission record hai → use that
+    2. RolePermission se fallback
+    3. Koi record nahi → view_only (menu dikhega)
+    
+    Note: Agar UserPermission exist karta hai to usse use karo.
+    Admin ne explicitly disable kiya hoga tabhi can_view=False hoga.
     """
     if not current_user.is_authenticated:
         return None
+    # Admin ko hamesha full access
+    if current_user.role == 'admin':
+        return _full_perm()
     try:
         mod = Module.query.filter_by(name=module_name).first()
         if not mod:
             return _view_only_perm()
 
-        # Priority 1: User-specific override (admin bhi)
+        # Priority 1: User-specific override
         user_perm = UserPermission.query.filter_by(
             user_id=current_user.id, module_id=mod.id
         ).first()
@@ -71,9 +124,14 @@ def get_perm(module_name):
             return user_perm
 
         # Priority 2: Role fallback
-        return RolePermission.query.filter_by(
+        role_perm = RolePermission.query.filter_by(
             role=current_user.role, module_id=mod.id
-        ).first() or _no_perm()
+        ).first()
+        if role_perm is not None:
+            return role_perm
+
+        # Koi record nahi — by default view allow karo
+        return _view_only_perm()
     except Exception:
         return _view_only_perm()
 

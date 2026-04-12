@@ -62,6 +62,10 @@ app.register_blueprint(hr_masters)
 app.register_blueprint(late_rules_bp)
 app.register_blueprint(hr_rules_bp)
 
+# ── get_perm as Jinja2 global — template mein use ho sakta hai ──
+from permissions import get_perm as _get_perm
+app.jinja_env.globals['get_perm'] = _get_perm
+
 # Seed HR master defaults
 with app.app_context():
     try:

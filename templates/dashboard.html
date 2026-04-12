@@ -246,11 +246,9 @@
         <div class="wc-sub">Manufacturing ERP — Complete Business Management</div>
         <div class="wc-date">{{ now.strftime('%A, %d %B %Y') }}</div>
     </div>
-    <div class="wc-btns">
-        <a href="/crm/dashboard" class="wc-btn wc-btn-white">📊 CRM Dashboard</a>
-        <a href="/crm/leads" class="wc-btn wc-btn-ghost">📋 Leads</a>
-    </div>
 </div>
+
+{% if current_user.role == 'admin' %}
 
 <!-- ═══ QUICK OVERVIEW ═══ -->
 <div class="sec-lbl">
@@ -426,5 +424,7 @@
         </div>
     </div>
 </div>
+
+{% endif %}
 
 {% endblock %}

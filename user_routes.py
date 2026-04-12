@@ -424,11 +424,41 @@ def users_export():
 @login_required
 @admin_required
 def user_permissions_list():
-    """User list — click karo kisi user pe to uski permissions set karo."""
-    from models.employee import Employee
-    users = User.query.filter_by(is_active=True).order_by(User.full_name).all()
-    return render_template('admin/permissions/user_permissions_list.html',
-                           users=users, active_page='user_permissions')
+    """Redirect to ACP panel."""
+    return redirect(url_for('users_bp.acp_panel'))
+
+
+@users_bp.route('/acp')
+@users_bp.route('/acp/<int:user_id>')
+@login_required
+@admin_required
+def acp_panel(user_id=None):
+    """Access Control Panel — split panel design."""
+    all_users = User.query.filter_by(is_active=True).order_by(User.full_name).all()
+    modules   = Module.query.filter_by(is_active=True).order_by(Module.sort_order).all()
+
+    selected_user = None
+    perm_map = {}
+    role_perm_map = {}
+    sub_perm_map = {}
+
+    if user_id:
+        selected_user = User.query.get_or_404(user_id)
+        for up in UserPermission.query.filter_by(user_id=user_id).all():
+            perm_map[up.module_id] = up
+        sub_perm_map = {mid: up.get_sub_permissions() for mid, up in perm_map.items()}
+        for rp in RolePermission.query.filter_by(role=selected_user.role).all():
+            role_perm_map[rp.module_id] = rp
+
+    return render_template('admin/permissions/acp_panel.html',
+                           all_users=all_users,
+                           selected_user=selected_user,
+                           modules=modules,
+                           perm_map=perm_map,
+                           sub_perm_map=sub_perm_map,
+                           role_perm_map=role_perm_map,
+                           module_sub_perms=MODULE_SUB_PERMS,
+                           active_page='user_permissions')
 
 
 @users_bp.route('/user-permissions/<int:user_id>', methods=['GET', 'POST'])
@@ -547,6 +577,26 @@ def user_perm_toggle(user_id):
 
     if action in ('can_view', 'can_add', 'can_edit', 'can_delete', 'can_export', 'can_import'):
         setattr(up, action, value)
+        up.updated_by = current_user.id
+        db.session.commit()
+        return jsonify({'ok': True, 'value': value})
+
+    # Module Enable/Disable ALL — sare permissions ek saath on/off
+    if action == 'disable_all':
+        up.can_view   = value
+        up.can_add    = value
+        up.can_edit   = value
+        up.can_delete = value
+        up.can_export = value
+        up.can_import = value
+        # Sub-permissions bhi sab off karo agar disable ho raha hai
+        if not value:
+            mod = Module.query.get(module_id)
+            if mod:
+                from permissions import MODULE_SUB_PERMS
+                sub_keys = [k for k, _ in MODULE_SUB_PERMS.get(mod.name, [])]
+                subs = {k: False for k in sub_keys}
+                up.set_sub_permissions(subs)
         up.updated_by = current_user.id
         db.session.commit()
         return jsonify({'ok': True, 'value': value})

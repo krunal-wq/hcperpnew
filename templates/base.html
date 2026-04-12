@@ -104,6 +104,8 @@
         </div>
 
         {% if role in ('admin','manager','user','sales') %}
+        {% set _perm_crm = get_perm('crm') %}
+        {% if _perm_crm is none or _perm_crm.can_view != false %}
         <div class="sb-sec sb-accordion">
             <button class="sb-acc-hdr" onclick="toggleAccordion(this)">
                 <span class="sb-acc-ic">📋</span>
@@ -112,16 +114,25 @@
             </button>
             <div class="sb-acc-body">
                 <a class="nav-a" href="/crm/dashboard"><span class="nav-ic">📊</span><span class="nav-txt">CRM Dashboard</span></a>
+                {% set _perm_leads = get_perm('crm_leads') %}
+                {% if _perm_leads is none or _perm_leads.can_view != false %}
                 <a class="nav-a" href="/crm/leads"><span class="nav-ic">📋</span><span class="nav-txt">Leads</span></a>
+                {% endif %}
+                {% set _perm_clients = get_perm('crm_clients') %}
+                {% if _perm_clients is none or _perm_clients.can_view != false %}
                 <a class="nav-a" href="/crm/clients"><span class="nav-ic">👥</span><span class="nav-txt">Client Master</span></a>
+                {% endif %}
                 <a class="nav-a" href="/crm/sample-orders"><span class="nav-ic">🧾</span><span class="nav-txt">Sample Orders</span></a>
                 <a class="nav-a" href="/crm/quotations"><span class="nav-ic">📄</span><span class="nav-txt">Quotations</span></a>
                 <a class="nav-a" href="/crm/quotations/products"><span class="nav-ic">📋</span><span class="nav-txt">Quot. Product List</span></a>
             </div>
         </div>
         {% endif %}
+        {% endif %}
 
         {% if role in ('admin','manager','user','sales','rd_executive','rd_manager') %}
+        {% set _perm_rd = get_perm('rd') %}
+        {% if _perm_rd is none or _perm_rd.can_view != false %}
         <div class="sb-sec sb-accordion">
             <button class="sb-acc-hdr" onclick="toggleAccordion(this)">
                 <span class="sb-acc-ic">🔬</span>
@@ -132,6 +143,8 @@
 
                 {# ── R&D Dashboard ── #}
                 <a class="nav-a" href="/rd/dashboard"><span class="nav-ic">◈</span><span class="nav-txt">R&amp;D Dashboard</span></a>
+                <a class="nav-a" href="/rd/projects"><span class="nav-ic">⬡</span><span class="nav-txt">R&amp;D Projects</span></a>
+                <a class="nav-a" href="/rd/trials"><span class="nav-ic">⚗</span><span class="nav-txt">R&amp;D Trials</span></a>
 
                 {# ── NPD Section ── #}
                 <div class="sb-acc-sub-lbl">🧪 NPD</div>
@@ -139,23 +152,11 @@
                 <a class="nav-a" href="/npd/npd-projects"><span class="nav-ic">📋</span><span class="nav-txt">NPD Projects</span></a>
                 <a class="nav-a {% if _pg == 'npd_sample_ready' %}active{% endif %}" href="/npd/sample-ready"><span class="nav-ic">🧪</span><span class="nav-txt">Sample Ready</span></a>
                 <a class="nav-a {% if _pg == 'npd_sample_history' %}active{% endif %}" href="/npd/sample-history"><span class="nav-ic">📋</span><span class="nav-txt">Sample History</span></a>
-                <a class="nav-a" href="/npd/npd-new"><span class="nav-ic">➕</span><span class="nav-txt">New NPD Project</span></a>
 
                 {# ── EPD Section ── #}
                 <div class="sb-acc-sub-lbl">📦 EPD</div>
                 <a class="nav-a" href="/npd/epd-dashboard"><span class="nav-ic">📊</span><span class="nav-txt">EPD Dashboard</span></a>
                 <a class="nav-a" href="/npd/epd-projects"><span class="nav-ic">📋</span><span class="nav-txt">EPD Projects</span></a>
-                <a class="nav-a" href="/npd/epd-new"><span class="nav-ic">➕</span><span class="nav-txt">New EPD Project</span></a>
-
-                {# ── R&D Team ── #}
-                <div class="sb-acc-sub-lbl">⚗️ R&amp;D</div>
-                <a class="nav-a" href="/rd/projects"><span class="nav-ic">⬡</span><span class="nav-txt">R&amp;D Projects</span></a>
-                <a class="nav-a" href="/rd/trials"><span class="nav-ic">⚗</span><span class="nav-txt">R&amp;D Trials</span></a>
-                <a class="nav-a" href="/rd/executives"><span class="nav-ic">◎</span><span class="nav-txt">Executives</span></a>
-                <a class="nav-a" href="/rd/performance"><span class="nav-ic">◑</span><span class="nav-txt">Performance</span></a>
-                <a class="nav-a" href="/rd/discussion"><span class="nav-ic">💬</span><span class="nav-txt">Discussion</span></a>
-                <a class="nav-a {% if _pg == 'npd_sample_ready' %}active{% endif %}" href="/npd/sample-ready"><span class="nav-ic">🧪</span><span class="nav-txt">Sample Ready</span></a>
-                <a class="nav-a {% if _pg == 'npd_sample_history' %}active{% endif %}" href="/npd/sample-history"><span class="nav-ic">📋</span><span class="nav-txt">Sample History</span></a>
 
                 {# ── NPD Masters (Admin only) ── #}
                 {% if role == 'admin' %}
@@ -171,8 +172,11 @@
             </div>
         </div>
         {% endif %}
+        {% endif %}
 
         {% if role in ('admin','manager','hr') %}
+        {% set _perm_hr = get_perm('hr') %}
+        {% if _perm_hr is none or _perm_hr.can_view != false %}
         <div class="sb-sec sb-accordion">
             <button class="sb-acc-hdr" onclick="toggleAccordion(this)">
                 <span class="sb-acc-ic">👥</span>
@@ -181,10 +185,14 @@
             </button>
             <div class="sb-acc-body">
                 <a class="nav-a" href="/hr/employees/dashboard"><span class="nav-ic">📊</span><span class="nav-txt">Dashboard</span></a>
+                {% set _perm_emp = get_perm('hr_employees') %}
+                {% if _perm_emp is none or _perm_emp.can_view != false %}
                 <a class="nav-a" href="/hr/employees"><span class="nav-ic">🪪</span><span class="nav-txt">Employees</span></a>
+                {% endif %}
                 <a class="nav-a" href="/hr/contractors"><span class="nav-ic">🤝</span><span class="nav-txt">Contractors</span></a>
             </div>
         </div>
+        {% endif %}
         {% endif %}
 
         {% if role == 'admin' %}
@@ -209,7 +217,6 @@
             </button>
             <div class="sb-acc-body">
                 <a class="nav-a" href="/approvals"><span class="nav-ic">✅</span><span class="nav-txt">Approvals</span></a>
-                <a class="nav-a" href="/admin/permissions"><span class="nav-ic">🔐</span><span class="nav-txt">Role Permissions</span></a>
                 <a class="nav-a {% if active_page == 'user_permissions' %}active{% endif %}" href="/admin/user-permissions"><span class="nav-ic">👤</span><span class="nav-txt">User Permissions</span></a>
                 <a class="nav-a" href="/admin/audit-logs"><span class="nav-ic">🔍</span><span class="nav-txt">Audit Logs</span></a>
             </div>
@@ -301,9 +308,6 @@
             <a class="nav-a {% if _pg == 'rd_dashboard' %}active{% endif %}" href="/rd/dashboard"><span class="nav-ic">◈</span><span class="nav-txt">R&amp;D Dashboard</span></a>
             <a class="nav-a {% if _pg == 'rd_projects' %}active{% endif %}" href="/rd/projects"><span class="nav-ic">⬡</span><span class="nav-txt">R&amp;D Projects</span></a>
             <a class="nav-a {% if _pg == 'rd_trials' %}active{% endif %}" href="/rd/trials"><span class="nav-ic">⚗</span><span class="nav-txt">R&amp;D Trials</span></a>
-            <a class="nav-a {% if _pg == 'rd_executives' %}active{% endif %}" href="/rd/executives"><span class="nav-ic">◎</span><span class="nav-txt">Executives</span></a>
-            <a class="nav-a {% if _pg == 'rd_performance' %}active{% endif %}" href="/rd/performance"><span class="nav-ic">◑</span><span class="nav-txt">Performance</span></a>
-            <a class="nav-a {% if _pg == 'rd_discussion' %}active{% endif %}" href="/rd/discussion"><span class="nav-ic">💬</span><span class="nav-txt">Discussion</span></a>
         </div>
 
         {# ── NPD Section ── #}
@@ -315,8 +319,11 @@
             <a class="nav-a {% if _pg == 'npd_npd_projects' %}active{% endif %}" href="/npd/npd-projects">
                 <span class="nav-ic">📋</span><span class="nav-txt">NPD Projects</span>
             </a>
-            <a class="nav-a" href="/npd/npd-new">
-                <span class="nav-ic">➕</span><span class="nav-txt">New NPD Project</span>
+            <a class="nav-a {% if _pg == 'npd_sample_ready' %}active{% endif %}" href="/npd/sample-ready">
+                <span class="nav-ic">🧪</span><span class="nav-txt">Sample Ready</span>
+            </a>
+            <a class="nav-a {% if _pg == 'npd_sample_history' %}active{% endif %}" href="/npd/sample-history">
+                <span class="nav-ic">📋</span><span class="nav-txt">Sample History</span>
             </a>
         </div>
 
@@ -328,9 +335,6 @@
             </a>
             <a class="nav-a {% if _pg == 'npd_epd_projects' %}active{% endif %}" href="/npd/epd-projects">
                 <span class="nav-ic">📋</span><span class="nav-txt">EPD Projects</span>
-            </a>
-            <a class="nav-a" href="/npd/epd-new">
-                <span class="nav-ic">➕</span><span class="nav-txt">New EPD Project</span>
             </a>
         </div>
 
@@ -1003,8 +1007,7 @@ var GS_DATA=[
   {icon:'📥',bg:'#fdf4ff',label:'Import Employees',sub:'HR / Bulk employee import',url:'/hr/employees/import',tags:['import','employees','bulk','upload','hr','excel'],section:'HR'},
   {icon:'🧪',bg:'#f3e8ff',label:'NPD Dashboard',sub:'NPD / New Product Development overview',url:'/npd/npd-dashboard',tags:['npd','dashboard','new product'],section:'NPD'},
   {icon:'📋',bg:'#f3e8ff',label:'NPD Projects',sub:'NPD / All NPD project list',url:'/npd/npd-projects',tags:['npd','projects','list'],section:'NPD'},
-  {icon:'➕',bg:'#f3e8ff',label:'New NPD Project',sub:'NPD / Create new NPD project',url:'/npd/npd-new',tags:['npd','new','create'],section:'NPD'},
-  {icon:'📦',bg:'#d1fae5',label:'EPD Dashboard',sub:'EPD / Existing Product Development overview',url:'/npd/epd-dashboard',tags:['epd','dashboard','existing product'],section:'EPD'},
+  {icon:'➕',bg:'#f3e8ff',label:'New NPD Project',sub:'NPD / Create new NPD project',url:'/npd/npd-new',tags:['npd','new','create'],section:'NPD'},  {icon:'📦',bg:'#d1fae5',label:'EPD Dashboard',sub:'EPD / Existing Product Development overview',url:'/npd/epd-dashboard',tags:['epd','dashboard','existing product'],section:'EPD'},
   {icon:'📋',bg:'#d1fae5',label:'EPD Projects',sub:'EPD / All EPD project list',url:'/npd/epd-projects',tags:['epd','projects','list'],section:'EPD'},
   {icon:'➕',bg:'#d1fae5',label:'New EPD Project',sub:'EPD / Create new EPD project',url:'/npd/epd-new',tags:['epd','new','create'],section:'EPD'},
   {icon:'⚙️',bg:'#fdf4ff',label:'Milestone Master',sub:'NPD / Configure milestone types',url:'/npd/milestone-master',tags:['milestone','master','config'],section:'NPD'},
@@ -1672,9 +1675,9 @@ document.addEventListener('click', function(e) {
 // ══ GLOBAL FLATPICKR — All date inputs auto-initialized ══════════
 (function() {
   var FP_CONFIG = {
-    dateFormat: 'Y-m-d',        // Internal: YYYY-MM-DD (backend compatible)
+    dateFormat: 'd-m-Y',        // Display: DD-MM-YYYY
     altInput: true,
-    altFormat: 'd-m-Y',         // Display: DD-MM-YYYY
+    altFormat: 'd-m-Y',
     allowInput: true,
     disableMobile: false,
     locale: {
@@ -1714,15 +1717,15 @@ document.addEventListener('click', function(e) {
       if (val && val.split('-')[0].length === 4) cfg.defaultDate = val;
 
       cfg.onChange = function(selectedDates, dateStr, fp) {
-        // fp.element.value is auto-set to YYYY-MM-DD by dateFormat:'Y-m-d'
-        // No manual override needed
+        if (selectedDates[0]) fp.element.value = toYMD(selectedDates[0]);
       };
       cfg.onReady = function(selectedDates, dateStr, fp) {
         fp.altInput.classList.add('fi');
         fp.altInput.placeholder = 'DD-MM-YYYY';
+        // Attach instance to original element for _inp() access
         fp.element._flatpickr = fp;
-        // fp.element.value already YYYY-MM-DD via dateFormat:'Y-m-d'
-																		 
+        // Set original input value on init (for edit mode)
+        if (selectedDates[0]) fp.element.value = toYMD(selectedDates[0]);
       };
       var fpInst = flatpickr(el, cfg);
       // Also attach directly
