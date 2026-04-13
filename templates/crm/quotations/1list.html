@@ -1,0 +1,816 @@
+{% extends "base.html" %}
+{% block title %}Quotations{% endblock %}
+{% block page_title %}Quotations{% endblock %}
+{% block bread %}CRM / Quotations{% endblock %}
+
+{% block extra_css %}
+<style>
+* { box-sizing: border-box; }
+
+/* ── Search bar ── */
+.qt-search-bar { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+.qt-search-bar input { flex:1; min-width:0; font-size:0.85rem; padding:8px 12px; border:1.5px solid #e2e8f0; border-radius:8px; outline:none; }
+.qt-search-bar input:focus { border-color:#1e3a5f; }
+
+/* ── Bulk Bar ── */
+#bulkBar { display:none; position:sticky; top:0; z-index:50; background:#1e3a5f; color:#fff;
+    padding:10px 14px; border-radius:10px; margin:10px 12px 4px; align-items:center; gap:8px; flex-wrap:wrap; }
+#bulkBar.show { display:flex; }
+.bulk-btn { border:none; padding:7px 12px; border-radius:7px; font-size:0.78rem; font-weight:700; cursor:pointer; white-space:nowrap; }
+.bulk-btn-status { background:#fbbf24; color:#1e3a5f; }
+.bulk-btn-email  { background:#34d399; color:#064e3b; }
+.bulk-btn-delete { background:#f87171; color:#7f1d1d; }
+.bulk-deselect   { background:rgba(255,255,255,0.15); border:none; color:#fff; padding:7px 12px; border-radius:7px; font-size:0.78rem; cursor:pointer; margin-left:auto; }
+
+/* ── Badges ── */
+.badge { display:inline-flex; align-items:center; gap:4px; padding:4px 10px; border-radius:100px; font-size:0.72rem; font-weight:700; }
+.badge-draft    { background:#f1f5f9; color:#64748b; }
+.badge-sent     { background:#eff6ff; color:#1d4ed8; }
+.badge-accepted { background:#f0fdf4; color:#166534; }
+.badge-rejected { background:#fef2f2; color:#dc2626; }
+
+/* ════════ MOBILE CARDS ════════ */
+.qt-cards { display:none; padding:8px 12px 16px; gap:10px; flex-direction:column; }
+.qt-card { background:#fff; border:1.5px solid #e8edf5; border-radius:14px; padding:14px; box-shadow:0 2px 8px rgba(30,58,95,0.06); transition:border-color .15s, box-shadow .15s; }
+.qt-card.selected { border-color:#1e3a5f; box-shadow:0 0 0 3px rgba(30,58,95,0.12); background:#f5f8ff; }
+.qt-card-top { display:flex; align-items:flex-start; gap:10px; margin-bottom:10px; }
+.qt-card-head { flex:1; min-width:0; }
+.qt-card-num { font-size:0.95rem; font-weight:800; color:#1e3a5f; }
+.qt-card-sub { font-size:0.78rem; color:#64748b; margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.qt-card-grid { display:grid; grid-template-columns:1fr 1fr; gap:6px 12px; margin-bottom:10px; }
+.qt-card-field label { font-size:0.67rem; font-weight:700; color:#94a3b8; text-transform:uppercase; letter-spacing:.5px; display:block; margin-bottom:2px; }
+.qt-card-field span { font-size:0.82rem; color:#374151; font-weight:600; }
+.qt-card-total { background:linear-gradient(135deg,#1e3a5f,#2d5a8e); color:#fff; border-radius:10px; padding:10px 14px; display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
+.qt-card-total-sub { font-size:0.7rem; opacity:.75; }
+.qt-card-total-amt { font-size:1.1rem; font-weight:800; }
+.qt-card-actions { display:flex; gap:6px; }
+.qt-card-actions button, .qt-card-actions .qa-pdf-btn { flex:1; padding:9px 4px; border-radius:8px; font-size:0.78rem; font-weight:700; border:none; cursor:pointer; text-align:center; display:flex; align-items:center; justify-content:center; gap:4px; }
+.qa-pdf  { background:#eff6ff; color:#1d4ed8; }
+.qa-mail { background:#f0fdf4; color:#166534; }
+.qa-st   { background:#fff7ed; color:#c2410c; }
+
+/* ════════ DESKTOP TABLE ════════ */
+.qt-table-wrap { display:none; overflow-x:auto; }
+.qt-table { width:100%; border-collapse:collapse; }
+.qt-table th { background:#f1f5f9; padding:10px 12px; text-align:left; font-size:0.78rem; font-weight:700; color:#374151; border-bottom:2px solid #e2e8f0; white-space:nowrap; }
+.qt-table td { padding:10px 12px; font-size:0.83rem; color:var(--text); border-bottom:1px solid #f1f5f9; vertical-align:middle; }
+.qt-table tr:hover td { background:#f8fafc; }
+.qt-table tr.row-selected td { background:#eef2ff !important; }
+.btn-dl   { background:#eff6ff; color:#1d4ed8; border:none; padding:5px 9px; border-radius:6px; font-size:0.75rem; font-weight:600; cursor:pointer; }
+.btn-mail { background:#f0fdf4; color:#166534; border:none; padding:5px 9px; border-radius:6px; font-size:0.75rem; font-weight:600; cursor:pointer; }
+.btn-st   { background:#fff7ed; color:#c2410c; border:none; padding:5px 9px; border-radius:6px; font-size:0.75rem; font-weight:600; cursor:pointer; }
+
+input[type=checkbox].qt-chk { width:17px; height:17px; accent-color:#1e3a5f; cursor:pointer; }
+.qt-empty { text-align:center; padding:3rem 1rem; color:var(--text3); }
+.qt-pagination { display:flex; justify-content:center; align-items:center; gap:8px; padding:14px; flex-wrap:wrap; }
+
+/* ── Toast ── */
+#toast { display:none; position:fixed; bottom:20px; left:50%; transform:translateX(-50%);
+    background:#1e3a5f; color:#fff; padding:12px 20px; border-radius:12px;
+    font-size:0.85rem; font-weight:600; z-index:9999; box-shadow:0 8px 30px rgba(0,0,0,0.25);
+    max-width:90vw; text-align:center; }
+#toast.show { display:block; animation:toastIn .25s ease; }
+
+/* ── Modal (bottom sheet on mobile, centered on desktop) ── */
+.modal-wrap { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.55); z-index:1000;
+    align-items:flex-end; justify-content:center; padding:0; }
+.modal-wrap.show { display:flex; animation:fadeIn .2s; }
+.modal-box { background:#fff; border-radius:22px 22px 0 0; width:100%; max-height:92vh;
+    overflow-y:auto; box-shadow:0 -8px 40px rgba(0,0,0,0.2); animation:slideUp .25s ease; }
+.modal-hdr { background:#1e3a5f; color:#fff; padding:14px 18px; display:flex; align-items:center;
+    justify-content:space-between; position:sticky; top:0; z-index:2; border-radius:22px 22px 0 0; }
+.modal-hdr-title { font-size:1rem; font-weight:700; }
+.modal-close { background:rgba(255,255,255,0.18); border:none; color:#fff; width:30px; height:30px;
+    border-radius:50%; font-size:1rem; cursor:pointer; display:flex; align-items:center; justify-content:center; }
+.modal-body { padding:16px; }
+.modal-foot { padding:12px 16px; border-top:1px solid #e5e7eb; display:flex; gap:8px;
+    background:#f9fafb; position:sticky; bottom:0; }
+.modal-foot button { flex:1; padding:13px; border-radius:10px; font-size:0.88rem; font-weight:700; border:none; cursor:pointer; }
+.mbtn-cancel  { background:#f1f5f9; color:#374151; }
+.mbtn-primary { background:#1e3a5f; color:#fff; }
+.mbtn-danger  { background:#ef4444; color:#fff; }
+.mbtn-success { background:#16a34a; color:#fff; }
+
+.field-lbl { font-size:0.78rem; font-weight:700; color:#374151; display:block; margin-bottom:5px; }
+.modal-body .fi { width:100%; padding:10px 12px; border:1.5px solid #e2e8f0; border-radius:8px; font-size:0.85rem; outline:none; }
+.modal-body .fi:focus { border-color:#1e3a5f; }
+
+.radio-opt { display:flex; align-items:center; gap:12px; padding:13px 14px; border:2px solid #e5e7eb;
+    border-radius:10px; cursor:pointer; margin-bottom:8px; font-size:0.88rem; font-weight:600; color:#374151; transition:all .12s; }
+.radio-opt.active { border-color:#1e3a5f; background:#f0f4ff; color:#1e3a5f; }
+.radio-opt input { accent-color:#1e3a5f; width:16px; height:16px; flex-shrink:0; }
+
+/* ── Animations ── */
+@keyframes toastIn { from{opacity:0;transform:translateX(-50%) translateY(10px)} to{opacity:1;transform:translateX(-50%) translateY(0)} }
+@keyframes slideUp { from{opacity:0;transform:translateY(30px)} to{opacity:1;transform:translateY(0)} }
+@keyframes fadeIn  { from{opacity:0} to{opacity:1} }
+
+/* ── Tabs ── */
+.qt-tabs { display:flex; gap:0; border-bottom:2px solid #e2e8f0; margin:0 0 0; padding:0 14px; overflow-x:auto; }
+.qt-tab { padding:10px 18px; font-size:0.83rem; font-weight:700; color:#64748b; cursor:pointer; border-bottom:3px solid transparent;
+    margin-bottom:-2px; white-space:nowrap; text-decoration:none; display:flex; align-items:center; gap:6px; }
+.qt-tab:hover { color:#1e3a5f; }
+.qt-tab.active { color:#1e3a5f; border-bottom-color:#1e3a5f; }
+.qt-tab .tab-count { background:#e2e8f0; color:#64748b; font-size:0.7rem; font-weight:700; padding:2px 7px; border-radius:100px; }
+.qt-tab.active .tab-count { background:#1e3a5f; color:#fff; }
+.qt-tab.tab-deleted.active { color:#dc2626; border-bottom-color:#dc2626; }
+.qt-tab.tab-deleted.active .tab-count { background:#dc2626; color:#fff; }
+
+/* ── Restore button ── */
+.bulk-btn-restore { background:#a78bfa; color:#3b0764; }
+
+/* ── Breakpoints ── */
+@media (max-width:767px) {
+    .qt-cards      { display:flex; }
+    .qt-table-wrap { display:none !important; }
+    .card-hdr      { flex-direction:column; align-items:stretch; gap:10px; padding:12px; }
+    .qt-search-bar input { font-size:0.9rem; padding:10px 12px; }
+}
+@media (min-width:768px) {
+    .qt-cards      { display:none !important; }
+    .qt-table-wrap { display:block; }
+    .modal-wrap    { align-items:center; padding:1rem; }
+    .modal-box     { border-radius:16px; max-width:520px; }
+    .modal-hdr     { border-radius:16px 16px 0 0; }
+    .modal-box.wide { max-width:620px; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-hdr">
+        <div class="card-title">📄 Quotations</div>
+        <div class="qt-search-bar">
+            <div style="position:relative;flex:1;min-width:0;">
+                <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:0.9rem;pointer-events:none;">🔍</span>
+                <input type="text" id="liveSearch" value="{{ search }}" placeholder="Search quotation, company, subject..."
+                    style="padding-left:32px;" autocomplete="off">
+                <button id="clearSearch" onclick="clearFilters()" title="Clear"
+                    style="display:none;position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;color:#94a3b8;font-size:1rem;cursor:pointer;line-height:1;">✕</button>
+            </div>
+            <select id="statusFilter" onchange="triggerSearch()" style="padding:8px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:0.83rem;color:#374151;background:#fff;cursor:pointer;min-width:130px;outline:none;">
+                <option value="">All Status</option>
+                <option value="draft"    {% if request.args.get('status')=='draft'    %}selected{% endif %}>📝 Draft</option>
+                <option value="sent"     {% if request.args.get('status')=='sent'     %}selected{% endif %}>📧 Sent</option>
+                <option value="accepted" {% if request.args.get('status')=='accepted' %}selected{% endif %}>✅ Accepted</option>
+                <option value="rejected" {% if request.args.get('status')=='rejected' %}selected{% endif %}>❌ Rejected</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="qt-tabs">
+        <a href="{{ url_for('crm.quotations_list', tab='active', search=search) }}"
+           class="qt-tab {% if tab != 'deleted' %}active{% endif %}">
+            📄 Active <span class="tab-count" id="tabCountActive">{{ active_count }}</span>
+        </a>
+        <a href="{{ url_for('crm.quotations_list', tab='deleted', search=search) }}"
+           class="qt-tab tab-deleted {% if tab == 'deleted' %}active{% endif %}">
+            🗑️ Deleted <span class="tab-count" id="tabCountDeleted">{{ deleted_count }}</span>
+        </a>
+    </div>
+
+    <!-- Bulk Bar -->
+    <div id="bulkBar">
+        <span id="bulkCount" style="font-size:0.82rem;font-weight:700;"></span>
+        {% if tab == 'deleted' %}
+        <button class="bulk-btn bulk-btn-restore" onclick="doBulkRestore()">♻️ Restore</button>
+        <button class="bulk-btn bulk-btn-delete"  onclick="doBulkPermanentDelete()">🗑️ Delete Forever</button>
+        {% else %}
+        <button class="bulk-btn bulk-btn-status" onclick="openBulkStatusModal()">🔄 Status</button>
+        <button class="bulk-btn bulk-btn-email"  onclick="doBulkEmail()">📧 Email</button>
+        <button class="bulk-btn bulk-btn-delete" onclick="doBulkDelete()">🗑️ Delete</button>
+        {% endif %}
+        <button class="bulk-deselect" onclick="clearSelection()">✕ Deselect</button>
+    </div>
+
+    {% if quotations %}
+
+    <!-- ══ MOBILE CARDS ══ -->
+    <div class="qt-cards">
+        <div style="display:flex;align-items:center;gap:10px;padding:4px 2px 6px;">
+            <input type="checkbox" class="qt-chk" id="chkAllMobile" onchange="toggleAll(this)">
+            <label for="chkAllMobile" style="font-size:0.82rem;color:#64748b;font-weight:600;cursor:pointer;">Select All</label>
+            <span style="font-size:0.78rem;color:#94a3b8;margin-left:auto;">{{ quotations|length }} item{{ 's' if quotations|length != 1 }}</span>
+        </div>
+        {% for qt in quotations %}
+        <div class="qt-card" id="card-{{ qt.id }}">
+            <div class="qt-card-top">
+                <input type="checkbox" class="qt-chk row-chk" value="{{ qt.id }}" onchange="onRowCheck()" style="margin-top:3px;flex-shrink:0;">
+                <div class="qt-card-head">
+                    <div class="qt-card-num">{{ qt.quot_number }}</div>
+                    <div class="qt-card-sub">
+                        <a href="{{ url_for('crm.lead_view', id=qt.lead_id) }}" style="color:#1d4ed8;text-decoration:none;font-weight:700;">{{ qt.lead.contact_name or 'N/A' }}</a>{% if qt.bill_company %} · {{ qt.bill_company }}{% endif %}
+                    </div>
+                </div>
+                <span class="badge badge-{{ qt.status }}" style="flex-shrink:0;">
+                    {% if qt.status == 'draft' %}📝 Draft
+                    {% elif qt.status == 'sent' %}📧 Sent
+                    {% elif qt.status == 'accepted' %}✅ Accepted
+                    {% elif qt.status == 'rejected' %}❌ Rejected
+                    {% else %}{{ qt.status }}{% endif %}
+                </span>
+            </div>
+            <div class="qt-card-grid">
+                <div class="qt-card-field"><label>Date</label><span>{{ qt.quot_date.strftime('%d-%m-%Y') }}</span></div>
+                <div class="qt-card-field"><label>Valid Until</label><span>{% if qt.valid_until %}{{ qt.valid_until.strftime('%d-%m-%Y') }}{% else %}—{% endif %}</span></div>
+                <div class="qt-card-field"><label>GST</label><span>{{ qt.gst_pct|int }}% · ₹{{ '{:,.0f}'.format(qt.gst_amount|float) }}</span></div>
+                <div class="qt-card-field"><label>Created By</label><span>{{ qt.creator.full_name if qt.creator else '—' }}</span></div>
+            </div>
+            {% if qt.subject %}
+            <div style="font-size:0.78rem;color:#64748b;margin-bottom:10px;padding:7px 10px;background:#f8fafc;border-radius:7px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ qt.subject }}</div>
+            {% endif %}
+            <div class="qt-card-total">
+                <div>
+                    <div class="qt-card-total-sub">Sub Total · ₹{{ '{:,.0f}'.format(qt.sub_total|float) }}</div>
+                    <div class="qt-card-total-amt">₹ {{ '{:,.2f}'.format(qt.total_amount|float) }}</div>
+                </div>
+                {% if qt.email_sent_at %}
+                <div style="font-size:0.7rem;opacity:.75;text-align:right;">Sent<br>{{ qt.email_sent_at.strftime('%d-%m-%Y') }}</div>
+                {% endif %}
+            </div>
+            {% if tab == 'deleted' and qt.deleted_at %}
+            <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:8px 12px;font-size:0.78rem;color:#dc2626;margin-bottom:10px;">
+                🗑️ Deleted on {{ qt.deleted_at.strftime('%d-%m-%Y %H:%M') }}
+            </div>
+            {% endif %}
+            {% if tab == 'deleted' %}
+            <div class="qt-card-actions">
+                <button style="flex:1;background:#ede9fe;color:#5b21b6;border:none;border-radius:8px;padding:9px;font-size:0.78rem;font-weight:700;cursor:pointer;" onclick="restoreSingle({{ qt.id }})">♻️ Restore</button>
+                <button style="flex:1;background:#fef2f2;color:#dc2626;border:none;border-radius:8px;padding:9px;font-size:0.78rem;font-weight:700;cursor:pointer;" onclick="permDeleteSingle({{ qt.id }})">🗑️ Delete Forever</button>
+            </div>
+            {% else %}
+            <div class="qt-card-actions">
+                <form method="POST" action="{{ url_for('crm.quotation_reprint', id=qt.id) }}" target="_blank" style="flex:1;display:flex;">
+                    <button type="submit" class="qa-pdf" style="flex:1;border-radius:8px;border:none;cursor:pointer;">📥 PDF</button>
+                </form>
+                <button class="qa-mail" onclick="openEmailModal({{ qt.id }}, '{{ qt.bill_email or '' }}', '{{ qt.quot_number }}', '{{ qt.bill_company or '' }}', '{{ '{:,.2f}'.format(qt.total_amount|float) }}')">📧 Email</button>
+                <button class="qa-st"   onclick="openStatusModal({{ qt.id }}, '{{ qt.status }}')">🔄 Status</button>
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- ══ DESKTOP TABLE ══ -->
+    <div class="qt-table-wrap">
+        <table class="qt-table">
+            <thead><tr>
+                <th style="width:36px;text-align:center;"><input type="checkbox" class="qt-chk" id="chkAll" onchange="toggleAll(this)"></th>
+                <th>#</th><th>Quot. No</th><th>Date</th><th>Valid Until</th>
+                <th>Lead / Company</th><th>Subject</th>
+                <th style="text-align:right;">Sub Total</th><th style="text-align:right;">GST</th><th style="text-align:right;">Total</th>
+                <th>Status</th><th>Created By</th><th>Actions</th>
+            </tr></thead>
+            <tbody>
+            {% for qt in quotations %}
+            <tr id="row-{{ qt.id }}">
+                <td style="text-align:center;"><input type="checkbox" class="qt-chk row-chk" value="{{ qt.id }}" onchange="onRowCheck()"></td>
+                <td style="color:var(--text3);font-size:0.78rem;">{{ loop.index + (pagination.page - 1) * pagination.per_page }}</td>
+                <td><span style="font-weight:700;color:#1e3a5f;">{{ qt.quot_number }}</span></td>
+                <td style="white-space:nowrap;">{{ qt.quot_date.strftime('%d-%m-%Y') }}</td>
+                <td style="white-space:nowrap;">{% if qt.valid_until %}{{ qt.valid_until.strftime('%d-%m-%Y') }}{% else %}—{% endif %}</td>
+                <td>
+                    <a href="{{ url_for('crm.lead_view', id=qt.lead_id) }}" style="color:var(--blue);font-weight:600;text-decoration:none;">{{ qt.lead.contact_name or 'N/A' }}</a>
+                    {% if qt.bill_company %}<div style="font-size:0.72rem;color:var(--text3);">{{ qt.bill_company }}</div>{% endif %}
+                </td>
+                <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text2);">{{ qt.subject or '—' }}</td>
+                <td style="text-align:right;">₹ {{ '{:,.2f}'.format(qt.sub_total|float) }}</td>
+                <td style="text-align:right;color:var(--text2);">{{ qt.gst_pct|int }}%<div style="font-size:0.72rem;">₹ {{ '{:,.2f}'.format(qt.gst_amount|float) }}</div></td>
+                <td style="text-align:right;font-weight:700;color:#1e3a5f;">₹ {{ '{:,.2f}'.format(qt.total_amount|float) }}</td>
+                <td>
+                    <span class="badge badge-{{ qt.status }}">
+                        {% if qt.status == 'draft' %}📝 Draft{% elif qt.status == 'sent' %}📧 Sent{% elif qt.status == 'accepted' %}✅ Accepted{% elif qt.status == 'rejected' %}❌ Rejected{% else %}{{ qt.status }}{% endif %}
+                    </span>
+                    {% if qt.email_sent_at %}<div style="font-size:0.68rem;color:var(--text3);margin-top:2px;">{{ qt.email_sent_at.strftime('%d-%m-%Y') }} → {{ qt.email_sent_to or '' }}</div>{% endif %}
+                </td>
+                <td style="font-size:0.78rem;color:var(--text2);">{{ qt.creator.full_name if qt.creator else '—' }}<div style="font-size:0.7rem;color:var(--text3);">{{ qt.created_at.strftime('%d-%m-%Y %H:%M') }}</div></td>
+                <td>
+                    {% if tab == 'deleted' %}
+                    <div style="display:flex;gap:5px;">
+                        <button onclick="restoreSingle({{ qt.id }})"    style="background:#ede9fe;color:#5b21b6;border:none;padding:5px 9px;border-radius:6px;font-size:0.75rem;font-weight:600;cursor:pointer;">♻️ Restore</button>
+                        <button onclick="permDeleteSingle({{ qt.id }})" style="background:#fef2f2;color:#dc2626;border:none;padding:5px 9px;border-radius:6px;font-size:0.75rem;font-weight:600;cursor:pointer;">🗑️ Forever</button>
+                    </div>
+                    {% else %}
+                    <div style="display:flex;gap:5px;flex-wrap:wrap;min-width:170px;">
+                        <form method="POST" action="{{ url_for('crm.quotation_reprint', id=qt.id) }}" target="_blank" style="display:inline;">
+                            <button type="submit" class="btn-dl">📥 PDF</button>
+                        </form>
+                        <button class="btn-mail" onclick="openEmailModal({{ qt.id }}, '{{ qt.bill_email or '' }}', '{{ qt.quot_number }}', '{{ qt.bill_company or '' }}', '{{ '{:,.2f}'.format(qt.total_amount|float) }}')">📧 Email</button>
+                        <button class="btn-st"   onclick="openStatusModal({{ qt.id }}, '{{ qt.status }}')">🔄 Status</button>
+                    </div>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="qt-pagination" id="qtPagination">
+        {% if pagination.has_prev %}<a href="{{ url_for('crm.quotations_list', page=pagination.prev_num, search=search) }}" class="btn-outline" style="padding:7px 14px;">← Prev</a>{% endif %}
+        <span style="color:var(--text2);">Page {{ pagination.page }} of {{ pagination.pages }}</span>
+        {% if pagination.has_next %}<a href="{{ url_for('crm.quotations_list', page=pagination.next_num, search=search) }}" class="btn-outline" style="padding:7px 14px;">Next →</a>{% endif %}
+    </div>
+
+    <div class="qt-empty" id="qtEmpty" style="display:none;">
+        <div style="font-size:2.5rem;margin-bottom:0.5rem;">📄</div>
+        <div style="font-weight:600;margin-bottom:0.3rem;">Koi Quotation nahi mila</div>
+        <div style="font-size:0.85rem;">Lead view pe jaake Actions → "Create Quotation" se banayein</div>
+    </div>
+    {% endif %}
+</div>
+
+<div id="toast"></div>
+
+<!-- ══ CONFIRM MODAL ══ -->
+<div class="modal-wrap" id="confirmModal">
+    <div class="modal-box">
+        <div class="modal-hdr">
+            <span id="confirmTitle" class="modal-hdr-title"></span>
+            <button class="modal-close" onclick="closeModal('confirmModal')">✕</button>
+        </div>
+        <div class="modal-body">
+            <p style="margin:0 0 8px;font-size:0.9rem;font-weight:700;color:#374151;">Selected: <span id="confirmCount" style="color:#1e3a5f;"></span></p>
+            <p id="confirmMsg" style="margin:0;font-size:0.85rem;color:#6b7280;line-height:1.6;"></p>
+        </div>
+        <div class="modal-foot">
+            <button class="mbtn-cancel" onclick="closeModal('confirmModal')">Cancel</button>
+            <button id="confirmBtn" class="mbtn-primary"></button>
+        </div>
+    </div>
+</div>
+
+<!-- ══ BULK STATUS MODAL ══ -->
+<div class="modal-wrap" id="bulkStatusModal">
+    <div class="modal-box">
+        <div class="modal-hdr">
+            <span class="modal-hdr-title">🔄 Bulk Status Update</span>
+            <button class="modal-close" onclick="closeModal('bulkStatusModal')">✕</button>
+        </div>
+        <div class="modal-body">
+            <p style="font-size:0.85rem;color:#374151;margin:0 0 14px;font-weight:600;">Update status for <span id="bulkStatusCount" style="color:#1e3a5f;"></span></p>
+            <div id="bulkStatusOptions">
+                <label class="radio-opt"><input type="radio" name="bulk_status" value="draft">    📝 Draft</label>
+                <label class="radio-opt"><input type="radio" name="bulk_status" value="sent">     📧 Sent</label>
+                <label class="radio-opt"><input type="radio" name="bulk_status" value="accepted"> ✅ Accepted</label>
+                <label class="radio-opt"><input type="radio" name="bulk_status" value="rejected"> ❌ Rejected</label>
+            </div>
+        </div>
+        <div class="modal-foot">
+            <button class="mbtn-cancel" onclick="closeModal('bulkStatusModal')">Cancel</button>
+            <button class="mbtn-primary" onclick="doBulkStatus()">✅ Apply</button>
+        </div>
+    </div>
+</div>
+
+<!-- ══ EMAIL MODAL ══ -->
+<div class="modal-wrap" id="emailModal">
+    <div class="modal-box wide">
+        <div class="modal-hdr">
+            <span class="modal-hdr-title">📧 Email Bhejo</span>
+            <button class="modal-close" onclick="closeModal('emailModal')">✕</button>
+        </div>
+        <form method="POST" id="emailForm" action="">
+            <div class="modal-body" style="display:flex;flex-direction:column;gap:12px;">
+                <div><label class="field-lbl">To (Email) *</label><input type="email" name="to_email" id="emailTo" class="fi" required placeholder="client@example.com"></div>
+                <div><label class="field-lbl">Subject</label><input type="text" name="subject" id="emailSubject" class="fi"></div>
+                <div><label class="field-lbl">Message Body <span style="font-weight:400;color:#94a3b8;">(HTML allowed)</span></label>
+                    <textarea name="body" id="emailBody" class="fi" rows="6" style="resize:vertical;"></textarea></div>
+                <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:10px 14px;font-size:0.82rem;color:#166534;">📎 Quotation PDF automatically attach hogi</div>
+            </div>
+            <div class="modal-foot">
+                <button type="button" class="mbtn-cancel" onclick="closeModal('emailModal')">Cancel</button>
+                <button type="submit" class="mbtn-primary">📧 Send Email</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ══ STATUS MODAL ══ -->
+<div class="modal-wrap" id="statusModal">
+    <div class="modal-box">
+        <div class="modal-hdr">
+            <span class="modal-hdr-title">🔄 Status Update</span>
+            <button class="modal-close" onclick="closeModal('statusModal')">✕</button>
+        </div>
+        <form method="POST" id="statusForm" action="">
+            <div class="modal-body">
+                <p style="font-size:0.83rem;font-weight:600;color:#374151;margin:0 0 12px;">Naya Status Choose Karein</p>
+                <div id="statusOptions">
+                    <label class="radio-opt"><input type="radio" name="status" value="draft">    📝 Draft</label>
+                    <label class="radio-opt"><input type="radio" name="status" value="sent">     📧 Sent</label>
+                    <label class="radio-opt"><input type="radio" name="status" value="accepted"> ✅ Accepted</label>
+                    <label class="radio-opt"><input type="radio" name="status" value="rejected"> ❌ Rejected</label>
+                </div>
+            </div>
+            <div class="modal-foot">
+                <button type="button" class="mbtn-cancel" onclick="closeModal('statusModal')">Cancel</button>
+                <button type="submit" class="mbtn-primary">Update</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════
+// LIVE SEARCH / AJAX
+// ══════════════════════════════════════════════
+let searchTimer = null;
+let currentTab    = '{{ tab }}';
+let currentSearch = '{{ search }}';
+let currentStatus = '{{ request.args.get("status", "") }}';
+let currentPage   = 1;
+
+function triggerSearch(resetPage) {
+    if (resetPage !== false) currentPage = 1;
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(doSearch, 320);
+}
+
+function clearFilters() {
+    document.getElementById('liveSearch').value = '';
+    document.getElementById('statusFilter').value = '';
+    currentSearch = ''; currentStatus = ''; currentPage = 1;
+    doSearch();
+}
+
+function doSearch() {
+    const q      = document.getElementById('liveSearch').value.trim();
+    const status = document.getElementById('statusFilter').value;
+    const clearBtn = document.getElementById('clearSearch');
+    clearBtn.style.display = (q || status) ? 'block' : 'none';
+    currentSearch = q; currentStatus = status;
+
+    // Update URL without reload
+    const url = new URL(window.location);
+    url.searchParams.set('search', q);
+    url.searchParams.set('status', status);
+    url.searchParams.set('tab', currentTab);
+    url.searchParams.set('page', currentPage);
+    window.history.replaceState({}, '', url);
+
+    fetch(url.toString(), { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+        .then(r => r.json())
+        .then(data => {
+            renderRows(data);
+            renderPagination(data);
+            updateTabCounts(data.active_count, data.deleted_count);
+        });
+}
+
+// ── Status badge helper ────────────────────────────────────────
+function statusBadge(s) {
+    const map = {
+        draft:    ['badge-draft',    '📝 Draft'],
+        sent:     ['badge-sent',     '📧 Sent'],
+        accepted: ['badge-accepted', '✅ Accepted'],
+        rejected: ['badge-rejected', '❌ Rejected'],
+    };
+    const [cls, lbl] = map[s] || ['badge-draft', s];
+    return `<span class="badge ${cls}">${lbl}</span>`;
+}
+
+function fmtMoney(n) {
+    return '₹ ' + parseFloat(n).toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2});
+}
+
+// ── Render desktop table rows ──────────────────────────────────
+function renderRows(data) {
+    const tbody = document.querySelector('.qt-table tbody');
+    const cards = document.querySelector('.qt-cards');
+    const emptyEl = document.getElementById('qtEmpty');
+    const tableWrap = document.querySelector('.qt-table-wrap');
+
+    if (!data.rows || data.rows.length === 0) {
+        if (tbody) tbody.innerHTML = '';
+        if (cards) {
+            // keep select-all row, remove cards
+            const allCards = cards.querySelectorAll('.qt-card');
+            allCards.forEach(c => c.remove());
+        }
+        if (emptyEl)    emptyEl.style.display = 'block';
+        if (tableWrap)  tableWrap.style.display = 'none';
+        return;
+    }
+    if (emptyEl)   emptyEl.style.display = 'none';
+    if (tableWrap) tableWrap.style.display = 'block';
+
+    const isDeleted = currentTab === 'deleted';
+    const offset    = (currentPage - 1) * 20;
+
+    // ── Desktop table ──
+    if (tbody) {
+        tbody.innerHTML = data.rows.map((qt, i) => {
+            const actions = isDeleted
+                ? `<div style="display:flex;gap:5px;">
+                     <button onclick="restoreSingle(${qt.id})"    style="background:#ede9fe;color:#5b21b6;border:none;padding:5px 9px;border-radius:6px;font-size:0.75rem;font-weight:600;cursor:pointer;">♻️ Restore</button>
+                     <button onclick="permDeleteSingle(${qt.id})" style="background:#fef2f2;color:#dc2626;border:none;padding:5px 9px;border-radius:6px;font-size:0.75rem;font-weight:600;cursor:pointer;">🗑️ Forever</button>
+                   </div>`
+                : `<div style="display:flex;gap:5px;flex-wrap:wrap;min-width:170px;">
+                     <form method="POST" action="/crm/quotations/${qt.id}/reprint" target="_blank" style="display:inline;">
+                       <button type="submit" class="btn-dl">📥 PDF</button>
+                     </form>
+                     <button class="btn-mail" onclick="openEmailModal(${qt.id},'${qt.bill_email}','${qt.quot_number}','${escHtml(qt.bill_company)}','${qt.total_amount.toFixed(2)}')">📧 Email</button>
+                     <button class="btn-st"   onclick="openStatusModal(${qt.id},'${qt.status}')">🔄 Status</button>
+                   </div>`;
+            const sentInfo = qt.email_sent_at
+                ? `<div style="font-size:0.68rem;color:var(--text3);margin-top:2px;">${qt.email_sent_at} → ${qt.email_sent_to}</div>` : '';
+            const delInfo  = (isDeleted && qt.deleted_at)
+                ? `<div style="font-size:0.68rem;color:#dc2626;margin-top:2px;">🗑️ ${qt.deleted_at}</div>` : '';
+
+            return `<tr id="row-${qt.id}">
+              <td style="text-align:center;"><input type="checkbox" class="qt-chk row-chk" value="${qt.id}" onchange="onRowCheck()"></td>
+              <td style="color:var(--text3);font-size:0.78rem;">${offset + i + 1}</td>
+              <td><span style="font-weight:700;color:#1e3a5f;">${qt.quot_number}</span></td>
+              <td style="white-space:nowrap;">${qt.quot_date}</td>
+              <td style="white-space:nowrap;">${qt.valid_until}</td>
+              <td><a href="/crm/leads/${qt.lead_id}" style="color:var(--blue);font-weight:600;text-decoration:none;">${escHtml(qt.contact_name)}</a>${qt.bill_company ? `<div style="font-size:0.72rem;color:var(--text3);">${escHtml(qt.bill_company)}</div>` : ''}</td>
+              <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text2);">${escHtml(qt.subject)}</td>
+              <td style="text-align:right;">${fmtMoney(qt.sub_total)}</td>
+              <td style="text-align:right;color:var(--text2);">${qt.gst_pct}%<div style="font-size:0.72rem;">${fmtMoney(qt.gst_amount)}</div></td>
+              <td style="text-align:right;font-weight:700;color:#1e3a5f;">${fmtMoney(qt.total_amount)}</td>
+              <td>${statusBadge(qt.status)}${sentInfo}${delInfo}</td>
+              <td style="font-size:0.78rem;color:var(--text2);">${escHtml(qt.creator)}<div style="font-size:0.7rem;color:var(--text3);">${qt.created_at}</div></td>
+              <td>${actions}</td>
+            </tr>`;
+        }).join('');
+    }
+
+    // ── Mobile cards ──
+    if (cards) {
+        const allCards = cards.querySelectorAll('.qt-card');
+        allCards.forEach(c => c.remove());
+        const selectAllRow = cards.querySelector('div[style*="select-all"], div:first-child');
+
+        data.rows.forEach(qt => {
+            const actions = isDeleted
+                ? `<button style="flex:1;background:#ede9fe;color:#5b21b6;border:none;border-radius:8px;padding:9px;font-size:0.78rem;font-weight:700;cursor:pointer;" onclick="restoreSingle(${qt.id})">♻️ Restore</button>
+                   <button style="flex:1;background:#fef2f2;color:#dc2626;border:none;border-radius:8px;padding:9px;font-size:0.78rem;font-weight:700;cursor:pointer;" onclick="permDeleteSingle(${qt.id})">🗑️ Delete Forever</button>`
+                : `<form method="POST" action="/crm/quotations/${qt.id}/reprint" target="_blank" style="flex:1;display:flex;">
+                     <button type="submit" class="qa-pdf" style="flex:1;border-radius:8px;border:none;cursor:pointer;">📥 PDF</button>
+                   </form>
+                   <button class="qa-mail" onclick="openEmailModal(${qt.id},'${qt.bill_email}','${qt.quot_number}','${escHtml(qt.bill_company)}','${qt.total_amount.toFixed(2)}')">📧 Email</button>
+                   <button class="qa-st"   onclick="openStatusModal(${qt.id},'${qt.status}')">🔄 Status</button>`;
+
+            const delBanner = (isDeleted && qt.deleted_at)
+                ? `<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:8px 12px;font-size:0.78rem;color:#dc2626;margin-bottom:10px;">🗑️ Deleted on ${qt.deleted_at}</div>` : '';
+
+            const div = document.createElement('div');
+            div.className = 'qt-card';
+            div.id = `card-${qt.id}`;
+            div.innerHTML = `
+              <div class="qt-card-top">
+                <input type="checkbox" class="qt-chk row-chk" value="${qt.id}" onchange="onRowCheck()" style="margin-top:3px;flex-shrink:0;">
+                <div class="qt-card-head">
+                  <div class="qt-card-num">${qt.quot_number}</div>
+                  <div class="qt-card-sub"><a href="/crm/leads/${qt.lead_id}" style="color:#1d4ed8;text-decoration:none;font-weight:700;">${escHtml(qt.contact_name)}</a>${qt.bill_company ? ' · ' + escHtml(qt.bill_company) : ''}</div>
+                </div>
+                ${statusBadge(qt.status)}
+              </div>
+              <div class="qt-card-grid">
+                <div class="qt-card-field"><label>Date</label><span>${qt.quot_date}</span></div>
+                <div class="qt-card-field"><label>Valid Until</label><span>${qt.valid_until || '—'}</span></div>
+                <div class="qt-card-field"><label>GST</label><span>${qt.gst_pct}% · ₹${parseFloat(qt.gst_amount).toLocaleString('en-IN',{maximumFractionDigits:0})}</span></div>
+                <div class="qt-card-field"><label>Created By</label><span>${escHtml(qt.creator)}</span></div>
+              </div>
+              ${qt.subject !== '—' ? `<div style="font-size:0.78rem;color:#64748b;margin-bottom:10px;padding:7px 10px;background:#f8fafc;border-radius:7px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(qt.subject)}</div>` : ''}
+              <div class="qt-card-total">
+                <div>
+                  <div class="qt-card-total-sub">Sub Total · ₹${parseFloat(qt.sub_total).toLocaleString('en-IN',{maximumFractionDigits:0})}</div>
+                  <div class="qt-card-total-amt">${fmtMoney(qt.total_amount)}</div>
+                </div>
+                ${qt.email_sent_at ? `<div style="font-size:0.7rem;opacity:.75;text-align:right;">Sent<br>${qt.email_sent_at}</div>` : ''}
+              </div>
+              ${delBanner}
+              <div class="qt-card-actions">${actions}</div>`;
+            cards.appendChild(div);
+        });
+    }
+}
+
+function escHtml(s) {
+    return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+// ── Pagination ─────────────────────────────────────────────────
+function renderPagination(data) {
+    const el = document.getElementById('qtPagination');
+    if (!el) return;
+    if (data.pages <= 1) { el.innerHTML = ''; return; }
+    let html = '';
+    if (data.page > 1)
+        html += `<a href="#" onclick="gotoPage(${data.page-1});return false;" class="btn-outline" style="padding:7px 14px;">← Prev</a>`;
+    html += `<span style="color:var(--text2);">Page ${data.page} of ${data.pages}</span>`;
+    if (data.page < data.pages)
+        html += `<a href="#" onclick="gotoPage(${data.page+1});return false;" class="btn-outline" style="padding:7px 14px;">Next →</a>`;
+    el.innerHTML = html;
+}
+function gotoPage(p) { currentPage = p; doSearch(false); }
+
+// ── Tab counts ─────────────────────────────────────────────────
+function updateTabCounts(active, deleted) {
+    const a = document.getElementById('tabCountActive');
+    const d = document.getElementById('tabCountDeleted');
+    if (a) a.textContent = active;
+    if (d) d.textContent = deleted;
+}
+
+// ── Init ───────────────────────────────────────────────────────
+document.getElementById('liveSearch').addEventListener('input', function() {
+    const clearBtn = document.getElementById('clearSearch');
+    clearBtn.style.display = this.value ? 'block' : 'none';
+    triggerSearch();
+});
+// Show clear btn on load if search is pre-filled
+if (document.getElementById('liveSearch').value || document.getElementById('statusFilter').value)
+    document.getElementById('clearSearch').style.display = 'block';
+
+// ══════════════════════════════════════════════
+// MODAL HELPERS
+// ══════════════════════════════════════════════
+function openModal(id)  { document.getElementById(id).classList.add('show'); }
+function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+document.querySelectorAll('.modal-wrap').forEach(m =>
+    m.addEventListener('click', e => { if (e.target === m) m.classList.remove('show'); })
+);
+
+function bindRadio(cid) {
+    document.querySelectorAll('#'+cid+' input[type=radio]').forEach(r =>
+        r.addEventListener('change', function() {
+            document.querySelectorAll('#'+cid+' .radio-opt').forEach(l => l.classList.remove('active'));
+            this.closest('.radio-opt').classList.add('active');
+        })
+    );
+}
+bindRadio('statusOptions');
+bindRadio('bulkStatusOptions');
+
+function showToast(msg, color) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.style.background = color || '#1e3a5f';
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 3500);
+}
+
+function getCheckedIds() {
+    return [...document.querySelectorAll('.row-chk:checked')].map(c => c.value);
+}
+function onRowCheck() {
+    const ids   = getCheckedIds();
+    const total = document.querySelectorAll('.row-chk').length;
+    document.getElementById('bulkCount').textContent = ids.length + ' selected';
+    ids.length ? document.getElementById('bulkBar').classList.add('show')
+               : document.getElementById('bulkBar').classList.remove('show');
+    ['chkAll','chkAllMobile'].forEach(id => {
+        const el = document.getElementById(id); if (!el) return;
+        el.indeterminate = ids.length > 0 && ids.length < total;
+        el.checked = ids.length === total;
+    });
+    document.querySelectorAll('.row-chk').forEach(c => {
+        const row  = c.closest('tr');
+        const card = document.getElementById('card-' + c.value);
+        if (row)  row.classList.toggle('row-selected', c.checked);
+        if (card) card.classList.toggle('selected', c.checked);
+    });
+}
+function toggleAll(chk) {
+    document.querySelectorAll('.row-chk').forEach(c => c.checked = chk.checked);
+    ['chkAll','chkAllMobile'].forEach(id => { const el=document.getElementById(id); if(el) el.checked=chk.checked; });
+    onRowCheck();
+}
+function clearSelection() {
+    document.querySelectorAll('.row-chk').forEach(c => c.checked = false);
+    ['chkAll','chkAllMobile'].forEach(id => { const el=document.getElementById(id); if(el) el.checked=false; });
+    onRowCheck();
+}
+
+function doBulkDelete() {
+    const ids = getCheckedIds(); if (!ids.length) return;
+    document.getElementById('confirmCount').textContent = ids.length + ' quotation(s)';
+    document.getElementById('confirmMsg').textContent = 'Selected quotations will be moved to Deleted tab.';
+    document.getElementById('confirmTitle').textContent = '🗑️ Move to Deleted';
+    const btn = document.getElementById('confirmBtn');
+    btn.textContent = 'Yes, Delete'; btn.className = 'mbtn-danger';
+    openModal('confirmModal');
+    btn.onclick = () => {
+        closeModal('confirmModal');
+        const fd = new FormData(); ids.forEach(id => fd.append('ids[]', id));
+        fetch('/crm/quotations/bulk-delete', {method:'POST', body:fd})
+            .then(r=>r.json()).then(d => { showToast(d.message, d.success?'#166534':'#dc2626'); if(d.success) { clearSelection(); doSearch(); } });
+    };
+}
+function doBulkEmail() {
+    const ids = getCheckedIds(); if (!ids.length) return;
+    document.getElementById('confirmCount').textContent = ids.length + ' quotation(s)';
+    document.getElementById('confirmMsg').textContent = 'Emails will be sent using stored email addresses. Quotations without an email on record will be skipped.';
+    document.getElementById('confirmTitle').textContent = '📧 Confirm Send Emails';
+    const btn = document.getElementById('confirmBtn');
+    btn.textContent = 'Yes, Send Emails'; btn.className = 'mbtn-success';
+    openModal('confirmModal');
+    btn.onclick = () => {
+        closeModal('confirmModal');
+        showToast('⏳ Sending emails…', '#1e3a5f');
+        const fd = new FormData(); ids.forEach(id => fd.append('ids[]', id));
+        fetch('/crm/quotations/bulk-email', {method:'POST', body:fd})
+            .then(r=>r.json())
+            .then(d => { showToast(d.message, d.errors&&d.errors.length?'#b45309':'#166534'); setTimeout(()=>doSearch(),2500); })
+            .catch(e => showToast('Network error: '+e,'#dc2626'));
+    };
+}
+function openBulkStatusModal() {
+    const ids = getCheckedIds(); if (!ids.length) return;
+    document.getElementById('bulkStatusCount').textContent = ids.length + ' quotation(s)';
+    document.querySelectorAll('#bulkStatusOptions .radio-opt').forEach(l => { l.classList.remove('active'); l.querySelector('input').checked=false; });
+    openModal('bulkStatusModal');
+}
+function doBulkStatus() {
+    const status = document.querySelector('#bulkStatusOptions input[type=radio]:checked')?.value;
+    if (!status) { showToast('Please select a status first','#dc2626'); return; }
+    const ids = getCheckedIds();
+    const fd = new FormData(); ids.forEach(id=>fd.append('ids[]',id)); fd.append('status',status);
+    fetch('/crm/quotations/bulk-status',{method:'POST',body:fd}).then(r=>r.json()).then(d=>{
+        closeModal('bulkStatusModal'); showToast(d.message,d.success?'#166534':'#dc2626');
+        if(d.success) { clearSelection(); doSearch(); }
+    });
+}
+function doBulkRestore() {
+    const ids = getCheckedIds(); if (!ids.length) return;
+    document.getElementById('confirmCount').textContent = ids.length + ' quotation(s)';
+    document.getElementById('confirmMsg').textContent = 'Selected quotations will be moved back to Active tab.';
+    document.getElementById('confirmTitle').textContent = '♻️ Restore Quotations';
+    const btn = document.getElementById('confirmBtn');
+    btn.textContent = 'Yes, Restore'; btn.className = 'mbtn-primary';
+    openModal('confirmModal');
+    btn.onclick = () => {
+        closeModal('confirmModal');
+        const fd = new FormData(); ids.forEach(id => fd.append('ids[]', id));
+        fetch('/crm/quotations/bulk-restore', {method:'POST', body:fd})
+            .then(r=>r.json()).then(d => { showToast(d.message, d.success?'#166534':'#dc2626'); if(d.success) { clearSelection(); doSearch(); } });
+    };
+}
+function doBulkPermanentDelete() {
+    const ids = getCheckedIds(); if (!ids.length) return;
+    document.getElementById('confirmCount').textContent = ids.length + ' quotation(s)';
+    document.getElementById('confirmMsg').textContent = 'This CANNOT be undone. Records will be permanently removed.';
+    document.getElementById('confirmTitle').textContent = '⚠️ Permanent Delete';
+    const btn = document.getElementById('confirmBtn');
+    btn.textContent = 'Delete Forever'; btn.className = 'mbtn-danger';
+    openModal('confirmModal');
+    btn.onclick = () => {
+        closeModal('confirmModal');
+        const fd = new FormData(); ids.forEach(id => fd.append('ids[]', id));
+        fetch('/crm/quotations/bulk-permanent-delete', {method:'POST', body:fd})
+            .then(r=>r.json()).then(d => { showToast(d.message, d.success?'#166534':'#dc2626'); if(d.success) { clearSelection(); doSearch(); } });
+    };
+}
+function restoreSingle(id) {
+    const fd = new FormData(); fd.append('ids[]', id);
+    fetch('/crm/quotations/bulk-restore', {method:'POST', body:fd}).then(r=>r.json()).then(d => { showToast(d.message, d.success?'#166534':'#dc2626'); if(d.success) doSearch(); });
+}
+function permDeleteSingle(id) {
+    document.getElementById('confirmCount').textContent = '1 quotation';
+    document.getElementById('confirmMsg').textContent = 'This CANNOT be undone.';
+    document.getElementById('confirmTitle').textContent = '⚠️ Permanent Delete';
+    const btn = document.getElementById('confirmBtn');
+    btn.textContent = 'Delete Forever'; btn.className = 'mbtn-danger';
+    openModal('confirmModal');
+    btn.onclick = () => {
+        closeModal('confirmModal');
+        const fd = new FormData(); fd.append('ids[]', id);
+        fetch('/crm/quotations/bulk-permanent-delete', {method:'POST', body:fd}).then(r=>r.json()).then(d => { showToast(d.message, d.success?'#166534':'#dc2626'); if(d.success) doSearch(); });
+    };
+}
+function openEmailModal(qtId, toEmail, qtNumber, company, total) {
+    document.getElementById('emailForm').action = '/crm/quotations/'+qtId+'/send-email';
+    document.getElementById('emailTo').value      = toEmail;
+    document.getElementById('emailSubject').value = '';
+    document.getElementById('emailBody').value    = 'Loading...';
+    openModal('emailModal');
+    fetch('/mail/quotations/'+qtId+'/preview').then(r=>r.json()).then(d=>{
+        document.getElementById('emailSubject').value = d.subject||'';
+        document.getElementById('emailBody').value    = d.body||'';
+        if(d.to_email && !document.getElementById('emailTo').value) document.getElementById('emailTo').value=d.to_email;
+    }).catch(()=>{
+        document.getElementById('emailSubject').value = 'Final Quote for '+company+' - '+qtNumber;
+        document.getElementById('emailBody').value    = 'Dear '+(company||'Sir/Madam')+',\n\nKindly find the quotation attached.\n\nWarm Regards,\nHCP Wellness Pvt. Ltd.';
+    });
+}
+function openStatusModal(qtId, currentStatus) {
+    document.getElementById('statusForm').action = '/crm/quotations/'+qtId+'/status';
+    document.querySelectorAll('#statusOptions .radio-opt').forEach(l=>{
+        const r=l.querySelector('input'); r.checked=(r.value===currentStatus);
+        r.checked?l.classList.add('active'):l.classList.remove('active');
+    });
+    openModal('statusModal');
+}
+// After single status update — reload via AJAX
+document.getElementById('statusForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    fetch(this.action, {method:'POST', body: new FormData(this)})
+        .then(() => { closeModal('statusModal'); doSearch(); });
+});
+</script>
+{% endblock %}

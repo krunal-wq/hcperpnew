@@ -1,0 +1,673 @@
+{% extends "base.html" %}
+{% block title %}Sample Orders{% endblock %}
+{% block page_title %}Sample Orders{% endblock %}
+{% block bread %}CRM / Sample Orders{% endblock %}
+
+{% block extra_css %}
+<style>
+* { box-sizing:border-box; }
+
+/* ── Search bar ── */
+.so-search-bar { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+.so-search-bar input, .so-search-bar select { padding:8px 12px; border:1.5px solid #e2e8f0; border-radius:8px; font-size:0.83rem; color:#374151; outline:none; background:#fff; }
+.so-search-bar input:focus, .so-search-bar select:focus { border-color:#1e3a5f; }
+.so-search-bar .search-wrap { position:relative; flex:1; min-width:0; }
+.so-search-bar .search-wrap input { width:100%; padding-left:32px; }
+.so-search-bar .search-icon { position:absolute; left:10px; top:50%; transform:translateY(-50%); color:#94a3b8; pointer-events:none; }
+.so-search-bar .clear-btn { position:absolute; right:8px; top:50%; transform:translateY(-50%); background:none; border:none; color:#94a3b8; font-size:1rem; cursor:pointer; display:none; line-height:1; }
+
+/* ── Tabs ── */
+.so-tabs { display:flex; gap:0; border-bottom:2px solid #e2e8f0; padding:0 14px; overflow-x:auto; }
+.so-tab { padding:10px 18px; font-size:0.83rem; font-weight:700; color:#64748b; cursor:pointer; border-bottom:3px solid transparent; margin-bottom:-2px; white-space:nowrap; text-decoration:none; display:flex; align-items:center; gap:6px; }
+.so-tab:hover { color:#1e3a5f; }
+.so-tab.active { color:#1e3a5f; border-bottom-color:#1e3a5f; }
+.so-tab .tab-cnt { background:#e2e8f0; color:#64748b; font-size:0.7rem; font-weight:700; padding:2px 7px; border-radius:100px; }
+.so-tab.active .tab-cnt { background:#1e3a5f; color:#fff; }
+.so-tab.tab-del.active { color:#dc2626; border-bottom-color:#dc2626; }
+.so-tab.tab-del.active .tab-cnt { background:#dc2626; color:#fff; }
+
+/* ── Bulk bar ── */
+#soBulkBar { display:none; position:sticky; top:0; z-index:50; background:#1e3a5f; color:#fff; padding:10px 14px; border-radius:10px; margin:10px 12px 4px; align-items:center; gap:8px; flex-wrap:wrap; }
+#soBulkBar.show { display:flex; }
+.so-bulk-btn { border:none; padding:7px 12px; border-radius:7px; font-size:0.78rem; font-weight:700; cursor:pointer; white-space:nowrap; }
+.so-bulk-del     { background:#f87171; color:#7f1d1d; }
+.so-bulk-restore { background:#a78bfa; color:#3b0764; }
+.so-bulk-perm    { background:#f87171; color:#7f1d1d; }
+.so-bulk-desel   { background:rgba(255,255,255,0.15); border:none; color:#fff; padding:7px 12px; border-radius:7px; font-size:0.78rem; cursor:pointer; margin-left:auto; }
+
+/* ── Table ── */
+.so-table { width:100%; border-collapse:collapse; }
+.so-table thead tr { background:linear-gradient(135deg,#1e3a5f,#2d5a8e); }
+.so-table th { padding:10px 12px; text-align:left; font-size:0.71rem; font-weight:700; color:#fff; text-transform:uppercase; letter-spacing:.05em; border-right:1px solid rgba(255,255,255,.15); white-space:nowrap; }
+.so-table th:last-child { border-right:none; }
+.so-table td { padding:10px 12px; font-size:0.83rem; color:var(--text); border-bottom:1px solid #f1f5f9; vertical-align:middle; }
+.so-table tr:hover td { background:#f8fafc; }
+.so-table tr.row-sel td { background:#eef2ff !important; }
+input[type=checkbox].so-chk { width:17px; height:17px; accent-color:#1e3a5f; cursor:pointer; }
+
+/* ── Invoice buttons ── */
+.inv-upload-btn  { background:#fdf4ff; color:#7c3aed; border:1px dashed #c4b5fd; padding:5px 9px; border-radius:6px; font-size:0.75rem; font-weight:600; cursor:pointer; display:inline-block; }
+.inv-dl-btn      { background:#eff6ff; color:#1d4ed8; border:none; padding:5px 9px; border-radius:6px; font-size:0.75rem; font-weight:600; cursor:pointer; text-decoration:none; display:inline-block; }
+.inv-change-btn  { background:#fff7ed; color:#c2410c; border:none; padding:5px 9px; border-radius:6px; font-size:0.75rem; font-weight:600; cursor:pointer; display:inline-block; }
+.inv-del-btn     { background:#fef2f2; color:#dc2626; border:none; padding:4px 7px; border-radius:6px; font-size:0.75rem; font-weight:700; cursor:pointer; }
+.inv-filename    { font-size:0.7rem; color:var(--text3); display:block; margin-top:3px; max-width:130px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
+/* ── Mobile Cards ── */
+.so-cards { display:none; padding:8px 12px 16px; gap:10px; flex-direction:column; }
+.so-card { background:#fff; border:1.5px solid #e8edf5; border-radius:16px; overflow:hidden; box-shadow:0 3px 12px rgba(30,58,95,0.08); transition:box-shadow .15s, transform .15s; }
+.so-card:active { transform:scale(0.99); }
+.so-card.selected { border-color:#1e3a5f; box-shadow:0 0 0 3px rgba(30,58,95,0.15); }
+/* Card Header — dark gradient */
+.so-card-hdr { background:linear-gradient(135deg,#1e3a5f,#2d5a8e); color:#fff; padding:14px 14px 12px; display:flex; align-items:flex-start; gap:10px; }
+.so-card-hdr-left { flex:1; min-width:0; }
+.so-card-num { font-size:1rem; font-weight:800; letter-spacing:.3px; }
+.so-card-sub { font-size:0.78rem; opacity:0.8; margin-top:3px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.so-card-hdr-right { text-align:right; flex-shrink:0; }
+.so-card-total-label { font-size:0.62rem; opacity:0.7; text-transform:uppercase; letter-spacing:.5px; }
+.so-card-total-amt { font-size:1.15rem; font-weight:800; }
+/* Card Body */
+.so-card-body { padding:12px 14px 0; }
+.so-card-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px 14px; margin-bottom:10px; }
+.so-card-field label { font-size:0.65rem; font-weight:700; color:#94a3b8; text-transform:uppercase; letter-spacing:.5px; display:block; margin-bottom:2px; }
+.so-card-field span { font-size:0.82rem; color:#374151; font-weight:600; }
+/* Cost strip */
+.so-card-costs { display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; background:#f8fafc; border-radius:10px; padding:10px; border:1px solid #e2e8f0; margin-bottom:10px; }
+.so-cost-item { text-align:center; }
+.so-cost-item label { font-size:0.62rem; font-weight:700; color:#94a3b8; text-transform:uppercase; display:block; margin-bottom:3px; }
+.so-cost-item span { font-size:0.82rem; font-weight:700; color:#1e3a5f; }
+/* Footer actions */
+.so-card-footer { display:flex; gap:6px; flex-wrap:wrap; padding:10px 14px 12px; border-top:1px solid #f1f5f9; background:#fafbff; }
+.so-card-footer button, .so-card-footer a { flex:1; min-width:60px; padding:9px 4px; border-radius:9px; font-size:0.75rem; font-weight:700; border:none; cursor:pointer; text-align:center; text-decoration:none; display:flex; align-items:center; justify-content:center; gap:3px; }
+
+/* ── Pagination ── */
+.so-pagination { display:flex; justify-content:center; align-items:center; gap:8px; padding:14px; flex-wrap:wrap; }
+
+/* ── Empty ── */
+.so-empty { text-align:center; padding:3rem 1rem; color:var(--text3); }
+
+/* ── Toast ── */
+#soToast { display:none; position:fixed; bottom:20px; left:50%; transform:translateX(-50%); background:#1e3a5f; color:#fff; padding:12px 20px; border-radius:12px; font-size:0.85rem; font-weight:600; z-index:9999; box-shadow:0 8px 30px rgba(0,0,0,0.25); max-width:90vw; text-align:center; }
+#soToast.show { display:block; animation:soToastIn .25s ease; }
+
+/* ── Confirm Modal ── */
+.so-modal-wrap { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.55); z-index:1000; align-items:flex-end; justify-content:center; }
+.so-modal-wrap.show { display:flex; animation:soFadeIn .2s; }
+.so-modal-box { background:#fff; border-radius:22px 22px 0 0; width:100%; max-height:92vh; overflow-y:auto; box-shadow:0 -8px 40px rgba(0,0,0,0.2); animation:soSlideUp .25s ease; }
+.so-modal-hdr { background:#1e3a5f; color:#fff; padding:14px 18px; display:flex; align-items:center; justify-content:space-between; border-radius:22px 22px 0 0; position:sticky; top:0; }
+.so-modal-title { font-size:1rem; font-weight:700; }
+.so-modal-close { background:rgba(255,255,255,0.18); border:none; color:#fff; width:30px; height:30px; border-radius:50%; font-size:1rem; cursor:pointer; display:flex; align-items:center; justify-content:center; }
+.so-modal-body { padding:16px; }
+.so-modal-foot { padding:12px 16px; border-top:1px solid #e5e7eb; display:flex; gap:8px; background:#f9fafb; position:sticky; bottom:0; }
+.so-modal-foot button { flex:1; padding:13px; border-radius:10px; font-size:0.88rem; font-weight:700; border:none; cursor:pointer; }
+.smbtn-cancel  { background:#f1f5f9; color:#374151; }
+.smbtn-primary { background:#1e3a5f; color:#fff; }
+.smbtn-danger  { background:#ef4444; color:#fff; }
+
+@keyframes soToastIn  { from{opacity:0;transform:translateX(-50%) translateY(10px)} to{opacity:1;transform:translateX(-50%) translateY(0)} }
+@keyframes soSlideUp  { from{opacity:0;transform:translateY(30px)} to{opacity:1;transform:translateY(0)} }
+@keyframes soFadeIn   { from{opacity:0} to{opacity:1} }
+
+@media (max-width:767px) {
+    .so-cards     { display:flex; }
+    .so-tbl-wrap  { display:none !important; }
+    .card-hdr     { flex-direction:column; align-items:stretch; gap:10px; padding:12px; }
+    .so-search-bar input { font-size:0.9rem; padding:10px 12px; }
+}
+@media (min-width:768px) {
+    .so-cards     { display:none !important; }
+    .so-tbl-wrap  { display:block; }
+    .so-modal-wrap { align-items:center; padding:1rem; }
+    .so-modal-box  { border-radius:16px; max-width:480px; }
+    .so-modal-hdr  { border-radius:16px 16px 0 0; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-hdr">
+        <div class="card-title">📋 Sample Orders</div>
+        <div class="so-search-bar">
+            <div class="search-wrap">
+                <span class="search-icon">🔍</span>
+                <input type="text" id="soSearch" value="{{ search }}" placeholder="Search order no, company..." autocomplete="off">
+                <button id="soClearBtn" class="clear-btn" onclick="soClearFilters()">✕</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="so-tabs">
+        <a href="#" onclick="switchTab('active');return false;"
+           class="so-tab {% if tab != 'deleted' %}active{% endif %}" id="tabActive">
+            📋 Active <span class="tab-cnt" id="soTabCntActive">{{ active_count }}</span>
+        </a>
+        {% if so_sub and so_sub.view_deleted %}
+        <a href="#" onclick="switchTab('deleted');return false;"
+           class="so-tab tab-del {% if tab == 'deleted' %}active{% endif %}" id="tabDeleted">
+            🗑️ Deleted <span class="tab-cnt" id="soTabCntDeleted">{{ deleted_count }}</span>
+        </a>
+        {% endif %}
+    </div>
+
+    <!-- Bulk Bar -->
+    <div id="soBulkBar">
+        <span id="soBulkCount" style="font-size:0.82rem;font-weight:700;"></span>
+        <span id="soBulkActive">
+            {% if perm and perm.can_delete %}<button class="so-bulk-btn so-bulk-del" onclick="soBulkDelete()">🗑️ Delete</button>{% endif %}
+        </span>
+        <span id="soBulkDeleted" style="display:none;">
+            {% if so_sub and so_sub.restore %}<button class="so-bulk-btn so-bulk-restore" onclick="soBulkRestore()">♻️ Restore</button>{% endif %}
+            {% if so_sub and so_sub.permanent_delete %}<button class="so-bulk-btn so-bulk-perm" onclick="soBulkPermDelete()">🗑️ Delete Forever</button>{% endif %}
+        </span>
+        <button class="so-bulk-desel" onclick="soClearSelection()">✕ Deselect</button>
+    </div>
+
+    <!-- Desktop Table -->
+    <div class="so-tbl-wrap" id="soTblWrap">
+        <table class="so-table">
+            <thead><tr>
+                <th style="width:36px;text-align:center;"><input type="checkbox" class="so-chk" id="soChkAll" onchange="soToggleAll(this)"></th>
+                <th>#</th><th>Order No</th><th>Date</th><th>Lead / Company</th>
+                <th>Billing Company</th><th style="text-align:right;">Sub Total</th>
+                <th style="text-align:right;">GST</th><th style="text-align:right;">Total</th>
+                <th>Created By</th><th>Actions</th><th>Invoice</th>
+            </tr></thead>
+            <tbody id="soTbody">
+            {% for so in orders %}
+            <tr id="sorow-{{ so.id }}">
+                <td style="text-align:center;"><input type="checkbox" class="so-chk so-row-chk" value="{{ so.id }}" onchange="soOnRowCheck()"></td>
+                <td style="color:var(--text3);font-size:0.78rem;">{{ loop.index + (pagination.page-1)*pagination.per_page }}</td>
+                <td><span style="font-weight:700;color:#1e3a5f;">{{ so.order_number }}</span></td>
+                <td style="white-space:nowrap;">{{ so.order_date.strftime('%d-%m-%Y') }}</td>
+                <td>
+                    <a href="{{ url_for('crm.lead_view', id=so.lead_id) }}" style="color:var(--blue);font-weight:600;text-decoration:none;">{{ so.lead.contact_name or 'N/A' }}</a>
+                    {% if so.lead.company_name %}<div style="font-size:0.73rem;color:var(--text3);">{{ so.lead.company_name }}</div>{% endif %}
+                </td>
+                <td>{{ so.bill_company or '—' }}</td>
+                <td style="text-align:right;">₹ {{ '{:,.2f}'.format(so.sub_total|float) }}</td>
+                <td style="text-align:right;color:var(--text2);">{{ so.gst_pct|int }}%<div style="font-size:0.72rem;">₹ {{ '{:,.2f}'.format(so.gst_amount|float) }}</div></td>
+                <td style="text-align:right;font-weight:700;color:#1e3a5f;">₹ {{ '{:,.2f}'.format(so.total_amount|float) }}</td>
+                <td style="font-size:0.78rem;color:var(--text2);">{{ so.creator.full_name if so.creator else '—' }}<div style="font-size:0.7rem;color:var(--text3);">{{ so.created_at.strftime('%d-%m-%Y %H:%M') }}</div></td>
+                <td>
+                    {% if tab == 'deleted' %}
+                    <div style="display:flex;gap:5px;">
+                        {% if so_sub and so_sub.restore %}<button onclick="soRestoreSingle({{ so.id }})" style="background:#ede9fe;color:#5b21b6;border:none;padding:5px 9px;border-radius:6px;font-size:0.75rem;font-weight:600;cursor:pointer;">♻️ Restore</button>{% endif %}
+                        {% if so_sub and so_sub.permanent_delete %}<button onclick="soPermDelSingle({{ so.id }})" style="background:#fef2f2;color:#dc2626;border:none;padding:5px 9px;border-radius:6px;font-size:0.75rem;font-weight:600;cursor:pointer;">🗑️ Forever</button>{% endif %}
+                    </div>
+                    {% else %}
+                    <div style="display:flex;gap:5px;flex-wrap:wrap;">
+                        {% if so_sub and so_sub.pdf_download %}
+                        <form method="POST" action="{{ url_for('crm.sample_order_reprint', id=so.id) }}" target="_blank" style="display:inline;">
+                            <button type="submit" style="background:#eff6ff;color:#1d4ed8;border:none;padding:5px 9px;border-radius:6px;font-size:0.75rem;font-weight:600;cursor:pointer;">📥 PDF</button>
+                        </form>
+                        {% endif %}
+                        {% if so_sub and so_sub.lead_view %}<a href="{{ url_for('crm.lead_view', id=so.lead_id) }}" style="background:#f0fdf4;color:#166534;border:none;padding:5px 9px;border-radius:6px;font-size:0.75rem;font-weight:600;text-decoration:none;display:inline-block;">👁 Lead</a>{% endif %}
+                        {% if so_sub and so_sub.mail_send %}<button onclick="openSoMailModal({{ so.id }},'{{ so.order_number }}','{{ so.lead.email if so.lead and so.lead.email else so.bill_email or '' }}')" style="background:#fdf4ff;color:#7c3aed;border:none;padding:5px 9px;border-radius:6px;font-size:0.75rem;font-weight:600;cursor:pointer;">✉ Mail</button>{% endif %}
+                        {% if perm and perm.can_delete %}<button onclick="soDelSingle({{ so.id }})" style="background:#fef2f2;color:#dc2626;border:none;padding:5px 9px;border-radius:6px;font-size:0.75rem;font-weight:600;cursor:pointer;">🗑️</button>{% endif %}
+                    </div>
+                    {% endif %}
+                </td>
+                <td style="min-width:140px;">
+                    {% if tab != 'deleted' %}
+                    {% if so.invoice_file %}
+                    <div style="display:flex;flex-wrap:wrap;gap:4px;">
+                        <a href="{{ url_for('crm.sample_order_invoice_download', id=so.id) }}" class="inv-dl-btn">⬇ Download</a>
+                        <label class="inv-change-btn" for="inv-change-{{ so.id }}">🔄 Change</label>
+                        <form method="POST" action="{{ url_for('crm.sample_order_invoice_delete', id=so.id) }}" style="display:inline;" onsubmit="return confirm('Invoice delete karein?');">
+                            <button type="submit" class="inv-del-btn">✕</button>
+                        </form>
+                    </div>
+                    <form method="POST" action="{{ url_for('crm.sample_order_invoice_upload', id=so.id) }}" enctype="multipart/form-data" style="display:none;">
+                        <input type="file" id="inv-change-{{ so.id }}" name="invoice_file" accept=".pdf,.jpg,.jpeg,.png" onchange="this.form.submit()">
+                    </form>
+                    <span class="inv-filename" title="{{ so.invoice_file }}">📎 {{ so.invoice_file }}</span>
+                    {% else %}
+                    {% if so_sub and so_sub.invoice_upload %}
+                    <label class="inv-upload-btn" for="inv-upload-{{ so.id }}">⬆ Invoice Upload</label>
+                    <form method="POST" action="{{ url_for('crm.sample_order_invoice_upload', id=so.id) }}" enctype="multipart/form-data" style="display:none;">
+                        <input type="file" id="inv-upload-{{ so.id }}" name="invoice_file" accept=".pdf,.jpg,.jpeg,.png" onchange="this.form.submit()">
+                    </form>
+                    {% endif %}
+                    {% endif %}
+                    {% else %}
+                    <span style="font-size:0.75rem;color:#dc2626;">🗑️ {{ so.deleted_at.strftime('%d-%m-%Y') if so.deleted_at else '' }}</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Mobile Cards -->
+    <div class="so-cards" id="soCards">
+        <div style="display:flex;align-items:center;gap:10px;padding:4px 2px 6px;">
+            <input type="checkbox" class="so-chk" id="soChkAllMobile" onchange="soToggleAll(this)">
+            <label for="soChkAllMobile" style="font-size:0.82rem;color:#64748b;font-weight:600;cursor:pointer;">Select All</label>
+            <span style="font-size:0.78rem;color:#94a3b8;margin-left:auto;">{{ orders|length }} order{{ 's' if orders|length != 1 }}</span>
+        </div>
+        {% for so in orders %}
+        <div class="so-card" id="socard-{{ so.id }}">
+            <!-- Gradient Header -->
+            <div class="so-card-hdr">
+                <input type="checkbox" class="so-chk so-row-chk" value="{{ so.id }}" onchange="soOnRowCheck()"
+                    style="margin-top:3px;flex-shrink:0;accent-color:#fff;width:17px;height:17px;">
+                <div class="so-card-hdr-left">
+                    <div class="so-card-num">{{ so.order_number }}</div>
+                    <div class="so-card-sub">
+                        <a href="{{ url_for('crm.lead_view', id=so.lead_id) }}" style="color:#93c5fd;text-decoration:none;font-weight:700;">{{ so.lead.contact_name or 'N/A' }}</a>
+                        {% if so.bill_company %} · {{ so.bill_company }}{% endif %}
+                    </div>
+                </div>
+                <div class="so-card-hdr-right">
+                    <div class="so-card-total-label">Total</div>
+                    <div class="so-card-total-amt">₹ {{ '{:,.0f}'.format(so.total_amount|float) }}</div>
+                </div>
+            </div>
+            <!-- Body -->
+            <div class="so-card-body">
+                <div class="so-card-grid">
+                    <div class="so-card-field"><label>Date</label><span>{{ so.order_date.strftime('%d-%m-%Y') }}</span></div>
+                    <div class="so-card-field"><label>Created By</label><span>{{ so.creator.full_name if so.creator else '—' }}</span></div>
+                </div>
+                <div class="so-card-costs">
+                    <div class="so-cost-item"><label>Sub Total</label><span>₹{{ '{:,.0f}'.format(so.sub_total|float) }}</span></div>
+                    <div class="so-cost-item"><label>GST {{ so.gst_pct|int }}%</label><span>₹{{ '{:,.0f}'.format(so.gst_amount|float) }}</span></div>
+                    <div class="so-cost-item"><label>Total</label><span>₹{{ '{:,.0f}'.format(so.total_amount|float) }}</span></div>
+                </div>
+            </div>
+            <!-- Footer Actions -->
+            {% if tab == 'deleted' %}
+            <div style="margin:0 14px 10px;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:8px 12px;font-size:0.78rem;color:#dc2626;">
+                🗑️ Deleted on {{ so.deleted_at.strftime('%d-%m-%Y %H:%M') if so.deleted_at else '' }}
+            </div>
+            <div class="so-card-footer">
+                {% if so_sub and so_sub.restore %}<button onclick="soRestoreSingle({{ so.id }})" style="background:#ede9fe;color:#5b21b6;">♻️ Restore</button>{% endif %}
+                {% if so_sub and so_sub.permanent_delete %}<button onclick="soPermDelSingle({{ so.id }})" style="background:#fef2f2;color:#dc2626;">🗑️ Forever</button>{% endif %}
+            </div>
+            {% else %}
+            <!-- Invoice section on mobile -->
+            <div style="padding:10px 14px 0;">
+                {% if so.invoice_file %}
+                <div style="background:#f5f3ff;border:1px solid #ddd6fe;border-radius:10px;padding:10px 12px;display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:0;">
+                    <span style="font-size:0.75rem;color:#5b21b6;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;">📎 {{ so.invoice_file }}</span>
+                    <div style="display:flex;gap:6px;flex-shrink:0;">
+                        <a href="{{ url_for('crm.sample_order_invoice_download', id=so.id) }}" style="background:#eff6ff;color:#1d4ed8;padding:5px 9px;border-radius:6px;font-size:0.72rem;font-weight:700;text-decoration:none;">⬇</a>
+                        <label style="background:#fff7ed;color:#c2410c;padding:5px 9px;border-radius:6px;font-size:0.72rem;font-weight:700;cursor:pointer;" for="mob-inv-change-{{ so.id }}">🔄</label>
+                        <form method="POST" action="{{ url_for('crm.sample_order_invoice_delete', id=so.id) }}" style="display:inline;" onsubmit="return confirm('Delete karein?');">
+                            <button type="submit" style="background:#fef2f2;color:#dc2626;border:none;padding:5px 9px;border-radius:6px;font-size:0.72rem;font-weight:700;cursor:pointer;">✕</button>
+                        </form>
+                    </div>
+                    <form method="POST" action="{{ url_for('crm.sample_order_invoice_upload', id=so.id) }}" enctype="multipart/form-data" style="display:none;">
+                        <input type="file" id="mob-inv-change-{{ so.id }}" name="invoice_file" accept=".pdf,.jpg,.jpeg,.png" onchange="this.form.submit()">
+                    </form>
+                </div>
+                {% else %}
+                {% if so_sub and so_sub.invoice_upload %}
+                <label for="mob-inv-upload-{{ so.id }}" style="display:flex;align-items:center;justify-content:center;gap:6px;width:100%;background:#fdf4ff;color:#7c3aed;border:1.5px dashed #c4b5fd;padding:10px;border-radius:10px;font-size:0.82rem;font-weight:700;cursor:pointer;box-sizing:border-box;">
+                    ⬆ Invoice Upload
+                </label>
+                {% endif %}
+                <form method="POST" action="{{ url_for('crm.sample_order_invoice_upload', id=so.id) }}" enctype="multipart/form-data" style="display:none;">
+                    <input type="file" id="mob-inv-upload-{{ so.id }}" name="invoice_file" accept=".pdf,.jpg,.jpeg,.png" onchange="this.form.submit()">
+                </form>
+                {% endif %}
+            </div>
+            <div class="so-card-footer">
+                {% if so_sub and so_sub.pdf_download %}
+                <form method="POST" action="{{ url_for('crm.sample_order_reprint', id=so.id) }}" target="_blank" style="flex:1;display:flex;">
+                    <button type="submit" style="flex:1;background:#eff6ff;color:#1d4ed8;border:none;border-radius:9px;cursor:pointer;font-size:0.75rem;font-weight:700;padding:9px;">📥 PDF</button>
+                </form>
+                {% endif %}
+                {% if so_sub and so_sub.lead_view %}<a href="{{ url_for('crm.lead_view', id=so.lead_id) }}" style="background:#f0fdf4;color:#166534;flex:1;border-radius:9px;padding:9px;font-size:0.75rem;font-weight:700;text-align:center;text-decoration:none;display:flex;align-items:center;justify-content:center;">👁 Lead</a>{% endif %}
+                {% if so_sub and so_sub.mail_send %}<button onclick="openSoMailModal({{ so.id }},'{{ so.order_number }}','{{ so.lead.email if so.lead and so.lead.email else so.bill_email or '' }}')" style="flex:1;background:#fdf4ff;color:#7c3aed;border:none;border-radius:9px;padding:9px;font-size:0.75rem;font-weight:700;cursor:pointer;">✉ Mail</button>{% endif %}
+                {% if perm and perm.can_delete %}<button onclick="soDelSingle({{ so.id }})" style="flex:1;background:#fef2f2;color:#dc2626;border:none;border-radius:9px;padding:9px;font-size:0.75rem;font-weight:700;cursor:pointer;">🗑️</button>{% endif %}
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Empty -->
+    <div class="so-empty" id="soEmpty" style="{% if orders %}display:none;{% endif %}">
+        <div style="font-size:2rem;margin-bottom:0.5rem;">📋</div>
+        <div style="font-weight:600;margin-bottom:0.25rem;">No Sample Orders found</div>
+        <div style="font-size:0.85rem;">Leads page pe jaake "Sample Order" se generate karein</div>
+    </div>
+
+    <div class="so-pagination" id="soPagination">
+        {% if pagination.pages > 1 %}
+        {% if pagination.has_prev %}<a href="#" onclick="soGotoPage({{ pagination.prev_num }});return false;" class="btn-outline" style="padding:7px 14px;">← Prev</a>{% endif %}
+        <span style="color:var(--text2);">Page {{ pagination.page }} of {{ pagination.pages }}</span>
+        {% if pagination.has_next %}<a href="#" onclick="soGotoPage({{ pagination.next_num }});return false;" class="btn-outline" style="padding:7px 14px;">Next →</a>{% endif %}
+        {% endif %}
+    </div>
+</div>
+
+<div id="soToast"></div>
+
+<!-- Confirm Modal -->
+<div class="so-modal-wrap" id="soConfirmModal">
+    <div class="so-modal-box" style="max-width:420px;">
+        <div class="so-modal-hdr">
+            <span id="soConfirmTitle" class="so-modal-title"></span>
+            <button class="so-modal-close" onclick="closeModal('soConfirmModal')">✕</button>
+        </div>
+        <div class="so-modal-body">
+            <p style="margin:0 0 8px;font-size:0.9rem;font-weight:700;color:#374151;">Selected: <span id="soConfirmCount" style="color:#1e3a5f;"></span></p>
+            <p id="soConfirmMsg" style="margin:0;font-size:0.85rem;color:#6b7280;line-height:1.6;"></p>
+        </div>
+        <div class="so-modal-foot">
+            <button class="smbtn-cancel" onclick="closeModal('soConfirmModal')">Cancel</button>
+            <button id="soConfirmBtn" class="smbtn-primary"></button>
+        </div>
+    </div>
+</div>
+
+<!-- Mail Modal -->
+<div class="so-modal-wrap" id="soMailModal">
+    <div class="so-modal-box" style="max-width:520px;">
+        <div class="so-modal-hdr">
+            <span class="so-modal-title">✉ Send Sample Order Email</span>
+            <button class="so-modal-close" onclick="closeModal('soMailModal')">✕</button>
+        </div>
+        <div class="so-modal-body" style="display:flex;flex-direction:column;gap:12px;">
+            <div>
+                <label style="font-size:0.78rem;font-weight:700;color:#374151;display:block;margin-bottom:4px;">Order No.</label>
+                <input id="soMailOrderNo" type="text" readonly style="width:100%;border:1.5px solid #e5e7eb;border-radius:8px;padding:8px 12px;font-size:0.85rem;background:#f9fafb;">
+            </div>
+            <div>
+                <label style="font-size:0.78rem;font-weight:700;color:#374151;display:block;margin-bottom:4px;">To Email *</label>
+                <input id="soMailTo" type="email" placeholder="client@example.com" style="width:100%;border:1.5px solid #e5e7eb;border-radius:8px;padding:8px 12px;font-size:0.85rem;outline:none;">
+            </div>
+            <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:10px 14px;font-size:0.82rem;color:#0369a1;">
+                📎 Sample Order PDF automatically attached hoga
+            </div>
+        </div>
+        <div class="so-modal-foot">
+            <button class="smbtn-cancel" onclick="closeModal('soMailModal')">Cancel</button>
+            <button class="smbtn-primary" onclick="sendSoMail()">📤 Send Mail</button>
+        </div>
+    </div>
+</div>
+
+<script>
+// ── State ─────────────────────────────────────────────────────
+let soTab     = '{{ tab }}';
+let soPage    = 1;
+let soTimer   = null;
+let _soMailId = null;
+
+// ── Modal ─────────────────────────────────────────────────────
+function openModal(id)  { document.getElementById(id).classList.add('show'); }
+function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+document.querySelectorAll('.so-modal-wrap').forEach(m =>
+    m.addEventListener('click', e => { if(e.target===m) m.classList.remove('show'); })
+);
+document.addEventListener('keydown', e => { if(e.key==='Escape') document.querySelectorAll('.so-modal-wrap.show').forEach(m=>m.classList.remove('show')); });
+
+// ── Toast ─────────────────────────────────────────────────────
+function soToast(msg, color) {
+    const t = document.getElementById('soToast');
+    t.textContent = msg; t.style.background = color||'#1e3a5f';
+    t.classList.add('show'); setTimeout(()=>t.classList.remove('show'), 3500);
+}
+
+// ── Search ────────────────────────────────────────────────────
+function soTriggerSearch() { clearTimeout(soTimer); soTimer = setTimeout(()=>{ soPage=1; soDoSearch(); }, 320); }
+function soClearFilters() {
+    document.getElementById('soSearch').value = '';
+    document.getElementById('soClearBtn').style.display = 'none';
+    soPage = 1; soDoSearch();
+}
+function switchTab(tab) {
+    soTab = tab; soPage = 1;
+    document.getElementById('tabActive').classList.toggle('active', tab==='active');
+    document.getElementById('tabDeleted').classList.toggle('active', tab==='deleted');
+    document.getElementById('soBulkActive').style.display  = tab==='active'  ? '' : 'none';
+    document.getElementById('soBulkDeleted').style.display = tab==='deleted' ? '' : 'none';
+    soDoSearch();
+}
+function soDoSearch() {
+    const q = document.getElementById('soSearch').value.trim();
+    document.getElementById('soClearBtn').style.display = q ? 'block' : 'none';
+    const url = new URL(window.location);
+    url.searchParams.set('search', q); url.searchParams.set('tab', soTab); url.searchParams.set('page', soPage);
+    window.history.replaceState({}, '', url);
+    fetch(url.toString(), {headers:{'X-Requested-With':'XMLHttpRequest'}})
+        .then(r=>r.json()).then(data => { soRenderRows(data); soRenderPagination(data); soUpdateCounts(data.active_count, data.deleted_count); });
+}
+function soGotoPage(p) { soPage = p; soDoSearch(); }
+function soUpdateCounts(a, d) {
+    document.getElementById('soTabCntActive').textContent  = a;
+    document.getElementById('soTabCntDeleted').textContent = d;
+}
+document.getElementById('soSearch').addEventListener('input', soTriggerSearch);
+if (document.getElementById('soSearch').value)
+    document.getElementById('soClearBtn').style.display = 'block';
+
+// ── Render rows ───────────────────────────────────────────────
+function soFmt(n) { return '₹ '+parseFloat(n).toLocaleString('en-IN',{minimumFractionDigits:2}); }
+function soEsc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+function soRenderRows(data) {
+    const tbody  = document.getElementById('soTbody');
+    const cards  = document.getElementById('soCards');
+    const empty  = document.getElementById('soEmpty');
+    const tblWrp = document.getElementById('soTblWrap');
+    const isDel  = soTab === 'deleted';
+    const offset = (soPage-1)*20;
+
+    if (!data.rows || data.rows.length === 0) {
+        if(tbody) tbody.innerHTML = '';
+        cards.querySelectorAll('.so-card').forEach(c=>c.remove());
+        empty.style.display = 'block'; tblWrp.style.display = 'none'; return;
+    }
+    empty.style.display = 'none'; tblWrp.style.display = 'block';
+
+    // Desktop
+    if (tbody) tbody.innerHTML = data.rows.map((so, i) => {
+        const actions = isDel
+            ? `<div style="display:flex;gap:5px;">
+                 <button onclick="soRestoreSingle(${so.id})" style="background:#ede9fe;color:#5b21b6;border:none;padding:5px 9px;border-radius:6px;font-size:0.75rem;font-weight:600;cursor:pointer;">♻️ Restore</button>
+                 <button onclick="soPermDelSingle(${so.id})"  style="background:#fef2f2;color:#dc2626;border:none;padding:5px 9px;border-radius:6px;font-size:0.75rem;font-weight:600;cursor:pointer;">🗑️ Forever</button>
+               </div>`
+            : `<div style="display:flex;gap:5px;flex-wrap:wrap;">
+                 <form method="POST" action="/crm/sample-orders/${so.id}/reprint" target="_blank" style="display:inline;">
+                   <button type="submit" style="background:#eff6ff;color:#1d4ed8;border:none;padding:5px 9px;border-radius:6px;font-size:0.75rem;font-weight:600;cursor:pointer;">📥 PDF</button>
+                 </form>
+                 <a href="/crm/leads/${so.lead_id}" style="background:#f0fdf4;color:#166534;padding:5px 9px;border-radius:6px;font-size:0.75rem;font-weight:600;text-decoration:none;display:inline-block;">👁 Lead</a>
+                 <button onclick="openSoMailModal(${so.id},'${soEsc(so.order_number)}','${soEsc(so.lead_email||so.bill_email)}')" style="background:#fdf4ff;color:#7c3aed;border:none;padding:5px 9px;border-radius:6px;font-size:0.75rem;font-weight:600;cursor:pointer;">✉ Mail</button>
+               </div>`;
+
+        const invoice = isDel
+            ? `<span style="font-size:0.75rem;color:#dc2626;">🗑️ ${so.deleted_at}</span>`
+            : so.invoice_file
+                ? `<div style="display:flex;flex-wrap:wrap;gap:4px;">
+                     <a href="/crm/sample-orders/${so.id}/invoice-download" class="inv-dl-btn">⬇ Download</a>
+                     <label class="inv-change-btn" for="inv-ajax-change-${so.id}">🔄 Change</label>
+                     <form method="POST" action="/crm/sample-orders/${so.id}/invoice-delete" style="display:inline;" onsubmit="return confirm('Delete?');">
+                       <button type="submit" class="inv-del-btn">✕</button>
+                     </form>
+                   </div>
+                   <form method="POST" action="/crm/sample-orders/${so.id}/invoice-upload" enctype="multipart/form-data" style="display:none;">
+                     <input type="file" id="inv-ajax-change-${so.id}" name="invoice_file" accept=".pdf,.jpg,.jpeg,.png" onchange="this.form.submit()">
+                   </form>
+                   <span class="inv-filename">📎 ${soEsc(so.invoice_file)}</span>`
+                : `<label class="inv-upload-btn" for="inv-ajax-upload-${so.id}">⬆ Invoice Upload</label>
+                   <form method="POST" action="/crm/sample-orders/${so.id}/invoice-upload" enctype="multipart/form-data" style="display:none;">
+                     <input type="file" id="inv-ajax-upload-${so.id}" name="invoice_file" accept=".pdf,.jpg,.jpeg,.png" onchange="this.form.submit()">
+                   </form>`;
+
+        return `<tr id="sorow-${so.id}">
+          <td style="text-align:center;"><input type="checkbox" class="so-chk so-row-chk" value="${so.id}" onchange="soOnRowCheck()"></td>
+          <td style="color:var(--text3);font-size:0.78rem;">${offset+i+1}</td>
+          <td><span style="font-weight:700;color:#1e3a5f;">${soEsc(so.order_number)}</span></td>
+          <td style="white-space:nowrap;">${so.order_date}</td>
+          <td><a href="/crm/leads/${so.lead_id}" style="color:var(--blue);font-weight:600;text-decoration:none;">${soEsc(so.contact_name)}</a>${so.company_name?`<div style="font-size:0.72rem;color:var(--text3);">${soEsc(so.company_name)}</div>`:''}</td>
+          <td>${soEsc(so.bill_company)}</td>
+          <td style="text-align:right;">${soFmt(so.sub_total)}</td>
+          <td style="text-align:right;color:var(--text2);">${so.gst_pct}%<div style="font-size:0.72rem;">${soFmt(so.gst_amount)}</div></td>
+          <td style="text-align:right;font-weight:700;color:#1e3a5f;">${soFmt(so.total_amount)}</td>
+          <td style="font-size:0.78rem;color:var(--text2);">${soEsc(so.creator)}<div style="font-size:0.7rem;color:var(--text3);">${so.created_at}</div></td>
+          <td>${actions}</td>
+          <td style="min-width:140px;">${invoice}</td>
+        </tr>`;
+    }).join('');
+
+    // Mobile cards — gradient header style
+    cards.querySelectorAll('.so-card').forEach(c=>c.remove());
+    data.rows.forEach(so => {
+        const div = document.createElement('div');
+        div.className = 'so-card'; div.id = `socard-${so.id}`;
+
+        const footerActions = isDel
+            ? `<button onclick="soRestoreSingle(${so.id})" style="flex:1;background:#ede9fe;color:#5b21b6;border:none;border-radius:9px;padding:9px;font-size:0.75rem;font-weight:700;cursor:pointer;">♻️ Restore</button>
+               <button onclick="soPermDelSingle(${so.id})"  style="flex:1;background:#fef2f2;color:#dc2626;border:none;border-radius:9px;padding:9px;font-size:0.75rem;font-weight:700;cursor:pointer;">🗑️ Forever</button>`
+            : `<form method="POST" action="/crm/sample-orders/${so.id}/reprint" target="_blank" style="flex:1;display:flex;">
+                 <button type="submit" style="flex:1;background:#eff6ff;color:#1d4ed8;border:none;border-radius:9px;cursor:pointer;font-size:0.75rem;font-weight:700;padding:9px;">📥 PDF</button>
+               </form>
+               <a href="/crm/leads/${so.lead_id}" style="flex:1;background:#f0fdf4;color:#166534;border-radius:9px;padding:9px;font-size:0.75rem;font-weight:700;text-decoration:none;text-align:center;display:flex;align-items:center;justify-content:center;">👁 Lead</a>
+               <button onclick="openSoMailModal(${so.id},'${soEsc(so.order_number)}','${soEsc(so.lead_email||so.bill_email)}')" style="flex:1;background:#fdf4ff;color:#7c3aed;border:none;border-radius:9px;padding:9px;font-size:0.75rem;font-weight:700;cursor:pointer;">✉ Mail</button>`;
+
+        const delBanner = isDel && so.deleted_at
+            ? `<div style="margin:0 14px 10px;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:8px 12px;font-size:0.78rem;color:#dc2626;">🗑️ Deleted on ${so.deleted_at}</div>` : '';
+
+        // Invoice section (only on active tab)
+        const invoiceSection = isDel ? '' : so.invoice_file
+            ? `<div style="padding:10px 14px 0;">
+                 <div style="background:#f5f3ff;border:1px solid #ddd6fe;border-radius:10px;padding:10px 12px;display:flex;align-items:center;justify-content:space-between;gap:8px;">
+                   <span style="font-size:0.75rem;color:#5b21b6;font-weight:600;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">📎 ${soEsc(so.invoice_file)}</span>
+                   <div style="display:flex;gap:6px;flex-shrink:0;">
+                     <a href="/crm/sample-orders/${so.id}/invoice-download" style="background:#eff6ff;color:#1d4ed8;padding:5px 9px;border-radius:6px;font-size:0.72rem;font-weight:700;text-decoration:none;">⬇</a>
+                     <label style="background:#fff7ed;color:#c2410c;padding:5px 9px;border-radius:6px;font-size:0.72rem;font-weight:700;cursor:pointer;" for="ajax-inv-ch-${so.id}">🔄</label>
+                     <form method="POST" action="/crm/sample-orders/${so.id}/invoice-delete" style="display:inline;" onsubmit="return confirm('Delete?');"><button type="submit" style="background:#fef2f2;color:#dc2626;border:none;padding:5px 9px;border-radius:6px;font-size:0.72rem;font-weight:700;cursor:pointer;">✕</button></form>
+                   </div>
+                   <form method="POST" action="/crm/sample-orders/${so.id}/invoice-upload" enctype="multipart/form-data" style="display:none;"><input type="file" id="ajax-inv-ch-${so.id}" name="invoice_file" accept=".pdf,.jpg,.jpeg,.png" onchange="this.form.submit()"></form>
+                 </div>
+               </div>`
+            : `<div style="padding:10px 14px 0;">
+                 <label for="ajax-inv-up-${so.id}" style="display:flex;align-items:center;justify-content:center;gap:6px;width:100%;background:#fdf4ff;color:#7c3aed;border:1.5px dashed #c4b5fd;padding:10px;border-radius:10px;font-size:0.82rem;font-weight:700;cursor:pointer;box-sizing:border-box;">⬆ Invoice Upload</label>
+                 <form method="POST" action="/crm/sample-orders/${so.id}/invoice-upload" enctype="multipart/form-data" style="display:none;"><input type="file" id="ajax-inv-up-${so.id}" name="invoice_file" accept=".pdf,.jpg,.jpeg,.png" onchange="this.form.submit()"></form>
+               </div>`;
+
+        div.innerHTML = `
+          <div class="so-card-hdr">
+            <input type="checkbox" class="so-chk so-row-chk" value="${so.id}" onchange="soOnRowCheck()" style="margin-top:3px;flex-shrink:0;accent-color:#fff;width:17px;height:17px;">
+            <div class="so-card-hdr-left">
+              <div class="so-card-num">${soEsc(so.order_number)}</div>
+              <div class="so-card-sub"><a href="/crm/leads/${so.lead_id}" style="color:#93c5fd;text-decoration:none;font-weight:700;">${soEsc(so.contact_name)}</a>${so.bill_company?' · '+soEsc(so.bill_company):''}</div>
+            </div>
+            <div class="so-card-hdr-right">
+              <div class="so-card-total-label">Total</div>
+              <div class="so-card-total-amt">₹${parseFloat(so.total_amount).toLocaleString('en-IN',{maximumFractionDigits:0})}</div>
+            </div>
+          </div>
+          <div class="so-card-body">
+            <div class="so-card-grid">
+              <div class="so-card-field"><label>Date</label><span>${so.order_date}</span></div>
+              <div class="so-card-field"><label>Created By</label><span>${soEsc(so.creator)}</span></div>
+            </div>
+            <div class="so-card-costs">
+              <div class="so-cost-item"><label>Sub Total</label><span>₹${parseFloat(so.sub_total).toLocaleString('en-IN',{maximumFractionDigits:0})}</span></div>
+              <div class="so-cost-item"><label>GST ${so.gst_pct}%</label><span>₹${parseFloat(so.gst_amount).toLocaleString('en-IN',{maximumFractionDigits:0})}</span></div>
+              <div class="so-cost-item"><label>Total</label><span>₹${parseFloat(so.total_amount).toLocaleString('en-IN',{maximumFractionDigits:0})}</span></div>
+            </div>
+          </div>
+          ${delBanner}
+          ${invoiceSection}
+          <div class="so-card-footer">${footerActions}</div>`;
+        cards.appendChild(div);
+    });
+}
+
+function soRenderPagination(data) {
+    const el = document.getElementById('soPagination'); if(!el) return;
+    if(data.pages<=1){el.innerHTML='';return;}
+    let h='';
+    if(data.page>1) h+=`<a href="#" onclick="soGotoPage(${data.page-1});return false;" class="btn-outline" style="padding:7px 14px;">← Prev</a>`;
+    h+=`<span style="color:var(--text2);">Page ${data.page} of ${data.pages}</span>`;
+    if(data.page<data.pages) h+=`<a href="#" onclick="soGotoPage(${data.page+1});return false;" class="btn-outline" style="padding:7px 14px;">Next →</a>`;
+    el.innerHTML=h;
+}
+
+// ── Checkbox ──────────────────────────────────────────────────
+function soGetIds() { return [...document.querySelectorAll('.so-row-chk:checked')].map(c=>c.value); }
+function soOnRowCheck() {
+    const ids=soGetIds(), total=document.querySelectorAll('.so-row-chk').length;
+    document.getElementById('soBulkCount').textContent=ids.length+' selected';
+    ids.length?document.getElementById('soBulkBar').classList.add('show'):document.getElementById('soBulkBar').classList.remove('show');
+    ['soChkAll','soChkAllMobile'].forEach(id=>{const el=document.getElementById(id);if(!el)return;el.indeterminate=ids.length>0&&ids.length<total;el.checked=ids.length===total;});
+    document.querySelectorAll('.so-row-chk').forEach(c=>{
+        const row=c.closest('tr'), card=document.getElementById('socard-'+c.value);
+        if(row) row.classList.toggle('row-sel',c.checked);
+        if(card) card.classList.toggle('selected',c.checked);
+    });
+}
+function soToggleAll(chk) {
+    document.querySelectorAll('.so-row-chk').forEach(c=>c.checked=chk.checked);
+    ['soChkAll','soChkAllMobile'].forEach(id=>{const el=document.getElementById(id);if(el)el.checked=chk.checked;});
+    soOnRowCheck();
+}
+function soClearSelection() {
+    document.querySelectorAll('.so-row-chk').forEach(c=>c.checked=false);
+    ['soChkAll','soChkAllMobile'].forEach(id=>{const el=document.getElementById(id);if(el)el.checked=false;});
+    soOnRowCheck();
+}
+
+// ── Bulk actions ──────────────────────────────────────────────
+function soConfirm(title, count, msg, btnTxt, btnCls, callback) {
+    document.getElementById('soConfirmTitle').textContent = title;
+    document.getElementById('soConfirmCount').textContent = count+' order(s)';
+    document.getElementById('soConfirmMsg').textContent   = msg;
+    const btn = document.getElementById('soConfirmBtn');
+    btn.textContent=btnTxt; btn.className=btnCls;
+    openModal('soConfirmModal');
+    btn.onclick=()=>{ closeModal('soConfirmModal'); callback(); };
+}
+function soPost(url, ids, cb) {
+    const fd=new FormData(); ids.forEach(id=>fd.append('ids[]',id));
+    fetch(url,{method:'POST',body:fd}).then(r=>r.json()).then(d=>{soToast(d.message,d.success?'#166534':'#dc2626');if(d.success){soClearSelection();soDoSearch();if(cb)cb();}});
+}
+function soBulkDelete() {
+    const ids=soGetIds(); if(!ids.length)return;
+    soConfirm('🗑️ Move to Deleted',ids.length,'Selected orders will be moved to Deleted tab.','Yes, Delete','smbtn-danger',()=>soPost('/crm/sample-orders/bulk-delete',ids));
+}
+function soBulkRestore() {
+    const ids=soGetIds(); if(!ids.length)return;
+    soConfirm('♻️ Restore Orders',ids.length,'Selected orders will be moved back to Active tab.','Yes, Restore','smbtn-primary',()=>soPost('/crm/sample-orders/bulk-restore',ids));
+}
+function soBulkPermDelete() {
+    const ids=soGetIds(); if(!ids.length)return;
+    soConfirm('⚠️ Permanent Delete',ids.length,'This CANNOT be undone. Records will be permanently removed.','Delete Forever','smbtn-danger',()=>soPost('/crm/sample-orders/bulk-permanent-delete',ids));
+}
+function soRestoreSingle(id) { soPost('/crm/sample-orders/bulk-restore',[id]); }
+function soPermDelSingle(id) {
+    soConfirm('⚠️ Permanent Delete',1,'This CANNOT be undone.','Delete Forever','smbtn-danger',()=>soPost('/crm/sample-orders/bulk-permanent-delete',[id]));
+}
+
+// ── Mail Modal ────────────────────────────────────────────────
+function openSoMailModal(soId, orderNo, email) {
+    _soMailId=soId;
+    document.getElementById('soMailOrderNo').value=orderNo;
+    document.getElementById('soMailTo').value=email||'';
+    openModal('soMailModal');
+    document.getElementById('soMailTo').focus();
+}
+function sendSoMail() {
+    const toEmail=document.getElementById('soMailTo').value.trim();
+    if(!toEmail){soToast('Email address required!','#dc2626');return;}
+    if(!_soMailId)return;
+    const form=document.createElement('form');
+    form.method='POST'; form.action='/mail/sample-orders/'+_soMailId+'/send';
+    const f1=document.createElement('input'); f1.type='hidden'; f1.name='to_email'; f1.value=toEmail; form.appendChild(f1);
+    const f2=document.createElement('input'); f2.type='hidden'; f2.name='redirect_url'; f2.value=window.location.pathname; form.appendChild(f2);
+    document.body.appendChild(form); form.submit();
+}
+
+// Init bulk bar visibility
+document.getElementById('soBulkActive').style.display  = soTab==='active'  ? '' : 'none';
+document.getElementById('soBulkDeleted').style.display = soTab==='deleted' ? '' : 'none';
+</script>
+{% endblock %}

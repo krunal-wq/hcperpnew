@@ -195,7 +195,9 @@
               ('whatsapp','WhatsApp'),('sample_order','Sample Order'),
               ('quotation','Quotation'),('send_npd','Send NPD'),
               ('create_npd','NPD Project Create'),('create_epd','EPD Project Create'),
-              ('restore','Restore'),('permanent_delete','Permanent Delete')
+              ('attachments','Attachments'),
+              ('restore','Restore'),('permanent_delete','Permanent Delete'),
+              ('view_deleted','View Deleted Tab')
             ], uid) }}
           </div>
         </div>
@@ -209,7 +211,8 @@
               ('filter','Filter'),('sort','Sort'),('columns','Columns'),
               ('inline_edit','Inline Edit'),('create_npd','Create NPD Project'),
               ('create_epd','Create EPD Project'),('npd_quote','Send NPD Quote'),
-              ('restore','Restore'),('permanent_delete','Permanent Delete')
+              ('restore','Restore'),('permanent_delete','Permanent Delete'),
+              ('view_deleted','View Deleted Tab')
             ], uid) }}
           </div>
         </div>
@@ -218,11 +221,24 @@
         <div class="sm">
           <div class="sm-hdr" onclick="tog(this,'s-sample')"><span class="sm-arrow" id="a-s-sample">▶</span><span class="sm-nm">🧾 Sample Orders</span></div>
           <div class="sm-body" id="s-sample">
-            {{ prow('crm','Sample Orders',uid) }}
-            {{ chips('crm',[
-              ('sample_pdf','PDF Download'),('sample_lead_view','Lead View'),
-              ('sample_mail','Mail Send'),('invoice_upload','Invoice Upload'),
-              ('sample_restore','Restore'),('sample_perm_delete','Permanent Delete')
+            {% set _so_mo = modules|selectattr('name','eq','crm_leads')|first %}
+            {% if _so_mo %}
+            {% set _so_mid = _so_mo.id %}
+            {% set _so_up  = perm_map.get(_so_mid) %}
+            {% set _so_rp  = role_perm_map.get(_so_mid) %}
+            {% set _so_cv  = _so_up.can_view   if _so_up else (_so_rp.can_view   if _so_rp else true) %}
+            {% set _so_cd  = _so_up.can_delete if _so_up else (_so_rp.can_delete if _so_rp else false) %}
+            <div class="pr">
+              <span class="pr-lbl">Sample Orders</span>
+              <div class="pi"><span class="pi-lbl">View</span><button class="tg {{ 'on' if _so_cv else 'off' }}" data-uid="{{ uid }}" data-mid="{{ _so_mid }}" data-action="can_view" onclick="tP(this)"></button></div>
+              <div class="pi"><span class="pi-lbl">Delete</span><button class="tg {{ 'on' if _so_cd else 'off' }}" data-uid="{{ uid }}" data-mid="{{ _so_mid }}" data-action="can_delete" onclick="tP(this)"></button></div>
+            </div>
+            {% endif %}
+            {{ chips('crm_leads',[
+              ('lead_view','Lead View'),('invoice_download','Invoice Download'),
+              ('pdf_download','Download Sample Order PDF'),('mail_send','Mail Send'),
+              ('invoice_upload','Invoice Upload'),('view_deleted','View Deleted Tab'),
+              ('restore','Restore'),('permanent_delete','Permanent Delete')
             ], uid) }}
           </div>
         </div>
@@ -231,16 +247,27 @@
         <div class="sm">
           <div class="sm-hdr" onclick="tog(this,'s-quot')"><span class="sm-arrow" id="a-s-quot">▶</span><span class="sm-nm">📄 Quotations</span></div>
           <div class="sm-body" id="s-quot">
-            {{ prow('crm','Quotations',uid) }}
-            {{ chips('crm',[
-              ('quot_pdf','Download PDF'),('quot_mail','Send Email'),
-              ('quot_status','Status Change'),
-              ('quot_restore','Restore'),('quot_perm_delete','Permanent Delete')
+            {% set _qt_mo = modules|selectattr('name','eq','crm_leads')|first %}
+            {% if _qt_mo %}
+            {% set _qt_mid = _qt_mo.id %}
+            {% set _qt_up  = perm_map.get(_qt_mid) %}
+            {% set _qt_rp  = role_perm_map.get(_qt_mid) %}
+            {% set _qt_cv  = _qt_up.can_view   if _qt_up else (_qt_rp.can_view   if _qt_rp else true) %}
+            {% set _qt_cd  = _qt_up.can_delete if _qt_up else (_qt_rp.can_delete if _qt_rp else false) %}
+            <div class="pr">
+              <span class="pr-lbl">Quotations</span>
+              <div class="pi"><span class="pi-lbl">View</span><button class="tg {{ 'on' if _qt_cv else 'off' }}" data-uid="{{ uid }}" data-mid="{{ _qt_mid }}" data-action="can_view" onclick="tP(this)"></button></div>
+              <div class="pi"><span class="pi-lbl">Delete</span><button class="tg {{ 'on' if _qt_cd else 'off' }}" data-uid="{{ uid }}" data-mid="{{ _qt_mid }}" data-action="can_delete" onclick="tP(this)"></button></div>
+            </div>
+            {% endif %}
+            {{ chips('crm_leads',[
+              ('quotation','Create Quotation'),('send_email','Quot: Send Email'),
+              ('status_change','Quot: Status Change')
             ], uid) }}
           </div>
         </div>
 
-        {# Settings #}
+                {# Settings #}
         <div class="sm">
           <div class="sm-hdr" onclick="tog(this,'s-crm-set')"><span class="sm-arrow" id="a-s-crm-set">▶</span><span class="sm-nm">⚙️ CRM Settings</span></div>
           <div class="sm-body" id="s-crm-set">
@@ -301,7 +328,8 @@
               ('activity_log','Activity Log'),('attachments','Attachments'),
               ('notes','Notes'),('milestone','Milestone'),
               ('close_project','Close Project'),
-              ('restore','Restore'),('permanent_delete','Permanent Delete')
+              ('restore','Restore'),('permanent_delete','Permanent Delete'),
+              ('view_deleted','View Deleted Tab')
             ], uid) }}
           </div>
         </div>
@@ -366,7 +394,8 @@
               ('salary_details','Salary Details'),('bank_details','Bank Details'),
               ('kyc_details','KYC Details'),('documents','Documents'),
               ('org_chart','Org Chart'),
-              ('restore','Restore'),('permanent_delete','Permanent Delete')
+              ('restore','Restore'),('permanent_delete','Permanent Delete'),
+              ('view_deleted','View Deleted Tab')
             ], uid) }}
           </div>
         </div>
@@ -418,7 +447,8 @@
             {{ chips('hr_contractors',[
               ('filter','Filter'),('sort','Sort'),('columns','Columns'),
               ('inline_edit','Inline Edit'),
-              ('restore','Restore'),('permanent_delete','Permanent Delete')
+              ('restore','Restore'),('permanent_delete','Permanent Delete'),
+              ('view_deleted','View Deleted Tab')
             ], uid) }}
           </div>
         </div>

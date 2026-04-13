@@ -337,7 +337,7 @@
                         <span style="width:20px;text-align:center;">📄</span> Create Quotation
                     </button>
                     {% endif %}
-                    {% if perm and perm.can_edit %}
+                    {% if sub_perms.send_npd %}
                     <button onclick="openNpdModal();toggleLeadMenu();" style="width:100%;display:flex;align-items:center;gap:10px;padding:10px 14px;font-size:0.85rem;color:#374151;background:none;border:none;cursor:pointer;text-align:left;transition:background .12s;">
                         <span style="width:20px;text-align:center;">✉️</span> Send NPD Project
                     </button>
@@ -349,7 +349,7 @@
                     <form id="form-epd-convert" method="POST" action="/npd/convert-lead/{{ lead.id }}/existing"></form>
 
                     {# ── NPD Button ── #}
-                    {% if perm and perm.can_add %}
+                    {% if sub_perms.create_npd %}
                     <button type="button"
                         onclick="openConvertModal('npd', {% if lead.client_id %}true{% else %}false{% endif %}); toggleLeadMenu();"
                         style="width:100%;display:flex;align-items:center;gap:10px;padding:10px 14px;font-size:0.85rem;color:#7c3aed;background:none;border:none;cursor:pointer;text-align:left;transition:background .12s;font-weight:600;">
@@ -364,7 +364,7 @@
                     {% endif %}
 
                     {# ── EPD Button ── #}
-                    {% if perm and perm.can_add %}
+                    {% if sub_perms.create_epd %}
                     <button type="button"
                         onclick="openConvertModal('existing', {% if lead.client_id %}true{% else %}false{% endif %}); toggleLeadMenu();"
                         style="width:100%;display:flex;align-items:center;gap:10px;padding:10px 14px;font-size:0.85rem;color:#059669;background:none;border:none;cursor:pointer;text-align:left;transition:background .12s;font-weight:600;">
@@ -379,7 +379,7 @@
                     {% endif %}
 
                     <div style="border-top:1px solid #f1f5f9;margin:2px 0;"></div>
-                    {% if perm and perm.can_edit %}
+                    {% if sub_perms.change_status %}
                     <button onclick="document.getElementById('statusModal').style.display='flex';toggleLeadMenu();" style="width:100%;display:flex;align-items:center;gap:10px;padding:10px 14px;font-size:0.85rem;color:#374151;background:none;border:none;cursor:pointer;text-align:left;transition:background .12s;">
                         <span style="width:20px;text-align:center;">🔄</span> Change Status
                     </button>
@@ -1356,6 +1356,7 @@ Quotation valid for 30 days from date of issue.</textarea>
     </div>
 </div>
 
+{% if sub_perms.change_status %}
 <!-- Status Change Modal -->
 <div id="statusModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:1000;align-items:center;justify-content:center;">
     <div style="background:#fff;border-radius:16px;padding:1.5rem;min-width:300px;box-shadow:0 20px 60px rgba(0,0,0,0.2);">
@@ -1377,6 +1378,7 @@ Quotation valid for 30 days from date of issue.</textarea>
         </form>
     </div>
 </div>
+{% endif %}
 
 <script>
 const now = new Date();

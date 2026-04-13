@@ -65,12 +65,19 @@ app.register_blueprint(hr_rules_bp)
 # ── get_perm as Jinja2 global — template mein use ho sakta hai ──
 from permissions import get_perm as _get_perm
 app.jinja_env.globals['get_perm'] = _get_perm
+from permissions import get_sub_perm as _get_sub_perm
+app.jinja_env.globals['get_sub_perm'] = _get_sub_perm
 
 # Seed HR master defaults
 with app.app_context():
     try:
         from hr_master_routes import seed_defaults
         seed_defaults()
+    except Exception:
+        pass
+    try:
+        from permissions import seed_permissions
+        seed_permissions()
     except Exception:
         pass
 
@@ -213,6 +220,16 @@ def logout():
     flash('Logged out.', 'info')
     return redirect(url_for('login'))
 
+
+@app.route('/seed-modules')
+def seed_modules():
+    """Seed missing modules without full setup — call once after adding new modules."""
+    from permissions import seed_permissions
+    try:
+        seed_permissions()
+        return '✅ Modules seeded successfully! New modules added to DB.'
+    except Exception as e:
+        return f'❌ Error: {e}', 500
 
 @app.route('/setup')
 def setup():

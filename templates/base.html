@@ -122,9 +122,12 @@
                 {% if _perm_clients is none or _perm_clients.can_view != false %}
                 <a class="nav-a" href="/crm/clients"><span class="nav-ic">👥</span><span class="nav-txt">Client Master</span></a>
                 {% endif %}
+                {% set _perm_leads = get_perm('crm_leads') %}
+                {% if _perm_leads is none or _perm_leads.can_view != false %}
                 <a class="nav-a" href="/crm/sample-orders"><span class="nav-ic">🧾</span><span class="nav-txt">Sample Orders</span></a>
                 <a class="nav-a" href="/crm/quotations"><span class="nav-ic">📄</span><span class="nav-txt">Quotations</span></a>
                 <a class="nav-a" href="/crm/quotations/products"><span class="nav-ic">📋</span><span class="nav-txt">Quot. Product List</span></a>
+                {% endif %}
             </div>
         </div>
         {% endif %}
@@ -241,8 +244,10 @@
             <a class="nav-a {% if _pg == 'clients' %}active{% endif %}" href="/crm/clients">
                 <span class="nav-ic">👥</span><span class="nav-txt">Client Master</span>
             </a>
+            {% set _perm_leads = get_perm('crm_leads') %}
+            {% if _perm_leads is none or _perm_leads.can_view != false %}
             <a class="nav-a {% if _pg == 'sample_orders' %}active{% endif %}" href="/crm/sample-orders">
-                <span class="nav-ic">📋</span><span class="nav-txt">Sample Orders</span>
+                <span class="nav-ic">🧾</span><span class="nav-txt">Sample Orders</span>
             </a>
             <a class="nav-a {% if _pg == 'quotations' %}active{% endif %}" href="/crm/quotations">
                 <span class="nav-ic">📄</span><span class="nav-txt">Quotations</span>
@@ -250,6 +255,7 @@
             <a class="nav-a {% if _pg == 'quotation_products' %}active{% endif %}" href="/crm/quotations/products">
                 <span class="nav-ic">📋</span><span class="nav-txt">Quot. Product List</span>
             </a>
+            {% endif %}
 
             {# ── Leaderboard — directly visible ── #}
             <a class="nav-a {% if _pg == 'leaderboard' %}active{% endif %}" href="/crm/leaderboard">

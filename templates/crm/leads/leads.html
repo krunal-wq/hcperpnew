@@ -206,17 +206,18 @@
           <span style="margin-left:auto;font-size:.75rem;font-weight:700;color:{{ ls.color }};">{{ counts.get(ls.name, 0) }}</span>
         </a>
         {% endfor %}
-        <div style="height:1px;background:var(--border);margin:2px 0;"></div>
-        {% if perm and perm.can_delete %}
-        <a href="{{ url_for('crm.leads', trash=1) }}"
-           class="status-dd-item {{ 'active' if show_trash }}"
-           style="display:flex;align-items:center;gap:.5rem;padding:.55rem .9rem;font-size:.83rem;font-weight:600;color:#dc2626;text-decoration:none;transition:background .1s;">
-          <span style="width:18px;text-align:center;">🗑️</span> Deleted
-          {% if deleted_count %}<span style="margin-left:auto;font-size:.75rem;font-weight:700;background:#fee2e2;color:#dc2626;padding:1px 6px;border-radius:10px;">{{ deleted_count }}</span>{% endif %}
-        </a>
-        {% endif %}
       </div>
     </div>
+
+    {% if can_view_deleted %}
+    <a href="{{ url_for('crm.leads', trash=1) }}"
+       class="btn-grid-action {{ 'active' if show_trash }}"
+       style="{{ 'background:#fef2f2;color:#dc2626;border-color:#fca5a5;' if show_trash }}">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+      Deleted
+      {% if deleted_count %}<span style="background:#dc2626;color:#fff;font-size:.6rem;font-weight:800;padding:1px 5px;border-radius:10px;margin-left:3px;">{{ deleted_count }}</span>{% endif %}
+    </a>
+    {% endif %}
 
     <div class="grid-toolbar-right">
       <button class="btn-grid-action danger" id="bulkDeleteBtn" style="display:none;" onclick="bulkDelete()">
@@ -491,7 +492,11 @@
         </div>
         <div class="ld-card-hdr-info">
           <div class="ld-card-name">
+            {% if perm and perm.can_view %}
             <a href="{{ url_for('crm.lead_view', id=l.id) }}" style="color:#fff;text-decoration:none;">{{ l.contact_name }}</a>
+            {% else %}
+            <span style="color:#fff;">{{ l.contact_name }}</span>
+            {% endif %}
           </div>
           {% if l.company %}<div class="ld-card-company">🏢 {{ l.company }}</div>{% endif %}
         </div>
@@ -549,13 +554,24 @@
         </span>
         <div class="ld-card-actions">
           {% if show_trash %}
+          {% if can_restore %}
           <form method="POST" action="{{ url_for('crm.lead_restore', id=l.id) }}" style="display:inline;">
             <button type="submit" style="background:#ede9fe;color:#5b21b6;width:auto;padding:6px 12px;border-radius:8px;border:none;font-size:0.75rem;font-weight:700;cursor:pointer;">♻️ Restore</button>
           </form>
+          {% endif %}
+          {% if can_permanent_delete %}
+          <form method="POST" action="{{ url_for('crm.lead_permanent_delete', id=l.id) }}" style="display:inline;" onsubmit="return confirm('Permanently delete this lead? This cannot be undone!')">
+            <button type="submit" style="background:#fee2e2;color:#dc2626;width:auto;padding:6px 12px;border-radius:8px;border:none;font-size:0.75rem;font-weight:700;cursor:pointer;">🗑️ Delete Forever</button>
+          </form>
+          {% endif %}
           {% else %}
+          {% if perm and perm.can_view %}
           <a href="{{ url_for('crm.lead_view', id=l.id) }}" class="ld-action-view" title="View">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
           </a>
+          {% else %}
+          <span style="width:34px;height:34px;display:inline-block;flex-shrink:0;"></span>
+          {% endif %}
           {% if perm and perm.can_edit %}
           <a href="{{ url_for('crm.lead_edit', id=l.id) }}" class="ld-action-edit" title="Edit">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
@@ -599,7 +615,7 @@
           </tr>
         </thead>
         <tbody>
-          {%- set can_inline_edit = perm and perm.can_edit -%}
+          {#- can_inline_edit is passed from route (inline_edit sub-perm) -#}
           {% for l in leads %}
           <tr class="lead-row" data-id="{{ l.id }}"
               data-search="{{ [l.contact_name, l.company or '', l.product_name or '', l.source or '', l.city or '', l.email or '', l.phone or '']|join(' ')|lower }}"
@@ -611,7 +627,7 @@
             <td style="font-size:12px;color:var(--text2);white-space:nowrap;">{{ l.created_at.strftime('%d-%m-%Y') if l.created_at else '—' }}</td>
             {% elif col == 'name' %}
             <td class="{{ 'ie-cell' if can_inline_edit else '' }}" data-field="contact_name" data-val="{{ l.contact_name or '' }}" data-type="text" {% if can_inline_edit %}onclick="ieActivate(this)"{% endif %}>
-              <div class="ie-view"><a href="{{ url_for('crm.lead_view', id=l.id) }}" class="entity-link" onclick="event.stopPropagation()">{{ l.contact_name }}</a>{% if l.company %}<div style="font-size:11px;color:var(--text3);margin-top:1px;">{{ l.company }}</div>{% endif %}{% if can_inline_edit %}<span class="ie-pencil">✎</span>{% endif %}</div>
+              <div class="ie-view">{% if perm and perm.can_view %}<a href="{{ url_for('crm.lead_view', id=l.id) }}" class="entity-link" onclick="event.stopPropagation()">{{ l.contact_name }}</a>{% else %}<span>{{ l.contact_name }}</span>{% endif %}{% if l.company %}<div style="font-size:11px;color:var(--text3);margin-top:1px;">{{ l.company }}</div>{% endif %}{% if can_inline_edit %}<span class="ie-pencil">✎</span>{% endif %}</div>
             </td>
             {% elif col == 'company' %}
             <td class="{{ 'ie-cell' if can_inline_edit else '' }}" data-field="company_name" data-val="{{ l.company or '' }}" data-type="text" {% if can_inline_edit %}onclick="ieActivate(this)"{% endif %}>
@@ -694,16 +710,29 @@
             <td>
               <div class="row-actions">
                 {% if show_trash %}
+                  {% if can_restore %}
                   <form method="POST" action="{{ url_for('crm.lead_restore', id=l.id) }}" style="display:inline;" data-no-review>
                     <button type="submit" class="ra-btn restore-btn" title="Restore">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.63"/></svg>
                       Restore
                     </button>
                   </form>
+                  {% endif %}
+                  {% if can_permanent_delete %}
+                  <form method="POST" action="{{ url_for('crm.lead_permanent_delete', id=l.id) }}" style="display:inline;" data-no-review onsubmit="return confirm('Permanently delete this lead? This cannot be undone!')">
+                    <button type="submit" class="ra-btn danger" title="Delete Forever">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
+                    </button>
+                  </form>
+                  {% endif %}
                 {% else %}
+                  {% if perm and perm.can_view %}
                   <a href="{{ url_for('crm.lead_view', id=l.id) }}" class="ra-btn" title="View">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
                   </a>
+                  {% else %}
+                  <span style="width:28px;height:28px;display:inline-block;flex-shrink:0;"></span>
+                  {% endif %}
                   {% if perm and perm.can_edit %}
                   <a href="{{ url_for('crm.lead_edit', id=l.id) }}" class="ra-btn" title="Edit">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
@@ -728,7 +757,7 @@
           <tr><td colspan="{{ grid_cols|length + 3 }}">
             <div class="grid-empty">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-              <p>No leads found. <a href="{{ url_for('crm.lead_add') }}">Add first lead →</a></p>
+              <p>No leads found. {% if perm and perm.can_add %}<a href="{{ url_for('crm.lead_add') }}">Add first lead →</a>{% endif %}</p>
             </div>
           </td></tr>
           {% endfor %}
@@ -769,7 +798,9 @@
           {% if l.company %}<div class="kb-card-co">🏢 {{ l.company }}</div>{% endif %}
           <div class="kb-card-foot">
             <span class="kb-card-prod">{{ l.product_name or '—' }}</span>
+            {% if perm and perm.can_view %}
             <a href="{{ url_for('crm.lead_view', id=l.id) }}" style="font-size:.67rem;color:#2563eb;text-decoration:none;font-weight:600;" onclick="event.stopPropagation()">View →</a>
+            {% endif %}
           </div>
         </div>
         {% else %}

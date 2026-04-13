@@ -142,21 +142,23 @@ input[type=checkbox].so-chk { width:17px; height:17px; accent-color:#1e3a5f; cur
            class="so-tab {% if tab != 'deleted' %}active{% endif %}" id="tabActive">
             📋 Active <span class="tab-cnt" id="soTabCntActive">{{ active_count }}</span>
         </a>
+        {% if so_sub and so_sub.view_deleted %}
         <a href="#" onclick="switchTab('deleted');return false;"
            class="so-tab tab-del {% if tab == 'deleted' %}active{% endif %}" id="tabDeleted">
             🗑️ Deleted <span class="tab-cnt" id="soTabCntDeleted">{{ deleted_count }}</span>
         </a>
+        {% endif %}
     </div>
 
     <!-- Bulk Bar -->
     <div id="soBulkBar">
         <span id="soBulkCount" style="font-size:0.82rem;font-weight:700;"></span>
         <span id="soBulkActive">
-            <button class="so-bulk-btn so-bulk-del" onclick="soBulkDelete()">🗑️ Delete</button>
+            {% if perm and perm.can_delete %}<button class="so-bulk-btn so-bulk-del" onclick="soBulkDelete()">🗑️ Delete</button>{% endif %}
         </span>
         <span id="soBulkDeleted" style="display:none;">
-            <button class="so-bulk-btn so-bulk-restore" onclick="soBulkRestore()">♻️ Restore</button>
-            <button class="so-bulk-btn so-bulk-perm"    onclick="soBulkPermDelete()">🗑️ Delete Forever</button>
+            {% if so_sub and so_sub.restore %}<button class="so-bulk-btn so-bulk-restore" onclick="soBulkRestore()">♻️ Restore</button>{% endif %}
+            {% if so_sub and so_sub.permanent_delete %}<button class="so-bulk-btn so-bulk-perm" onclick="soBulkPermDelete()">🗑️ Delete Forever</button>{% endif %}
         </span>
         <button class="so-bulk-desel" onclick="soClearSelection()">✕ Deselect</button>
     </div>
@@ -176,10 +178,10 @@ input[type=checkbox].so-chk { width:17px; height:17px; accent-color:#1e3a5f; cur
             <tr id="sorow-{{ so.id }}">
                 <td style="text-align:center;"><input type="checkbox" class="so-chk so-row-chk" value="{{ so.id }}" onchange="soOnRowCheck()"></td>
                 <td style="color:var(--text3);font-size:0.78rem;">{{ loop.index + (pagination.page-1)*pagination.per_page }}</td>
-                <td><span style="font-weight:700;color:#1e3a5f;">{{ so.order_number }}</span></td>
+                <td>{% if perm and perm.can_view %}<a href="{{ url_for('crm.sample_order_view', id=so.id) }}" style="font-weight:700;color:#1e3a5f;text-decoration:none;">{{ so.order_number }}</a>{% else %}<span style="font-weight:700;color:#1e3a5f;">{{ so.order_number }}</span>{% endif %}</td>
                 <td style="white-space:nowrap;">{{ so.order_date.strftime('%d-%m-%Y') }}</td>
                 <td>
-                    <a href="{{ url_for('crm.lead_view', id=so.lead_id) }}" style="color:var(--blue);font-weight:600;text-decoration:none;">{{ so.lead.contact_name or 'N/A' }}</a>
+                    {% if so_sub and so_sub.lead_view %}<a href="{{ url_for('crm.lead_view', id=so.lead_id) }}" style="color:var(--blue);font-weight:600;text-decoration:none;">{{ so.lead.contact_name or 'N/A' }}</a>{% else %}<span style="font-weight:600;">{{ so.lead.contact_name or 'N/A' }}</span>{% endif %}
                     {% if so.lead.company_name %}<div style="font-size:0.73rem;color:var(--text3);">{{ so.lead.company_name }}</div>{% endif %}
                 </td>
                 <td>{{ so.bill_company or '—' }}</td>
@@ -190,16 +192,19 @@ input[type=checkbox].so-chk { width:17px; height:17px; accent-color:#1e3a5f; cur
                 <td>
                     {% if tab == 'deleted' %}
                     <div style="display:flex;gap:5px;">
-                        <button onclick="soRestoreSingle({{ so.id }})" style="background:#ede9fe;color:#5b21b6;border:none;padding:5px 9px;border-radius:6px;font-size:0.75rem;font-weight:600;cursor:pointer;">♻️ Restore</button>
-                        <button onclick="soPermDelSingle({{ so.id }})" style="background:#fef2f2;color:#dc2626;border:none;padding:5px 9px;border-radius:6px;font-size:0.75rem;font-weight:600;cursor:pointer;">🗑️ Forever</button>
+                        {% if so_sub and so_sub.restore %}<button onclick="soRestoreSingle({{ so.id }})" style="background:#ede9fe;color:#5b21b6;border:none;padding:5px 9px;border-radius:6px;font-size:0.75rem;font-weight:600;cursor:pointer;">♻️ Restore</button>{% endif %}
+                        {% if so_sub and so_sub.permanent_delete %}<button onclick="soPermDelSingle({{ so.id }})" style="background:#fef2f2;color:#dc2626;border:none;padding:5px 9px;border-radius:6px;font-size:0.75rem;font-weight:600;cursor:pointer;">🗑️ Forever</button>{% endif %}
                     </div>
                     {% else %}
                     <div style="display:flex;gap:5px;flex-wrap:wrap;">
+                        {% if so_sub and so_sub.pdf_download %}
                         <form method="POST" action="{{ url_for('crm.sample_order_reprint', id=so.id) }}" target="_blank" style="display:inline;">
                             <button type="submit" style="background:#eff6ff;color:#1d4ed8;border:none;padding:5px 9px;border-radius:6px;font-size:0.75rem;font-weight:600;cursor:pointer;">📥 PDF</button>
                         </form>
-                        <a href="{{ url_for('crm.lead_view', id=so.lead_id) }}" style="background:#f0fdf4;color:#166534;border:none;padding:5px 9px;border-radius:6px;font-size:0.75rem;font-weight:600;text-decoration:none;display:inline-block;">👁 Lead</a>
-                        <button onclick="openSoMailModal({{ so.id }},'{{ so.order_number }}','{{ so.lead.email if so.lead and so.lead.email else so.bill_email or '' }}')" style="background:#fdf4ff;color:#7c3aed;border:none;padding:5px 9px;border-radius:6px;font-size:0.75rem;font-weight:600;cursor:pointer;">✉ Mail</button>
+                        {% endif %}
+                        {% if so_sub and so_sub.lead_view %}<a href="{{ url_for('crm.lead_view', id=so.lead_id) }}" style="background:#f0fdf4;color:#166534;border:none;padding:5px 9px;border-radius:6px;font-size:0.75rem;font-weight:600;text-decoration:none;display:inline-block;">👁 Lead</a>{% endif %}
+                        {% if so_sub and so_sub.mail_send %}<button onclick="openSoMailModal({{ so.id }},'{{ so.order_number }}','{{ so.lead.email if so.lead and so.lead.email else so.bill_email or '' }}')" style="background:#fdf4ff;color:#7c3aed;border:none;padding:5px 9px;border-radius:6px;font-size:0.75rem;font-weight:600;cursor:pointer;">✉ Mail</button>{% endif %}
+                        {% if perm and perm.can_delete %}<button onclick="soDelSingle({{ so.id }})" style="background:#fef2f2;color:#dc2626;border:none;padding:5px 9px;border-radius:6px;font-size:0.75rem;font-weight:600;cursor:pointer;">🗑️</button>{% endif %}
                     </div>
                     {% endif %}
                 </td>
@@ -207,7 +212,7 @@ input[type=checkbox].so-chk { width:17px; height:17px; accent-color:#1e3a5f; cur
                     {% if tab != 'deleted' %}
                     {% if so.invoice_file %}
                     <div style="display:flex;flex-wrap:wrap;gap:4px;">
-                        <a href="{{ url_for('crm.sample_order_invoice_download', id=so.id) }}" class="inv-dl-btn">⬇ Download</a>
+                        {% if so_sub and so_sub.invoice_download %}<a href="{{ url_for('crm.sample_order_invoice_download', id=so.id) }}" class="inv-dl-btn">⬇ Download</a>{% endif %}
                         <label class="inv-change-btn" for="inv-change-{{ so.id }}">🔄 Change</label>
                         <form method="POST" action="{{ url_for('crm.sample_order_invoice_delete', id=so.id) }}" style="display:inline;" onsubmit="return confirm('Invoice delete karein?');">
                             <button type="submit" class="inv-del-btn">✕</button>
@@ -218,10 +223,12 @@ input[type=checkbox].so-chk { width:17px; height:17px; accent-color:#1e3a5f; cur
                     </form>
                     <span class="inv-filename" title="{{ so.invoice_file }}">📎 {{ so.invoice_file }}</span>
                     {% else %}
+                    {% if so_sub and so_sub.invoice_upload %}
                     <label class="inv-upload-btn" for="inv-upload-{{ so.id }}">⬆ Invoice Upload</label>
                     <form method="POST" action="{{ url_for('crm.sample_order_invoice_upload', id=so.id) }}" enctype="multipart/form-data" style="display:none;">
                         <input type="file" id="inv-upload-{{ so.id }}" name="invoice_file" accept=".pdf,.jpg,.jpeg,.png" onchange="this.form.submit()">
                     </form>
+                    {% endif %}
                     {% endif %}
                     {% else %}
                     <span style="font-size:0.75rem;color:#dc2626;">🗑️ {{ so.deleted_at.strftime('%d-%m-%Y') if so.deleted_at else '' }}</span>
@@ -247,9 +254,9 @@ input[type=checkbox].so-chk { width:17px; height:17px; accent-color:#1e3a5f; cur
                 <input type="checkbox" class="so-chk so-row-chk" value="{{ so.id }}" onchange="soOnRowCheck()"
                     style="margin-top:3px;flex-shrink:0;accent-color:#fff;width:17px;height:17px;">
                 <div class="so-card-hdr-left">
-                    <div class="so-card-num">{{ so.order_number }}</div>
+                    <div class="so-card-num">{% if perm and perm.can_view %}<a href="{{ url_for('crm.sample_order_view', id=so.id) }}" style="color:inherit;text-decoration:none;">{{ so.order_number }}</a>{% else %}{{ so.order_number }}{% endif %}</div>
                     <div class="so-card-sub">
-                        <a href="{{ url_for('crm.lead_view', id=so.lead_id) }}" style="color:#93c5fd;text-decoration:none;font-weight:700;">{{ so.lead.contact_name or 'N/A' }}</a>
+                        {% if so_sub and so_sub.lead_view %}<a href="{{ url_for('crm.lead_view', id=so.lead_id) }}" style="color:#93c5fd;text-decoration:none;font-weight:700;">{{ so.lead.contact_name or 'N/A' }}</a>{% else %}<span style="font-weight:700;color:#93c5fd;">{{ so.lead.contact_name or 'N/A' }}</span>{% endif %}
                         {% if so.bill_company %} · {{ so.bill_company }}{% endif %}
                     </div>
                 </div>
@@ -276,8 +283,8 @@ input[type=checkbox].so-chk { width:17px; height:17px; accent-color:#1e3a5f; cur
                 🗑️ Deleted on {{ so.deleted_at.strftime('%d-%m-%Y %H:%M') if so.deleted_at else '' }}
             </div>
             <div class="so-card-footer">
-                <button onclick="soRestoreSingle({{ so.id }})" style="background:#ede9fe;color:#5b21b6;">♻️ Restore</button>
-                <button onclick="soPermDelSingle({{ so.id }})" style="background:#fef2f2;color:#dc2626;">🗑️ Forever</button>
+                {% if so_sub and so_sub.restore %}<button onclick="soRestoreSingle({{ so.id }})" style="background:#ede9fe;color:#5b21b6;">♻️ Restore</button>{% endif %}
+                {% if so_sub and so_sub.permanent_delete %}<button onclick="soPermDelSingle({{ so.id }})" style="background:#fef2f2;color:#dc2626;">🗑️ Forever</button>{% endif %}
             </div>
             {% else %}
             <!-- Invoice section on mobile -->
@@ -286,7 +293,7 @@ input[type=checkbox].so-chk { width:17px; height:17px; accent-color:#1e3a5f; cur
                 <div style="background:#f5f3ff;border:1px solid #ddd6fe;border-radius:10px;padding:10px 12px;display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:0;">
                     <span style="font-size:0.75rem;color:#5b21b6;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;">📎 {{ so.invoice_file }}</span>
                     <div style="display:flex;gap:6px;flex-shrink:0;">
-                        <a href="{{ url_for('crm.sample_order_invoice_download', id=so.id) }}" style="background:#eff6ff;color:#1d4ed8;padding:5px 9px;border-radius:6px;font-size:0.72rem;font-weight:700;text-decoration:none;">⬇</a>
+                        {% if so_sub and so_sub.invoice_download %}<a href="{{ url_for('crm.sample_order_invoice_download', id=so.id) }}" style="background:#eff6ff;color:#1d4ed8;padding:5px 9px;border-radius:6px;font-size:0.72rem;font-weight:700;text-decoration:none;">⬇</a>{% endif %}
                         <label style="background:#fff7ed;color:#c2410c;padding:5px 9px;border-radius:6px;font-size:0.72rem;font-weight:700;cursor:pointer;" for="mob-inv-change-{{ so.id }}">🔄</label>
                         <form method="POST" action="{{ url_for('crm.sample_order_invoice_delete', id=so.id) }}" style="display:inline;" onsubmit="return confirm('Delete karein?');">
                             <button type="submit" style="background:#fef2f2;color:#dc2626;border:none;padding:5px 9px;border-radius:6px;font-size:0.72rem;font-weight:700;cursor:pointer;">✕</button>
@@ -297,20 +304,25 @@ input[type=checkbox].so-chk { width:17px; height:17px; accent-color:#1e3a5f; cur
                     </form>
                 </div>
                 {% else %}
+                {% if so_sub and so_sub.invoice_upload %}
                 <label for="mob-inv-upload-{{ so.id }}" style="display:flex;align-items:center;justify-content:center;gap:6px;width:100%;background:#fdf4ff;color:#7c3aed;border:1.5px dashed #c4b5fd;padding:10px;border-radius:10px;font-size:0.82rem;font-weight:700;cursor:pointer;box-sizing:border-box;">
                     ⬆ Invoice Upload
                 </label>
+                {% endif %}
                 <form method="POST" action="{{ url_for('crm.sample_order_invoice_upload', id=so.id) }}" enctype="multipart/form-data" style="display:none;">
                     <input type="file" id="mob-inv-upload-{{ so.id }}" name="invoice_file" accept=".pdf,.jpg,.jpeg,.png" onchange="this.form.submit()">
                 </form>
                 {% endif %}
             </div>
             <div class="so-card-footer">
+                {% if so_sub and so_sub.pdf_download %}
                 <form method="POST" action="{{ url_for('crm.sample_order_reprint', id=so.id) }}" target="_blank" style="flex:1;display:flex;">
                     <button type="submit" style="flex:1;background:#eff6ff;color:#1d4ed8;border:none;border-radius:9px;cursor:pointer;font-size:0.75rem;font-weight:700;padding:9px;">📥 PDF</button>
                 </form>
-                <a href="{{ url_for('crm.lead_view', id=so.lead_id) }}" style="background:#f0fdf4;color:#166534;flex:1;border-radius:9px;padding:9px;font-size:0.75rem;font-weight:700;text-align:center;text-decoration:none;display:flex;align-items:center;justify-content:center;">👁 Lead</a>
-                <button onclick="openSoMailModal({{ so.id }},'{{ so.order_number }}','{{ so.lead.email if so.lead and so.lead.email else so.bill_email or '' }}')" style="flex:1;background:#fdf4ff;color:#7c3aed;border:none;border-radius:9px;padding:9px;font-size:0.75rem;font-weight:700;cursor:pointer;">✉ Mail</button>
+                {% endif %}
+                {% if so_sub and so_sub.lead_view %}<a href="{{ url_for('crm.lead_view', id=so.lead_id) }}" style="background:#f0fdf4;color:#166534;flex:1;border-radius:9px;padding:9px;font-size:0.75rem;font-weight:700;text-align:center;text-decoration:none;display:flex;align-items:center;justify-content:center;">👁 Lead</a>{% endif %}
+                {% if so_sub and so_sub.mail_send %}<button onclick="openSoMailModal({{ so.id }},'{{ so.order_number }}','{{ so.lead.email if so.lead and so.lead.email else so.bill_email or '' }}')" style="flex:1;background:#fdf4ff;color:#7c3aed;border:none;border-radius:9px;padding:9px;font-size:0.75rem;font-weight:700;cursor:pointer;">✉ Mail</button>{% endif %}
+                {% if perm and perm.can_delete %}<button onclick="soDelSingle({{ so.id }})" style="flex:1;background:#fef2f2;color:#dc2626;border:none;border-radius:9px;padding:9px;font-size:0.75rem;font-weight:700;cursor:pointer;">🗑️</button>{% endif %}
             </div>
             {% endif %}
         </div>
@@ -446,6 +458,13 @@ function soRenderRows(data) {
     const tblWrp = document.getElementById('soTblWrap');
     const isDel  = soTab === 'deleted';
     const offset = (soPage-1)*20;
+    const canLeadView   = {{ 'true' if so_sub and so_sub.lead_view else 'false' }};
+    const canPDF        = {{ 'true' if so_sub and so_sub.pdf_download else 'false' }};
+    const canMail       = {{ 'true' if so_sub and so_sub.mail_send else 'false' }};
+    const canDelete     = {{ 'true' if perm and perm.can_delete else 'false' }};
+    const canRestore    = {{ 'true' if so_sub and so_sub.restore else 'false' }};
+    const canPermDel    = {{ 'true' if so_sub and so_sub.permanent_delete else 'false' }};
+    const canView       = {{ 'true' if perm and perm.can_view else 'false' }};
 
     if (!data.rows || data.rows.length === 0) {
         if(tbody) tbody.innerHTML = '';
@@ -458,14 +477,12 @@ function soRenderRows(data) {
     if (tbody) tbody.innerHTML = data.rows.map((so, i) => {
         const actions = isDel
             ? `<div style="display:flex;gap:5px;">
-                 <button onclick="soRestoreSingle(${so.id})" style="background:#ede9fe;color:#5b21b6;border:none;padding:5px 9px;border-radius:6px;font-size:0.75rem;font-weight:600;cursor:pointer;">♻️ Restore</button>
-                 <button onclick="soPermDelSingle(${so.id})"  style="background:#fef2f2;color:#dc2626;border:none;padding:5px 9px;border-radius:6px;font-size:0.75rem;font-weight:600;cursor:pointer;">🗑️ Forever</button>
+                 ${canRestore?`<button onclick="soRestoreSingle(${so.id})" style="background:#ede9fe;color:#5b21b6;border:none;padding:5px 9px;border-radius:6px;font-size:0.75rem;font-weight:600;cursor:pointer;">♻️ Restore</button>`:''}
+                 ${canPermDel?`<button onclick="soPermDelSingle(${so.id})" style="background:#fef2f2;color:#dc2626;border:none;padding:5px 9px;border-radius:6px;font-size:0.75rem;font-weight:600;cursor:pointer;">🗑️ Forever</button>`:''}
                </div>`
             : `<div style="display:flex;gap:5px;flex-wrap:wrap;">
-                 <form method="POST" action="/crm/sample-orders/${so.id}/reprint" target="_blank" style="display:inline;">
-                   <button type="submit" style="background:#eff6ff;color:#1d4ed8;border:none;padding:5px 9px;border-radius:6px;font-size:0.75rem;font-weight:600;cursor:pointer;">📥 PDF</button>
-                 </form>
-                 <a href="/crm/leads/${so.lead_id}" style="background:#f0fdf4;color:#166534;padding:5px 9px;border-radius:6px;font-size:0.75rem;font-weight:600;text-decoration:none;display:inline-block;">👁 Lead</a>
+                 ${canPDF?`<form method="POST" action="/crm/sample-orders/${so.id}/reprint" target="_blank" style="display:inline;"><button type="submit" style="background:#eff6ff;color:#1d4ed8;border:none;padding:5px 9px;border-radius:6px;font-size:0.75rem;font-weight:600;cursor:pointer;">📥 PDF</button></form>`:''}
+                 ${canLeadView?`<a href="/crm/leads/${so.lead_id}" style="background:#f0fdf4;color:#166534;padding:5px 9px;border-radius:6px;font-size:0.75rem;font-weight:600;text-decoration:none;display:inline-block;">👁 Lead</a>`:''}
                  <button onclick="openSoMailModal(${so.id},'${soEsc(so.order_number)}','${soEsc(so.lead_email||so.bill_email)}')" style="background:#fdf4ff;color:#7c3aed;border:none;padding:5px 9px;border-radius:6px;font-size:0.75rem;font-weight:600;cursor:pointer;">✉ Mail</button>
                </div>`;
 
@@ -491,9 +508,9 @@ function soRenderRows(data) {
         return `<tr id="sorow-${so.id}">
           <td style="text-align:center;"><input type="checkbox" class="so-chk so-row-chk" value="${so.id}" onchange="soOnRowCheck()"></td>
           <td style="color:var(--text3);font-size:0.78rem;">${offset+i+1}</td>
-          <td><span style="font-weight:700;color:#1e3a5f;">${soEsc(so.order_number)}</span></td>
+          <td>${canView?`<a href="/crm/sample-orders/${so.id}" style="font-weight:700;color:#1e3a5f;text-decoration:none;">${soEsc(so.order_number)}</a>`:`<span style="font-weight:700;color:#1e3a5f;">${soEsc(so.order_number)}</span>`}</td>
           <td style="white-space:nowrap;">${so.order_date}</td>
-          <td><a href="/crm/leads/${so.lead_id}" style="color:var(--blue);font-weight:600;text-decoration:none;">${soEsc(so.contact_name)}</a>${so.company_name?`<div style="font-size:0.72rem;color:var(--text3);">${soEsc(so.company_name)}</div>`:''}</td>
+          <td>${canLeadView?`<a href="/crm/leads/${so.lead_id}" style="color:var(--blue);font-weight:600;text-decoration:none;">${soEsc(so.contact_name)}</a>`:`<span style="font-weight:600;">${soEsc(so.contact_name)}</span>`}${so.company_name?`<div style="font-size:0.72rem;color:var(--text3);">${soEsc(so.company_name)}</div>`:''}</td>
           <td>${soEsc(so.bill_company)}</td>
           <td style="text-align:right;">${soFmt(so.sub_total)}</td>
           <td style="text-align:right;color:var(--text2);">${so.gst_pct}%<div style="font-size:0.72rem;">${soFmt(so.gst_amount)}</div></td>
@@ -511,13 +528,12 @@ function soRenderRows(data) {
         div.className = 'so-card'; div.id = `socard-${so.id}`;
 
         const footerActions = isDel
-            ? `<button onclick="soRestoreSingle(${so.id})" style="flex:1;background:#ede9fe;color:#5b21b6;border:none;border-radius:9px;padding:9px;font-size:0.75rem;font-weight:700;cursor:pointer;">♻️ Restore</button>
-               <button onclick="soPermDelSingle(${so.id})"  style="flex:1;background:#fef2f2;color:#dc2626;border:none;border-radius:9px;padding:9px;font-size:0.75rem;font-weight:700;cursor:pointer;">🗑️ Forever</button>`
-            : `<form method="POST" action="/crm/sample-orders/${so.id}/reprint" target="_blank" style="flex:1;display:flex;">
-                 <button type="submit" style="flex:1;background:#eff6ff;color:#1d4ed8;border:none;border-radius:9px;cursor:pointer;font-size:0.75rem;font-weight:700;padding:9px;">📥 PDF</button>
-               </form>
-               <a href="/crm/leads/${so.lead_id}" style="flex:1;background:#f0fdf4;color:#166534;border-radius:9px;padding:9px;font-size:0.75rem;font-weight:700;text-decoration:none;text-align:center;display:flex;align-items:center;justify-content:center;">👁 Lead</a>
-               <button onclick="openSoMailModal(${so.id},'${soEsc(so.order_number)}','${soEsc(so.lead_email||so.bill_email)}')" style="flex:1;background:#fdf4ff;color:#7c3aed;border:none;border-radius:9px;padding:9px;font-size:0.75rem;font-weight:700;cursor:pointer;">✉ Mail</button>`;
+            ? `${canRestore?`<button onclick="soRestoreSingle(${so.id})" style="flex:1;background:#ede9fe;color:#5b21b6;border:none;border-radius:9px;padding:9px;font-size:0.75rem;font-weight:700;cursor:pointer;">♻️ Restore</button>`:''}
+               ${canPermDel?`<button onclick="soPermDelSingle(${so.id})" style="flex:1;background:#fef2f2;color:#dc2626;border:none;border-radius:9px;padding:9px;font-size:0.75rem;font-weight:700;cursor:pointer;">🗑️ Forever</button>`:''}`
+            : `${canPDF?`<form method="POST" action="/crm/sample-orders/${so.id}/reprint" target="_blank" style="flex:1;display:flex;"><button type="submit" style="flex:1;background:#eff6ff;color:#1d4ed8;border:none;border-radius:9px;cursor:pointer;font-size:0.75rem;font-weight:700;padding:9px;">📥 PDF</button></form>`:''}
+               ${canLeadView?`<a href="/crm/leads/${so.lead_id}" style="flex:1;background:#f0fdf4;color:#166534;border-radius:9px;padding:9px;font-size:0.75rem;font-weight:700;text-decoration:none;text-align:center;display:flex;align-items:center;justify-content:center;">👁 Lead</a>`:''}
+               ${canMail?`<button onclick="openSoMailModal(${so.id},'${soEsc(so.order_number)}','${soEsc(so.lead_email||so.bill_email)}')" style="flex:1;background:#fdf4ff;color:#7c3aed;border:none;border-radius:9px;padding:9px;font-size:0.75rem;font-weight:700;cursor:pointer;">✉ Mail</button>`:''}
+               ${canDelete?`<button onclick="soDelSingle(${so.id})" style="flex:1;background:#fef2f2;color:#dc2626;border:none;border-radius:9px;padding:9px;font-size:0.75rem;font-weight:700;cursor:pointer;">🗑️</button>`:''}`;
 
         const delBanner = isDel && so.deleted_at
             ? `<div style="margin:0 14px 10px;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:8px 12px;font-size:0.78rem;color:#dc2626;">🗑️ Deleted on ${so.deleted_at}</div>` : '';
@@ -629,6 +645,9 @@ function soBulkRestore() {
 function soBulkPermDelete() {
     const ids=soGetIds(); if(!ids.length)return;
     soConfirm('⚠️ Permanent Delete',ids.length,'This CANNOT be undone. Records will be permanently removed.','Delete Forever','smbtn-danger',()=>soPost('/crm/sample-orders/bulk-permanent-delete',ids));
+}
+function soDelSingle(id) {
+    soConfirm('🗑️ Move to Deleted',1,'This order will be moved to Deleted tab.','Yes, Delete','smbtn-danger',()=>soPost('/crm/sample-orders/bulk-delete',[id]));
 }
 function soRestoreSingle(id) { soPost('/crm/sample-orders/bulk-restore',[id]); }
 function soPermDelSingle(id) {

@@ -573,6 +573,12 @@ def user_perm_toggle(user_id):
     up = UserPermission.query.filter_by(user_id=user_id, module_id=module_id).first()
     if not up:
         up = UserPermission(user_id=user_id, module_id=module_id)
+        # Naya record — sub_perms sab True set karo by default
+        mod = Module.query.get(module_id)
+        if mod:
+            from permissions import MODULE_SUB_PERMS
+            sub_keys = [k for k, _ in MODULE_SUB_PERMS.get(mod.name, [])]
+            up.set_sub_permissions({k: True for k in sub_keys})
         db.session.add(up)
 
     if action in ('can_view', 'can_add', 'can_edit', 'can_delete', 'can_export', 'can_import'):

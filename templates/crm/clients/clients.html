@@ -46,24 +46,29 @@
     <div class="grid-toolbar-right">
 
       <!-- Filter button -->
+      {% if can_filter %}
       <button id="fsTabFilter" class="btn-grid-action {{ 'active' if _fc > 0 }}"
         onclick="toggleFsTab('filter')"
         style="{{ 'background:#eff6ff;color:#2563eb;border-color:#bfdbfe;' if _fc > 0 }}">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
         Filter {% if _fc > 0 %}<span style="background:#2563eb;color:#fff;font-size:.65rem;font-weight:800;padding:1px 5px;border-radius:10px;margin-left:2px;">{{ _fc }}</span>{% endif %}
       </button>
+      {% endif %}
 
       <!-- Sort button -->
+      {% if can_sort %}
       <button id="fsTabSort" class="btn-grid-action {{ 'active' if sort_by != 'created_at' or sort_dir != 'desc' }}"
         onclick="toggleFsTab('sort')"
         style="{{ 'background:#eff6ff;color:#2563eb;border-color:#bfdbfe;' if sort_by != 'created_at' or sort_dir != 'desc' }}">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>
         Sort {% if sort_by != 'created_at' or sort_dir != 'desc' %}<span style="background:#2563eb;color:#fff;font-size:.65rem;font-weight:800;padding:1px 5px;border-radius:10px;margin-left:2px;">•</span>{% endif %}
       </button>
+      {% endif %}
 
       <div style="width:1px;height:18px;background:var(--border);margin:0 2px;"></div>
 
       <!-- Columns button -->
+      {% if can_columns %}
       <div style="position:relative;">
         <button class="btn-grid-action" onclick="toggleColPanel(event)">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
@@ -85,6 +90,7 @@
           </div>
         </div>
       </div>
+      {% endif %}{# end can_columns #}
 
       <div style="width:1px;height:18px;background:var(--border);margin:0 2px;"></div>
 
@@ -111,7 +117,7 @@
   <!-- ── Status / Trash Tabs ── -->
   <div class="grid-filter-tabs" style="padding:0 14px;border-bottom:1px solid var(--border);background:#fafbfc;">
     <a href="{{ url_for('crm.clients') }}" class="gft {{ 'active' if not show_trash }}">All</a>
-    {% if perm and perm.can_delete %}
+    {% if can_view_deleted %}
     <a href="{{ url_for('crm.clients', trash=1) }}" class="gft trash-tab {{ 'active' if show_trash }}">
       🗑 Deleted{% if deleted_count %} <span class="trash-badge">{{ deleted_count }}</span>{% endif %}
     </a>
@@ -278,7 +284,7 @@
           style="width:17px;height:17px;accent-color:#fff;cursor:pointer;margin-top:3px;flex-shrink:0;">
         <div class="cl-card-hdr-info">
           <div class="cl-card-name">
-            <a href="{{ url_for('crm.client_view', id=c.id) }}" style="color:#fff;text-decoration:none;">{{ c.contact_name }}</a>
+            {% if perm and perm.can_view %}<a href="{{ url_for('crm.client_view', id=c.id) }}" style="color:#fff;text-decoration:none;">{{ c.contact_name }}</a>{% else %}<span style="color:#fff;">{{ c.contact_name }}</span>{% endif %}
           </div>
           {% if c.company_name %}<div class="cl-card-company">🏢 {{ c.company_name }}</div>{% endif %}
         </div>
@@ -328,9 +334,16 @@
         <span style="font-size:0.73rem;color:#94a3b8;">📅 {{ c.created_at.strftime('%d-%m-%Y') if c.created_at else '—' }}</span>
         <div class="cl-card-actions">
           {% if show_trash %}
+          {% if can_restore %}
           <form method="POST" action="{{ url_for('crm.client_restore', id=c.id) }}" style="display:inline;">
             <button type="submit" style="background:#ede9fe;color:#5b21b6;width:auto;padding:6px 12px;border-radius:8px;border:none;font-size:0.75rem;font-weight:700;cursor:pointer;">♻️ Restore</button>
           </form>
+          {% endif %}
+          {% if can_permanent_delete %}
+          <form method="POST" action="{{ url_for('crm.client_permanent_delete', id=c.id) }}" style="display:inline;" onsubmit="return confirm('Permanently delete this client? This cannot be undone!')">
+            <button type="submit" style="background:#fee2e2;color:#dc2626;width:auto;padding:6px 12px;border-radius:8px;border:none;font-size:0.75rem;font-weight:700;cursor:pointer;">🗑️ Delete Forever</button>
+          </form>
+          {% endif %}
           {% else %}
           <div class="cl-action-wrap">
             <button class="cl-dots-btn" onclick="toggleClDd(this, event)" title="Actions">⋯</button>
@@ -412,7 +425,7 @@
         </tr>
       </thead>
       <tbody>
-        {%- set can_inline_edit = perm and perm.can_edit -%}
+        {#- can_inline_edit passed from route -#}
         {% for c in clients %}
         <tr class="client-row" data-id="{{ c.id }}" data-search="{{ [c.contact_name, c.company_name or '', c.mobile or '', c.email or '', c.city or '', c.state or '']|join(' ')|lower }}">
           <td class="row-check"><input type="checkbox" class="row-cb row-check-item" value="{{ c.id }}" onchange="updateBulkBtn()"></td>
@@ -425,7 +438,7 @@
           <td style="font-size:12px;color:var(--text2);white-space:nowrap;">{{ c.created_at.strftime('%d-%m-%Y') if c.created_at else '—' }}</td>
           {% elif col == 'contact_name' %}
           <td class="{% if can_inline_edit %}ie-cell{% endif %}" data-field="contact_name" data-val="{{ c.contact_name or '' }}" data-type="text" {% if can_inline_edit %}onclick="ieActivate(this)"{% endif %}>
-            <div class="ie-view"><a href="{{ url_for('crm.client_view', id=c.id) }}" class="entity-link" onclick="event.stopPropagation()">{{ c.contact_name }}</a>{% if can_inline_edit %}<span class="ie-pencil">✎</span>{% endif %}</div>
+            <div class="ie-view">{% if perm and perm.can_view %}<a href="{{ url_for('crm.client_view', id=c.id) }}" class="entity-link" onclick="event.stopPropagation()">{{ c.contact_name }}</a>{% else %}<span>{{ c.contact_name }}</span>{% endif %}{% if can_inline_edit %}<span class="ie-pencil">✎</span>{% endif %}</div>
           </td>
           {% elif col == 'company_name' %}
           <td class="{% if can_inline_edit %}ie-cell{% endif %}" data-field="company_name" data-val="{{ c.company_name or '' }}" data-type="text" {% if can_inline_edit %}onclick="ieActivate(this)"{% endif %}>
@@ -472,12 +485,21 @@
           <td>
             <div class="row-actions">
               {% if show_trash %}
+                {% if can_restore %}
                 <form method="POST" action="{{ url_for('crm.client_restore', id=c.id) }}" style="display:inline;" data-no-review>
                   <button type="submit" class="ra-btn restore-btn" title="Restore">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.63"/></svg>
                     Restore
                   </button>
                 </form>
+                {% endif %}
+                {% if can_permanent_delete %}
+                <form method="POST" action="{{ url_for('crm.client_permanent_delete', id=c.id) }}" style="display:inline;" data-no-review onsubmit="return confirm('Permanently delete this client? This cannot be undone!')">
+                  <button type="submit" class="ra-btn danger" title="Delete Forever">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
+                  </button>
+                </form>
+                {% endif %}
               {% else %}
                 <div class="cl-action-wrap">
                   <button class="cl-dots-btn" onclick="toggleClDd(this, event)" title="Actions">⋯</button>

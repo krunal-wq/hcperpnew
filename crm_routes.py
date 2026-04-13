@@ -246,6 +246,13 @@ def clients():
         'create_epd': get_sub_perm('crm_clients', 'create_epd'),
         'npd_quote':  get_sub_perm('crm_clients', 'npd_quote'),
     }
+    can_inline_edit      = get_sub_perm('crm_clients', 'inline_edit')
+    can_filter           = get_sub_perm('crm_clients', 'filter')
+    can_sort             = get_sub_perm('crm_clients', 'sort')
+    can_columns          = get_sub_perm('crm_clients', 'columns')
+    can_restore          = get_sub_perm('crm_clients', 'restore')
+    can_permanent_delete = get_sub_perm('crm_clients', 'permanent_delete')
+    can_view_deleted     = get_sub_perm('crm_clients', 'view_deleted')
     return render_template('crm/clients/clients.html',
         clients=all_clients, search=search, show_trash=show_trash,
         deleted_count=deleted_count,
@@ -255,12 +262,23 @@ def clients():
         grid_cols=grid_cols, all_cols=CLIENT_COLS_ALL,
         perm=perm,
         sub_perms=sub_perms,
+        can_inline_edit=can_inline_edit,
+        can_filter=can_filter,
+        can_sort=can_sort,
+        can_columns=can_columns,
+        can_restore=can_restore,
+        can_permanent_delete=can_permanent_delete,
+        can_view_deleted=can_view_deleted,
         active_page='clients')
 
 
 @crm.route('/clients/add', methods=['GET', 'POST'])
 @login_required
 def client_add():
+    perm = get_perm('crm_clients')
+    if not perm or not perm.can_add:
+        flash('Access denied: Add permission required for Clients.', 'error')
+        return redirect(url_for('crm.clients'))
     if request.method == 'POST':
         c = ClientMaster(
             code             = gen_code(ClientMaster, 'CLT'),
@@ -379,6 +397,10 @@ def client_add():
 @crm.route('/clients/<int:id>/edit', methods=['GET', 'POST'])
 @login_required
 def client_edit(id):
+    perm = get_perm('crm_clients')
+    if not perm or not perm.can_edit:
+        flash('Access denied: Edit permission required for Clients.', 'error')
+        return redirect(url_for('crm.clients'))
     c = ClientMaster.query.get_or_404(id)
     if request.method == 'POST':
         c.contact_name     = request.form.get('contact_name', '').strip()
@@ -445,6 +467,10 @@ def client_edit(id):
 @crm.route('/clients/<int:id>')
 @login_required
 def client_view(id):
+    perm = get_perm('crm_clients')
+    if not perm or not perm.can_view:
+        flash('Access denied: View permission required for Clients.', 'error')
+        return redirect(url_for('crm.clients'))
     c = ClientMaster.query.get_or_404(id)
     brands = ClientBrand.query.filter_by(client_id=c.id).all()
     from permissions import get_sub_perm
@@ -473,11 +499,32 @@ def client_delete(id):
 @crm.route('/clients/<int:id>/restore', methods=['POST'])
 @login_required
 def client_restore(id):
+    from permissions import get_sub_perm as _gsp
+    _ia = current_user.role in ('admin', 'manager')
+    if not _gsp('crm_clients', 'restore'):
+        flash('Restore permission nahi hai.', 'error')
+        return redirect(url_for('crm.clients', trash=1))
     c = ClientMaster.query.get_or_404(id)
     c.is_deleted = False
     c.deleted_at = None
     db.session.commit()
     flash(f'Client "{c.contact_name}" restored successfully!', 'success')
+    return redirect(url_for('crm.clients', trash=1))
+
+
+@crm.route('/clients/<int:id>/permanent-delete', methods=['POST'])
+@login_required
+def client_permanent_delete(id):
+    from permissions import get_sub_perm as _gsp
+    _ia = current_user.role in ('admin', 'manager')
+    if not _gsp('crm_clients', 'permanent_delete'):
+        flash('Permanent delete permission nahi hai.', 'error')
+        return redirect(url_for('crm.clients', trash=1))
+    c = ClientMaster.query.get_or_404(id)
+    name = c.contact_name
+    db.session.delete(c)
+    db.session.commit()
+    flash(f'Client "{name}" permanently deleted.', 'success')
     return redirect(url_for('crm.clients', trash=1))
 
 
@@ -628,6 +675,11 @@ def leads():
     product_ranges = ProductRange.query.filter_by(is_active=True).order_by(ProductRange.sort_order).all()
 
     perm = get_perm('crm_leads')
+    from permissions import get_sub_perm
+    can_inline_edit      = get_sub_perm('crm_leads', 'inline_edit')
+    can_restore          = get_sub_perm('crm_leads', 'restore')
+    can_permanent_delete = get_sub_perm('crm_leads', 'permanent_delete')
+    can_view_deleted     = get_sub_perm('crm_leads', 'view_deleted')
     return render_template('crm/leads/leads.html',
         leads=all_leads, counts=counts, deleted_count=deleted_count,
         show_trash=show_trash, all_users=all_users,
@@ -641,6 +693,10 @@ def leads():
         lead_categories=lead_categories, product_ranges=product_ranges,
         grid_cols=grid_cols, all_cols=LEAD_COLS_ALL,
         perm=perm,
+        can_inline_edit=can_inline_edit,
+        can_restore=can_restore,
+        can_permanent_delete=can_permanent_delete,
+        can_view_deleted=can_view_deleted,
         active_page='leads')
 
 
@@ -1002,8 +1058,12 @@ def lead_update_status(id):
 @login_required
 def lead_inline_edit(id):
     perm = get_perm('crm_leads')
-    if not perm or not perm.can_edit:
-        return jsonify(success=False, error='Edit permission nahi hai'), 403
+    if not perm or not perm.can_view:
+        return jsonify(success=False, error='Access denied'), 403
+    from permissions import get_sub_perm
+    _is_admin = current_user.role in ('admin', 'manager')
+    if not _is_admin and not get_sub_perm('crm_leads', 'inline_edit'):
+        return jsonify(success=False, error='Inline edit permission nahi hai'), 403
     lead = Lead.query.get_or_404(id)
     data = request.get_json()
     field = data.get('field','').strip()
@@ -1028,8 +1088,12 @@ def lead_inline_edit(id):
 @login_required
 def client_inline_edit(id):
     perm = get_perm('crm_clients')
-    if not perm or not perm.can_edit:
-        return jsonify(success=False, error='Edit permission nahi hai'), 403
+    if not perm or not perm.can_view:
+        return jsonify(success=False, error='Access denied'), 403
+    from permissions import get_sub_perm
+    _ia = current_user.role in ('admin', 'manager')
+    if not _ia and not get_sub_perm('crm_clients', 'inline_edit'):
+        return jsonify(success=False, error='Inline edit permission nahi hai'), 403
     c = ClientMaster.query.get_or_404(id)
     data = request.get_json()
     field = data.get('field','').strip()
@@ -1049,6 +1113,10 @@ def client_inline_edit(id):
 @crm.route('/leads/add', methods=['GET', 'POST'])
 @login_required
 def lead_add():
+    perm = get_perm('crm_leads')
+    if not perm or not perm.can_add:
+        flash('Access denied: Add permission required for Leads.', 'error')
+        return redirect(url_for('crm.leads'))
     if request.method == 'POST':
         is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
         try:
@@ -1127,6 +1195,10 @@ def lead_add():
 @crm.route('/leads/<int:id>/edit', methods=['GET', 'POST'])
 @login_required
 def lead_edit(id):
+    perm = get_perm('crm_leads')
+    if not perm or not perm.can_edit:
+        flash('Access denied: Edit permission required for Leads.', 'error')
+        return redirect(url_for('crm.leads'))
     l = Lead.query.get_or_404(id)
     if request.method == 'POST':
         is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
@@ -1208,6 +1280,11 @@ def lead_delete(id):
 @crm.route('/leads/<int:id>/restore', methods=['POST'])
 @login_required
 def lead_restore(id):
+    from permissions import get_sub_perm as _gsp
+    _ia = current_user.role in ('admin', 'manager')
+    if not _gsp('crm_leads', 'restore'):
+        flash('Restore permission nahi hai.', 'error')
+        return redirect(url_for('crm.leads', trash=1))
     l = Lead.query.get_or_404(id)
     l.is_deleted = False
     l.deleted_at = None
@@ -1216,9 +1293,31 @@ def lead_restore(id):
     return redirect(url_for('crm.leads', trash=1))
 
 
+@crm.route('/leads/<int:id>/permanent-delete', methods=['POST'])
+@login_required
+def lead_permanent_delete(id):
+    from permissions import get_sub_perm as _gsp
+    _ia = current_user.role in ('admin', 'manager')
+    if not _gsp('crm_leads', 'permanent_delete'):
+        flash('Permanent delete permission nahi hai.', 'error')
+        return redirect(url_for('crm.leads', trash=1))
+    l = Lead.query.get_or_404(id)
+    name = l.contact_name
+    db.session.delete(l)
+    db.session.commit()
+    flash(f'Lead "{name}" permanently deleted.', 'success')
+    return redirect(url_for('crm.leads', trash=1))
+
+
 @crm.route('/leads/<int:id>')
 @login_required
 def lead_view(id):
+    # ── View permission check ──
+    _perm_check = get_perm('crm_leads')
+    if not _perm_check or not _perm_check.can_view:
+        flash('Access denied: View permission required for Leads.', 'error')
+        return redirect(url_for('crm.leads'))
+
     l           = Lead.query.get_or_404(id)
     tab         = request.args.get('tab', 'overview')
     discussions = LeadDiscussion.query.filter_by(lead_id=id).order_by(LeadDiscussion.created_at.desc()).all()
@@ -1236,13 +1335,17 @@ def lead_view(id):
     from permissions import get_sub_perm
     _is_admin = current_user.role in ('admin', 'manager')
     sub_perms = {
-        'discussion_board' : _is_admin or get_sub_perm('crm_leads', 'discussion_board'),
-        'activity_log'     : _is_admin or get_sub_perm('crm_leads', 'activity_log'),
-        'reminder'         : _is_admin or get_sub_perm('crm_leads', 'reminder'),
-        'quotation'        : _is_admin or get_sub_perm('crm_leads', 'quotation'),
-        'sample_order'     : _is_admin or get_sub_perm('crm_leads', 'sample_order'),
-        'attachments'      : _is_admin or get_sub_perm('crm_leads', 'attachments'),
-        'whatsapp'         : _is_admin or get_sub_perm('crm_leads', 'whatsapp'),
+        'discussion_board' : get_sub_perm('crm_leads', 'discussion_board'),
+        'activity_log'     : get_sub_perm('crm_leads', 'activity_log'),
+        'reminder'         : get_sub_perm('crm_leads', 'reminder'),
+        'quotation'        : get_sub_perm('crm_leads', 'quotation'),
+        'sample_order'     : get_sub_perm('crm_leads', 'sample_order'),
+        'attachments'      : get_sub_perm('crm_leads', 'attachments'),
+        'whatsapp'         : get_sub_perm('crm_leads', 'whatsapp'),
+        'send_npd'         : get_sub_perm('crm_leads', 'send_npd'),
+        'create_npd'       : get_sub_perm('crm_leads', 'create_npd'),
+        'create_epd'       : get_sub_perm('crm_leads', 'create_epd'),
+        'change_status'    : get_sub_perm('crm_leads', 'change_status'),
         'personal_notes'   : True,
     }
 
@@ -1474,6 +1577,11 @@ def lead_note_delete(nid):
 @crm.route('/leads/<int:id>/status', methods=['POST'])
 @login_required
 def lead_status_change(id):
+    from permissions import get_sub_perm
+    _ia = current_user.role in ('admin', 'manager')
+    if not _ia and not get_sub_perm('crm_leads', 'change_status'):
+        flash('Change Status permission nahi hai.', 'error')
+        return redirect(url_for('crm.lead_view', id=id))
     l = Lead.query.get_or_404(id)
     new_status = request.form.get('status')
     _valid_statuses = {st.name for st in LeadStatus.query.filter_by(is_active=True).all()}
@@ -2748,6 +2856,23 @@ def lead_sample_order(id):
 @crm.route('/sample-orders')
 @login_required
 def sample_orders_list():
+    perm = get_perm('crm_leads')
+    if not perm or not perm.can_view:
+        flash('Access denied: Sample Orders permission nahi hai.', 'error')
+        return redirect(url_for('crm.leads'))
+    from permissions import get_sub_perm
+    _is_admin = current_user.role in ('admin', 'manager')
+    so_sub = {
+        'lead_view'       : get_sub_perm('crm_leads', 'lead_view'),
+        'invoice_download': get_sub_perm('crm_leads', 'invoice_download'),
+        'pdf_download'    : get_sub_perm('crm_leads', 'pdf_download'),
+        'mail_send'       : get_sub_perm('crm_leads', 'mail_send'),
+        'invoice_upload'  : get_sub_perm('crm_leads', 'invoice_upload'),
+        'change_status'   : get_sub_perm('crm_leads', 'change_status'),
+        'view_deleted'    : get_sub_perm('crm_leads', 'view_deleted'),
+        'restore'         : get_sub_perm('crm_leads', 'restore'),
+        'permanent_delete': get_sub_perm('crm_leads', 'permanent_delete'),
+    }
     search   = request.args.get('search', '').strip()
     tab      = request.args.get('tab', 'active')
     page     = request.args.get('page', 1, type=int)
@@ -2803,6 +2928,7 @@ def sample_orders_list():
         orders=pagination.items, pagination=pagination,
         search=search, tab=tab,
         active_count=active_count, deleted_count=deleted_count,
+        perm=perm, so_sub=so_sub,
         active_page='sample_orders')
 
 
@@ -2810,6 +2936,9 @@ def sample_orders_list():
 @login_required
 def sample_orders_bulk_delete():
     """Soft-delete selected sample orders."""
+    perm = get_perm('crm_leads')
+    if not perm or not perm.can_delete:
+        return jsonify(success=False, message='Delete permission nahi hai.'), 403
     ids = request.form.getlist('ids[]')
     if not ids:
         return jsonify(success=False, message='No orders selected.'), 400
@@ -2829,6 +2958,10 @@ def sample_orders_bulk_delete():
 @login_required
 def sample_orders_bulk_restore():
     """Restore soft-deleted sample orders."""
+    from permissions import get_sub_perm as _gsp
+    _ia = current_user.role in ('admin', 'manager')
+    if not _gsp('crm_sample_orders', 'restore'):
+        return jsonify(success=False, message='Restore permission nahi hai.'), 403
     ids = request.form.getlist('ids[]')
     if not ids:
         return jsonify(success=False, message='No orders selected.'), 400
@@ -2848,6 +2981,10 @@ def sample_orders_bulk_restore():
 @login_required
 def sample_orders_bulk_permanent_delete():
     """Permanently delete sample orders."""
+    from permissions import get_sub_perm as _gsp
+    _ia = current_user.role in ('admin', 'manager')
+    if not _gsp('crm_sample_orders', 'permanent_delete'):
+        return jsonify(success=False, message='Permanent delete permission nahi hai.'), 403
     ids = request.form.getlist('ids[]')
     if not ids:
         return jsonify(success=False, message='No orders selected.'), 400
@@ -3026,6 +3163,34 @@ def _build_sample_order_pdf(so, lead):
     doc.build(story)
     buf.seek(0)
     return buf
+
+
+@crm.route('/sample-orders/<int:id>')
+@login_required
+def sample_order_view(id):
+    perm = get_perm('crm_leads')
+    if not perm or not perm.can_view:
+        flash('Access denied: Sample Orders permission nahi hai.', 'error')
+        return redirect(url_for('crm.leads'))
+    from permissions import get_sub_perm
+    import json as _json
+    _is_admin = current_user.role in ('admin', 'manager')
+    so_sub = {
+        'lead_view'       : get_sub_perm('crm_leads', 'lead_view'),
+        'invoice_download': get_sub_perm('crm_leads', 'invoice_download'),
+        'pdf_download'    : get_sub_perm('crm_leads', 'pdf_download'),
+        'mail_send'       : get_sub_perm('crm_leads', 'mail_send'),
+        'invoice_upload'  : get_sub_perm('crm_leads', 'invoice_upload'),
+        'change_status'   : get_sub_perm('crm_leads', 'change_status'),
+        'view_deleted'    : get_sub_perm('crm_leads', 'view_deleted'),
+        'restore'         : get_sub_perm('crm_leads', 'restore'),
+        'permanent_delete': get_sub_perm('crm_leads', 'permanent_delete'),
+    }
+    so = SampleOrder.query.get_or_404(id)
+    items = _json.loads(so.items_json) if so.items_json else []
+    return render_template('crm/sample_orders/view.html',
+        so=so, items=items, perm=perm, so_sub=so_sub,
+        active_page='sample_orders')
 
 
 @crm.route('/sample-orders/<int:id>/reprint', methods=['POST'])
@@ -3942,14 +4107,53 @@ def quotations_list():
             deleted_count=deleted_count,
         )
 
+    perm = get_perm('crm_leads')
+    if not perm or not perm.can_view:
+        flash('Access denied: Quotations permission nahi hai.', 'error')
+        return redirect(url_for('crm.leads'))
+    from permissions import get_sub_perm
+    qt_sub = {
+        'pdf_download'    : get_sub_perm('crm_leads', 'pdf_download'),
+        'send_email'      : get_sub_perm('crm_leads', 'send_email'),
+        'status_change'   : get_sub_perm('crm_leads', 'status_change'),
+        'view_deleted'    : get_sub_perm('crm_leads', 'view_deleted'),
+        'restore'         : get_sub_perm('crm_leads', 'restore'),
+        'permanent_delete': get_sub_perm('crm_leads', 'permanent_delete'),
+    }
     return render_template('crm/quotations/list.html',
         quotations=pagination.items, pagination=pagination,
         search=search, tab=tab,
         active_count=active_count, deleted_count=deleted_count,
+        perm=perm, qt_sub=qt_sub,
         active_page='quotations')
 
 
 
+
+
+@crm.route('/quotations/<int:id>')
+@login_required
+def quotation_view(id):
+    perm = get_perm('crm_leads')
+    if not perm or not perm.can_view:
+        flash('Access denied: Quotations permission nahi hai.', 'error')
+        return redirect(url_for('crm.leads'))
+    from permissions import get_sub_perm
+    import json as _json
+    _is_admin = current_user.role in ('admin', 'manager')
+    qt_sub = {
+        'pdf_download'    : get_sub_perm('crm_leads', 'pdf_download'),
+        'send_email'      : get_sub_perm('crm_leads', 'send_email'),
+        'status_change'   : get_sub_perm('crm_leads', 'status_change'),
+        'view_deleted'    : get_sub_perm('crm_leads', 'view_deleted'),
+        'restore'         : get_sub_perm('crm_leads', 'restore'),
+        'permanent_delete': get_sub_perm('crm_leads', 'permanent_delete'),
+    }
+    qt = Quotation.query.get_or_404(id)
+    items = _json.loads(qt.items_json) if qt.items_json else []
+    return render_template('crm/quotations/view.html',
+        qt=qt, items=items, perm=perm, qt_sub=qt_sub,
+        active_page='quotations')
 
 
 @crm.route('/quotations/products/ajax')
@@ -4070,6 +4274,10 @@ def quotation_products_list():
 @crm.route('/quotations/<int:id>/reprint', methods=['POST'])
 @login_required
 def quotation_reprint(id):
+    from permissions import get_sub_perm
+    _ia = current_user.role in ('admin', 'manager')
+    if not _ia and not get_sub_perm('crm_leads', 'pdf_download'):
+        return jsonify(success=False, error='PDF download permission nahi hai.'), 403
     """Re-download PDF for an existing quotation."""
     quot = Quotation.query.get_or_404(id)
     buf  = _build_quotation_pdf(quot, quot.lead)
@@ -4080,6 +4288,10 @@ def quotation_reprint(id):
 @crm.route('/quotations/<int:id>/send-email', methods=['POST'])
 @login_required
 def quotation_send_email(id):
+    from permissions import get_sub_perm
+    _ia = current_user.role in ('admin', 'manager')
+    if not _ia and not get_sub_perm('crm_leads', 'send_email'):
+        return jsonify(success=False, error='Send email permission nahi hai.'), 403
     """Send quotation PDF as email attachment to client."""
     import smtplib
     from email.mime.multipart import MIMEMultipart
@@ -4149,6 +4361,10 @@ def quotation_send_email(id):
 @crm.route('/quotations/<int:id>/status', methods=['POST'])
 @login_required
 def quotation_status_update(id):
+    from permissions import get_sub_perm
+    _ia = current_user.role in ('admin', 'manager')
+    if not _ia and not get_sub_perm('crm_leads', 'status_change'):
+        return jsonify(success=False, error='Status change permission nahi hai.'), 403
     """Update quotation status (accepted / rejected / draft)."""
     quot = Quotation.query.get_or_404(id)
     quot.status = request.form.get('status', quot.status)
@@ -4162,6 +4378,10 @@ def quotation_status_update(id):
 @crm.route('/quotations/bulk-status', methods=['POST'])
 @login_required
 def quotations_bulk_status():
+    from permissions import get_sub_perm
+    _ia = current_user.role in ('admin', 'manager')
+    if not _ia and not get_sub_perm('crm_leads', 'status_change'):
+        return jsonify(success=False, error='Status change permission nahi hai.'), 403
     """Bulk update status for selected quotations."""
     ids    = request.form.getlist('ids[]')
     status = request.form.get('status', '').strip()
@@ -4183,6 +4403,9 @@ def quotations_bulk_status():
 @crm.route('/quotations/bulk-delete', methods=['POST'])
 @login_required
 def quotations_bulk_delete():
+    perm = get_perm('crm_leads')
+    if not perm or not perm.can_delete:
+        return jsonify(success=False, message='Delete permission nahi hai.'), 403
     """Soft-delete selected quotations (moved to Deleted tab)."""
     ids = request.form.getlist('ids[]')
     if not ids:
@@ -4203,6 +4426,10 @@ def quotations_bulk_delete():
 @crm.route('/quotations/bulk-restore', methods=['POST'])
 @login_required
 def quotations_bulk_restore():
+    from permissions import get_sub_perm
+    _ia = current_user.role in ('admin', 'manager')
+    if not _ia and not get_sub_perm('crm_leads', 'restore'):
+        return jsonify(success=False, message='Restore permission nahi hai.'), 403
     """Restore soft-deleted quotations back to active."""
     ids = request.form.getlist('ids[]')
     if not ids:
@@ -4223,6 +4450,10 @@ def quotations_bulk_restore():
 @crm.route('/quotations/bulk-permanent-delete', methods=['POST'])
 @login_required
 def quotations_bulk_permanent_delete():
+    from permissions import get_sub_perm
+    _ia = current_user.role in ('admin', 'manager')
+    if not _ia and not get_sub_perm('crm_leads', 'permanent_delete'):
+        return jsonify(success=False, message='Permanent delete permission nahi hai.'), 403
     """Permanently delete quotations from Deleted tab."""
     ids = request.form.getlist('ids[]')
     if not ids:
@@ -4241,6 +4472,10 @@ def quotations_bulk_permanent_delete():
 @crm.route('/quotations/bulk-email', methods=['POST'])
 @login_required
 def quotations_bulk_email():
+    from permissions import get_sub_perm
+    _ia = current_user.role in ('admin', 'manager')
+    if not _ia and not get_sub_perm('crm_leads', 'send_email'):
+        return jsonify(success=False, message='Send email permission nahi hai.'), 403
     """Bulk send email using the shared _send_smtp helper from mail_routes."""
     from mail_routes import _get_or_create_quotation_template, _render_quot_template_vars, _send_smtp
 

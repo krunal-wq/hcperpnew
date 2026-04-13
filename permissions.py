@@ -27,6 +27,38 @@ MODULE_SUB_PERMS = {
         ('create_epd',        'Create EPD Project'),
         ('change_status',     'Change Status'),
         ('inline_edit',       'Inline Edit'),
+        ('attachments',       'Attachments'),
+        ('restore',           'Restore'),
+        ('permanent_delete',  'Permanent Delete'),
+        ('view_deleted',      'View Deleted Tab'),
+        # Sample Order sub-perms
+        ('sample_order_view', 'SO: View Listing'),
+        ('lead_view',         'SO: Lead View'),
+        ('invoice_download',  'SO: Invoice Download'),
+        ('pdf_download',      'SO: Download PDF'),
+        ('mail_send',         'SO: Mail Send'),
+        ('invoice_upload',    'SO: Invoice Upload'),
+        # Quotation sub-perms
+        ('quot_view',         'Quot: View Listing'),
+        ('send_email',        'Quot: Send Email'),
+        ('status_change',     'Quot: Status Change'),
+    ],
+    'crm_quotations': [
+        ('pdf_download',      'Download PDF'),
+        ('send_email',        'Send Email'),
+        ('status_change',     'Status Change'),
+        ('view_deleted',      'View Deleted Tab'),
+        ('restore',           'Restore'),
+        ('permanent_delete',  'Permanent Delete'),
+    ],
+    'crm_sample_orders': [
+        ('lead_view',         'Lead View'),
+        ('invoice_download',  'Invoice Download'),
+        ('pdf_download',      'Download Sample Order PDF'),
+        ('mail_send',         'Mail Send'),
+        ('invoice_upload',    'Invoice Upload'),
+        ('change_status',     'Change Status'),
+        ('view_deleted',      'View Deleted Tab'),
         ('restore',           'Restore'),
         ('permanent_delete',  'Permanent Delete'),
     ],
@@ -40,6 +72,7 @@ MODULE_SUB_PERMS = {
         ('npd_quote',         'NPD Quote'),
         ('restore',           'Restore'),
         ('permanent_delete',  'Permanent Delete'),
+        ('view_deleted',      'View Deleted Tab'),
     ],
     'hr_employees': [
         ('salary_details',    'Salary Details'),
@@ -108,22 +141,26 @@ def get_perm(module_name):
     """
     if not current_user.is_authenticated:
         return None
-    # Admin ko hamesha full access
-    if current_user.role == 'admin':
-        return _full_perm()
     try:
         mod = Module.query.filter_by(name=module_name).first()
         if not mod:
+            # Module DB mein nahi — admin ko full, others ko view_only
+            if current_user.role == 'admin':
+                return _full_perm()
             return _view_only_perm()
 
-        # Priority 1: User-specific override
+        # Priority 1: User-specific override (admin ke liye bhi)
         user_perm = UserPermission.query.filter_by(
             user_id=current_user.id, module_id=mod.id
         ).first()
         if user_perm is not None:
             return user_perm
 
-        # Priority 2: Role fallback
+        # Priority 2: Admin ko full access agar koi UserPermission nahi
+        if current_user.role == 'admin':
+            return _full_perm()
+
+        # Priority 3: Role fallback
         role_perm = RolePermission.query.filter_by(
             role=current_user.role, module_id=mod.id
         ).first()
@@ -133,6 +170,8 @@ def get_perm(module_name):
         # Koi record nahi — by default view allow karo
         return _view_only_perm()
     except Exception:
+        if current_user.role == 'admin':
+            return _full_perm()
         return _view_only_perm()
 
 
@@ -143,18 +182,21 @@ def get_sub_perm(module_name, key):
     try:
         mod = Module.query.filter_by(name=module_name).first()
         if not mod:
-            return False
-        # User-specific override check karo
+            # Module DB mein nahi — default True
+            return True
+        # User-specific override check karo (admin ke liye bhi)
         user_perm = UserPermission.query.filter_by(
             user_id=current_user.id, module_id=mod.id
         ).first()
         if user_perm is not None:
-            return user_perm.has_sub_perm(key)
-        # User ka koi record nahi — sub-perm nahi deni by default
-        # (Admin bhi yahan aayega — use bhi set karna hoga explicitly)
-        return False
+            subs = user_perm.get_sub_permissions()
+            # Agar key explicitly set hai toh use karo
+            # Agar key missing hai (purana record) — default True (naya perm add hua)
+            return subs.get(key, True)
+        # UserPermission record nahi — default True (koi restriction nahi lagayi)
+        return True
     except Exception:
-        return False
+        return True
 
 
 def _full_perm(module_name=None):
@@ -253,6 +295,8 @@ DEFAULT_MODULES = [
     {'name':'dashboard',    'label':'Dashboard',      'icon':'🏠', 'url_prefix':'/',          'sort_order':1},
     {'name':'crm',          'label':'CRM',            'icon':'📊', 'url_prefix':'/crm',       'sort_order':2},
     {'name':'crm_leads',    'label':'Leads',          'icon':'📋', 'url_prefix':'/crm/leads', 'sort_order':3,  'parent':'crm'},
+    {'name':'crm_quotations','label':'Quotations','icon':'📄','url_prefix':'/crm/quotations','sort_order':6,'parent':'crm'},
+    {'name':'crm_sample_orders','label':'Sample Orders','icon':'🧾','url_prefix':'/crm/sample-orders','sort_order':5,'parent':'crm'},
     {'name':'crm_clients',  'label':'Clients',        'icon':'👥', 'url_prefix':'/crm/clients','sort_order':4, 'parent':'crm'},
     {'name':'hr',           'label':'HR',             'icon':'👔', 'url_prefix':'/hr',        'sort_order':5},
     {'name':'hr_employees', 'label':'Employees',      'icon':'🪪', 'url_prefix':'/hr/employees','sort_order':6,'parent':'hr'},

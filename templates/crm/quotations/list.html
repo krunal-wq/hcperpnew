@@ -165,22 +165,24 @@ input[type=checkbox].qt-chk { width:17px; height:17px; accent-color:#1e3a5f; cur
            class="qt-tab {% if tab != 'deleted' %}active{% endif %}">
             📄 Active <span class="tab-count" id="tabCountActive">{{ active_count }}</span>
         </a>
+        {% if qt_sub and qt_sub.view_deleted %}
         <a href="{{ url_for('crm.quotations_list', tab='deleted', search=search) }}"
            class="qt-tab tab-deleted {% if tab == 'deleted' %}active{% endif %}">
             🗑️ Deleted <span class="tab-count" id="tabCountDeleted">{{ deleted_count }}</span>
         </a>
+        {% endif %}
     </div>
 
     <!-- Bulk Bar -->
     <div id="bulkBar">
         <span id="bulkCount" style="font-size:0.82rem;font-weight:700;"></span>
         {% if tab == 'deleted' %}
-        <button class="bulk-btn bulk-btn-restore" onclick="doBulkRestore()">♻️ Restore</button>
-        <button class="bulk-btn bulk-btn-delete"  onclick="doBulkPermanentDelete()">🗑️ Delete Forever</button>
+        {% if qt_sub and qt_sub.restore %}<button class="bulk-btn bulk-btn-restore" onclick="doBulkRestore()">♻️ Restore</button>{% endif %}
+        {% if qt_sub and qt_sub.permanent_delete %}<button class="bulk-btn bulk-btn-delete" onclick="doBulkPermanentDelete()">🗑️ Delete Forever</button>{% endif %}
         {% else %}
-        <button class="bulk-btn bulk-btn-status" onclick="openBulkStatusModal()">🔄 Status</button>
-        <button class="bulk-btn bulk-btn-email"  onclick="doBulkEmail()">📧 Email</button>
-        <button class="bulk-btn bulk-btn-delete" onclick="doBulkDelete()">🗑️ Delete</button>
+        {% if qt_sub and qt_sub.status_change %}<button class="bulk-btn bulk-btn-status" onclick="openBulkStatusModal()">🔄 Status</button>{% endif %}
+        {% if qt_sub and qt_sub.send_email %}<button class="bulk-btn bulk-btn-email" onclick="doBulkEmail()">📧 Email</button>{% endif %}
+        {% if perm and perm.can_delete %}<button class="bulk-btn bulk-btn-delete" onclick="doBulkDelete()">🗑️ Delete</button>{% endif %}
         {% endif %}
         <button class="bulk-deselect" onclick="clearSelection()">✕ Deselect</button>
     </div>
@@ -199,7 +201,7 @@ input[type=checkbox].qt-chk { width:17px; height:17px; accent-color:#1e3a5f; cur
             <div class="qt-card-top">
                 <input type="checkbox" class="qt-chk row-chk" value="{{ qt.id }}" onchange="onRowCheck()" style="margin-top:3px;flex-shrink:0;">
                 <div class="qt-card-head">
-                    <div class="qt-card-num">{{ qt.quot_number }}</div>
+                    <div class="qt-card-num">{% if perm and perm.can_view %}<a href="{{ url_for('crm.quotation_view', id=qt.id) }}" style="color:inherit;text-decoration:none;">{{ qt.quot_number }}</a>{% else %}{{ qt.quot_number }}{% endif %}</div>
                     <div class="qt-card-sub">
                         <a href="{{ url_for('crm.lead_view', id=qt.lead_id) }}" style="color:#1d4ed8;text-decoration:none;font-weight:700;">{{ qt.lead.contact_name or 'N/A' }}</a>{% if qt.bill_company %} · {{ qt.bill_company }}{% endif %}
                     </div>
@@ -237,16 +239,19 @@ input[type=checkbox].qt-chk { width:17px; height:17px; accent-color:#1e3a5f; cur
             {% endif %}
             {% if tab == 'deleted' %}
             <div class="qt-card-actions">
-                <button style="flex:1;background:#ede9fe;color:#5b21b6;border:none;border-radius:8px;padding:9px;font-size:0.78rem;font-weight:700;cursor:pointer;" onclick="restoreSingle({{ qt.id }})">♻️ Restore</button>
-                <button style="flex:1;background:#fef2f2;color:#dc2626;border:none;border-radius:8px;padding:9px;font-size:0.78rem;font-weight:700;cursor:pointer;" onclick="permDeleteSingle({{ qt.id }})">🗑️ Delete Forever</button>
+                {% if qt_sub and qt_sub.restore %}<button style="flex:1;background:#ede9fe;color:#5b21b6;border:none;border-radius:8px;padding:9px;font-size:0.78rem;font-weight:700;cursor:pointer;" onclick="restoreSingle({{ qt.id }})">♻️ Restore</button>{% endif %}
+                {% if qt_sub and qt_sub.permanent_delete %}<button style="flex:1;background:#fef2f2;color:#dc2626;border:none;border-radius:8px;padding:9px;font-size:0.78rem;font-weight:700;cursor:pointer;" onclick="permDeleteSingle({{ qt.id }})">🗑️ Delete Forever</button>{% endif %}
             </div>
             {% else %}
             <div class="qt-card-actions">
+                {% if qt_sub and qt_sub.pdf_download %}
                 <form method="POST" action="{{ url_for('crm.quotation_reprint', id=qt.id) }}" target="_blank" style="flex:1;display:flex;">
                     <button type="submit" class="qa-pdf" style="flex:1;border-radius:8px;border:none;cursor:pointer;">📥 PDF</button>
                 </form>
-                <button class="qa-mail" onclick="openEmailModal({{ qt.id }}, '{{ qt.bill_email or '' }}', '{{ qt.quot_number }}', '{{ qt.bill_company or '' }}', '{{ '{:,.2f}'.format(qt.total_amount|float) }}')">📧 Email</button>
-                <button class="qa-st"   onclick="openStatusModal({{ qt.id }}, '{{ qt.status }}')">🔄 Status</button>
+                {% endif %}
+                {% if qt_sub and qt_sub.send_email %}<button class="qa-mail" onclick="openEmailModal({{ qt.id }}, '{{ qt.bill_email or '' }}', '{{ qt.quot_number }}', '{{ qt.bill_company or '' }}', '{{ '{:,.2f}'.format(qt.total_amount|float) }}')">📧 Email</button>{% endif %}
+                {% if qt_sub and qt_sub.status_change %}<button class="qa-st" onclick="openStatusModal({{ qt.id }}, '{{ qt.status }}')">🔄 Status</button>{% endif %}
+                {% if perm and perm.can_delete %}<button style="flex:1;background:#fef2f2;color:#dc2626;border:none;border-radius:8px;padding:9px;font-size:0.78rem;font-weight:700;cursor:pointer;" onclick="deleteSingle({{ qt.id }})">🗑️</button>{% endif %}
             </div>
             {% endif %}
         </div>
@@ -268,7 +273,7 @@ input[type=checkbox].qt-chk { width:17px; height:17px; accent-color:#1e3a5f; cur
             <tr id="row-{{ qt.id }}">
                 <td style="text-align:center;"><input type="checkbox" class="qt-chk row-chk" value="{{ qt.id }}" onchange="onRowCheck()"></td>
                 <td style="color:var(--text3);font-size:0.78rem;">{{ loop.index + (pagination.page - 1) * pagination.per_page }}</td>
-                <td><span style="font-weight:700;color:#1e3a5f;">{{ qt.quot_number }}</span></td>
+                <td>{% if perm and perm.can_view %}<a href="{{ url_for('crm.quotation_view', id=qt.id) }}" style="font-weight:700;color:#1e3a5f;text-decoration:none;">{{ qt.quot_number }}</a>{% else %}<span style="font-weight:700;color:#1e3a5f;">{{ qt.quot_number }}</span>{% endif %}</td>
                 <td style="white-space:nowrap;">{{ qt.quot_date.strftime('%d-%m-%Y') }}</td>
                 <td style="white-space:nowrap;">{% if qt.valid_until %}{{ qt.valid_until.strftime('%d-%m-%Y') }}{% else %}—{% endif %}</td>
                 <td>
@@ -289,16 +294,19 @@ input[type=checkbox].qt-chk { width:17px; height:17px; accent-color:#1e3a5f; cur
                 <td>
                     {% if tab == 'deleted' %}
                     <div style="display:flex;gap:5px;">
-                        <button onclick="restoreSingle({{ qt.id }})"    style="background:#ede9fe;color:#5b21b6;border:none;padding:5px 9px;border-radius:6px;font-size:0.75rem;font-weight:600;cursor:pointer;">♻️ Restore</button>
-                        <button onclick="permDeleteSingle({{ qt.id }})" style="background:#fef2f2;color:#dc2626;border:none;padding:5px 9px;border-radius:6px;font-size:0.75rem;font-weight:600;cursor:pointer;">🗑️ Forever</button>
+                        {% if qt_sub and qt_sub.restore %}<button onclick="restoreSingle({{ qt.id }})" style="background:#ede9fe;color:#5b21b6;border:none;padding:5px 9px;border-radius:6px;font-size:0.75rem;font-weight:600;cursor:pointer;">♻️ Restore</button>{% endif %}
+                        {% if qt_sub and qt_sub.permanent_delete %}<button onclick="permDeleteSingle({{ qt.id }})" style="background:#fef2f2;color:#dc2626;border:none;padding:5px 9px;border-radius:6px;font-size:0.75rem;font-weight:600;cursor:pointer;">🗑️ Forever</button>{% endif %}
                     </div>
                     {% else %}
                     <div style="display:flex;gap:5px;flex-wrap:wrap;min-width:170px;">
+                        {% if qt_sub and qt_sub.pdf_download %}
                         <form method="POST" action="{{ url_for('crm.quotation_reprint', id=qt.id) }}" target="_blank" style="display:inline;">
                             <button type="submit" class="btn-dl">📥 PDF</button>
                         </form>
-                        <button class="btn-mail" onclick="openEmailModal({{ qt.id }}, '{{ qt.bill_email or '' }}', '{{ qt.quot_number }}', '{{ qt.bill_company or '' }}', '{{ '{:,.2f}'.format(qt.total_amount|float) }}')">📧 Email</button>
-                        <button class="btn-st"   onclick="openStatusModal({{ qt.id }}, '{{ qt.status }}')">🔄 Status</button>
+                        {% endif %}
+                        {% if qt_sub and qt_sub.send_email %}<button class="btn-mail" onclick="openEmailModal({{ qt.id }}, '{{ qt.bill_email or '' }}', '{{ qt.quot_number }}', '{{ qt.bill_company or '' }}', '{{ '{:,.2f}'.format(qt.total_amount|float) }}')">📧 Email</button>{% endif %}
+                        {% if qt_sub and qt_sub.status_change %}<button class="btn-st" onclick="openStatusModal({{ qt.id }}, '{{ qt.status }}')">🔄 Status</button>{% endif %}
+                        {% if perm and perm.can_delete %}<button onclick="deleteSingle({{ qt.id }})" style="background:#fef2f2;color:#dc2626;border:none;padding:5px 9px;border-radius:6px;font-size:0.75rem;font-weight:600;cursor:pointer;">🗑️</button>{% endif %}
                     </div>
                     {% endif %}
                 </td>
@@ -497,23 +505,29 @@ function renderRows(data) {
     if (emptyEl)   emptyEl.style.display = 'none';
     if (tableWrap) tableWrap.style.display = 'block';
 
-    const isDeleted = currentTab === 'deleted';
-    const offset    = (currentPage - 1) * 20;
+    const isDeleted   = currentTab === 'deleted';
+    const offset      = (currentPage - 1) * 20;
+    const canView     = {{ 'true' if perm and perm.can_view else 'false' }};
+    const canDelete   = {{ 'true' if perm and perm.can_delete else 'false' }};
+    const canPDF      = {{ 'true' if qt_sub and qt_sub.pdf_download else 'false' }};
+    const canEmail    = {{ 'true' if qt_sub and qt_sub.send_email else 'false' }};
+    const canStatus   = {{ 'true' if qt_sub and qt_sub.status_change else 'false' }};
+    const canRestore  = {{ 'true' if qt_sub and qt_sub.restore else 'false' }};
+    const canPermDel  = {{ 'true' if qt_sub and qt_sub.permanent_delete else 'false' }};
 
     // ── Desktop table ──
     if (tbody) {
         tbody.innerHTML = data.rows.map((qt, i) => {
             const actions = isDeleted
                 ? `<div style="display:flex;gap:5px;">
-                     <button onclick="restoreSingle(${qt.id})"    style="background:#ede9fe;color:#5b21b6;border:none;padding:5px 9px;border-radius:6px;font-size:0.75rem;font-weight:600;cursor:pointer;">♻️ Restore</button>
-                     <button onclick="permDeleteSingle(${qt.id})" style="background:#fef2f2;color:#dc2626;border:none;padding:5px 9px;border-radius:6px;font-size:0.75rem;font-weight:600;cursor:pointer;">🗑️ Forever</button>
+                     ${canRestore?`<button onclick="restoreSingle(${qt.id})" style="background:#ede9fe;color:#5b21b6;border:none;padding:5px 9px;border-radius:6px;font-size:0.75rem;font-weight:600;cursor:pointer;">♻️ Restore</button>`:''}
+                     ${canPermDel?`<button onclick="permDeleteSingle(${qt.id})" style="background:#fef2f2;color:#dc2626;border:none;padding:5px 9px;border-radius:6px;font-size:0.75rem;font-weight:600;cursor:pointer;">🗑️ Forever</button>`:''}
                    </div>`
                 : `<div style="display:flex;gap:5px;flex-wrap:wrap;min-width:170px;">
-                     <form method="POST" action="/crm/quotations/${qt.id}/reprint" target="_blank" style="display:inline;">
-                       <button type="submit" class="btn-dl">📥 PDF</button>
-                     </form>
-                     <button class="btn-mail" onclick="openEmailModal(${qt.id},'${qt.bill_email}','${qt.quot_number}','${escHtml(qt.bill_company)}','${qt.total_amount.toFixed(2)}')">📧 Email</button>
-                     <button class="btn-st"   onclick="openStatusModal(${qt.id},'${qt.status}')">🔄 Status</button>
+                     ${canPDF?`<form method="POST" action="/crm/quotations/${qt.id}/reprint" target="_blank" style="display:inline;"><button type="submit" class="btn-dl">📥 PDF</button></form>`:''}
+                     ${canEmail?`<button class="btn-mail" onclick="openEmailModal(${qt.id},'${qt.bill_email}','${qt.quot_number}','${escHtml(qt.bill_company)}','${qt.total_amount.toFixed(2)}')">📧 Email</button>`:''}
+                     ${canStatus?`<button class="btn-st" onclick="openStatusModal(${qt.id},'${qt.status}')">🔄 Status</button>`:''}
+                     ${canDelete?`<button onclick="deleteSingle(${qt.id})" style="background:#fef2f2;color:#dc2626;border:none;padding:5px 9px;border-radius:6px;font-size:0.75rem;font-weight:600;cursor:pointer;">🗑️</button>`:''}
                    </div>`;
             const sentInfo = qt.email_sent_at
                 ? `<div style="font-size:0.68rem;color:var(--text3);margin-top:2px;">${qt.email_sent_at} → ${qt.email_sent_to}</div>` : '';
@@ -523,7 +537,7 @@ function renderRows(data) {
             return `<tr id="row-${qt.id}">
               <td style="text-align:center;"><input type="checkbox" class="qt-chk row-chk" value="${qt.id}" onchange="onRowCheck()"></td>
               <td style="color:var(--text3);font-size:0.78rem;">${offset + i + 1}</td>
-              <td><span style="font-weight:700;color:#1e3a5f;">${qt.quot_number}</span></td>
+              <td>${canView?`<a href="/crm/quotations/${qt.id}" style="font-weight:700;color:#1e3a5f;text-decoration:none;">${qt.quot_number}</a>`:`<span style="font-weight:700;color:#1e3a5f;">${qt.quot_number}</span>`}</td>
               <td style="white-space:nowrap;">${qt.quot_date}</td>
               <td style="white-space:nowrap;">${qt.valid_until}</td>
               <td><a href="/crm/leads/${qt.lead_id}" style="color:var(--blue);font-weight:600;text-decoration:none;">${escHtml(qt.contact_name)}</a>${qt.bill_company ? `<div style="font-size:0.72rem;color:var(--text3);">${escHtml(qt.bill_company)}</div>` : ''}</td>
@@ -546,13 +560,12 @@ function renderRows(data) {
 
         data.rows.forEach(qt => {
             const actions = isDeleted
-                ? `<button style="flex:1;background:#ede9fe;color:#5b21b6;border:none;border-radius:8px;padding:9px;font-size:0.78rem;font-weight:700;cursor:pointer;" onclick="restoreSingle(${qt.id})">♻️ Restore</button>
-                   <button style="flex:1;background:#fef2f2;color:#dc2626;border:none;border-radius:8px;padding:9px;font-size:0.78rem;font-weight:700;cursor:pointer;" onclick="permDeleteSingle(${qt.id})">🗑️ Delete Forever</button>`
-                : `<form method="POST" action="/crm/quotations/${qt.id}/reprint" target="_blank" style="flex:1;display:flex;">
-                     <button type="submit" class="qa-pdf" style="flex:1;border-radius:8px;border:none;cursor:pointer;">📥 PDF</button>
-                   </form>
-                   <button class="qa-mail" onclick="openEmailModal(${qt.id},'${qt.bill_email}','${qt.quot_number}','${escHtml(qt.bill_company)}','${qt.total_amount.toFixed(2)}')">📧 Email</button>
-                   <button class="qa-st"   onclick="openStatusModal(${qt.id},'${qt.status}')">🔄 Status</button>`;
+                ? `${canRestore?`<button style="flex:1;background:#ede9fe;color:#5b21b6;border:none;border-radius:8px;padding:9px;font-size:0.78rem;font-weight:700;cursor:pointer;" onclick="restoreSingle(${qt.id})">♻️ Restore</button>`:''}
+                   ${canPermDel?`<button style="flex:1;background:#fef2f2;color:#dc2626;border:none;border-radius:8px;padding:9px;font-size:0.78rem;font-weight:700;cursor:pointer;" onclick="permDeleteSingle(${qt.id})">🗑️ Delete Forever</button>`:''}`
+                : `${canPDF?`<form method="POST" action="/crm/quotations/${qt.id}/reprint" target="_blank" style="flex:1;display:flex;"><button type="submit" class="qa-pdf" style="flex:1;border-radius:8px;border:none;cursor:pointer;">📥 PDF</button></form>`:''}
+                   ${canEmail?`<button class="qa-mail" onclick="openEmailModal(${qt.id},'${qt.bill_email}','${qt.quot_number}','${escHtml(qt.bill_company)}','${qt.total_amount.toFixed(2)}')">📧 Email</button>`:''}
+                   ${canStatus?`<button class="qa-st" onclick="openStatusModal(${qt.id},'${qt.status}')">🔄 Status</button>`:''}
+                   ${canDelete?`<button style="flex:1;background:#fef2f2;color:#dc2626;border:none;border-radius:8px;padding:9px;font-size:0.78rem;font-weight:700;cursor:pointer;" onclick="deleteSingle(${qt.id})">🗑️</button>`:''}`;
 
             const delBanner = (isDeleted && qt.deleted_at)
                 ? `<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:8px 12px;font-size:0.78rem;color:#dc2626;margin-bottom:10px;">🗑️ Deleted on ${qt.deleted_at}</div>` : '';
@@ -564,7 +577,7 @@ function renderRows(data) {
               <div class="qt-card-top">
                 <input type="checkbox" class="qt-chk row-chk" value="${qt.id}" onchange="onRowCheck()" style="margin-top:3px;flex-shrink:0;">
                 <div class="qt-card-head">
-                  <div class="qt-card-num">${qt.quot_number}</div>
+                  <div class="qt-card-num">${canView?`<a href="/crm/quotations/${qt.id}" style="color:inherit;text-decoration:none;">${qt.quot_number}</a>`:qt.quot_number}</div>
                   <div class="qt-card-sub"><a href="/crm/leads/${qt.lead_id}" style="color:#1d4ed8;text-decoration:none;font-weight:700;">${escHtml(qt.contact_name)}</a>${qt.bill_company ? ' · ' + escHtml(qt.bill_company) : ''}</div>
                 </div>
                 ${statusBadge(qt.status)}
@@ -764,6 +777,18 @@ function doBulkPermanentDelete() {
         const fd = new FormData(); ids.forEach(id => fd.append('ids[]', id));
         fetch('/crm/quotations/bulk-permanent-delete', {method:'POST', body:fd})
             .then(r=>r.json()).then(d => { showToast(d.message, d.success?'#166534':'#dc2626'); if(d.success) { clearSelection(); doSearch(); } });
+    };
+}
+function deleteSingle(id) {
+    document.getElementById('confirmCount').textContent = '1 quotation';
+    document.getElementById('confirmMsg').textContent = 'This order will be moved to Deleted tab.';
+    document.getElementById('confirmTitle').textContent = '🗑️ Move to Deleted';
+    const btn = document.getElementById('confirmBtn');
+    btn.textContent = 'Yes, Delete'; btn.className = 'mbtn-danger';
+    openModal('confirmModal');
+    btn.onclick = () => {
+        const fd = new FormData(); fd.append('ids[]', id);
+        fetch('/crm/quotations/bulk-delete', {method:'POST', body:fd}).then(r=>r.json()).then(d => { closeModal('confirmModal'); showToast(d.message, d.success?'#166534':'#dc2626'); if(d.success) doSearch(); });
     };
 }
 function restoreSingle(id) {
