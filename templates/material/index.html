@@ -1,0 +1,849 @@
+{% extends "base.html" %}
+{% block title %}Item Master — HCP ERP{% endblock %}
+{% block page_title %}Item Master{% endblock %}
+{% block bread %}Procurement / Item Master{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ── Tabs ── */
+.im-tabs       { display:flex; gap:4px; margin-bottom:16px; background:#f1f5f9; padding:4px; border-radius:10px; width:fit-content; }
+.im-tab        { padding:7px 18px; border-radius:7px; border:none; background:none; font-size:13px; font-weight:600; cursor:pointer; color:var(--text2); transition:all .15s; font-family:inherit; }
+.im-tab.active { background:#fff; color:#2563eb; box-shadow:0 1px 4px rgba(0,0,0,.1); }
+
+/* ── Type badge ── */
+.type-badge    { display:inline-block; padding:2px 9px; border-radius:12px; font-size:11px; font-weight:700; }
+
+/* ── Modal ── */
+.im-overlay    { display:none; position:fixed; inset:0; background:rgba(2,6,23,.72); backdrop-filter:blur(2px); z-index:500; justify-content:center; align-items:flex-start; padding:28px 16px; overflow-y:auto; }
+.im-overlay.open { display:flex; }
+.im-modal      { background:var(--white); border:1px solid var(--border); border-radius:14px; width:900px; max-width:96vw; max-height:calc(100vh - 56px); display:flex; flex-direction:column; box-shadow:0 32px 80px rgba(0,0,0,.3); animation:imIn .2s cubic-bezier(.16,1,.3,1); }
+.im-modal.sm   { width:500px; }
+@keyframes imIn { from{transform:translateY(-18px) scale(.98);opacity:0} to{transform:translateY(0);opacity:1} }
+.im-mhdr       { display:flex; align-items:center; justify-content:space-between; padding:16px 22px 12px; border-bottom:1px solid var(--border); border-radius:14px 14px 0 0; flex-shrink:0; }
+.im-mhdr h3    { font-size:15px; font-weight:700; color:var(--text); margin:0; }
+.im-mbody      { padding:20px 22px 10px; overflow-y:auto; flex:1; }
+.im-mfoot      { display:flex; justify-content:flex-end; gap:9px; padding:12px 22px; border-top:1px solid var(--border); background:var(--bg); border-radius:0 0 14px 14px; flex-shrink:0; }
+.im-mclose     { width:30px; height:30px; border-radius:7px; border:1px solid var(--border); background:var(--bg); cursor:pointer; font-size:14px; display:flex; align-items:center; justify-content:center; color:var(--text2); transition:all .15s; }
+.im-mclose:hover { background:#ef4444; color:#fff; border-color:#ef4444; }
+
+/* ── Section label ── */
+.im-sec        { font-size:10px; font-weight:800; color:var(--blue,#2563eb); text-transform:uppercase; letter-spacing:1px; background:var(--bg); border-radius:6px; padding:6px 11px; margin:18px 0 12px; border:1px solid var(--border); }
+
+/* ── Tag input ── */
+.tag-input-wrap { display:flex; flex-wrap:wrap; gap:5px; padding:6px 8px; border:1.5px solid var(--border); border-radius:7px; background:var(--white); min-height:38px; cursor:text; transition:border-color .15s; }
+.tag-input-wrap:focus-within { border-color:var(--blue,#2563eb); box-shadow:0 0 0 3px rgba(37,99,235,.1); }
+.tag-pill      { display:inline-flex; align-items:center; gap:5px; background:var(--blue-lt,#eff6ff); border:1px solid var(--blue-border,#bfdbfe); color:var(--blue,#2563eb); padding:2px 8px; border-radius:20px; font-size:12px; font-weight:600; }
+.tag-pill span { cursor:pointer; font-size:14px; line-height:1; opacity:.7; }
+.tag-pill span:hover { opacity:1; }
+.tag-bare-input { border:none; outline:none; font-size:12.5px; font-family:inherit; background:transparent; color:var(--text); min-width:80px; flex:1; padding:2px 4px; }
+
+/* ── Color swatch ── */
+.color-row     { display:flex; gap:6px; flex-wrap:wrap; margin-top:6px; }
+.color-sw      { width:28px; height:28px; border-radius:50%; cursor:pointer; border:3px solid transparent; transition:all .15s; }
+.color-sw.sel  { border-color:var(--text); transform:scale(1.15); }
+
+/* ── Grid ── */
+.im-grid-3     { display:grid; grid-template-columns:1fr 1fr 1fr; gap:14px; }
+.im-grid-2     { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+.im-grid-full  { grid-column:1/-1; }
+
+/* ── Stat chips in toolbar ── */
+.im-chip       { display:inline-flex; align-items:center; gap:6px; padding:4px 12px; border-radius:20px; font-size:12px; font-weight:700; background:var(--white); border:1px solid var(--border); color:var(--text2); }
+.im-chip .val  { font-size:14px; font-weight:800; color:var(--blue,#2563eb); }
+
+/* ── Small type master list ── */
+.type-list-item { display:flex; align-items:center; gap:10px; padding:10px 12px; border-bottom:1px solid var(--border); transition:background .12s; }
+.type-list-item:last-child { border-bottom:none; }
+.type-list-item:hover { background:var(--bg); }
+.type-dot      { width:12px; height:12px; border-radius:50%; flex-shrink:0; }
+
+/* ── Group tree ── */
+.grp-item      { display:flex; align-items:center; gap:8px; padding:8px 12px; border-bottom:1px solid var(--border); font-size:13px; }
+.grp-item:last-child { border-bottom:none; }
+.grp-item:hover { background:var(--bg); }
+.grp-child     { padding-left:28px; background:var(--bg); }
+
+@media print { .grid-toolbar,.im-overlay { display:none !important; } }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Tabs -->
+<div class="im-tabs">
+  <button class="im-tab active" onclick="imTab('materials',this)">📦 Materials</button>
+  <button class="im-tab" onclick="imTab('types',this)">🏷️ Material Types</button>
+  <button class="im-tab" onclick="imTab('groups',this)">📂 Material Groups</button>
+</div>
+
+<!-- ═══════════════ MATERIALS TAB ═══════════════ -->
+<div id="tab-materials">
+<div class="grid-card">
+  <div class="grid-toolbar">
+    <button class="btn-add-new" onclick="imOpenMaterial()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      New Material
+    </button>
+    <div class="grid-search-wrap" style="flex:1;min-width:160px;max-width:300px;">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="text" class="grid-search-input" id="matSearch" placeholder="Search material, alias, supplier…" oninput="imSearch(this.value)">
+    </div>
+    <div class="grid-toolbar-right">
+      <span class="im-chip">Total: <span class="val" id="matTotal">0</span></span>
+      <select class="btn-grid-action" id="matTypeFilter" onchange="imLoad()" style="padding:7px 10px;font-size:12.5px;cursor:pointer;">
+        <option value="">All Types</option>
+        {% for t in types %}
+        <option value="{{ t.id }}">{{ t.type_name }}</option>
+        {% endfor %}
+      </select>
+      <select class="btn-grid-action" id="matGroupFilter" onchange="imLoad()" style="padding:7px 10px;font-size:12.5px;cursor:pointer;">
+        <option value="">All Groups</option>
+        {% for g in groups %}
+        <option value="{{ g.id }}">{{ g.group_name }}</option>
+        {% endfor %}
+      </select>
+      <select class="btn-grid-action" id="matActiveFilter" onchange="imLoad()" style="padding:7px 10px;font-size:12.5px;cursor:pointer;">
+        <option value="1">Active Only</option>
+        <option value="0">All</option>
+      </select>
+    </div>
+  </div>
+  <div class="tbl-wrap">
+    <table id="matTable">
+      <thead>
+        <tr>
+          <th style="width:46px;color:#94a3b8;">#</th>
+          <th>Material Name</th>
+          <th>Type</th>
+          <th>Group</th>
+          <th>UOM</th>
+          <th>Supplier</th>
+          <th>MSL</th>
+          <th>Last Rate (₹)</th>
+          <th>HSN</th>
+          <th>GST %</th>
+          <th style="width:80px;text-align:right;">Actions</th>
+        </tr>
+      </thead>
+      <tbody id="matTbody">
+        <tr><td colspan="11" style="text-align:center;padding:40px;color:#94a3b8;">Loading…</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="grid-footer">
+    <div class="rows-selector">
+      Show
+      <select id="matPgSz" onchange="imPgSz=+this.value;imPage=1;imRender()">
+        <option value="25">25</option><option value="50" selected>50</option>
+        <option value="100">100</option><option value="9999">All</option>
+      </select>
+      rows &nbsp;·&nbsp; <span id="matPgInfo" style="color:var(--text3)"></span>
+    </div>
+    <div id="matPgn" class="grid-pgn"></div>
+  </div>
+</div>
+</div>
+
+<!-- ═══════════════ TYPES TAB ═══════════════ -->
+<div id="tab-types" style="display:none">
+<div class="grid-card">
+  <div class="grid-toolbar">
+    <button class="btn-add-new" onclick="imOpenType()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      New Type
+    </button>
+    <div class="grid-toolbar-right">
+      <span class="im-chip">Total: <span class="val" id="typeTotal">0</span></span>
+    </div>
+  </div>
+  <div class="tbl-wrap">
+    <table id="typeTable">
+      <thead>
+        <tr>
+          <th style="width:46px;color:#94a3b8;">#</th>
+          <th>Type Name</th>
+          <th>Abbr.</th>
+          <th>Color</th>
+          <th>SKU Size</th>
+          <th>Sort</th>
+          <th>Status</th>
+          <th style="width:80px;text-align:right;">Actions</th>
+        </tr>
+      </thead>
+      <tbody id="typeTbody">
+        <tr><td colspan="8" style="text-align:center;padding:40px;color:#94a3b8;">Loading…</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+</div>
+
+<!-- ═══════════════ GROUPS TAB ═══════════════ -->
+<div id="tab-groups" style="display:none">
+<div class="grid-card">
+  <div class="grid-toolbar">
+    <button class="btn-add-new" onclick="imOpenGroup()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      New Group
+    </button>
+    <div class="grid-toolbar-right">
+      <span class="im-chip">Total: <span class="val" id="grpTotal">0</span></span>
+    </div>
+  </div>
+  <div class="tbl-wrap">
+    <table id="grpTable">
+      <thead>
+        <tr>
+          <th style="width:46px;color:#94a3b8;">#</th>
+          <th>Group Name</th>
+          <th>Parent Group</th>
+          <th>Description</th>
+          <th style="width:80px;text-align:right;">Actions</th>
+        </tr>
+      </thead>
+      <tbody id="grpTbody">
+        <tr><td colspan="5" style="text-align:center;padding:40px;color:#94a3b8;">Loading…</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+</div>
+
+
+<!-- ═══════════════ MATERIAL MODAL ═══════════════ -->
+<div class="im-overlay" id="imMatOverlay" onclick="if(event.target===this)imCloseMaterial()">
+  <div class="im-modal">
+    <div class="im-mhdr">
+      <h3 id="imMatTitle">➕ New Material</h3>
+      <button class="im-mclose" onclick="imCloseMaterial()">✕</button>
+    </div>
+    <div class="im-mbody">
+
+      <div class="im-sec">📋 Identification</div>
+      <div class="im-grid-3">
+        <div class="fg im-grid-full">
+          <label class="fl">Material Name <span style="color:var(--red)">*</span></label>
+          <input type="text" class="fi" id="mName" placeholder="e.g. Sodium Chloride">
+        </div>
+        <div class="fg">
+          <label class="fl">Material Type <span style="color:var(--red)">*</span></label>
+          <div style="display:flex;gap:6px">
+            <select class="fi" id="mType" onchange="imTypeChanged()" style="flex:1">
+              <option value="">-- Select --</option>
+            </select>
+            <button type="button" class="btn-grid-action" onclick="imOpenType(true)" title="Add Type" style="flex-shrink:0;padding:0 10px;">+</button>
+          </div>
+        </div>
+        <div class="fg">
+          <label class="fl">Material Group</label>
+          <div style="display:flex;gap:6px">
+            <select class="fi" id="mGroup" style="flex:1">
+              <option value="">-- Select --</option>
+            </select>
+            <button type="button" class="btn-grid-action" onclick="imOpenGroup(true)" title="Add Group" style="flex-shrink:0;padding:0 10px;">+</button>
+          </div>
+        </div>
+        <div class="fg">
+          <label class="fl">UOM</label>
+          <select class="fi" id="mUom">
+            <option>KG</option><option>GM</option><option>LTR</option><option>ML</option>
+            <option>PCS</option><option>NOS</option><option>BOX</option><option>MTR</option>
+            <option>SET</option><option>PKT</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="fg" style="margin-top:10px">
+        <label class="fl">Aliases <span style="font-size:10px;color:var(--text3);font-weight:400">(alternate names — press Enter or comma to add)</span></label>
+        <div class="tag-input-wrap" id="aliasWrap" onclick="document.getElementById('aliasInput').focus()">
+          <input class="tag-bare-input" id="aliasInput" placeholder="Type alias and press Enter…"
+                 onkeydown="imTagKey(event,'alias')" oninput="imTagInput(event,'alias')">
+        </div>
+        <input type="hidden" id="mAliases">
+      </div>
+
+      <div class="fg" style="margin-top:10px">
+        <label class="fl">Description <span style="font-size:10px;color:var(--text3);font-weight:400">(shown below material name)</span></label>
+        <input type="text" class="fi" id="mDesc" placeholder="e.g. Food-grade white crystalline powder">
+      </div>
+
+      <!-- SKU Sizes — shown only for Packing Material type -->
+      <div id="skuSection" style="display:none;margin-top:10px">
+        <div class="im-sec">📐 SKU Sizes</div>
+        <div class="fg">
+          <label class="fl">SKU Sizes <span style="font-size:10px;color:var(--text3);font-weight:400">(press Enter or comma to add)</span></label>
+          <div class="tag-input-wrap" id="skuWrap" onclick="document.getElementById('skuInput').focus()">
+            <input class="tag-bare-input" id="skuInput" placeholder="e.g. 50GM, 100ML…"
+                   onkeydown="imTagKey(event,'sku')" oninput="imTagInput(event,'sku')">
+          </div>
+          <input type="hidden" id="mSkuSizes">
+        </div>
+      </div>
+
+      <div class="im-sec">🏭 Supplier Details</div>
+      <div class="im-grid-3">
+        <div class="fg" style="grid-column:1/3">
+          <label class="fl">Supplier Name</label>
+          <input type="text" class="fi" id="mSupName" placeholder="e.g. ABC Chemicals Pvt Ltd">
+        </div>
+        <div class="fg">
+          <label class="fl">Supplier Code</label>
+          <input type="text" class="fi" id="mSupCode" placeholder="Auto from GRN">
+        </div>
+      </div>
+
+      <div class="im-sec">📊 Opening Balance & Procurement</div>
+      <div class="im-grid-3">
+        <div class="fg">
+          <label class="fl">Opening Balance</label>
+          <input type="number" class="fi" id="mOpenBal" min="0" step="0.001" placeholder="0.000">
+        </div>
+        <div class="fg">
+          <label class="fl">MSL — Min Stock Level</label>
+          <input type="number" class="fi" id="mMsl" min="0" step="0.001" placeholder="e.g. 100">
+        </div>
+        <div class="fg">
+          <label class="fl">Last Purchase Rate (₹)</label>
+          <input type="number" class="fi" id="mRate" min="0" step="0.01" placeholder="0.00">
+        </div>
+        <div class="fg">
+          <label class="fl">Std Pack Size</label>
+          <input type="number" class="fi" id="mPackSz" min="0" step="0.001" placeholder="0.000">
+        </div>
+        <div class="fg">
+          <label class="fl">Lead Time (Days)</label>
+          <input type="number" class="fi" id="mLeadTime" min="0" placeholder="0">
+        </div>
+      </div>
+
+      <div class="im-sec">🧾 GST & Statutory Details</div>
+      <div class="im-grid-3">
+        <div class="fg">
+          <label class="fl">HSN / SAC Code</label>
+          <input type="text" class="fi" id="mHsn" placeholder="e.g. 2905, 3401">
+        </div>
+        <div class="fg">
+          <label class="fl">GST Rate (%)</label>
+          <select class="fi" id="mGst">
+            <option value="0">0%</option><option value="5">5%</option>
+            <option value="12">12%</option><option value="18" selected>18%</option>
+            <option value="28">28%</option>
+          </select>
+        </div>
+        <div class="fg"></div>
+        <div class="fg">
+          <label class="fl">Taxability</label>
+          <select class="fi" id="mTaxability">
+            <option>Taxable</option><option>Exempt</option><option>Nil Rated</option><option>Non-GST</option>
+          </select>
+        </div>
+        <div class="fg">
+          <label class="fl">Type of Supply</label>
+          <select class="fi" id="mSupplyType">
+            <option>Goods</option><option>Services</option>
+          </select>
+        </div>
+        <div class="fg" style="display:flex;align-items:flex-end;gap:8px;padding-bottom:2px">
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;cursor:pointer">
+            <input type="checkbox" id="mActive" checked style="width:16px;height:16px;accent-color:#2563eb">
+            Active
+          </label>
+        </div>
+      </div>
+
+    </div>
+    <div class="im-mfoot">
+      <button class="btn-grid-action" onclick="imCloseMaterial()">Cancel</button>
+      <button class="btn-add-new" onclick="imSaveMaterial()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+        Save Record
+      </button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════ TYPE MODAL ═══════════════ -->
+<div class="im-overlay" id="imTypeOverlay" onclick="if(event.target===this)imCloseType()">
+  <div class="im-modal sm">
+    <div class="im-mhdr">
+      <h3 id="imTypeTitle">➕ New Material Type</h3>
+      <button class="im-mclose" onclick="imCloseType()">✕</button>
+    </div>
+    <div class="im-mbody">
+      <div class="im-grid-2">
+        <div class="fg">
+          <label class="fl">Type Name <span style="color:var(--red)">*</span></label>
+          <input type="text" class="fi" id="tName" placeholder="e.g. Packing Material">
+        </div>
+        <div class="fg">
+          <label class="fl">Abbreviation</label>
+          <input type="text" class="fi" id="tAbbr" placeholder="e.g. PM" maxlength="10">
+        </div>
+        <div class="fg">
+          <label class="fl">Sort Order</label>
+          <input type="number" class="fi" id="tSort" min="0" value="0">
+        </div>
+        <div class="fg" style="display:flex;align-items:flex-end;gap:8px;padding-bottom:2px">
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;cursor:pointer">
+            <input type="checkbox" id="tHasSku" style="width:16px;height:16px;accent-color:#2563eb">
+            Show SKU Size field
+          </label>
+        </div>
+      </div>
+      <div class="fg" style="margin-top:12px">
+        <label class="fl">Description</label>
+        <input type="text" class="fi" id="tDesc" placeholder="Optional description">
+      </div>
+      <div class="fg" style="margin-top:12px">
+        <label class="fl">Color</label>
+        <div style="display:flex;align-items:center;gap:10px;margin-top:6px">
+          <input type="color" id="tColor" value="#6366f1" style="width:40px;height:36px;border-radius:7px;border:1px solid var(--border);cursor:pointer;padding:2px;">
+          <div class="color-row" id="colorSwatches"></div>
+        </div>
+      </div>
+      <div class="fg" style="margin-top:12px;display:flex;align-items:center;gap:8px">
+        <input type="checkbox" id="tActive" checked style="width:16px;height:16px;accent-color:#2563eb">
+        <label for="tActive" style="font-size:13px;font-weight:600;cursor:pointer">Active</label>
+      </div>
+    </div>
+    <div class="im-mfoot">
+      <button class="btn-grid-action" onclick="imCloseType()">Cancel</button>
+      <button class="btn-add-new" onclick="imSaveType()">Save Type</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════ GROUP MODAL ═══════════════ -->
+<div class="im-overlay" id="imGrpOverlay" onclick="if(event.target===this)imCloseGroup()">
+  <div class="im-modal sm">
+    <div class="im-mhdr">
+      <h3 id="imGrpTitle">➕ New Material Group</h3>
+      <button class="im-mclose" onclick="imCloseGroup()">✕</button>
+    </div>
+    <div class="im-mbody">
+      <div class="fg">
+        <label class="fl">Group Name <span style="color:var(--red)">*</span></label>
+        <input type="text" class="fi" id="gName" placeholder="e.g. FRAGRANCES">
+      </div>
+      <div class="fg" style="margin-top:12px">
+        <label class="fl">Parent Group <span style="font-size:10px;color:var(--text3);font-weight:400">(leave blank for top-level)</span></label>
+        <select class="fi" id="gParent">
+          <option value="">-- None (Top Level) --</option>
+        </select>
+      </div>
+      <div class="fg" style="margin-top:12px">
+        <label class="fl">Description</label>
+        <input type="text" class="fi" id="gDesc" placeholder="Optional">
+      </div>
+    </div>
+    <div class="im-mfoot">
+      <button class="btn-grid-action" onclick="imCloseGroup()">Cancel</button>
+      <button class="btn-add-new" onclick="imSaveGroup()">Save Group</button>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const IM = '/material/api';
+let imRows=[], imTypes=[], imGroups=[];
+let imPage=1, imPgSz=50, imSearchQ='';
+let imMatEditId=null, imTypeEditId=null, imGrpEditId=null;
+let imFromMat=false; // opened type/group modal from material modal
+
+const PRESET_COLORS=['#6366f1','#2563eb','#0891b2','#059669','#16a34a','#ca8a04','#dc2626','#db2777','#7c3aed','#94a3b8'];
+
+/* ══ TABS ═══════════════════════════════════ */
+function imTab(tab, btn){
+  document.querySelectorAll('.im-tab').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  ['materials','types','groups'].forEach(t=>{
+    document.getElementById('tab-'+t).style.display = t===tab?'':'none';
+  });
+}
+
+/* ══ LOAD ALL ════════════════════════════════ */
+async function imLoadAll(){
+  await Promise.all([imLoadTypes(), imLoadGroups(), imLoad()]);
+}
+
+/* ══ MATERIALS ═══════════════════════════════ */
+async function imLoad(){
+  const tid   = document.getElementById('matTypeFilter').value;
+  const gid   = document.getElementById('matGroupFilter').value;
+  const active= document.getElementById('matActiveFilter').value;
+  let url = `${IM}/list?active=${active}`;
+  if(tid) url+=`&type_id=${tid}`;
+  if(gid) url+=`&group_id=${gid}`;
+  if(imSearchQ) url+=`&search=${encodeURIComponent(imSearchQ)}`;
+  const res  = await fetch(url);
+  const data = await res.json();
+  imRows = data.rows||[];
+  imPage = 1; imRender();
+}
+
+function imSearch(q){ imSearchQ=q; imLoad(); }
+
+function imRender(){
+  const tbody = document.getElementById('matTbody');
+  const total = imRows.length;
+  document.getElementById('matTotal').textContent = total;
+  const s=(imPage-1)*imPgSz, e=Math.min(s+imPgSz,total);
+  document.getElementById('matPgInfo').textContent = total?`Showing ${s+1}–${e} of ${total}`:'No records';
+  if(!total){ tbody.innerHTML=`<tr><td colspan="11"><div class="grid-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg><p>No materials found</p></div></td></tr>`; imBuildPgn(0); return; }
+  tbody.innerHTML = imRows.slice(s,e).map((r,i)=>`
+    <tr ondblclick="imOpenMaterial(${r.id})" style="cursor:pointer">
+      <td style="color:#94a3b8;font-size:11px;font-weight:600;">${s+i+1}</td>
+      <td><div style="font-weight:700;">${esc(r.material_name)}</div>
+          ${r.aliases?`<div style="font-size:11px;color:var(--text3)">${esc(r.aliases)}</div>`:''}
+          ${r.description?`<div style="font-size:11px;color:var(--text2);font-style:italic">${esc(r.description)}</div>`:''}
+      </td>
+      <td>${r.material_type?`<span class="type-badge" style="background:${r.material_type_color}18;color:${r.material_type_color}">${esc(r.material_type_abbr||r.material_type)}</span>`:''}</td>
+      <td style="font-size:12px">${esc(r.group_name)}</td>
+      <td><span style="background:var(--bg);border:1px solid var(--border);padding:2px 7px;border-radius:5px;font-size:11px;font-weight:700">${esc(r.uom)}</span></td>
+      <td style="font-size:12px">${esc(r.supplier_name)}</td>
+      <td style="font-weight:700;color:var(--blue,#2563eb)">${r.msl||0}</td>
+      <td style="font-weight:700">₹${r.last_purchase_rate?parseFloat(r.last_purchase_rate).toFixed(2):'0.00'}</td>
+      <td style="font-size:12px;font-family:monospace">${esc(r.hsn_code)}</td>
+      <td style="font-size:12px">${r.gst_rate||0}%</td>
+      <td onclick="event.stopPropagation()">
+        <div class="row-actions" style="justify-content:flex-end">
+          <button class="ra-btn" onclick="imOpenMaterial(${r.id})" title="Edit">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4z"/></svg>
+          </button>
+          <button class="ra-btn danger" onclick="imDelMaterial(${r.id})" title="Delete">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+          </button>
+        </div>
+      </td>
+    </tr>`).join('');
+  imBuildPgn(total);
+}
+
+function imBuildPgn(total){
+  const pages=Math.max(1,Math.ceil(total/imPgSz)),wrap=document.getElementById('matPgn');
+  if(pages<=1){wrap.innerHTML='';return;}
+  const btn=(p,l,a,d)=>`<button class="pgn-btn${a?' active':''}"${d?' disabled':''} onclick="imPage=${p};imRender()">${l}</button>`;
+  const sep='<span class="pgn-sep">…</span>';
+  let h=btn(imPage-1,'‹',false,imPage===1);
+  const f=Math.max(1,imPage-2),t=Math.min(pages,imPage+2);
+  if(f>1){h+=btn(1,'1',false,false);if(f>2)h+=sep;}
+  for(let p=f;p<=t;p++) h+=btn(p,p,p===imPage,false);
+  if(t<pages){if(t<pages-1)h+=sep;h+=btn(pages,pages,false,false);}
+  h+=btn(imPage+1,'›',false,imPage===pages);
+  wrap.innerHTML=h;
+}
+
+/* ══ MATERIAL MODAL ══════════════════════════ */
+function imOpenMaterial(id=null){
+  imMatEditId=id;
+  document.getElementById('imMatTitle').textContent = id?'✏️ Edit Material':'➕ Add New Material';
+  const r = id ? imRows.find(x=>x.id===id) : null;
+  const set=(eid,val)=>{const el=document.getElementById(eid);if(el)el.value=val??'';};
+  imPopulateTypeSelect();
+  imPopulateGroupSelect();
+
+  set('mName', r?.material_name||'');
+  set('mType', r?.material_type_id||'');
+  set('mGroup', r?.group_id||'');
+  set('mUom', r?.uom||'KG');
+  set('mDesc', r?.description||'');
+  set('mSupName', r?.supplier_name||'');
+  set('mSupCode', r?.supplier_code||'');
+  set('mOpenBal', r?.opening_balance||0);
+  set('mMsl', r?.msl||0);
+  set('mRate', r?.last_purchase_rate||0);
+  set('mPackSz', r?.std_pack_size||0);
+  set('mLeadTime', r?.lead_time_days||0);
+  set('mHsn', r?.hsn_code||'');
+  set('mGst', r?.gst_rate||18);
+  set('mTaxability', r?.taxability||'Taxable');
+  set('mSupplyType', r?.type_of_supply||'Goods');
+  document.getElementById('mActive').checked = r ? r.is_active : true;
+
+  // Tags
+  imSetTags('alias', (r?.aliases||'').split(',').filter(Boolean));
+  imSetTags('sku', (r?.sku_sizes||'').split(',').filter(Boolean));
+
+  // SKU section visibility
+  const typeRow = imTypes.find(t=>t.id===(r?.material_type_id));
+  document.getElementById('skuSection').style.display = typeRow?.has_sku ? '' : 'none';
+
+  document.getElementById('imMatOverlay').classList.add('open');
+  setTimeout(()=>document.getElementById('mName').focus(),100);
+}
+function imCloseMaterial(){ document.getElementById('imMatOverlay').classList.remove('open'); imMatEditId=null; }
+
+function imTypeChanged(){
+  const val=document.getElementById('mType').value;
+  const t=imTypes.find(x=>x.id===+val);
+  document.getElementById('skuSection').style.display = t?.has_sku?'':'none';
+}
+
+async function imSaveMaterial(){
+  const name=document.getElementById('mName').value.trim();
+  if(!name){ document.getElementById('mName').classList.add('fi-err'); setTimeout(()=>document.getElementById('mName').classList.remove('fi-err'),1000); return; }
+  const payload={
+    id:imMatEditId,
+    material_name:name,
+    aliases:document.getElementById('mAliases').value,
+    description:document.getElementById('mDesc').value.trim(),
+    uom:document.getElementById('mUom').value,
+    material_type_id:+document.getElementById('mType').value||null,
+    group_id:+document.getElementById('mGroup').value||null,
+    sku_sizes:document.getElementById('mSkuSizes').value,
+    supplier_name:document.getElementById('mSupName').value.trim(),
+    supplier_code:document.getElementById('mSupCode').value.trim(),
+    opening_balance:+document.getElementById('mOpenBal').value||0,
+    msl:+document.getElementById('mMsl').value||0,
+    last_purchase_rate:+document.getElementById('mRate').value||0,
+    std_pack_size:+document.getElementById('mPackSz').value||0,
+    lead_time_days:+document.getElementById('mLeadTime').value||0,
+    hsn_code:document.getElementById('mHsn').value.trim(),
+    gst_rate:+document.getElementById('mGst').value||0,
+    taxability:document.getElementById('mTaxability').value,
+    type_of_supply:document.getElementById('mSupplyType').value,
+    is_active:document.getElementById('mActive').checked,
+  };
+  const res=await fetch(`${IM}/save`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+  const data=await res.json();
+  if(data.status==='ok'){ imCloseMaterial(); imLoad(); showToast(imMatEditId?'Updated ✓':'Saved ✓','success'); }
+  else showToast(data.message||'Save failed','danger');
+}
+
+async function imDelMaterial(id){
+  if(!confirm('Delete this material?')) return;
+  const res=await fetch(`${IM}/delete`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id})});
+  const data=await res.json();
+  if(data.status==='ok'){ imLoad(); showToast('Deleted ✓','success'); }
+  else showToast(data.message||'Delete failed','danger');
+}
+
+/* ══ TYPES ═══════════════════════════════════ */
+async function imLoadTypes(){
+  const res=await fetch(`${IM}/types`);
+  const data=await res.json();
+  imTypes=data.rows||[];
+  document.getElementById('typeTotal').textContent=imTypes.length;
+  renderTypesTable();
+}
+
+function renderTypesTable(){
+  const tbody=document.getElementById('typeTbody');
+  if(!imTypes.length){ tbody.innerHTML='<tr><td colspan="8" style="text-align:center;padding:40px;color:#94a3b8">No types yet</td></tr>'; return; }
+  tbody.innerHTML=imTypes.map((t,i)=>`
+    <tr ondblclick="imOpenType(false,${t.id})" style="cursor:pointer">
+      <td style="color:#94a3b8;font-size:11px;font-weight:600">${i+1}</td>
+      <td><span class="type-badge" style="background:${t.color}18;color:${t.color}">${esc(t.type_name)}</span></td>
+      <td style="font-family:monospace;font-weight:700">${esc(t.abbreviation)}</td>
+      <td><span style="display:inline-block;width:20px;height:20px;border-radius:50%;background:${t.color};vertical-align:middle"></span></td>
+      <td>${t.has_sku?'<span style="color:#16a34a;font-weight:700">✓ Yes</span>':'—'}</td>
+      <td style="color:var(--text3)">${t.sort_order}</td>
+      <td>${t.is_active?'<span style="color:#16a34a;font-weight:700">Active</span>':'<span style="color:#94a3b8">Inactive</span>'}</td>
+      <td onclick="event.stopPropagation()">
+        <div class="row-actions" style="justify-content:flex-end">
+          <button class="ra-btn" onclick="imOpenType(false,${t.id})" title="Edit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4z"/></svg></button>
+          <button class="ra-btn danger" onclick="imDelType(${t.id})" title="Delete"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></button>
+        </div>
+      </td>
+    </tr>`).join('');
+}
+
+function imOpenType(fromMat=false, id=null){
+  imFromMat=fromMat; imTypeEditId=id;
+  document.getElementById('imTypeTitle').textContent = id?'✏️ Edit Material Type':'➕ New Material Type';
+  const t = id ? imTypes.find(x=>x.id===id) : null;
+  document.getElementById('tName').value  = t?.type_name||'';
+  document.getElementById('tAbbr').value  = t?.abbreviation||'';
+  document.getElementById('tSort').value  = t?.sort_order||0;
+  document.getElementById('tDesc').value  = t?.description||'';
+  document.getElementById('tColor').value = t?.color||'#6366f1';
+  document.getElementById('tActive').checked = t ? t.is_active : true;
+  document.getElementById('tHasSku').checked = t ? t.has_sku : false;
+  imBuildColorSwatches(t?.color||'#6366f1');
+  document.getElementById('imTypeOverlay').classList.add('open');
+  setTimeout(()=>document.getElementById('tName').focus(),100);
+}
+function imCloseType(){ document.getElementById('imTypeOverlay').classList.remove('open'); imTypeEditId=null; }
+
+function imBuildColorSwatches(sel){
+  document.getElementById('colorSwatches').innerHTML = PRESET_COLORS.map(c=>
+    `<div class="color-sw${c===sel?' sel':''}" style="background:${c}" onclick="imSelColor('${c}')" title="${c}"></div>`
+  ).join('');
+}
+function imSelColor(c){
+  document.getElementById('tColor').value=c;
+  document.querySelectorAll('.color-sw').forEach(el=>{el.classList.toggle('sel', el.style.background===c||el.style.backgroundColor===c);});
+}
+
+async function imSaveType(){
+  const name=document.getElementById('tName').value.trim();
+  if(!name){ document.getElementById('tName').classList.add('fi-err'); setTimeout(()=>document.getElementById('tName').classList.remove('fi-err'),1000); return; }
+  const payload={id:imTypeEditId,type_name:name,abbreviation:document.getElementById('tAbbr').value.trim(),
+    description:document.getElementById('tDesc').value.trim(),color:document.getElementById('tColor').value,
+    sort_order:+document.getElementById('tSort').value||0,is_active:document.getElementById('tActive').checked,
+    has_sku:document.getElementById('tHasSku').checked};
+  const res=await fetch(`${IM}/types/save`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+  const data=await res.json();
+  if(data.status==='ok'){
+    imCloseType(); await imLoadTypes();
+    if(imFromMat){ imPopulateTypeSelect(); if(data.row) document.getElementById('mType').value=data.row.id; }
+    showToast('Saved ✓','success');
+  } else showToast(data.message||'Save failed','danger');
+}
+
+async function imDelType(id){
+  if(!confirm('Delete this type?')) return;
+  const res=await fetch(`${IM}/types/delete`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id})});
+  const data=await res.json();
+  if(data.status==='ok'){ await imLoadTypes(); showToast('Deleted ✓','success'); }
+  else showToast(data.message,'danger');
+}
+
+/* ══ GROUPS ══════════════════════════════════ */
+async function imLoadGroups(){
+  const res=await fetch(`${IM}/groups`);
+  const data=await res.json();
+  imGroups=data.rows||[];
+  document.getElementById('grpTotal').textContent=imGroups.length;
+  renderGroupsTable();
+}
+
+function renderGroupsTable(){
+  const tbody=document.getElementById('grpTbody');
+  if(!imGroups.length){ tbody.innerHTML='<tr><td colspan="5" style="text-align:center;padding:40px;color:#94a3b8">No groups yet</td></tr>'; return; }
+  const byId=Object.fromEntries(imGroups.map(g=>[g.id,g]));
+  // parents first, then children
+  const top=imGroups.filter(g=>!g.parent_id);
+  const children=imGroups.filter(g=>g.parent_id);
+  const rows=[...top,...children.sort((a,b)=>a.group_name.localeCompare(b.group_name))];
+  tbody.innerHTML=rows.map((g,i)=>`
+    <tr ondblclick="imOpenGroup(false,${g.id})" style="cursor:pointer" class="${g.parent_id?'grp-child':''}">
+      <td style="color:#94a3b8;font-size:11px;font-weight:600">${i+1}</td>
+      <td style="font-weight:${g.parent_id?'600':'800'}">${g.parent_id?'└ ':''}${esc(g.group_name)}</td>
+      <td style="font-size:12px;color:var(--text2)">${g.parent_id?esc(byId[g.parent_id]?.group_name||''):''}</td>
+      <td style="font-size:12px;color:var(--text3)">${esc(g.description||'')}</td>
+      <td onclick="event.stopPropagation()">
+        <div class="row-actions" style="justify-content:flex-end">
+          <button class="ra-btn" onclick="imOpenGroup(false,${g.id})"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4z"/></svg></button>
+          <button class="ra-btn danger" onclick="imDelGroup(${g.id})"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></button>
+        </div>
+      </td>
+    </tr>`).join('');
+}
+
+function imOpenGroup(fromMat=false, id=null){
+  imFromMat=fromMat; imGrpEditId=id;
+  document.getElementById('imGrpTitle').textContent = id?'✏️ Edit Group':'➕ New Material Group';
+  const g = id ? imGroups.find(x=>x.id===id) : null;
+  document.getElementById('gName').value = g?.group_name||'';
+  document.getElementById('gDesc').value = g?.description||'';
+  // populate parent select (exclude self)
+  const sel=document.getElementById('gParent');
+  sel.innerHTML='<option value="">-- None (Top Level) --</option>';
+  imGroups.filter(x=>x.id!==id).forEach(x=>{
+    const opt=document.createElement('option');
+    opt.value=x.id; opt.textContent=x.group_name;
+    if(x.id===g?.parent_id) opt.selected=true;
+    sel.appendChild(opt);
+  });
+  document.getElementById('imGrpOverlay').classList.add('open');
+  setTimeout(()=>document.getElementById('gName').focus(),100);
+}
+function imCloseGroup(){ document.getElementById('imGrpOverlay').classList.remove('open'); imGrpEditId=null; }
+
+async function imSaveGroup(){
+  const name=document.getElementById('gName').value.trim();
+  if(!name){ document.getElementById('gName').classList.add('fi-err'); setTimeout(()=>document.getElementById('gName').classList.remove('fi-err'),1000); return; }
+  const payload={id:imGrpEditId,group_name:name,parent_id:+document.getElementById('gParent').value||null,description:document.getElementById('gDesc').value.trim()};
+  const res=await fetch(`${IM}/groups/save`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+  const data=await res.json();
+  if(data.status==='ok'){
+    imCloseGroup(); await imLoadGroups();
+    if(imFromMat){ imPopulateGroupSelect(); if(data.row) document.getElementById('mGroup').value=data.row.id; }
+    showToast('Saved ✓','success');
+  } else showToast(data.message||'Save failed','danger');
+}
+
+async function imDelGroup(id){
+  if(!confirm('Delete this group?')) return;
+  const res=await fetch(`${IM}/groups/delete`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id})});
+  const data=await res.json();
+  if(data.status==='ok'){ await imLoadGroups(); showToast('Deleted ✓','success'); }
+  else showToast(data.message,'danger');
+}
+
+/* ══ POPULATE SELECTS ════════════════════════ */
+function imPopulateTypeSelect(){
+  const sel=document.getElementById('mType');
+  const cur=sel.value;
+  sel.innerHTML='<option value="">-- Select --</option>';
+  imTypes.filter(t=>t.is_active).forEach(t=>{
+    const opt=document.createElement('option');
+    opt.value=t.id; opt.textContent=t.type_name+(t.abbreviation?` (${t.abbreviation})`:'');
+    if(t.id==cur) opt.selected=true;
+    sel.appendChild(opt);
+  });
+}
+function imPopulateGroupSelect(){
+  const sel=document.getElementById('mGroup');
+  const cur=sel.value;
+  sel.innerHTML='<option value="">-- Select --</option>';
+  imGroups.forEach(g=>{
+    const opt=document.createElement('option');
+    opt.value=g.id; opt.textContent=g.group_name;
+    if(g.id==cur) opt.selected=true;
+    sel.appendChild(opt);
+  });
+}
+
+/* ══ TAG INPUT ═══════════════════════════════ */
+function imSetTags(type, vals){
+  const wrap=document.getElementById(type+'Wrap');
+  const hidden=document.getElementById(type==='alias'?'mAliases':'mSkuSizes');
+  // Remove old pills
+  wrap.querySelectorAll('.tag-pill').forEach(el=>el.remove());
+  vals.filter(Boolean).forEach(v=>imAddPill(type, v.trim()));
+  imUpdateHidden(type);
+}
+function imTagKey(e, type){
+  if(e.key==='Enter'||e.key===','){
+    e.preventDefault();
+    const val=e.target.value.replace(',','').trim();
+    if(val){ imAddPill(type, val); e.target.value=''; imUpdateHidden(type); }
+  } else if(e.key==='Backspace'&&!e.target.value){
+    const wrap=document.getElementById(type+'Wrap');
+    const pills=wrap.querySelectorAll('.tag-pill');
+    if(pills.length){ pills[pills.length-1].remove(); imUpdateHidden(type); }
+  }
+}
+function imTagInput(e, type){
+  if(e.target.value.endsWith(',')){ imTagKey({key:',',preventDefault:()=>{},target:e.target}, type); }
+}
+function imAddPill(type, val){
+  const wrap=document.getElementById(type+'Wrap');
+  const pill=document.createElement('span');
+  pill.className='tag-pill';
+  pill.innerHTML=`${esc(val)}<span onclick="this.parentElement.remove();imUpdateHidden('${type}')">×</span>`;
+  pill.querySelector('span').dataset.val=val;
+  wrap.insertBefore(pill, wrap.querySelector('.tag-bare-input'));
+}
+function imUpdateHidden(type){
+  const wrap=document.getElementById(type+'Wrap');
+  const vals=[...wrap.querySelectorAll('.tag-pill')].map(p=>p.childNodes[0].textContent.trim());
+  document.getElementById(type==='alias'?'mAliases':'mSkuSizes').value=vals.join(',');
+}
+
+/* ══ HELPERS ═════════════════════════════════ */
+function esc(s){ if(!s)return''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+/* ══ INIT ════════════════════════════════════ */
+document.addEventListener('DOMContentLoaded', imLoadAll);
+document.addEventListener('keydown', e=>{
+  if(e.key==='Escape'){ imCloseMaterial(); imCloseType(); imCloseGroup(); }
+});
+</script>
+{% endblock %}

@@ -2351,6 +2351,272 @@ with app.app_context():
         warn(f"Packing Material columns: {_pm_e}")
 
     # ══════════════════════════════════════════════════════
+    # STEP 18 — Packing Entries Table (Sample Receipt Log)
+    # ══════════════════════════════════════════════════════
+    step("STEP 18: packing_entries table create kar raha hai...")
+
+    import pymysql as _pym18
+    _uri18 = db.engine.url
+    _c18 = _pym18.connect(
+        host=str(_uri18.host), port=int(_uri18.port or 3306),
+        user=str(_uri18.username), password=str(_uri18.password),
+        database=str(_uri18.database), charset='utf8mb4'
+    )
+    _cur18 = _c18.cursor()
+
+    # ── Create table ──
+    _cur18.execute("""
+        CREATE TABLE IF NOT EXISTS `packing_entries` (
+            `id`                 INT           NOT NULL AUTO_INCREMENT,
+            `entry_date`         DATE          NOT NULL,
+            `brand`              VARCHAR(150)  NOT NULL,
+            `product_name`       VARCHAR(300)  NOT NULL,
+            `batch_no`           VARCHAR(50)   DEFAULT '',
+            `mfg_date`           VARCHAR(20)   DEFAULT '',
+            `exp_date`           VARCHAR(20)   DEFAULT '',
+            `sku_size`           VARCHAR(100)  DEFAULT '',
+            `packaging_material` VARCHAR(100)  DEFAULT '',
+            `quantity`           INT           DEFAULT 0,
+            `samples_sent_by`    VARCHAR(150)  DEFAULT '',
+            `mrp`                DECIMAL(10,2) DEFAULT NULL,
+            `received_by`        VARCHAR(150)  DEFAULT '',
+            `status`             VARCHAR(50)   DEFAULT 'Pending',
+            `received_date`      DATE          DEFAULT NULL,
+            `testing_status`     VARCHAR(50)   DEFAULT 'Pending',
+            `remark`             TEXT          DEFAULT NULL,
+            `created_by`         VARCHAR(100)  DEFAULT '',
+            `created_at`         DATETIME      DEFAULT CURRENT_TIMESTAMP,
+            `updated_at`         DATETIME      DEFAULT CURRENT_TIMESTAMP
+                                               ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (`id`),
+            KEY `idx_pk_entry_date` (`entry_date`),
+            KEY `idx_pk_brand`      (`brand`(50)),
+            KEY `idx_pk_status`     (`status`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    """)
+    _c18.commit()
+    ok("packing_entries table ready")
+
+    # ── Safe add missing columns (re-run safe) ──
+    _pk_cols = [
+        ('batch_no',           "VARCHAR(50)   DEFAULT ''"),
+        ('mfg_date',           "VARCHAR(20)   DEFAULT ''"),
+        ('exp_date',           "VARCHAR(20)   DEFAULT ''"),
+        ('sku_size',           "VARCHAR(100)  DEFAULT ''"),
+        ('packaging_material', "VARCHAR(100)  DEFAULT ''"),
+        ('quantity',           'INT           DEFAULT 0'),
+        ('samples_sent_by',    "VARCHAR(150)  DEFAULT ''"),
+        ('mrp',                'DECIMAL(10,2) DEFAULT NULL'),
+        ('received_by',        "VARCHAR(150)  DEFAULT ''"),
+        ('status',             "VARCHAR(50)   DEFAULT 'Pending'"),
+        ('received_date',      'DATE          DEFAULT NULL'),
+        ('testing_status',     "VARCHAR(50)   DEFAULT 'Pending'"),
+        ('remark',             'TEXT          DEFAULT NULL'),
+        ('created_by',         "VARCHAR(100)  DEFAULT ''"),
+        ('created_at',         'DATETIME      DEFAULT CURRENT_TIMESTAMP'),
+        ('updated_at',         'DATETIME      DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP'),
+    ]
+    _pk_added = 0
+    for _col, _defn in _pk_cols:
+        _cur18.execute(
+            "SELECT COUNT(*) FROM information_schema.columns "
+            "WHERE table_schema=DATABASE() AND table_name='packing_entries' AND column_name=%s",
+            (_col,)
+        )
+        if _cur18.fetchone()[0] == 0:
+            try:
+                _cur18.execute(f"ALTER TABLE `packing_entries` ADD COLUMN `{_col}` {_defn}")
+                _c18.commit()
+                ok(f"packing_entries.{_col} added")
+                _pk_added += 1
+            except Exception as _pe:
+                warn(f"packing_entries.{_col}: {_pe}")
+
+    ok(f"packing_entries: {_pk_added} columns added") if _pk_added else ok("packing_entries: all columns exist")
+
+    # ── Indexes (safe — skip if already exist) ──
+    for _iname, _icol in [
+        ('idx_pk_entry_date', 'entry_date'),
+        ('idx_pk_brand',      'brand(50)'),
+        ('idx_pk_status',     'status'),
+    ]:
+        try:
+            _cur18.execute(f"CREATE INDEX `{_iname}` ON `packing_entries`(`{_icol}`)")
+            _c18.commit()
+        except Exception:
+            pass  # already exists
+
+    # ── Add 'packing' module to permissions system ──
+    from models.permission import Module, RolePermission
+    _pk_mod = Module.query.filter_by(name='packing').first()
+    if not _pk_mod:
+        _pk_mod = Module(
+            name='packing', label='Packing',
+            icon='📋', url_prefix='/packing',
+            sort_order=60, is_active=True
+        )
+        db.session.add(_pk_mod)
+        db.session.flush()
+        _roles_pk = ['admin', 'manager', 'user', 'hr', 'viewer']
+        for _r in _roles_pk:
+            _cw = _r in ('admin', 'manager', 'user')
+            _cd = _r == 'admin'
+            db.session.add(RolePermission(
+                role=_r, module_id=_pk_mod.id,
+                can_view=True, can_add=_cw,
+                can_edit=_cw, can_delete=_cd,
+                can_export=(_r != 'viewer'), can_import=False,
+            ))
+        db.session.commit()
+        ok("packing module + permissions seeded")
+    else:
+        ok("packing module already exists")
+
+    _cur18.close()
+    _c18.close()
+    ok("✅ packing_entries setup complete!")
+
+
+    # ══════════════════════════════════════════════════════
+    # STEP 19 — Item Master (material_types, material_groups, materials)
+    # ══════════════════════════════════════════════════════
+    step("STEP 19: Item Master tables create kar raha hai...")
+
+    import pymysql as _pym19
+    _uri19 = db.engine.url
+    _c19 = _pym19.connect(
+        host=_uri19.host, port=int(_uri19.port or 3306),
+        user=_uri19.username, password=_uri19.password,
+        database=_uri19.database, charset='utf8mb4'
+    )
+    _cur19 = _c19.cursor()
+
+    # ── material_types ──
+    _cur19.execute("""
+        CREATE TABLE IF NOT EXISTS `material_types` (
+            `id`           INT NOT NULL AUTO_INCREMENT,
+            `type_name`    VARCHAR(100) NOT NULL,
+            `abbreviation` VARCHAR(10)  DEFAULT '',
+            `description`  TEXT         NULL,
+            `color`        VARCHAR(20)  DEFAULT '#6366f1',
+            `sort_order`   INT          DEFAULT 0,
+            `is_active`    TINYINT(1)   DEFAULT 1,
+            `has_sku`      TINYINT(1)   DEFAULT 0,
+            `created_at`   DATETIME     DEFAULT CURRENT_TIMESTAMP,
+            `created_by`   VARCHAR(100) DEFAULT '',
+            PRIMARY KEY (`id`),
+            UNIQUE KEY `uq_material_type_name` (`type_name`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    """)
+    _c19.commit()
+    ok("material_types table ready")
+
+    # ── material_groups ──
+    _cur19.execute("""
+        CREATE TABLE IF NOT EXISTS `material_groups` (
+            `id`          INT NOT NULL AUTO_INCREMENT,
+            `group_name`  VARCHAR(150) NOT NULL,
+            `parent_id`   INT          DEFAULT NULL,
+            `description` TEXT         DEFAULT NULL,
+            `created_at`  DATETIME     DEFAULT CURRENT_TIMESTAMP,
+            `updated_at`  DATETIME     DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            `created_by`  VARCHAR(100) DEFAULT '',
+            PRIMARY KEY (`id`),
+            CONSTRAINT `fk_mg_parent` FOREIGN KEY (`parent_id`)
+                REFERENCES `material_groups`(`id`) ON DELETE SET NULL
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    """)
+    _c19.commit()
+    ok("material_groups table ready")
+
+    # ── materials ──
+    _cur19.execute("""
+        CREATE TABLE IF NOT EXISTS `materials` (
+            `id`                  INT NOT NULL AUTO_INCREMENT,
+            `material_name`       VARCHAR(300)  NOT NULL,
+            `aliases`             TEXT          NULL,
+            `description`         TEXT          NULL,
+            `uom`                 VARCHAR(30)   DEFAULT 'KG',
+            `material_type_id`    INT           DEFAULT NULL,
+            `group_id`            INT           DEFAULT NULL,
+            `sku_sizes`           TEXT          NULL,
+            `supplier_name`       VARCHAR(300)  DEFAULT '',
+            `supplier_code`       VARCHAR(100)  DEFAULT '',
+            `opening_balance`     DECIMAL(14,3) DEFAULT 0.000,
+            `msl`                 DECIMAL(14,3) DEFAULT 0.000,
+            `lead_time_days`      INT           DEFAULT 0,
+            `std_pack_size`       DECIMAL(14,3) DEFAULT 0.000,
+            `last_purchase_rate`  DECIMAL(12,2) DEFAULT 0.00,
+            `ordered_qty`         DECIMAL(14,3) DEFAULT 0.000,
+            `buffer_qty`          DECIMAL(14,3) DEFAULT 0.000,
+            `hsn_code`            VARCHAR(20)   DEFAULT '',
+            `gst_rate`            DECIMAL(5,2)  DEFAULT 0.00,
+            `taxability`          VARCHAR(50)   DEFAULT 'Taxable',
+            `type_of_supply`      VARCHAR(50)   DEFAULT 'Goods',
+            `is_active`           TINYINT(1)    DEFAULT 1,
+            `created_by`          VARCHAR(100)  DEFAULT '',
+            `updated_by`          VARCHAR(100)  DEFAULT '',
+            `created_at`          DATETIME      DEFAULT CURRENT_TIMESTAMP,
+            `updated_at`          DATETIME      DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (`id`),
+            CONSTRAINT `fk_mat_type`  FOREIGN KEY (`material_type_id`) REFERENCES `material_types`(`id`) ON DELETE SET NULL,
+            CONSTRAINT `fk_mat_group` FOREIGN KEY (`group_id`)         REFERENCES `material_groups`(`id`) ON DELETE SET NULL,
+            INDEX `idx_mat_type`   (`material_type_id`),
+            INDEX `idx_mat_group`  (`group_id`),
+            INDEX `idx_mat_active` (`is_active`),
+            INDEX `idx_mat_name`   (`material_name`(100))
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    """)
+    _c19.commit()
+    ok("materials table ready")
+
+    # ── Seed default Material Types ──
+    _default_types = [
+        ('Raw Material',      'RM',  '#2563eb', 1, 0),
+        ('Packing Material',  'PM',  '#16a34a', 2, 1),
+        ('Finished Goods',    'FG',  '#7c3aed', 3, 0),
+        ('Semi-Finished',     'SFG', '#ca8a04', 4, 0),
+        ('Consumable',        'CON', '#0891b2', 5, 0),
+        ('Trading Goods',     'TG',  '#dc2626', 6, 0),
+    ]
+    _inserted_types = 0
+    for _tn, _ab, _col, _so, _hsku in _default_types:
+        _cur19.execute("SELECT id FROM material_types WHERE type_name=%s", (_tn,))
+        if not _cur19.fetchone():
+            _cur19.execute(
+                "INSERT INTO material_types (type_name,abbreviation,color,sort_order,has_sku,created_by) VALUES (%s,%s,%s,%s,%s,%s)",
+                (_tn, _ab, _col, _so, _hsku, 'system')
+            )
+            _inserted_types += 1
+    _c19.commit()
+    if _inserted_types:
+        ok(f"material_types: {_inserted_types} default types seeded")
+    else:
+        ok("material_types: default types already exist")
+
+    # ── Add 'material' module to permissions system ──
+    try:
+        from models import Module
+        _mat_mod = Module.query.filter_by(name='material').first()
+        if not _mat_mod:
+            _mat_mod = Module(
+                name='material', label='Item Master',
+                icon='📦', url_prefix='/material',
+                is_active=True, sort_order=19
+            )
+            db.session.add(_mat_mod)
+            db.session.commit()
+            ok("material module added to permissions")
+        else:
+            ok("material module already exists")
+    except Exception as _me:
+        warn(f"material module seed: {_me}")
+
+    _cur19.close()
+    _c19.close()
+    ok("✅ Item Master tables setup complete!")
+
+    # ══════════════════════════════════════════════════════
     # DONE
     # ══════════════════════════════════════════════════════
     print(f"\n{'='*60}")

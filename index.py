@@ -17,6 +17,8 @@ from attendance_routes import attendance_bp
 from hr_master_routes import hr_masters
 from late_rule_routes import late_rules_bp
 from hr_rules_routes import hr_rules_bp
+from packing_routes  import packing
+from material_routes import material_bp
 from routes.module_settings_routes import module_settings  # ← Module enable/disable
 from error_handlers import register_error_handlers          # ← 403/404/500 pages
 
@@ -63,6 +65,8 @@ app.register_blueprint(attendance_bp)
 app.register_blueprint(hr_masters)
 app.register_blueprint(late_rules_bp)
 app.register_blueprint(hr_rules_bp)
+app.register_blueprint(packing)        # Packing Department
+app.register_blueprint(material_bp)    # Item Master
 app.register_blueprint(module_settings)   # Module enable/disable settings
 
 # Register global 403 / 404 / 500 error pages

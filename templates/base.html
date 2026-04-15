@@ -91,6 +91,8 @@
             {% set _mod = 'hr' %}
         {% elif _pg in ('approvals','permissions','audit_logs','users','admin_profile') %}
             {% set _mod = 'admin' %}
+        {% elif _pg in ('packing',) %}
+            {% set _mod = 'packing' %}
         {% endif %}
 
         {% set role = current_user.role if current_user.is_authenticated else '' %}
@@ -150,6 +152,20 @@
             </div>
         </div>
         {% endif %}
+        {% endif %}
+
+        {% set _perm_packing = get_perm('packing') %}
+        {% if _perm_packing and _perm_packing.can_view and get_module_active('packing') %}
+        <div class="sb-sec sb-accordion">
+            <button class="sb-acc-hdr" onclick="toggleAccordion(this)">
+                <span class="sb-acc-ic">📋</span>
+                <span class="sb-acc-lbl">Packing</span>
+                <span class="sb-acc-arrow">▶</span>
+            </button>
+            <div class="sb-acc-body">
+                <a class="nav-a" href="/packing"><span class="nav-ic">📋</span><span class="nav-txt">Sample Receipt Log</span></a>
+            </div>
+        </div>
         {% endif %}
 
         {% if role in ('admin','manager','user','sales','rd_executive','rd_manager') %}
@@ -568,6 +584,19 @@
             </a>
             <a class="nav-a {% if _pg == 'masters' %}active{% endif %}" href="/masters/">
                 <span class="nav-ic">🏷️</span><span class="nav-txt">Lead Masters</span>
+            </a>
+        </div>
+
+        {% elif _mod == 'packing' %}
+        <div class="sb-sec">
+            <a class="nav-a nav-back" href="{{ url_for('dashboard') }}">
+                <span class="nav-ic">←</span><span class="nav-txt">Main Dashboard</span>
+            </a>
+        </div>
+        <div class="sb-sec">
+            <div class="sb-sec-lbl">Packing</div>
+            <a class="nav-a {% if _pg == 'packing' %}active{% endif %}" href="/packing">
+                <span class="nav-ic">📋</span><span class="nav-txt">Sample Receipt Log</span>
             </a>
         </div>
 
