@@ -582,27 +582,72 @@ def user_perm_toggle(user_id):
         db.session.add(up)
 
     if action in ('can_view', 'can_add', 'can_edit', 'can_delete', 'can_export', 'can_import'):
+        # Admin ka can_view kabhi False nahi hoga — warna apna hi module band ho jaata hai
+        target_user = User.query.get(user_id)
+        if action == 'can_view' and not value and target_user and target_user.role == 'admin':
+            return jsonify({'ok': False, 'error': 'Admin ka View permission disable nahi ho sakta'})
         setattr(up, action, value)
         up.updated_by = current_user.id
+
+        # Agar child ka can_view = True kiya → parent ko bhi auto-enable karo
+        if action == 'can_view' and value:
+            mod = Module.query.get(module_id)
+            if mod and mod.parent_id:
+                parent_up = UserPermission.query.filter_by(
+                    user_id=user_id, module_id=mod.parent_id
+                ).first()
+                if parent_up and not parent_up.can_view:
+                    parent_up.can_view = True
+                    parent_up.updated_by = current_user.id
+
         db.session.commit()
         return jsonify({'ok': True, 'value': value})
 
     # Module Enable/Disable ALL — sare permissions ek saath on/off
     if action == 'disable_all':
-        up.can_view   = value
+        # Admin ka can_view kabhi False nahi
+        target_user = User.query.get(user_id)
+        _is_target_admin = target_user and target_user.role == 'admin'
+        up.can_view   = True if _is_target_admin else value
         up.can_add    = value
         up.can_edit   = value
         up.can_delete = value
         up.can_export = value
         up.can_import = value
-        # Sub-permissions bhi sab off karo agar disable ho raha hai
-        if not value:
-            mod = Module.query.get(module_id)
-            if mod:
-                from permissions import MODULE_SUB_PERMS
-                sub_keys = [k for k, _ in MODULE_SUB_PERMS.get(mod.name, [])]
-                subs = {k: False for k in sub_keys}
-                up.set_sub_permissions(subs)
+        # Sub-permissions bhi sab on/off karo
+        mod = Module.query.get(module_id)
+        if mod:
+            from permissions import MODULE_SUB_PERMS
+            sub_keys = [k for k, _ in MODULE_SUB_PERMS.get(mod.name, [])]
+            subs = {k: value for k in sub_keys}
+            up.set_sub_permissions(subs)
+
+            # ── Child modules bhi cascade karo (e.g. CRM → crm_leads, crm_clients) ──
+            child_modules = Module.query.filter_by(parent_id=module_id, is_active=True).all()
+            for child in child_modules:
+                child_up = UserPermission.query.filter_by(user_id=user_id, module_id=child.id).first()
+                if not child_up:
+                    child_up = UserPermission(user_id=user_id, module_id=child.id)
+                    db.session.add(child_up)
+                child_up.can_view   = value
+                child_up.can_add    = value
+                child_up.can_edit   = value
+                child_up.can_delete = value
+                child_up.can_export = value
+                child_up.can_import = value
+                child_sub_keys = [k for k, _ in MODULE_SUB_PERMS.get(child.name, [])]
+                child_up.set_sub_permissions({k: value for k in child_sub_keys})
+                child_up.updated_by = current_user.id
+
+            # Enable karte waqt parent bhi enable karo
+            if value and mod.parent_id:
+                parent_up = UserPermission.query.filter_by(
+                    user_id=user_id, module_id=mod.parent_id
+                ).first()
+                if parent_up and not parent_up.can_view:
+                    parent_up.can_view = True
+                    parent_up.updated_by = current_user.id
+
         up.updated_by = current_user.id
         db.session.commit()
         return jsonify({'ok': True, 'value': value})

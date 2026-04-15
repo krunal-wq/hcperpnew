@@ -17,6 +17,8 @@ from attendance_routes import attendance_bp
 from hr_master_routes import hr_masters
 from late_rule_routes import late_rules_bp
 from hr_rules_routes import hr_rules_bp
+from routes.module_settings_routes import module_settings  # ← Module enable/disable
+from error_handlers import register_error_handlers          # ← 403/404/500 pages
 
 app = Flask(__name__)
 app.config.from_object(Config)
@@ -61,12 +63,18 @@ app.register_blueprint(attendance_bp)
 app.register_blueprint(hr_masters)
 app.register_blueprint(late_rules_bp)
 app.register_blueprint(hr_rules_bp)
+app.register_blueprint(module_settings)   # Module enable/disable settings
+
+# Register global 403 / 404 / 500 error pages
+register_error_handlers(app)
 
 # ── get_perm as Jinja2 global — template mein use ho sakta hai ──
 from permissions import get_perm as _get_perm
 app.jinja_env.globals['get_perm'] = _get_perm
 from permissions import get_sub_perm as _get_sub_perm
 app.jinja_env.globals['get_sub_perm'] = _get_sub_perm
+from permissions import get_module_active as _get_module_active
+app.jinja_env.globals['get_module_active'] = _get_module_active
 
 # Seed HR master defaults
 with app.app_context():
@@ -230,6 +238,23 @@ def seed_modules():
         return '✅ Modules seeded successfully! New modules added to DB.'
     except Exception as e:
         return f'❌ Error: {e}', 500
+
+
+@app.route('/fix-admin-perms')
+@login_required
+def fix_admin_perms():
+    """Fix: Admin users ka can_view=False DB mein hai to reset karo."""
+    from models.permission import UserPermission
+    fixed = 0
+    admins = User.query.filter_by(role='admin').all()
+    for admin in admins:
+        perms = UserPermission.query.filter_by(user_id=admin.id).all()
+        for p in perms:
+            if not p.can_view:
+                p.can_view = True
+                fixed += 1
+    db.session.commit()
+    return f'✅ Fixed {fixed} permission records for admin users. <a href="/">Go Home</a>'
 
 @app.route('/setup')
 def setup():

@@ -125,11 +125,18 @@ def projects():
     allotted   = [p for p in projects if p.assigned_rd and p.assigned_rd in rd_exec_ids and (p.status or '').lower() not in CLOSED_STATUSES]
     closed     = [p for p in projects if (p.status or '').lower() in CLOSED_STATUSES]
 
+    rd_sub = {
+        'unalloted_npd': get_sub_perm('rd', 'unalloted_npd'),
+        'alloted_npd':   get_sub_perm('rd', 'alloted_npd'),
+        'closed_npd':    get_sub_perm('rd', 'closed_npd'),
+        'assign':        get_sub_perm('rd', 'assign'),
+    }
     return render_template('rd/projects.html',
         active_page='rd_projects',
         projects=projects, q=q, cat=cat, status=status,
         users=users, unallotted=unallotted, allotted=allotted, closed=closed,
         is_rd_manager=is_rd_manager, perm=get_perm('rd'),
+        rd_sub=rd_sub,
     )
 
 

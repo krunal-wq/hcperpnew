@@ -370,6 +370,11 @@ def new_project():
 @npd.route('/projects/<int:pid>')
 @login_required
 def project_view(pid):
+    _pchk = get_perm('npd_projects')
+    if _pchk and not _pchk.can_view:
+        from flask import flash, redirect, url_for
+        flash('Access denied: NPD Project view permission nahi hai.', 'error')
+        return redirect(url_for('npd.npd_projects'))
     proj    = NPDProject.query.filter_by(id=pid, is_deleted=False).first_or_404()
     users   = get_users()
 
@@ -402,7 +407,23 @@ def project_view(pid):
     active_tab        = request.args.get('tab', 'overview')
 
     from permissions import get_sub_perm as _gsp
-    can_close_project = _gsp('npd', 'close_project') or (current_user.role == 'admin')
+    npd_sub = {
+        'inline_edit'         : _gsp('npd_projects', 'inline_edit'),
+        'print'               : _gsp('npd_projects', 'print'),
+        'overview'            : _gsp('npd_projects', 'overview'),
+        'client_detail'       : _gsp('npd_projects', 'client_detail'),
+        'discussion_board'    : _gsp('npd_projects', 'discussion_board'),
+        'internal_discussion' : _gsp('npd_projects', 'internal_discussion'),
+        'activity_log'        : _gsp('npd_projects', 'activity_log'),
+        'attachments'         : _gsp('npd_projects', 'attachments'),
+        'notes'               : _gsp('npd_projects', 'notes'),
+        'milestone'           : _gsp('npd_projects', 'milestone'),
+        'close_project'       : _gsp('npd_projects', 'close_project'),
+        'restore'             : _gsp('npd_projects', 'restore'),
+        'permanent_delete'    : _gsp('npd_projects', 'permanent_delete'),
+        'view_deleted'        : _gsp('npd_projects', 'view_deleted'),
+    }
+    can_close_project = npd_sub['close_project'] or (current_user.role == 'admin')
     # All selected milestones done? — check npd_milestone_data JSON (JS writes 'done' there)
     import json as _json
     _ms_data = {}
@@ -425,6 +446,7 @@ def project_view(pid):
         now=datetime.now,
         can_close_project=can_close_project,
         all_ms_done=all_ms_done,
+        npd_sub=npd_sub,
     )
 
 
@@ -1598,12 +1620,29 @@ def npd_projects():
     deleted_count = NPDProject.query.filter_by(is_deleted=True, project_type='npd').count()
     projects = query.order_by(NPDProject.created_at.desc()).paginate(page=page, per_page=25)
     users    = get_users()
-    perm = get_perm('npd')
+    perm = get_perm('npd_projects')
     from models.master import NPDStatus
     from permissions import get_grid_columns
     from datetime import datetime as _dt
     npd_statuses = NPDStatus.query.filter_by(is_active=True).order_by(NPDStatus.sort_order).all()
     grid_cols = get_grid_columns('npd_projects', NPD_COLS_DEFAULT, list(NPD_COLS_ALL.keys()))
+    from permissions import get_sub_perm as _gsp_npd
+    npd_sub = {
+        'inline_edit'         : _gsp_npd('npd_projects', 'inline_edit'),
+        'print'               : _gsp_npd('npd_projects', 'print'),
+        'overview'            : _gsp_npd('npd_projects', 'overview'),
+        'client_detail'       : _gsp_npd('npd_projects', 'client_detail'),
+        'discussion_board'    : _gsp_npd('npd_projects', 'discussion_board'),
+        'internal_discussion' : _gsp_npd('npd_projects', 'internal_discussion'),
+        'activity_log'        : _gsp_npd('npd_projects', 'activity_log'),
+        'attachments'         : _gsp_npd('npd_projects', 'attachments'),
+        'notes'               : _gsp_npd('npd_projects', 'notes'),
+        'milestone'           : _gsp_npd('npd_projects', 'milestone'),
+        'close_project'       : _gsp_npd('npd_projects', 'close_project'),
+        'restore'             : _gsp_npd('npd_projects', 'restore'),
+        'permanent_delete'    : _gsp_npd('npd_projects', 'permanent_delete'),
+        'view_deleted'        : _gsp_npd('npd_projects', 'view_deleted'),
+    }
     return render_template('npd/npd_projects.html',
         active_page='npd_npd_projects',
         projects=projects, q=q, status=status, sc_id=sc_id, users=users, perm=perm,
@@ -1612,6 +1651,7 @@ def npd_projects():
         now=_dt.now,
         show_deleted=show_deleted,
         deleted_count=deleted_count,
+        npd_sub=npd_sub,
     )
 
 

@@ -29,6 +29,11 @@ FULL_MASTER_MAP = {
 @masters.route('/')
 @login_required
 def index():
+    from permissions import get_sub_perm
+    if not get_sub_perm('crm_settings', 'lead_master'):
+        from flask import flash, redirect, url_for
+        flash('Access denied: Lead Master permission nahi hai.', 'error')
+        return redirect(url_for('dashboard'))
     data = {}
     for key, cfg in MASTER_MAP.items():
         data[key] = cfg['model'].query.order_by(cfg['model'].sort_order, cfg['model'].name).all()

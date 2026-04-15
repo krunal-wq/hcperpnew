@@ -227,17 +227,22 @@
 
       <!-- Filter / Sort buttons — Columns se pehle -->
       {% set _fc = [search,source,category,p_range,city,date_from,date_to]|select|list|length %}
+      {% if can_filter %}
       <button id="fsTabFilter" class="btn-grid-action {{ 'active' if _fc > 0 }}" onclick="toggleFsTab('filter','ld')" style="{{ 'background:#eff6ff;color:#2563eb;border-color:#bfdbfe;' if _fc > 0 }}">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
         Filter {% if _fc > 0 %}<span style="background:#2563eb;color:#fff;font-size:.65rem;font-weight:800;padding:1px 5px;border-radius:10px;margin-left:2px;">{{ _fc }}</span>{% endif %}
       </button>
+      {% endif %}
+      {% if can_sort %}
       <button id="fsTabSort" class="btn-grid-action {{ 'active' if sort_by != 'created_at' or sort_dir != 'desc' }}" onclick="toggleFsTab('sort','ld')" style="{{ 'background:#eff6ff;color:#2563eb;border-color:#bfdbfe;' if sort_by != 'created_at' or sort_dir != 'desc' }}">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>
         Sort {% if sort_by != 'created_at' or sort_dir != 'desc' %}<span style="background:#2563eb;color:#fff;font-size:.65rem;font-weight:800;padding:1px 5px;border-radius:10px;margin-left:2px;">•</span>{% endif %}
       </button>
+      {% endif %}
 
       <div style="width:1px;height:18px;background:var(--border);margin:0 2px;"></div>
 
+      {% if can_columns %}
       <div style="position:relative;">
         <button class="btn-grid-action mobile-hide" onclick="toggleColPanel(event)">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
@@ -259,6 +264,7 @@
           </div>
         </div>
       </div>
+      {% endif %}
       <div class="view-toggle mobile-hide">
         <button class="vt-btn active" id="btnList" onclick="switchView('list')">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>

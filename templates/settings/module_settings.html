@@ -1,0 +1,503 @@
+{% extends "base.html" %}
+{% block title %}Module Settings — HCP ERP{% endblock %}
+
+{% block content %}
+<div class="module-settings-page">
+
+  <!-- Page Header -->
+  <div class="page-header">
+    <div class="page-header-left">
+      <h1 class="page-title">⚙️ Module Settings</h1>
+      <p class="page-subtitle">Modules enable/disable karo — disabled modules sidebar se hide ho jayenge</p>
+    </div>
+    <div class="page-header-right">
+      <button class="btn btn-outline btn-sm" id="btnEnableAll" onclick="bulkAction(true)">
+        ✅ Sab Enable Karo
+      </button>
+      <button class="btn btn-outline btn-sm btn-danger-outline" id="btnDisableAll" onclick="bulkAction(false)">
+        🚫 Sab Disable Karo
+      </button>
+    </div>
+  </div>
+
+  <!-- Status Banner -->
+  <div id="statusBanner" class="status-banner" style="display:none;"></div>
+
+  <!-- Modules Grid -->
+  <div class="modules-grid">
+    {% for mod in top_modules %}
+    <div class="module-card {% if not mod.is_active %}module-disabled{% endif %}" id="card-{{ mod.id }}">
+      
+      <!-- Card Header -->
+      <div class="module-card-header">
+        <div class="module-icon">{{ mod.icon or '📦' }}</div>
+        <div class="module-info">
+          <h3 class="module-name">{{ mod.label or mod.name }}</h3>
+          <span class="module-path">{{ mod.url_prefix or '/' + mod.name }}</span>
+        </div>
+        <div class="module-toggle-wrap">
+          <label class="toggle-switch" title="{{ 'Disable karo' if mod.is_active else 'Enable karo' }}">
+            <input type="checkbox" 
+                   class="module-toggle" 
+                   data-module-id="{{ mod.id }}"
+                   data-module-name="{{ mod.label or mod.name }}"
+                   {% if mod.is_active %}checked{% endif %}
+                   onchange="toggleModule(this)">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Status Badge -->
+      <div class="module-status">
+        <span class="status-badge {% if mod.is_active %}badge-active{% else %}badge-inactive{% endif %}" 
+              id="badge-{{ mod.id }}">
+          {% if mod.is_active %}🟢 Active{% else %}🔴 Disabled{% endif %}
+        </span>
+      </div>
+
+      <!-- Sub-modules (children) -->
+      {% if mod.children %}
+      <div class="submodules-list" id="children-{{ mod.id }}">
+        <div class="submodules-title">Sub-Modules:</div>
+        {% for child in mod.children | sort(attribute='sort_order') %}
+        <div class="submodule-item {% if not child.is_active %}submodule-disabled{% endif %}" id="card-{{ child.id }}">
+          <span class="submodule-icon">{{ child.icon or '📄' }}</span>
+          <span class="submodule-label">{{ child.label or child.name }}</span>
+          <label class="toggle-switch toggle-sm">
+            <input type="checkbox"
+                   class="module-toggle"
+                   data-module-id="{{ child.id }}"
+                   data-module-name="{{ child.label or child.name }}"
+                   {% if child.is_active %}checked{% endif %}
+                   onchange="toggleModule(this)">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+    </div>
+    {% endfor %}
+
+    {% if not top_modules %}
+    <div class="empty-state">
+      <div class="empty-icon">📭</div>
+      <p>Koi module nahi mila.<br>Pehle modules database mein add karo.</p>
+      <code style="font-size:12px;color:#888;">Module table mein records insert karo.</code>
+    </div>
+    {% endif %}
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ═══════════════════════════════════════
+   MODULE SETTINGS PAGE STYLES
+═══════════════════════════════════════ */
+
+.module-settings-page {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+/* Page Header */
+.page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 28px;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.page-title {
+  font-size: 22px;
+  font-weight: 700;
+  color: #1a1a2e;
+  margin: 0 0 4px;
+}
+
+.page-subtitle {
+  font-size: 13px;
+  color: #6b7280;
+  margin: 0;
+}
+
+.page-header-right {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* Status Banner */
+.status-banner {
+  padding: 12px 18px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  font-size: 14px;
+  font-weight: 500;
+  animation: slideDown 0.3s ease;
+}
+.status-banner.success { background: #d1fae5; color: #065f46; border: 1px solid #6ee7b7; }
+.status-banner.error   { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Modules Grid */
+.modules-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 18px;
+}
+
+/* Module Card */
+.module-card {
+  background: #fff;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 14px;
+  padding: 18px;
+  transition: all 0.25s ease;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+}
+
+.module-card:hover {
+  border-color: #6366f1;
+  box-shadow: 0 4px 16px rgba(99,102,241,0.12);
+}
+
+.module-disabled {
+  background: #f9fafb;
+  border-color: #e5e7eb;
+  opacity: 0.7;
+}
+
+.module-card-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.module-icon {
+  font-size: 28px;
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f3f4f6;
+  border-radius: 10px;
+  flex-shrink: 0;
+}
+
+.module-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.module-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: #111827;
+  margin: 0 0 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.module-path {
+  font-size: 11px;
+  color: #9ca3af;
+  font-family: monospace;
+}
+
+/* Status Badge */
+.module-status {
+  margin-bottom: 12px;
+}
+
+.status-badge {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 20px;
+}
+
+.badge-active   { background: #d1fae5; color: #065f46; }
+.badge-inactive { background: #fee2e2; color: #991b1b; }
+
+/* Sub-modules */
+.submodules-list {
+  border-top: 1px solid #f3f4f6;
+  padding-top: 12px;
+  margin-top: 4px;
+}
+
+.submodules-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: #9ca3af;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+}
+
+.submodule-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  margin-bottom: 4px;
+  background: #f9fafb;
+  transition: background 0.2s;
+}
+
+.submodule-item:hover { background: #f3f4f6; }
+
+.submodule-disabled { opacity: 0.5; }
+
+.submodule-icon  { font-size: 14px; }
+
+.submodule-label {
+  flex: 1;
+  font-size: 13px;
+  color: #374151;
+  font-weight: 500;
+}
+
+/* ═══════════════════════════════════════
+   TOGGLE SWITCH
+═══════════════════════════════════════ */
+
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 24px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.toggle-switch.toggle-sm {
+  width: 34px;
+  height: 18px;
+}
+
+.toggle-switch input { opacity: 0; width: 0; height: 0; }
+
+.toggle-slider {
+  position: absolute;
+  inset: 0;
+  background: #d1d5db;
+  border-radius: 24px;
+  transition: background 0.25s;
+}
+
+.toggle-slider::before {
+  content: '';
+  position: absolute;
+  height: 18px;
+  width: 18px;
+  left: 3px;
+  bottom: 3px;
+  background: white;
+  border-radius: 50%;
+  transition: transform 0.25s;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+}
+
+.toggle-sm .toggle-slider::before {
+  height: 12px;
+  width: 12px;
+  left: 3px;
+  bottom: 3px;
+}
+
+input:checked + .toggle-slider { background: #6366f1; }
+
+input:checked + .toggle-slider::before {
+  transform: translateX(20px);
+}
+
+.toggle-sm input:checked + .toggle-slider::before {
+  transform: translateX(16px);
+}
+
+/* Loading state */
+.toggle-switch.loading .toggle-slider {
+  background: #fbbf24 !important;
+  pointer-events: none;
+}
+
+/* Empty state */
+.empty-state {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 60px 20px;
+  color: #9ca3af;
+}
+
+.empty-icon { font-size: 48px; margin-bottom: 12px; }
+
+/* Buttons */
+.btn { padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 500; cursor: pointer; border: none; }
+.btn-outline { background: transparent; border: 1.5px solid #d1d5db; color: #374151; }
+.btn-outline:hover { background: #f9fafb; }
+.btn-danger-outline { border-color: #fca5a5; color: #dc2626; }
+.btn-danger-outline:hover { background: #fee2e2; }
+.btn-sm { padding: 6px 14px; font-size: 12px; }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// ═══════════════════════════════════════
+//  Module Toggle Logic
+// ═══════════════════════════════════════
+
+async function toggleModule(checkbox) {
+  const moduleId   = parseInt(checkbox.dataset.moduleId);
+  const moduleName = checkbox.dataset.moduleName;
+  const isActive   = checkbox.checked;
+  const label      = checkbox.closest('.toggle-switch');
+
+  // Loading state
+  label.classList.add('loading');
+  checkbox.disabled = true;
+
+  try {
+    const res = await fetch('/settings/modules/toggle', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
+      body: JSON.stringify({ module_id: moduleId, is_active: isActive })
+    });
+
+    const data = await res.json();
+
+    if (data.success) {
+      // Card update karo
+      updateCard(moduleId, isActive);
+      showBanner(data.message, 'success');
+
+      // Agar parent disable hua to children bhi update karo visually
+      if (!isActive) {
+        disableChildrenUI(moduleId);
+      }
+
+      // Sidebar bhi update karo (agar same page par hai)
+      if (typeof refreshSidebar === 'function') refreshSidebar();
+      
+    } else {
+      // Revert toggle
+      checkbox.checked = !isActive;
+      showBanner(data.message || 'Error occurred', 'error');
+    }
+
+  } catch (err) {
+    checkbox.checked = !isActive;
+    showBanner('Network error. Try again.', 'error');
+  } finally {
+    label.classList.remove('loading');
+    checkbox.disabled = false;
+  }
+}
+
+
+async function bulkAction(isActive) {
+  const allModules = document.querySelectorAll('.module-toggle');
+  const ids = [...allModules].map(cb => parseInt(cb.dataset.moduleId));
+
+  if (!confirm(`Sab modules ${isActive ? 'enable' : 'disable'} karna chahte ho?`)) return;
+
+  try {
+    const res = await fetch('/settings/modules/bulk-toggle', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
+      body: JSON.stringify({ module_ids: ids, is_active: isActive })
+    });
+
+    const data = await res.json();
+
+    if (data.success) {
+      // UI update
+      allModules.forEach(cb => {
+        cb.checked = isActive;
+        updateCard(parseInt(cb.dataset.moduleId), isActive);
+      });
+      showBanner(data.message, 'success');
+    } else {
+      showBanner(data.message || 'Error occurred', 'error');
+    }
+
+  } catch(err) {
+    showBanner('Network error.', 'error');
+  }
+}
+
+
+// Card ke visuals update karo
+function updateCard(moduleId, isActive) {
+  const card  = document.getElementById(`card-${moduleId}`);
+  const badge = document.getElementById(`badge-${moduleId}`);
+
+  if (!card) return;
+
+  if (isActive) {
+    card.classList.remove('module-disabled', 'submodule-disabled');
+    if (badge) {
+      badge.className = 'status-badge badge-active';
+      badge.textContent = '🟢 Active';
+    }
+  } else {
+    card.classList.add('module-disabled');
+    card.classList.add(card.classList.contains('submodule-item') ? 'submodule-disabled' : 'module-disabled');
+    if (badge) {
+      badge.className = 'status-badge badge-inactive';
+      badge.textContent = '🔴 Disabled';
+    }
+  }
+}
+
+
+// Parent disable hone par children bhi visually disable karo
+function disableChildrenUI(parentId) {
+  const childrenDiv = document.getElementById(`children-${parentId}`);
+  if (!childrenDiv) return;
+  
+  const childToggles = childrenDiv.querySelectorAll('.module-toggle');
+  childToggles.forEach(cb => {
+    cb.checked = false;
+    updateCard(parseInt(cb.dataset.moduleId), false);
+  });
+}
+
+
+// Status banner show karo
+let bannerTimer;
+function showBanner(msg, type) {
+  const banner = document.getElementById('statusBanner');
+  banner.textContent = msg;
+  banner.className   = `status-banner ${type}`;
+  banner.style.display = 'block';
+
+  clearTimeout(bannerTimer);
+  bannerTimer = setTimeout(() => { banner.style.display = 'none'; }, 3000);
+}
+
+
+// CSRF token helper
+function getCsrf() {
+  const meta = document.querySelector('meta[name="csrf-token"]');
+  return meta ? meta.content : '';
+}
+</script>
+{% endblock %}

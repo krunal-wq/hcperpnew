@@ -105,7 +105,7 @@
 
         {% if role in ('admin','manager','user','sales') %}
         {% set _perm_crm = get_perm('crm') %}
-        {% if _perm_crm is none or _perm_crm.can_view != false %}
+        {% if _perm_crm and _perm_crm.can_view and get_module_active('crm') %}
         <div class="sb-sec sb-accordion">
             <button class="sb-acc-hdr" onclick="toggleAccordion(this)">
                 <span class="sb-acc-ic">📋</span>
@@ -114,19 +114,38 @@
             </button>
             <div class="sb-acc-body">
                 <a class="nav-a" href="/crm/dashboard"><span class="nav-ic">📊</span><span class="nav-txt">CRM Dashboard</span></a>
-                {% set _perm_leads = get_perm('crm_leads') %}
-                {% if _perm_leads is none or _perm_leads.can_view != false %}
+                {% if get_module_active('crm_leads') %}
                 <a class="nav-a" href="/crm/leads"><span class="nav-ic">📋</span><span class="nav-txt">Leads</span></a>
                 {% endif %}
+                {% if get_module_active('crm_clients') %}
                 {% set _perm_clients = get_perm('crm_clients') %}
-                {% if _perm_clients is none or _perm_clients.can_view != false %}
+                {% if _perm_clients and _perm_clients.can_view %}
                 <a class="nav-a" href="/crm/clients"><span class="nav-ic">👥</span><span class="nav-txt">Client Master</span></a>
                 {% endif %}
-                {% set _perm_leads = get_perm('crm_leads') %}
-                {% if _perm_leads is none or _perm_leads.can_view != false %}
+                {% endif %}
+                {% if get_module_active('crm_sample_orders') %}
+                {% set _perm_so = get_perm('crm_sample_orders') %}
+                {% if _perm_so and _perm_so.can_view %}
                 <a class="nav-a" href="/crm/sample-orders"><span class="nav-ic">🧾</span><span class="nav-txt">Sample Orders</span></a>
+                {% endif %}
+                {% endif %}
+                {% if get_module_active('crm_quotations') %}
+                {% set _perm_qt = get_perm('crm_quotations') %}
+                {% if _perm_qt and _perm_qt.can_view %}
                 <a class="nav-a" href="/crm/quotations"><span class="nav-ic">📄</span><span class="nav-txt">Quotations</span></a>
+                {% endif %}
+                {% endif %}
+                {% if get_module_active('crm_quot_products') %}
+                {% set _perm_qp = get_perm('crm_quot_products') %}
+                {% if _perm_qp and _perm_qp.can_view %}
                 <a class="nav-a" href="/crm/quotations/products"><span class="nav-ic">📋</span><span class="nav-txt">Quot. Product List</span></a>
+                {% endif %}
+                {% endif %}
+                {% if get_module_active('crm_leaderboard') %}
+                {% set _perm_lb = get_perm('crm_leaderboard') %}
+                {% if _perm_lb and _perm_lb.can_view %}
+                <a class="nav-a" href="/crm/leaderboard"><span class="nav-ic">🏆</span><span class="nav-txt">Leaderboard</span></a>
+                {% endif %}
                 {% endif %}
             </div>
         </div>
@@ -135,7 +154,7 @@
 
         {% if role in ('admin','manager','user','sales','rd_executive','rd_manager') %}
         {% set _perm_rd = get_perm('rd') %}
-        {% if _perm_rd is none or _perm_rd.can_view != false %}
+        {% if _perm_rd and _perm_rd.can_view %}
         <div class="sb-sec sb-accordion">
             <button class="sb-acc-hdr" onclick="toggleAccordion(this)">
                 <span class="sb-acc-ic">🔬</span>
@@ -150,19 +169,24 @@
                 <a class="nav-a" href="/rd/trials"><span class="nav-ic">⚗</span><span class="nav-txt">R&amp;D Trials</span></a>
 
                 {# ── NPD Section ── #}
+                {% if true %}
                 <div class="sb-acc-sub-lbl">🧪 NPD</div>
                 <a class="nav-a" href="/npd/npd-dashboard"><span class="nav-ic">📊</span><span class="nav-txt">NPD Dashboard</span></a>
                 <a class="nav-a" href="/npd/npd-projects"><span class="nav-ic">📋</span><span class="nav-txt">NPD Projects</span></a>
                 <a class="nav-a {% if _pg == 'npd_sample_ready' %}active{% endif %}" href="/npd/sample-ready"><span class="nav-ic">🧪</span><span class="nav-txt">Sample Ready</span></a>
                 <a class="nav-a {% if _pg == 'npd_sample_history' %}active{% endif %}" href="/npd/sample-history"><span class="nav-ic">📋</span><span class="nav-txt">Sample History</span></a>
+                {% endif %}
 
                 {# ── EPD Section ── #}
+                {% if true %}
                 <div class="sb-acc-sub-lbl">📦 EPD</div>
                 <a class="nav-a" href="/npd/epd-dashboard"><span class="nav-ic">📊</span><span class="nav-txt">EPD Dashboard</span></a>
                 <a class="nav-a" href="/npd/epd-projects"><span class="nav-ic">📋</span><span class="nav-txt">EPD Projects</span></a>
+                {% endif %}
 
-                {# ── NPD Masters (Admin only) ── #}
-                {% if role == 'admin' %}
+                {# ── NPD Masters (permission-based) ── #}
+                {% set _npd_masters_perm2 = get_perm('npd_masters') %}
+                {% if role == 'admin' or (_npd_masters_perm2 and _npd_masters_perm2.can_view) %}
                 <div class="sb-acc-sub-lbl">⚙️ NPD Masters</div>
                 <a class="nav-a" href="/npd/milestone-master"><span class="nav-ic">🎯</span><span class="nav-txt">Milestone Master</span></a>
                 <a class="nav-a {% if _pg == 'npd_status_master' %}active{% endif %}" href="/masters/npd-status"><span class="nav-ic">⚙️</span><span class="nav-txt">NPD Status Master</span></a>
@@ -179,7 +203,7 @@
 
         {% if role in ('admin','manager','hr') %}
         {% set _perm_hr = get_perm('hr') %}
-        {% if _perm_hr is none or _perm_hr.can_view != false %}
+        {% if _perm_hr and _perm_hr.can_view %}
         <div class="sb-sec sb-accordion">
             <button class="sb-acc-hdr" onclick="toggleAccordion(this)">
                 <span class="sb-acc-ic">👥</span>
@@ -189,7 +213,7 @@
             <div class="sb-acc-body">
                 <a class="nav-a" href="/hr/employees/dashboard"><span class="nav-ic">📊</span><span class="nav-txt">Dashboard</span></a>
                 {% set _perm_emp = get_perm('hr_employees') %}
-                {% if _perm_emp is none or _perm_emp.can_view != false %}
+                {% if _perm_emp and _perm_emp.can_view %}
                 <a class="nav-a" href="/hr/employees"><span class="nav-ic">🪪</span><span class="nav-txt">Employees</span></a>
                 {% endif %}
                 <a class="nav-a" href="/hr/contractors"><span class="nav-ic">🤝</span><span class="nav-txt">Contractors</span></a>
@@ -233,34 +257,56 @@
                 <span class="nav-ic">←</span><span class="nav-txt">Main Dashboard</span>
             </a>
         </div>
+        {% if get_module_active('crm') %}
         <div class="sb-sec">
             <div class="sb-sec-lbl">CRM</div>
             <a class="nav-a {% if _pg == 'crm_dashboard' %}active{% endif %}" href="/crm/dashboard">
                 <span class="nav-ic">📊</span><span class="nav-txt">CRM Dashboard</span>
             </a>
+            {% if get_module_active('crm_leads') %}
             <a class="nav-a {% if _pg == 'leads' %}active{% endif %}" href="/crm/leads">
                 <span class="nav-ic">📋</span><span class="nav-txt">Leads</span>
             </a>
+            {% endif %}
+            {% if get_module_active('crm_clients') %}
             <a class="nav-a {% if _pg == 'clients' %}active{% endif %}" href="/crm/clients">
                 <span class="nav-ic">👥</span><span class="nav-txt">Client Master</span>
             </a>
-            {% set _perm_leads = get_perm('crm_leads') %}
-            {% if _perm_leads is none or _perm_leads.can_view != false %}
+            {% endif %}
+            {% if get_module_active('crm_sample_orders') %}
+            {% set _perm_so = get_perm('crm_sample_orders') %}
+            {% if _perm_so and _perm_so.can_view %}
             <a class="nav-a {% if _pg == 'sample_orders' %}active{% endif %}" href="/crm/sample-orders">
                 <span class="nav-ic">🧾</span><span class="nav-txt">Sample Orders</span>
             </a>
+            {% endif %}
+            {% endif %}
+            {% if get_module_active('crm_quotations') %}
+            {% set _perm_qt = get_perm('crm_quotations') %}
+            {% if _perm_qt and _perm_qt.can_view %}
             <a class="nav-a {% if _pg == 'quotations' %}active{% endif %}" href="/crm/quotations">
                 <span class="nav-ic">📄</span><span class="nav-txt">Quotations</span>
             </a>
+            {% endif %}
+            {% endif %}
+            {% if get_module_active('crm_quot_products') %}
+            {% set _perm_qp = get_perm('crm_quot_products') %}
+            {% if _perm_qp and _perm_qp.can_view %}
             <a class="nav-a {% if _pg == 'quotation_products' %}active{% endif %}" href="/crm/quotations/products">
                 <span class="nav-ic">📋</span><span class="nav-txt">Quot. Product List</span>
             </a>
             {% endif %}
+            {% endif %}
 
-            {# ── Leaderboard — directly visible ── #}
+            {# ── Leaderboard ── #}
+            {% if get_module_active('crm_leaderboard') %}
+            {% set _perm_lb = get_perm('crm_leaderboard') %}
+            {% if _perm_lb and _perm_lb.can_view %}
             <a class="nav-a {% if _pg == 'leaderboard' %}active{% endif %}" href="/crm/leaderboard">
                 <span class="nav-ic">🏆</span><span class="nav-txt">Leaderboard</span>
             </a>
+            {% endif %}
+            {% endif %}
 
             {# ── Import Group (collapsible) ── #}
             {% if role in ('admin','manager') %}
@@ -280,7 +326,8 @@
             </div>
             {% endif %}
 
-            {# ── Settings Group (collapsible) ── #}
+            {# ── Settings Group (admin only, collapsible) ── #}
+            {% if role == 'admin' %}
             {% set _in_settings = _pg in ('mail_master','contribution_config','masters') %}
             <button class="nav-group-toggle {% if _in_settings %}open{% endif %}" onclick="toggleNavGroup(this)">
                 <span class="nav-ic">⚙️</span>
@@ -298,7 +345,9 @@
                     <span class="nav-ic">🏷️</span><span class="nav-txt">Lead Masters</span>
                 </a>
             </div>
+            {% endif %}
         </div>
+        {% endif %}
 
         {# ════ R&D MODULE ════ #}
         {% elif _mod == 'rd' %}
@@ -317,6 +366,7 @@
         </div>
 
         {# ── NPD Section ── #}
+        {% if true %}
         <div class="sb-sec">
             <div class="sb-sec-lbl" style="color:#7c3aed;">🧪 NPD</div>
             <a class="nav-a {% if _pg == 'npd_npd_dashboard' %}active{% endif %}" href="/npd/npd-dashboard">
@@ -332,8 +382,10 @@
                 <span class="nav-ic">📋</span><span class="nav-txt">Sample History</span>
             </a>
         </div>
+        {% endif %}
 
         {# ── EPD Section ── #}
+        {% if true %}
         <div class="sb-sec">
             <div class="sb-sec-lbl" style="color:#059669;">📦 EPD</div>
             <a class="nav-a {% if _pg == 'npd_epd_dashboard' %}active{% endif %}" href="/npd/epd-dashboard">
@@ -343,9 +395,11 @@
                 <span class="nav-ic">📋</span><span class="nav-txt">EPD Projects</span>
             </a>
         </div>
+        {% endif %}
 
-        {# ── NPD Masters (Admin only) ── #}
-        {% if role == 'admin' %}
+        {# ── NPD Masters (permission-based) ── #}
+        {% set _npd_masters_perm = get_perm('npd_masters') %}
+        {% if role == 'admin' or (_npd_masters_perm and _npd_masters_perm.can_view) %}
         <div class="sb-sec">
             <div class="sb-sec-lbl">⚙️ NPD Masters</div>
             <a class="nav-a {% if _pg == 'npd_milestone_master' %}active{% endif %}" href="/npd/milestone-master">

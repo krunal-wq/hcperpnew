@@ -65,10 +65,7 @@
             {% endif %}
         </div>
     </div>
-    <div class="rd-btn-row">
-        {% if perm and perm.can_add %}<a href="{{ url_for('npd.npd_new') }}" class="rd-btn-npd">🧪 New NPD</a>{% endif %}
-        <a href="{{ url_for('rd.dashboard') }}" class="rd-btn-dashboard">← Dashboard</a>
-    </div>
+
 </div>
 
 {# ── Toolbar ── #}
@@ -76,21 +73,27 @@
 
   {# Tabs #}
   <div style="display:inline-flex;border:1.5px solid var(--border);border-radius:8px;overflow:hidden;background:#f8fafc;" id="rdTabGroup">
-    <button onclick="rdSwitchTab('unallotted')" id="tab-unallotted"
-      style="display:inline-flex;align-items:center;gap:5px;padding:.32rem .85rem;font-size:.8rem;font-weight:700;border:none;cursor:pointer;border-right:1px solid var(--border);background:#7c3aed;color:#fff;font-family:inherit;">
+    {% if rd_sub and rd_sub.unalloted_npd %}
+    <button onclick="rdSwitchTab('unallotted')" id="tab-unallotted" data-rdtab="1"
+      style="display:inline-flex;align-items:center;gap:5px;padding:.32rem .85rem;font-size:.8rem;font-weight:700;border:none;cursor:pointer;border-right:1px solid var(--border);background:#f8fafc;color:var(--text2);font-family:inherit;">
       🔴 Unalloted NPD
       <span style="background:rgba(255,255,255,.3);color:#fff;padding:1px 6px;border-radius:100px;font-size:.7rem;font-weight:800;">{{ unallotted|length }}</span>
     </button>
-    <button onclick="rdSwitchTab('allotted')" id="tab-allotted"
+    {% endif %}
+    {% if rd_sub and rd_sub.alloted_npd %}
+    <button onclick="rdSwitchTab('allotted')" id="tab-allotted" data-rdtab="1"
       style="display:inline-flex;align-items:center;gap:5px;padding:.32rem .85rem;font-size:.8rem;font-weight:700;border:none;cursor:pointer;border-right:1px solid var(--border);background:#fff;color:var(--text2);font-family:inherit;">
       🟢 Alloted NPD
       <span style="background:#dcfce7;color:#16a34a;padding:1px 6px;border-radius:100px;font-size:.7rem;font-weight:800;" id="allot-tab-count">{{ allotted|length }}</span>
     </button>
-    <button onclick="rdSwitchTab('closed')" id="tab-closed"
+    {% endif %}
+    {% if rd_sub and rd_sub.closed_npd %}
+    <button onclick="rdSwitchTab('closed')" id="tab-closed" data-rdtab="1"
       style="display:inline-flex;align-items:center;gap:5px;padding:.32rem .85rem;font-size:.8rem;font-weight:700;border:none;cursor:pointer;background:#fff;color:var(--text2);font-family:inherit;">
       ⚫ Closed NPD
       <span style="background:#f1f5f9;color:#6b7280;padding:1px 6px;border-radius:100px;font-size:.7rem;font-weight:800;">{{ closed|length }}</span>
     </button>
+    {% endif %}
   </div>
 
   {# Global Search #}
@@ -107,7 +110,8 @@
 <div style="background:#fff;">
 
   {# TABLE: Unalloted #}
-  <div id="tbl-unallotted">
+  {% if rd_sub and rd_sub.unalloted_npd %}
+  <div id="tbl-unallotted" style="display:none;">
     <div style="overflow-x:auto;">
     <table style="width:100%;border-collapse:collapse;font-size:13px;">
       <thead>
@@ -127,12 +131,13 @@
         {% for p in unallotted %}
         <tr class="rd-row" data-search="{{ (p.product_name~' '~p.code~' '~(p.client_company or p.client_name or '')).lower() }}" data-type="{{ p.project_type }}" style="border-bottom:1px solid #f1f5f9;" onmouseover="this.style.background='#faf5ff'" onmouseout="this.style.background=''">
           <td style="padding:12px 14px;color:#94a3b8;font-size:11px;font-weight:600;">{{ loop.index }}</td>
-          <td style="padding:12px 14px;"><a href="/npd/projects/{{ p.id }}" style="color:#7c3aed;font-weight:700;font-family:monospace;font-size:.82rem;text-decoration:none;">{{ p.code }}</a></td>
+          <td style="padding:12px 14px;">{% if perm and perm.can_view %}<a href="/npd/projects/{{ p.id }}" style="color:#7c3aed;font-weight:700;font-family:monospace;font-size:.82rem;text-decoration:none;">{{ p.code }}</a>{% else %}<span style="font-weight:700;font-family:monospace;font-size:.82rem;">{{ p.code }}</span>{% endif %}</td>
           <td style="padding:12px 14px;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ p.product_name }}</td>
           <td style="padding:12px 14px;color:var(--text2);font-size:.82rem;">{{ p.client_company or p.client_name or '—' }}</td>
           <td style="padding:12px 14px;"><span style="background:{{ p.status_color }}18;color:{{ p.status_color }};border:1px solid {{ p.status_color }}44;padding:2px 9px;border-radius:100px;font-size:.71rem;font-weight:700;white-space:nowrap;">{{ p.status_label }}</span></td>
           <td style="padding:12px 14px;color:var(--text3);font-size:.82rem;">{{ p.project_age }}d</td>
           <td style="padding:12px 14px;text-align:right;">
+                        {% if rd_sub and rd_sub.assign %}
                         <button
               data-pid="{{ p.id }}"
               data-name="{{ p.product_name | replace("'","") }}"
@@ -145,6 +150,7 @@
               style="display:inline-flex;align-items:center;gap:4px;padding:5px 12px;background:#7c3aed;color:#fff;border:none;border-radius:6px;font-size:.75rem;font-weight:700;cursor:pointer;font-family:inherit;">
               👥 Assign
             </button>
+                        {% endif %}
           </td>
         </tr>
         {% endfor %}
@@ -158,8 +164,10 @@
     </table>
     </div>
   </div>
+  {% endif %}
 
   {# TABLE: Alloted #}
+  {% if rd_sub and rd_sub.alloted_npd %}
   <div id="tbl-allotted" style="display:none;">
     <div style="overflow-x:auto;">
     <table style="width:100%;border-collapse:collapse;font-size:13px;">
@@ -182,7 +190,7 @@
         {% if not is_rd_manager and p.rd_user and p.rd_user.id != current_user.id %}{% else %}
         <tr class="rd-row" data-search="{{ (p.product_name~' '~p.code~' '~(p.client_company or p.client_name or '')).lower() }}" data-type="{{ p.project_type }}" style="border-bottom:1px solid #f1f5f9;" onmouseover="this.style.background='#f0fdf4'" onmouseout="this.style.background=''">
           <td style="padding:12px 14px;color:#94a3b8;font-size:11px;font-weight:600;">{{ loop.index }}</td>
-          <td style="padding:12px 14px;"><a href="/npd/projects/{{ p.id }}" style="color:#7c3aed;font-weight:700;font-family:monospace;font-size:.82rem;text-decoration:none;">{{ p.code }}</a></td>
+          <td style="padding:12px 14px;">{% if perm and perm.can_view %}<a href="/npd/projects/{{ p.id }}" style="color:#7c3aed;font-weight:700;font-family:monospace;font-size:.82rem;text-decoration:none;">{{ p.code }}</a>{% else %}<span style="font-weight:700;font-family:monospace;font-size:.82rem;">{{ p.code }}</span>{% endif %}</td>
           <td style="padding:12px 14px;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ p.product_name }}</td>
           <td style="padding:12px 14px;color:var(--text2);font-size:.82rem;">{{ p.client_company or p.client_name or '—' }}</td>
           <td style="padding:12px 14px;">
@@ -223,8 +231,10 @@
     </table>
     </div>
   </div>
+  {% endif %}
 
   {# TABLE: Closed #}
+  {% if rd_sub and rd_sub.closed_npd %}
   <div id="tbl-closed" style="display:none;">
     <div style="overflow-x:auto;">
     <table style="width:100%;border-collapse:collapse;font-size:13px;">
@@ -245,7 +255,7 @@
         {% for p in closed %}
         <tr class="rd-row" data-search="{{ (p.product_name~' '~p.code~' '~(p.client_company or p.client_name or '')).lower() }}" data-type="{{ p.project_type }}" style="border-bottom:1px solid #f1f5f9;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
           <td style="padding:12px 14px;color:#94a3b8;font-size:11px;font-weight:600;">{{ loop.index }}</td>
-          <td style="padding:12px 14px;"><a href="/npd/projects/{{ p.id }}" style="color:#7c3aed;font-weight:700;font-family:monospace;font-size:.82rem;text-decoration:none;">{{ p.code }}</a></td>
+          <td style="padding:12px 14px;">{% if perm and perm.can_view %}<a href="/npd/projects/{{ p.id }}" style="color:#7c3aed;font-weight:700;font-family:monospace;font-size:.82rem;text-decoration:none;">{{ p.code }}</a>{% else %}<span style="font-weight:700;font-family:monospace;font-size:.82rem;">{{ p.code }}</span>{% endif %}</td>
           <td style="padding:12px 14px;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ p.product_name }}</td>
           <td style="padding:12px 14px;color:var(--text2);font-size:.82rem;">{{ p.client_company or p.client_name or '—' }}</td>
           <td style="padding:12px 14px;">
@@ -272,14 +282,17 @@
     </table>
     </div>
   </div>
+  {% endif %}
 
 </div>
 
 <script>
 function rdSwitchTab(tab) {
   ['unallotted','allotted','closed'].forEach(function(t){
-    document.getElementById('tbl-'+t).style.display = t===tab ? 'block' : 'none';
+    var tbl = document.getElementById('tbl-'+t);
+    if(tbl) tbl.style.display = t===tab ? 'block' : 'none';
     var btn = document.getElementById('tab-'+t);
+    if(!btn) return;
     if(t===tab){
       btn.style.background = '#7c3aed';
       btn.style.color = '#fff';
@@ -533,7 +546,15 @@ function closeModal() {
     document.getElementById('assign-modal').classList.remove('open');
     currentProjId = null; selectedUsers = []; resetUserCards();
 }
-document.addEventListener('DOMContentLoaded', function(){ document.getElementById('assign-modal').addEventListener('click', function(e){ if(e.target===this) closeModal(); }); });
+document.addEventListener('DOMContentLoaded', function(){
+  // Auto-activate first visible tab
+  var firstTab = document.querySelector('[data-rdtab="1"]');
+  if(firstTab){
+    var tabId = firstTab.id.replace('tab-','');
+    rdSwitchTab(tabId);
+  }
+  document.getElementById('assign-modal').addEventListener('click', function(e){ if(e.target===this) closeModal(); });
+});
 
 function resetUserCards() {
     document.querySelectorAll('.user-check-card').forEach(function(c){ c.classList.remove('selected'); });

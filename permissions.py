@@ -101,29 +101,37 @@ MODULE_SUB_PERMS = {
         ('restore',           'Restore'),
         ('permanent_delete',  'Permanent Delete'),
     ],
-    'npd': [
-        ('create_project',    'Create Project'),
-        ('inline_edit',       'Inline Edit'),
-        ('milestone',         'Milestone'),
-        ('epd',               'EPD'),
-        ('print',             'Print'),
-        ('discussion_board',  'Discussion Board'),
-        ('internal_discussion','Internal Discussion'),
-        ('activity_log',      'Activity Log'),
-        ('attachments',       'Attachments'),
-        ('notes',             'Notes'),
-        ('reports',           'Reports'),
-        ('close_project',     'Close Project'),
-        ('restore',           'Restore'),
-        ('permanent_delete',  'Permanent Delete'),
+    'npd': [],
+    'npd_projects': [
+        ('inline_edit',           'Inline Edit'),
+        ('print',                 'Print'),
+        ('overview',              'Overview'),
+        ('client_detail',         'Client Detail'),
+        ('discussion_board',      'Discussion Board'),
+        ('internal_discussion',   'Internal Discussion'),
+        ('activity_log',          'Activity Log'),
+        ('attachments',           'Attachments'),
+        ('notes',                 'Notes'),
+        ('milestone',             'Milestone'),
+        ('close_project',         'Close Project'),
+        ('restore',               'Restore'),
+        ('permanent_delete',      'Permanent Delete'),
+        ('view_deleted',          'View Deleted Tab'),
+    ],
+    'npd_masters': [
+        ('milestone_master',      'Milestone Master'),
+        ('npd_status_master',     'NPD Status Master'),
+        ('npd_category_master',   'NPD Category Master'),
+        ('milestone_status',      'Milestone Status'),
+        ('param_master',          'Parameter Master'),
+        ('reports',               'Reports'),
+        ('epd',                   'EPD'),
     ],
     'rd': [
-        ('create_project',    'Create Project'),
-        ('trials',            'Trials'),
-        ('assign',            'Assign NPD'),
-        ('discussion',        'Discussion'),
-        ('performance',       'Performance'),
-        ('settings',          'Settings'),
+        ('unalloted_npd',         'Unalloted NPD'),
+        ('alloted_npd',           'Alloted NPD'),
+        ('closed_npd',            'Closed NPD'),
+        ('assign',                'Assign'),
     ],
 }
 
@@ -133,27 +141,27 @@ def get_perm(module_name):
     """
     Priority:
     1. UserPermission record hai → use that
+       (Admin ke liye: can_view force True — admin apna module band na kare)
     2. RolePermission se fallback
     3. Koi record nahi → view_only (menu dikhega)
-    
-    Note: Agar UserPermission exist karta hai to usse use karo.
-    Admin ne explicitly disable kiya hoga tabhi can_view=False hoga.
     """
     if not current_user.is_authenticated:
         return None
     try:
         mod = Module.query.filter_by(name=module_name).first()
         if not mod:
-            # Module DB mein nahi — admin ko full, others ko view_only
             if current_user.role == 'admin':
                 return _full_perm()
             return _view_only_perm()
 
-        # Priority 1: User-specific override (admin ke liye bhi)
+        # Priority 1: User-specific override
         user_perm = UserPermission.query.filter_by(
             user_id=current_user.id, module_id=mod.id
         ).first()
         if user_perm is not None:
+            # Admin ka can_view kabhi False nahi hoga
+            if current_user.role == 'admin' and not user_perm.can_view:
+                return _full_perm()
             return user_perm
 
         # Priority 2: Admin ko full access agar koi UserPermission nahi
@@ -222,14 +230,50 @@ def _no_perm():
 
 
 def require_perm(module_name, action='view'):
-    """Decorator: require specific permission"""
+    """
+    Decorator: require specific permission on a module.
+    - action='view'   -> 403 page if denied (blocks direct URL access)
+    - action='import' -> maps to can_import
+    - other actions   -> redirect with flash message
+    """
     def decorator(f):
         @wraps(f)
         def decorated(*args, **kwargs):
             perm = get_perm(module_name)
-            if not perm or not getattr(perm, f'can_{action}', False):
+            # Map action to perm attribute
+            attr = f'can_{action}'
+            has_perm = bool(perm and getattr(perm, attr, False))
+            if not has_perm:
+                if action == 'view':
+                    from flask import render_template
+                    return render_template(
+                        'errors/403.html',
+                        module_name=module_name,
+                        message='You do not have permission to access this page.'
+                    ), 403
                 flash(f'Access denied: {action} permission required for {module_name}.', 'error')
                 return redirect(url_for('dashboard'))
+            return f(*args, **kwargs)
+        return decorated
+    return decorator
+
+
+def require_sub_perm(module_name, sub_key):
+    """
+    Decorator: require a specific sub-permission (e.g. 'lead_view', 'quotation').
+    Used for feature-level route guards (tabs, pages, actions within a module).
+    Returns 403 if the sub-permission is disabled.
+    """
+    def decorator(f):
+        @wraps(f)
+        def decorated(*args, **kwargs):
+            if not get_sub_perm(module_name, sub_key):
+                from flask import render_template
+                return render_template(
+                    'errors/403.html',
+                    module_name=module_name,
+                    message='You do not have access to this feature.'
+                ), 403
             return f(*args, **kwargs)
         return decorated
     return decorator
@@ -273,21 +317,129 @@ def save_grid_columns(module_name, cols):
         raise e
 
 
+def get_module_active(module_name):
+    """
+    Check karo ki current user ke liye module visible hai ya nahi.
+    UserPermission.can_view=False → hide karo sidebar se.
+    Agar koi record nahi → default show karo.
+    """
+    if not current_user.is_authenticated:
+        return False
+    # Admin ka can_view kabhi False nahi hota
+    if current_user.role == 'admin':
+        return True
+    try:
+        mod = Module.query.filter_by(name=module_name).first()
+        if not mod:
+            return True
+        # Module globally disabled hai?
+        if not mod.is_active:
+            return False
+        # User-specific permission check
+        user_perm = UserPermission.query.filter_by(
+            user_id=current_user.id, module_id=mod.id
+        ).first()
+        if user_perm is not None:
+            return user_perm.can_view
+        # Role-level permission check
+        role_perm = RolePermission.query.filter_by(
+            role=current_user.role, module_id=mod.id
+        ).first()
+        if role_perm is not None:
+            return role_perm.can_view
+        return True
+    except Exception:
+        return True
+
+
 # ── Get all visible menu modules for current user ──
 def get_menu_modules():
+    """
+    Returns top-level modules visible to current user in the sidebar.
+    Priority: UserPermission (user-specific override) → RolePermission (role fallback).
+    A module is visible only if:
+      - is_active = True (not disabled globally)
+      - The user has can_view = True (from UserPermission or RolePermission)
+    """
     if not current_user.is_authenticated:
         return []
+
+    # Get all active top-level modules
+    all_active = Module.query.filter_by(is_active=True, parent_id=None)\
+                             .order_by(Module.sort_order).all()
+
     if current_user.role == 'admin':
-        return Module.query.filter_by(is_active=True, parent_id=None)\
-                           .order_by(Module.sort_order).all()
-    # Get modules where this role has can_view = True
-    perms = RolePermission.query.filter_by(role=current_user.role, can_view=True).all()
-    mod_ids = [p.module_id for p in perms]
-    return Module.query.filter(
-        Module.id.in_(mod_ids),
-        Module.is_active == True,
-        Module.parent_id == None
+        # Admin: check UserPermission override; if no override → full access
+        visible = []
+        for mod in all_active:
+            user_perm = UserPermission.query.filter_by(
+                user_id=current_user.id, module_id=mod.id
+            ).first()
+            if user_perm is not None and not user_perm.can_view:
+                continue  # Explicitly disabled for this admin user
+            visible.append(mod)
+        return visible
+
+    # Non-admin: check UserPermission first, then RolePermission
+    visible = []
+    for mod in all_active:
+        # Priority 1: User-specific override
+        user_perm = UserPermission.query.filter_by(
+            user_id=current_user.id, module_id=mod.id
+        ).first()
+        if user_perm is not None:
+            if user_perm.can_view:
+                visible.append(mod)
+            continue  # Override found — don't fall through to role
+
+        # Priority 2: Role permission
+        role_perm = RolePermission.query.filter_by(
+            role=current_user.role, module_id=mod.id, can_view=True
+        ).first()
+        if role_perm:
+            visible.append(mod)
+
+    return visible
+
+
+def get_visible_sub_modules(parent_module):
+    """
+    Returns active child modules of a parent that the current user can view.
+    Used for rendering sub-menu items.
+    """
+    if not current_user.is_authenticated:
+        return []
+
+    children = Module.query.filter_by(
+        parent_id=parent_module.id, is_active=True
     ).order_by(Module.sort_order).all()
+
+    if current_user.role == 'admin':
+        visible = []
+        for mod in children:
+            user_perm = UserPermission.query.filter_by(
+                user_id=current_user.id, module_id=mod.id
+            ).first()
+            if user_perm is not None and not user_perm.can_view:
+                continue
+            visible.append(mod)
+        return visible
+
+    visible = []
+    for mod in children:
+        user_perm = UserPermission.query.filter_by(
+            user_id=current_user.id, module_id=mod.id
+        ).first()
+        if user_perm is not None:
+            if user_perm.can_view:
+                visible.append(mod)
+            continue
+        role_perm = RolePermission.query.filter_by(
+            role=current_user.role, module_id=mod.id, can_view=True
+        ).first()
+        if role_perm:
+            visible.append(mod)
+    return visible
 
 
 # ── Seed default modules and permissions ──
@@ -298,6 +450,10 @@ DEFAULT_MODULES = [
     {'name':'crm_quotations','label':'Quotations','icon':'📄','url_prefix':'/crm/quotations','sort_order':6,'parent':'crm'},
     {'name':'crm_sample_orders','label':'Sample Orders','icon':'🧾','url_prefix':'/crm/sample-orders','sort_order':5,'parent':'crm'},
     {'name':'crm_clients',  'label':'Clients',        'icon':'👥', 'url_prefix':'/crm/clients','sort_order':4, 'parent':'crm'},
+    {'name':'rd',           'label':'R&D',          'icon':'🔬','url_prefix':'/rd',              'sort_order':13},
+    {'name':'npd',          'label':'NPD',          'icon':'🧪','url_prefix':'/npd',             'sort_order':14},
+    {'name':'npd_projects', 'label':'NPD Projects', 'icon':'📋','url_prefix':'/npd/npd-projects','sort_order':15,'parent':'npd'},
+    {'name':'npd_masters',  'label':'NPD Masters',  'icon':'⚙️','url_prefix':'/npd/masters',     'sort_order':16,'parent':'npd'},
     {'name':'hr',           'label':'HR',             'icon':'👔', 'url_prefix':'/hr',        'sort_order':5},
     {'name':'hr_employees', 'label':'Employees',      'icon':'🪪', 'url_prefix':'/hr/employees','sort_order':6,'parent':'hr'},
     {'name':'hr_contractors','label':'Contractors',   'icon':'🤝', 'url_prefix':'/hr/contractors','sort_order':7,'parent':'hr'},
