@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Page Not Found — 404{% endblock %}
+{% block page_title %}Page Not Found{% endblock %}
+{% block bread %}404{% endblock %}
+
+{% block content %}
+<div style="display:flex;align-items:center;justify-content:center;min-height:60vh;padding:2rem;">
+    <div style="text-align:center;background:var(--white);border-radius:16px;box-shadow:0 4px 24px rgba(0,0,0,0.10);padding:3rem 2.5rem;max-width:480px;width:100%;border:1.5px solid var(--border);">
+
+        <div style="font-size:4rem;margin-bottom:0.5rem;">🔍</div>
+        <div style="font-size:5rem;font-weight:800;color:#f59e0b;margin:0;line-height:1;">404</div>
+        <div style="font-size:1.4rem;font-weight:700;color:var(--text);margin:0.5rem 0 1rem;">Page Not Found</div>
+
+        <p style="color:var(--text3);font-size:0.95rem;margin-bottom:2rem;line-height:1.6;">
+            {{ message or "The page you are looking for does not exist or has been moved." }}
+        </p>
+
+        <div style="display:flex;gap:0.75rem;justify-content:center;flex-wrap:wrap;margin-bottom:1.5rem;">
+            <a href="{{ url_for('dashboard') }}"
+               style="display:inline-flex;align-items:center;gap:6px;background:#2563eb;color:#fff;padding:10px 20px;border-radius:8px;font-size:0.875rem;font-weight:600;text-decoration:none;">
+                🏠 Go to Dashboard
+            </a>
+            <a href="javascript:history.back()"
+               style="display:inline-flex;align-items:center;gap:6px;background:var(--bg);color:var(--text);padding:10px 20px;border-radius:8px;font-size:0.875rem;font-weight:600;text-decoration:none;border:1.5px solid var(--border);">
+                ← Go Back
+            </a>
+        </div>
+
+        <p style="font-size:0.8rem;color:var(--text3);margin:0;">
+            If you believe this is a mistake, please contact your administrator.
+        </p>
+    </div>
+</div>
+{% endblock %}

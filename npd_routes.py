@@ -424,6 +424,42 @@ def project_view(pid):
         'view_deleted'        : _gsp('npd_projects', 'view_deleted'),
     }
     can_close_project = npd_sub['close_project'] or (current_user.role == 'admin')
+
+    # ── can_start: SIRF assigned R&D member ──
+    def _check_assigned(proj, cu):
+        """Check if current user is assigned to this project"""
+        # Check 1: primary assigned_rd (User FK)
+        if proj.assigned_rd == cu.id:
+            return True
+        if not proj.assigned_rd_members:
+            return False
+        from models.employee import Employee as _Emp
+        for token in str(proj.assigned_rd_members).split(','):
+            token = token.strip()
+            if not token: continue
+            # u_<id> = User ID
+            if token.startswith('u_'):
+                try:
+                    if int(token[2:]) == cu.id: return True
+                except: pass
+            # plain int = Employee ID
+            elif token.isdigit():
+                try:
+                    emp = _Emp.query.get(int(token))
+                    if emp and not emp.is_deleted:
+                        if emp.user_id == cu.id: return True
+                        # name fallback (case-insensitive)
+                        if emp.full_name and emp.full_name.strip().lower() == cu.full_name.strip().lower():
+                            return True
+                except: pass
+        return False
+
+    is_assigned = _check_assigned(proj, current_user)
+
+    # If project already in_progress — any assigned member can END
+    # If not started — any assigned member can START
+    can_start = is_assigned
+
     # All selected milestones done? — check npd_milestone_data JSON (JS writes 'done' there)
     import json as _json
     _ms_data = {}
@@ -433,6 +469,12 @@ def project_view(pid):
         (_ms_data.get('ms_' + str(i+1), {}).get('status') == 'done')
         for i, _ in enumerate(selected_ms)
     )
+
+    # ── My RDSubAssignment for this project ──
+    from models.npd import RDSubAssignment
+    my_sub = RDSubAssignment.query.filter_by(
+        project_id=proj.id, user_id=current_user.id, is_active=True
+    ).first()
 
     return render_template('npd/project_view.html',
         active_page='npd_projects',
@@ -447,6 +489,8 @@ def project_view(pid):
         can_close_project=can_close_project,
         all_ms_done=all_ms_done,
         npd_sub=npd_sub,
+        can_start=can_start,
+        my_sub=my_sub,
     )
 
 
@@ -707,6 +751,36 @@ def change_status(pid):
     new_status = request.form.get('status','')
     note       = request.form.get('note','')
 
+    # ── START / FINISH permission check ──
+    # SIRF assigned R&D member — admin bhi nahi kar sakta
+    if new_status in ('in_progress', 'finish', 'finished', 'sample_ready', 'not_started'):
+        # Reuse same _check_can_start logic
+        from models.employee import Employee as _EmpCS
+        def _cs_can(proj, cu):
+            if proj.assigned_rd == cu.id:
+                return True
+            if not proj.assigned_rd_members:
+                return False
+            for token in str(proj.assigned_rd_members).split(','):
+                token = token.strip()
+                if not token: continue
+                if token.startswith('u_'):
+                    try:
+                        if int(token[2:]) == cu.id: return True
+                    except: pass
+                elif token.isdigit():
+                    try:
+                        emp = _EmpCS.query.get(int(token))
+                        if emp and not emp.is_deleted:
+                            if emp.user_id == cu.id: return True
+                            if emp.full_name and emp.full_name.strip().lower() == cu.full_name.strip().lower(): return True
+                    except: pass
+            return False
+
+        if not _cs_can(proj, current_user):
+            flash('Sirf assigned R&D member START/STOP kar sakta hai.', 'error')
+            return redirect(url_for('npd.project_view', pid=pid))
+
     if new_status == 'cancelled':
         proj.cancel_reason = request.form.get('cancel_reason', '')
         proj.cancelled_at  = datetime.now()
@@ -733,6 +807,38 @@ def change_status(pid):
 
     log_npd(proj.id,
             f"Status changed: {old_status} → {new_status}" + (f" | {note}" if note else ""))
+
+    # ── RD Project Log for start/stop/finish ──
+    from models.npd import RDProjectLog
+    _rd_event = None
+    if new_status == 'in_progress':
+        _rd_event = 'started'
+    elif new_status in ('finish', 'finished', 'sample_ready'):
+        _rd_event = 'finished'
+    elif new_status == 'not_started':
+        _rd_event = 'stopped'
+    if _rd_event:
+        # All assigned member names for context
+        _assigned_names = []
+        if proj.rd_user:
+            _assigned_names.append(proj.rd_user.full_name)
+        if proj.assigned_rd_members:
+            try:
+                from models.employee import Employee as _EL
+                _eids2 = [int(x) for x in str(proj.assigned_rd_members).split(',') if x.strip().isdigit()]
+                for _e2 in _EL.query.filter(_EL.id.in_(_eids2), _EL.is_deleted==False).all():
+                    if _e2.full_name not in _assigned_names:
+                        _assigned_names.append(_e2.full_name)
+            except: pass
+        _team_str = ', '.join(_assigned_names) if _assigned_names else '—'
+        db.session.add(RDProjectLog(
+            project_id = proj.id,
+            user_id    = current_user.id,
+            event      = _rd_event,
+            detail     = f"{_rd_event.capitalize()} by {current_user.full_name} | Team: {_team_str}" + (f" | {note}" if note else ""),
+            created_at = datetime.now(),
+        ))
+
     db.session.commit()
     flash(f'Status updated to {proj.status_label}', 'success')
     return redirect(url_for('npd.project_view', pid=pid))
@@ -2713,10 +2819,35 @@ def update_npd_milestone(pid):
     return jsonify(success=True, date=date_str)
 
 # ── Milestone Discussion — GET comments ──
+def _resolve_ms_key(pid, ms_key):
+    """
+    artwork_qc milestone ka key → artwork milestone ke key se replace karo.
+    Dono share karte hain ek hi discussion thread.
+    """
+    from models.npd import NPDProjectMilestone
+    # Is key ka milestone_type check karo
+    all_ms = NPDProjectMilestone.query.filter_by(
+        project_id=pid, is_selected=True
+    ).order_by(NPDProjectMilestone.id).all()
+    # ms_key = 'ms_1', 'ms_2', etc — index based
+    try:
+        idx = int(ms_key.replace('ms_', '')) - 1
+        mtype = all_ms[idx].milestone_type if idx < len(all_ms) else ''
+    except Exception:
+        return ms_key
+    # artwork_qc → use artwork key instead
+    if mtype == 'artwork_qc':
+        for i, ms in enumerate(all_ms):
+            if ms.milestone_type == 'artwork':
+                return 'ms_' + str(i + 1)
+    return ms_key
+
+
 @npd.route('/<int:pid>/milestone-comments/<ms_key>')
 @login_required
 def get_milestone_comments(pid, ms_key):
     from models.npd import NPDComment
+    ms_key = _resolve_ms_key(pid, ms_key)
     comments = NPDComment.query.filter_by(
         project_id=pid, milestone_key=ms_key
     ).order_by(NPDComment.created_at.desc()).all()
@@ -2737,6 +2868,7 @@ def get_milestone_comments(pid, ms_key):
 def add_milestone_comment(pid, ms_key):
     import os, time
     from models.npd import NPDComment
+    ms_key = _resolve_ms_key(pid, ms_key)  # artwork_qc → artwork shared thread
     comment_text = request.form.get('comment', '').strip()
     file = request.files.get('attachment')
     att_str = ''

@@ -82,8 +82,9 @@
         {% elif _pg in ('npd_dashboard','npd_projects','npd_reports','npd_milestone_master',
                         'npd_npd_dashboard','npd_npd_projects','npd_epd_dashboard','npd_epd_projects',
                         'npd_status_master','milestone_status_master','npd_category_master',
-                        'rd_dashboard','rd_projects','rd_trials','rd_executives','rd_performance',
-                        'rd_discussion','rd_param_master') %}
+                        'rd_dashboard','rd_projects','rd_executives','rd_performance',
+                        'rd_discussion','rd_param_master',
+                        'rd_sample_ready','rd_sample_history') %}
             {% set _mod = 'rd' %}
         {% elif _pg in ('cat_master','uom_master','hsn_master','masters') %}
             {% set _mod = 'masters' %}
@@ -378,7 +379,8 @@
             <div class="sb-sec-lbl">R&amp;D</div>
             <a class="nav-a {% if _pg == 'rd_dashboard' %}active{% endif %}" href="/rd/dashboard"><span class="nav-ic">◈</span><span class="nav-txt">R&amp;D Dashboard</span></a>
             <a class="nav-a {% if _pg == 'rd_projects' %}active{% endif %}" href="/rd/projects"><span class="nav-ic">⬡</span><span class="nav-txt">R&amp;D Projects</span></a>
-            <a class="nav-a {% if _pg == 'rd_trials' %}active{% endif %}" href="/rd/trials"><span class="nav-ic">⚗</span><span class="nav-txt">R&amp;D Trials</span></a>
+            <a class="nav-a {% if _pg == 'rd_sample_ready' %}active{% endif %}" href="/rd/sample-ready"><span class="nav-ic">📦</span><span class="nav-txt">Sample Ready</span></a>
+            <a class="nav-a {% if _pg == 'rd_sample_history' %}active{% endif %}" href="/rd/sample-history"><span class="nav-ic">📋</span><span class="nav-txt">Sample History</span></a>
         </div>
 
         {# ── NPD Section ── #}

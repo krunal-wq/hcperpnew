@@ -14,11 +14,34 @@ rd = Blueprint('rd', __name__, url_prefix='/rd')
 
 # ── Helper: get all RD users (employees assigned to R&D) ──
 def get_rd_users():
-    """Return only R&D department users (rd_executive + rd_manager)"""
-    return User.query.filter(
+    """Return all active Users who are R&D executives/managers + 
+    Employees in R&D dept who have linked user accounts"""
+    from models.employee import Employee
+
+    # Base: Users with rd roles
+    rd_users = User.query.filter(
         User.is_active == True,
         User.role.in_(['rd_executive', 'rd_manager', 'admin'])
     ).order_by(User.full_name).all()
+
+    # Also: Employees in R&D department who have a linked user_id
+    rd_emp_users = Employee.query.filter(
+        Employee.is_deleted == False,
+        Employee.department.ilike('%r&d%'),
+        Employee.user_id != None
+    ).order_by(Employee.first_name).all()
+
+    # Add their linked User objects if not already in list
+    existing_ids = {u.id for u in rd_users}
+    for emp in rd_emp_users:
+        u = User.query.get(emp.user_id)
+        if u and u.id not in existing_ids and u.is_active:
+            # Tag with designation for display
+            u._display_role = emp.designation or 'R&D Executive'
+            rd_users.append(u)
+            existing_ids.add(u.id)
+
+    return rd_users
 
 
 # ══════════════════════════════════════════════════════════════
@@ -121,8 +144,14 @@ def projects():
 
     CLOSED_STATUSES = {'completed', 'complete', 'closed', 'done', 'project_closed', 'cancelled', 'finish', 'finished'}
 
-    unallotted = [p for p in projects if (not p.assigned_rd or p.assigned_rd not in rd_exec_ids) and (p.status or '').lower() not in CLOSED_STATUSES]
-    allotted   = [p for p in projects if p.assigned_rd and p.assigned_rd in rd_exec_ids and (p.status or '').lower() not in CLOSED_STATUSES]
+    # Project is allotted if it has ANY active RDSubAssignment OR assigned_rd is set
+    from models.npd import RDSubAssignment
+    assigned_project_ids = {
+        s.project_id for s in RDSubAssignment.query.filter_by(is_active=True).all()
+    }
+
+    unallotted = [p for p in projects if p.id not in assigned_project_ids and (p.status or '').lower() not in CLOSED_STATUSES]
+    allotted   = [p for p in projects if p.id in assigned_project_ids and (p.status or '').lower() not in CLOSED_STATUSES]
     closed     = [p for p in projects if (p.status or '').lower() in CLOSED_STATUSES]
 
     rd_sub = {
@@ -131,12 +160,35 @@ def projects():
         'closed_npd':    get_sub_perm('rd', 'closed_npd'),
         'assign':        get_sub_perm('rd', 'assign'),
     }
+    # Build emp_id → name map + user_id → name map for template
+    from models.employee import Employee as _EmpM
+    _all_emp_ids = set()
+    _all_user_ids = set()
+    for p in projects:
+        if p.assigned_rd_members:
+            for token in str(p.assigned_rd_members).split(','):
+                token = token.strip()
+                if token.startswith('u_'):
+                    try: _all_user_ids.add(int(token[2:]))
+                    except: pass
+                elif token.isdigit():
+                    _all_emp_ids.add(int(token))
+    rd_emp_names = {}
+    if _all_emp_ids:
+        for e in _EmpM.query.filter(_EmpM.id.in_(_all_emp_ids), _EmpM.is_deleted==False).all():
+            rd_emp_names[e.id] = e.full_name
+    # Also map u_<id> → user full_name
+    if _all_user_ids:
+        for u in User.query.filter(User.id.in_(_all_user_ids)).all():
+            rd_emp_names[f'u_{u.id}'] = u.full_name
+
     return render_template('rd/projects.html',
         active_page='rd_projects',
         projects=projects, q=q, cat=cat, status=status,
         users=users, unallotted=unallotted, allotted=allotted, closed=closed,
         is_rd_manager=is_rd_manager, perm=get_perm('rd'),
         rd_sub=rd_sub,
+        rd_emp_names=rd_emp_names,
     )
 
 
@@ -592,26 +644,82 @@ def assign_project(pid):
 @rd.route('/projects/<int:pid>/assign-multi', methods=['POST'])
 @login_required
 def assign_multi(pid):
-    """Assign multiple R&D persons — saves primary as assigned_rd, others in notes"""
-    from models.npd import NPDProject, NPDActivityLog
+    """Assign multiple R&D executives with individual variant codes"""
+    from models.npd import NPDProject, NPDActivityLog, RDSubAssignment
     proj = NPDProject.query.get_or_404(pid)
 
-    rd_ids = request.form.getlist('rd_ids')  # list of user ids
-    sc_id  = request.form.get('sc_id') or None
+    # Expecting JSON: [{user_id, variant_code, notes}, ...]
+    data = request.get_json(silent=True)
+    if not data:
+        # fallback form data (old format)
+        rd_ids = request.form.getlist('rd_ids')
+        data = [{'user_id': uid, 'variant_code': '', 'notes': ''} for uid in rd_ids]
 
-    if not rd_ids:
+    if not data:
         return jsonify(success=False, error='Select at least one R&D person')
 
-    # Primary R&D = first selected
-    proj.assigned_rd = int(rd_ids[0])
-    if sc_id:
-        proj.assigned_sc = int(sc_id)
-    proj.updated_by = current_user.id
-
     names = []
-    for uid in rd_ids:
-        u = User.query.get(int(uid))
-        if u: names.append(u.full_name)
+    assigned_user_ids = []
+
+    for item in data:
+        # item can be dict (JSON) or string (old form fallback)
+        if isinstance(item, dict):
+            uid          = str(item.get('user_id', '')).strip()
+            variant_code = str(item.get('variant_code', '')).strip()
+            notes        = str(item.get('notes', '')).strip()
+        else:
+            uid          = str(item).strip()
+            variant_code = ''
+            notes        = ''
+
+        # Resolve user — handle u_<id>, emp_<id>, or plain digit
+        user_obj = None
+        try:
+            if uid.startswith('u_'):
+                user_obj = User.query.get(int(uid[2:]))
+            elif uid.startswith('emp_'):
+                from models.employee import Employee as _EmpA
+                emp = _EmpA.query.get(int(uid[4:]))
+                if emp and emp.user_id:
+                    user_obj = User.query.get(emp.user_id)
+            elif uid.isdigit():
+                user_obj = User.query.get(int(uid))
+        except Exception as _ue:
+            pass
+
+        if not user_obj:
+            continue
+
+        names.append(user_obj.full_name)
+        assigned_user_ids.append(f'u_{user_obj.id}')
+
+        # Upsert RDSubAssignment — one per (project, user)
+        sub = RDSubAssignment.query.filter_by(
+            project_id=proj.id, user_id=user_obj.id
+        ).first()
+        if sub:
+            sub.variant_code = variant_code
+            sub.notes        = notes
+            sub.assigned_by  = current_user.id
+            sub.assigned_at  = datetime.now()
+            sub.is_active    = True
+        else:
+            sub = RDSubAssignment(
+                project_id   = proj.id,
+                user_id      = user_obj.id,
+                variant_code = variant_code,
+                notes        = notes,
+                assigned_by  = current_user.id,
+                assigned_at  = datetime.now(),
+                status       = 'not_started',
+                is_active    = True,
+            )
+            db.session.add(sub)
+
+    # Update project level assigned_rd_members for backward compat
+    proj.assigned_rd         = User.query.get(int(assigned_user_ids[0][2:])).id if assigned_user_ids else proj.assigned_rd
+    proj.assigned_rd_members = ','.join(assigned_user_ids)
+    proj.updated_by          = current_user.id
 
     db.session.add(NPDActivityLog(
         project_id = proj.id,
@@ -619,21 +727,29 @@ def assign_multi(pid):
         action     = f"R&D team assigned: {', '.join(names)} — by {current_user.full_name}",
         created_at = datetime.now(),
     ))
+    # RD Project Log
+    from models.npd import RDProjectLog
+    db.session.add(RDProjectLog(
+        project_id = proj.id,
+        user_id    = current_user.id,
+        event      = 'assigned',
+        detail     = f"Members: {', '.join(names)} — by {current_user.full_name}",
+        created_at = datetime.now(),
+    ))
     db.session.commit()
 
-    # Return updated project info
     return jsonify(
-        success    = True,
-        proj_id    = pid,
-        rd_names   = names,
-        sc_name    = proj.sc_user.full_name if proj.sc_user else '—',
-        status     = proj.status_label,
+        success      = True,
+        proj_id      = pid,
+        rd_names     = names,
+        sc_name      = proj.sc_user.full_name if proj.sc_user else '—',
+        status       = proj.status_label,
         status_color = proj.status_color,
-        code       = proj.code,
-        name       = proj.product_name,
-        type       = proj.project_type,
-        client     = proj.client_company or proj.client_name or '—',
-        age        = proj.project_age,
+        code         = proj.code,
+        name         = proj.product_name,
+        type         = proj.project_type,
+        client       = proj.client_company or proj.client_name or '—',
+        age          = proj.project_age,
     )
 
 # ══════════════════════════════════════════════════════════════
@@ -774,3 +890,352 @@ def save_project_params(pid):
     proj.rd_param_defaults = json.dumps(save_data)
     db.session.commit()
     return jsonify(success=True)
+
+
+# ══════════════════════════════════════════════════════
+# Sample Ready — R&D sidebar se bhi accessible
+# (NPD wali functionality same, sirf active_page alag)
+# ══════════════════════════════════════════════════════
+@rd.route('/sample-ready')
+@login_required
+def sample_ready():
+    from models.npd import NPDProject, NPDFormulation
+    from models.employee import Employee
+
+    q    = request.args.get('q', '').strip()
+    page = request.args.get('page', 1, type=int)
+
+    query = NPDProject.query.filter_by(
+        is_deleted=False,
+        project_type='npd',
+        status='sample_ready'
+    )
+    if q:
+        query = query.filter(db.or_(
+            NPDProject.code.ilike(f'%{q}%'),
+            NPDProject.product_name.ilike(f'%{q}%'),
+            NPDProject.client_name.ilike(f'%{q}%'),
+            NPDProject.client_company.ilike(f'%{q}%'),
+        ))
+
+    projects = query.order_by(NPDProject.created_at.desc()).paginate(page=page, per_page=25)
+
+    proj_ids = [p.id for p in projects.items]
+    formulations = []
+    if proj_ids:
+        formulations = NPDFormulation.query.filter(
+            NPDFormulation.project_id.in_(proj_ids)
+        ).order_by(NPDFormulation.iteration).all()
+    form_map = {}
+    for f in formulations:
+        form_map.setdefault(f.project_id, []).append(f)
+
+    perm  = get_perm('rd')
+
+    all_rd_ids = set()
+    for p in projects.items:
+        if p.assigned_rd_members:
+            for x in str(p.assigned_rd_members).split(','):
+                x = x.strip()
+                if x and x.isdigit():
+                    all_rd_ids.add(int(x))
+
+    emp_name_map = {}
+    if all_rd_ids:
+        emps = Employee.query.filter(
+            Employee.id.in_(all_rd_ids),
+            Employee.is_deleted == False
+        ).all()
+        for e in emps:
+            emp_name_map[e.id] = e.full_name
+
+    rd_members_map = {}
+    for p in projects.items:
+        names = []
+        if p.rd_user and p.rd_user.full_name:
+            names.append(p.rd_user.full_name)
+        if p.assigned_rd_members:
+            for x in str(p.assigned_rd_members).split(','):
+                x = x.strip()
+                if x and x.isdigit():
+                    n = emp_name_map.get(int(x))
+                    if n and n not in names:
+                        names.append(n)
+        rd_members_map[p.id] = names
+
+    rd_all = Employee.query.filter(
+        Employee.is_deleted == False,
+        Employee.department.ilike('%r&d%')
+    ).order_by(Employee.first_name).all()
+    rd_all_names = [e.full_name for e in rd_all if e.full_name] if rd_all else sorted(set(emp_name_map.values()))
+
+    users = User.query.filter_by(is_active=True).order_by(User.full_name).all()
+
+    return render_template('npd/sample_ready.html',
+        active_page='rd_sample_ready',
+        projects=projects,
+        q=q,
+        form_map=form_map,
+        perm=perm,
+        users=users,
+        rd_members_map=rd_members_map,
+        rd_all_names=rd_all_names,
+        total=projects.total,
+    )
+
+
+# ══════════════════════════════════════════════════════
+# Sample History — R&D sidebar se bhi accessible
+# ══════════════════════════════════════════════════════
+@rd.route('/sample-history')
+@login_required
+def sample_history():
+    from models.npd import NPDProject, OfficeDispatchToken, OfficeDispatchItem
+    from models.employee import Employee
+    from datetime import timedelta
+
+    page              = request.args.get('page', 1, type=int)
+    q                 = request.args.get('q', '').strip()
+    from_date         = request.args.get('from_date', '').strip()
+    to_date           = request.args.get('to_date', '').strip()
+    submitted_by_list = [x.strip() for x in request.args.getlist('submitted_by') if x.strip()]
+    handover_to_list  = [x.strip() for x in request.args.getlist('handover_to')  if x.strip()]
+
+    query = OfficeDispatchToken.query
+
+    if from_date:
+        try:
+            query = query.filter(OfficeDispatchToken.dispatched_at >= datetime.strptime(from_date, '%Y-%m-%d'))
+        except: pass
+    if to_date:
+        try:
+            query = query.filter(OfficeDispatchToken.dispatched_at < datetime.strptime(to_date, '%Y-%m-%d') + timedelta(days=1))
+        except: pass
+
+    if q or submitted_by_list or handover_to_list:
+        query = query.join(OfficeDispatchItem, OfficeDispatchItem.token_id == OfficeDispatchToken.id)
+        if q:
+            query = query.join(NPDProject, NPDProject.id == OfficeDispatchItem.project_id) \
+                         .filter(NPDProject.product_name.ilike(f'%{q}%'))
+        if submitted_by_list:
+            query = query.filter(OfficeDispatchItem.submitted_by.in_(submitted_by_list))
+        if handover_to_list:
+            query = query.filter(OfficeDispatchItem.handover_to.in_(handover_to_list))
+        query = query.distinct()
+
+    tokens = query.order_by(OfficeDispatchToken.dispatched_at.desc()).paginate(page=page, per_page=25)
+
+    rd_employees = Employee.query.filter(
+        Employee.is_deleted == False,
+        Employee.department.ilike('%r&d%')
+    ).order_by(Employee.first_name).all()
+    rd_names = [e.full_name for e in rd_employees if e.full_name]
+
+    handover_emps = Employee.query.filter(
+        Employee.is_deleted == False,
+        db.or_(
+            Employee.department == None,
+            Employee.department == '',
+            ~Employee.department.ilike('%r&d%')
+        )
+    ).order_by(Employee.first_name).all()
+    handover_names = [e.full_name for e in handover_emps if e.full_name]
+
+    return render_template('npd/sample_history.html',
+        active_page='rd_sample_history',
+        tokens=tokens,
+        q=q, from_date=from_date, to_date=to_date,
+        submitted_by_list=submitted_by_list,
+        handover_to_list=handover_to_list,
+        rd_names=rd_names,
+        handover_names=handover_names,
+    )
+
+
+# ══════════════════════════════════════════════════════════════
+# RD PROJECT LOG — project-wise activity (AJAX)
+# ══════════════════════════════════════════════════════════════
+@rd.route('/projects/<int:pid>/logs')
+@login_required
+def project_logs(pid):
+    from models.npd import RDProjectLog, NPDProject, RDSubAssignment
+    proj = NPDProject.query.get_or_404(pid)
+
+    # Activity logs
+    logs = RDProjectLog.query.filter_by(project_id=pid)                             .order_by(RDProjectLog.created_at.asc()).all()
+    result = []
+    for l in logs:
+        result.append({
+            'id'        : l.id,
+            'event'     : l.event,
+            'detail'    : l.detail or '',
+            'user'      : l.user.full_name if l.user else 'System',
+            'created_at': l.created_at.strftime('%d-%m-%Y %H:%M') if l.created_at else '',
+        })
+
+    # Per-executive sub-assignment summary
+    subs = RDSubAssignment.query.filter_by(project_id=pid, is_active=True).all()
+    members = []
+    for s in subs:
+        def fmt_sec(sec):
+            if not sec: return '—'
+            h = sec // 3600; m = (sec % 3600) // 60; sc = sec % 60
+            return f'{h:02d}:{m:02d}:{sc:02d}'
+        members.append({
+            'name'        : s.executive.full_name if s.executive else '—',
+            'variant_code': s.variant_code or '—',
+            'status'      : s.status,
+            'started_at'  : s.started_at.strftime('%d-%m-%Y %H:%M') if s.started_at else '—',
+            'finished_at' : s.finished_at.strftime('%d-%m-%Y %H:%M') if s.finished_at else '—',
+            'duration'    : fmt_sec(s.total_seconds),
+        })
+
+    return jsonify(
+        success   = True,
+        logs      = result,
+        members   = members,
+        proj_code = proj.code,
+        proj_name = proj.product_name,
+    )
+
+
+# ══════════════════════════════════════════════════════════════
+# RD SUB ASSIGNMENT — Executive Start / End (independent timer)
+# ══════════════════════════════════════════════════════════════
+
+@rd.route('/projects/<int:pid>/my-assignment')
+@login_required
+def my_assignment(pid):
+    """Get current user's sub-assignment for this project"""
+    from models.npd import RDSubAssignment
+    sub = RDSubAssignment.query.filter_by(
+        project_id=pid, user_id=current_user.id, is_active=True
+    ).first()
+    if not sub:
+        return jsonify(success=False, error='No assignment found')
+    return jsonify(
+        success      = True,
+        id           = sub.id,
+        variant_code = sub.variant_code or '',
+        notes        = sub.notes or '',
+        status       = sub.status,
+        started_at   = sub.started_at.strftime('%d-%m-%Y %I:%M %p') if sub.started_at else None,
+        finished_at  = sub.finished_at.strftime('%d-%m-%Y %I:%M %p') if sub.finished_at else None,
+        total_seconds= sub.total_seconds or 0,
+    )
+
+
+@rd.route('/projects/<int:pid>/sub-start', methods=['POST'])
+@login_required
+def sub_start(pid):
+    """Executive starts their own timer — project status → in_progress"""
+    from models.npd import RDSubAssignment, RDProjectLog, NPDProject, NPDActivityLog
+    sub = RDSubAssignment.query.filter_by(
+        project_id=pid, user_id=current_user.id, is_active=True
+    ).first()
+    if not sub:
+        return jsonify(success=False, error='You are not assigned to this project')
+    if sub.status == 'in_progress':
+        return jsonify(success=False, error='Already started')
+
+    sub.started_at = datetime.now()
+    sub.status     = 'in_progress'
+
+    # Project status → in_progress (if not already)
+    proj = NPDProject.query.get(pid)
+    if proj and proj.status != 'in_progress':
+        proj.status     = 'in_progress'
+        proj.started_at = proj.started_at or datetime.now()
+        db.session.add(NPDActivityLog(
+            project_id = pid,
+            user_id    = current_user.id,
+            action     = f"Project started by {current_user.full_name}",
+            created_at = datetime.now(),
+        ))
+
+    db.session.add(RDProjectLog(
+        project_id = pid,
+        user_id    = current_user.id,
+        event      = 'started',
+        detail     = f"Started by {current_user.full_name}" + (f" | Variant: {sub.variant_code}" if sub.variant_code else ""),
+        created_at = datetime.now(),
+    ))
+    db.session.commit()
+    return jsonify(
+        success    = True,
+        started_at = sub.started_at.strftime('%d-%m-%Y %I:%M %p'),
+        status     = sub.status,
+    )
+
+
+@rd.route('/projects/<int:pid>/sub-end', methods=['POST'])
+@login_required
+def sub_end(pid):
+    """Executive ends their own timer — if all done, project → sample_ready"""
+    from models.npd import RDSubAssignment, RDProjectLog, NPDProject, NPDActivityLog
+    sub = RDSubAssignment.query.filter_by(
+        project_id=pid, user_id=current_user.id, is_active=True
+    ).first()
+    if not sub:
+        return jsonify(success=False, error='You are not assigned to this project')
+    if sub.status != 'in_progress':
+        return jsonify(success=False, error='Not started yet')
+
+    sub.finished_at   = datetime.now()
+    sub.status        = 'finished'
+    if sub.started_at:
+        sub.total_seconds = int((sub.finished_at - sub.started_at).total_seconds())
+
+    dur_str = f"{sub.total_seconds//3600:02d}:{(sub.total_seconds%3600)//60:02d}:{sub.total_seconds%60:02d}"
+    db.session.add(RDProjectLog(
+        project_id = pid,
+        user_id    = current_user.id,
+        event      = 'finished',
+        detail     = f"Finished by {current_user.full_name}" + (f" | Variant: {sub.variant_code}" if sub.variant_code else "") + f" | Duration: {dur_str}",
+        created_at = datetime.now(),
+    ))
+
+    # Check if ALL active sub-assignments are finished
+    db.session.flush()
+    all_subs = RDSubAssignment.query.filter_by(project_id=pid, is_active=True).all()
+    all_done = all(s.status == 'finished' for s in all_subs)
+
+    proj = NPDProject.query.get(pid)
+    if proj:
+        if all_done:
+            # All executives done → project sample_ready
+            proj.status      = 'sample_ready'
+            proj.finished_at = datetime.now()
+            if proj.started_at:
+                proj.total_duration_seconds = int((proj.finished_at - proj.started_at).total_seconds())
+            db.session.add(NPDActivityLog(
+                project_id = pid,
+                user_id    = current_user.id,
+                action     = f"Project completed — all R&D work done. Status → Sample Ready",
+                created_at = datetime.now(),
+            ))
+            db.session.add(RDProjectLog(
+                project_id = pid,
+                user_id    = current_user.id,
+                event      = 'sample_ready',
+                detail     = f"All executives finished. Project → Sample Ready",
+                created_at = datetime.now(),
+            ))
+        else:
+            # Some still working — log individual completion
+            db.session.add(NPDActivityLog(
+                project_id = pid,
+                user_id    = current_user.id,
+                action     = f"{current_user.full_name} finished work (Variant: {sub.variant_code or '—'}). Other members still working.",
+                created_at = datetime.now(),
+            ))
+
+    db.session.commit()
+    return jsonify(
+        success       = True,
+        finished_at   = sub.finished_at.strftime('%d-%m-%Y %I:%M %p'),
+        status        = sub.status,
+        total_seconds = sub.total_seconds,
+        all_done      = all_done,
+        proj_status   = proj.status if proj else '',
+    )

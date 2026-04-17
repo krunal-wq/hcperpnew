@@ -625,19 +625,22 @@ with app.app_context():
     from models.permission import Module, RolePermission
 
     modules_data = [
-        ("dashboard",      "Dashboard",    "🏠", "/",                     1),
-        ("crm",            "CRM",          "📊", "/crm",                  2),
-        ("crm_leads",      "Leads",        "📋", "/crm/leads",            3),
-        ("crm_clients",    "Clients",      "👥", "/crm/clients",          4),
-        ("hr",             "HR",           "👔", "/hr",                   5),
-        ("hr_employees",   "Employees",    "🪪", "/hr/employees",         6),
-        ("hr_contractors", "Contractors",  "🤝", "/hr/contractors",       7),
-        ("npd",            "NPD",          "🔬", "/npd",                  8),
-        ("rd",             "R&D",          "🧪", "/rd",                   9),
-        ("masters",        "Masters",      "⚙️", "/masters",              10),
-        ("approvals",      "Approvals",    "✅", "/approvals",            11),
-        ("user_mgmt",      "Users",        "👤", "/admin/users",          12),
-        ("audit_logs",     "Audit Logs",   "🔍", "/admin/audit-logs",     13),
+        ("dashboard",         "Dashboard",      "🏠", "/",                      1),
+        ("crm",               "CRM",            "📊", "/crm",                   2),
+        ("crm_leads",         "Leads",          "📋", "/crm/leads",             3),
+        ("crm_clients",       "Clients",        "👥", "/crm/clients",           4),
+        ("hr",                "HR",             "👔", "/hr",                    5),
+        ("hr_employees",      "Employees",      "🪪", "/hr/employees",          6),
+        ("hr_contractors",    "Contractors",    "🤝", "/hr/contractors",        7),
+        ("npd",               "NPD",            "🔬", "/npd",                   8),
+        ("rd",                "R&D",            "🧪", "/rd",                    9),
+        ("rd_projects",       "R&D Projects",   "🗂️", "/rd/projects",           10),
+        ("rd_sample_ready",   "Sample Ready",   "📦", "/rd/sample-ready",       11),
+        ("rd_sample_history", "Sample History", "📋", "/rd/sample-history",     12),
+        ("masters",           "Masters",        "⚙️", "/masters",               13),
+        ("approvals",         "Approvals",      "✅", "/approvals",             14),
+        ("user_mgmt",         "Users",          "👤", "/admin/users",           15),
+        ("audit_logs",        "Audit Logs",     "🔍", "/admin/audit-logs",      16),
     ]
     mod_added = 0
     for name, label, icon, url, sort in modules_data:
@@ -1738,8 +1741,25 @@ with app.app_context():
             ok(f"Module '{old_name}' → '{new_name}' renamed")
 
     # Fix parent_id for child modules
-    parent_map = {'crm_leads': 'crm', 'crm_clients': 'crm',
-                  'hr_employees': 'hr', 'hr_contractors': 'hr'}
+    parent_map = {
+        'crm_leads':         'crm',
+        'crm_clients':       'crm',
+        'hr_employees':      'hr',
+        'hr_contractors':    'hr',
+        'rd_projects':       'rd',
+        'rd_sample_ready':   'rd',
+        'rd_sample_history': 'rd',
+    }
+
+    # rd_trials module DB se remove karo (sidebar se hata do)
+    _rd_trials_mod = Module.query.filter_by(name='rd_trials').first()
+    if _rd_trials_mod:
+        from models.permission import RolePermission, UserPermission
+        RolePermission.query.filter_by(module_id=_rd_trials_mod.id).delete()
+        UserPermission.query.filter_by(module_id=_rd_trials_mod.id).delete()
+        db.session.delete(_rd_trials_mod)
+        db.session.commit()
+        ok("rd_trials module removed from sidebar ✓")
     for child_name, parent_name in parent_map.items():
         child  = Module.query.filter_by(name=child_name).first()
         parent = Module.query.filter_by(name=parent_name).first()
@@ -2615,6 +2635,84 @@ with app.app_context():
     _cur19.close()
     _c19.close()
     ok("✅ Item Master tables setup complete!")
+
+
+    # ══════════════════════════════════════════════════════
+    # STEP 20 — RD Project Logs table
+    # ══════════════════════════════════════════════════════
+    step("STEP 20: rd_project_logs table create kar raha hai...")
+    import pymysql as _pym20
+    _uri20 = db.engine.url
+    _c20 = _pym20.connect(
+        host=_uri20.host, port=int(_uri20.port or 3306),
+        user=_uri20.username, password=_uri20.password,
+        database=_uri20.database, charset='utf8mb4'
+    )
+    _cur20 = _c20.cursor()
+    _cur20.execute(
+        "CREATE TABLE IF NOT EXISTS `rd_project_logs` ("
+        "  `id`         INT NOT NULL AUTO_INCREMENT,"
+        "  `project_id` INT NOT NULL,"
+        "  `user_id`    INT DEFAULT NULL,"
+        "  `event`      VARCHAR(50) NOT NULL,"
+        "  `detail`     VARCHAR(500) DEFAULT NULL,"
+        "  `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,"
+        "  PRIMARY KEY (`id`),"
+        "  KEY `idx_rdlog_project` (`project_id`),"
+        "  KEY `idx_rdlog_event`   (`event`),"
+        "  CONSTRAINT `fk_rdlog_project` FOREIGN KEY (`project_id`)"
+        "    REFERENCES `npd_projects`(`id`) ON DELETE CASCADE,"
+        "  CONSTRAINT `fk_rdlog_user` FOREIGN KEY (`user_id`)"
+        "    REFERENCES `users`(`id`) ON DELETE SET NULL"
+        ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
+    )
+    _c20.commit()
+    _cur20.close()
+    _c20.close()
+    ok("rd_project_logs table ready")
+
+
+    # ══════════════════════════════════════════════════════
+    # STEP 21 — RD Sub Assignments table
+    # ══════════════════════════════════════════════════════
+    step("STEP 21: rd_sub_assignments table create kar raha hai...")
+    import pymysql as _pym21
+    _uri21 = db.engine.url
+    _c21 = _pym21.connect(
+        host=_uri21.host, port=int(_uri21.port or 3306),
+        user=_uri21.username, password=_uri21.password,
+        database=_uri21.database, charset='utf8mb4'
+    )
+    _cur21 = _c21.cursor()
+    _cur21.execute(
+        "CREATE TABLE IF NOT EXISTS `rd_sub_assignments` ("
+        "  `id`           INT NOT NULL AUTO_INCREMENT,"
+        "  `project_id`   INT NOT NULL,"
+        "  `user_id`      INT NOT NULL,"
+        "  `variant_code` VARCHAR(100) DEFAULT NULL,"
+        "  `notes`        VARCHAR(500) DEFAULT NULL,"
+        "  `assigned_by`  INT DEFAULT NULL,"
+        "  `assigned_at`  DATETIME DEFAULT CURRENT_TIMESTAMP,"
+        "  `started_at`   DATETIME DEFAULT NULL,"
+        "  `finished_at`  DATETIME DEFAULT NULL,"
+        "  `status`       VARCHAR(20) DEFAULT 'not_started',"
+        "  `total_seconds` INT DEFAULT 0,"
+        "  `is_active`    TINYINT(1) DEFAULT 1,"
+        "  PRIMARY KEY (`id`),"
+        "  KEY `idx_rdsa_project` (`project_id`),"
+        "  KEY `idx_rdsa_user`    (`user_id`),"
+        "  CONSTRAINT `fk_rdsa_project` FOREIGN KEY (`project_id`)"
+        "    REFERENCES `npd_projects`(`id`) ON DELETE CASCADE,"
+        "  CONSTRAINT `fk_rdsa_user` FOREIGN KEY (`user_id`)"
+        "    REFERENCES `users`(`id`) ON DELETE CASCADE,"
+        "  CONSTRAINT `fk_rdsa_assigner` FOREIGN KEY (`assigned_by`)"
+        "    REFERENCES `users`(`id`) ON DELETE SET NULL"
+        ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
+    )
+    _c21.commit()
+    _cur21.close()
+    _c21.close()
+    ok("rd_sub_assignments table ready")
 
     # ══════════════════════════════════════════════════════
     # DONE

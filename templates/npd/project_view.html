@@ -344,87 +344,65 @@
 {% if proj.status not in ('complete', 'completed', 'cancelled') %}
 <div style="background:var(--bg);margin-bottom:1rem;">
   <div style="background:#fff;border:1px solid var(--border);border-radius:var(--r-xl);box-shadow:var(--sh-sm);">
-  <div class="pv-timer-grid">
+  {# ── Per-Executive Independent Timer (RDSubAssignment) ── #}
+  <div class="pv-timer-grid" id="pv-timer-wrap">
 
-    {# Left: Start button (not started) OR START label + date (started) #}
+    {# Left: START #}
     <div class="pv-timer-left" style="display:flex;align-items:center;gap:10px;">
-        {% if proj.started_at %}
-        <div style="display:inline-flex;align-items:center;gap:6px;background:#16a34a;color:#fff;border-radius:7px;padding:5px 14px;font-size:13px;font-weight:700;white-space:nowrap;">
-            ▶ START
-        </div>
-        <div class="pv-timer-date" style="color:#16a34a;">
-            {{ proj.started_at.strftime('%d-%m-%Y %I:%M %p') }}
-        </div>
+      {% if my_sub %}
+        {% if my_sub.started_at %}
+          <div style="display:inline-flex;align-items:center;gap:6px;background:#16a34a;color:#fff;border-radius:7px;padding:5px 14px;font-size:13px;font-weight:700;white-space:nowrap;">▶ START</div>
+          <div class="pv-timer-date" style="color:#16a34a;">{{ my_sub.started_at.strftime('%d-%m-%Y %I:%M %p') }}</div>
+          {% if my_sub.variant_code %}
+          <span style="background:#ede9fe;color:#7c3aed;border-radius:6px;padding:3px 8px;font-size:.72rem;font-weight:700;">{{ my_sub.variant_code }}</span>
+          {% endif %}
         {% else %}
-        <button onclick="openStartConfirm()" style="display:inline-flex;align-items:center;gap:6px;background:#16a34a;color:#fff;border:none;border-radius:7px;padding:7px 18px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;">
-            ▶ START
-        </button>
+          <button onclick="mySubStart()" id="my-start-btn" style="display:inline-flex;align-items:center;gap:6px;background:#16a34a;color:#fff;border:none;border-radius:7px;padding:7px 18px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;">▶ START</button>
+          {% if my_sub.variant_code %}
+          <span style="background:#ede9fe;color:#7c3aed;border-radius:6px;padding:3px 8px;font-size:.72rem;font-weight:700;">{{ my_sub.variant_code }}</span>
+          {% endif %}
         {% endif %}
+      {% elif not (proj.assigned_rd or proj.assigned_rd_members) %}
+        <div style="display:inline-flex;align-items:center;gap:6px;background:#e2e8f0;color:#94a3b8;border-radius:7px;padding:7px 18px;font-size:14px;font-weight:700;cursor:not-allowed;white-space:nowrap;">▶ START</div>
+        <div style="background:#fef9c3;border:1px solid #fde047;border-radius:6px;padding:5px 10px;font-size:.75rem;font-weight:600;color:#854d0e;">⚠️ R&D Member assign karo</div>
+      {% else %}
+        <div style="display:inline-flex;align-items:center;gap:6px;background:#e2e8f0;color:#94a3b8;border-radius:7px;padding:7px 18px;font-size:14px;font-weight:700;cursor:not-allowed;white-space:nowrap;">▶ START</div>
+        <div style="background:#fee2e2;border:1px solid #fca5a5;border-radius:6px;padding:5px 10px;font-size:.75rem;font-weight:600;color:#991b1b;">🔒 Not assigned to you</div>
+      {% endif %}
     </div>
 
-    {# Center: Live timer OR total duration OR empty #}
+    {# Center: Live timer #}
     <div style="display:flex;flex-direction:column;align-items:center;gap:5px;">
-        <div style="font-size:.72rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.08em;">⏱ Duration</div>
-        {% if proj.status == 'in_progress' %}
-        <div style="display:inline-flex;align-items:center;gap:10px;background:#f0fdf4;border:2px solid #bbf7d0;border-radius:100px;padding:8px 28px;">
-            <span style="width:11px;height:11px;border-radius:50%;background:#16a34a;display:inline-block;animation:pvPulse 1.2s infinite;flex-shrink:0;"></span>
-            <strong style="color:#16a34a;font-family:monospace;font-size:20px;font-weight:800;letter-spacing:.08em;" id="pvLiveTimer">00:00:00</strong>
-        </div>
-        {% else %}
-        {# Finished — calculate duration from started_at to finished_at #}
-        {% if proj.finished_at and proj.started_at %}
-        {% set td = ((proj.finished_at - proj.started_at).total_seconds())|int %}
-        {% set td_d = (td // 86400)|int %}
-        {% set td_h = ((td % 86400) // 3600)|int %}
-        {% set td_m = ((td % 3600) // 60)|int %}
-        {% set td_s = (td % 60)|int %}
-        <div style="display:inline-flex;align-items:center;gap:10px;background:#f1f5f9;border:2px solid #cbd5e1;border-radius:100px;padding:8px 28px;">
-            <span style="width:11px;height:11px;border-radius:50%;background:#6b7280;display:inline-block;flex-shrink:0;"></span>
-            <strong style="color:#475569;font-family:monospace;font-size:20px;font-weight:800;letter-spacing:.08em;">
-                {% if td_d > 0 %}{{ td_d }}d {% endif %}{{ "%02d" % td_h }}:{{ "%02d" % td_m }}:{{ "%02d" % td_s }}
-            </strong>
-        </div>
-        {% elif proj.total_duration_seconds %}
-        {% set td = proj.total_duration_seconds %}
-        {% set td_d = (td // 86400)|int %}
-        {% set td_h = ((td % 86400) // 3600)|int %}
-        {% set td_m = ((td % 3600) // 60)|int %}
-        {% set td_s = (td % 60)|int %}
-        <div style="display:inline-flex;align-items:center;gap:10px;background:#f1f5f9;border:2px solid #cbd5e1;border-radius:100px;padding:8px 28px;">
-            <span style="width:11px;height:11px;border-radius:50%;background:#6b7280;display:inline-block;flex-shrink:0;"></span>
-            <strong style="color:#475569;font-family:monospace;font-size:20px;font-weight:800;letter-spacing:.08em;">
-                {% if td_d > 0 %}{{ td_d }}d {% endif %}{{ "%02d" % td_h }}:{{ "%02d" % td_m }}:{{ "%02d" % td_s }}
-            </strong>
-        </div>
-        {% endif %}
-        {% if not proj.started_at %}
-        <div style="display:inline-flex;align-items:center;gap:10px;background:#f8fafc;border:2px solid #e2e8f0;border-radius:100px;padding:8px 28px;">
-            <strong style="color:#cbd5e1;font-family:monospace;font-size:20px;font-weight:800;letter-spacing:.08em;">--:--:--</strong>
-        </div>
-        {% endif %}
-        {% endif %}
+      <div style="font-size:.72rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.08em;">⏱ Duration</div>
+      {% if my_sub and my_sub.status == 'in_progress' %}
+      <div style="display:inline-flex;align-items:center;gap:10px;background:#f0fdf4;border:2px solid #bbf7d0;border-radius:100px;padding:8px 28px;">
+        <span style="width:11px;height:11px;border-radius:50%;background:#16a34a;display:inline-block;animation:pvPulse 1.2s infinite;flex-shrink:0;"></span>
+        <strong style="color:#16a34a;font-family:monospace;font-size:20px;font-weight:800;letter-spacing:.08em;" id="pvLiveTimer">00:00:00</strong>
+      </div>
+      {% elif my_sub and my_sub.status == 'finished' and my_sub.total_seconds %}
+      {% set td = my_sub.total_seconds %}
+      {% set td_h = ((td % 86400) // 3600)|int %}
+      {% set td_m = ((td % 3600) // 60)|int %}
+      {% set td_s = (td % 60)|int %}
+      <div style="display:inline-flex;align-items:center;gap:10px;background:#f1f5f9;border:2px solid #cbd5e1;border-radius:100px;padding:8px 28px;">
+        <span style="width:11px;height:11px;border-radius:50%;background:#6b7280;display:inline-block;flex-shrink:0;"></span>
+        <strong style="color:#475569;font-family:monospace;font-size:20px;font-weight:800;letter-spacing:.08em;">{{ "%02d" % td_h }}:{{ "%02d" % td_m }}:{{ "%02d" % td_s }}</strong>
+      </div>
+      {% else %}
+      <div style="display:inline-flex;align-items:center;gap:10px;background:#f8fafc;border:2px solid #e2e8f0;border-radius:100px;padding:8px 28px;">
+        <strong style="color:#cbd5e1;font-family:monospace;font-size:20px;font-weight:800;letter-spacing:.08em;">--:--:--</strong>
+      </div>
+      {% endif %}
     </div>
 
-    {# Right: End button (in_progress) OR End time (finished) #}
+    {# Right: END #}
     <div class="pv-timer-right" style="display:flex;align-items:center;justify-content:flex-end;gap:10px;">
-        {% if proj.status == 'in_progress' %}
-        <form method="POST" action="/npd/projects/{{ proj.id }}/status" style="display:inline;">
-            <input type="hidden" name="status" value="sample_ready">
-            <input type="hidden" name="note" value="Sample ready">
-            <button type="submit" style="display:inline-flex;align-items:center;gap:6px;background:#2563eb;color:#fff;border:none;border-radius:7px;padding:5px 14px;font-size:13px;font-weight:700;white-space:nowrap;cursor:pointer;font-family:inherit;">
-                ⏹ END
-            </button>
-        </form>
-        {% else %}
-        {% if proj.finished_at %}
-        <div class="pv-timer-date" style="color:#dc2626;">
-            {{ proj.finished_at.strftime('%d-%m-%Y %I:%M %p') }}
-        </div>
-        <div style="display:inline-flex;align-items:center;gap:6px;background:#6b7280;color:#fff;border-radius:7px;padding:5px 14px;font-size:13px;font-weight:700;white-space:nowrap;">
-            ⏹ END
-        </div>
-        {% endif %}
-        {% endif %}
+      {% if my_sub and my_sub.status == 'in_progress' %}
+        <button onclick="mySubEnd()" id="my-end-btn" style="display:inline-flex;align-items:center;gap:6px;background:#2563eb;color:#fff;border:none;border-radius:7px;padding:5px 14px;font-size:13px;font-weight:700;white-space:nowrap;cursor:pointer;font-family:inherit;">⏹ END</button>
+      {% elif my_sub and my_sub.status == 'finished' %}
+        <div class="pv-timer-date" style="color:#dc2626;">{{ my_sub.finished_at.strftime('%d-%m-%Y %I:%M %p') if my_sub.finished_at else '' }}</div>
+        <div style="display:inline-flex;align-items:center;gap:6px;background:#6b7280;color:#fff;border-radius:7px;padding:5px 14px;font-size:13px;font-weight:700;white-space:nowrap;">⏹ END</div>
+      {% endif %}
     </div>
 
   </div>
@@ -775,26 +753,58 @@ function closeEndModal(){
     document.getElementById(id).addEventListener('click', function(e){ if(e.target===this) this.style.display='none'; });
 });
 
-// ── Live Running Timer ──
-{% if proj.started_at and proj.status == 'in_progress' %}
+// ── Per-Executive Sub Assignment Start/End ──
+var PROJ_ID_SUB = {{ proj.id }};
+
+function mySubStart() {
+    var btn = document.getElementById('my-start-btn');
+    if(btn){ btn.disabled=true; btn.textContent='Starting...'; }
+    fetch('/rd/projects/' + PROJ_ID_SUB + '/sub-start', {method:'POST'})
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+        if(d.success){ location.reload(); }
+        else { alert(d.error||'Error'); if(btn){btn.disabled=false;btn.textContent='▶ START';} }
+    })
+    .catch(function(){ if(btn){btn.disabled=false;btn.textContent='▶ START';} });
+}
+
+function mySubEnd() {
+    // Show confirmation modal instead of browser confirm
+    showMsConfirm(
+        '⏹ End Work?',
+        'Are you sure you want to end your work on this project?<br><br>' +
+        '<span style="color:#ef4444;font-size:.82rem;">⚠️ Your timer will stop and this cannot be undone.</span>',
+        function() {
+            var btn = document.getElementById('my-end-btn');
+            if(btn){ btn.disabled=true; btn.textContent='Ending...'; }
+            fetch('/rd/projects/' + PROJ_ID_SUB + '/sub-end', {method:'POST'})
+            .then(function(r){ return r.json(); })
+            .then(function(d){
+                if(d.success){ location.reload(); }
+                else { alert(d.error||'Error'); if(btn){btn.disabled=false;btn.textContent='⏹ END';} }
+            })
+            .catch(function(){ if(btn){btn.disabled=false;btn.textContent='⏹ END';} });
+        },
+        'Yes, End Work',
+        null,
+        'Cancel'
+    );
+}
+
+// ── Live Running Timer (sub-assignment) ──
+{% if my_sub and my_sub.status == 'in_progress' and my_sub.started_at %}
 (function(){
-    var startedAt = new Date({{ proj.started_at.strftime('%Y') }}, {{ proj.started_at.strftime('%m')|int - 1 }}, {{ proj.started_at.strftime('%d') }}, {{ proj.started_at.strftime('%H') }}, {{ proj.started_at.strftime('%M') }}, {{ proj.started_at.strftime('%S') }});
+    var startedAt = new Date({{ my_sub.started_at.strftime('%Y') }}, {{ my_sub.started_at.strftime('%m')|int - 1 }}, {{ my_sub.started_at.strftime('%d') }}, {{ my_sub.started_at.strftime('%H') }}, {{ my_sub.started_at.strftime('%M') }}, {{ my_sub.started_at.strftime('%S') }});
     var timerEl = document.getElementById('pvLiveTimer');
     if(!timerEl) return;
+    function pad(n){ return n < 10 ? '0'+n : ''+n; }
     function updateTimer(){
-        var now = new Date();
-        var diff = Math.floor((now - startedAt) / 1000);
-        if(diff < 0) diff = 0;
-        var d = Math.floor(diff / 86400);
+        var diff = Math.max(0, Math.floor((new Date() - startedAt) / 1000));
         var h = Math.floor((diff % 86400) / 3600);
         var m = Math.floor((diff % 3600) / 60);
         var s = diff % 60;
-        var str = '';
-        if(d > 0) str = d + 'd ' + pad(h) + ':' + pad(m) + ':' + pad(s);
-        else str = pad(h) + ':' + pad(m) + ':' + pad(s);
-        timerEl.textContent = str;
+        timerEl.textContent = pad(h) + ':' + pad(m) + ':' + pad(s);
     }
-    function pad(n){ return n < 10 ? '0'+n : ''+n; }
     updateTimer();
     setInterval(updateTimer, 1000);
 })();
@@ -1058,6 +1068,81 @@ function closeEndModal(){
 
 <!-- TAB 4: ACTIVITY LOG -->
 <div id="tab-activity" class="tab-pane">
+
+    {# ── R&D Team Log (sub-assignments) ── #}
+    {# Manager/Admin = saare log, R&D Executive = sirf apna #}
+    {% set _is_rd_manager = current_user.role in ('admin', 'manager', 'rd_manager') %}
+    {% set _visible_subs = [] %}
+    {% for s in proj.sub_assignments if s.is_active %}
+        {% if _is_rd_manager %}
+            {% set _ = _visible_subs.append(s) %}
+        {% elif s.user_id == current_user.id %}
+            {% set _ = _visible_subs.append(s) %}
+        {% endif %}
+    {% endfor %}
+
+    {% if _visible_subs %}
+    <div class="card" style="margin-bottom:16px;">
+        <div class="card-hdr">
+            <div class="card-title">🧪 R&D Team Log
+                {% if not _is_rd_manager %}
+                <span style="font-size:.72rem;font-weight:500;color:var(--text3);margin-left:6px;">(Your work log)</span>
+                {% endif %}
+            </div>
+        </div>
+        <div class="card-body" style="padding:0;">
+            <table style="width:100%;border-collapse:collapse;font-size:.82rem;">
+                <thead>
+                    <tr style="background:#f8fafc;border-bottom:2px solid #e2e8f0;">
+                        {% if _is_rd_manager %}<th style="padding:10px 14px;text-align:left;color:#64748b;font-weight:700;">Member</th>{% endif %}
+                        <th style="padding:10px 14px;text-align:left;color:#64748b;font-weight:700;">Variant / Code</th>
+                        <th style="padding:10px 14px;text-align:left;color:#64748b;font-weight:700;">Started</th>
+                        <th style="padding:10px 14px;text-align:left;color:#64748b;font-weight:700;">Ended</th>
+                        <th style="padding:10px 14px;text-align:right;color:#64748b;font-weight:700;">Duration</th>
+                        <th style="padding:10px 14px;text-align:center;color:#64748b;font-weight:700;">Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for s in _visible_subs %}
+                {% set sc = '#16a34a' if s.status == 'in_progress' else ('#2563eb' if s.status == 'finished' else '#94a3b8') %}
+                {% set sl = 'In Progress' if s.status == 'in_progress' else ('Finished' if s.status == 'finished' else 'Not Started') %}
+                {% if s.total_seconds %}
+                  {% set td_h = (s.total_seconds // 3600)|int %}
+                  {% set td_m = ((s.total_seconds % 3600) // 60)|int %}
+                  {% set td_s = (s.total_seconds % 60)|int %}
+                  {% set dur = "%02d:%02d:%02d" | format(td_h, td_m, td_s) %}
+                {% else %}
+                  {% set dur = '—' %}
+                {% endif %}
+                <tr style="border-bottom:1px solid #f1f5f9;">
+                    {% if _is_rd_manager %}
+                    <td style="padding:10px 14px;">
+                        {% set ini = (s.executive.full_name.split()[0][0] ~ s.executive.full_name.split()[-1][0])|upper if s.executive and s.executive.full_name.split()|length > 1 else (s.executive.full_name[:2]|upper if s.executive else '?') %}
+                        <div style="display:flex;align-items:center;gap:7px;">
+                            <span style="width:24px;height:24px;border-radius:50%;background:#ede9fe;color:#7c3aed;display:inline-flex;align-items:center;justify-content:center;font-size:.58rem;font-weight:800;flex-shrink:0;">{{ ini }}</span>
+                            <span style="font-weight:600;">{{ s.executive.full_name if s.executive else '—' }}</span>
+                        </div>
+                    </td>
+                    {% endif %}
+                    <td style="padding:10px 14px;">
+                        {% if s.variant_code %}
+                        <span style="background:#ede9fe;color:#7c3aed;border-radius:5px;padding:2px 8px;font-weight:700;font-size:.75rem;">{{ s.variant_code }}</span>
+                        {% else %}—{% endif %}
+                    </td>
+                    <td style="padding:10px 14px;color:#374151;">{{ s.started_at.strftime('%d-%m-%Y %H:%M') if s.started_at else '—' }}</td>
+                    <td style="padding:10px 14px;color:#374151;">{{ s.finished_at.strftime('%d-%m-%Y %H:%M') if s.finished_at else '—' }}</td>
+                    <td style="padding:10px 14px;text-align:right;font-family:monospace;font-weight:700;">{{ dur }}</td>
+                    <td style="padding:10px 14px;text-align:center;">
+                        <span style="background:{{ sc }}18;color:{{ sc }};border:1px solid {{ sc }}44;padding:2px 9px;border-radius:100px;font-size:.7rem;font-weight:700;">{{ sl }}</span>
+                    </td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
     <div class="card">
         <div class="card-hdr"><div class="card-title">Activity Log</div></div>
         <div class="card-body">
@@ -1312,7 +1397,7 @@ function renderDetail(idx) {
   var isEditor         = (mtype === 'ingredients');
   var isQuotation      = (mtype === 'quotation');
   var isPackingMaterial= (mtype === 'packing_material');
-  var isDiscussion     = (mtype === 'artwork' || mtype === 'kld_mockup' || mtype === 'artwork_design' || mtype === 'artwork_qc_approval');
+  var isDiscussion     = (mtype === 'artwork' || mtype === 'kld_mockup' || mtype === 'artwork_design' || mtype === 'artwork_qc_approval' || mtype === 'artwork_qc');
   var isFDA            = (mtype === 'fda' || mtype === 'qc_fda');
   var isBarcode        = (mtype === 'barcode');
 
@@ -1322,7 +1407,7 @@ function renderDetail(idx) {
       '<button onclick="toggleMilestone(' + idx + ')" id="ms-detail-btn"' +
         ' style="padding:6px 18px;border-radius:8px;font-size:.82rem;font-weight:700;border:none;cursor:pointer;flex-shrink:0;' +
         (isDone ? 'background:#dcfce7;color:#16a34a;' : 'background:#7c3aed;color:#fff;') + '">' +
-        (isDone ? '✅ Mark as Pending' : '✅ Mark as Done') +
+        (isDone ? '🔒 Completed' : '✅ Mark as Done') +
       '</button>' +
     '</div>';
 
@@ -2681,8 +2766,21 @@ function saveBOM(idx) {
   .catch(function() { if (saveBtn) { saveBtn.disabled = false; saveBtn.innerHTML = '💾 Save BOM'; } });
 }
 
+// Artwork QC Approval → Artwork Design ke saath shared comments key
+function getMsCommentKey(idx) {
+  var mtype = (MS_TYPES[idx - 1] || '').toLowerCase();
+  if (mtype === 'artwork_qc' || mtype === 'artwork_qc_approval') {
+    for (var i = 0; i < MS_TYPES.length; i++) {
+      if (MS_TYPES[i].toLowerCase() === 'artwork') {
+        return 'ms_' + (i + 1);
+      }
+    }
+  }
+  return 'ms_' + idx;
+}
+
 function loadMsComments(idx) {
-  var key = 'ms_' + idx;
+  var key = getMsCommentKey(idx);
   fetch('/npd/' + PROJ_ID + '/milestone-comments/' + key)
     .then(function(r){ return r.json(); })
     .then(function(data) {
@@ -2781,7 +2879,7 @@ function handleMsEditorDrop(e) {
 
 function postMsComment(idx) {
   if (window._msLocked) return;
-  var key     = 'ms_' + idx;
+  var key     = getMsCommentKey(idx);
   var editor  = document.getElementById('ms-disc-editor');
   var fileEl  = document.getElementById('ms-disc-file');
   var comment = editor ? editor.innerHTML.trim() : '';
@@ -2858,21 +2956,77 @@ function _applyLockOverlay() {
 function toggleMilestone(idx) {
   var key = 'ms_' + idx;
   var cur = (MS_STATE[key] || {}).status || 'pending';
-  var newStatus = (cur === 'done') ? 'pending' : 'done';
 
-  fetch('/npd/' + PROJ_ID + '/milestones/update', {
-    method: 'POST',
-    headers: {'Content-Type':'application/json'},
-    body: JSON.stringify({key: key, status: newStatus})
-  })
-  .then(function(r){ return r.json(); })
-  .then(function(data) {
-    if (data.success) {
-      MS_STATE[key] = {status: newStatus, date: data.date};
-      updateAllSidebarItems();
-    }
-  })
-  .catch(function(){ alert('Error saving milestone.'); });
+  // Once Done — NO revert allowed
+  if (cur === 'done') {
+    showMsConfirm(
+      '\u{1F512} Already Completed',
+      'This milestone is already marked as <strong>Done</strong>.<br><br>' +
+      '<span style="color:#ef4444;font-size:.82rem;">\u26A0\uFE0F This action cannot be undone.</span>',
+      null, null, 'OK', null
+    );
+    return;
+  }
+
+  // Pending → Done: confirmation required
+  var nameEl = document.querySelector('#ms-detail-panel div[style*="font-weight:800"]');
+  var name = nameEl ? nameEl.textContent.trim() : 'this milestone';
+  showMsConfirm(
+    '\u2705 Mark as Done?',
+    'Are you sure you want to mark <strong>' + name + '</strong> as Done?<br><br>' +
+    '<span style="color:#ef4444;font-size:.82rem;">\u26A0\uFE0F Once marked as Done, this cannot be reverted.</span>',
+    function() {
+      fetch('/npd/' + PROJ_ID + '/milestones/update', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({key: key, status: 'done'})
+      })
+      .then(function(r){ return r.json(); })
+      .then(function(data) {
+        if (data.success) {
+          MS_STATE[key] = {status: 'done', date: data.date};
+          updateAllSidebarItems();
+        }
+      })
+      .catch(function(){ alert('Error saving milestone.'); });
+    },
+    'Mark as Done',
+    null,
+    'Cancel'
+  );
+}
+
+// Reusable confirmation modal
+function showMsConfirm(title, body, onConfirm, confirmLabel, okLabel, cancelLabel) {
+  var old = document.getElementById('ms-confirm-modal');
+  if (old) old.remove();
+
+  var hasConfirm = typeof onConfirm === 'function';
+  var modal = document.createElement('div');
+  modal.id = 'ms-confirm-modal';
+  modal.style.cssText = 'position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.45);';
+  modal.innerHTML =
+    '<div style="background:#fff;border-radius:14px;padding:28px 28px 22px;max-width:420px;width:90%;box-shadow:0 8px 40px rgba(0,0,0,.18);text-align:center;">' +
+      '<div style="font-size:1.15rem;font-weight:800;color:#1e293b;margin-bottom:12px;">' + title + '</div>' +
+      '<div style="font-size:.88rem;color:#475569;line-height:1.6;margin-bottom:22px;">' + body + '</div>' +
+      '<div style="display:flex;gap:10px;justify-content:center;">' +
+        (hasConfirm
+          ? '<button id="ms-conf-cancel" style="padding:9px 22px;border:1.5px solid #e2e8f0;border-radius:8px;background:#f8fafc;font-size:.85rem;font-weight:600;cursor:pointer;color:#64748b;">' + (cancelLabel||'Cancel') + '</button>' +
+            '<button id="ms-conf-ok" style="padding:9px 22px;border:none;border-radius:8px;background:#7c3aed;color:#fff;font-size:.85rem;font-weight:700;cursor:pointer;">' + (confirmLabel||'Confirm') + '</button>'
+          : '<button id="ms-conf-ok" style="padding:9px 28px;border:none;border-radius:8px;background:#7c3aed;color:#fff;font-size:.85rem;font-weight:700;cursor:pointer;">' + (okLabel||'OK') + '</button>'
+        ) +
+      '</div>' +
+    '</div>';
+
+  document.body.appendChild(modal);
+
+  document.getElementById('ms-conf-ok').onclick = function() {
+    modal.remove();
+    if (hasConfirm) onConfirm();
+  };
+  var cb = document.getElementById('ms-conf-cancel');
+  if (cb) cb.onclick = function() { modal.remove(); };
+  modal.onclick = function(e) { if (e.target === modal) modal.remove(); };
 }
 </script>
 
