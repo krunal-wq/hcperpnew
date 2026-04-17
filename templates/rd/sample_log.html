@@ -1,0 +1,634 @@
+{% extends "base.html" %}
+{% block title %}R&D Sample Log{% endblock %}
+{% block page_title %}R&D Sample Log{% endblock %}
+{% block bread %}R&D / Sample Log{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ── Summary cards ─────────────────────────── */
+.sl-summary{display:grid;grid-template-columns:repeat(4, 1fr);gap:12px;margin-bottom:16px;}
+@media(max-width:800px){.sl-summary{grid-template-columns:repeat(2, 1fr);}}
+.sl-stat{background:var(--white);border:1px solid var(--border);border-radius:var(--r-lg);padding:14px 16px;display:flex;align-items:center;gap:12px;}
+.sl-stat .sl-ic{width:42px;height:42px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.25rem;}
+.sl-stat .sl-val{font-size:1.35rem;font-weight:800;color:var(--text);line-height:1;}
+.sl-stat .sl-lbl{font-size:.72rem;color:var(--text3);font-weight:600;text-transform:uppercase;margin-top:4px;letter-spacing:.3px;}
+.sl-stat.t-total .sl-ic{background:#eef2ff;color:#4338ca;}
+.sl-stat.t-prog .sl-ic {background:#dcfce7;color:#16a34a;}
+.sl-stat.t-fin .sl-ic  {background:#dbeafe;color:#2563eb;}
+.sl-stat.t-new .sl-ic  {background:#f1f5f9;color:#64748b;}
+
+/* ── Filter bar ───────────────────────────── */
+.sl-filters{background:var(--white);border:1px solid var(--border);border-radius:var(--r-lg);padding:12px 14px;margin-bottom:14px;display:grid;grid-template-columns:2fr 1.2fr 1.2fr 1fr 1fr auto;gap:10px;align-items:end;}
+@media(max-width:1100px){.sl-filters{grid-template-columns:1fr 1fr 1fr;}}
+@media(max-width:640px){.sl-filters{grid-template-columns:1fr 1fr;}}
+.sl-fg{display:flex;flex-direction:column;gap:4px;}
+.sl-fg label{font-size:.7rem;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.3px;}
+.sl-fg select,.sl-fg input{padding:.45rem .65rem;border:1px solid var(--border);border-radius:var(--r-sm);font-size:.85rem;background:var(--white);color:var(--text);outline:none;}
+.sl-fg select:focus,.sl-fg input:focus{border-color:var(--blue);box-shadow:0 0 0 3px var(--blue-lt);}
+.sl-btn{padding:.5rem 1rem;border-radius:var(--r-sm);font-size:.82rem;font-weight:700;cursor:pointer;border:1px solid var(--border);background:var(--white);color:var(--text);transition:.1s;}
+.sl-btn.primary{background:var(--blue);border-color:var(--blue);color:#fff;}
+.sl-btn.primary:hover{background:#1d4ed8;}
+.sl-btn:hover{background:var(--bg);}
+
+/* ── Action bar (print buttons) ───────────── */
+.sl-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px;}
+.sl-action-btn{display:inline-flex;align-items:center;gap:6px;padding:.55rem 1rem;border-radius:var(--r-sm);font-size:.84rem;font-weight:700;cursor:pointer;border:1px solid var(--border);background:var(--white);color:var(--text);transition:.1s;}
+.sl-action-btn:hover{background:var(--bg);}
+.sl-action-btn.sticker{border-color:#7c3aed;color:#7c3aed;}
+.sl-action-btn.sticker:hover{background:#f5f3ff;}
+.sl-action-btn.a4{border-color:#16a34a;color:#16a34a;}
+.sl-action-btn.a4:hover{background:#f0fdf4;}
+.sl-action-btn:disabled{opacity:.45;cursor:not-allowed;}
+.sl-sel-hint{font-size:.78rem;color:var(--text3);margin-left:auto;}
+
+/* ── Main table ───────────────────────────── */
+.sl-card{background:var(--white);border:1px solid var(--border);border-radius:var(--r-lg);overflow:hidden;}
+.sl-card-hdr{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:var(--bg);}
+.sl-card-title{font-weight:700;font-size:.95rem;color:var(--text);}
+.sl-card-title .sl-pill{font-size:.68rem;font-weight:700;background:#ede9fe;color:#7c3aed;border-radius:100px;padding:2px 9px;margin-left:6px;}
+.sl-tbl{width:100%;border-collapse:collapse;font-size:.84rem;}
+.sl-tbl thead tr{background:#f8fafc;border-bottom:2px solid #e2e8f0;}
+.sl-tbl th{padding:10px 14px;text-align:left;color:#64748b;font-weight:700;font-size:.72rem;text-transform:uppercase;letter-spacing:.4px;white-space:nowrap;}
+.sl-tbl td{padding:11px 14px;border-bottom:1px solid #f1f5f9;color:#374151;vertical-align:middle;}
+.sl-tbl tr:hover td{background:#fafbfc;}
+.sl-tbl tr.sl-row-sel td{background:#f5f3ff;}
+.sl-tbl tr:last-child td{border-bottom:none;}
+.sl-tbl .c-right{text-align:right;}
+.sl-tbl .c-center{text-align:center;}
+.sl-cb{width:16px;height:16px;accent-color:#7c3aed;cursor:pointer;}
+.sl-avatar{width:24px;height:24px;border-radius:50%;background:#ede9fe;color:#7c3aed;display:inline-flex;align-items:center;justify-content:center;font-size:.58rem;font-weight:800;flex-shrink:0;}
+.sl-member{display:flex;align-items:center;gap:7px;}
+.sl-variant{background:#ede9fe;color:#7c3aed;border-radius:5px;padding:2px 8px;font-weight:700;font-size:.75rem;display:inline-block;}
+.sl-duration{font-family:'SFMono-Regular',Consolas,monospace;font-weight:700;}
+.sl-status{padding:3px 10px;border-radius:100px;font-size:.7rem;font-weight:700;display:inline-block;border:1px solid;}
+.sl-status.s-finished   {background:rgba(37,99,235,.12); color:#2563eb; border-color:rgba(37,99,235,.28);}
+.sl-status.s-in-progress{background:rgba(22,163,74,.12); color:#16a34a; border-color:rgba(22,163,74,.28);}
+.sl-status.s-not-started{background:rgba(148,163,184,.15);color:#64748b;border-color:rgba(148,163,184,.3);}
+.sl-proj-code{background:#eef2ff;color:#4338ca;border-radius:4px;padding:1px 7px;font-size:.72rem;font-weight:700;font-family:monospace;display:inline-block;margin-right:6px;}
+.sl-empty{text-align:center;padding:3.5rem 1rem;color:var(--text3);}
+.sl-empty .e-ic{font-size:2.25rem;margin-bottom:.5rem;opacity:.6;}
+.sl-empty .e-t{font-weight:700;color:var(--text2);margin-bottom:.25rem;}
+.sl-empty .e-s{font-size:.82rem;}
+.sl-bucket-note{font-size:.75rem;font-weight:500;background:#fef3c7;border:1px solid #fde68a;color:#92400e;border-radius:var(--r-sm);padding:8px 12px;margin-bottom:12px;display:flex;align-items:center;gap:8px;}
+.sl-bucket-note.t-info{background:#dbeafe;border-color:#bfdbfe;color:#1e40af;}
+.sl-bucket-note.t-ok  {background:#dcfce7;border-color:#bbf7d0;color:#166534;}
+
+/* ═════════════════════════════════════════════════════════════
+   STICKER POPUP / MODAL
+   ═════════════════════════════════════════════════════════════ */
+.stk-ov{
+    display:none; position:fixed; inset:0;
+    background:rgba(15,23,42,.55); z-index:9999;
+    align-items:center; justify-content:center;
+    backdrop-filter:blur(3px);
+}
+.stk-ov.open{display:flex;}
+.stk-box{
+    background:#fff; border-radius:12px;
+    width:480px; max-width:95vw; max-height:92vh; overflow-y:auto;
+    box-shadow:0 20px 60px rgba(0,0,0,.22);
+    border:1px solid var(--border);
+}
+.stk-hdr{
+    padding:14px 20px;
+    border-bottom:1px solid var(--border);
+    display:flex; align-items:center; justify-content:space-between;
+    background:#f8fafc; border-radius:12px 12px 0 0;
+}
+.stk-hdr-t{font-size:1rem;font-weight:800;color:var(--text);display:flex;align-items:center;gap:8px;}
+.stk-close{
+    width:28px;height:28px;border-radius:50%;
+    background:transparent;border:none;cursor:pointer;
+    font-size:1.15rem;color:var(--text3);
+    display:flex;align-items:center;justify-content:center;
+}
+.stk-close:hover{background:#f1f5f9;color:var(--text);}
+.stk-body{padding:20px;}
+.stk-fg{margin-bottom:14px;}
+.stk-fg label{display:block;font-size:.78rem;font-weight:700;color:var(--text2);margin-bottom:5px;text-transform:uppercase;letter-spacing:.3px;}
+.stk-fg label .req{color:#dc2626;margin-left:2px;}
+.stk-fg label .lock{font-size:.65rem;color:var(--text3);font-weight:500;margin-left:6px;text-transform:none;letter-spacing:0;}
+.stk-fg input{
+    width:100%; box-sizing:border-box;
+    padding:.6rem .8rem;
+    border:1.5px solid var(--border); border-radius:8px;
+    font-size:.9rem; color:var(--text);
+    outline:none; background:#fff;
+    font-family:inherit;
+}
+.stk-fg input:focus{border-color:#7c3aed;box-shadow:0 0 0 3px rgba(124,58,237,.14);}
+.stk-fg input[readonly]{background:#f8fafc;color:var(--text2);cursor:not-allowed;}
+.stk-fg .hint{font-size:.72rem;color:var(--text3);margin-top:4px;}
+.stk-fg .err{font-size:.72rem;color:#dc2626;margin-top:4px;font-weight:600;display:none;}
+.stk-fg.bad input{border-color:#dc2626;background:#fef2f2;}
+.stk-fg.bad .err{display:block;}
+
+.stk-prev-wrap{
+    margin-top:8px;
+    background:#fafbfc;
+    border:1px solid var(--border); border-radius:8px;
+    padding:12px;
+}
+.stk-prev-lbl{
+    font-size:.72rem;font-weight:700;color:var(--text3);
+    text-transform:uppercase;letter-spacing:.3px;
+    margin-bottom:8px;
+    display:flex;align-items:center;justify-content:space-between;
+}
+.stk-prev-count{background:#ede9fe;color:#7c3aed;padding:2px 8px;border-radius:100px;font-size:.68rem;font-weight:800;}
+.stk-prev-grid{
+    display:grid;
+    grid-template-columns:repeat(2, 40mm);
+    gap:3mm;
+    justify-content:center;
+    padding:4mm 0;
+    max-height:35vh; overflow-y:auto;
+}
+
+.stk-foot{
+    padding:14px 20px;
+    border-top:1px solid var(--border);
+    display:flex; justify-content:flex-end; gap:8px;
+    background:#fafbfc;
+    border-radius:0 0 12px 12px;
+}
+
+/* ═════════════════════════════════════════════════════════════
+   STICKER — exact 40mm × 20mm (same for preview & print)
+   ═════════════════════════════════════════════════════════════ */
+.stk{
+    width:40mm; height:20mm;
+    border:0.4mm solid #000;
+    box-sizing:border-box;
+    padding:1mm 1.5mm;
+    background:#fff; color:#000;
+    font-family:Arial, Helvetica, sans-serif;
+    text-align:center;
+    display:flex; flex-direction:column; justify-content:space-between;
+    break-inside:avoid; page-break-inside:avoid;
+    overflow:hidden;
+}
+.stk-product{
+    font-size:8pt; font-weight:900;
+    line-height:1.05; margin:0;
+    word-break:break-word;
+    display:-webkit-box;
+    -webkit-line-clamp:2; -webkit-box-orient:vertical;
+    overflow:hidden;
+    max-height:9mm;
+}
+.stk-sample{
+    font-size:8pt; font-weight:900;
+    line-height:1.05; margin:0;
+    font-family:'Courier New', monospace;
+    letter-spacing:.3px;
+    word-break:break-all;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+}
+.stk-footer{
+    font-size:5.8pt; font-weight:900;
+    line-height:1; letter-spacing:.6px;
+    border-top:0.3mm solid #000;
+    padding-top:.5mm;
+    margin-top:.3mm;
+}
+
+/* Print-only sheets — hide the rest of the page */
+#stkPrintSheet, #slA4Sheet { display:none; }
+
+body.print-stickers > *:not(#stkPrintSheet){ display:none !important; }
+body.print-stickers #stkPrintSheet{ display:block !important; }
+
+body.print-a4 > *:not(#slA4Sheet){ display:none !important; }
+body.print-a4 #slA4Sheet{ display:block !important; }
+
+/* Sticker print sheet grid — exact 40mm × 20mm, 2 per row */
+.stk-grid{
+    display:grid;
+    grid-template-columns:repeat(2, 40mm);
+    column-gap:4mm;
+    row-gap:3mm;
+    justify-content:flex-start;
+    padding:0; margin:0;
+}
+
+/* A4 list — matches reference */
+.a4-hdr{text-align:center;font-weight:800;font-size:14pt;background:#f3f4f6;padding:8px;border:1px solid #000;}
+.a4-tbl{width:100%;border-collapse:collapse;font-family:Arial,sans-serif;font-size:10pt;color:#000;}
+.a4-tbl th,.a4-tbl td{border:1px solid #000;padding:6px 8px;text-align:center;vertical-align:middle;}
+.a4-tbl th{background:#f3f4f6;font-weight:800;font-size:9.5pt;text-transform:uppercase;}
+.a4-tbl td.c-left{text-align:left;}
+
+@media print {
+    @page { size: A4; margin: 8mm; }
+    body.print-a4 @page { margin: 10mm; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+
+{% if bucket == 'full' %}
+  <div class="sl-bucket-note t-ok">🛡️ <b>Full Access</b> — Showing all sample logs across every project and every team member.</div>
+{% elif bucket == 'project' %}
+  <div class="sl-bucket-note t-info">👥 <b>Project-Scoped</b> — Showing all sample logs for projects assigned to you.</div>
+{% else %}
+  <div class="sl-bucket-note">👤 <b>Personal View</b> — Showing only your own sample logs on projects assigned to you.</div>
+{% endif %}
+
+<div class="sl-summary">
+    <div class="sl-stat t-total"><div class="sl-ic">📊</div><div><div class="sl-val">{{ summary.total }}</div><div class="sl-lbl">Total Logs</div></div></div>
+    <div class="sl-stat t-prog"><div class="sl-ic">🔄</div><div><div class="sl-val">{{ summary.in_progress }}</div><div class="sl-lbl">In Progress</div></div></div>
+    <div class="sl-stat t-fin"><div class="sl-ic">✅</div><div><div class="sl-val">{{ summary.finished }}</div><div class="sl-lbl">Finished</div></div></div>
+    <div class="sl-stat t-new"><div class="sl-ic">⏳</div><div><div class="sl-val">{{ summary.not_started }}</div><div class="sl-lbl">Not Started</div></div></div>
+</div>
+
+<form method="get" class="sl-filters" id="slFilterForm">
+    <div class="sl-fg">
+        <label>Project</label>
+        <select name="project_id">
+            <option value="">All projects</option>
+            {% for p in projects %}
+            <option value="{{ p.id }}" {{ 'selected' if filters.project_id|string == p.id|string }}>{{ p.code or ('P-' ~ p.id) }} — {{ p.product_name[:40] if p.product_name else '—' }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    {% if bucket != 'employee' %}
+    <div class="sl-fg">
+        <label>Member</label>
+        <select name="member_id">
+            <option value="">All members</option>
+            {% for m in members %}
+            <option value="{{ m.id }}" {{ 'selected' if filters.member_id|string == m.id|string }}>{{ m.full_name or m.username }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    {% endif %}
+    <div class="sl-fg">
+        <label>Status</label>
+        <select name="status">
+            <option value="">All</option>
+            <option value="not_started" {{ 'selected' if filters.status=='not_started' }}>Not Started</option>
+            <option value="in_progress" {{ 'selected' if filters.status=='in_progress' }}>In Progress</option>
+            <option value="finished"    {{ 'selected' if filters.status=='finished' }}>Finished</option>
+        </select>
+    </div>
+    <div class="sl-fg"><label>From</label><input type="date" name="from" value="{{ filters.from }}"></div>
+    <div class="sl-fg"><label>To</label><input type="date" name="to" value="{{ filters.to }}"></div>
+    <div class="sl-fg" style="flex-direction:row;gap:6px;">
+        <button type="submit" class="sl-btn primary">Apply</button>
+        <a href="{{ url_for('rd_sample_log.index') }}" class="sl-btn">Reset</a>
+    </div>
+</form>
+
+{% if logs %}
+<div class="sl-actions">
+    <button type="button" class="sl-action-btn sticker" id="btnPrintSticker" disabled>
+        🖨️ Print Sticker
+    </button>
+    <button type="button" class="sl-action-btn a4" id="btnPrintA4">
+        📄 Print Full List (A4)
+    </button>
+    <span class="sl-sel-hint">Select one row and click <b>Print Sticker</b> — enter sample codes in popup.</span>
+</div>
+{% endif %}
+
+<div class="sl-card">
+    <div class="sl-card-hdr">
+        <div class="sl-card-title">🧪 Sample Log Entries <span class="sl-pill">{{ logs|length }}</span></div>
+    </div>
+    {% if logs %}
+    <div style="overflow-x:auto;">
+    <table class="sl-tbl" id="slTable">
+        <thead>
+            <tr>
+                <th style="width:38px;"></th>
+                <th>Project</th>
+                {% if bucket != 'employee' %}<th>Member</th>{% endif %}
+                <th>Variant / Code</th>
+                <th>Started</th>
+                <th>Ended</th>
+                <th class="c-right">Duration</th>
+                <th class="c-center">Status</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for s in logs %}
+            {% set proj = s.project %}
+            {% set exec_user = s.executive %}
+            {% if s.total_seconds %}
+                {% set td_h = (s.total_seconds // 3600)|int %}
+                {% set td_m = ((s.total_seconds % 3600) // 60)|int %}
+                {% set td_s = (s.total_seconds % 60)|int %}
+                {% set dur = "%02d:%02d:%02d"|format(td_h,td_m,td_s) %}
+            {% elif s.started_at and s.status == 'in_progress' %}
+                {% set dur = 'running…' %}
+            {% else %}
+                {% set dur = '—' %}
+            {% endif %}
+            {% if s.status == 'in_progress' %}{% set s_cls='s-in-progress' %}{% set s_lbl='In Progress' %}
+            {% elif s.status == 'finished' %} {% set s_cls='s-finished' %}{% set s_lbl='Finished' %}
+            {% else %}                        {% set s_cls='s-not-started' %}{% set s_lbl='Not Started' %}{% endif %}
+
+            <tr data-row-id="{{ s.id }}"
+                data-npd-code="{{ proj.code if proj else '' }}"
+                data-product-name="{{ proj.product_name if proj else '' }}"
+                data-client-name="{{ (proj.client_company or proj.client_name or '') if proj else '' }}"
+                data-variant="{{ s.variant_code or '' }}"
+                data-member="{{ exec_user.full_name if exec_user else '' }}">
+                <td><input type="radio" name="slRowPick" class="sl-cb sl-row-radio" title="Select this row"></td>
+                <td>
+                    {% if proj %}
+                        <span class="sl-proj-code">{{ proj.code or ('P-' ~ proj.id) }}</span>
+                        <span>{{ (proj.product_name or '—')[:48] }}</span>
+                    {% else %}—{% endif %}
+                </td>
+                {% if bucket != 'employee' %}
+                <td>
+                    {% if exec_user %}
+                        {% set parts = (exec_user.full_name or exec_user.username or '?').split() %}
+                        {% if parts|length > 1 %}{% set ini = (parts[0][0] ~ parts[-1][0])|upper %}
+                        {% else %}{% set ini = (exec_user.full_name or exec_user.username or '?')[:2]|upper %}{% endif %}
+                        <div class="sl-member">
+                            <span class="sl-avatar">{{ ini }}</span>
+                            <span style="font-weight:600;">{{ exec_user.full_name or exec_user.username }}</span>
+                        </div>
+                    {% else %}—{% endif %}
+                </td>
+                {% endif %}
+                <td>{% if s.variant_code %}<span class="sl-variant">{{ s.variant_code }}</span>{% else %}<span style="color:#94a3b8;">—</span>{% endif %}</td>
+                <td>{{ s.started_at.strftime('%d-%m-%Y %H:%M') if s.started_at else '—' }}</td>
+                <td>{{ s.finished_at.strftime('%d-%m-%Y %H:%M') if s.finished_at else '—' }}</td>
+                <td class="c-right sl-duration">{{ dur }}</td>
+                <td class="c-center"><span class="sl-status {{ s_cls }}">{{ s_lbl }}</span></td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    </div>
+    {% else %}
+    <div class="sl-empty">
+        <div class="e-ic">🧪</div>
+        <div class="e-t">No sample logs found</div>
+        <div class="e-s">
+            {% if bucket == 'employee' %}You do not have any sample logs yet on your assigned projects.
+            {% elif bucket == 'project' %}No sample logs exist on the projects assigned to you.
+            {% else %}No sample logs match your current filters.{% endif %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+
+{# ══════════════════════════════════════════════
+   STICKER POPUP
+   ══════════════════════════════════════════════ #}
+<div class="stk-ov" id="stkModal" role="dialog" aria-modal="true">
+    <div class="stk-box">
+        <div class="stk-hdr">
+            <div class="stk-hdr-t">🖨️ Print Sticker</div>
+            <button type="button" class="stk-close" id="stkCloseBtn" aria-label="Close">✕</button>
+        </div>
+
+        <div class="stk-body">
+            <div class="stk-fg">
+                <label>NPD Code <span class="lock">(auto-filled)</span></label>
+                <input type="text" id="stkNpdCode" readonly>
+            </div>
+
+            <div class="stk-fg">
+                <label>Product Name <span class="lock">(auto-filled)</span></label>
+                <input type="text" id="stkProduct" readonly>
+            </div>
+
+            <div class="stk-fg" id="stkSampleFg">
+                <label>Sample Code <span class="req">*</span></label>
+                <input type="text" id="stkSampleCodes" placeholder="e.g. S001, S002, S003" autocomplete="off">
+                <div class="hint">Comma-separated — each code generates one sticker.</div>
+                <div class="err" id="stkSampleErr">Please enter at least one sample code.</div>
+            </div>
+
+            <div class="stk-prev-wrap" id="stkPrevWrap" style="display:none;">
+                <div class="stk-prev-lbl">
+                    <span>Live Preview</span>
+                    <span class="stk-prev-count" id="stkPrevCount">0</span>
+                </div>
+                <div class="stk-prev-grid" id="stkPrevGrid"></div>
+            </div>
+        </div>
+
+        <div class="stk-foot">
+            <button type="button" class="sl-btn" id="stkCancelBtn">Cancel</button>
+            <button type="button" class="sl-btn primary" id="stkPrintBtn" style="background:#7c3aed;border-color:#7c3aed;">
+                🖨️ Print
+            </button>
+        </div>
+    </div>
+</div>
+
+
+{# Print-only sticker sheet #}
+<div id="stkPrintSheet">
+    <div class="stk-grid" id="stkPrintGrid"></div>
+</div>
+
+{# Print-only A4 list sheet #}
+<div id="slA4Sheet">
+    <div class="a4-hdr">R&amp;D SAMPLES (<span id="a4Date"></span>)</div>
+    <table class="a4-tbl">
+        <thead>
+            <tr>
+                <th style="width:6%;">Sr. No.</th>
+                <th style="width:14%;">Project No.</th>
+                <th style="width:26%;">Product Name</th>
+                <th style="width:22%;">Client Name</th>
+                <th style="width:14%;">Submitted By</th>
+                <th style="width:12%;">Sample Code</th>
+            </tr>
+        </thead>
+        <tbody id="a4Body"></tbody>
+    </table>
+</div>
+
+
+<script>
+(function(){
+    const table = document.getElementById('slTable');
+    if (!table) return;
+
+    const radios     = document.querySelectorAll('.sl-row-radio');
+    const btnSticker = document.getElementById('btnPrintSticker');
+    const btnA4      = document.getElementById('btnPrintA4');
+
+    const modal      = document.getElementById('stkModal');
+    const modalClose = document.getElementById('stkCloseBtn');
+    const cancelBtn  = document.getElementById('stkCancelBtn');
+    const printBtn   = document.getElementById('stkPrintBtn');
+
+    const inpNpd     = document.getElementById('stkNpdCode');
+    const inpProduct = document.getElementById('stkProduct');
+    const inpCodes   = document.getElementById('stkSampleCodes');
+    const fgSample   = document.getElementById('stkSampleFg');
+
+    const prevWrap   = document.getElementById('stkPrevWrap');
+    const prevGrid   = document.getElementById('stkPrevGrid');
+    const prevCount  = document.getElementById('stkPrevCount');
+
+    function escapeHtml(s){
+        return String(s || '').replace(/[&<>"']/g, c => (
+            {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]
+        ));
+    }
+
+    function getSelectedRow(){
+        const r = document.querySelector('.sl-row-radio:checked');
+        return r ? r.closest('tr') : null;
+    }
+
+    // ── Row selection → enable print-sticker button & highlight
+    radios.forEach(r => r.addEventListener('change', () => {
+        document.querySelectorAll('#slTable tbody tr').forEach(tr => tr.classList.remove('sl-row-sel'));
+        const tr = getSelectedRow();
+        if (tr) tr.classList.add('sl-row-sel');
+        btnSticker.disabled = !tr;
+    }));
+
+    // ── Parse comma-separated sample codes → clean array
+    function parseCodes(raw){
+        return (raw || '')
+            .split(',')
+            .map(s => s.trim())
+            .filter(Boolean);
+    }
+
+    // ── Build single sticker DOM node
+    function buildSticker(product, sampleCode){
+        const el = document.createElement('div');
+        el.className = 'stk';
+        el.innerHTML = `
+            <div class="stk-product">${escapeHtml(product || '—')}</div>
+            <div class="stk-sample">${escapeHtml(sampleCode || '—')}</div>
+            <div class="stk-footer">HCP WELLNESS</div>
+        `;
+        return el;
+    }
+
+    // ── Live preview as user types
+    function refreshPreview(){
+        const product = inpProduct.value.trim();
+        const codes   = parseCodes(inpCodes.value);
+
+        prevGrid.innerHTML = '';
+        if (codes.length === 0){
+            prevWrap.style.display = 'none';
+            return;
+        }
+        prevWrap.style.display = 'block';
+        prevCount.textContent = codes.length + ' sticker' + (codes.length === 1 ? '' : 's');
+        codes.forEach(code => prevGrid.appendChild(buildSticker(product, code)));
+    }
+    inpCodes.addEventListener('input', () => {
+        fgSample.classList.remove('bad');
+        refreshPreview();
+    });
+
+    // ── Open popup
+    function openModal(){
+        const tr = getSelectedRow();
+        if (!tr){ alert('Please select a row first.'); return; }
+
+        inpNpd.value     = tr.dataset.npdCode || '';
+        inpProduct.value = tr.dataset.productName || '';
+        inpCodes.value   = '';
+        fgSample.classList.remove('bad');
+        prevWrap.style.display = 'none';
+        prevGrid.innerHTML = '';
+        modal.classList.add('open');
+        setTimeout(() => inpCodes.focus(), 80);
+    }
+    function closeModal(){ modal.classList.remove('open'); }
+
+    btnSticker.addEventListener('click', openModal);
+    modalClose.addEventListener('click', closeModal);
+    cancelBtn.addEventListener('click', closeModal);
+    modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Escape' && modal.classList.contains('open')) closeModal();
+    });
+
+    // ── Print
+    printBtn.addEventListener('click', () => {
+        const product = inpProduct.value.trim();
+        const codes   = parseCodes(inpCodes.value);
+
+        if (codes.length === 0){
+            fgSample.classList.add('bad');
+            inpCodes.focus();
+            return;
+        }
+
+        // Build print sheet
+        const grid = document.getElementById('stkPrintGrid');
+        grid.innerHTML = '';
+        codes.forEach(code => grid.appendChild(buildSticker(product, code)));
+
+        closeModal();
+
+        // Trigger print — give browser a tick to apply class
+        document.body.classList.add('print-stickers');
+        setTimeout(() => {
+            window.print();
+            setTimeout(() => document.body.classList.remove('print-stickers'), 400);
+        }, 60);
+    });
+
+    // Enter key in sample-code input = print
+    inpCodes.addEventListener('keydown', e => {
+        if (e.key === 'Enter'){ e.preventDefault(); printBtn.click(); }
+    });
+
+    // ── A4 full-list print (unchanged feature)
+    btnA4.addEventListener('click', () => {
+        const allRows = Array.from(document.querySelectorAll('#slTable tbody tr'));
+        if (!allRows.length){ alert('No rows to print.'); return; }
+
+        const tbody = document.getElementById('a4Body');
+        tbody.innerHTML = '';
+        allRows.forEach((tr, i) => {
+            const product    = tr.dataset.productName || '—';
+            const projCode   = tr.dataset.npdCode || '—';
+            const client     = tr.dataset.clientName || '—';
+            const member     = tr.dataset.member || '—';
+            const variant    = tr.dataset.variant || '';
+            const sampleCode = variant ? (projCode + '/' + variant) : projCode;
+
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${i + 1}</td>
+                <td>${escapeHtml(projCode)}</td>
+                <td class="c-left">${escapeHtml(product)}</td>
+                <td class="c-left">${escapeHtml(client)}</td>
+                <td>${escapeHtml(member)}</td>
+                <td>${escapeHtml(sampleCode)}</td>
+            `;
+            tbody.appendChild(row);
+        });
+
+        const d = new Date();
+        const dStr = String(d.getDate()).padStart(2,'0') + '/' +
+                     String(d.getMonth()+1).padStart(2,'0') + '/' +
+                     d.getFullYear();
+        document.getElementById('a4Date').textContent = dStr;
+
+        document.body.classList.add('print-a4');
+        setTimeout(() => {
+            window.print();
+            setTimeout(() => document.body.classList.remove('print-a4'), 400);
+        }, 60);
+    });
+})();
+</script>
+
+{% endblock %}

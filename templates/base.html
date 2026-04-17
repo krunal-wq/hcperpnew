@@ -84,7 +84,7 @@
                         'npd_status_master','milestone_status_master','npd_category_master',
                         'rd_dashboard','rd_projects','rd_executives','rd_performance',
                         'rd_discussion','rd_param_master',
-                        'rd_sample_ready','rd_sample_history') %}
+                        'rd_sample_ready','rd_sample_history','rd_sample_log') %}
             {% set _mod = 'rd' %}
         {% elif _pg in ('cat_master','uom_master','hsn_master','masters') %}
             {% set _mod = 'masters' %}
@@ -184,6 +184,9 @@
                 <a class="nav-a" href="/rd/dashboard"><span class="nav-ic">◈</span><span class="nav-txt">R&amp;D Dashboard</span></a>
                 <a class="nav-a" href="/rd/projects"><span class="nav-ic">⬡</span><span class="nav-txt">R&amp;D Projects</span></a>
                 <a class="nav-a" href="/rd/trials"><span class="nav-ic">⚗</span><span class="nav-txt">R&amp;D Trials</span></a>
+                <a class="nav-a {% if _pg == 'rd_sample_ready' %}active{% endif %}" href="/rd/sample-ready"><span class="nav-ic">📦</span><span class="nav-txt">Sample Ready</span></a>
+                <a class="nav-a {% if _pg == 'rd_sample_history' %}active{% endif %}" href="/rd/sample-history"><span class="nav-ic">📋</span><span class="nav-txt">Sample History</span></a>
+                <a class="nav-a {% if _pg == 'rd_sample_log' %}active{% endif %}" href="/rd/sample-log"><span class="nav-ic">🧪</span><span class="nav-txt">R&amp;D Sample Log</span></a>
 
                 {# ── NPD Section ── #}
                 {% if true %}
@@ -381,6 +384,7 @@
             <a class="nav-a {% if _pg == 'rd_projects' %}active{% endif %}" href="/rd/projects"><span class="nav-ic">⬡</span><span class="nav-txt">R&amp;D Projects</span></a>
             <a class="nav-a {% if _pg == 'rd_sample_ready' %}active{% endif %}" href="/rd/sample-ready"><span class="nav-ic">📦</span><span class="nav-txt">Sample Ready</span></a>
             <a class="nav-a {% if _pg == 'rd_sample_history' %}active{% endif %}" href="/rd/sample-history"><span class="nav-ic">📋</span><span class="nav-txt">Sample History</span></a>
+            <a class="nav-a {% if _pg == 'rd_sample_log' %}active{% endif %}" href="/rd/sample-log"><span class="nav-ic">🧪</span><span class="nav-txt">R&amp;D Sample Log</span></a>
         </div>
 
         {# ── NPD Section ── #}
