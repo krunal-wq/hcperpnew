@@ -34,10 +34,11 @@ Blueprint:  rd_sample_log  at  /rd/sample-log
 from datetime import datetime, timedelta
 from flask import Blueprint, render_template, request, jsonify
 from flask_login import login_required, current_user
-from sqlalchemy import or_
+from sqlalchemy import or_, text
 
 from models import db, User
-from models.npd import NPDProject, RDSubAssignment
+from models.npd import (NPDProject, RDSubAssignment,
+                        OfficeDispatchToken, OfficeDispatchItem)
 from permissions import get_perm
 
 
@@ -142,7 +143,11 @@ def index():
     accessible_pids = get_accessible_project_ids(current_user)
 
     # ── Build the sample-log query ──
-    q = RDSubAssignment.query.filter(RDSubAssignment.is_active == True)
+    # Exclude 'sent_to_office' rows — they live in the separate listing page
+    q = RDSubAssignment.query.filter(
+        RDSubAssignment.is_active == True,
+        RDSubAssignment.status != 'sent_to_office'
+    )
 
     # Project scoping
     if accessible_pids is not None:
@@ -221,7 +226,11 @@ def index():
                             .order_by(User.full_name).all() if visible_user_ids else []
 
     # ── Summary counts (based on already-scoped query, minus UI filters) ──
-    summary_q = RDSubAssignment.query.filter(RDSubAssignment.is_active == True)
+    # Also excludes 'sent_to_office' — mirrors main query
+    summary_q = RDSubAssignment.query.filter(
+        RDSubAssignment.is_active == True,
+        RDSubAssignment.status != 'sent_to_office'
+    )
     if accessible_pids is not None:
         if not accessible_pids:
             summary_q = summary_q.filter(RDSubAssignment.id == -1)
@@ -411,3 +420,698 @@ def api_debug():
         ),
     })
 
+
+# ════════════════════════════════════════════════════════════════════
+#  SAMPLE CODE PERSISTENCE — added for Print Sticker workflow
+# ════════════════════════════════════════════════════════════════════
+#  Endpoints:
+#    POST  /rd/sample-log/api/generate-codes       → auto-fill blanks (no save)
+#    POST  /rd/sample-log/api/save-sample-codes    → validate + persist before print
+#
+#  Storage: RDSubAssignment.sample_code  (VARCHAR 500, comma-separated)
+#  Uniqueness: checked case-insensitively across every stored code globally.
+# ════════════════════════════════════════════════════════════════════
+
+
+def _parse_codes(raw):
+    """Split a comma-separated code string into a clean, ordered list."""
+    if not raw:
+        return []
+    return [c.strip() for c in raw.split(',') if c.strip()]
+
+
+def _all_existing_codes(exclude_row_id=None):
+    """
+    Return every sample_code currently stored in rd_sub_assignments,
+    flattened across comma-separated values, upper-cased for comparison.
+    Optionally exclude a single row id (so a row's own codes don't
+    count as duplicates when re-saving it).
+    """
+    q = db.session.query(RDSubAssignment.id, RDSubAssignment.sample_code).filter(
+        RDSubAssignment.sample_code.isnot(None),
+        RDSubAssignment.sample_code != ''
+    )
+    out = set()
+    for row_id, raw in q.all():
+        if exclude_row_id is not None and row_id == exclude_row_id:
+            continue
+        for c in _parse_codes(raw):
+            out.add(c.upper())
+    return out
+
+
+def _generate_unique_code(prefix, variant, taken):
+    """
+    Build a unique sample code from prefix + variant.
+    Falls back to numbered suffix (-1, -2, ...) on collision.
+    Mutates `taken` so repeated calls in the same batch don't collide
+    with each other.
+    """
+    prefix  = (prefix  or 'SMP').upper().strip().replace(' ', '')
+    variant = (variant or '').upper().strip().replace(' ', '')
+    base    = '{}/{}'.format(prefix, variant) if variant else prefix
+
+    code = base
+    i = 1
+    while code.upper() in taken:
+        code = '{}-{}'.format(base, i)
+        i += 1
+
+    taken.add(code.upper())
+    return code
+
+
+# ─────────────────────────────────────────────────────────────────────
+# 1. GENERATE CODES — auto-fill blank sample codes in modal (no save)
+# ─────────────────────────────────────────────────────────────────────
+
+@rd_sample_log_bp.route('/api/generate-codes', methods=['POST'])
+@login_required
+def api_generate_codes():
+    """
+    Body: { "ids": [12, 13, 14] }
+    Returns: { ok: true, generated: { "12": "CODE1", "13": "CODE2", ... } }
+
+    Only rows WITHOUT an existing sample_code get a fresh one.
+    Rows that already have a code are skipped.
+    """
+    data = request.get_json(silent=True) or {}
+    ids  = [int(x) for x in (data.get('ids') or []) if str(x).isdigit()]
+    if not ids:
+        return jsonify({'ok': False, 'error': 'No row ids provided.'}), 400
+
+    rows = RDSubAssignment.query.filter(RDSubAssignment.id.in_(ids)).all()
+    if not rows:
+        return jsonify({'ok': False, 'error': 'No matching rows found.'}), 404
+
+    taken = _all_existing_codes()
+    generated = {}
+
+    for r in rows:
+        # Skip rows that already have a code — don't clobber
+        if r.sample_code and r.sample_code.strip():
+            continue
+
+        proj = r.project
+        prefix = (proj.code if proj and proj.code else 'P{}'.format(r.project_id))
+        variant = r.variant_code or ''
+        code = _generate_unique_code(prefix, variant, taken)
+        generated[str(r.id)] = code
+
+    return jsonify({'ok': True, 'generated': generated})
+
+
+# ─────────────────────────────────────────────────────────────────────
+# 2. SAVE SAMPLE CODES — persist BEFORE print
+# ─────────────────────────────────────────────────────────────────────
+
+@rd_sample_log_bp.route('/api/save-sample-codes', methods=['POST'])
+@login_required
+def api_save_sample_codes():
+    """
+    Body:
+        {
+          "rows": [
+            { "id": 12, "codes": "SMP001,SMP002" },
+            { "id": 13, "codes": "SMP003"        }
+          ]
+        }
+
+    Behaviour:
+      - Validates every row has at least one non-empty code.
+      - Checks for duplicates WITHIN the batch (case-insensitive).
+      - Checks for duplicates AGAINST other rows in the DB.
+      - If anything fails → nothing is saved, error returned.
+      - Otherwise → each row's `sample_code` field is overwritten with
+        its comma-separated string and committed atomically.
+
+    Returns:
+        { ok: true,  saved: <count>,  rows: [{id, codes}, ...] }
+        { ok: false, error: "...", duplicates: [...] }   on failure
+    """
+    data = request.get_json(silent=True) or {}
+    payload = data.get('rows') or []
+    if not payload:
+        return jsonify({'ok': False, 'error': 'No rows supplied.'}), 400
+
+    # ── 1. Normalise & basic validation ──────────────────────────
+    cleaned = []
+    for item in payload:
+        try:
+            rid = int(item.get('id'))
+        except (TypeError, ValueError):
+            return jsonify({'ok': False, 'error': 'Invalid row id in payload.'}), 400
+
+        codes = _parse_codes(item.get('codes') or '')
+        if not codes:
+            return jsonify({
+                'ok': False,
+                'error': 'Row #{} has no sample code. Every row must have at least one.'.format(rid)
+            }), 400
+
+        cleaned.append({'id': rid, 'codes': codes})
+
+    # ── 2. In-batch duplicate check (case-insensitive) ──────────
+    seen_in_batch = {}   # upper-code → row_id
+    batch_dups = []
+    for r in cleaned:
+        for c in r['codes']:
+            key = c.upper()
+            if key in seen_in_batch and seen_in_batch[key] != r['id']:
+                batch_dups.append(c)
+            else:
+                seen_in_batch[key] = r['id']
+    if batch_dups:
+        return jsonify({
+            'ok': False,
+            'error': 'Duplicate sample code(s) inside the selection.',
+            'duplicates': sorted(set(batch_dups)),
+        }), 409
+
+    # ── 3. Fetch existing rows & permission check ───────────────
+    ids = [r['id'] for r in cleaned]
+    rows_by_id = {
+        r.id: r for r in RDSubAssignment.query.filter(RDSubAssignment.id.in_(ids)).all()
+    }
+    missing = [i for i in ids if i not in rows_by_id]
+    if missing:
+        return jsonify({
+            'ok': False,
+            'error': 'Row(s) not found: {}'.format(missing)
+        }), 404
+
+    # Access control — employees can only save their OWN rows
+    bucket = _user_bucket(current_user.role)
+    if bucket == 'employee':
+        bad = [i for i, r in rows_by_id.items() if r.user_id != current_user.id]
+        if bad:
+            return jsonify({
+                'ok': False,
+                'error': 'Permission denied for row(s): {}'.format(bad)
+            }), 403
+
+    # ── 4. DB-wide duplicate check (exclude rows being edited) ──
+    existing_codes = _all_existing_codes()
+    own_codes_union = set()
+    for rid in ids:
+        row = rows_by_id[rid]
+        for c in _parse_codes(row.sample_code):
+            own_codes_union.add(c.upper())
+    other_codes = existing_codes - own_codes_union
+
+    db_dups = []
+    for r in cleaned:
+        for c in r['codes']:
+            if c.upper() in other_codes:
+                db_dups.append(c)
+    if db_dups:
+        return jsonify({
+            'ok': False,
+            'error': 'Sample code(s) already exist elsewhere in the system.',
+            'duplicates': sorted(set(db_dups)),
+        }), 409
+
+    # ── 5. Persist ───────────────────────────────────────────────
+    saved = []
+    for r in cleaned:
+        row = rows_by_id[r['id']]
+        combined = ','.join(r['codes'])
+        row.sample_code = combined
+        saved.append({'id': r['id'], 'codes': combined})
+    db.session.commit()
+
+    return jsonify({'ok': True, 'saved': len(saved), 'rows': saved})
+
+
+# ════════════════════════════════════════════════════════════════════
+#  SEND TO OFFICE WORKFLOW
+# ════════════════════════════════════════════════════════════════════
+#  Endpoints:
+#    POST  /rd/sample-log/api/send-to-office
+#         - Save sample codes for selected rows + mark status='sent_to_office'
+#         - Stamps send_to_office_date and sent_to_office_by
+#
+#    POST  /rd/sample-log/api/revert/<id>
+#         - Change status back to 'finished' (sample ready state)
+#         - Clears send_to_office_date and sent_to_office_by
+#
+#    GET   /rd/sample-log/sent-to-office
+#         - Separate listing screen for status='sent_to_office' rows
+#         - Supports ?from=YYYY-MM-DD&to=YYYY-MM-DD date filters
+# ════════════════════════════════════════════════════════════════════
+
+
+def _apply_scope(q, user):
+    """Re-usable project-scope filter — mirror of the logic in index()."""
+    bucket = _user_bucket(user.role)
+    accessible_pids = get_accessible_project_ids(user)
+    if accessible_pids is not None:
+        if not accessible_pids:
+            return q.filter(RDSubAssignment.id == -1)
+        q = q.filter(RDSubAssignment.project_id.in_(accessible_pids))
+    if bucket == 'employee':
+        q = q.filter(RDSubAssignment.user_id == user.id)
+    return q
+
+
+# ─────────────────────────────────────────────────────────────────────
+# 1. SEND TO OFFICE — save codes + flip status
+# ─────────────────────────────────────────────────────────────────────
+
+@rd_sample_log_bp.route('/api/send-to-office', methods=['POST'])
+@login_required
+def api_send_to_office():
+    """
+    Body:
+        {
+          "rows": [
+            { "id": 12, "codes": "SMP001,SMP002" },
+            { "id": 13, "codes": "SMP003"        }
+          ]
+        }
+
+    Steps (atomic):
+      1. Validate & save sample codes (reuses the same rules as
+         api_save_sample_codes — empty/dup/permission).
+      2. Flip status='sent_to_office' on every row.
+      3. Stamp send_to_office_date + sent_to_office_by.
+    """
+    data = request.get_json(silent=True) or {}
+    payload = data.get('rows') or []
+    if not payload:
+        return jsonify({'ok': False, 'error': 'No rows supplied.'}), 400
+
+    # Normalise
+    cleaned = []
+    for item in payload:
+        try:
+            rid = int(item.get('id'))
+        except (TypeError, ValueError):
+            return jsonify({'ok': False, 'error': 'Invalid row id in payload.'}), 400
+
+        codes = _parse_codes(item.get('codes') or '')
+        if not codes:
+            return jsonify({
+                'ok': False,
+                'error': 'Row #{} has no sample code. Every row must have at least one.'.format(rid)
+            }), 400
+
+        cleaned.append({'id': rid, 'codes': codes})
+
+    # In-batch duplicate check
+    seen_in_batch = {}
+    batch_dups = []
+    for r in cleaned:
+        for c in r['codes']:
+            key = c.upper()
+            if key in seen_in_batch and seen_in_batch[key] != r['id']:
+                batch_dups.append(c)
+            else:
+                seen_in_batch[key] = r['id']
+    if batch_dups:
+        return jsonify({
+            'ok': False,
+            'error': 'Duplicate sample code(s) inside the selection.',
+            'duplicates': sorted(set(batch_dups)),
+        }), 409
+
+    # Fetch & permission
+    ids = [r['id'] for r in cleaned]
+    rows_by_id = {
+        r.id: r for r in RDSubAssignment.query.filter(RDSubAssignment.id.in_(ids)).all()
+    }
+    missing = [i for i in ids if i not in rows_by_id]
+    if missing:
+        return jsonify({'ok': False, 'error': 'Row(s) not found: {}'.format(missing)}), 404
+
+    bucket = _user_bucket(current_user.role)
+    if bucket == 'employee':
+        bad = [i for i, r in rows_by_id.items() if r.user_id != current_user.id]
+        if bad:
+            return jsonify({'ok': False, 'error': 'Permission denied for row(s): {}'.format(bad)}), 403
+
+    # DB-wide duplicate check
+    existing_codes = _all_existing_codes()
+    own_codes_union = set()
+    for rid in ids:
+        row = rows_by_id[rid]
+        for c in _parse_codes(row.sample_code):
+            own_codes_union.add(c.upper())
+    other_codes = existing_codes - own_codes_union
+
+    db_dups = []
+    for r in cleaned:
+        for c in r['codes']:
+            if c.upper() in other_codes:
+                db_dups.append(c)
+    if db_dups:
+        return jsonify({
+            'ok': False,
+            'error': 'Sample code(s) already exist elsewhere in the system.',
+            'duplicates': sorted(set(db_dups)),
+        }), 409
+
+    # Persist — save codes + flip status + stamp dispatch metadata
+    # + create OfficeDispatchToken / OfficeDispatchItem entries so this
+    #   dispatch shows up in the existing Sample History page.
+    now = datetime.now()
+
+    # Extract optional handover_to / submitted_by maps from payload
+    # (sent by the A4 modal as {row_id: "..."} dicts)
+    handover_map  = (data.get('handover_to')  or {})   # {"12": "Sneha Dagar", ...}
+    submitted_map = (data.get('submitted_by') or {})   # {"12": "Aaquib", ...}
+
+    # Reuse today's token if one already exists, else create a new one
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    today_end   = now.replace(hour=23, minute=59, second=59, microsecond=999999)
+    token = OfficeDispatchToken.query.filter(
+        OfficeDispatchToken.dispatched_at >= today_start,
+        OfficeDispatchToken.dispatched_at <= today_end
+    ).order_by(OfficeDispatchToken.dispatched_at.desc()).first()
+    if not token:
+        last = OfficeDispatchToken.query.order_by(OfficeDispatchToken.id.desc()).first()
+        next_num = (last.id + 1) if last else 1
+        token = OfficeDispatchToken(
+            token_no      = 'ODT-{:04d}'.format(next_num),
+            dispatched_by = current_user.id,
+            dispatched_at = now,
+            notes         = 'R&D Sample Log dispatch'
+        )
+        db.session.add(token)
+        db.session.flush()
+
+    saved = []
+    for r in cleaned:
+        row = rows_by_id[r['id']]
+        combined = ','.join(r['codes'])
+
+        # 1. Update RDSubAssignment row
+        row.sample_code         = combined
+        row.status              = 'sent_to_office'
+        row.send_to_office_date = now
+        row.sent_to_office_by   = current_user.id
+
+        # 2. Create OfficeDispatchItem so it appears in Sample History
+        ht = (handover_map.get(str(r['id']))  or '').strip() or None
+        sb = (submitted_map.get(str(r['id'])) or '').strip() or None
+        # Fallback for submitted_by: the executive's name
+        if not sb and row.executive:
+            sb = row.executive.full_name or row.executive.username
+
+        db.session.add(OfficeDispatchItem(
+            token_id             = token.id,
+            project_id           = row.project_id,
+            sample_code          = combined,
+            handover_to          = ht,
+            submitted_by         = sb,
+            rd_sub_assignment_id = row.id,
+        ))
+
+        saved.append({'id': r['id'], 'codes': combined})
+
+    db.session.commit()
+
+    return jsonify({
+        'ok': True,
+        'saved': len(saved),
+        'rows': saved,
+        'token_no': token.token_no,
+        'dispatched_at': now.strftime('%d-%m-%Y %H:%M'),
+    })
+
+
+# ─────────────────────────────────────────────────────────────────────
+# 2. REVERT — sent_to_office → finished (sample ready)
+# ─────────────────────────────────────────────────────────────────────
+
+@rd_sample_log_bp.route('/api/revert/<int:row_id>', methods=['POST'])
+@login_required
+def api_revert(row_id):
+    """
+    Revert a single row from 'sent_to_office' back to 'finished'.
+    Clears send_to_office_date and sent_to_office_by.
+    Keeps the saved sample_code intact (don't throw it away on revert).
+    """
+    row = RDSubAssignment.query.get(row_id)
+    if not row:
+        return jsonify({'ok': False, 'error': 'Row not found.'}), 404
+
+    # Permission check
+    bucket = _user_bucket(current_user.role)
+    if bucket == 'employee' and row.user_id != current_user.id:
+        return jsonify({'ok': False, 'error': 'Permission denied.'}), 403
+
+    # Project-scope check for non-admin roles
+    accessible_pids = get_accessible_project_ids(current_user)
+    if accessible_pids is not None and row.project_id not in accessible_pids:
+        return jsonify({'ok': False, 'error': 'Permission denied for this project.'}), 403
+
+    if row.status != 'sent_to_office':
+        return jsonify({
+            'ok': False,
+            'error': 'Only sent-to-office rows can be reverted. Current status: {}'.format(row.status)
+        }), 400
+
+    row.status              = 'finished'
+    row.send_to_office_date = None
+    row.sent_to_office_by   = None
+
+    # Also remove the linked OfficeDispatchItem(s) so Sample History
+    # stays consistent. If the token ends up with no items, drop it too.
+    linked_items = OfficeDispatchItem.query.filter_by(rd_sub_assignment_id=row.id).all()
+    affected_tokens = {it.token_id for it in linked_items}
+    for it in linked_items:
+        db.session.delete(it)
+    db.session.flush()
+    for tid in affected_tokens:
+        remaining = OfficeDispatchItem.query.filter_by(token_id=tid).count()
+        if remaining == 0:
+            tok = OfficeDispatchToken.query.get(tid)
+            if tok:
+                db.session.delete(tok)
+
+    db.session.commit()
+
+    return jsonify({'ok': True, 'row_id': row_id, 'new_status': 'finished'})
+
+
+# ─────────────────────────────────────────────────────────────────────
+# 3. SENT-TO-OFFICE LISTING — redirect to existing NPD Sample History
+# ─────────────────────────────────────────────────────────────────────
+# The dispatch data is stored as OfficeDispatchToken/OfficeDispatchItem,
+# which the existing `/npd/sample-history` page already renders. So we
+# just redirect there instead of duplicating the UI.
+
+@rd_sample_log_bp.route('/sent-to-office')
+@login_required
+def sent_to_office():
+    from flask import redirect, url_for
+    f_from = (request.args.get('from') or '').strip()
+    f_to   = (request.args.get('to')   or '').strip()
+    params = {}
+    if f_from: params['from_date'] = f_from
+    if f_to:   params['to_date']   = f_to
+    return redirect(url_for('rd.sample_history', **params))
+
+
+# ════════════════════════════════════════════════════════════════════
+#  DIAGNOSE & ACTIVATE — recovery utilities
+# ════════════════════════════════════════════════════════════════════
+#  These endpoints help when the Sample Log page shows zero rows
+#  even though you know records should exist. Typical causes:
+#
+#    1. The records are for a different user (bucket=employee scope)
+#    2. The records belong to projects you're not assigned to
+#    3. The records are sent_to_office (filtered out of main view)
+#    4. The records have is_active=0 (soft-deleted)
+#
+#  Usage:
+#    • /rd/sample-log/api/diagnose  (GET, no args)
+#        → returns counts + samples explaining exactly what's visible/hidden
+#
+#    • /rd/sample-log/api/activate?scope=all   (POST, admin-only)
+#        → reactivates ALL rd_sub_assignments:
+#           is_active = TRUE
+#           status    = 'finished' (if currently 'sent_to_office')
+#           clears send_to_office_date / sent_to_office_by
+#        → also deletes orphan OfficeDispatchItems linked to them
+#
+#    • /rd/sample-log/api/activate?scope=mine  (POST)
+#        → same, but only for the current user's rows
+# ════════════════════════════════════════════════════════════════════
+
+
+@rd_sample_log_bp.route('/api/diagnose')
+@login_required
+def api_diagnose():
+    """
+    Returns a JSON report explaining why rows don't appear in the
+    sample log. No permission gate so every user can self-diagnose.
+    """
+    uid    = current_user.id
+    bucket = _user_bucket(current_user.role)
+    accessible_pids = get_accessible_project_ids(current_user)
+
+    # Raw totals (no scoping)
+    total_rows             = RDSubAssignment.query.count()
+    active_rows            = RDSubAssignment.query.filter_by(is_active=True).count()
+    inactive_rows          = total_rows - active_rows
+    sent_to_office_rows    = RDSubAssignment.query.filter_by(status='sent_to_office').count()
+    mine_rows              = RDSubAssignment.query.filter_by(user_id=uid).count()
+    mine_active            = RDSubAssignment.query.filter_by(user_id=uid, is_active=True).count()
+    mine_sent              = RDSubAssignment.query.filter_by(user_id=uid, status='sent_to_office').count()
+
+    # Per-status breakdown (all rows)
+    status_breakdown = {}
+    for status, in db.session.query(RDSubAssignment.status).distinct().all():
+        cnt = RDSubAssignment.query.filter_by(status=status).count()
+        status_breakdown[status or 'NULL'] = cnt
+
+    # What the sample-log page WOULD show for this user
+    vq = RDSubAssignment.query.filter(
+        RDSubAssignment.is_active == True,
+        RDSubAssignment.status != 'sent_to_office'
+    )
+    if accessible_pids is not None:
+        if not accessible_pids:
+            vq = vq.filter(RDSubAssignment.id == -1)
+        else:
+            vq = vq.filter(RDSubAssignment.project_id.in_(accessible_pids))
+    if bucket == 'employee':
+        vq = vq.filter(RDSubAssignment.user_id == uid)
+    visible_count = vq.count()
+
+    # Why might rows be hidden?  Per-project tally
+    per_project = []
+    all_pids = [pid for (pid,) in db.session.query(RDSubAssignment.project_id).distinct().all()]
+    for pid in all_pids:
+        p = NPDProject.query.get(pid)
+        cnt_total  = RDSubAssignment.query.filter_by(project_id=pid).count()
+        cnt_active = RDSubAssignment.query.filter_by(project_id=pid, is_active=True).count()
+        cnt_mine   = RDSubAssignment.query.filter_by(project_id=pid, user_id=uid).count()
+        in_scope   = (accessible_pids is None) or (pid in (accessible_pids or []))
+        per_project.append({
+            'project_id':    pid,
+            'project_code':  p.code if p else None,
+            'product_name':  (p.product_name[:50] if p and p.product_name else None),
+            'total_rows':    cnt_total,
+            'active_rows':   cnt_active,
+            'mine_rows':     cnt_mine,
+            'visible_to_you': bool(in_scope and (bucket != 'employee' or cnt_mine > 0)),
+        })
+
+    return jsonify({
+        'current_user': {
+            'id':       uid,
+            'username': current_user.username,
+            'role':     current_user.role,
+            'bucket':   bucket,
+        },
+        'accessible_project_count': 'ALL' if accessible_pids is None else len(accessible_pids or []),
+        'raw_totals': {
+            'total_rd_sub_assignments': total_rows,
+            'active_rows':              active_rows,
+            'inactive_rows':            inactive_rows,
+            'sent_to_office_rows':      sent_to_office_rows,
+        },
+        'status_breakdown':      status_breakdown,
+        'my_rows': {
+            'total':          mine_rows,
+            'active':         mine_active,
+            'sent_to_office': mine_sent,
+        },
+        'sample_log_visible_count': visible_count,
+        'per_project_breakdown':    per_project,
+        'hint': (
+            'If raw_totals.total_rd_sub_assignments > 0 but sample_log_visible_count = 0, '
+            'one of these is true: '
+            '(a) your rows are all sent_to_office — check /rd/sample-history; '
+            '(b) your rows have is_active=0 — run POST /api/activate to fix; '
+            '(c) the projects are not assigned to you — ask admin; '
+            '(d) you are in employee bucket and rows belong to other users.'
+        ),
+    })
+
+
+@rd_sample_log_bp.route('/api/activate', methods=['POST'])
+@login_required
+def api_activate():
+    """
+    Bulk-restore RDSubAssignment rows so they appear on the sample-log page.
+
+    Query params:
+      ?scope=mine   (default) — only current user's rows
+      ?scope=all              — every row (ADMIN / MANAGER only)
+
+    What it does for each affected row:
+      • is_active              → True
+      • status                 → 'finished'        (only if currently 'sent_to_office')
+      • send_to_office_date    → NULL
+      • sent_to_office_by      → NULL
+
+    Also deletes the linked OfficeDispatchItem(s) so Sample History
+    stays consistent. Any token left with zero items is also deleted.
+    """
+    scope = (request.args.get('scope') or 'mine').lower()
+    if scope == 'all':
+        if _user_bucket(current_user.role) != 'full':
+            return jsonify({
+                'ok': False,
+                'error': 'scope=all requires admin/manager role.'
+            }), 403
+        q = RDSubAssignment.query
+    else:
+        q = RDSubAssignment.query.filter_by(user_id=current_user.id)
+
+    rows = q.all()
+    if not rows:
+        return jsonify({'ok': True, 'affected': 0, 'message': 'No rows to activate.'})
+
+    stats = {
+        'reactivated_is_active': 0,
+        'reverted_from_sent':    0,
+        'deleted_dispatch_items': 0,
+        'deleted_empty_tokens':  0,
+    }
+    row_ids = [r.id for r in rows]
+
+    # 1. Fix is_active + status flip
+    for r in rows:
+        if not r.is_active:
+            r.is_active = True
+            stats['reactivated_is_active'] += 1
+        if r.status == 'sent_to_office':
+            r.status              = 'finished'
+            r.send_to_office_date = None
+            r.sent_to_office_by   = None
+            stats['reverted_from_sent'] += 1
+
+    # 2. Cascade: remove linked dispatch items so Sample History is consistent
+    linked_items = OfficeDispatchItem.query.filter(
+        OfficeDispatchItem.rd_sub_assignment_id.in_(row_ids)
+    ).all()
+    affected_token_ids = {it.token_id for it in linked_items}
+    for it in linked_items:
+        db.session.delete(it)
+        stats['deleted_dispatch_items'] += 1
+
+    db.session.flush()
+
+    # 3. Drop tokens left empty
+    for tid in affected_token_ids:
+        remaining = OfficeDispatchItem.query.filter_by(token_id=tid).count()
+        if remaining == 0:
+            tok = OfficeDispatchToken.query.get(tid)
+            if tok:
+                db.session.delete(tok)
+                stats['deleted_empty_tokens'] += 1
+
+    db.session.commit()
+
+    return jsonify({
+        'ok':       True,
+        'affected': len(rows),
+        'scope':    scope,
+        'stats':    stats,
+        'message':  'Done. Reload /rd/sample-log to see your rows.',
+    })

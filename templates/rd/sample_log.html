@@ -65,6 +65,7 @@
 .sl-status.s-in-progress{background:rgba(22,163,74,.12); color:#16a34a; border-color:rgba(22,163,74,.28);}
 .sl-status.s-not-started{background:rgba(148,163,184,.15);color:#64748b;border-color:rgba(148,163,184,.3);}
 .sl-proj-code{background:#eef2ff;color:#4338ca;border-radius:4px;padding:1px 7px;font-size:.72rem;font-weight:700;font-family:monospace;display:inline-block;margin-right:6px;}
+.sl-saved-code{background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0;border-radius:4px;padding:2px 8px;font-size:.72rem;font-weight:700;font-family:monospace;display:inline-block;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:middle;}
 .sl-empty{text-align:center;padding:3.5rem 1rem;color:var(--text3);}
 .sl-empty .e-ic{font-size:2.25rem;margin-bottom:.5rem;opacity:.6;}
 .sl-empty .e-t{font-weight:700;color:var(--text2);margin-bottom:.25rem;}
@@ -85,7 +86,7 @@
 .stk-ov.open{display:flex;}
 .stk-box{
     background:#fff; border-radius:12px;
-    width:480px; max-width:95vw; max-height:92vh; overflow-y:auto;
+    width:640px; max-width:95vw; max-height:92vh; overflow-y:auto;
     box-shadow:0 20px 60px rgba(0,0,0,.22);
     border:1px solid var(--border);
 }
@@ -121,6 +122,65 @@
 .stk-fg .hint{font-size:.72rem;color:var(--text3);margin-top:4px;}
 .stk-fg .err{font-size:.72rem;color:#dc2626;margin-top:4px;font-weight:600;display:none;}
 .stk-fg.bad input{border-color:#dc2626;background:#fef2f2;}
+
+/* ── Multi-row entry cards ───────────────────── */
+.stk-multi-hint{
+    font-size:.78rem; color:#1e40af;
+    background:#dbeafe; border:1px solid #bfdbfe;
+    padding:8px 12px; border-radius:8px;
+    margin-bottom:14px; font-weight:500;
+}
+.stk-multi-hint #stkRowCount{font-weight:800;}
+.stk-row-card{
+    border:1.5px solid var(--border); border-radius:10px;
+    padding:12px 14px; margin-bottom:10px;
+    background:#fafbfc;
+    transition:.15s;
+}
+.stk-row-card.bad{border-color:#dc2626;background:#fef2f2;}
+.stk-row-card-hdr{
+    display:flex; align-items:center; justify-content:space-between;
+    gap:10px; margin-bottom:10px;
+    padding-bottom:8px;
+    border-bottom:1px dashed var(--border);
+}
+.stk-row-idx{
+    width:24px; height:24px; border-radius:50%;
+    background:#7c3aed; color:#fff;
+    display:inline-flex; align-items:center; justify-content:center;
+    font-size:.72rem; font-weight:800;
+    flex-shrink:0;
+}
+.stk-row-meta{flex:1;min-width:0;}
+.stk-row-npd{
+    font-family:monospace; font-size:.72rem; font-weight:700;
+    background:#eef2ff; color:#4338ca;
+    padding:2px 7px; border-radius:4px;
+    display:inline-block; margin-right:6px;
+}
+.stk-row-prod{
+    font-size:.82rem; font-weight:600; color:var(--text);
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+    display:block; margin-top:3px;
+}
+.stk-row-input-wrap{display:flex;flex-direction:column;gap:4px;}
+.stk-row-input-wrap label{
+    font-size:.7rem; font-weight:700; color:var(--text2);
+    text-transform:uppercase; letter-spacing:.3px;
+}
+.stk-row-input-wrap label .req{color:#dc2626;}
+.stk-row-input-wrap input{
+    width:100%; box-sizing:border-box;
+    padding:.5rem .7rem;
+    border:1.5px solid var(--border); border-radius:6px;
+    font-size:.85rem; color:var(--text);
+    outline:none; background:#fff;
+    font-family:inherit;
+}
+.stk-row-input-wrap input:focus{border-color:#7c3aed;box-shadow:0 0 0 3px rgba(124,58,237,.14);}
+.stk-row-input-wrap .hint{font-size:.68rem;color:var(--text3);}
+.stk-row-input-wrap .err{font-size:.68rem;color:#dc2626;font-weight:600;display:none;}
+.stk-row-card.bad .err{display:block;}
 .stk-fg.bad .err{display:block;}
 
 .stk-prev-wrap{
@@ -151,6 +211,54 @@
     display:flex; justify-content:flex-end; gap:8px;
     background:#fafbfc;
     border-radius:0 0 12px 12px;
+}
+
+/* ── Custom confirm modal ─────────────────────── */
+.confirm-box{
+    background:#fff; border-radius:14px;
+    width:420px; max-width:92vw;
+    padding:28px 26px 20px;
+    box-shadow:0 25px 70px rgba(0,0,0,.25);
+    border:1px solid var(--border);
+    text-align:center;
+    animation:confirmPop .18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes confirmPop{
+    from{transform:scale(.92);opacity:0;}
+    to{transform:scale(1);opacity:1;}
+}
+.confirm-icon{
+    font-size:2.4rem;
+    margin-bottom:10px;
+    line-height:1;
+}
+.confirm-title{
+    font-size:1.1rem;
+    font-weight:800;
+    color:var(--text);
+    margin-bottom:8px;
+    letter-spacing:-.01em;
+}
+.confirm-msg{
+    font-size:.88rem;
+    color:var(--text2);
+    line-height:1.5;
+    margin-bottom:10px;
+}
+.confirm-detail{
+    font-size:.78rem;
+    color:var(--text3);
+    margin-bottom:18px;
+    padding:0 4px;
+}
+.confirm-actions{
+    display:flex;
+    gap:8px;
+    justify-content:center;
+}
+.confirm-actions .sl-btn{
+    min-width:110px;
+    padding:.6rem 1.2rem;
 }
 
 /* ═════════════════════════════════════════════════════════════
@@ -196,13 +304,99 @@
 }
 
 /* Print-only sheets — hide the rest of the page */
-#stkPrintSheet, #slA4Sheet { display:none; }
+#stkPrintSheet { display:none; }
+/* A4 sheet is shown inside the preview modal AND during print */
+#slA4Sheet { display:block; background:#fff; padding:4mm; border:1px solid #e5e7eb; }
 
 body.print-stickers > *:not(#stkPrintSheet){ display:none !important; }
 body.print-stickers #stkPrintSheet{ display:block !important; }
 
-body.print-a4 > *:not(#slA4Sheet){ display:none !important; }
-body.print-a4 #slA4Sheet{ display:block !important; }
+/* A4 print-mode: hide everything, then walk up the tree
+   making #slA4Sheet and all its ancestors visible */
+/* ═════════════════════════════════════════════════════════════
+   A4 PRINT MODE
+   Strategy: hide everything with visibility:hidden, then make the
+   A4 modal ALONE visible + position: fixed at page top so it's
+   not affected by any ancestor wrapper's layout.
+   ═════════════════════════════════════════════════════════════ */
+
+body.print-a4 * { visibility: hidden !important; }
+
+/* Re-show the A4 modal chain */
+body.print-a4 #a4Modal,
+body.print-a4 #a4Modal *{
+    visibility: visible !important;
+}
+
+/* Rip the A4 modal out of page flow and pin it to top-left of page */
+body.print-a4 #a4Modal{
+    display: block !important;
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: auto !important;
+    bottom: auto !important;
+    width: 100% !important;
+    height: auto !important;
+    background: #fff !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    backdrop-filter: none !important;
+    overflow: visible !important;
+    z-index: 99999 !important;
+}
+body.print-a4 #a4Modal .stk-box{
+    display: block !important;
+    position: static !important;
+    width: 100% !important;
+    max-width: none !important;
+    max-height: none !important;
+    box-shadow: none !important;
+    border: none !important;
+    border-radius: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+}
+body.print-a4 #a4Modal .stk-body{
+    display: block !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
+}
+
+/* Hide the modal's chrome (header/footer/hint) + confirm modal + alert modal + their children */
+body.print-a4 #a4Modal .stk-hdr,
+body.print-a4 #a4Modal .stk-hdr *,
+body.print-a4 #a4Modal .stk-foot,
+body.print-a4 #a4Modal .stk-foot *,
+body.print-a4 #a4Modal .stk-multi-hint,
+body.print-a4 #a4Modal .stk-multi-hint *,
+body.print-a4 #confirmModal,
+body.print-a4 #confirmModal *,
+body.print-a4 #alertModal,
+body.print-a4 #alertModal *{
+    display: none !important;
+    visibility: hidden !important;
+}
+
+/* The sheet itself — normal flow */
+body.print-a4 #slA4Sheet{
+    display: block !important;
+    position: static !important;
+    width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border: 2px solid #000 !important;
+    background: #fff !important;
+}
+/* A4 inputs: strip the dashed borders so the printed cell looks clean */
+body.print-a4 #slA4Sheet input{
+    border:none !important; background:transparent !important;
+    padding:0 !important; font-weight:700 !important;
+    width:100% !important;
+}
 
 /* Sticker print sheet grid — exact 40mm × 20mm, 2 per row */
 .stk-grid{
@@ -215,15 +409,33 @@ body.print-a4 #slA4Sheet{ display:block !important; }
 }
 
 /* A4 list — matches reference */
-.a4-hdr{text-align:center;font-weight:800;font-size:14pt;background:#f3f4f6;padding:8px;border:1px solid #000;}
-.a4-tbl{width:100%;border-collapse:collapse;font-family:Arial,sans-serif;font-size:10pt;color:#000;}
-.a4-tbl th,.a4-tbl td{border:1px solid #000;padding:6px 8px;text-align:center;vertical-align:middle;}
+.a4-hdr{text-align:center;font-weight:800;font-size:14pt;background:#f3f4f6;padding:8px;border:1px solid #000;border-bottom:none;}
+.a4-tbl{width:100%;border-collapse:collapse;font-family:Arial,sans-serif;font-size:10pt;color:#000;table-layout:fixed;}
+.a4-tbl th,.a4-tbl td{
+    border:1px solid #000; padding:6px 8px;
+    text-align:center; vertical-align:middle;
+    word-wrap:break-word; overflow-wrap:break-word; word-break:break-word;
+}
 .a4-tbl th{background:#f3f4f6;font-weight:800;font-size:9.5pt;text-transform:uppercase;}
 .a4-tbl td.c-left{text-align:left;}
+/* Ensure the final row has a visible bottom border */
+.a4-tbl tbody tr:last-child td{border-bottom:2px solid #000 !important;}
+/* Bold outer frame for the whole sheet (only visible in print — preview uses #slA4Sheet's own light border) */
 
 @media print {
-    @page { size: A4; margin: 8mm; }
-    body.print-a4 @page { margin: 10mm; }
+    /* Landscape A4 + tight margins — the 7-col table needs the extra width */
+    @page { size: A4 landscape; margin: 6mm; }
+
+    /* Compact everything so it fits within landscape width */
+    body.print-a4 .a4-hdr{font-size:11pt; padding:5px;}
+    body.print-a4 .a4-tbl{font-size:8.5pt; width:100%;}
+    body.print-a4 .a4-tbl th,
+    body.print-a4 .a4-tbl td{
+        padding:3px 4px;
+        line-height:1.2;
+        font-size:8pt;
+    }
+    body.print-a4 .a4-tbl th{font-size:7.5pt;}
 }
 </style>
 {% endblock %}
@@ -291,7 +503,12 @@ body.print-a4 #slA4Sheet{ display:block !important; }
     <button type="button" class="sl-action-btn a4" id="btnPrintA4">
         📄 Print Full List (A4)
     </button>
-    <span class="sl-sel-hint">Select one row and click <b>Print Sticker</b> — enter sample codes in popup.</span>
+    <a href="{{ url_for('rd.sample_history') }}"
+       class="sl-action-btn"
+       style="border-color:#16a34a;color:#16a34a;text-decoration:none;">
+        📋 Sample History
+    </a>
+    <span class="sl-sel-hint">Select rows + <b>Print Sticker</b> for labels, or <b>Print Full List (A4)</b> for the A4 sheet (uses selection, or all rows if none selected).</span>
 </div>
 {% endif %}
 
@@ -304,10 +521,11 @@ body.print-a4 #slA4Sheet{ display:block !important; }
     <table class="sl-tbl" id="slTable">
         <thead>
             <tr>
-                <th style="width:38px;"></th>
+                <th style="width:38px;text-align:center;"><input type="checkbox" class="sl-cb" id="slSelectAll" title="Select all"></th>
                 <th>Project</th>
                 {% if bucket != 'employee' %}<th>Member</th>{% endif %}
                 <th>Variant / Code</th>
+                <th>Sample Code</th>
                 <th>Started</th>
                 <th>Ended</th>
                 <th class="c-right">Duration</th>
@@ -337,8 +555,9 @@ body.print-a4 #slA4Sheet{ display:block !important; }
                 data-product-name="{{ proj.product_name if proj else '' }}"
                 data-client-name="{{ (proj.client_company or proj.client_name or '') if proj else '' }}"
                 data-variant="{{ s.variant_code or '' }}"
+                data-sample-code="{{ s.sample_code or '' }}"
                 data-member="{{ exec_user.full_name if exec_user else '' }}">
-                <td><input type="radio" name="slRowPick" class="sl-cb sl-row-radio" title="Select this row"></td>
+                <td style="text-align:center;"><input type="checkbox" class="sl-cb sl-row-check" title="Select this row"></td>
                 <td>
                     {% if proj %}
                         <span class="sl-proj-code">{{ proj.code or ('P-' ~ proj.id) }}</span>
@@ -359,6 +578,13 @@ body.print-a4 #slA4Sheet{ display:block !important; }
                 </td>
                 {% endif %}
                 <td>{% if s.variant_code %}<span class="sl-variant">{{ s.variant_code }}</span>{% else %}<span style="color:#94a3b8;">—</span>{% endif %}</td>
+                <td class="sl-saved-code-cell">
+                    {% if s.sample_code %}
+                        <span class="sl-saved-code" title="{{ s.sample_code }}">{{ s.sample_code }}</span>
+                    {% else %}
+                        <span style="color:#94a3b8;font-style:italic;font-size:.75rem;">not assigned</span>
+                    {% endif %}
+                </td>
                 <td>{{ s.started_at.strftime('%d-%m-%Y %H:%M') if s.started_at else '—' }}</td>
                 <td>{{ s.finished_at.strftime('%d-%m-%Y %H:%M') if s.finished_at else '—' }}</td>
                 <td class="c-right sl-duration">{{ dur }}</td>
@@ -393,21 +619,12 @@ body.print-a4 #slA4Sheet{ display:block !important; }
         </div>
 
         <div class="stk-body">
-            <div class="stk-fg">
-                <label>NPD Code <span class="lock">(auto-filled)</span></label>
-                <input type="text" id="stkNpdCode" readonly>
+            <div class="stk-multi-hint" id="stkMultiHint">
+                <span id="stkRowCount">0</span> row(s) selected — enter sample code(s) for each. Comma-separated codes allowed per row.
             </div>
 
-            <div class="stk-fg">
-                <label>Product Name <span class="lock">(auto-filled)</span></label>
-                <input type="text" id="stkProduct" readonly>
-            </div>
-
-            <div class="stk-fg" id="stkSampleFg">
-                <label>Sample Code <span class="req">*</span></label>
-                <input type="text" id="stkSampleCodes" placeholder="e.g. S001, S002, S003" autocomplete="off">
-                <div class="hint">Comma-separated — each code generates one sticker.</div>
-                <div class="err" id="stkSampleErr">Please enter at least one sample code.</div>
+            <div id="stkRowsWrap">
+                <!-- dynamically populated rows -->
             </div>
 
             <div class="stk-prev-wrap" id="stkPrevWrap" style="display:none;">
@@ -434,22 +651,219 @@ body.print-a4 #slA4Sheet{ display:block !important; }
     <div class="stk-grid" id="stkPrintGrid"></div>
 </div>
 
-{# Print-only A4 list sheet #}
-<div id="slA4Sheet">
-    <div class="a4-hdr">R&amp;D SAMPLES (<span id="a4Date"></span>)</div>
-    <table class="a4-tbl">
-        <thead>
-            <tr>
-                <th style="width:6%;">Sr. No.</th>
-                <th style="width:14%;">Project No.</th>
-                <th style="width:26%;">Product Name</th>
-                <th style="width:22%;">Client Name</th>
-                <th style="width:14%;">Submitted By</th>
-                <th style="width:12%;">Sample Code</th>
-            </tr>
-        </thead>
-        <tbody id="a4Body"></tbody>
-    </table>
+{# ══════════════════════════════════════════════
+   CONFIRM MODAL — reusable (Send-to-Office, etc.)
+   Higher z-index so it stacks above the A4 modal.
+   ══════════════════════════════════════════════ #}
+<div class="stk-ov" id="confirmModal" role="dialog" aria-modal="true" style="z-index:10050 !important;">
+    <div class="confirm-box">
+        <div class="confirm-icon" id="confirmIcon">📤</div>
+        <div class="confirm-title" id="confirmTitle">Mark as Sent to Office?</div>
+        <div class="confirm-msg" id="confirmMsg">Sample codes will be saved and status updated.</div>
+        <div class="confirm-detail" id="confirmDetail"></div>
+        <div class="confirm-actions">
+            <button type="button" class="sl-btn" id="confirmCancelBtn">Cancel</button>
+            <button type="button" class="sl-btn primary" id="confirmOkBtn" style="background:#16a34a;border-color:#16a34a;color:#fff;">
+                Yes, Confirm
+            </button>
+        </div>
+    </div>
+</div>
+
+
+{# ══════════════════════════════════════════════
+   ALERT MODAL — reusable (replaces native alert())
+   ══════════════════════════════════════════════ #}
+<div class="stk-ov" id="alertModal" role="dialog" aria-modal="true" style="z-index:10060 !important;">
+    <div class="confirm-box">
+        <div class="confirm-icon" id="alertIcon">ℹ️</div>
+        <div class="confirm-title" id="alertTitle">Notice</div>
+        <div class="confirm-msg" id="alertMsg"></div>
+        <div class="confirm-detail" id="alertDetail"></div>
+        <div class="confirm-actions">
+            <button type="button" class="sl-btn primary" id="alertOkBtn" style="background:#2563eb;border-color:#2563eb;color:#fff;">
+                OK
+            </button>
+        </div>
+    </div>
+</div>
+
+
+<script>
+(function(){
+    // ─── Reusable custom confirm modal — returns a Promise<boolean>
+    const cm       = document.getElementById('confirmModal');
+    const cmIcon   = document.getElementById('confirmIcon');
+    const cmTitle  = document.getElementById('confirmTitle');
+    const cmMsg    = document.getElementById('confirmMsg');
+    const cmDetail = document.getElementById('confirmDetail');
+    const cmOk     = document.getElementById('confirmOkBtn');
+    const cmCancel = document.getElementById('confirmCancelBtn');
+
+    window.sampleLogConfirm = function(opts){
+        opts = opts || {};
+        cmIcon.textContent   = opts.icon    || '❓';
+        cmTitle.textContent  = opts.title   || 'Are you sure?';
+        cmMsg.textContent    = opts.message || '';
+        cmDetail.innerHTML   = opts.detail  || '';
+        cmOk.textContent     = opts.okText  || 'Yes, Confirm';
+        cmCancel.textContent = opts.cancelText || 'Cancel';
+
+        // Style OK button by theme
+        const theme = opts.theme || 'primary';   // primary|danger|success
+        const colorMap = {
+            primary: { bg:'#2563eb', border:'#2563eb' },
+            success: { bg:'#16a34a', border:'#16a34a' },
+            danger:  { bg:'#dc2626', border:'#dc2626' },
+        };
+        const c = colorMap[theme] || colorMap.primary;
+        cmOk.style.background   = c.bg;
+        cmOk.style.borderColor  = c.border;
+        cmOk.style.color        = '#fff';
+
+        cm.classList.add('open');
+
+        return new Promise(resolve => {
+            function cleanup(result){
+                cm.classList.remove('open');
+                cmOk.removeEventListener('click', onOk);
+                cmCancel.removeEventListener('click', onCancel);
+                cm.removeEventListener('click', onBackdrop);
+                document.removeEventListener('keydown', onKey);
+                resolve(result);
+            }
+            function onOk()      { cleanup(true);  }
+            function onCancel()  { cleanup(false); }
+            function onBackdrop(e){ if (e.target === cm) cleanup(false); }
+            function onKey(e){
+                if (e.key === 'Escape') cleanup(false);
+                else if (e.key === 'Enter') cleanup(true);
+            }
+            cmOk.addEventListener('click', onOk);
+            cmCancel.addEventListener('click', onCancel);
+            cm.addEventListener('click', onBackdrop);
+            document.addEventListener('keydown', onKey);
+            setTimeout(() => cmOk.focus(), 60);
+        });
+    };
+
+    // ─── Reusable custom alert modal — returns a Promise<void>
+    //     Call it with a string message (legacy alert() usage) OR an options object:
+    //       sampleLogAlert('Something happened')
+    //       sampleLogAlert({ title:'Done', message:'✓ 2 saved', theme:'success' })
+    const am      = document.getElementById('alertModal');
+    const amIcon  = document.getElementById('alertIcon');
+    const amTitle = document.getElementById('alertTitle');
+    const amMsg   = document.getElementById('alertMsg');
+    const amDetail= document.getElementById('alertDetail');
+    const amOk    = document.getElementById('alertOkBtn');
+
+    window.sampleLogAlert = function(arg){
+        // Accept either a string or a full options object
+        let opts = {};
+        if (typeof arg === 'string') {
+            // Auto-detect theme from common prefixes
+            let icon = 'ℹ️', theme = 'primary', title = 'Notice';
+            const s = arg.trim();
+            if (s.startsWith('✓') || /success|saved|sent|done/i.test(s)) {
+                icon = '✅'; theme = 'success'; title = 'Success';
+            } else if (s.startsWith('⚠') || /warn|duplicate|invalid/i.test(s)) {
+                icon = '⚠️'; theme = 'danger'; title = 'Warning';
+            } else if (s.startsWith('❌') || /error|failed|network/i.test(s)) {
+                icon = '❌'; theme = 'danger'; title = 'Error';
+            }
+            opts = { message: s, icon, theme, title };
+        } else {
+            opts = arg || {};
+        }
+
+        amIcon.textContent   = opts.icon    || 'ℹ️';
+        amTitle.textContent  = opts.title   || 'Notice';
+        amMsg.textContent    = opts.message || '';
+        amDetail.innerHTML   = opts.detail  || '';
+        amOk.textContent     = opts.okText  || 'OK';
+
+        const theme = opts.theme || 'primary';
+        const colorMap = {
+            primary: { bg:'#2563eb', border:'#2563eb' },
+            success: { bg:'#16a34a', border:'#16a34a' },
+            danger:  { bg:'#dc2626', border:'#dc2626' },
+        };
+        const c = colorMap[theme] || colorMap.primary;
+        amOk.style.background  = c.bg;
+        amOk.style.borderColor = c.border;
+        amOk.style.color       = '#fff';
+
+        am.classList.add('open');
+
+        return new Promise(resolve => {
+            function cleanup(){
+                am.classList.remove('open');
+                amOk.removeEventListener('click', onOk);
+                am.removeEventListener('click', onBackdrop);
+                document.removeEventListener('keydown', onKey);
+                resolve();
+            }
+            function onOk()       { cleanup(); }
+            function onBackdrop(e){ if (e.target === am) cleanup(); }
+            function onKey(e){
+                if (e.key === 'Escape' || e.key === 'Enter') cleanup();
+            }
+            amOk.addEventListener('click', onOk);
+            am.addEventListener('click', onBackdrop);
+            document.addEventListener('keydown', onKey);
+            setTimeout(() => amOk.focus(), 60);
+        });
+    };
+})();
+</script>
+
+
+{# ══════════════════════════════════════════════
+   A4 PREVIEW MODAL (editable before print / dispatch)
+   ══════════════════════════════════════════════ #}
+<div class="stk-ov" id="a4Modal" role="dialog" aria-modal="true">
+    <div class="stk-box" style="width:95vw;max-width:1100px;">
+        <div class="stk-hdr">
+            <div class="stk-hdr-t">📄 A4 Print Preview — R&amp;D Samples</div>
+            <button type="button" class="stk-close" id="a4CloseBtn" aria-label="Close">✕</button>
+        </div>
+        <div class="stk-body" style="padding:16px 18px;max-height:75vh;overflow:auto;">
+            <div class="stk-multi-hint" style="background:#dbeafe;border-color:#bfdbfe;color:#1e40af;">
+                <b><span id="a4Count">0</span></b> row(s) in preview — edit Sample Codes or Handover To as needed.
+                Click <b>🖨️ Print Only</b> to just save + print, or <b>📤 Send to Office + Print</b> to
+                also mark these rows as dispatched (they'll move to the Sent-to-Office list).
+            </div>
+
+            {# Print-only sheet — hidden on screen, shown only during print #}
+            <div id="slA4Sheet">
+                <div class="a4-hdr">R&amp;D SAMPLES (<span id="a4Date"></span>)</div>
+                <table class="a4-tbl">
+                    <thead>
+                        <tr>
+                            <th style="width:5%;">Sr. No.</th>
+                            <th style="width:13%;">NPD Code</th>
+                            <th style="width:22%;">Product Name</th>
+                            <th style="width:14%;">Client Name</th>
+                            <th style="width:16%;">Handover To</th>
+                            <th style="width:12%;">Submitted By</th>
+                            <th style="width:18%;">Sample Code</th>
+                        </tr>
+                    </thead>
+                    <tbody id="a4Body"></tbody>
+                </table>
+            </div>
+        </div>
+        <div class="stk-foot">
+            <button type="button" class="sl-btn" id="a4CancelBtn">Cancel</button>
+            <button type="button" class="sl-btn" id="a4PrintBtn" style="background:#3b82f6;border-color:#3b82f6;color:#fff;">
+                🖨️ Print Only
+            </button>
+            <button type="button" class="sl-btn primary" id="a4SendBtn" style="background:#16a34a;border-color:#16a34a;color:#fff;">
+                📤 Send to Office + Print
+            </button>
+        </div>
+    </div>
 </div>
 
 
@@ -458,7 +872,7 @@ body.print-a4 #slA4Sheet{ display:block !important; }
     const table = document.getElementById('slTable');
     if (!table) return;
 
-    const radios     = document.querySelectorAll('.sl-row-radio');
+    const selectAll  = document.getElementById('slSelectAll');
     const btnSticker = document.getElementById('btnPrintSticker');
     const btnA4      = document.getElementById('btnPrintA4');
 
@@ -467,11 +881,8 @@ body.print-a4 #slA4Sheet{ display:block !important; }
     const cancelBtn  = document.getElementById('stkCancelBtn');
     const printBtn   = document.getElementById('stkPrintBtn');
 
-    const inpNpd     = document.getElementById('stkNpdCode');
-    const inpProduct = document.getElementById('stkProduct');
-    const inpCodes   = document.getElementById('stkSampleCodes');
-    const fgSample   = document.getElementById('stkSampleFg');
-
+    const rowsWrap   = document.getElementById('stkRowsWrap');
+    const rowCountEl = document.getElementById('stkRowCount');
     const prevWrap   = document.getElementById('stkPrevWrap');
     const prevGrid   = document.getElementById('stkPrevGrid');
     const prevCount  = document.getElementById('stkPrevCount');
@@ -482,20 +893,49 @@ body.print-a4 #slA4Sheet{ display:block !important; }
         ));
     }
 
-    function getSelectedRow(){
-        const r = document.querySelector('.sl-row-radio:checked');
-        return r ? r.closest('tr') : null;
+    // Get currently checked rows (multi-select)
+    function getSelectedRows(){
+        return Array.from(document.querySelectorAll('.sl-row-check:checked'))
+                    .map(cb => cb.closest('tr'))
+                    .filter(Boolean);
     }
 
-    // ── Row selection → enable print-sticker button & highlight
-    radios.forEach(r => r.addEventListener('change', () => {
+    // Update: highlight rows + enable/disable Print Sticker button + sync select-all
+    function updateSelection(){
+        const rows = getSelectedRows();
         document.querySelectorAll('#slTable tbody tr').forEach(tr => tr.classList.remove('sl-row-sel'));
-        const tr = getSelectedRow();
-        if (tr) tr.classList.add('sl-row-sel');
-        btnSticker.disabled = !tr;
-    }));
+        rows.forEach(tr => tr.classList.add('sl-row-sel'));
 
-    // ── Parse comma-separated sample codes → clean array
+        btnSticker.disabled = rows.length === 0;
+        btnSticker.innerHTML = rows.length > 0
+            ? `🖨️ Print Sticker (${rows.length})`
+            : `🖨️ Print Sticker`;
+
+        // Sync "select all" header checkbox state (check / indeterminate / unchecked)
+        const allRowCbs = document.querySelectorAll('.sl-row-check');
+        const total = allRowCbs.length;
+        const checked = rows.length;
+        if (selectAll){
+            if (checked === 0){ selectAll.checked = false; selectAll.indeterminate = false; }
+            else if (checked === total){ selectAll.checked = true; selectAll.indeterminate = false; }
+            else { selectAll.checked = false; selectAll.indeterminate = true; }
+        }
+    }
+
+    // Bind row checkboxes
+    document.querySelectorAll('.sl-row-check').forEach(cb => {
+        cb.addEventListener('change', updateSelection);
+    });
+
+    // Bind "select all" header checkbox
+    if (selectAll){
+        selectAll.addEventListener('change', () => {
+            document.querySelectorAll('.sl-row-check').forEach(cb => { cb.checked = selectAll.checked; });
+            updateSelection();
+        });
+    }
+
+    // Parse comma-separated sample codes → clean array
     function parseCodes(raw){
         return (raw || '')
             .split(',')
@@ -503,7 +943,7 @@ body.print-a4 #slA4Sheet{ display:block !important; }
             .filter(Boolean);
     }
 
-    // ── Build single sticker DOM node
+    // Build single sticker DOM node
     function buildSticker(product, sampleCode){
         const el = document.createElement('div');
         el.className = 'stk';
@@ -515,38 +955,95 @@ body.print-a4 #slA4Sheet{ display:block !important; }
         return el;
     }
 
-    // ── Live preview as user types
+    // Re-render the live preview across ALL rows in the modal
     function refreshPreview(){
-        const product = inpProduct.value.trim();
-        const codes   = parseCodes(inpCodes.value);
-
         prevGrid.innerHTML = '';
-        if (codes.length === 0){
+        let total = 0;
+
+        document.querySelectorAll('.stk-row-card').forEach(card => {
+            const product = card.dataset.product || '';
+            const input   = card.querySelector('.stk-row-codes');
+            const codes   = parseCodes(input ? input.value : '');
+            codes.forEach(code => {
+                prevGrid.appendChild(buildSticker(product, code));
+                total++;
+            });
+        });
+
+        if (total === 0){
             prevWrap.style.display = 'none';
-            return;
+        } else {
+            prevWrap.style.display = 'block';
+            prevCount.textContent = total + ' sticker' + (total === 1 ? '' : 's');
         }
-        prevWrap.style.display = 'block';
-        prevCount.textContent = codes.length + ' sticker' + (codes.length === 1 ? '' : 's');
-        codes.forEach(code => prevGrid.appendChild(buildSticker(product, code)));
     }
-    inpCodes.addEventListener('input', () => {
-        fgSample.classList.remove('bad');
+
+    // Build the modal rows for every selected row in table
+    function buildModalRows(rows){
+        rowsWrap.innerHTML = '';
+        rows.forEach((tr, idx) => {
+            const rowId   = tr.dataset.rowId || '';
+            const npd     = tr.dataset.npdCode || '—';
+            const product = tr.dataset.productName || '—';
+            const variant = tr.dataset.variant || '';
+            const saved   = tr.dataset.sampleCode || '';
+
+            // Priority: already-saved code > suggested NPD/VARIANT > blank (will be auto-generated from backend)
+            const defaultCode = saved ? saved
+                                      : (variant ? (npd + '/' + variant) : '');
+
+            const card = document.createElement('div');
+            card.className = 'stk-row-card';
+            card.dataset.rowId   = rowId;
+            card.dataset.product = product;
+            card.dataset.npd     = npd;
+            card.innerHTML = `
+                <div class="stk-row-card-hdr">
+                    <div class="stk-row-idx">${idx + 1}</div>
+                    <div class="stk-row-meta">
+                        <span class="stk-row-npd">${escapeHtml(npd)}</span>
+                        <span class="stk-row-prod" title="${escapeHtml(product)}">${escapeHtml(product)}</span>
+                    </div>
+                    ${saved ? '<span style="font-size:.65rem;font-weight:700;color:#15803d;background:#f0fdf4;border:1px solid #bbf7d0;padding:2px 7px;border-radius:100px;">SAVED</span>' : ''}
+                </div>
+                <div class="stk-row-input-wrap">
+                    <label>Sample Code <span class="req">*</span></label>
+                    <input type="text" class="stk-row-codes"
+                           value="${escapeHtml(defaultCode)}"
+                           placeholder="e.g. S001, S002, S003"
+                           autocomplete="off">
+                    <div class="hint">Comma-separated for multiple stickers per row. Will be saved to database on Print.</div>
+                    <div class="err">Please enter at least one sample code for this row.</div>
+                </div>
+            `;
+            rowsWrap.appendChild(card);
+        });
+
+        // Bind input listeners → live preview + clear error state on type
+        rowsWrap.querySelectorAll('.stk-row-codes').forEach(inp => {
+            inp.addEventListener('input', () => {
+                inp.closest('.stk-row-card').classList.remove('bad');
+                refreshPreview();
+            });
+        });
+
         refreshPreview();
-    });
+    }
 
-    // ── Open popup
+    // Open popup
     function openModal(){
-        const tr = getSelectedRow();
-        if (!tr){ alert('Please select a row first.'); return; }
+        const rows = getSelectedRows();
+        if (rows.length === 0){ sampleLogAlert('Please select at least one row first.'); return; }
 
-        inpNpd.value     = tr.dataset.npdCode || '';
-        inpProduct.value = tr.dataset.productName || '';
-        inpCodes.value   = '';
-        fgSample.classList.remove('bad');
-        prevWrap.style.display = 'none';
-        prevGrid.innerHTML = '';
+        rowCountEl.textContent = rows.length;
+        buildModalRows(rows);
+
         modal.classList.add('open');
-        setTimeout(() => inpCodes.focus(), 80);
+        // Focus first input
+        setTimeout(() => {
+            const firstInp = rowsWrap.querySelector('.stk-row-codes');
+            if (firstInp) firstInp.focus();
+        }, 80);
     }
     function closeModal(){ modal.classList.remove('open'); }
 
@@ -558,76 +1055,386 @@ body.print-a4 #slA4Sheet{ display:block !important; }
         if (e.key === 'Escape' && modal.classList.contains('open')) closeModal();
     });
 
-    // ── Print
-    printBtn.addEventListener('click', () => {
-        const product = inpProduct.value.trim();
-        const codes   = parseCodes(inpCodes.value);
+    // Print — validate ALL rows → save to DB → then build sheet & open printer
+    printBtn.addEventListener('click', async () => {
+        const cards = Array.from(document.querySelectorAll('.stk-row-card'));
+        let hasError = false;
+        let firstBadInput = null;
 
-        if (codes.length === 0){
-            fgSample.classList.add('bad');
-            inpCodes.focus();
+        // ── 1. Client-side validation ─────────────────────────────
+        cards.forEach(card => {
+            const inp = card.querySelector('.stk-row-codes');
+            const codes = parseCodes(inp.value);
+            if (codes.length === 0){
+                card.classList.add('bad');
+                hasError = true;
+                if (!firstBadInput) firstBadInput = inp;
+            } else {
+                card.classList.remove('bad');
+            }
+        });
+
+        if (hasError){
+            if (firstBadInput) firstBadInput.focus();
             return;
         }
 
-        // Build print sheet
-        const grid = document.getElementById('stkPrintGrid');
-        grid.innerHTML = '';
-        codes.forEach(code => grid.appendChild(buildSticker(product, code)));
+        // ── 2. In-batch duplicate check (client-side early-exit) ───
+        const allCodesSeen = new Map();   // code (upper) → row idx
+        let localDup = null;
+        for (let i = 0; i < cards.length && !localDup; i++){
+            const inp = cards[i].querySelector('.stk-row-codes');
+            for (const c of parseCodes(inp.value)){
+                const key = c.toUpperCase();
+                if (allCodesSeen.has(key)){
+                    localDup = c;
+                    cards[i].classList.add('bad');
+                    cards[allCodesSeen.get(key)].classList.add('bad');
+                    break;
+                }
+                allCodesSeen.set(key, i);
+            }
+        }
+        if (localDup){
+            sampleLogAlert('Duplicate sample code detected within your selection: ' + localDup);
+            return;
+        }
 
-        closeModal();
+        // ── 3. Build save-payload ─────────────────────────────────
+        const payload = cards.map(card => ({
+            id:    parseInt(card.dataset.rowId, 10),
+            codes: card.querySelector('.stk-row-codes').value.trim()
+        }));
 
-        // Trigger print — give browser a tick to apply class
-        document.body.classList.add('print-stickers');
-        setTimeout(() => {
-            window.print();
-            setTimeout(() => document.body.classList.remove('print-stickers'), 400);
-        }, 60);
+        // ── 4. Disable button + show "saving..." ──────────────────
+        const originalLabel = printBtn.innerHTML;
+        printBtn.disabled   = true;
+        printBtn.innerHTML  = '💾 Saving...';
+
+        try {
+            // ── 5. POST to /api/save-sample-codes ──────────────────
+            const res = await fetch('{{ url_for("rd_sample_log.api_save_sample_codes") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                credentials: 'same-origin',
+                body: JSON.stringify({ rows: payload })
+            });
+            const data = await res.json().catch(() => ({}));
+
+            if (!res.ok || !data.ok){
+                // Server-side validation failed (usually a duplicate)
+                let msg = data.error || ('Server error (HTTP ' + res.status + ')');
+                if (Array.isArray(data.duplicates) && data.duplicates.length){
+                    msg += '\n\nDuplicate codes:\n  • ' + data.duplicates.join('\n  • ');
+                    // Highlight matching rows
+                    const dupSet = new Set(data.duplicates.map(s => s.toUpperCase()));
+                    cards.forEach(card => {
+                        const myCodes = parseCodes(card.querySelector('.stk-row-codes').value)
+                                          .map(s => s.toUpperCase());
+                        if (myCodes.some(c => dupSet.has(c))){
+                            card.classList.add('bad');
+                        }
+                    });
+                }
+                sampleLogAlert(msg);
+                return;
+            }
+
+            // ── 6. Save OK — update table DOM so the "Sample Code" column reflects new values
+            (data.rows || []).forEach(r => {
+                const tr = document.querySelector(`#slTable tbody tr[data-row-id="${r.id}"]`);
+                if (!tr) return;
+                tr.dataset.sampleCode = r.codes;
+                const cell = tr.querySelector('.sl-saved-code-cell');
+                if (cell){
+                    cell.innerHTML = `<span class="sl-saved-code" title="${escapeHtml(r.codes)}">${escapeHtml(r.codes)}</span>`;
+                }
+            });
+
+            // ── 7. Build print sheet across all rows ────────────────
+            const grid = document.getElementById('stkPrintGrid');
+            grid.innerHTML = '';
+            cards.forEach(card => {
+                const product = card.dataset.product || '';
+                const inp     = card.querySelector('.stk-row-codes');
+                parseCodes(inp.value).forEach(code =>
+                    grid.appendChild(buildSticker(product, code))
+                );
+            });
+
+            closeModal();
+
+            // ── 8. Trigger browser print ────────────────────────────
+            document.body.classList.add('print-stickers');
+            setTimeout(() => {
+                window.print();
+                setTimeout(() => document.body.classList.remove('print-stickers'), 400);
+            }, 60);
+
+        } catch (err) {
+            console.error(err);
+            sampleLogAlert('Network error while saving. Please try again.\n\n' + err.message);
+        } finally {
+            printBtn.disabled  = false;
+            printBtn.innerHTML = originalLabel;
+        }
     });
 
-    // Enter key in sample-code input = print
-    inpCodes.addEventListener('keydown', e => {
-        if (e.key === 'Enter'){ e.preventDefault(); printBtn.click(); }
+    // Ctrl+Enter anywhere in modal = Print
+    modal.addEventListener('keydown', e => {
+        if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)){
+            e.preventDefault();
+            printBtn.click();
+        }
     });
 
-    // ── A4 full-list print (unchanged feature)
+    // ═══════════════════════════════════════════════════════════════
+    // A4 FULL LIST PRINT — uses SELECTED rows, shows preview, saves codes,
+    //                     and offers Send-to-Office action
+    // ═══════════════════════════════════════════════════════════════
+
+    // State for the A4 preview modal (built dynamically)
+    let a4Cards = [];   // [{ id, npd, product, client, member, defaultCode }]
+
     btnA4.addEventListener('click', () => {
-        const allRows = Array.from(document.querySelectorAll('#slTable tbody tr'));
-        if (!allRows.length){ alert('No rows to print.'); return; }
+        const selectedRows = getSelectedRows();
+        const allRows      = Array.from(document.querySelectorAll('#slTable tbody tr'));
+        // If nothing selected → fall back to ALL filtered rows (backward compat)
+        const rows = selectedRows.length > 0 ? selectedRows : allRows;
 
-        const tbody = document.getElementById('a4Body');
-        tbody.innerHTML = '';
-        allRows.forEach((tr, i) => {
-            const product    = tr.dataset.productName || '—';
-            const projCode   = tr.dataset.npdCode || '—';
-            const client     = tr.dataset.clientName || '—';
-            const member     = tr.dataset.member || '—';
-            const variant    = tr.dataset.variant || '';
-            const sampleCode = variant ? (projCode + '/' + variant) : projCode;
+        if (!rows.length){ sampleLogAlert('No rows to print.'); return; }
 
-            const row = document.createElement('tr');
-            row.innerHTML = `
-                <td>${i + 1}</td>
-                <td>${escapeHtml(projCode)}</td>
-                <td class="c-left">${escapeHtml(product)}</td>
-                <td class="c-left">${escapeHtml(client)}</td>
-                <td>${escapeHtml(member)}</td>
-                <td>${escapeHtml(sampleCode)}</td>
-            `;
-            tbody.appendChild(row);
+        openA4Preview(rows);
+    });
+
+    function openA4Preview(rows){
+        // Build state + preview body
+        a4Cards = rows.map(tr => {
+            const npd     = tr.dataset.npdCode     || '—';
+            const product = tr.dataset.productName || '—';
+            const client  = tr.dataset.clientName  || '—';
+            const member  = tr.dataset.member      || '—';
+            const variant = tr.dataset.variant     || '';
+            const saved   = tr.dataset.sampleCode  || '';
+            return {
+                id:         parseInt(tr.dataset.rowId, 10),
+                npd, product, client, member, variant,
+                defaultCode: saved ? saved
+                                   : (variant ? (npd + '/' + variant) : ''),
+                savedAlready: !!saved,
+            };
         });
 
+        // Inject rows into preview table (editable inputs for sample code + handover/submitted by)
+        const tbody = document.getElementById('a4Body');
+        tbody.innerHTML = '';
+        a4Cards.forEach((c, i) => {
+            const tr = document.createElement('tr');
+            tr.dataset.rowId = c.id;
+            tr.innerHTML = `
+                <td style="text-align:center;">${i + 1}</td>
+                <td style="font-family:monospace;font-size:9pt;">${escapeHtml(c.npd)}</td>
+                <td class="c-left">${escapeHtml(c.product)}</td>
+                <td class="c-left">${escapeHtml(c.client)}</td>
+                <td class="c-left">
+                    <input type="text" class="a4-inp a4-handover"
+                           placeholder="Handover to..."
+                           value=""
+                           style="width:100%;border:1px dashed #94a3b8;padding:3px 5px;font-size:9.5pt;background:#fafbfc;">
+                </td>
+                <td class="c-left">${escapeHtml(c.member)}</td>
+                <td>
+                    <input type="text" class="a4-inp a4-code"
+                           value="${escapeHtml(c.defaultCode)}"
+                           style="width:100%;border:1px dashed #94a3b8;padding:3px 5px;font-size:9.5pt;background:#fafbfc;font-family:monospace;font-weight:700;">
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+
+        // Set date header
         const d = new Date();
         const dStr = String(d.getDate()).padStart(2,'0') + '/' +
                      String(d.getMonth()+1).padStart(2,'0') + '/' +
                      d.getFullYear();
-        document.getElementById('a4Date').textContent = dStr;
+        document.getElementById('a4Date').textContent  = dStr;
+        document.getElementById('a4Count').textContent = a4Cards.length;
 
-        document.body.classList.add('print-a4');
-        setTimeout(() => {
-            window.print();
-            setTimeout(() => document.body.classList.remove('print-a4'), 400);
-        }, 60);
+        // Show the modal
+        document.getElementById('a4Modal').classList.add('open');
+    }
+
+    function closeA4Modal(){
+        document.getElementById('a4Modal').classList.remove('open');
+    }
+
+    document.getElementById('a4CloseBtn').addEventListener('click', closeA4Modal);
+    document.getElementById('a4CancelBtn').addEventListener('click', closeA4Modal);
+    document.getElementById('a4Modal').addEventListener('click', e => {
+        if (e.target.id === 'a4Modal') closeA4Modal();
     });
+
+    // Collect current values from the A4 preview inputs
+    function collectA4Payload(){
+        const trs = Array.from(document.querySelectorAll('#a4Body tr'));
+        const rows          = [];
+        const handoverMap   = {};
+        const submittedMap  = {};
+        trs.forEach(tr => {
+            const id       = parseInt(tr.dataset.rowId, 10);
+            const codes    = (tr.querySelector('.a4-code')?.value || '').trim();
+            const handover = (tr.querySelector('.a4-handover')?.value || '').trim();
+            // Submitted By is shown as static text (the executive's name) —
+            // grab it from the cell for persistence.
+            const submittedCell = tr.children[5];  // 0=SrNo 1=NPD 2=Product 3=Client 4=Handover 5=SubmittedBy
+            const submitted = submittedCell ? submittedCell.innerText.trim() : '';
+
+            rows.push({ id, codes });
+            if (handover)  handoverMap[id]  = handover;
+            if (submitted) submittedMap[id] = submitted;
+        });
+        return { rows, handover_to: handoverMap, submitted_by: submittedMap };
+    }
+
+    function validateA4Payload(payload){
+        const empty = payload.find(p => !p.codes);
+        if (empty) return 'Every row needs a Sample Code. Row #' + empty.id + ' is blank.';
+        const seen = new Map();
+        for (const p of payload){
+            for (const c of p.codes.split(',').map(s=>s.trim()).filter(Boolean)){
+                const k = c.toUpperCase();
+                if (seen.has(k)) return 'Duplicate sample code: ' + c;
+                seen.set(k, p.id);
+            }
+        }
+        return null;
+    }
+
+    // Save-then-print (does NOT dispatch to office)
+    document.getElementById('a4PrintBtn').addEventListener('click', async () => {
+        const { rows } = collectA4Payload();
+        const err = validateA4Payload(rows);
+        if (err){ sampleLogAlert(err); return; }
+
+        const btn = document.getElementById('a4PrintBtn');
+        const orig = btn.innerHTML;
+        btn.disabled = true; btn.innerHTML = '💾 Saving...';
+
+        try {
+            const res = await fetch('{{ url_for("rd_sample_log.api_save_sample_codes") }}', {
+                method: 'POST',
+                headers: {'Content-Type':'application/json','X-Requested-With':'XMLHttpRequest'},
+                credentials: 'same-origin',
+                body: JSON.stringify({ rows })
+            });
+            const data = await res.json().catch(()=>({}));
+            if (!res.ok || !data.ok){
+                let msg = data.error || ('Server error '+res.status);
+                if (Array.isArray(data.duplicates) && data.duplicates.length){
+                    msg += '\n\nDuplicate codes:\n  • ' + data.duplicates.join('\n  • ');
+                }
+                sampleLogAlert(msg);
+                return;
+            }
+            // Update table DOM
+            (data.rows || []).forEach(r => {
+                const tr = document.querySelector(`#slTable tbody tr[data-row-id="${r.id}"]`);
+                if (tr){
+                    tr.dataset.sampleCode = r.codes;
+                    const cell = tr.querySelector('.sl-saved-code-cell');
+                    if (cell) cell.innerHTML = `<span class="sl-saved-code" title="${escapeHtml(r.codes)}">${escapeHtml(r.codes)}</span>`;
+                }
+            });
+
+            // Print FIRST, then close the modal when print dialog is dismissed
+            document.body.classList.add('print-a4');
+            setTimeout(() => {
+                window.print();
+                setTimeout(() => {
+                    document.body.classList.remove('print-a4');
+                    closeA4Modal();
+                }, 400);
+            }, 60);
+        } catch (e){
+            sampleLogAlert('Network error: ' + e.message);
+        } finally {
+            btn.disabled = false; btn.innerHTML = orig;
+        }
+    });
+
+    // Save + dispatch to office (status → sent_to_office)
+    document.getElementById('a4SendBtn').addEventListener('click', async () => {
+        const { rows, handover_to, submitted_by } = collectA4Payload();
+        const err = validateA4Payload(rows);
+        if (err){ sampleLogAlert(err); return; }
+
+        const ok = await sampleLogConfirm({
+            icon:    '📤',
+            title:   'Mark as Sent to Office?',
+            message: 'Sample codes will be saved and status updated.',
+            detail:  `<b>${rows.length}</b> sample(s) will be dispatched. They'll appear in the <b>Sample History</b> page.`,
+            okText:  '📤 Yes, Send to Office',
+            cancelText: 'Cancel',
+            theme:   'success',
+        });
+        if (!ok) return;
+
+        const btn = document.getElementById('a4SendBtn');
+        const orig = btn.innerHTML;
+        btn.disabled = true; btn.innerHTML = '📤 Dispatching...';
+
+        try {
+            const res = await fetch('{{ url_for("rd_sample_log.api_send_to_office") }}', {
+                method: 'POST',
+                headers: {'Content-Type':'application/json','X-Requested-With':'XMLHttpRequest'},
+                credentials: 'same-origin',
+                body: JSON.stringify({ rows, handover_to, submitted_by })
+            });
+            const data = await res.json().catch(()=>({}));
+            if (!res.ok || !data.ok){
+                let msg = data.error || ('Server error '+res.status);
+                if (Array.isArray(data.duplicates) && data.duplicates.length){
+                    msg += '\n\nDuplicate codes:\n  • ' + data.duplicates.join('\n  • ');
+                }
+                sampleLogAlert(msg);
+                return;
+            }
+            // Remove dispatched rows from the main table (they no longer belong on sample-log page)
+            rows.forEach(p => {
+                const tr = document.querySelector(`#slTable tbody tr[data-row-id="${p.id}"]`);
+                if (tr) tr.remove();
+            });
+
+            // Print FIRST, then close the modal when print dialog is dismissed
+            document.body.classList.add('print-a4');
+            setTimeout(() => {
+                window.print();
+                setTimeout(() => {
+                    document.body.classList.remove('print-a4');
+                    closeA4Modal();
+                    // Show success toast-style message
+                    sampleLogAlert({
+                        icon:    '✅',
+                        title:   'Sent to Office',
+                        message: data.saved + ' sample(s) successfully dispatched.',
+                        detail:  `Token: <b>${data.token_no}</b><br>Time: ${data.dispatched_at}`,
+                        theme:   'success',
+                        okText:  'Done',
+                    });
+                }, 400);
+            }, 60);
+        } catch (e){
+            sampleLogAlert('Network error: ' + e.message);
+        } finally {
+            btn.disabled = false; btn.innerHTML = orig;
+        }
+    });
+
+    // Initial state
+    updateSelection();
 })();
 </script>
 

@@ -15,6 +15,23 @@
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+# ── CLI flags ──
+import argparse
+_arg_parser = argparse.ArgumentParser(description='ERPDEMO master migration + schema sync')
+_arg_parser.add_argument('--skip-sync',  action='store_true',
+                         help='Run only the hand-written steps; skip auto schema sync')
+_arg_parser.add_argument('--only-sync',  action='store_true',
+                         help='Skip everything else and only run auto schema sync')
+_arg_parser.add_argument('--dry-run',    action='store_true',
+                         help='Show what auto-sync WOULD do; do not apply it')
+_arg_parser.add_argument('--generate',   action='store_true',
+                         help='Write schema diff as a standalone migrate_diff.py file')
+_arg_parser.add_argument('--json',       action='store_true',
+                         help='Output schema diff as JSON (and nothing else)')
+_arg_parser.add_argument('--output',     default='migrate_diff.py',
+                         help='Output file for --generate (default: migrate_diff.py)')
+ARGS, _ = _arg_parser.parse_known_args()
+
 # ── Colors ──
 G = "\033[92m"; Y = "\033[93m"; R = "\033[91m"; C = "\033[96m"; B = "\033[1m"; E = "\033[0m"
 def ok(m):   print(f"  {G}✅ {m}{E}")
@@ -24,6 +41,14 @@ def step(m): print(f"\n{B}{C}── {m}{E}")
 
 print(f"\n{'='*60}")
 print(f"  {B}ERPDEMO — MASTER MIGRATION{E}")
+if ARGS.only_sync:
+    print(f"  {C}Mode: ONLY AUTO SCHEMA SYNC{E}")
+elif ARGS.dry_run:
+    print(f"  {C}Mode: DRY RUN (auto-sync only, no changes){E}")
+elif ARGS.generate:
+    print(f"  {C}Mode: GENERATE standalone migration file{E}")
+elif ARGS.skip_sync:
+    print(f"  {C}Mode: CLASSIC (hand-written steps only){E}")
 print(f"{'='*60}")
 
 # ── Load Flask app ──
@@ -34,6 +59,384 @@ except Exception as e:
     err(f"App load failed: {e}")
     err("Pehle 'python setup.py' chalao!")
     sys.exit(1)
+
+
+# ══════════════════════════════════════════════════════════════════
+# AUTO SCHEMA SYNC — helper (used by STEP FINAL below)
+# ══════════════════════════════════════════════════════════════════
+def _run_auto_schema_sync(db, raw, cur, args):
+    """
+    Compare SQLAlchemy model metadata with the live MySQL schema and
+    add anything that's missing:
+        • missing tables
+        • missing columns
+        • missing indexes
+        • missing foreign keys
+    All checks go through information_schema so it's safe to re-run.
+    """
+    import json as _json
+    from datetime import datetime as _dt
+    from sqlalchemy import inspect as _inspect
+    from sqlalchemy.schema import CreateTable as _CreateTable
+
+    step("STEP FINAL: Auto schema sync (models vs live DB)")
+
+    # Force-import the models package so every Table is registered
+    try:
+        import models as _models_pkg     # noqa: F401
+    except Exception:
+        pass
+
+    insp = _inspect(db.engine)
+    live_tables = set(insp.get_table_names())
+
+    missing_tables  = []   # [{name, sqla_table}]
+    missing_columns = []   # [{table, column, defn, sqla_col}]
+    missing_indexes = []   # [{table, name, columns, unique}]
+    missing_fks     = []   # [{table, column, ref_table, ref_column, on_delete}]
+
+    def _col_type_sql(col):
+        from sqlalchemy.dialects.mysql import dialect as _my_dialect
+        try:
+            t = col.type.compile(dialect=_my_dialect())
+        except Exception:
+            t = str(col.type)
+        parts = [t, 'NULL' if col.nullable else 'NOT NULL']
+        if col.default is not None and getattr(col.default, 'is_scalar', False):
+            d = col.default.arg
+            if isinstance(d, bool):
+                parts.append(f"DEFAULT {1 if d else 0}")
+            elif isinstance(d, (int, float)):
+                parts.append(f"DEFAULT {d}")
+            elif isinstance(d, str):
+                parts.append(f"DEFAULT '{d}'")
+        return ' '.join(parts)
+
+    # ── Walk every model ──
+    for tname, table in db.metadata.tables.items():
+        if tname not in live_tables:
+            missing_tables.append({'name': tname, 'sqla_table': table})
+            continue
+
+        live_cols = {c['name'] for c in insp.get_columns(tname)}
+        for col in table.columns:
+            if col.name not in live_cols:
+                missing_columns.append({
+                    'table':  tname,
+                    'column': col.name,
+                    'defn':   _col_type_sql(col),
+                    'sqla_col': col,
+                })
+
+        live_idx = {i['name'] for i in insp.get_indexes(tname)}
+        for idx in table.indexes:
+            if idx.name not in live_idx:
+                missing_indexes.append({
+                    'table':   tname,
+                    'name':    idx.name,
+                    'columns': [c.name for c in idx.columns],
+                    'unique':  bool(idx.unique),
+                })
+
+        live_fks = insp.get_foreign_keys(tname)
+        live_fk_keys = {
+            (fk['constrained_columns'][0], fk['referred_table'], fk['referred_columns'][0])
+            for fk in live_fks
+            if fk.get('constrained_columns') and fk.get('referred_columns')
+        }
+        for col in table.columns:
+            for fk in col.foreign_keys:
+                key = (col.name, fk.column.table.name, fk.column.name)
+                if key not in live_fk_keys:
+                    missing_fks.append({
+                        'table':      tname,
+                        'column':     col.name,
+                        'ref_table':  fk.column.table.name,
+                        'ref_column': fk.column.name,
+                        'on_delete':  fk.ondelete or 'NO ACTION',
+                    })
+
+    diff = {
+        'generated_at':    _dt.now().isoformat(),
+        'missing_tables':  missing_tables,
+        'missing_columns': missing_columns,
+        'missing_indexes': missing_indexes,
+        'missing_fks':     missing_fks,
+    }
+    has_changes = any([missing_tables, missing_columns, missing_indexes, missing_fks])
+
+    # ── JSON mode: print + exit ──
+    if args.json:
+        print(_json.dumps({k: (v if k != 'generated_at' else v)
+                           for k, v in diff.items()
+                           if k != 'generated_at'}
+                          | {'generated_at': diff['generated_at']},
+                          indent=2, default=lambda o: str(o)))
+        sys.exit(0)
+
+    # ── Pretty-print diff ──
+    print(f"\n  {B}Diff summary:{E}")
+    print(f"    tables:  {len(missing_tables)}   columns: {len(missing_columns)}   "
+          f"indexes: {len(missing_indexes)}   fks: {len(missing_fks)}")
+    if missing_tables:
+        print(f"\n  {C}Missing tables:{E}")
+        for t in missing_tables:
+            print(f"    + {t['name']}")
+    if missing_columns:
+        print(f"\n  {C}Missing columns:{E}")
+        for c in missing_columns:
+            print(f"    + {c['table']}.{c['column']}   {c['defn']}")
+    if missing_indexes:
+        print(f"\n  {C}Missing indexes:{E}")
+        for i in missing_indexes:
+            kind = 'UNIQUE INDEX' if i['unique'] else 'INDEX'
+            print(f"    + {kind} {i['name']} ON {i['table']} ({', '.join(i['columns'])})")
+    if missing_fks:
+        print(f"\n  {C}Missing foreign keys:{E}")
+        for f in missing_fks:
+            print(f"    + {f['table']}.{f['column']} → {f['ref_table']}.{f['ref_column']}  (ON DELETE {f['on_delete']})")
+
+    if not has_changes:
+        ok("Schema is already in sync with models — nothing to do.")
+        return
+
+    # ── GENERATE mode: write standalone file and return ──
+    if args.generate:
+        _write_standalone_migration(diff, args.output)
+        return
+
+    # ── DRY-RUN mode: stop here ──
+    if args.dry_run:
+        warn("\nDry-run mode — no changes applied. Re-run without --dry-run to apply.")
+        return
+
+    # ── APPLY mode (default) ──
+    print(f"\n  {B}Applying changes...{E}")
+    stats = {'tables': 0, 'columns': 0, 'indexes': 0, 'fks': 0, 'skipped': 0}
+
+    # 1. Missing tables
+    for t in missing_tables:
+        try:
+            ddl = str(_CreateTable(t['sqla_table']).compile(db.engine))
+            cur.execute(ddl)
+            raw.commit()
+            ok(f"created table `{t['name']}`")
+            stats['tables'] += 1
+        except Exception as e:
+            warn(f"skip `{t['name']}`: {e}")
+            stats['skipped'] += 1
+
+    # 2. Missing columns — re-check at apply time
+    for c in missing_columns:
+        cur.execute(
+            "SELECT COUNT(*) FROM information_schema.columns "
+            "WHERE table_schema=DATABASE() AND table_name=%s AND column_name=%s",
+            (c['table'], c['column'])
+        )
+        if cur.fetchone()[0] > 0:
+            stats['skipped'] += 1
+            continue
+        try:
+            cur.execute(
+                f"ALTER TABLE `{c['table']}` ADD COLUMN `{c['column']}` {c['defn']}"
+            )
+            raw.commit()
+            ok(f"added `{c['table']}.{c['column']}`")
+            stats['columns'] += 1
+        except Exception as e:
+            warn(f"skip `{c['table']}.{c['column']}`: {e}")
+            stats['skipped'] += 1
+
+    # 3. Missing indexes
+    for i in missing_indexes:
+        cur.execute(
+            "SELECT COUNT(*) FROM information_schema.statistics "
+            "WHERE table_schema=DATABASE() AND table_name=%s AND index_name=%s",
+            (i['table'], i['name'])
+        )
+        if cur.fetchone()[0] > 0:
+            stats['skipped'] += 1
+            continue
+        try:
+            kind = 'UNIQUE INDEX' if i['unique'] else 'INDEX'
+            cols_sql = ', '.join(f"`{c}`" for c in i['columns'])
+            cur.execute(f"CREATE {kind} `{i['name']}` ON `{i['table']}` ({cols_sql})")
+            raw.commit()
+            ok(f"created {kind.lower()} `{i['name']}`")
+            stats['indexes'] += 1
+        except Exception as e:
+            warn(f"skip `{i['name']}`: {e}")
+            stats['skipped'] += 1
+
+    # 4. Missing FKs
+    for f in missing_fks:
+        constraint = f"fk_{f['table']}_{f['column']}"
+        cur.execute(
+            "SELECT COUNT(*) FROM information_schema.key_column_usage "
+            "WHERE table_schema=DATABASE() AND table_name=%s AND column_name=%s "
+            "AND referenced_table_name IS NOT NULL",
+            (f['table'], f['column'])
+        )
+        if cur.fetchone()[0] > 0:
+            stats['skipped'] += 1
+            continue
+        try:
+            cur.execute(
+                f"ALTER TABLE `{f['table']}` ADD CONSTRAINT `{constraint}` "
+                f"FOREIGN KEY (`{f['column']}`) REFERENCES "
+                f"`{f['ref_table']}`(`{f['ref_column']}`) "
+                f"ON DELETE {f['on_delete']}"
+            )
+            raw.commit()
+            ok(f"added FK `{f['table']}.{f['column']}` → `{f['ref_table']}.{f['ref_column']}`")
+            stats['fks'] += 1
+        except Exception as e:
+            warn(f"skip FK `{f['table']}.{f['column']}`: {e}")
+            stats['skipped'] += 1
+
+    print(f"\n  {B}Auto-sync summary:{E}")
+    ok(f"tables created:  {stats['tables']}")
+    ok(f"columns added:   {stats['columns']}")
+    ok(f"indexes created: {stats['indexes']}")
+    ok(f"FKs added:       {stats['fks']}")
+    if stats['skipped']:
+        warn(f"skipped (race/existing): {stats['skipped']}")
+
+
+def _write_standalone_migration(diff, output_path):
+    """Write a self-contained migrate_diff.py that re-checks & applies."""
+    from sqlalchemy.schema import CreateTable as _CreateTable
+    from index import app as _app
+    from models import db as _db
+
+    lines = []
+    if diff['missing_tables']:
+        lines.append("    # ── Missing tables ──")
+        with _app.app_context():
+            for t in diff['missing_tables']:
+                try:
+                    ddl = str(_CreateTable(t['sqla_table']).compile(_db.engine))
+                    ddl_one = ' '.join(ddl.split())
+                    lines.append(f"    if not table_exists('{t['name']}'):")
+                    lines.append(f"        run({_py_literal(ddl_one)}, '+ table `{t['name']}`')")
+                    lines.append(f"    else:")
+                    lines.append(f"        info('skip existing table `{t['name']}`')")
+                except Exception as e:
+                    lines.append(f"    # (could not serialise {t['name']}: {e})")
+                lines.append('')
+
+    if diff['missing_columns']:
+        lines.append("    # ── Missing columns ──")
+        for c in diff['missing_columns']:
+            ddl = f"ALTER TABLE `{c['table']}` ADD COLUMN `{c['column']}` {c['defn']}"
+            lines.append(f"    if table_exists('{c['table']}') and not col_exists('{c['table']}', '{c['column']}'):")
+            lines.append(f"        run({_py_literal(ddl)}, '+ column `{c['table']}.{c['column']}`')")
+            lines.append(f"    else:")
+            lines.append(f"        info('skip existing column `{c['table']}.{c['column']}`')")
+            lines.append('')
+
+    if diff['missing_indexes']:
+        lines.append("    # ── Missing indexes ──")
+        for i in diff['missing_indexes']:
+            kind = 'UNIQUE INDEX' if i['unique'] else 'INDEX'
+            cols_sql = ', '.join(f"`{cc}`" for cc in i['columns'])
+            ddl = f"CREATE {kind} `{i['name']}` ON `{i['table']}` ({cols_sql})"
+            lines.append(f"    if table_exists('{i['table']}') and not idx_exists('{i['table']}', '{i['name']}'):")
+            lines.append(f"        run({_py_literal(ddl)}, '+ index `{i['name']}`')")
+            lines.append(f"    else:")
+            lines.append(f"        info('skip existing index `{i['name']}`')")
+            lines.append('')
+
+    if diff['missing_fks']:
+        lines.append("    # ── Missing foreign keys ──")
+        for f in diff['missing_fks']:
+            constraint = f"fk_{f['table']}_{f['column']}"
+            ddl = (f"ALTER TABLE `{f['table']}` ADD CONSTRAINT `{constraint}` "
+                   f"FOREIGN KEY (`{f['column']}`) REFERENCES `{f['ref_table']}`(`{f['ref_column']}`) "
+                   f"ON DELETE {f['on_delete']}")
+            lines.append(f"    if table_exists('{f['table']}') and col_exists('{f['table']}', '{f['column']}') and not fk_exists('{f['table']}', '{f['column']}'):")
+            lines.append(f"        run({_py_literal(ddl)}, '+ FK `{f['table']}.{f['column']}`')")
+            lines.append(f"    else:")
+            lines.append(f"        info('skip existing FK on `{f['table']}.{f['column']}`')")
+            lines.append('')
+
+    body = '\n'.join(lines) if lines else "    info('Schema is already in sync — nothing to do.')"
+    tpl = _STANDALONE_TEMPLATE.format(timestamp=diff['generated_at'], body=body)
+    with open(output_path, 'w', encoding='utf-8') as fh:
+        fh.write(tpl)
+    ok(f"Generated: {output_path}")
+    info(f"Review then run: python {output_path}")
+
+
+def _py_literal(s):
+    """Return a Python triple-quoted string literal safe for raw SQL."""
+    return '"""' + s.replace('\\', '\\\\').replace('"""', '\\"\\"\\"') + '"""'
+
+
+_STANDALONE_TEMPLATE = '''"""
+Auto-generated migration — safe to run multiple times.
+Generated: {timestamp}
+"""
+import sys, os, re
+from urllib.parse import unquote
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+from index import app
+from models import db
+
+G = "\\033[92m"; Y = "\\033[93m"; C = "\\033[96m"; E = "\\033[0m"
+def ok(m):   print("  " + G + "\\u2705 " + str(m) + E)
+def warn(m): print("  " + Y + "\\u26a0\\ufe0f  " + str(m) + E)
+def info(m): print("  " + C + "\\u2139\\ufe0f  " + str(m) + E)
+
+with app.app_context():
+    import pymysql
+    from config import Config
+
+    url = Config.SQLALCHEMY_DATABASE_URI
+    m = re.match(r'mysql\\+pymysql://([^:]+):([^@]+)@([^:/]+):?(\\d+)?/(.+)', url)
+    DB_USER, DB_PASS_ENC, DB_HOST, DB_PORT, DB_NAME = m.groups()
+    DB_PASS = unquote(DB_PASS_ENC)
+    raw = pymysql.connect(host=DB_HOST, port=int(DB_PORT or 3306),
+                          user=DB_USER, password=DB_PASS,
+                          database=DB_NAME, charset='utf8mb4')
+    cur = raw.cursor()
+
+    def table_exists(t):
+        cur.execute("SELECT COUNT(*) FROM information_schema.tables "
+                    "WHERE table_schema=DATABASE() AND table_name=%s", (t,))
+        return cur.fetchone()[0] > 0
+
+    def col_exists(t, c):
+        cur.execute("SELECT COUNT(*) FROM information_schema.columns "
+                    "WHERE table_schema=DATABASE() AND table_name=%s AND column_name=%s", (t, c))
+        return cur.fetchone()[0] > 0
+
+    def idx_exists(t, name):
+        cur.execute("SELECT COUNT(*) FROM information_schema.statistics "
+                    "WHERE table_schema=DATABASE() AND table_name=%s AND index_name=%s", (t, name))
+        return cur.fetchone()[0] > 0
+
+    def fk_exists(t, col):
+        cur.execute("SELECT COUNT(*) FROM information_schema.key_column_usage "
+                    "WHERE table_schema=DATABASE() AND table_name=%s AND column_name=%s "
+                    "AND referenced_table_name IS NOT NULL", (t, col))
+        return cur.fetchone()[0] > 0
+
+    def run(ddl, label):
+        try:
+            cur.execute(ddl); raw.commit(); ok(label)
+        except Exception as e:
+            warn(str(label) + " failed: " + str(e))
+
+    print("\\n" + C + "MIGRATION — Auto-generated schema sync" + E)
+
+{body}
+
+    raw.close()
+    ok("Migration complete")
+'''
+
 
 with app.app_context():
 
@@ -89,6 +492,19 @@ with app.app_context():
                 cur.execute(f"ALTER TABLE `{table}` MODIFY COLUMN `{col}` {defn}")
                 raw.commit()
             except: pass
+
+    # ══════════════════════════════════════════════════════
+    # EARLY EXIT — --only-sync mode skips all classic steps
+    # ══════════════════════════════════════════════════════
+    if ARGS.only_sync:
+        step("ONLY-SYNC MODE: skipping classic migration steps")
+        db.create_all()   # still create any brand-new tables from metadata
+        ok("db.create_all() done")
+        _run_auto_schema_sync(db, raw, cur, ARGS)
+        print(f"\n{'='*60}")
+        print(f"  {G}{B}✅ SYNC COMPLETE!{E}")
+        print(f"{'='*60}\n")
+        sys.exit(0)
 
     # ══════════════════════════════════════════════════════
     # STEP 1 — Create all tables
@@ -2713,6 +3129,24 @@ with app.app_context():
     _cur21.close()
     _c21.close()
     ok("rd_sub_assignments table ready")
+
+    # ══════════════════════════════════════════════════════
+    # STEP FINAL — AUTO SCHEMA SYNC
+    # ══════════════════════════════════════════════════════
+    # Compares SQLAlchemy models with the live DB and adds any
+    # missing tables / columns / indexes / foreign keys.
+    # Safe to run multiple times. Never drops or alters existing columns.
+    #
+    # CLI flags:
+    #   (default)        → apply missing changes
+    #   --dry-run        → show what would change, do not apply
+    #   --generate       → write a standalone migrate_diff.py
+    #   --json           → print machine-readable diff (and exit)
+    #   --skip-sync      → skip this step entirely
+    #   --only-sync      → skip all previous steps, run only this
+    # ══════════════════════════════════════════════════════
+    if not ARGS.skip_sync:
+        _run_auto_schema_sync(db, raw, cur, ARGS)
 
     # ══════════════════════════════════════════════════════
     # DONE

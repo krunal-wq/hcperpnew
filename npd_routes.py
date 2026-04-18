@@ -2624,6 +2624,7 @@ def sample_history_items(tid):
             'sample_code' : it.sample_code or '',
             'handover_to' : it.handover_to  or '',
             'submitted_by': it.submitted_by or '',
+            'rd_sub_assignment_id': it.rd_sub_assignment_id,   # NEW — for Revert button
         })
     return jsonify(token_no=token.token_no,
         dispatched_at=token.dispatched_at.strftime('%d %b %Y, %I:%M %p'),

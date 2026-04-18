@@ -587,7 +587,14 @@ class OfficeDispatchItem(db.Model):
     handover_to  = db.Column(db.String(200), nullable=True)   # free text — person name
     submitted_by = db.Column(db.String(200), nullable=True)   # free text — person name
 
-    project      = db.relationship('NPDProject', backref='dispatch_items', lazy=True)
+    # ── Link back to the R&D sub-assignment (when dispatched from R&D Sample Log)
+    # Nullable because NPD dispatches don't set this.
+    rd_sub_assignment_id = db.Column(db.Integer,
+                                     db.ForeignKey('rd_sub_assignments.id', ondelete='SET NULL'),
+                                     nullable=True)
+
+    project         = db.relationship('NPDProject', backref='dispatch_items', lazy=True)
+    rd_sub_assignment = db.relationship('RDSubAssignment', backref='dispatch_items', lazy=True)
 
     def __repr__(self):
         return f'<OfficeDispatchItem token={self.token_id} project={self.project_id}>'
@@ -623,6 +630,7 @@ class RDSubAssignment(db.Model):
     project_id    = db.Column(db.Integer, db.ForeignKey('npd_projects.id', ondelete='CASCADE'), nullable=False)
     user_id       = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)   # R&D Executive User
     variant_code  = db.Column(db.String(100), nullable=True)   # Manager ka custom code/variant
+    sample_code   = db.Column(db.String(500), nullable=True)   # Comma-separated sample codes, e.g. "SMP001,SMP002,SMP003"
     notes         = db.Column(db.String(500), nullable=True)   # Extra info
     assigned_by   = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
     assigned_at   = db.Column(db.DateTime, default=datetime.now)
@@ -635,9 +643,17 @@ class RDSubAssignment(db.Model):
 
     is_active     = db.Column(db.Boolean, default=True)
 
+    # ── Send-to-Office workflow (added) ─────────────────────────────
+    # `status` can additionally take: 'sent_to_office'
+    # Lifecycle: not_started → in_progress → finished → sent_to_office
+    #                                          ↑  (revert returns here)
+    send_to_office_date = db.Column(db.DateTime, nullable=True)
+    sent_to_office_by   = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+
     project       = db.relationship('NPDProject', backref='sub_assignments', lazy=True, foreign_keys=[project_id])
     executive     = db.relationship('User', backref='rd_sub_assignments', lazy=True, foreign_keys=[user_id])
     assigner      = db.relationship('User', backref='rd_assigned_by', lazy=True, foreign_keys=[assigned_by])
+    sent_by_user  = db.relationship('User', backref='rd_sent_to_office', lazy=True, foreign_keys=[sent_to_office_by])
 
     def __repr__(self):
         return f'<RDSubAssignment proj={self.project_id} user={self.user_id} code={self.variant_code}>'
