@@ -10,7 +10,7 @@ from models import (db, User, ClientMaster, ClientBrand, ClientAddress,
                     Customer, CustomerAddress,
                     LeadStatus, LeadSource, LeadCategory, ProductRange)
 
-from permissions import get_perm, get_grid_columns, save_grid_columns
+from permissions import get_perm, get_sub_perm, get_grid_columns, save_grid_columns, require_perm, require_sub_perm
 from audit_helper import audit, snapshot, diff
 
 LEAD_COLS_DEFAULT = ['created_at','name','company','email','mobile','product','team','status','lead_type','last_contact','lead_age']
@@ -203,6 +203,7 @@ def _handle_close_contribution(lead):
 
 @crm.route('/clients')
 @login_required
+@require_perm('crm_clients', 'view')
 def clients():
     search      = request.args.get('search', '')
     city        = request.args.get('city', '')
@@ -676,6 +677,9 @@ def leads():
 
     perm = get_perm('crm_leads')
     from permissions import get_sub_perm
+    can_filter           = get_sub_perm('crm_leads', 'filter')
+    can_sort             = get_sub_perm('crm_leads', 'sort')
+    can_columns          = get_sub_perm('crm_leads', 'columns')
     can_inline_edit      = get_sub_perm('crm_leads', 'inline_edit')
     can_restore          = get_sub_perm('crm_leads', 'restore')
     can_permanent_delete = get_sub_perm('crm_leads', 'permanent_delete')
@@ -693,6 +697,9 @@ def leads():
         lead_categories=lead_categories, product_ranges=product_ranges,
         grid_cols=grid_cols, all_cols=LEAD_COLS_ALL,
         perm=perm,
+        can_filter=can_filter,
+        can_sort=can_sort,
+        can_columns=can_columns,
         can_inline_edit=can_inline_edit,
         can_restore=can_restore,
         can_permanent_delete=can_permanent_delete,
@@ -1312,11 +1319,13 @@ def lead_permanent_delete(id):
 @crm.route('/leads/<int:id>')
 @login_required
 def lead_view(id):
-    # ── View permission check ──
-    _perm_check = get_perm('crm_leads')
-    if not _perm_check or not _perm_check.can_view:
-        flash('Access denied: View permission required for Leads.', 'error')
-        return redirect(url_for('crm.leads'))
+    # ── Module-level view permission check ──
+    perm = get_perm('crm_leads')
+    if not perm or not perm.can_view:
+        from flask import render_template as _rt
+        return _rt('errors/403.html',
+                   module_name='crm_leads',
+                   message='You do not have permission to access Leads.'), 403
 
     l           = Lead.query.get_or_404(id)
     tab         = request.args.get('tab', 'overview')
@@ -1897,6 +1906,7 @@ def dashboard_stats():
 
 @crm.route('/leads/import', methods=['GET', 'POST'])
 @login_required
+@require_perm('crm_leads', 'import')
 def lead_import():
     if request.method == 'POST':
         import csv, io
@@ -2856,22 +2866,19 @@ def lead_sample_order(id):
 @crm.route('/sample-orders')
 @login_required
 def sample_orders_list():
-    perm = get_perm('crm_leads')
-    if not perm or not perm.can_view:
-        flash('Access denied: Sample Orders permission nahi hai.', 'error')
-        return redirect(url_for('crm.leads'))
-    from permissions import get_sub_perm
+    from permissions import get_perm, get_sub_perm
+    perm = get_perm('crm_sample_orders')
     _is_admin = current_user.role in ('admin', 'manager')
     so_sub = {
-        'lead_view'       : get_sub_perm('crm_leads', 'lead_view'),
-        'invoice_download': get_sub_perm('crm_leads', 'invoice_download'),
-        'pdf_download'    : get_sub_perm('crm_leads', 'pdf_download'),
-        'mail_send'       : get_sub_perm('crm_leads', 'mail_send'),
-        'invoice_upload'  : get_sub_perm('crm_leads', 'invoice_upload'),
-        'change_status'   : get_sub_perm('crm_leads', 'change_status'),
-        'view_deleted'    : get_sub_perm('crm_leads', 'view_deleted'),
-        'restore'         : get_sub_perm('crm_leads', 'restore'),
-        'permanent_delete': get_sub_perm('crm_leads', 'permanent_delete'),
+        'lead_view'       : get_sub_perm('crm_sample_orders', 'lead_view'),
+        'invoice_download': get_sub_perm('crm_sample_orders', 'invoice_download'),
+        'pdf_download'    : get_sub_perm('crm_sample_orders', 'pdf_download'),
+        'mail_send'       : get_sub_perm('crm_sample_orders', 'mail_send'),
+        'invoice_upload'  : get_sub_perm('crm_sample_orders', 'invoice_upload'),
+        'change_status'   : get_sub_perm('crm_sample_orders', 'change_status'),
+        'view_deleted'    : get_sub_perm('crm_sample_orders', 'view_deleted'),
+        'restore'         : get_sub_perm('crm_sample_orders', 'restore'),
+        'permanent_delete': get_sub_perm('crm_sample_orders', 'permanent_delete'),
     }
     search   = request.args.get('search', '').strip()
     tab      = request.args.get('tab', 'active')
@@ -3168,23 +3175,23 @@ def _build_sample_order_pdf(so, lead):
 @crm.route('/sample-orders/<int:id>')
 @login_required
 def sample_order_view(id):
-    perm = get_perm('crm_leads')
+    perm = get_perm('crm_sample_orders')
     if not perm or not perm.can_view:
         flash('Access denied: Sample Orders permission nahi hai.', 'error')
-        return redirect(url_for('crm.leads'))
+        return redirect(url_for('crm.sample_orders_list'))
     from permissions import get_sub_perm
     import json as _json
     _is_admin = current_user.role in ('admin', 'manager')
     so_sub = {
-        'lead_view'       : get_sub_perm('crm_leads', 'lead_view'),
-        'invoice_download': get_sub_perm('crm_leads', 'invoice_download'),
-        'pdf_download'    : get_sub_perm('crm_leads', 'pdf_download'),
-        'mail_send'       : get_sub_perm('crm_leads', 'mail_send'),
-        'invoice_upload'  : get_sub_perm('crm_leads', 'invoice_upload'),
-        'change_status'   : get_sub_perm('crm_leads', 'change_status'),
-        'view_deleted'    : get_sub_perm('crm_leads', 'view_deleted'),
-        'restore'         : get_sub_perm('crm_leads', 'restore'),
-        'permanent_delete': get_sub_perm('crm_leads', 'permanent_delete'),
+        'lead_view'       : get_sub_perm('crm_sample_orders', 'lead_view'),
+        'invoice_download': get_sub_perm('crm_sample_orders', 'invoice_download'),
+        'pdf_download'    : get_sub_perm('crm_sample_orders', 'pdf_download'),
+        'mail_send'       : get_sub_perm('crm_sample_orders', 'mail_send'),
+        'invoice_upload'  : get_sub_perm('crm_sample_orders', 'invoice_upload'),
+        'change_status'   : get_sub_perm('crm_sample_orders', 'change_status'),
+        'view_deleted'    : get_sub_perm('crm_sample_orders', 'view_deleted'),
+        'restore'         : get_sub_perm('crm_sample_orders', 'restore'),
+        'permanent_delete': get_sub_perm('crm_sample_orders', 'permanent_delete'),
     }
     so = SampleOrder.query.get_or_404(id)
     items = _json.loads(so.items_json) if so.items_json else []
@@ -3430,6 +3437,10 @@ DEFAULT_CONTRIB_CONFIG = [
 @login_required
 def contribution_config():
     """View contribution points configuration."""
+    from permissions import get_sub_perm
+    if not get_sub_perm('crm_settings', 'points_config'):
+        flash('Access denied: Points Config permission nahi hai.', 'error')
+        return redirect(url_for('dashboard'))
     _seed_contrib_config()
     configs = ContributionConfig.query.order_by(ContributionConfig.id).all()
     return render_template('crm/contribution_config.html',
@@ -3475,6 +3486,10 @@ def _seed_contrib_config():
 @crm.route('/leaderboard')
 @login_required
 def leaderboard():
+    perm = get_perm('crm_leaderboard')
+    if not perm or not perm.can_view:
+        flash('Access denied: Leaderboard permission required.', 'error')
+        return redirect(url_for('crm.crm_dashboard'))
     all_users = User.query.filter_by(is_active=True).order_by(User.full_name).all()
     return render_template('crm/leaderboard.html',
         all_users=all_users, active_page='leaderboard')
@@ -3484,6 +3499,9 @@ def leaderboard():
 @login_required
 def leaderboard_data():
     """Detailed leaderboard with slab breakdown, lead list per employee."""
+    perm = get_perm('crm_leaderboard')
+    if not perm or not perm.can_view:
+        return jsonify({'error': 'Access denied'}), 403
     from sqlalchemy import func
     from datetime import timedelta as _tdl
 
@@ -4107,18 +4125,15 @@ def quotations_list():
             deleted_count=deleted_count,
         )
 
-    perm = get_perm('crm_leads')
-    if not perm or not perm.can_view:
-        flash('Access denied: Quotations permission nahi hai.', 'error')
-        return redirect(url_for('crm.leads'))
+    perm = get_perm('crm_quotations')
     from permissions import get_sub_perm
     qt_sub = {
-        'pdf_download'    : get_sub_perm('crm_leads', 'pdf_download'),
-        'send_email'      : get_sub_perm('crm_leads', 'send_email'),
-        'status_change'   : get_sub_perm('crm_leads', 'status_change'),
-        'view_deleted'    : get_sub_perm('crm_leads', 'view_deleted'),
-        'restore'         : get_sub_perm('crm_leads', 'restore'),
-        'permanent_delete': get_sub_perm('crm_leads', 'permanent_delete'),
+        'pdf_download'    : get_sub_perm('crm_quotations', 'pdf_download'),
+        'send_email'      : get_sub_perm('crm_quotations', 'send_email'),
+        'status_change'   : get_sub_perm('crm_quotations', 'status_change'),
+        'view_deleted'    : get_sub_perm('crm_quotations', 'view_deleted'),
+        'restore'         : get_sub_perm('crm_quotations', 'restore'),
+        'permanent_delete': get_sub_perm('crm_quotations', 'permanent_delete'),
     }
     return render_template('crm/quotations/list.html',
         quotations=pagination.items, pagination=pagination,
@@ -4134,20 +4149,20 @@ def quotations_list():
 @crm.route('/quotations/<int:id>')
 @login_required
 def quotation_view(id):
-    perm = get_perm('crm_leads')
+    perm = get_perm('crm_quotations')
     if not perm or not perm.can_view:
         flash('Access denied: Quotations permission nahi hai.', 'error')
-        return redirect(url_for('crm.leads'))
+        return redirect(url_for('crm.quotations_list'))
     from permissions import get_sub_perm
     import json as _json
     _is_admin = current_user.role in ('admin', 'manager')
     qt_sub = {
-        'pdf_download'    : get_sub_perm('crm_leads', 'pdf_download'),
-        'send_email'      : get_sub_perm('crm_leads', 'send_email'),
-        'status_change'   : get_sub_perm('crm_leads', 'status_change'),
-        'view_deleted'    : get_sub_perm('crm_leads', 'view_deleted'),
-        'restore'         : get_sub_perm('crm_leads', 'restore'),
-        'permanent_delete': get_sub_perm('crm_leads', 'permanent_delete'),
+        'pdf_download'    : get_sub_perm('crm_quotations', 'pdf_download'),
+        'send_email'      : get_sub_perm('crm_quotations', 'send_email'),
+        'status_change'   : get_sub_perm('crm_quotations', 'status_change'),
+        'view_deleted'    : get_sub_perm('crm_quotations', 'view_deleted'),
+        'restore'         : get_sub_perm('crm_quotations', 'restore'),
+        'permanent_delete': get_sub_perm('crm_quotations', 'permanent_delete'),
     }
     qt = Quotation.query.get_or_404(id)
     items = _json.loads(qt.items_json) if qt.items_json else []
@@ -4159,6 +4174,9 @@ def quotation_view(id):
 @crm.route('/quotations/products/ajax')
 @login_required
 def quotation_products_ajax():
+    perm = get_perm('crm_quot_products')
+    if not perm or not perm.can_view:
+        return jsonify({'error': 'Access denied'}), 403
     import json as _json
     search    = request.args.get('search', '').strip()
     date_from = request.args.get('date_from', '')
@@ -4209,6 +4227,10 @@ def quotation_products_ajax():
 @crm.route('/quotations/products')
 @login_required
 def quotation_products_list():
+    perm = get_perm('crm_quot_products')
+    if not perm or not perm.can_view:
+        flash('Access denied: Quot. Product List permission required.', 'error')
+        return redirect(url_for('crm.crm_dashboard'))
     import json as _json
     search    = request.args.get('search', '')
     date_from = request.args.get('date_from', '')

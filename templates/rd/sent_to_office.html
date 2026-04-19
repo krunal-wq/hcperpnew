@@ -1,0 +1,355 @@
+{% extends "base.html" %}
+{% block title %}Sent to Office — R&D Sample Log{% endblock %}
+{% block page_title %}Sent to Office{% endblock %}
+{% block bread %}R&D / Sample Log / Sent to Office{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ── Summary cards ─────────────────────────── */
+.sto-summary{display:grid;grid-template-columns:repeat(3, 1fr);gap:12px;margin-bottom:16px;}
+@media(max-width:800px){.sto-summary{grid-template-columns:repeat(3, 1fr);}}
+.sto-stat{background:var(--white);border:1px solid var(--border);border-radius:var(--r-lg);padding:14px 16px;display:flex;align-items:center;gap:12px;}
+.sto-stat .sto-ic{width:42px;height:42px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.25rem;}
+.sto-stat .sto-val{font-size:1.35rem;font-weight:800;color:var(--text);line-height:1;}
+.sto-stat .sto-lbl{font-size:.72rem;color:var(--text3);font-weight:600;text-transform:uppercase;margin-top:4px;letter-spacing:.3px;}
+.sto-stat.t-all .sto-ic   {background:#dcfce7;color:#16a34a;}
+.sto-stat.t-today .sto-ic {background:#dbeafe;color:#2563eb;}
+.sto-stat.t-week .sto-ic  {background:#fef3c7;color:#b45309;}
+
+/* ── Filter bar ───────────────────────────── */
+.sto-filters{background:var(--white);border:1px solid var(--border);border-radius:var(--r-lg);padding:12px 14px;margin-bottom:14px;display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:end;}
+@media(max-width:640px){.sto-filters{grid-template-columns:1fr 1fr;}}
+.sto-fg{display:flex;flex-direction:column;gap:4px;}
+.sto-fg label{font-size:.7rem;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.3px;}
+.sto-fg input{padding:.45rem .65rem;border:1px solid var(--border);border-radius:var(--r-sm);font-size:.85rem;background:var(--white);color:var(--text);outline:none;}
+.sto-fg input:focus{border-color:#16a34a;box-shadow:0 0 0 3px rgba(22,163,74,.14);}
+.sto-btn{padding:.5rem 1rem;border-radius:var(--r-sm);font-size:.82rem;font-weight:700;cursor:pointer;border:1px solid var(--border);background:var(--white);color:var(--text);transition:.1s;}
+.sto-btn.primary{background:#16a34a;border-color:#16a34a;color:#fff;}
+.sto-btn.primary:hover{background:#15803d;}
+.sto-btn:hover{background:var(--bg);}
+
+/* ── Table ────────────────────────────────── */
+.sto-card{background:var(--white);border:1px solid var(--border);border-radius:var(--r-lg);overflow:hidden;}
+.sto-card-hdr{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:var(--bg);}
+.sto-card-title{font-weight:700;font-size:.95rem;color:var(--text);}
+.sto-card-title .sto-pill{font-size:.68rem;font-weight:700;background:#dcfce7;color:#16a34a;border-radius:100px;padding:2px 9px;margin-left:6px;}
+.sto-tbl{width:100%;border-collapse:collapse;font-size:.84rem;}
+.sto-tbl thead tr{background:#f8fafc;border-bottom:2px solid #e2e8f0;}
+.sto-tbl th{padding:10px 14px;text-align:left;color:#64748b;font-weight:700;font-size:.72rem;text-transform:uppercase;letter-spacing:.4px;white-space:nowrap;}
+.sto-tbl td{padding:11px 14px;border-bottom:1px solid #f1f5f9;color:#374151;vertical-align:middle;}
+.sto-tbl tr:hover td{background:#fafbfc;}
+.sto-tbl tr:last-child td{border-bottom:none;}
+.sto-tbl .c-center{text-align:center;}
+.sto-tbl .c-right{text-align:right;}
+
+.sto-proj-code{background:#eef2ff;color:#4338ca;border-radius:4px;padding:1px 7px;font-size:.72rem;font-weight:700;font-family:monospace;display:inline-block;margin-right:6px;}
+.sto-saved-code{background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0;border-radius:4px;padding:2px 8px;font-size:.72rem;font-weight:700;font-family:monospace;display:inline-block;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:middle;}
+.sto-variant{background:#ede9fe;color:#7c3aed;border-radius:5px;padding:2px 8px;font-weight:700;font-size:.75rem;display:inline-block;}
+.sto-date{font-family:'SFMono-Regular',Consolas,monospace;font-size:.78rem;font-weight:600;color:#1e40af;}
+.sto-avatar{width:24px;height:24px;border-radius:50%;background:#dcfce7;color:#16a34a;display:inline-flex;align-items:center;justify-content:center;font-size:.58rem;font-weight:800;flex-shrink:0;}
+.sto-member{display:flex;align-items:center;gap:7px;}
+.sto-revert-btn{
+    padding:5px 11px;border-radius:6px;
+    background:#fff;border:1.5px solid #dc2626;color:#dc2626;
+    font-size:.72rem;font-weight:700;cursor:pointer;
+    display:inline-flex;align-items:center;gap:4px;
+    transition:.1s;
+}
+.sto-revert-btn:hover{background:#fef2f2;}
+.sto-revert-btn:disabled{opacity:.5;cursor:not-allowed;}
+
+.sto-empty{text-align:center;padding:3.5rem 1rem;color:var(--text3);}
+.sto-empty .e-ic{font-size:2.25rem;margin-bottom:.5rem;opacity:.6;}
+.sto-empty .e-t{font-weight:700;color:var(--text2);margin-bottom:.25rem;}
+.sto-empty .e-s{font-size:.82rem;}
+
+/* Back-link */
+.sto-back{display:inline-flex;align-items:center;gap:6px;font-size:.82rem;color:#64748b;text-decoration:none;margin-bottom:8px;padding:4px 8px;border-radius:6px;}
+.sto-back:hover{background:var(--bg);color:var(--text);}
+
+.sto-toast{
+    position:fixed;bottom:24px;right:24px;
+    background:#111827;color:#fff;
+    padding:10px 16px;border-radius:8px;
+    font-size:.82rem;
+    box-shadow:0 10px 25px rgba(0,0,0,.2);
+    transform:translateY(80px);opacity:0;
+    transition:all .25s ease;z-index:200;
+}
+.sto-toast.show{transform:translateY(0);opacity:1;}
+.sto-toast.err{background:#dc2626;}
+
+/* ── Custom confirm modal ─────────────────────── */
+.sto-confirm-ov{
+    display:none; position:fixed; inset:0;
+    background:rgba(15,23,42,.55); z-index:9999;
+    align-items:center; justify-content:center;
+    backdrop-filter:blur(3px);
+}
+.sto-confirm-ov.open{display:flex;}
+.sto-confirm-box{
+    background:#fff; border-radius:14px;
+    width:420px; max-width:92vw;
+    padding:28px 26px 20px;
+    box-shadow:0 25px 70px rgba(0,0,0,.25);
+    border:1px solid var(--border);
+    text-align:center;
+    animation:stoConfirmPop .18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes stoConfirmPop{
+    from{transform:scale(.92);opacity:0;}
+    to{transform:scale(1);opacity:1;}
+}
+.sto-confirm-icon{font-size:2.4rem;margin-bottom:10px;line-height:1;}
+.sto-confirm-title{font-size:1.1rem;font-weight:800;color:var(--text);margin-bottom:8px;letter-spacing:-.01em;}
+.sto-confirm-msg{font-size:.88rem;color:var(--text2);line-height:1.5;margin-bottom:10px;}
+.sto-confirm-detail{font-size:.78rem;color:var(--text3);margin-bottom:18px;padding:0 4px;}
+.sto-confirm-actions{display:flex;gap:8px;justify-content:center;}
+.sto-confirm-actions .sto-btn{min-width:110px;padding:.6rem 1.2rem;}
+</style>
+{% endblock %}
+
+{% block content %}
+
+<a href="{{ url_for('rd_sample_log.index') }}" class="sto-back">← Back to Sample Log</a>
+
+<div class="sto-summary">
+    <div class="sto-stat t-all">
+        <div class="sto-ic">📤</div>
+        <div><div class="sto-val">{{ summary.total }}</div><div class="sto-lbl">Total Sent</div></div>
+    </div>
+    <div class="sto-stat t-today">
+        <div class="sto-ic">📅</div>
+        <div><div class="sto-val">{{ summary.today }}</div><div class="sto-lbl">Sent Today</div></div>
+    </div>
+    <div class="sto-stat t-week">
+        <div class="sto-ic">🗓️</div>
+        <div><div class="sto-val">{{ summary.this_week }}</div><div class="sto-lbl">This Week</div></div>
+    </div>
+</div>
+
+<form method="get" class="sto-filters">
+    <div class="sto-fg">
+        <label>From Date</label>
+        <input type="date" name="from" value="{{ filters.from }}">
+    </div>
+    <div class="sto-fg">
+        <label>To Date</label>
+        <input type="date" name="to" value="{{ filters.to }}">
+    </div>
+    <div class="sto-fg" style="flex-direction:row;gap:6px;">
+        <button type="submit" class="sto-btn primary">Apply</button>
+        <a href="{{ url_for('rd_sample_log.sent_to_office') }}" class="sto-btn">Reset</a>
+    </div>
+</form>
+
+<div class="sto-card">
+    <div class="sto-card-hdr">
+        <div class="sto-card-title">📦 Sent-to-Office Records <span class="sto-pill">{{ logs|length }}</span></div>
+    </div>
+
+    {% if logs %}
+    <div style="overflow-x:auto;">
+    <table class="sto-tbl" id="stoTable">
+        <thead>
+            <tr>
+                <th>Project</th>
+                {% if bucket != 'employee' %}<th>Member</th>{% endif %}
+                <th>Variant</th>
+                <th>Sample Code</th>
+                <th>Sent On</th>
+                <th>Sent By</th>
+                <th class="c-center">Action</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for s in logs %}
+            {% set proj = s.project %}
+            {% set exec_user = s.executive %}
+            <tr data-row-id="{{ s.id }}">
+                <td>
+                    {% if proj %}
+                        <span class="sto-proj-code">{{ proj.code or ('P-' ~ proj.id) }}</span>
+                        <span>{{ (proj.product_name or '—')[:42] }}</span>
+                    {% else %}—{% endif %}
+                </td>
+                {% if bucket != 'employee' %}
+                <td>
+                    {% if exec_user %}
+                        {% set parts = (exec_user.full_name or exec_user.username or '?').split() %}
+                        {% if parts|length > 1 %}{% set ini = (parts[0][0] ~ parts[-1][0])|upper %}
+                        {% else %}{% set ini = (exec_user.full_name or exec_user.username or '?')[:2]|upper %}{% endif %}
+                        <div class="sto-member">
+                            <span class="sto-avatar">{{ ini }}</span>
+                            <span style="font-weight:600;">{{ exec_user.full_name or exec_user.username }}</span>
+                        </div>
+                    {% else %}—{% endif %}
+                </td>
+                {% endif %}
+                <td>
+                    {% if s.variant_code %}
+                        <span class="sto-variant">{{ s.variant_code }}</span>
+                    {% else %}
+                        <span style="color:#94a3b8;">—</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if s.sample_code %}
+                        <span class="sto-saved-code" title="{{ s.sample_code }}">{{ s.sample_code }}</span>
+                    {% else %}
+                        <span style="color:#94a3b8;font-style:italic;">—</span>
+                    {% endif %}
+                </td>
+                <td><span class="sto-date">{{ s.send_to_office_date.strftime('%d-%m-%Y %H:%M') if s.send_to_office_date else '—' }}</span></td>
+                <td>
+                    {% if s.sent_by_user %}
+                        <span style="font-weight:600;">{{ s.sent_by_user.full_name or s.sent_by_user.username }}</span>
+                    {% else %}—{% endif %}
+                </td>
+                <td class="c-center">
+                    <button type="button" class="sto-revert-btn" data-revert-id="{{ s.id }}">
+                        ↩ Revert
+                    </button>
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    </div>
+    {% else %}
+    <div class="sto-empty">
+        <div class="e-ic">📦</div>
+        <div class="e-t">No sent-to-office records</div>
+        <div class="e-s">
+            {% if filters.from or filters.to %}
+                No records match the selected date range. Try adjusting the filters.
+            {% else %}
+                Nothing has been dispatched to office yet. Go to <a href="{{ url_for('rd_sample_log.index') }}" style="color:#16a34a;font-weight:600;">Sample Log</a> and use "Send to Office".
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<div class="sto-toast" id="stoToast"></div>
+
+{# Custom confirm modal for Revert action #}
+<div class="sto-confirm-ov" id="stoConfirmModal" role="dialog" aria-modal="true">
+    <div class="sto-confirm-box">
+        <div class="sto-confirm-icon">↩</div>
+        <div class="sto-confirm-title">Revert to Sample Ready?</div>
+        <div class="sto-confirm-msg">This sample will be moved back to the main Sample Log list.</div>
+        <div class="sto-confirm-detail" id="stoConfirmDetail"></div>
+        <div class="sto-confirm-actions">
+            <button type="button" class="sto-btn" id="stoConfirmCancel">Cancel</button>
+            <button type="button" class="sto-btn" id="stoConfirmOk"
+                style="background:#dc2626;border-color:#dc2626;color:#fff;">
+                ↩ Yes, Revert
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+(function(){
+    const toast = document.getElementById('stoToast');
+    function showToast(msg, isError){
+        toast.textContent = msg;
+        toast.classList.toggle('err', !!isError);
+        toast.classList.add('show');
+        clearTimeout(window.__stoToastT);
+        window.__stoToastT = setTimeout(() => toast.classList.remove('show'), 2800);
+    }
+
+    // Custom confirm modal → Promise<boolean>
+    const cm        = document.getElementById('stoConfirmModal');
+    const cmDetail  = document.getElementById('stoConfirmDetail');
+    const cmOk      = document.getElementById('stoConfirmOk');
+    const cmCancel  = document.getElementById('stoConfirmCancel');
+
+    function askRevert(productName){
+        cmDetail.innerHTML = productName
+            ? 'Record: <b>' + escapeHtml(productName) + '</b>'
+            : '';
+        cm.classList.add('open');
+        return new Promise(resolve => {
+            function cleanup(r){
+                cm.classList.remove('open');
+                cmOk.removeEventListener('click', onOk);
+                cmCancel.removeEventListener('click', onCancel);
+                cm.removeEventListener('click', onBackdrop);
+                document.removeEventListener('keydown', onKey);
+                resolve(r);
+            }
+            function onOk()      { cleanup(true); }
+            function onCancel()  { cleanup(false); }
+            function onBackdrop(e){ if (e.target === cm) cleanup(false); }
+            function onKey(e){
+                if (e.key === 'Escape') cleanup(false);
+                else if (e.key === 'Enter') cleanup(true);
+            }
+            cmOk.addEventListener('click', onOk);
+            cmCancel.addEventListener('click', onCancel);
+            cm.addEventListener('click', onBackdrop);
+            document.addEventListener('keydown', onKey);
+            setTimeout(() => cmOk.focus(), 60);
+        });
+    }
+
+    function escapeHtml(s){
+        return String(s || '').replace(/[&<>"']/g, c => (
+            {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]
+        ));
+    }
+
+    const revertUrlTemplate = '{{ url_for("rd_sample_log.api_revert", row_id=0) }}';
+
+    document.querySelectorAll('.sto-revert-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const id = btn.dataset.revertId;
+            if (!id) return;
+
+            // Get product name for nicer confirmation text
+            const tr = btn.closest('tr');
+            const prodCell = tr?.querySelector('td');
+            const prodText = prodCell?.innerText?.trim().replace(/\s+/g, ' ');
+
+            const confirmed = await askRevert(prodText);
+            if (!confirmed) return;
+
+            const originalHtml = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '⏳ Reverting...';
+
+            try {
+                const url = revertUrlTemplate.replace(/\/0$/, '/' + id);
+                const res = await fetch(url, {
+                    method: 'POST',
+                    headers: {'X-Requested-With':'XMLHttpRequest'},
+                    credentials: 'same-origin'
+                });
+                const data = await res.json().catch(()=>({}));
+                if (!res.ok || !data.ok){
+                    showToast(data.error || ('Server error ' + res.status), true);
+                    btn.disabled = false;
+                    btn.innerHTML = originalHtml;
+                    return;
+                }
+                if (tr){
+                    tr.style.transition = 'opacity .25s, transform .25s';
+                    tr.style.opacity = '0';
+                    tr.style.transform = 'translateX(-20px)';
+                    setTimeout(() => tr.remove(), 260);
+                }
+                showToast('✓ Reverted to Sample Ready');
+            } catch (e){
+                showToast('Network error: ' + e.message, true);
+                btn.disabled = false;
+                btn.innerHTML = originalHtml;
+            }
+        });
+    });
+})();
+</script>
+
+{% endblock %}

@@ -104,6 +104,309 @@
 .btn-filter:hover{background:#6d28d9;}
 .btn-clear{padding:7px 12px;background:#f1f5f9;color:var(--text2);border:none;border-radius:8px;font-size:.82rem;font-weight:600;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;}
 .active-filter-chip{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;background:#f5f3ff;border:1px solid #ede9fe;border-radius:100px;font-size:.75rem;font-weight:600;color:#7c3aed;}
+
+/* ── Sample History action bar (per-token) ─────────── */
+.sh-action-bar{
+    display:flex; align-items:center; gap:8px;
+    padding:10px 14px; margin-bottom:10px;
+    background:#fafbfc; border:1px solid var(--border); border-radius:10px;
+    flex-wrap:wrap;
+}
+.sh-bar-btn{
+    display:inline-flex; align-items:center; gap:6px;
+    padding:7px 14px; border-radius:8px;
+    font-size:.82rem; font-weight:700; cursor:pointer;
+    border:1.5px solid var(--border); background:#fff; color:var(--text2);
+    transition:all .15s;
+}
+.sh-bar-btn:hover:not(:disabled){ background:var(--bg); }
+.sh-bar-btn:disabled{ opacity:.45; cursor:not-allowed; }
+.sh-bar-btn.revert{  border-color:#fde68a; color:#b45309; background:#fffbeb; }
+.sh-bar-btn.revert:hover:not(:disabled){  background:#fef3c7; }
+.sh-bar-btn.a4{      border-color:#86efac; color:#15803d; background:#f0fdf4; }
+.sh-bar-btn.a4:hover:not(:disabled){      background:#dcfce7; }
+.sh-bar-btn.sticker{ border-color:#c4b5fd; color:#6d28d9; background:#f5f3ff; }
+.sh-bar-btn.sticker:hover:not(:disabled){ background:#ede9fe; }
+.sh-bar-count{
+    display:inline-block; min-width:20px; padding:1px 7px;
+    background:rgba(0,0,0,.08); border-radius:100px;
+    font-size:.68rem; font-weight:800;
+}
+.sh-bar-hint{ margin-left:auto; font-size:.75rem; color:var(--text3); }
+.sh-row-check, .sh-select-all{ width:15px; height:15px; accent-color:#7c3aed; cursor:pointer; }
+.sh-item-row.sh-sel td{ background:#f5f3ff; }
+
+/* ── Sticker print sheet (40mm x 20mm) — EXACT R&D Sample Log style ── */
+#sh-stkSheet, #sh-a4Sheet { display:none; }
+
+/* Sticker print: hide everything with visibility, pin sheet fixed at top
+   (same strategy as A4 — works even when sheet is nested inside the content block) */
+body.sh-print-sticker * { visibility: hidden !important; }
+body.sh-print-sticker #sh-stkSheet,
+body.sh-print-sticker #sh-stkSheet * { visibility: visible !important; }
+body.sh-print-sticker #sh-stkSheet{
+    display: block !important;
+    position: fixed !important;
+    top: 0 !important; left: 0 !important;
+    width: 100% !important;
+    background: #fff !important;
+    padding: 0 !important; margin: 0 !important;
+    z-index: 99999 !important;
+}
+
+/* A4 print: same strategy */
+body.sh-print-a4 * { visibility: hidden !important; }
+body.sh-print-a4 #sh-a4Sheet,
+body.sh-print-a4 #sh-a4Sheet * { visibility: visible !important; }
+body.sh-print-a4 #sh-a4Sheet{
+    display: block !important;
+    position: fixed !important;
+    top: 0 !important; left: 0 !important;
+    width: 100% !important;
+    background: #fff !important;
+    padding: 0 !important; margin: 0 !important;
+    border: 2px solid #000 !important;
+    z-index: 99999 !important;
+}
+
+/* Sticker — exact 40mm × 20mm (same for preview & print) */
+.sh-stk{
+    width:40mm; height:20mm;
+    border:0.4mm solid #000;
+    box-sizing:border-box;
+    padding:1mm 1.5mm;
+    background:#fff; color:#000;
+    font-family:Arial, Helvetica, sans-serif;
+    text-align:center;
+    display:flex; flex-direction:column; justify-content:space-between;
+    break-inside:avoid; page-break-inside:avoid;
+    overflow:hidden;
+}
+.sh-stk-prod{
+    font-size:8pt; font-weight:900;
+    line-height:1.05; margin:0;
+    word-break:break-word;
+    display:-webkit-box;
+    -webkit-line-clamp:2; -webkit-box-orient:vertical;
+    overflow:hidden;
+    max-height:9mm;
+}
+.sh-stk-code{
+    font-size:8pt; font-weight:900;
+    line-height:1.05; margin:0;
+    font-family:'Courier New', monospace;
+    letter-spacing:.3px;
+    word-break:break-all;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+}
+.sh-stk-ftr{
+    font-size:5.8pt; font-weight:900;
+    line-height:1; letter-spacing:.6px;
+    border-top:0.3mm solid #000;
+    padding-top:.5mm;
+    margin-top:.3mm;
+}
+
+/* Sticker print sheet grid — exact 40mm × 20mm, 2 per row */
+.sh-stk-grid{
+    display:grid;
+    grid-template-columns:repeat(2, 40mm);
+    column-gap:4mm;
+    row-gap:3mm;
+    justify-content:flex-start;
+    padding:0; margin:0;
+}
+
+/* ── A4 print sheet ──────────────────────────────── */
+.sh-a4-hdr{ text-align:center; font-weight:800; font-size:14pt; background:#f3f4f6;
+    padding:8px; border:2px solid #000; border-bottom:none; }
+.sh-a4-tbl{ width:100%; border-collapse:collapse; font-family:Arial,sans-serif;
+    font-size:10pt; color:#000; table-layout:fixed; }
+.sh-a4-tbl th, .sh-a4-tbl td{
+    border:1px solid #000; padding:5px 7px; text-align:center; vertical-align:middle;
+    word-wrap:break-word; word-break:break-word;
+}
+.sh-a4-tbl th{ background:#f3f4f6; font-weight:800; font-size:9pt; text-transform:uppercase; }
+.sh-a4-tbl tbody tr:last-child td{ border-bottom:2px solid #000 !important; }
+
+@media print{
+    body.sh-print-a4 @page{ size:A4 landscape; margin:6mm; }
+    body.sh-print-a4 .sh-a4-hdr{ font-size:11pt; padding:5px; }
+    body.sh-print-a4 .sh-a4-tbl{ font-size:8.5pt; }
+    body.sh-print-a4 .sh-a4-tbl th, .sh-print-a4 .sh-a4-tbl td{ padding:3px 4px; line-height:1.2; font-size:8pt; }
+    body.sh-print-a4 .sh-a4-tbl th{ font-size:7.5pt; }
+}
+
+/* ── Custom modal popup (alerts/confirms) ────────── */
+.sh-ov{
+    display:none; position:fixed; inset:0;
+    background:rgba(15,23,42,.55); z-index:10500;
+    align-items:center; justify-content:center;
+    backdrop-filter:blur(3px);
+}
+.sh-ov.open{ display:flex; }
+.sh-box{
+    background:#fff; border-radius:14px; width:420px; max-width:92vw;
+    padding:28px 26px 20px; box-shadow:0 25px 70px rgba(0,0,0,.25);
+    border:1px solid var(--border); text-align:center;
+    animation:shPop .18s cubic-bezier(0.16,1,0.3,1);
+}
+@keyframes shPop{ from{transform:scale(.92);opacity:0;} to{transform:scale(1);opacity:1;} }
+.sh-box .sh-ic{ font-size:2.4rem; margin-bottom:10px; }
+.sh-box .sh-tt{ font-size:1.1rem; font-weight:800; color:var(--text); margin-bottom:8px; }
+.sh-box .sh-msg{ font-size:.88rem; color:var(--text2); margin-bottom:10px; }
+.sh-box .sh-det{ font-size:.78rem; color:var(--text3); margin-bottom:18px; }
+.sh-box .sh-acts{ display:flex; gap:8px; justify-content:center; }
+.sh-box .sh-acts button{ min-width:110px; padding:.6rem 1.2rem; border-radius:8px;
+    font-size:.82rem; font-weight:700; cursor:pointer; border:1.5px solid var(--border); background:#fff; color:var(--text); }
+.sh-box .sh-acts button.primary{ background:#7c3aed; border-color:#7c3aed; color:#fff; }
+.sh-box .sh-acts button.danger{ background:#dc2626; border-color:#dc2626; color:#fff; }
+.sh-box .sh-acts button.success{ background:#16a34a; border-color:#16a34a; color:#fff; }
+
+/* ═════════════════════════════════════════════════════════
+   STICKER MODAL — same styling as R&D Sample Log
+   ═════════════════════════════════════════════════════════ */
+.sh-stk-ov{
+    display:none; position:fixed; inset:0;
+    background:rgba(15,23,42,.55); z-index:10400;
+    align-items:center; justify-content:center;
+    backdrop-filter:blur(3px);
+}
+.sh-stk-ov.open{ display:flex; }
+.sh-stk-box{
+    background:#fff; border-radius:12px;
+    width:640px; max-width:95vw; max-height:92vh; overflow:hidden;
+    display:flex; flex-direction:column;
+    box-shadow:0 20px 60px rgba(0,0,0,.22);
+    border:1px solid var(--border);
+}
+.sh-stk-hdr{
+    padding:14px 20px;
+    border-bottom:1px solid var(--border);
+    display:flex; align-items:center; justify-content:space-between;
+    background:#f8fafc; border-radius:12px 12px 0 0;
+    flex-shrink:0;
+}
+.sh-stk-hdr-t{ font-size:1rem; font-weight:800; color:var(--text); display:flex; align-items:center; gap:8px; }
+.sh-stk-close{
+    width:28px; height:28px; border-radius:50%;
+    background:transparent; border:none; cursor:pointer;
+    font-size:1.15rem; color:var(--text3);
+    display:flex; align-items:center; justify-content:center;
+}
+.sh-stk-close:hover{ background:#f1f5f9; color:var(--text); }
+.sh-stk-body{ padding:20px; overflow-y:auto; flex:1 1 auto; }
+
+.sh-stk-multi-hint{
+    font-size:.78rem; color:#1e40af;
+    background:#dbeafe; border:1px solid #bfdbfe;
+    padding:8px 12px; border-radius:8px;
+    margin-bottom:14px; font-weight:500;
+}
+.sh-stk-row-card{
+    border:1.5px solid var(--border); border-radius:10px;
+    padding:12px 14px; margin-bottom:10px;
+    background:#fafbfc;
+    transition:.15s;
+}
+.sh-stk-row-card.bad{ border-color:#dc2626; background:#fef2f2; }
+.sh-stk-row-card-hdr{
+    display:flex; align-items:center; justify-content:space-between;
+    gap:10px; margin-bottom:10px;
+    padding-bottom:8px;
+    border-bottom:1px dashed var(--border);
+}
+.sh-stk-row-idx{
+    width:24px; height:24px; border-radius:50%;
+    background:#7c3aed; color:#fff;
+    display:inline-flex; align-items:center; justify-content:center;
+    font-size:.72rem; font-weight:800;
+    flex-shrink:0;
+}
+.sh-stk-row-meta{ flex:1; min-width:0; }
+.sh-stk-row-npd{
+    font-family:monospace; font-size:.72rem; font-weight:700;
+    background:#eef2ff; color:#4338ca;
+    padding:2px 7px; border-radius:4px;
+    display:inline-block; margin-right:6px;
+}
+.sh-stk-row-prod{
+    font-size:.82rem; font-weight:600; color:var(--text);
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+    display:block; margin-top:3px;
+}
+.sh-stk-row-input-wrap{ display:flex; flex-direction:column; gap:4px; }
+.sh-stk-row-input-wrap label{
+    font-size:.7rem; font-weight:700; color:var(--text2);
+    text-transform:uppercase; letter-spacing:.3px;
+}
+.sh-stk-row-input-wrap label .req{ color:#dc2626; }
+.sh-stk-row-input-wrap input{
+    width:100%; box-sizing:border-box;
+    padding:.5rem .7rem;
+    border:1.5px solid var(--border); border-radius:6px;
+    font-size:.85rem; color:var(--text);
+    outline:none; background:#fff;
+    font-family:inherit;
+}
+.sh-stk-row-input-wrap input:focus{
+    border-color:#7c3aed;
+    box-shadow:0 0 0 3px rgba(124,58,237,.14);
+}
+.sh-stk-row-input-wrap .hint{ font-size:.68rem; color:var(--text3); }
+.sh-stk-row-input-wrap .err{
+    font-size:.68rem; color:#dc2626; font-weight:600; display:none;
+}
+.sh-stk-row-card.bad .err{ display:block; }
+
+.sh-stk-prev-wrap{
+    margin-top:8px;
+    background:#fafbfc;
+    border:1px solid var(--border); border-radius:8px;
+    padding:12px;
+}
+.sh-stk-prev-lbl{
+    font-size:.72rem; font-weight:700; color:var(--text3);
+    text-transform:uppercase; letter-spacing:.3px;
+    margin-bottom:8px;
+    display:flex; align-items:center; justify-content:space-between;
+}
+.sh-stk-prev-count{
+    background:#ede9fe; color:#7c3aed;
+    padding:2px 8px; border-radius:100px;
+    font-size:.68rem; font-weight:800;
+}
+.sh-stk-prev-grid{
+    display:grid;
+    grid-template-columns:repeat(2, 40mm);
+    gap:3mm;
+    justify-content:center;
+    padding:4mm 0;
+    max-height:35vh; overflow-y:auto;
+}
+.sh-stk-foot{
+    padding:14px 20px;
+    border-top:1px solid var(--border);
+    display:flex; justify-content:flex-end; gap:8px;
+    background:#fafbfc;
+    border-radius:0 0 12px 12px;
+    flex-shrink:0;
+}
+.sh-stk-btn{
+    padding:.5rem 1rem; border-radius:6px;
+    font-size:.82rem; font-weight:700; cursor:pointer;
+    border:1px solid var(--border); background:#fff; color:var(--text);
+    transition:.1s;
+}
+.sh-stk-btn:hover{ background:#f1f5f9; }
+.sh-stk-btn.primary{ background:#7c3aed; border-color:#7c3aed; color:#fff; }
+.sh-stk-btn.primary:hover{ background:#6d28d9; }
+
+/* Hide sticker modal during print */
+body.sh-print-sticker #sh-stkModal,
+body.sh-print-a4 #sh-stkModal{ display:none !important; }
 </style>
 <link rel="stylesheet" href="{{ url_for('static', filename='css/modules/npd-sample-history.css') }}">
 {% endblock %}
@@ -477,6 +780,62 @@ async function deleteItem(iid, btn) {
   } catch(e) { alert('Network error'); btn.disabled=false; btn.textContent='🗑️'; }
 }
 
+// ── Revert R&D Sample Log item ──
+// Flips the linked RDSubAssignment back to 'finished' so it re-appears
+// on /rd/sample-log. The R&D endpoint also deletes the linked
+// OfficeDispatchItem and drops the token if it becomes empty.
+async function revertRdItem(btn) {
+  var rdId = btn.dataset.rdId;
+  var iid  = btn.dataset.iid;
+  if (!rdId) { alert('Not an R&D sample — use Delete instead.'); return; }
+
+  if (!confirm('Is sample ko Sample Log me wapas bhej do?\nYe record R&D Sample Log me "Finished" state me aa jayega.')) {
+    return;
+  }
+
+  var origHtml = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '⏳';
+
+  try {
+    var res = await fetch('/rd/sample-log/api/revert/' + rdId, {
+      method: 'POST',
+      headers: {'X-Requested-With':'XMLHttpRequest'},
+      credentials: 'same-origin'
+    });
+    var data = await res.json().catch(function(){ return {}; });
+
+    if (!res.ok || !data.ok) {
+      alert(data.error || ('Revert failed (HTTP ' + res.status + ')'));
+      btn.disabled = false;
+      btn.innerHTML = origHtml;
+      return;
+    }
+
+    // Success — animate row out, then check if token is now empty
+    var row = document.getElementById('item-row-' + iid);
+    if (row) {
+      row.style.transition = 'opacity .25s, transform .25s';
+      row.style.opacity = '0';
+      row.style.transform = 'translateX(-20px)';
+      setTimeout(function() {
+        row.remove();
+        // If no more item rows in this token's body, reload to clean up the token
+        var itemsTable = document.querySelector('#token-body tr[id^="item-row-"]');
+        if (!itemsTable) {
+          location.reload();
+        }
+      }, 260);
+    } else {
+      location.reload();
+    }
+  } catch(e) {
+    alert('Network error: ' + e.message);
+    btn.disabled = false;
+    btn.innerHTML = origHtml;
+  }
+}
+
 // ── Delete Token ──
 var _delTid = null;
 var _delRow = null;
@@ -588,50 +947,51 @@ async function toggleExpand(tid) {
             return s ? '<span style="display:inline-block;background:#f0fdf4;color:#166534;padding:2px 8px;border-radius:6px;font-size:.72rem;font-weight:700;font-family:monospace;border:1px solid #bbf7d0;margin:1px 2px;">' + s + '</span>' : '';
           }).join('')
         : '<span style="color:var(--text3);">—</span>';
+
+      // Data attributes for action buttons
+      var dataAttrs =
+        ' data-iid="' + iid + '"' +
+        ' data-rd-id="' + (item.rd_sub_assignment_id || '') + '"' +
+        ' data-npd="'        + (item.code         || '').replace(/"/g,'&quot;') + '"' +
+        ' data-product="'    + (item.product_name || '').replace(/"/g,'&quot;') + '"' +
+        ' data-client="'     + (item.client_name  || '').replace(/"/g,'&quot;') + '"' +
+        ' data-handover="'   + (item.handover_to  || '').replace(/"/g,'&quot;') + '"' +
+        ' data-submitted="'  + (item.submitted_by || '').replace(/"/g,'&quot;') + '"' +
+        ' data-code="'       + (item.sample_code  || '').replace(/"/g,'&quot;') + '"';
+
       rows +=
-        '<tr id="item-row-' + iid + '">' +
+        '<tr id="item-row-' + iid + '" class="sh-item-row"' + dataAttrs + '>' +
+        '<td style="text-align:center;"><input type="checkbox" class="sh-row-check" data-iid="' + iid + '"></td>' +
         '<td style="color:var(--text3);font-size:.78rem;">' + (i+1) + '</td>' +
         '<td><a href="/npd/projects/' + item.project_id + '" style="font-weight:700;color:#7c3aed;text-decoration:none;font-family:monospace;" onclick="event.stopPropagation()">' + item.code + '</a></td>' +
         '<td style="font-weight:600;">' + item.product_name + '</td>' +
         '<td style="color:var(--text2);">' + item.client_name + '</td>' +
-        // Handover To — view + edit
-        '<td class="ie-cell" id="ht-cell-' + iid + '">' +
-          '<div class="ie-view" id="ht-view-' + iid + '">' +
-            '<span style="font-size:.8rem;font-weight:600;">' + (item.handover_to || '—') + '</span>' +
-          '</div>' +
-          '<input class="ie-input" id="ht-inp-' + iid + '" value="' + (item.handover_to || '') + '" style="display:none;">' +
-        '</td>' +
-        // Submitted By — view + edit
-        '<td class="ie-cell" id="sb-cell-' + iid + '">' +
-          '<div class="ie-view" id="sb-view-' + iid + '">' +
-            '<span style="font-size:.8rem;font-weight:600;">' + (item.submitted_by || '—') + '</span>' +
-          '</div>' +
-          '<input class="ie-input" id="sb-inp-' + iid + '" value="' + (item.submitted_by || '') + '" style="display:none;">' +
-        '</td>' +
-        // Sample Code — view + edit
-        '<td class="ie-cell" id="sc-cell-' + iid + '">' +
-          '<div id="sc-view-' + iid + '">' + scHtml + '</div>' +
-          '<input class="ie-input" id="sc-inp-' + iid + '" value="' + (item.sample_code || '') + '" style="display:none;">' +
-        '</td>' +
+        '<td><span style="font-size:.8rem;font-weight:600;">' + (item.handover_to  || '—') + '</span></td>' +
+        '<td><span style="font-size:.8rem;font-weight:600;">' + (item.submitted_by || '—') + '</span></td>' +
+        '<td>' + scHtml + '</td>' +
         '<td style="white-space:nowrap;"><span style="background:' + item.status_color + '22;color:' + item.status_color + ';padding:2px 8px;border-radius:100px;font-size:.72rem;font-weight:700;">' + item.status_label + '</span></td>' +
-        // Action
-        '<td>' +
-          '<div class="ie-actions" id="ie-btns-' + iid + '">' +
-            '<button class="btn-ie edit" title="Edit" onclick="startEdit(' + iid + ')">✏️</button>' +
-            '<button class="btn-ie del-item" title="Delete" onclick="deleteItem(' + iid + ',this)">🗑️</button>' +
-          '</div>' +
-          '<div class="ie-actions" id="ie-save-' + iid + '" style="display:none;">' +
-            '<button class="btn-ie save" title="Save" onclick="saveEdit(' + iid + ')">✅</button>' +
-            '<button class="btn-ie cancel-edit" title="Cancel" onclick="cancelEdit(' + iid + ')">✕</button>' +
-          '</div>' +
-        '</td>' +
         '</tr>';
     });
 
+    // Action toolbar above the table + select-all checkbox in header
     inner.innerHTML =
-      '<table class="items-table" style="width:100%;">' +
-      '<thead><tr><th>#</th><th>Project No</th><th>Product Name</th><th>Client Name</th><th>Handover To</th><th>Submitted By</th><th>Sample Code</th><th>Status</th><th>Action</th></tr></thead>' +
+      '<div class="sh-action-bar" id="sh-bar-' + tid + '">' +
+        '<button type="button" class="sh-bar-btn revert"   data-tid="' + tid + '" onclick="bulkRevert(this)" disabled>↩️ Revert <span class="sh-bar-count">0</span></button>' +
+        '<button type="button" class="sh-bar-btn a4"       data-tid="' + tid + '" onclick="bulkPrintA4(this)" disabled>📄 Print A4 <span class="sh-bar-count">0</span></button>' +
+        '<button type="button" class="sh-bar-btn sticker"  data-tid="' + tid + '" onclick="bulkPrintStickers(this)" disabled>🖨️ Print Sticker <span class="sh-bar-count">0</span></button>' +
+        '<span class="sh-bar-hint">Select rows below to enable actions</span>' +
+      '</div>' +
+      '<table class="items-table sh-items-table" id="items-table-' + tid + '" data-tid="' + tid + '" style="width:100%;">' +
+      '<thead><tr>' +
+        '<th style="width:40px;text-align:center;"><input type="checkbox" class="sh-select-all" data-tid="' + tid + '" onchange="shToggleAll(this)"></th>' +
+        '<th>#</th><th>Project No</th><th>Product Name</th><th>Client Name</th><th>Handover To</th><th>Submitted By</th><th>Sample Code</th><th>Status</th>' +
+      '</tr></thead>' +
       '<tbody>' + rows + '</tbody></table>';
+
+    // Bind checkbox change handlers
+    inner.querySelectorAll('.sh-row-check').forEach(function(cb){
+      cb.addEventListener('change', function(){ shUpdateSelection(tid); });
+    });
 
   } catch(e) {
     inner.innerHTML = '<div class="expand-loading">❌ Error. Please try again.</div>';
@@ -779,5 +1139,456 @@ flatpickr('#to_date', {
   allowInput:true, locale:{firstDayOfWeek:1},
   defaultDate: document.getElementById('to_date').value || null
 });
+
+
+/* ══════════════════════════════════════════════════════════════
+   BULK ACTIONS — select rows inside an expanded token and
+   Revert / Print A4 / Print Sticker them together
+   ══════════════════════════════════════════════════════════════ */
+
+function shToggleAll(cb){
+  var tid = cb.dataset.tid;
+  var tbl = document.getElementById('items-table-' + tid);
+  if (!tbl) return;
+  tbl.querySelectorAll('.sh-row-check').forEach(function(x){ x.checked = cb.checked; });
+  shUpdateSelection(tid);
+}
+
+function shUpdateSelection(tid){
+  var tbl = document.getElementById('items-table-' + tid);
+  if (!tbl) return;
+
+  var checks = tbl.querySelectorAll('.sh-row-check');
+  var checked = 0;
+  checks.forEach(function(cb){
+    var tr = cb.closest('tr');
+    if (cb.checked){ tr.classList.add('sh-sel'); checked++; }
+    else { tr.classList.remove('sh-sel'); }
+  });
+
+  // Update select-all state (check / indeterminate / uncheck)
+  var selAll = tbl.querySelector('.sh-select-all');
+  if (selAll){
+    if (checked === 0){ selAll.checked = false; selAll.indeterminate = false; }
+    else if (checked === checks.length){ selAll.checked = true; selAll.indeterminate = false; }
+    else { selAll.checked = false; selAll.indeterminate = true; }
+  }
+
+  // Update action bar buttons
+  var bar = document.getElementById('sh-bar-' + tid);
+  if (!bar) return;
+  bar.querySelectorAll('.sh-bar-btn').forEach(function(btn){
+    btn.disabled = (checked === 0);
+    var span = btn.querySelector('.sh-bar-count');
+    if (span) span.textContent = checked;
+  });
+}
+
+// Collect selected row data as array of objects
+function shSelectedRows(tid){
+  var tbl = document.getElementById('items-table-' + tid);
+  if (!tbl) return [];
+  var out = [];
+  tbl.querySelectorAll('.sh-row-check:checked').forEach(function(cb){
+    var tr = cb.closest('tr');
+    out.push({
+      iid:       tr.dataset.iid,
+      rd_id:     tr.dataset.rdId || '',
+      npd:       tr.dataset.npd       || '—',
+      product:   tr.dataset.product   || '—',
+      client:    tr.dataset.client    || '—',
+      handover:  tr.dataset.handover  || '—',
+      submitted: tr.dataset.submitted || '—',
+      code:      tr.dataset.code      || '',
+    });
+  });
+  return out;
+}
+
+/* ── Bulk Revert ────────────────────────────────────────────── */
+async function bulkRevert(btn){
+  var tid = btn.dataset.tid;
+  var rows = shSelectedRows(tid);
+  if (!rows.length) return;
+
+  // Only rows that actually have an rd_sub_assignment_id are revertable
+  var revertable = rows.filter(function(r){ return r.rd_id; });
+  if (!revertable.length){
+    shAlert({
+      icon:'⚠️', title:'Cannot revert',
+      message:'Selected rows are not from R&D Sample Log, so they cannot be reverted.',
+      theme:'warn',
+    });
+    return;
+  }
+
+  var skipped = rows.length - revertable.length;
+  var detail  = '<b>' + revertable.length + '</b> sample(s) will move back to R&D Sample Log as "Finished".';
+  if (skipped > 0) detail += '<br><small>(' + skipped + ' non-R&D rows will be skipped.)</small>';
+
+  var ok = await shConfirm({
+    icon:'↩️', title:'Revert selected samples?',
+    message:'They will disappear from Sample History and reappear in R&D Sample Log.',
+    detail:detail, theme:'warn', okText:'Yes, Revert'
+  });
+  if (!ok) return;
+
+  var origHtml = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '⏳ Reverting...';
+
+  var success = 0, failed = 0;
+  for (var i = 0; i < revertable.length; i++){
+    var r = revertable[i];
+    try{
+      var res = await fetch('/rd/sample-log/api/revert/' + r.rd_id, {
+        method:'POST',
+        headers:{'X-Requested-With':'XMLHttpRequest'},
+        credentials:'same-origin'
+      });
+      var data = await res.json().catch(function(){ return {}; });
+      if (res.ok && data.ok){
+        success++;
+        // Remove the row from UI
+        var tr = document.getElementById('item-row-' + r.iid);
+        if (tr){
+          tr.style.transition = 'opacity .25s';
+          tr.style.opacity = '0';
+          setTimeout((function(el){ return function(){ el.remove(); }; })(tr), 260);
+        }
+      } else {
+        failed++;
+      }
+    } catch(e){ failed++; }
+  }
+
+  btn.disabled = false;
+  btn.innerHTML = origHtml;
+
+  // Refresh selection state (rows are gone)
+  setTimeout(function(){
+    shUpdateSelection(tid);
+    // If nothing left, reload (token may also be empty)
+    var tbl = document.getElementById('items-table-' + tid);
+    if (tbl && tbl.querySelectorAll('.sh-row-check').length === 0){
+      location.reload();
+      return;
+    }
+    shAlert({
+      icon: failed === 0 ? '✅' : '⚠️',
+      title: failed === 0 ? 'Reverted' : 'Partially done',
+      message: success + ' reverted' + (failed > 0 ? ', ' + failed + ' failed' : '') + '.',
+      theme: failed === 0 ? 'success' : 'warn',
+    });
+  }, 300);
+}
+
+/* ── Bulk Print A4 ─────────────────────────────────────────── */
+function bulkPrintA4(btn){
+  var rows = shSelectedRows(btn.dataset.tid);
+  if (!rows.length) return;
+
+  var sheet = document.getElementById('sh-a4Sheet');
+  var tbody = document.getElementById('sh-a4-body');
+  var d = new Date();
+  var dStr = String(d.getDate()).padStart(2,'0') + '/' +
+             String(d.getMonth()+1).padStart(2,'0') + '/' +
+             d.getFullYear();
+  document.getElementById('sh-a4-date').textContent = dStr;
+
+  tbody.innerHTML = rows.map(function(r, i){
+    return '<tr>' +
+      '<td>' + (i+1) + '</td>' +
+      '<td style="font-family:monospace;">' + shEsc(r.npd) + '</td>' +
+      '<td style="text-align:left;">' + shEsc(r.product) + '</td>' +
+      '<td style="text-align:left;">' + shEsc(r.client) + '</td>' +
+      '<td style="text-align:left;"><b>' + shEsc(r.handover) + '</b></td>' +
+      '<td>' + shEsc(r.submitted) + '</td>' +
+      '<td style="font-family:monospace;font-weight:700;">' + shEsc(r.code) + '</td>' +
+    '</tr>';
+  }).join('');
+
+  document.body.classList.add('sh-print-a4');
+  setTimeout(function(){
+    window.print();
+    setTimeout(function(){ document.body.classList.remove('sh-print-a4'); }, 400);
+  }, 60);
+}
+
+/* ── Bulk Print Stickers — opens modal like R&D Sample Log ──── */
+function bulkPrintStickers(btn){
+  var rows = shSelectedRows(btn.dataset.tid);
+  if (!rows.length) return;
+  shOpenStickerModal(rows);
+}
+
+// ══════════════════════════════════════════════════════════════
+// Sticker Modal — same UX as R&D Sample Log:
+//   • Each selected row shows as a card with NPD code + Product
+//   • Editable sample code field (comma-separated for multiple stickers)
+//   • Live preview of stickers as user types
+//   • Print button builds sheet and fires window.print()
+// No DB write here — data is already saved in Sample History.
+// ══════════════════════════════════════════════════════════════
+
+function shOpenStickerModal(rows){
+  var wrap = document.getElementById('sh-stk-rows-wrap');
+  var countEl = document.getElementById('sh-stk-row-count');
+  countEl.textContent = rows.length;
+
+  // Build row cards
+  wrap.innerHTML = '';
+  rows.forEach(function(r, idx){
+    var saved = r.code || '';
+    var card = document.createElement('div');
+    card.className = 'sh-stk-row-card';
+    card.dataset.product = r.product || '';
+    card.dataset.npd     = r.npd     || '';
+    card.innerHTML =
+      '<div class="sh-stk-row-card-hdr">' +
+        '<div class="sh-stk-row-idx">' + (idx + 1) + '</div>' +
+        '<div class="sh-stk-row-meta">' +
+          '<span class="sh-stk-row-npd">' + shEsc(r.npd) + '</span>' +
+          '<span class="sh-stk-row-prod" title="' + shEsc(r.product) + '">' + shEsc(r.product) + '</span>' +
+        '</div>' +
+        (saved ? '<span style="font-size:.65rem;font-weight:700;color:#15803d;background:#f0fdf4;border:1px solid #bbf7d0;padding:2px 7px;border-radius:100px;">SAVED</span>' : '') +
+      '</div>' +
+      '<div class="sh-stk-row-input-wrap">' +
+        '<label>Sample Code <span class="req">*</span></label>' +
+        '<input type="text" class="sh-stk-row-codes" ' +
+               'value="' + shEsc(saved) + '" ' +
+               'placeholder="e.g. S001, S002, S003" autocomplete="off">' +
+        '<div class="hint">Comma-separated for multiple stickers per row. (Codes are already saved in DB.)</div>' +
+        '<div class="err">Please enter at least one sample code for this row.</div>' +
+      '</div>';
+    wrap.appendChild(card);
+  });
+
+  // Input listeners → live preview + clear error on type
+  wrap.querySelectorAll('.sh-stk-row-codes').forEach(function(inp){
+    inp.addEventListener('input', function(){
+      inp.closest('.sh-stk-row-card').classList.remove('bad');
+      shRefreshStickerPreview();
+    });
+  });
+
+  shRefreshStickerPreview();
+
+  // Show modal
+  var modal = document.getElementById('sh-stkModal');
+  modal.classList.add('open');
+
+  // Focus first input
+  setTimeout(function(){
+    var first = wrap.querySelector('.sh-stk-row-codes');
+    if (first) first.focus();
+  }, 80);
+}
+
+function shCloseStickerModal(){
+  document.getElementById('sh-stkModal').classList.remove('open');
+}
+
+function shParseCodes(raw){
+  return (raw || '').split(',').map(function(s){ return s.trim(); }).filter(Boolean);
+}
+
+function shBuildStickerHTML(product, code){
+  return '<div class="sh-stk">' +
+           '<div class="sh-stk-prod">' + shEsc(product || '—') + '</div>' +
+           '<div class="sh-stk-code">' + shEsc(code || '—') + '</div>' +
+           '<div class="sh-stk-ftr">HCP WELLNESS</div>' +
+         '</div>';
+}
+
+function shRefreshStickerPreview(){
+  var prevGrid  = document.getElementById('sh-stk-prev-grid');
+  var prevCount = document.getElementById('sh-stk-prev-count');
+  var prevWrap  = document.getElementById('sh-stk-prev-wrap');
+
+  prevGrid.innerHTML = '';
+  var total = 0;
+  document.querySelectorAll('.sh-stk-row-card').forEach(function(card){
+    var product = card.dataset.product || '';
+    var input   = card.querySelector('.sh-stk-row-codes');
+    var codes   = shParseCodes(input ? input.value : '');
+    codes.forEach(function(code){
+      prevGrid.insertAdjacentHTML('beforeend', shBuildStickerHTML(product, code));
+      total++;
+    });
+  });
+
+  prevCount.textContent = total + ' sticker' + (total === 1 ? '' : 's');
+  prevWrap.style.display = total > 0 ? '' : 'none';
+}
+
+function shStickerPrint(){
+  var cards = Array.from(document.querySelectorAll('.sh-stk-row-card'));
+  // Validate all rows have at least one code
+  var allValid = true;
+  cards.forEach(function(card){
+    var inp = card.querySelector('.sh-stk-row-codes');
+    if (shParseCodes(inp.value).length === 0){
+      card.classList.add('bad');
+      allValid = false;
+    } else {
+      card.classList.remove('bad');
+    }
+  });
+  if (!allValid){
+    shAlert({
+      icon: '⚠️', title: 'Missing codes',
+      message: 'Some rows have no sample code. Please fill them or uncheck those rows.',
+      theme: 'warn'
+    });
+    return;
+  }
+
+  // Build print sheet
+  var grid = document.getElementById('sh-stk-grid');
+  grid.innerHTML = '';
+  cards.forEach(function(card){
+    var product = card.dataset.product || '';
+    var inp = card.querySelector('.sh-stk-row-codes');
+    shParseCodes(inp.value).forEach(function(code){
+      grid.insertAdjacentHTML('beforeend', shBuildStickerHTML(product, code));
+    });
+  });
+
+  // Close modal + fire print
+  shCloseStickerModal();
+  document.body.classList.add('sh-print-sticker');
+  setTimeout(function(){
+    window.print();
+    setTimeout(function(){ document.body.classList.remove('sh-print-sticker'); }, 400);
+  }, 60);
+}
+
+function shEsc(s){
+  return String(s || '').replace(/[&<>"']/g, function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+  });
+}
+
+/* ── Custom alert/confirm modals (instead of native alert/confirm) ── */
+function shOpenPopup(opts){
+  opts = opts || {};
+  var ov = document.getElementById('sh-popup-ov');
+  ov.querySelector('.sh-ic').textContent  = opts.icon  || 'ℹ️';
+  ov.querySelector('.sh-tt').textContent  = opts.title || 'Notice';
+  ov.querySelector('.sh-msg').textContent = opts.message || '';
+  ov.querySelector('.sh-det').innerHTML   = opts.detail  || '';
+
+  var themeClass = { success:'success', danger:'danger', warn:'primary' }[opts.theme] || 'primary';
+  var ok = ov.querySelector('.sh-ok-btn');
+  var cn = ov.querySelector('.sh-cancel-btn');
+  ok.className = themeClass;
+  ok.textContent = opts.okText || 'OK';
+
+  if (opts.showCancel){
+    cn.style.display = '';
+    cn.textContent = opts.cancelText || 'Cancel';
+  } else {
+    cn.style.display = 'none';
+  }
+
+  ov.classList.add('open');
+  return new Promise(function(resolve){
+    function cleanup(v){
+      ov.classList.remove('open');
+      ok.removeEventListener('click', onOk);
+      cn.removeEventListener('click', onCn);
+      ov.removeEventListener('click', onBd);
+      document.removeEventListener('keydown', onKey);
+      resolve(v);
+    }
+    function onOk(){ cleanup(true); }
+    function onCn(){ cleanup(false); }
+    function onBd(e){ if (e.target === ov) cleanup(false); }
+    function onKey(e){
+      if (e.key === 'Escape') cleanup(false);
+      else if (e.key === 'Enter') cleanup(true);
+    }
+    ok.addEventListener('click', onOk);
+    cn.addEventListener('click', onCn);
+    ov.addEventListener('click', onBd);
+    document.addEventListener('keydown', onKey);
+    setTimeout(function(){ ok.focus(); }, 60);
+  });
+}
+function shAlert(opts){ opts = opts || {}; opts.showCancel = false; return shOpenPopup(opts); }
+function shConfirm(opts){ opts = opts || {}; opts.showCancel = true; return shOpenPopup(opts); }
 </script>
+
+
+{# ══════════════════════════════════════════════════════
+   STICKER MODAL — same UI as R&D Sample Log
+   ══════════════════════════════════════════════════════ #}
+<div class="sh-stk-ov" id="sh-stkModal" role="dialog" aria-modal="true">
+  <div class="sh-stk-box">
+    <div class="sh-stk-hdr">
+      <div class="sh-stk-hdr-t">🖨️ Print Sticker</div>
+      <button type="button" class="sh-stk-close" onclick="shCloseStickerModal()" aria-label="Close">✕</button>
+    </div>
+
+    <div class="sh-stk-body">
+      <div class="sh-stk-multi-hint">
+        <b><span id="sh-stk-row-count">0</span></b> row(s) selected — enter sample code(s) for each. Comma-separated codes allowed per row.
+      </div>
+
+      <div id="sh-stk-rows-wrap"></div>
+
+      <div class="sh-stk-prev-wrap" id="sh-stk-prev-wrap" style="display:none;">
+        <div class="sh-stk-prev-lbl">
+          <span>Live Preview</span>
+          <span class="sh-stk-prev-count" id="sh-stk-prev-count">0 stickers</span>
+        </div>
+        <div class="sh-stk-prev-grid" id="sh-stk-prev-grid"></div>
+      </div>
+    </div>
+
+    <div class="sh-stk-foot">
+      <button type="button" class="sh-stk-btn" onclick="shCloseStickerModal()">Cancel</button>
+      <button type="button" class="sh-stk-btn primary" onclick="shStickerPrint()">🖨️ Print</button>
+    </div>
+  </div>
+</div>
+
+
+{# ── Hidden print sheets ───────────────────────────────────── #}
+<div id="sh-stkSheet">
+  <div class="sh-stk-grid" id="sh-stk-grid"></div>
+</div>
+
+<div id="sh-a4Sheet">
+  <div class="sh-a4-hdr">R&amp;D SAMPLES (<span id="sh-a4-date"></span>)</div>
+  <table class="sh-a4-tbl">
+    <thead>
+      <tr>
+        <th style="width:5%;">Sr. No.</th>
+        <th style="width:13%;">NPD Code</th>
+        <th style="width:22%;">Product Name</th>
+        <th style="width:14%;">Client</th>
+        <th style="width:16%;">Handover To</th>
+        <th style="width:12%;">Submitted By</th>
+        <th style="width:18%;">Sample Code</th>
+      </tr>
+    </thead>
+    <tbody id="sh-a4-body"></tbody>
+  </table>
+</div>
+
+{# ── Custom popup modal ────────────────────────────────────── #}
+<div class="sh-ov" id="sh-popup-ov" role="dialog" aria-modal="true">
+  <div class="sh-box">
+    <div class="sh-ic">ℹ️</div>
+    <div class="sh-tt">Notice</div>
+    <div class="sh-msg"></div>
+    <div class="sh-det"></div>
+    <div class="sh-acts">
+      <button type="button" class="sh-cancel-btn">Cancel</button>
+      <button type="button" class="sh-ok-btn primary">OK</button>
+    </div>
+  </div>
+</div>
 {% endblock %}

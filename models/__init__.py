@@ -18,6 +18,8 @@ from .npd        import (NPDProject, MilestoneMaster, MilestoneLog, NPDMilestone
                          NPDFormulation, NPDPackingMaterial, NPDArtwork, NPDActivityLog,
                          NPDComment, NPDNote,
                          OfficeDispatchToken, OfficeDispatchItem)
+from .packing    import PackingEntry
+from .material  import MaterialType, MaterialGroup, Material
 
 __all__ = [
     'db',
@@ -43,4 +45,7 @@ __all__ = [
     'NPDProject', 'MilestoneMaster', 'MilestoneLog', 'NPDMilestoneTemplate',
     'NPDFormulation', 'NPDPackingMaterial', 'NPDArtwork', 'NPDActivityLog', 'NPDComment', 'NPDNote',
     'OfficeDispatchToken', 'OfficeDispatchItem',
+    # Packing Department
+    'PackingEntry',
+    'MaterialType', 'MaterialGroup', 'Material',
 ]

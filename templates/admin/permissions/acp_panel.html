@@ -1,0 +1,571 @@
+{% extends "base.html" %}
+{% block title %}Access Control Panel{% endblock %}
+{% block page_title %}Access Control Panel{% endblock %}
+{% block bread %}Admin / Access Control Panel{% endblock %}
+
+{% block extra_css %}
+<style>
+* { box-sizing: border-box; }
+.acp-wrap { display:flex; height:calc(100vh - 115px); overflow:hidden; }
+
+/* ── LEFT ── */
+.acp-left { width:230px; flex-shrink:0; border-right:1px solid var(--border); display:flex; flex-direction:column; background:var(--bg2); }
+.acp-left-hdr { padding:10px 14px; border-bottom:1px solid var(--border); font-size:.68rem; font-weight:700; color:var(--text3); text-transform:uppercase; letter-spacing:.06em; }
+.acp-search { margin:8px 10px; padding:6px 10px; border:1px solid var(--border); border-radius:7px; font-size:.8rem; background:var(--bg); color:var(--text); width:calc(100% - 20px); }
+.acp-search:focus { outline:none; border-color:var(--primary); }
+.acp-users { flex:1; overflow-y:auto; }
+.u-item { display:flex; align-items:center; gap:8px; padding:7px 12px; cursor:pointer; transition:background .12s; text-decoration:none; color:inherit; border-left:3px solid transparent; }
+.u-item:hover { background:var(--bg3,#f1f5f9); }
+.u-item.active { background:#eff6ff; border-left-color:#2563eb; }
+.u-av { width:32px; height:32px; border-radius:50%; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:.75rem; font-weight:700; background:#dbeafe; color:#2563eb; }
+.u-nm { font-size:.82rem; font-weight:600; line-height:1.2; }
+.u-sub { font-size:.67rem; color:var(--text3); }
+.rp { font-size:.6rem; font-weight:700; padding:1px 6px; border-radius:10px; margin-left:auto; flex-shrink:0; text-transform:uppercase; }
+.rp-admin{background:#fef3c7;color:#d97706;} .rp-manager{background:#eff6ff;color:#2563eb;} .rp-hr{background:#f0fdf4;color:#16a34a;} .rp-user{background:#f5f3ff;color:#7c3aed;}
+
+/* ── RIGHT ── */
+.acp-right { flex:1; overflow-y:auto; background:var(--bg); }
+.acp-right-inner { padding:14px 18px; }
+.u-hdr { display:flex; align-items:center; gap:10px; margin-bottom:12px; padding-bottom:10px; border-bottom:1px solid var(--border); }
+.u-hdr .unm { font-size:.98rem; font-weight:700; }
+.u-hdr .usub { font-size:.73rem; color:var(--text3); }
+
+/* ── Module Group (top level) ── */
+.mg { border:1px solid var(--border); border-radius:10px; margin-bottom:8px; overflow:hidden; }
+.mg-hdr { display:flex; align-items:center; cursor:pointer; background:var(--bg2); padding:9px 12px; gap:0; user-select:none; transition:background .12s; }
+.mg-hdr:hover { background:var(--bg3,#f0f4f8); }
+.mg-arrow { font-size:.65rem; color:var(--text3); margin-right:8px; transition:transform .2s; flex-shrink:0; }
+.mg-arrow.o { transform:rotate(90deg); }
+.mg-ic { font-size:1rem; margin-right:8px; flex-shrink:0; }
+.mg-nm { font-weight:700; font-size:.88rem; flex:1; }
+.mg-body { display:none; padding:10px 14px 12px; }
+.mg-body.o { display:block; }
+
+/* ── Sub-module (2nd level) ── */
+.sm { border:1px solid var(--border-light,#e2e8f0); border-radius:8px; margin-bottom:6px; overflow:hidden; }
+.sm-hdr { display:flex; align-items:center; background:#f8fafc; padding:7px 10px; cursor:pointer; gap:6px; user-select:none; }
+.sm-hdr:hover { background:#f1f5f9; }
+.sm-arrow { font-size:.62rem; color:var(--text3); transition:transform .2s; flex-shrink:0; }
+.sm-arrow.o { transform:rotate(90deg); }
+.sm-nm { font-size:.8rem; font-weight:600; flex:1; }
+.sm-body { display:none; padding:8px 12px 10px; }
+.sm-body.o { display:block; }
+
+/* ── Permission row ── */
+.pr { display:flex; flex-wrap:wrap; align-items:center; gap:6px 14px; padding:5px 0; border-bottom:1px dashed var(--border-light,#f0f4f8); }
+.pr:last-child { border-bottom:none; }
+.pr-lbl { font-size:.75rem; font-weight:600; color:var(--text2); min-width:110px; }
+.pi { display:flex; align-items:center; gap:4px; }
+.pi-lbl { font-size:.72rem; color:var(--text3); white-space:nowrap; }
+
+/* ── Sub-permission chips ── */
+.chips { display:flex; flex-wrap:wrap; gap:4px; margin-top:4px; padding-top:4px; border-top:1px dashed var(--border-light,#f0f4f8); }
+.chip { font-size:.68rem; padding:2px 9px; border-radius:20px; cursor:pointer; border:1px solid var(--border); background:var(--bg2); color:var(--text2); transition:all .13s; }
+.chip.on { background:#eff6ff; border-color:#93c5fd; color:#1d4ed8; font-weight:600; }
+
+/* ── Toggle ── */
+.tg { width:34px; height:19px; border-radius:10px; border:none; cursor:pointer; transition:background .18s; position:relative; display:inline-block; font-size:0; flex-shrink:0; }
+.tg.on { background:#22c55e; }
+.tg.off { background:#d1d5db; }
+.tg::after { content:''; position:absolute; top:2px; width:15px; height:15px; background:#fff; border-radius:50%; transition:left .18s; box-shadow:0 1px 3px rgba(0,0,0,.18); }
+.tg.on::after { left:17px; }
+.tg.off::after { left:2px; }
+
+/* ── Enable/Disable All ── */
+.ea,.da { font-size:.63rem; font-weight:700; padding:2px 8px; border-radius:5px; cursor:pointer; border:1px solid; flex-shrink:0; }
+.ea { border-color:#86efac; background:#f0fdf4; color:#16a34a; }
+.ea:hover { background:#dcfce7; }
+.da { border-color:#fca5a5; background:#fef2f2; color:#dc2626; }
+.da:hover { background:#fee2e2; }
+
+/* override badge */
+.ob { font-size:.6rem; background:#fef3c7; color:#d97706; padding:1px 5px; border-radius:8px; font-weight:700; }
+
+.empty { text-align:center; padding:60px 20px; color:var(--text3); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="acp-wrap">
+
+  {# ── LEFT: Users ── #}
+  <div class="acp-left">
+    <div class="acp-left-hdr">Portal Users</div>
+    <input type="text" class="acp-search" id="acpS" placeholder="🔍 Search...">
+    <div class="acp-users">
+      {% for u in all_users %}
+      <a href="{{ url_for('users_bp.acp_panel', user_id=u.id) }}"
+         class="u-item {% if selected_user and selected_user.id==u.id %}active{% endif %}"
+         data-name="{{ (u.full_name or u.username)|lower }} {{ u.role|lower }} {{ u.username|lower }}">
+        <div class="u-av">{{ (u.full_name or u.username)[:2]|upper }}</div>
+        <div style="flex:1;min-width:0;">
+          <div class="u-nm">{{ u.full_name or u.username }}</div>
+          <div class="u-sub">{{ u.username }} · {{ u.role }}</div>
+        </div>
+        <span class="rp rp-{{ u.role }}">{{ u.role[:3] }}</span>
+      </a>
+      {% endfor %}
+    </div>
+  </div>
+
+  {# ── RIGHT: Permissions ── #}
+  <div class="acp-right">
+   <div class="acp-right-inner">
+    {% if selected_user %}
+    <div class="u-hdr">
+      <div class="u-av" style="width:38px;height:38px;font-size:.88rem;">{{ (selected_user.full_name or selected_user.username)[:2]|upper }}</div>
+      <div>
+        <div class="unm">{{ selected_user.full_name or selected_user.username }}</div>
+        <div class="usub">@{{ selected_user.username }} · {{ selected_user.email or '' }} · <b>{{ selected_user.role|title }}</b></div>
+      </div>
+    </div>
+
+    {# ── MACRO: get module obj ── #}
+    {% macro mobj(nm) %}{% set o = modules|selectattr('name','eq',nm)|first %}{{ o }}{% endmacro %}
+
+    {# ── MACRO: single permission row ── #}
+    {% macro prow(mod_name, label, uid, show_ea=false) %}
+      {% set mo = modules|selectattr('name','eq',mod_name)|first %}
+      {% if mo %}
+        {% set mid = mo.id %}
+        {% set up  = perm_map.get(mid) %}
+        {% set rp  = role_perm_map.get(mid) %}
+        {% set cv = up.can_view   if up else (rp.can_view   if rp else true) %}
+        {% set ca = up.can_add    if up else (rp.can_add    if rp else false) %}
+        {% set ce = up.can_edit   if up else (rp.can_edit   if rp else false) %}
+        {% set cd = up.can_delete if up else (rp.can_delete if rp else false) %}
+        {% set cx = up.can_export if up else (rp.can_export if rp else false) %}
+        {% set ci = up.can_import if up else false %}
+        <div class="pr">
+          <span class="pr-lbl">{{ label }}{% if up is not none %} <span class="ob">⚡</span>{% endif %}</span>
+          <div class="pi"><span class="pi-lbl">View</span><button class="tg {{ 'on' if cv else 'off' }}" data-uid="{{ uid }}" data-mid="{{ mid }}" data-action="can_view" onclick="tP(this)"></button></div>
+          <div class="pi"><span class="pi-lbl">Add</span><button class="tg {{ 'on' if ca else 'off' }}" data-uid="{{ uid }}" data-mid="{{ mid }}" data-action="can_add" onclick="tP(this)"></button></div>
+          <div class="pi"><span class="pi-lbl">Edit</span><button class="tg {{ 'on' if ce else 'off' }}" data-uid="{{ uid }}" data-mid="{{ mid }}" data-action="can_edit" onclick="tP(this)"></button></div>
+          <div class="pi"><span class="pi-lbl">Delete</span><button class="tg {{ 'on' if cd else 'off' }}" data-uid="{{ uid }}" data-mid="{{ mid }}" data-action="can_delete" onclick="tP(this)"></button></div>
+          <div class="pi"><span class="pi-lbl">Export</span><button class="tg {{ 'on' if cx else 'off' }}" data-uid="{{ uid }}" data-mid="{{ mid }}" data-action="can_export" onclick="tP(this)"></button></div>
+          <div class="pi"><span class="pi-lbl">Import</span><button class="tg {{ 'on' if ci else 'off' }}" data-uid="{{ uid }}" data-mid="{{ mid }}" data-action="can_import" onclick="tP(this)"></button></div>
+          {% if show_ea %}
+          <button class="ea" data-uid="{{ uid }}" data-mid="{{ mid }}" onclick="mAll(event,this,true)">Enable All</button>
+          <button class="da" data-uid="{{ uid }}" data-mid="{{ mid }}" onclick="mAll(event,this,false)">Disable All</button>
+          {% endif %}
+        </div>
+      {% endif %}
+    {% endmacro %}
+
+    {# ── MACRO: chips for sub-perms ── #}
+    {% macro chips(mod_name, keys_labels, uid) %}
+      {% set mo = modules|selectattr('name','eq',mod_name)|first %}
+      {% if mo %}
+        {% set mid = mo.id %}
+        {% set subs = sub_perm_map.get(mid, {}) %}
+        {% if keys_labels %}
+        <div class="chips">
+          {% for key, lbl in keys_labels %}
+          <button class="chip {{ 'on' if subs.get(key,false) else 'off' }}" data-uid="{{ uid }}" data-mid="{{ mid }}" data-key="{{ key }}" onclick="tS(this)">{{ lbl }}</button>
+          {% endfor %}
+        </div>
+        {% endif %}
+      {% endif %}
+    {% endmacro %}
+
+    {% set uid = selected_user.id %}
+
+    {# ═══════════════════════════════════════
+       CRM
+    ═══════════════════════════════════════ #}
+    {% set _crm = modules|selectattr('name','eq','crm')|first %}
+    <div class="mg">
+      <div class="mg-hdr" onclick="tog(this,'g-crm')">
+        <span class="mg-arrow" id="a-g-crm">▶</span><span class="mg-ic">📊</span>
+        <span class="mg-nm">CRM</span>
+        {% if _crm %}<button class="ea" data-uid="{{ uid }}" data-mid="{{ _crm.id }}" onclick="mAll(event,this,true)">Enable All</button><button class="da" data-uid="{{ uid }}" data-mid="{{ _crm.id }}" onclick="mAll(event,this,false)">Disable All</button>{% endif %}
+      </div>
+      <div class="mg-body" id="g-crm">
+
+        {# Leads #}
+        <div class="sm">
+          <div class="sm-hdr" onclick="tog(this,'s-leads')"><span class="sm-arrow" id="a-s-leads">▶</span><span class="sm-nm">📋 Leads</span>
+            {% set _leads_mo = modules|selectattr('name','eq','crm_leads')|first %}
+            {% if _leads_mo %}<button class="ea" data-uid="{{ uid }}" data-mid="{{ _leads_mo.id }}" onclick="mAll(event,this,true)">Enable All</button><button class="da" data-uid="{{ uid }}" data-mid="{{ _leads_mo.id }}" onclick="mAll(event,this,false)">Disable All</button>{% endif %}
+          </div>
+          <div class="sm-body" id="s-leads">
+            {{ prow('crm_leads','Leads',uid) }}
+            {{ chips('crm_leads',[
+              ('filter','Filter'),('sort','Sort'),('columns','Columns'),
+              ('inline_edit','Inline Edit'),('change_status','Change Status'),
+              ('discussion_board','Discussion Board'),('activity_log','Activity Log'),
+              ('reminder','Reminder'),('personal_notes','Personal Notes'),
+              ('whatsapp','WhatsApp'),('sample_order','Sample Order'),
+              ('quotation','Quotation'),('send_npd','Send NPD'),
+              ('create_npd','NPD Project Create'),('create_epd','EPD Project Create'),
+              ('attachments','Attachments'),
+              ('restore','Restore'),('permanent_delete','Permanent Delete'),
+              ('view_deleted','View Deleted Tab')
+            ], uid) }}
+          </div>
+        </div>
+
+        {# Clients #}
+        <div class="sm">
+          <div class="sm-hdr" onclick="tog(this,'s-clients')"><span class="sm-arrow" id="a-s-clients">▶</span><span class="sm-nm">👥 Client Master</span>
+            {% set _clients_mo = modules|selectattr('name','eq','crm_clients')|first %}
+            {% if _clients_mo %}<button class="ea" data-uid="{{ uid }}" data-mid="{{ _clients_mo.id }}" onclick="mAll(event,this,true)">Enable All</button><button class="da" data-uid="{{ uid }}" data-mid="{{ _clients_mo.id }}" onclick="mAll(event,this,false)">Disable All</button>{% endif %}
+          </div>
+          <div class="sm-body" id="s-clients">
+            {{ prow('crm_clients','Clients',uid) }}
+            {{ chips('crm_clients',[
+              ('filter','Filter'),('sort','Sort'),('columns','Columns'),
+              ('inline_edit','Inline Edit'),('create_npd','Create NPD Project'),
+              ('create_epd','Create EPD Project'),('npd_quote','Send NPD Quote'),
+              ('restore','Restore'),('permanent_delete','Permanent Delete'),
+              ('view_deleted','View Deleted Tab')
+            ], uid) }}
+          </div>
+        </div>
+
+        {# Sample Orders #}
+        <div class="sm">
+          <div class="sm-hdr" onclick="tog(this,'s-sample')"><span class="sm-arrow" id="a-s-sample">▶</span><span class="sm-nm">🧾 Sample Orders</span>
+            {% set _so_mo2 = modules|selectattr('name','eq','crm_leads')|first %}
+            {% if _so_mo2 %}<button class="ea" data-uid="{{ uid }}" data-mid="{{ _so_mo2.id }}" onclick="mAll(event,this,true)">Enable All</button><button class="da" data-uid="{{ uid }}" data-mid="{{ _so_mo2.id }}" onclick="mAll(event,this,false)">Disable All</button>{% endif %}
+          </div>
+          <div class="sm-body" id="s-sample">
+            {% set _so_mo = modules|selectattr('name','eq','crm_leads')|first %}
+            {% if _so_mo %}
+            {% set _so_mid = _so_mo.id %}
+            {% set _so_up  = perm_map.get(_so_mid) %}
+            {% set _so_rp  = role_perm_map.get(_so_mid) %}
+            {% set _so_cv  = _so_up.can_view   if _so_up else (_so_rp.can_view   if _so_rp else true) %}
+            {% set _so_cd  = _so_up.can_delete if _so_up else (_so_rp.can_delete if _so_rp else false) %}
+            <div class="pr">
+              <span class="pr-lbl">Sample Orders</span>
+              <div class="pi"><span class="pi-lbl">View</span><button class="tg {{ 'on' if _so_cv else 'off' }}" data-uid="{{ uid }}" data-mid="{{ _so_mid }}" data-action="can_view" onclick="tP(this)"></button></div>
+              <div class="pi"><span class="pi-lbl">Delete</span><button class="tg {{ 'on' if _so_cd else 'off' }}" data-uid="{{ uid }}" data-mid="{{ _so_mid }}" data-action="can_delete" onclick="tP(this)"></button></div>
+            </div>
+            {% endif %}
+            {{ chips('crm_leads',[
+              ('lead_view','Lead View'),('invoice_download','Invoice Download'),
+              ('pdf_download','Download Sample Order PDF'),('mail_send','Mail Send'),
+              ('invoice_upload','Invoice Upload'),('view_deleted','View Deleted Tab'),
+              ('restore','Restore'),('permanent_delete','Permanent Delete')
+            ], uid) }}
+          </div>
+        </div>
+
+        {# Quotations #}
+        <div class="sm">
+          <div class="sm-hdr" onclick="tog(this,'s-quot')"><span class="sm-arrow" id="a-s-quot">▶</span><span class="sm-nm">📄 Quotations</span>
+            {% set _qt_mo2 = modules|selectattr('name','eq','crm_leads')|first %}
+            {% if _qt_mo2 %}<button class="ea" data-uid="{{ uid }}" data-mid="{{ _qt_mo2.id }}" onclick="mAll(event,this,true)">Enable All</button><button class="da" data-uid="{{ uid }}" data-mid="{{ _qt_mo2.id }}" onclick="mAll(event,this,false)">Disable All</button>{% endif %}
+          </div>
+          <div class="sm-body" id="s-quot">
+            {% set _qt_mo = modules|selectattr('name','eq','crm_leads')|first %}
+            {% if _qt_mo %}
+            {% set _qt_mid = _qt_mo.id %}
+            {% set _qt_up  = perm_map.get(_qt_mid) %}
+            {% set _qt_rp  = role_perm_map.get(_qt_mid) %}
+            {% set _qt_cv  = _qt_up.can_view   if _qt_up else (_qt_rp.can_view   if _qt_rp else true) %}
+            {% set _qt_cd  = _qt_up.can_delete if _qt_up else (_qt_rp.can_delete if _qt_rp else false) %}
+            <div class="pr">
+              <span class="pr-lbl">Quotations</span>
+              <div class="pi"><span class="pi-lbl">View</span><button class="tg {{ 'on' if _qt_cv else 'off' }}" data-uid="{{ uid }}" data-mid="{{ _qt_mid }}" data-action="can_view" onclick="tP(this)"></button></div>
+              <div class="pi"><span class="pi-lbl">Delete</span><button class="tg {{ 'on' if _qt_cd else 'off' }}" data-uid="{{ uid }}" data-mid="{{ _qt_mid }}" data-action="can_delete" onclick="tP(this)"></button></div>
+            </div>
+            {% endif %}
+            {{ chips('crm_leads',[
+              ('quotation','Create Quotation'),('send_email','Quot: Send Email'),
+              ('status_change','Quot: Status Change')
+            ], uid) }}
+          </div>
+        </div>
+
+                {# Settings #}
+        <div class="sm">
+          <div class="sm-hdr" onclick="tog(this,'s-crm-set')"><span class="sm-arrow" id="a-s-crm-set">▶</span><span class="sm-nm">⚙️ CRM Settings</span></div>
+          <div class="sm-body" id="s-crm-set">
+            {{ prow('crm','CRM Settings',uid) }}
+            {{ chips('crm',[
+              ('mail_master','Mail Master'),('points_config','Points Config'),
+              ('lead_status','Lead Status'),('lead_source','Lead Source'),
+              ('lead_category','Lead Category'),('product_range','Product Range')
+            ], uid) }}
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    {# ═══════════════════════════════════════
+       R&D
+    ═══════════════════════════════════════ #}
+    {% set _rd = modules|selectattr('name','eq','rd')|first %}
+    <div class="mg">
+      <div class="mg-hdr" onclick="tog(this,'g-rd')">
+        <span class="mg-arrow" id="a-g-rd">▶</span><span class="mg-ic">🔬</span>
+        <span class="mg-nm">R&amp;D</span>
+        {% if _rd %}<button class="ea" data-uid="{{ uid }}" data-mid="{{ _rd.id }}" onclick="mAll(event,this,true)">Enable All</button><button class="da" data-uid="{{ uid }}" data-mid="{{ _rd.id }}" onclick="mAll(event,this,false)">Disable All</button>{% endif %}
+      </div>
+      <div class="mg-body" id="g-rd">
+        {{ prow('rd','R&D Projects',uid,true) }}
+        {{ chips('rd',[
+          ('unalloted_npd','Unalloted NPD'),('alloted_npd','Alloted NPD'),
+          ('closed_npd','Closed NPD'),('assign','Assign'),
+          ('trials_add','Log Trials Add'),('trials_list','Trials List'),
+          ('discussion','Discussion'),('performance','Performance'),('settings','Settings')
+        ], uid) }}
+      </div>
+    </div>
+
+    {# ═══════════════════════════════════════
+       NPD
+    ═══════════════════════════════════════ #}
+    {% set _npd = modules|selectattr('name','eq','npd')|first %}
+    <div class="mg">
+      <div class="mg-hdr" onclick="tog(this,'g-npd')">
+        <span class="mg-arrow" id="a-g-npd">▶</span><span class="mg-ic">🧪</span>
+        <span class="mg-nm">NPD</span>
+        {% if _npd %}<button class="ea" data-uid="{{ uid }}" data-mid="{{ _npd.id }}" onclick="mAll(event,this,true)">Enable All</button><button class="da" data-uid="{{ uid }}" data-mid="{{ _npd.id }}" onclick="mAll(event,this,false)">Disable All</button>{% endif %}
+      </div>
+      <div class="mg-body" id="g-npd">
+
+        {# NPD Projects #}
+        <div class="sm">
+          <div class="sm-hdr" onclick="tog(this,'s-npd-proj')"><span class="sm-arrow" id="a-s-npd-proj">▶</span><span class="sm-nm">📋 NPD Projects</span></div>
+          <div class="sm-body" id="s-npd-proj">
+            {{ prow('npd','NPD Projects',uid,true) }}
+            {{ chips('npd',[
+              ('inline_edit','Inline Edit'),('print','Print'),
+              ('overview','Overview'),('client_detail','Client Detail'),
+              ('discussion_board','Discussion Board'),('internal_discussion','Internal Discussion'),
+              ('activity_log','Activity Log'),('attachments','Attachments'),
+              ('notes','Notes'),('milestone','Milestone'),
+              ('close_project','Close Project'),
+              ('restore','Restore'),('permanent_delete','Permanent Delete'),
+              ('view_deleted','View Deleted Tab')
+            ], uid) }}
+          </div>
+        </div>
+
+        {# EPD Projects #}
+        <div class="sm">
+          <div class="sm-hdr" onclick="tog(this,'s-epd-proj')"><span class="sm-arrow" id="a-s-epd-proj">▶</span><span class="sm-nm">📦 EPD Projects</span></div>
+          <div class="sm-body" id="s-epd-proj">
+            {{ prow('npd','EPD Projects',uid) }}
+            {{ chips('npd',[
+              ('epd_inline_edit','Inline Edit'),('epd_print','Print'),
+              ('epd_overview','Overview'),('epd_client_detail','Client Detail'),
+              ('epd_discussion','Discussion Board'),('epd_internal_discussion','Internal Discussion'),
+              ('epd_activity_log','Activity Log'),('epd_attachments','Attachments'),
+              ('epd_notes','Notes'),('epd_milestone','Milestone'),
+              ('epd_close','Close Project'),
+              ('epd_restore','Restore'),('epd_permanent_delete','Permanent Delete')
+            ], uid) }}
+          </div>
+        </div>
+
+        {# NPD Masters #}
+        <div class="sm">
+          <div class="sm-hdr" onclick="tog(this,'s-npd-master')"><span class="sm-arrow" id="a-s-npd-master">▶</span><span class="sm-nm">⚙️ NPD Masters</span></div>
+          <div class="sm-body" id="s-npd-master">
+            {{ prow('npd','NPD Masters',uid) }}
+            {{ chips('npd',[
+              ('milestone_master','Milestone Master'),('npd_status_master','NPD Status Master'),
+              ('npd_category_master','NPD Category Master'),('milestone_status','Milestone Status'),
+              ('param_master','Parameter Master'),('reports','Reports'),
+              ('epd','EPD')
+            ], uid) }}
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    {# ═══════════════════════════════════════
+       HR
+    ═══════════════════════════════════════ #}
+    {% set _hr = modules|selectattr('name','eq','hr')|first %}
+    <div class="mg">
+      <div class="mg-hdr" onclick="tog(this,'g-hr')">
+        <span class="mg-arrow" id="a-g-hr">▶</span><span class="mg-ic">👔</span>
+        <span class="mg-nm">HR</span>
+        {% if _hr %}<button class="ea" data-uid="{{ uid }}" data-mid="{{ _hr.id }}" onclick="mAll(event,this,true)">Enable All</button><button class="da" data-uid="{{ uid }}" data-mid="{{ _hr.id }}" onclick="mAll(event,this,false)">Disable All</button>{% endif %}
+      </div>
+      <div class="mg-body" id="g-hr">
+
+        {# Employees #}
+        <div class="sm">
+          <div class="sm-hdr" onclick="tog(this,'s-emp')"><span class="sm-arrow" id="a-s-emp">▶</span><span class="sm-nm">🪪 Employees</span></div>
+          <div class="sm-body" id="s-emp">
+            {{ prow('hr_employees','Employees',uid,true) }}
+            {{ chips('hr_employees',[
+              ('professional_tab','Professional Tab'),('personal_kyc_tab','Personal & KYC Tab'),
+              ('bank_tab','Bank Detail Tab'),('salary_tab','Salary Tab'),
+              ('education_tab','Education Tab'),('documents_tab','Documents Tab'),
+              ('filter','Filter'),('sort','Sort'),('columns','Columns'),
+              ('inline_edit','Inline Edit'),('id_card','ID Card'),
+              ('salary_details','Salary Details'),('bank_details','Bank Details'),
+              ('kyc_details','KYC Details'),('documents','Documents'),
+              ('org_chart','Org Chart'),
+              ('restore','Restore'),('permanent_delete','Permanent Delete'),
+              ('view_deleted','View Deleted Tab')
+            ], uid) }}
+          </div>
+        </div>
+
+        {# Attendance #}
+        <div class="sm">
+          <div class="sm-hdr" onclick="tog(this,'s-att')"><span class="sm-arrow" id="a-s-att">▶</span><span class="sm-nm">📅 Attendance</span></div>
+          <div class="sm-body" id="s-att">
+            {{ prow('hr','Attendance',uid) }}
+            {{ chips('hr',[
+              ('manual_entry','Manual Entry'),('late_absent','Late & Absent List'),('holiday','Holiday')
+            ], uid) }}
+          </div>
+        </div>
+
+        {# Rules & Policy #}
+        <div class="sm">
+          <div class="sm-hdr" onclick="tog(this,'s-rules')"><span class="sm-arrow" id="a-s-rules">▶</span><span class="sm-nm">📜 Rules &amp; Policy</span></div>
+          <div class="sm-body" id="s-rules">
+            {{ prow('hr','Rules & Policy',uid) }}
+            {{ chips('hr',[
+              ('shift_master','Shift Master'),('location_master','Location Master'),
+              ('late_coming_rules','Late Coming Rules'),('early_going_rules','Early Going Rules'),
+              ('overtime_rules','Overtime Rules'),
+              ('leave_policy','Leave Policy'),('lop_rule','LOP Rule'),
+              ('absent_rules','Absent Rules'),('comp_off_rules','Comp Off Rules')
+            ], uid) }}
+          </div>
+        </div>
+
+        {# HR Masters #}
+        <div class="sm">
+          <div class="sm-hdr" onclick="tog(this,'s-hr-master')"><span class="sm-arrow" id="a-s-hr-master">▶</span><span class="sm-nm">⚙️ HR Masters</span></div>
+          <div class="sm-body" id="s-hr-master">
+            {{ prow('hr','HR Masters',uid) }}
+            {{ chips('hr',[
+              ('emp_type','Employee Type'),('location','Location'),
+              ('department','Department'),('designation','Designation'),
+              ('shift_master_hr','Shift Master'),('salary_config','Salary Config')
+            ], uid) }}
+          </div>
+        </div>
+
+        {# Contractors #}
+        <div class="sm">
+          <div class="sm-hdr" onclick="tog(this,'s-cont')"><span class="sm-arrow" id="a-s-cont">▶</span><span class="sm-nm">🤝 Contractors</span></div>
+          <div class="sm-body" id="s-cont">
+            {{ prow('hr_contractors','Contractors',uid,true) }}
+            {{ chips('hr_contractors',[
+              ('filter','Filter'),('sort','Sort'),('columns','Columns'),
+              ('inline_edit','Inline Edit'),
+              ('restore','Restore'),('permanent_delete','Permanent Delete'),
+              ('view_deleted','View Deleted Tab')
+            ], uid) }}
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    {# ═══════════════════════════════════════
+       Masters
+    ═══════════════════════════════════════ #}
+    {% set _m = modules|selectattr('name','eq','masters')|first %}
+    <div class="mg">
+      <div class="mg-hdr" onclick="tog(this,'g-masters')">
+        <span class="mg-arrow" id="a-g-masters">▶</span><span class="mg-ic">⚙️</span>
+        <span class="mg-nm">Masters</span>
+        {% if _m %}<button class="ea" data-uid="{{ uid }}" data-mid="{{ _m.id }}" onclick="mAll(event,this,true)">Enable All</button><button class="da" data-uid="{{ uid }}" data-mid="{{ _m.id }}" onclick="mAll(event,this,false)">Disable All</button>{% endif %}
+      </div>
+      <div class="mg-body" id="g-masters">
+        {{ prow('masters','Masters',uid,true) }}
+      </div>
+    </div>
+
+    {# ═══════════════════════════════════════
+       User Management
+    ═══════════════════════════════════════ #}
+    {% set _um = modules|selectattr('name','eq','user_mgmt')|first %}
+    <div class="mg">
+      <div class="mg-hdr" onclick="tog(this,'g-usermgmt')">
+        <span class="mg-arrow" id="a-g-usermgmt">▶</span><span class="mg-ic">🔑</span>
+        <span class="mg-nm">User Management</span>
+        {% if _um %}<button class="ea" data-uid="{{ uid }}" data-mid="{{ _um.id }}" onclick="mAll(event,this,true)">Enable All</button><button class="da" data-uid="{{ uid }}" data-mid="{{ _um.id }}" onclick="mAll(event,this,false)">Disable All</button>{% endif %}
+      </div>
+      <div class="mg-body" id="g-usermgmt">
+        {{ prow('user_mgmt','User Management',uid,true) }}
+      </div>
+    </div>
+
+    {% else %}
+    <div class="empty">
+      <div style="font-size:2.5rem;margin-bottom:10px;">👈</div>
+      <div style="font-size:.95rem;font-weight:600;">Select a user from the left</div>
+    </div>
+    {% endif %}
+   </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.getElementById('acpS').addEventListener('input',function(){
+  const q=this.value.toLowerCase();
+  document.querySelectorAll('.u-item').forEach(el=>{
+    el.style.display=(q===''||el.dataset.name.includes(q))?'':'none';
+  });
+});
+
+function tog(hdrEl, bodyId){
+  const body=document.getElementById(bodyId);
+  const arr=hdrEl.querySelector('[id^="a-"]') || hdrEl.previousElementSibling;
+  // find arrow inside hdr
+  const arrows=hdrEl.querySelectorAll('.mg-arrow,.sm-arrow');
+  const open=body.classList.toggle('o');
+  arrows.forEach(a=>a.classList.toggle('o',open));
+}
+
+function tP(btn){
+  const isOn=btn.classList.contains('on'),nv=!isOn;
+  btn.classList.toggle('on',nv);btn.classList.toggle('off',!nv);btn.disabled=true;
+  fetch(`/admin/user-permissions/${btn.dataset.uid}/toggle`,{
+    method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({module_id:+btn.dataset.mid,action:btn.dataset.action,value:nv})
+  }).then(r=>r.json()).then(d=>{
+    btn.disabled=false;
+    if(!d.ok){btn.classList.toggle('on',isOn);btn.classList.toggle('off',!isOn);alert('Error!');}
+  }).catch(()=>{btn.disabled=false;btn.classList.toggle('on',isOn);btn.classList.toggle('off',!isOn);});
+}
+
+function tS(btn){
+  const isOn=btn.classList.contains('on'),nv=!isOn;
+  btn.classList.toggle('on',nv);btn.classList.toggle('off',!nv);btn.disabled=true;
+  fetch(`/admin/user-permissions/${btn.dataset.uid}/toggle`,{
+    method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({module_id:+btn.dataset.mid,action:'sub_'+btn.dataset.key,value:nv})
+  }).then(r=>r.json()).then(d=>{
+    btn.disabled=false;
+    if(!d.ok){btn.classList.toggle('on',isOn);btn.classList.toggle('off',!isOn);}
+  }).catch(()=>{btn.disabled=false;btn.classList.toggle('on',isOn);btn.classList.toggle('off',!isOn);});
+}
+
+function mAll(e,btn,enable){
+  e.stopPropagation();
+  const uid=btn.dataset.uid,mid=+btn.dataset.mid;
+  if(!mid)return;
+  btn.disabled=true;
+  fetch(`/admin/user-permissions/${uid}/toggle`,{
+    method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({module_id:mid,action:'disable_all',value:enable})
+  }).then(r=>r.json()).then(d=>{
+    btn.disabled=false;
+    if(!d.ok){alert('Error!');return;}
+    const card=btn.closest('.mg');
+    card.querySelectorAll(`.tg[data-mid="${mid}"]`).forEach(t=>{t.classList.toggle('on',enable);t.classList.toggle('off',!enable);});
+    card.querySelectorAll(`.chip[data-mid="${mid}"]`).forEach(s=>{s.classList.toggle('on',enable);s.classList.toggle('off',!enable);});
+  }).catch(()=>{btn.disabled=false;});
+}
+</script>
+{% endblock %}

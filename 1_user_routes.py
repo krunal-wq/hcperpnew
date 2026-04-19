@@ -582,14 +582,33 @@ def user_perm_toggle(user_id):
         db.session.add(up)
 
     if action in ('can_view', 'can_add', 'can_edit', 'can_delete', 'can_export', 'can_import'):
+        # Admin ka can_view kabhi False nahi hoga — warna apna hi module band ho jaata hai
+        target_user = User.query.get(user_id)
+        if action == 'can_view' and not value and target_user and target_user.role == 'admin':
+            return jsonify({'ok': False, 'error': 'Admin ka View permission disable nahi ho sakta'})
         setattr(up, action, value)
         up.updated_by = current_user.id
+
+        # Agar child ka can_view = True kiya → parent ko bhi auto-enable karo
+        if action == 'can_view' and value:
+            mod = Module.query.get(module_id)
+            if mod and mod.parent_id:
+                parent_up = UserPermission.query.filter_by(
+                    user_id=user_id, module_id=mod.parent_id
+                ).first()
+                if parent_up and not parent_up.can_view:
+                    parent_up.can_view = True
+                    parent_up.updated_by = current_user.id
+
         db.session.commit()
         return jsonify({'ok': True, 'value': value})
 
     # Module Enable/Disable ALL — sare permissions ek saath on/off
     if action == 'disable_all':
-        up.can_view   = value
+        # Admin ka can_view kabhi False nahi
+        target_user = User.query.get(user_id)
+        _is_target_admin = target_user and target_user.role == 'admin'
+        up.can_view   = True if _is_target_admin else value
         up.can_add    = value
         up.can_edit   = value
         up.can_delete = value
@@ -619,6 +638,15 @@ def user_perm_toggle(user_id):
                 child_sub_keys = [k for k, _ in MODULE_SUB_PERMS.get(child.name, [])]
                 child_up.set_sub_permissions({k: value for k in child_sub_keys})
                 child_up.updated_by = current_user.id
+
+            # Enable karte waqt parent bhi enable karo
+            if value and mod.parent_id:
+                parent_up = UserPermission.query.filter_by(
+                    user_id=user_id, module_id=mod.parent_id
+                ).first()
+                if parent_up and not parent_up.can_view:
+                    parent_up.can_view = True
+                    parent_up.updated_by = current_user.id
 
         up.updated_by = current_user.id
         db.session.commit()

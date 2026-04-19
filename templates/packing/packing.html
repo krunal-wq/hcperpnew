@@ -1,0 +1,796 @@
+{% extends "base.html" %}
+{% block title %}Packing Entry — HCP ERP{% endblock %}
+{% block page_title %}Packing Entry{% endblock %}
+{% block bread %}Packing / Sample Receipt Log{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ═══════════════════════════════════════════════════════════
+   PACKING MODULE — uses main project CSS vars & grid system
+   ═══════════════════════════════════════════════════════════ */
+
+.page-hdr        { display:flex; align-items:center; justify-content:space-between; margin-bottom:.85rem; flex-wrap:wrap; gap:10px; }
+.page-hdr h1     { font-size:18px; font-weight:800; color:var(--text); margin:0; display:flex; align-items:center; gap:8px; }
+.page-hdr p      { font-size:12px; color:var(--text2); margin:4px 0 0; }
+
+/* ── Stat chips ── */
+.pk-chip         { display:inline-flex; align-items:center; gap:6px; padding:5px 13px; border-radius:20px; font-size:12px; font-weight:700; background:var(--white); border:1px solid var(--border); color:var(--text2); }
+.pk-chip .val    { font-size:15px; font-weight:800; color:var(--blue); }
+
+/* ── Filter bar ── */
+.pk-filter-bar   { display:flex; align-items:flex-end; gap:10px; flex-wrap:wrap; background:var(--white); border:1px solid var(--border); border-left:4px solid var(--blue); border-radius:10px; padding:10px 14px; margin-bottom:14px; box-shadow:var(--sh-sm); }
+.pk-fg           { display:flex; flex-direction:column; gap:4px; }
+.pk-flbl         { font-size:10px; font-weight:800; color:var(--blue); text-transform:uppercase; letter-spacing:.7px; }
+.pk-date         { padding:7px 10px; border-radius:7px; border:1.5px solid var(--border); background:var(--white); color:var(--text); font-size:12.5px; font-family:inherit; font-weight:600; outline:none; transition:border-color .15s,box-shadow .15s; min-width:130px; }
+.pk-date:focus   { border-color:var(--blue); box-shadow:0 0 0 3px rgba(37,99,235,.12); }
+.pk-search       { padding:7px 11px; border-radius:7px; border:1.5px solid var(--border); background:var(--white); color:var(--text); font-size:12.5px; font-family:inherit; font-weight:500; outline:none; width:100%; transition:border-color .15s,box-shadow .15s; }
+.pk-search:focus { border-color:var(--blue); box-shadow:0 0 0 3px rgba(37,99,235,.12); }
+.pk-sep          { width:1px; height:36px; background:var(--border); margin:0 2px; }
+kbd              { display:inline-block; padding:1px 5px; border-radius:4px; background:var(--bg); border:1px solid var(--border); color:var(--text3); font-size:10px; font-family:monospace; box-shadow:0 1px 0 var(--border); }
+.kbd-hint        { font-size:10px; color:var(--text3); display:inline-flex; align-items:center; gap:5px; }
+
+/* ── Toolbar ── */
+.pk-toolbar      { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:8px; }
+.pk-stat-row     { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.pk-toolbar-right{ margin-left:auto; display:flex; align-items:center; gap:7px; flex-wrap:wrap; }
+
+.btn-pk-wa       { display:inline-flex; align-items:center; gap:6px; padding:7px 14px; background:#25d366; color:#fff; border:none; border-radius:7px; font-size:12.5px; font-weight:600; cursor:pointer; font-family:inherit; transition:all .15s; white-space:nowrap; }
+.btn-pk-wa:hover { background:#1da851; transform:translateY(-1px); box-shadow:0 4px 12px rgba(37,211,102,.35); }
+.btn-pk-wa:disabled { background:var(--border); color:var(--text3); cursor:not-allowed; transform:none; box-shadow:none; }
+
+#pkClearBtn.pk-active { background:var(--red-lt); border-color:var(--red-border); color:var(--red); }
+#pkClearBtn.pk-active:hover { background:#ef4444; color:#fff; }
+
+/* ── Table ── */
+.pk-tbl-wrap     { background:var(--white); border:1px solid var(--border); border-radius:12px; overflow:auto; box-shadow:var(--sh-sm); }
+.pk-tbl          { width:100%; border-collapse:collapse; font-size:12.5px; min-width:1600px; }
+.pk-tbl thead th { background:linear-gradient(180deg,#1e3a8a 0%,#1d4ed8 100%); padding:10px; text-align:left; font-size:10px; font-weight:700; color:#e0eaff; text-transform:uppercase; letter-spacing:.7px; white-space:nowrap; position:sticky; top:0; z-index:2; }
+.pk-tbl thead th:first-child { border-radius:10px 0 0 0; }
+.pk-tbl thead th:last-child  { border-radius:0 10px 0 0; }
+.pk-tbl thead td { background:var(--bg); padding:4px; border-bottom:2px solid var(--border); position:sticky; top:38px; z-index:2; }
+.pk-cf           { width:100%; padding:4px 7px; border:1.5px solid var(--border); border-radius:5px; background:var(--white); color:var(--text); font-size:10.5px; font-family:inherit; font-weight:500; outline:none; }
+.pk-cf:focus     { border-color:var(--blue); box-shadow:0 0 0 2px rgba(37,99,235,.1); }
+.pk-tbl tbody tr { border-bottom:1px solid var(--border); transition:background .12s; }
+.pk-tbl tbody tr:hover     { background:var(--blue-lt,#eff6ff); }
+.pk-tbl tbody tr.pk-sel    { background:var(--blue-lt,#eff6ff) !important; }
+.pk-tbl tbody td { padding:9px 10px; vertical-align:middle; color:var(--text); }
+.td-sr           { font-size:10px; color:var(--text3); font-weight:700; }
+.td-brand        { font-weight:700; }
+.td-qty, .td-mrp { font-weight:700; color:var(--blue); }
+.batch-pill      { display:inline-block; font-family:monospace; font-size:10.5px; font-weight:600; padding:2px 8px; border-radius:5px; background:var(--blue-lt,#eff6ff); border:1px solid var(--blue-border,#bfdbfe); color:var(--blue); }
+
+/* Badges */
+.badge           { display:inline-block; padding:2px 9px; border-radius:12px; font-size:10px; font-weight:700; }
+.badge-pending   { background:var(--amber-lt);  color:var(--amber); }
+.badge-received  { background:var(--blue-lt,#eff6ff); color:var(--blue); }
+.badge-pass      { background:var(--green-lt);  color:var(--green); }
+.badge-fail      { background:var(--red-lt);    color:var(--red); }
+
+/* Action button */
+.act-del         { display:inline-flex; align-items:center; gap:4px; padding:5px 9px; border-radius:6px; font-size:11px; font-weight:600; cursor:pointer; border:1px solid var(--red-border); background:var(--red-lt); color:var(--red); transition:all .15s; }
+.act-del:hover   { background:#ef4444; color:#fff; border-color:#ef4444; }
+.chk-col         { width:34px; text-align:center; }
+input[type="checkbox"] { width:14px; height:14px; cursor:pointer; accent-color:var(--blue); }
+
+
+/* ── Pagination ── */
+.pk-pg-bar       { display:flex; align-items:center; justify-content:space-between; padding:9px 14px; border-top:1px solid var(--border); flex-wrap:wrap; gap:8px; background:var(--bg); border-radius:0 0 12px 12px; }
+.pk-pg-info      { font-size:11px; color:var(--text2); font-weight:600; }
+.pk-pg-btns      { display:flex; gap:4px; flex-wrap:wrap; align-items:center; }
+.pk-pg-btn       { min-width:30px; height:30px; padding:0 8px; border-radius:7px; border:1px solid var(--border); background:var(--white); color:var(--text2); font-size:12px; font-weight:600; cursor:pointer; transition:all .15s; font-family:inherit; }
+.pk-pg-btn:hover { border-color:var(--blue); color:var(--blue); }
+.pk-pg-btn.active { background:#2563eb; color:#fff; border-color:#2563eb; }
+.pk-pg-btn:disabled { opacity:.35; cursor:not-allowed; }
+.pk-pg-sz        { padding:5px 8px; border-radius:7px; border:1px solid var(--border); background:var(--white); color:var(--text); font-size:12px; font-family:inherit; cursor:pointer; }
+.pk-pg-sz:focus  { outline:none; border-color:var(--blue); }
+
+/* ── Empty state ── */
+.pk-empty        { display:flex; flex-direction:column; align-items:center; justify-content:center; padding:60px 20px; color:var(--text2); text-align:center; }
+.pk-empty-icon   { font-size:42px; margin-bottom:14px; opacity:.4; }
+.pk-empty h4     { font-size:15px; font-weight:700; color:var(--text); margin:0 0 6px; }
+.pk-empty p      { font-size:12px; color:var(--text2); margin:0 0 14px; }
+
+/* ── Modal ── */
+.pk-overlay      { display:none; position:fixed; inset:0; background:rgba(2,6,23,.72); backdrop-filter:blur(2px); z-index:500; justify-content:center; align-items:flex-start; padding:28px 16px; overflow-y:auto; }
+.pk-overlay.open { display:flex; }
+.pk-modal        { background:var(--white); border:1px solid var(--border); border-radius:14px; width:860px; max-width:96vw; max-height:calc(100vh - 56px); display:flex; flex-direction:column; box-shadow:0 32px 80px rgba(0,0,0,.3); animation:pkIn .2s cubic-bezier(.16,1,.3,1); }
+@keyframes pkIn  { from{transform:translateY(-18px) scale(.98);opacity:0} to{transform:translateY(0) scale(1);opacity:1} }
+.pk-mhdr         { display:flex; align-items:center; justify-content:space-between; padding:16px 22px 12px; border-bottom:1px solid var(--border); border-radius:14px 14px 0 0; flex-shrink:0; }
+.pk-mhdr h3      { font-size:15px; font-weight:700; color:var(--text); margin:0; }
+.pk-mclose       { width:30px; height:30px; border-radius:7px; border:1px solid var(--border); background:var(--bg); cursor:pointer; font-size:14px; display:flex; align-items:center; justify-content:center; color:var(--text2); transition:all .15s; }
+.pk-mclose:hover { background:#ef4444; color:#fff; border-color:#ef4444; }
+.pk-mbody        { padding:18px 22px 10px; overflow-y:auto; flex:1; }
+.pk-mfoot        { display:flex; justify-content:flex-end; gap:9px; padding:12px 22px; border-top:1px solid var(--border); background:var(--bg); border-radius:0 0 14px 14px; flex-shrink:0; }
+
+/* Section divider inside modal */
+.pk-sec-hdr      { font-size:10px; font-weight:800; color:var(--blue); text-transform:uppercase; letter-spacing:1px; background:var(--bg); border-radius:6px; padding:6px 11px; margin:16px 0 12px; border:1px solid var(--border); display:flex; align-items:center; gap:6px; }
+
+/* Static display field */
+.fi-static       { width:100%; padding:9px 12px; border-radius:7px; border:1.5px solid var(--border); background:var(--bg); color:var(--text2); font-size:13px; font-family:inherit; font-weight:600; display:flex; align-items:center; min-height:38px; box-sizing:border-box; opacity:.8; }
+
+/* Pkg material row */
+.pkg-mat-row     { display:flex; gap:6px; align-items:center; }
+.pkg-mat-row select { flex:1; }
+.pkg-mat-add     { flex-shrink:0; width:32px; height:36px; border-radius:7px; border:1.5px solid #1d4ed8; background:linear-gradient(135deg,#1e3a8a,#2563eb); color:#fff; cursor:pointer; font-size:18px; display:flex; align-items:center; justify-content:center; transition:all .15s; padding:0; }
+.pkg-mat-add:hover { background:linear-gradient(135deg,#1e40af,#1d4ed8); }
+
+/* Autocomplete */
+.pk-ac-list      { position:absolute; top:100%; left:0; right:0; background:var(--white); border:1.5px solid var(--blue); border-top:none; border-radius:0 0 8px 8px; max-height:200px; overflow-y:auto; z-index:999; box-shadow:var(--sh-md); }
+.pk-ac-item      { padding:8px 12px; font-size:12px; cursor:pointer; color:var(--text); border-bottom:1px solid var(--border); transition:background .12s; }
+.pk-ac-item:hover,.pk-ac-item.active { background:var(--blue); color:#fff; }
+.pk-ac-item em   { font-style:normal; font-weight:800; }
+.brand-ac-item   { padding:8px 12px; cursor:pointer; font-size:12.5px; display:flex; align-items:center; gap:8px; transition:background .1s; }
+.brand-ac-item:hover { background:var(--blue-lt,#eff6ff); }
+.brand-ac-dot    { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+
+/* Shake on error */
+@keyframes pkShake { 0%,100%{transform:translateX(0)} 20%{transform:translateX(-6px)} 40%{transform:translateX(6px)} 60%{transform:translateX(-4px)} 80%{transform:translateX(4px)} }
+.fi-err          { border-color:#ef4444 !important; box-shadow:0 0 0 3px rgba(239,68,68,.18) !important; animation:pkShake .35s ease; }
+
+@media print {
+  .pk-filter-bar,.pk-toolbar,.pk-pg-bar,.pk-overlay,.act-del,.chk-col,thead td { display:none !important; }
+  .pk-tbl { min-width:unset !important; }
+}
+
+/* ── Column selector panel ── */
+.pk-col-wrap  { position:relative; }
+.pk-col-panel { display:none; position:absolute; top:calc(100% + 6px); right:0; z-index:400;
+                background:var(--white); border:1px solid var(--border); border-radius:10px;
+                box-shadow:0 8px 32px rgba(0,0,0,.15); padding:12px; width:210px; }
+
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- Title + Toolbar single line -->
+<div class="pk-toolbar" style="margin-bottom:14px;">
+  <h2 style="font-size:18px;font-weight:800;color:var(--text);margin:0;display:flex;align-items:center;gap:8px;flex:1;min-width:0;">📋 Packing Sample Receipt Log</h2>
+  <span class="pk-chip">Total: <span class="val" id="pkTotal">{{ entries|length }}</span></span>
+  <span class="pk-chip" id="pkSelChip" style="display:none">Selected: <span class="val" id="pkSelCnt">0</span></span>
+  <div class="pk-toolbar-right">
+    {% if role in ['admin','manager','Packing'] %}
+    <button class="btn-pk-wa" id="pkWaBtn" onclick="pkWhatsApp()" disabled>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.125.555 4.122 1.528 5.857L0 24l6.335-1.51A11.95 11.95 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.97 0-3.81-.536-5.39-1.47l-.387-.23-3.76.897.944-3.653-.253-.396A9.956 9.956 0 012 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/></svg>
+      WhatsApp
+    </button>
+    {% endif %}
+<button class="btn-grid-action" onclick="pkExportCSV()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Export CSV
+    </button>
+    {% if role in ['admin', 'manager'] %}
+    <button class="btn-grid-action" onclick="pkOpenImport()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      Import CSV
+    </button>
+    {% endif %}
+    <div class="pk-col-wrap">
+      <button class="btn-grid-action" onclick="pkToggleColPanel(event)">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+        Columns
+      </button>
+      <div class="pk-col-panel" id="pkColPanel">
+        <div style="font-size:.72rem;font-weight:800;color:var(--text2);margin-bottom:8px;">Select Columns</div>
+        <div id="pkColList" style="display:flex;flex-direction:column;gap:3px;max-height:280px;overflow-y:auto;margin-bottom:10px;"></div>
+        <button onclick="pkApplyColumns()" style="width:100%;padding:7px;border-radius:7px;background:#2563eb;color:#fff;border:none;font-size:12.5px;font-weight:700;cursor:pointer;">Apply</button>
+      </div>
+    </div>
+        <button class="btn-grid-action" onclick="window.print()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+      Print
+    </button>
+    <button class="btn-add-new" onclick="pkOpenModal()" title="Alt+N">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      New Entry
+      <kbd style="font-size:9px;opacity:.75;background:rgba(255,255,255,.2);border-radius:3px;padding:1px 5px;margin-left:2px">Alt+N</kbd>
+    </button>
+  </div>
+</div>
+
+<!-- Filter Bar -->
+<div class="pk-filter-bar">
+  <div class="pk-fg">
+    <label class="pk-flbl">Show</label>
+    <select class="pk-pg-sz" id="pkPgSzSel" onchange="pkPageSz=+this.value;pkPage=1;pkRender()">
+      <option value="20">20 / page</option>
+      <option value="50" selected>50 / page</option>
+      <option value="100">100 / page</option>
+      <option value="9999">All</option>
+    </select>
+  </div>
+  <div class="pk-sep"></div>
+  <div class="pk-fg">
+    <label class="pk-flbl">From</label>
+    <input type="date" class="pk-date" id="pkFrom" value="{{ from_date }}" onchange="pkApplyDates()">
+  </div>
+  <div class="pk-sep"></div>
+  <div class="pk-fg">
+    <label class="pk-flbl">To</label>
+    <input type="date" class="pk-date" id="pkTo" value="{{ to_date }}" onchange="pkApplyDates()">
+  </div>
+  <div class="pk-sep"></div>
+  <div class="pk-fg" style="flex:1;min-width:200px">
+    <label class="pk-flbl">Search</label>
+    <input type="text" class="pk-search" id="pkSearch" placeholder="Brand / Product / Batch…" oninput="pkGlobalSearch(this.value)">
+  </div>
+  <button class="btn-grid-action" id="pkClearBtn" onclick="window.location.href='/packing'">
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    Clear
+  </button>
+  <div style="margin-left:auto;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+    <span class="kbd-hint"><kbd>Alt+N</kbd> New Entry</span>
+    <span class="kbd-hint"><kbd>Esc</kbd> Close</span>
+    <span class="kbd-hint"><kbd>Dbl-click</kbd> Edit</span>
+  </div>
+</div>
+
+<!-- Table -->
+<div class="pk-tbl-wrap">
+  <table class="pk-tbl" id="pkTable">
+    <thead>
+      <tr>
+        <th class="chk-col"><input type="checkbox" id="pkChkAll" onchange="pkToggleAll(this)"></th>
+        <th>Sr No</th><th data-col="entry_date">Date</th><th data-col="brand">Brand</th><th data-col="product_name">Product Name</th>
+        <th data-col="batch_no">Batch No</th><th data-col="mfg_date">Mfg. Date</th><th data-col="exp_date">Exp. Date</th><th data-col="sku_size">SKU Size</th>
+        <th data-col="packaging_material">Packaging<br>Material</th><th data-col="quantity">Quantity</th><th data-col="samples_sent_by">Samples<br>Sent By</th>
+        <th data-col="mrp">MRP</th><th data-col="status">Receiving<br>Status</th><th data-col="received_date">Received<br>Date</th>
+        <th data-col="remark">Remark</th><th>Actions</th>
+      </tr>
+      <tr>
+        <td></td><td></td>
+        <td data-col="entry_date"></td>
+        <td data-col="brand"><input class="pk-cf" id="cf-brand"   placeholder="Filter…" oninput="pkFilterCol()"></td>
+        <td data-col="product_name"><input class="pk-cf" id="cf-product" placeholder="Filter…" oninput="pkFilterCol()"></td>
+        <td data-col="batch_no"><input class="pk-cf" id="cf-batch"   placeholder="Filter…" oninput="pkFilterCol()"></td>
+        <td data-col="mfg_date"><input class="pk-cf" id="cf-mfg"     placeholder="Filter…" oninput="pkFilterCol()"></td>
+        <td data-col="exp_date"><input class="pk-cf" id="cf-exp"     placeholder="Filter…" oninput="pkFilterCol()"></td>
+        <td data-col="sku_size"><input class="pk-cf" id="cf-sku"     placeholder="Filter…" oninput="pkFilterCol()"></td>
+        <td data-col="packaging_material"><input class="pk-cf" id="cf-pkgmat"  placeholder="Filter…" oninput="pkFilterCol()"></td>
+        <td></td>
+        <td data-col="samples_sent_by"><input class="pk-cf" id="cf-sentby"  placeholder="Filter…" oninput="pkFilterCol()"></td>
+        <td></td>
+        <td>
+          <select class="pk-cf" id="cf-status" onchange="pkFilterCol()" style="padding:3px 4px;font-size:10px">
+            <option value="">All</option>
+            <option>Pending</option><option>Received</option>
+          </select>
+        </td>
+        <td></td><td></td><td></td>
+      </tr>
+    </thead>
+    <tbody id="pkTbody">
+      {% if entries %}
+        {% for r in entries %}
+        {% set sr = loop.index %}
+        {% set locked = r.status and r.status.lower() == 'approved' %}
+        <tr data-id="{{ r.id }}"
+            data-date="{{ r.entry_date.strftime('%Y-%m-%d') if r.entry_date else '' }}"
+            data-status="{{ r.status or 'Pending' }}"
+            data-recvdate="{{ r.received_date.strftime('%Y-%m-%d') if r.received_date else '' }}"
+            data-recvby="{{ r.received_by or '' }}"
+            data-teststatus="{{ r.testing_status or 'Pending' }}"
+            ondblclick="{% if not locked %}pkEditRow({{ r.id }}){% endif %}"
+            style="cursor:{% if not locked %}pointer{% else %}default{% endif %}">
+          <td class="chk-col" onclick="event.stopPropagation()">
+            <input type="checkbox" class="pk-row-cb" value="{{ r.id }}" onchange="pkUpdSelChip()">
+          </td>
+          <td class="td-sr">{{ sr }}</td>
+          <td data-col="entry_date">{{ r.entry_date.strftime('%d-%m-%Y') if r.entry_date else '' }}</td>
+          <td data-col="brand" class="td-brand">{{ r.brand or '' }}</td>
+          <td data-col="product_name" title="{{ r.product_name or '' }}">{{ r.product_name or '' }}</td>
+          <td data-col="batch_no"><span class="batch-pill">{{ r.batch_no or '' }}</span></td>
+          <td data-col="mfg_date">{{ r.mfg_date or '' }}</td>
+          <td data-col="exp_date">{{ r.exp_date or '' }}</td>
+          <td data-col="sku_size">{{ r.sku_size or '' }}</td>
+          <td data-col="packaging_material">{{ r.packaging_material or '' }}</td>
+          <td data-col="quantity" class="td-qty">{{ r.quantity or 0 }}</td>
+          <td data-col="samples_sent_by">{{ r.samples_sent_by or '' }}</td>
+          <td data-col="mrp" class="td-mrp">{% if r.mrp is not none %}₹{{ '%.2f'|format(r.mrp|float) }}{% endif %}</td>
+          <td data-col="status">
+            {% set sc = {'Received':'badge-received','Approved':'badge-pass','Rejected':'badge-fail'}.get(r.status,'badge-pending') %}
+            <span class="badge {{ sc }}">{{ r.status or 'Pending' }}</span>
+          </td>
+          <td data-col="received_date">{{ r.received_date.strftime('%d-%m-%Y') if r.received_date else '' }}</td>
+          <td data-col="remark" style="max-width:120px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="{{ r.remark or '' }}">{{ r.remark or '' }}</td>
+          <td onclick="event.stopPropagation()">
+            {% if locked %}
+              <span style="font-size:11px;color:var(--text3)">🔒</span>
+            {% else %}
+              <button class="act-del" onclick="pkDelete({{ r.id }})">🗑</button>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      {% else %}
+        <tr><td colspan="17">
+          <div class="pk-empty">
+            <div class="pk-empty-icon">📭</div>
+            <h4>No entries found</h4>
+            <p>No packing entries for selected date range.</p>
+          </div>
+        </td></tr>
+      {% endif %}
+    </tbody>
+  </table>
+</div>
+
+<!-- Pagination -->
+<div class="pk-pg-bar">
+  <span class="pk-pg-info" id="pkPgInfo">—</span>
+  <div class="pk-pg-btns" id="pkPgBtns"></div>
+</div>
+
+
+
+<!-- ═══════════════════════ MODAL ═══════════════════════ -->
+<div class="pk-overlay" id="pkOverlay" onclick="if(event.target===this)pkCloseModal()">
+  <div class="pk-modal">
+    <div class="pk-mhdr">
+      <h3 id="pkModalTitle">➕ New Packing Entry</h3>
+      <button class="pk-mclose" onclick="pkCloseModal()">✕</button>
+    </div>
+
+    <div class="pk-mbody">
+      <div class="form-grid">
+
+        <div class="fg">
+          <label class="fl">Date <span style="font-size:9px;color:var(--text3);font-weight:400;text-transform:none">— auto set</span></label>
+          <div id="pkFDateDisp" class="fi-static">—</div>
+          <input type="hidden" id="pkFDate">
+        </div>
+
+        <div class="fg" style="position:relative">
+          <label class="fl">Brand <span style="color:var(--red)">*</span></label>
+          <div style="position:relative">
+            <input type="text" class="fi" id="pkFBrand" placeholder="Type to search brand…"
+                   autocomplete="off" oninput="pkBrandFilter()" onfocus="pkBrandFilter()" onblur="setTimeout(pkBrandHide,200)">
+            <div id="pkBrandList" style="display:none;position:absolute;top:100%;left:0;right:0;z-index:999;background:var(--white);border:1.5px solid var(--blue);border-top:none;border-radius:0 0 8px 8px;max-height:180px;overflow-y:auto;box-shadow:var(--sh-md)"></div>
+          </div>
+        </div>
+
+        <div class="fg">
+          <label class="fl">Batch No</label>
+          <input type="text" class="fi" id="pkFBatch" placeholder="e.g. 26O5">
+        </div>
+
+        <div class="fg fg-full">
+          <label class="fl">Product Name <span style="color:var(--red)">*</span></label>
+          <div style="position:relative">
+            <input type="text" class="fi" id="pkFProduct" placeholder="e.g. ORECARE TOOTHPASTE 100GM"
+                   autocomplete="off" oninput="pkAcInput(this)" onkeydown="pkAcKey(event)" onfocus="pkAcInput(this)">
+            <div class="pk-ac-list" id="pkAcList" style="display:none"></div>
+          </div>
+        </div>
+
+        <div class="fg"><label class="fl">Mfg. Date</label><input type="text" class="fi" id="pkFMfg" placeholder="e.g. 03/26"></div>
+        <div class="fg"><label class="fl">Exp. Date</label><input type="text" class="fi" id="pkFExp" placeholder="e.g. 02/28"></div>
+        <div class="fg"><label class="fl">SKU Size</label><input type="text" class="fi" id="pkFSku" placeholder="e.g. 100GM"></div>
+
+        <div class="fg">
+          <label class="fl">Packaging Material</label>
+          <div class="pkg-mat-row">
+            <select class="fi" id="pkFMat">
+              <option value="">-- Select --</option>
+              <option>TUBE</option><option>BOTTLE</option><option>POUCH</option>
+              <option>BOX</option><option>JAR</option><option>SACHET</option><option>OTHER</option>
+            </select>
+            <button type="button" class="pkg-mat-add" onclick="pkAddMat()" title="Add custom">+</button>
+          </div>
+        </div>
+
+        <div class="fg"><label class="fl">Quantity</label><input type="number" class="fi" id="pkFQty" min="0" placeholder="e.g. 7"></div>
+        <div class="fg"><label class="fl">Samples Sent By</label><input type="text" class="fi" id="pkFSentBy" placeholder="e.g. HIREN"></div>
+        <div class="fg"><label class="fl">MRP (₹)</label><input type="number" class="fi" id="pkFMrp" min="0" step="0.01" placeholder="e.g. 99.00"></div>
+      </div>
+
+      <!-- QC Section -->
+      <div class="pk-sec-hdr">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="10"/></svg>
+        QC Department Fields
+      </div>
+      <div class="form-grid">
+        <div class="fg"><label class="fl">Received By</label><input type="text" class="fi" id="pkFRecvBy" placeholder="Received by" data-user="{{ user_name }}"></div>
+        <div class="fg">
+          <label class="fl">Receiving Status</label>
+          <select class="fi" id="pkFStatus">
+            <option value="Pending">Pending</option>
+            <option value="Received">Received</option>
+          </select>
+        </div>
+        <div class="fg">
+          <label class="fl">Received Date <span style="font-size:9px;color:var(--text3);font-weight:400;text-transform:none">— auto set</span></label>
+          <div id="pkFRecvDateDisp" class="fi-static">—</div>
+          <input type="hidden" id="pkFRecvDate">
+        </div>
+        <div class="fg">
+          <label class="fl">Testing Status</label>
+          <select class="fi" id="pkFTestStatus">
+            <option value="Pending">Pending</option>
+            <option value="Pass">Pass</option>
+            <option value="Fail">Fail</option>
+            <option value="In Progress">In Progress</option>
+          </select>
+        </div>
+        <div class="fg fg-full"><label class="fl">Remark</label><textarea class="fi" id="pkFRemark" rows="3" placeholder="Any remarks…"></textarea></div>
+      </div>
+    </div>
+
+    <div class="pk-mfoot">
+      <span class="kbd-hint" style="margin-right:auto"><kbd>Esc</kbd> Close</span>
+      <button class="btn-grid-action" onclick="pkCloseModal()">Cancel</button>
+      <button class="btn-add-new" onclick="pkSave()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+        Save Entry
+      </button>
+    </div>
+  </div>
+</div>
+<!-- ═══════════════ IMPORT MODAL ═══════════════ -->
+<div class="pk-overlay" id="pkImportOverlay" onclick="if(event.target===this)pkCloseImport()">
+  <div class="pk-modal" style="max-width:500px">
+    <div class="pk-modal-hdr">
+      <h3>📥 Import Packing Entries (CSV)</h3>
+      <button class="pk-modal-close" onclick="pkCloseImport()">✕</button>
+    </div>
+    <div class="pk-modal-body" style="padding:20px 24px">
+      <div style="background:var(--blue-lt,#eff6ff);border:1px solid var(--blue-border,#bfdbfe);border-radius:8px;padding:12px 14px;margin-bottom:16px;font-size:12px;color:var(--text2)">
+        <div style="font-weight:700;color:var(--blue,#2563eb);margin-bottom:6px">📋 CSV Format</div>
+        <div>Required: <strong>Brand</strong>, <strong>Product Name</strong></div>
+        <div style="margin-top:4px">Optional: Date, Batch No, Mfg Date, Exp Date, SKU Size, Packaging Material, Quantity, Samples sent By, MRP, Receiving Status, Received Date, Remark</div>
+        <div style="margin-top:6px;color:var(--text3);font-size:11px">💡 Export existing data to get correct format</div>
+      </div>
+      <div id="pkDropZone" style="border:2px dashed var(--border);border-radius:10px;padding:32px 20px;text-align:center;cursor:pointer;transition:all .2s;background:var(--surface2,#f7f9fc)"
+        onclick="document.getElementById('pkCsvFile').click()"
+        ondragover="pkDragOver(event)" ondragleave="pkDragLeave(event)" ondrop="pkDrop(event)">
+        <div style="font-size:32px;margin-bottom:8px">📂</div>
+        <div style="font-size:13px;font-weight:700;color:var(--text2)">Click to choose CSV file</div>
+        <div style="font-size:11px;color:var(--muted,#94a3b8);margin-top:4px">or drag &amp; drop here</div>
+        <div id="pkFileName" style="margin-top:10px;font-size:12px;font-weight:700;color:var(--blue,#2563eb);display:none"></div>
+      </div>
+      <input type="file" id="pkCsvFile" accept=".csv" style="display:none" onchange="pkFileChosen(this)">
+      <div id="pkImportProgress" style="display:none;margin-top:14px">
+        <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:6px">Importing…</div>
+        <div style="height:6px;background:var(--border);border-radius:99px;overflow:hidden">
+          <div id="pkImportBar" style="height:100%;background:#2563eb;border-radius:99px;width:0%;transition:width .4s"></div>
+        </div>
+      </div>
+      <div id="pkImportResult" style="display:none;margin-top:14px;padding:12px 14px;border-radius:8px;font-size:13px;font-weight:600"></div>
+    </div>
+    <div class="pk-modal-footer">
+      <button class="btn btn-outline" onclick="pkCloseImport()">Cancel</button>
+      <button class="btn btn-primary" id="pkImportBtn" onclick="pkDoImport()" disabled>
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        Import
+      </button>
+    </div>
+  </div>
+</div>
+
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+/* ── Column selector ── */
+const PK_COLS_KEY = 'hcp_pk_cols_v2';
+const PK_ALL_COLS = [
+  {key:'entry_date',label:'Date'},{key:'brand',label:'Brand'},
+  {key:'product_name',label:'Product Name'},{key:'batch_no',label:'Batch No'},
+  {key:'mfg_date',label:'Mfg. Date'},{key:'exp_date',label:'Exp. Date'},
+  {key:'sku_size',label:'SKU Size'},{key:'packaging_material',label:'Packaging Material'},
+  {key:'quantity',label:'Quantity'},{key:'samples_sent_by',label:'Samples Sent By'},
+  {key:'mrp',label:'MRP'},{key:'status',label:'Receiving Status'},
+  {key:'received_date',label:'Received Date'},{key:'remark',label:'Remark'},
+];
+let pkVisCols = [];
+function pkLoadCols(){ try{const s=JSON.parse(localStorage.getItem(PK_COLS_KEY));pkVisCols=(s&&s.length)?s:PK_ALL_COLS.map(c=>c.key);}catch{pkVisCols=PK_ALL_COLS.map(c=>c.key);} }
+function pkSaveCols(){ localStorage.setItem(PK_COLS_KEY,JSON.stringify(pkVisCols)); }
+function pkApplyColVis(){
+  document.querySelectorAll('#pkTable thead th[data-col],#pkTable thead td[data-col],#pkTable tbody td[data-col]').forEach(el=>{
+    el.style.display=pkVisCols.includes(el.getAttribute('data-col'))?'':'none';
+  });
+}
+function pkToggleColPanel(e){
+  e.stopPropagation();
+  const panel=document.getElementById('pkColPanel');
+  const open=panel.style.display==='block';
+  if(!open){
+    document.getElementById('pkColList').innerHTML=PK_ALL_COLS.map(c=>`
+      <label style="display:flex;align-items:center;gap:7px;font-size:.79rem;cursor:pointer;padding:2px 0;">
+        <input type="checkbox" value="${c.key}" ${pkVisCols.includes(c.key)?'checked':''} style="accent-color:#2563eb;">
+        ${c.label}</label>`).join('');
+  }
+  panel.style.display=open?'none':'block';
+}
+function pkApplyColumns(){
+  const checked=[];
+  document.querySelectorAll('#pkColList input[type=checkbox]').forEach(cb=>{if(cb.checked)checked.push(cb.value);});
+  if(!checked.length){alert('At least one column must be selected');return;}
+  pkVisCols=checked;pkSaveCols();pkApplyColVis();
+  document.getElementById('pkColPanel').style.display='none';
+}
+document.addEventListener('click',e=>{
+  if(!e.target.closest('.pk-col-wrap'))
+    document.getElementById('pkColPanel').style.display='none';
+});
+
+/* ── Delete ── */
+async function pkDelete(id){
+  if(!confirm('Delete this entry?')) return;
+  const res=await fetch('/packing/api/delete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id})});
+  const data=await res.json();
+  if(data.status==='ok'){location.reload();}
+  else alert(data.message||'Delete failed');
+}
+
+/* ── Export CSV ── */
+function pkExportCSV(){
+  const rows=document.querySelectorAll('#pkTable tbody tr');
+  const hdrs=['Sr No','Date','Brand','Product Name','Batch No','Mfg Date','Exp Date','SKU Size','Packaging Material','Quantity','Samples Sent By','MRP','Receiving Status','Received Date','Remark'];
+  let csv=hdrs.join(',')+'\n';
+  rows.forEach((tr,i)=>{
+    const tds=tr.querySelectorAll('td[data-col]');
+    const vals=[i+1];
+    tds.forEach(td=>vals.push('"'+td.textContent.trim().replace(/"/g,'""')+'"'));
+    csv+=vals.join(',')+'\n';
+  });
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
+  a.download='packing_entries.csv';a.click();
+}
+
+/* ── Column filter (client-side) ── */
+function pkFilterCol(){
+  const filters={};
+  document.querySelectorAll('.pk-cf[id]').forEach(el=>{filters[el.id]=(el.value||'').toLowerCase();});
+  document.querySelectorAll('#pkTable tbody tr').forEach(tr=>{
+    let show=true;
+    if(filters['cf-brand']    && !(tr.querySelector('td[data-col=brand]')?.textContent||'').toLowerCase().includes(filters['cf-brand']))    show=false;
+    if(filters['cf-product']  && !(tr.querySelector('td[data-col=product_name]')?.textContent||'').toLowerCase().includes(filters['cf-product']))  show=false;
+    if(filters['cf-batch']    && !(tr.querySelector('td[data-col=batch_no]')?.textContent||'').toLowerCase().includes(filters['cf-batch']))    show=false;
+    if(filters['cf-sku']      && !(tr.querySelector('td[data-col=sku_size]')?.textContent||'').toLowerCase().includes(filters['cf-sku']))      show=false;
+    if(filters['cf-pkgmat']   && !(tr.querySelector('td[data-col=packaging_material]')?.textContent||'').toLowerCase().includes(filters['cf-pkgmat']))   show=false;
+    if(filters['cf-sentby']   && !(tr.querySelector('td[data-col=samples_sent_by]')?.textContent||'').toLowerCase().includes(filters['cf-sentby']))   show=false;
+    if(filters['cf-status']   && !(tr.querySelector('td[data-col=status]')?.textContent||'').toLowerCase().includes(filters['cf-status']))   show=false;
+    tr.style.display=show?'':'none';
+  });
+}
+
+/* ── Date filter (reload page) ── */
+function pkApplyDates(){
+  const from=document.getElementById('pkFrom').value;
+  const to=document.getElementById('pkTo').value;
+  let url=window.location.pathname+'?';
+  if(from) url+='from='+from+'&';
+  if(to)   url+='to='+to;
+  window.location.href=url;
+}
+
+/* ── Search bar ── */
+function pkGlobalSearch(q){
+  q=q.toLowerCase();
+  document.querySelectorAll('#pkTable tbody tr').forEach(tr=>{
+    tr.style.display=tr.textContent.toLowerCase().includes(q)?'':'none';
+  });
+}
+
+/* ── WhatsApp (selected rows) ── */
+function pkWhatsApp(){
+  const sel=[];
+  document.querySelectorAll('.pk-row-cb:checked').forEach(cb=>{
+    const tr=cb.closest('tr');
+    if(tr) sel.push({
+      brand:   tr.querySelector('td[data-col=brand]')?.textContent.trim()||'',
+      product: tr.querySelector('td[data-col=product_name]')?.textContent.trim()||'',
+      batch:   tr.querySelector('td[data-col=batch_no]')?.textContent.trim()||'',
+      qty:     tr.querySelector('td[data-col=quantity]')?.textContent.trim()||'',
+      mrp:     tr.querySelector('td[data-col=mrp]')?.textContent.trim()||'',
+      status:  tr.querySelector('td[data-col=status]')?.textContent.trim()||'',
+      date:    tr.querySelector('td[data-col=entry_date]')?.textContent.trim()||'',
+    });
+  });
+  if(!sel.length){alert('Select at least one entry');return;}
+  const now=new Date();
+  let msg=`*📋 Packing Sample Receipt Report*\n📅 ${now.toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})}\n${'─'.repeat(32)}\n`;
+  sel.forEach((r,i)=>{
+    msg+=`\n*${i+1}. ${r.product}*\n`;
+    if(r.brand) msg+=`   Brand           : ${r.brand}\n`;
+    if(r.batch) msg+=`   Batch No        : ${r.batch}\n`;
+    if(r.qty)   msg+=`   Quantity        : ${r.qty}\n`;
+    if(r.mrp)   msg+=`   MRP             : ${r.mrp}\n`;
+    msg+=`   Status          : ${r.status}\n`;
+  });
+  msg+=`\n${'─'.repeat(32)}\nTotal: ${sel.length} sample(s)`;
+  window.open('https://web.whatsapp.com/send?text='+encodeURIComponent(msg),'_blank');
+}
+
+/* ── Select All ── */
+function pkToggleAll(chk){
+  document.querySelectorAll('.pk-row-cb').forEach(cb=>cb.checked=chk.checked);
+  pkUpdSelChip();
+}
+function pkUpdSelChip(){
+  const cnt=document.querySelectorAll('.pk-row-cb:checked').length;
+  const chip=document.getElementById('pkSelChip');
+  if(chip){chip.style.display=cnt?'':'none';document.getElementById('pkSelCnt').textContent=cnt;}
+  const waBtn=document.getElementById('pkWaBtn');if(waBtn)waBtn.disabled=!cnt;
+}
+
+
+/* ── Modal open/close ── */
+let pkEditId = null;
+const pkToday = new Date().toISOString().slice(0,10);
+
+function pkOpenModal(id=null){
+  pkEditId=id;
+  document.getElementById('pkModalTitle').textContent = id ? '✏️ Edit Packing Entry' : '➕ New Packing Entry';
+  const set=(eid,val)=>{const el=document.getElementById(eid);if(el)el.value=val;};
+  if(id){
+    // Find row data from table
+    const tr=document.querySelector(`tr[data-id="${id}"]`);
+    if(tr){
+      set('pkFDate', tr.dataset.date||pkToday);
+      set('pkFBrand', tr.querySelector('td[data-col=brand]')?.textContent.trim()||'');
+      set('pkFProduct', tr.querySelector('td[data-col=product_name]')?.textContent.trim()||'');
+      set('pkFBatch', tr.querySelector('td[data-col=batch_no]')?.textContent.trim()||'');
+      set('pkFMfg', tr.querySelector('td[data-col=mfg_date]')?.textContent.trim()||'');
+      set('pkFExp', tr.querySelector('td[data-col=exp_date]')?.textContent.trim()||'');
+      set('pkFSku', tr.querySelector('td[data-col=sku_size]')?.textContent.trim()||'');
+      set('pkFMat', tr.querySelector('td[data-col=packaging_material]')?.textContent.trim()||'');
+      set('pkFQty', tr.querySelector('td[data-col=quantity]')?.textContent.trim()||0);
+      set('pkFSentBy', tr.querySelector('td[data-col=samples_sent_by]')?.textContent.trim()||'');
+      const mrpRaw=(tr.querySelector('td[data-col=mrp]')?.textContent.trim()||'').replace('₹','');
+      set('pkFMrp', mrpRaw);
+      set('pkFStatus', tr.dataset.status||'Pending');
+      set('pkFRecvDate', tr.dataset.recvdate||pkToday);
+      set('pkFRemark', tr.querySelector('td[data-col=remark]')?.textContent.trim()||'');
+      set('pkFRecvBy', tr.dataset.recvby||'');
+      set('pkFTestStatus', tr.dataset.teststatus||'Pending');
+    }
+  } else {
+    set('pkFDate', pkToday);
+    set('pkFBrand',''); set('pkFProduct',''); set('pkFBatch','');
+    set('pkFMfg',''); set('pkFExp',''); set('pkFSku','');
+    set('pkFMat',''); set('pkFQty',0); set('pkFSentBy','');
+    set('pkFMrp',''); set('pkFStatus','Pending');
+    set('pkFRecvDate', pkToday); set('pkFRemark','');
+    set('pkFRecvBy', document.getElementById('pkFRecvBy')?.dataset.user||'');
+    set('pkFTestStatus','Pending');
+  }
+  const d=new Date(document.getElementById('pkFDate').value+'T12:00:00');
+  document.getElementById('pkFDateDisp').textContent=d.toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'});
+  const rd=new Date(document.getElementById('pkFRecvDate').value+'T12:00:00');
+  document.getElementById('pkFRecvDateDisp').textContent=rd.toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'});
+  document.getElementById('pkOverlay').classList.add('open');
+  setTimeout(()=>document.getElementById('pkFBrand')?.focus(),100);
+  pkLoadMats();
+}
+function pkCloseModal(){ document.getElementById('pkOverlay').classList.remove('open'); pkEditId=null; }
+
+function pkEditRow(id){
+  const tr=document.querySelector(`tr[data-id="${id}"]`);
+  if(tr&&(tr.dataset.status||'').toLowerCase()==='approved'){alert('Locked — entry is Approved');return;}
+  pkOpenModal(id);
+}
+
+/* ── Save via API then reload ── */
+async function pkSave(){
+  const brand=document.getElementById('pkFBrand').value.trim();
+  const product=document.getElementById('pkFProduct').value.trim();
+  if(!brand||!product){alert('Brand and Product Name are required');return;}
+  const payload={
+    id:pkEditId,
+    entry_date:document.getElementById('pkFDate').value,
+    brand,product_name:product,
+    batch_no:document.getElementById('pkFBatch').value.trim(),
+    mfg_date:document.getElementById('pkFMfg').value.trim(),
+    exp_date:document.getElementById('pkFExp').value.trim(),
+    sku_size:document.getElementById('pkFSku').value.trim(),
+    packaging_material:document.getElementById('pkFMat').value,
+    quantity:document.getElementById('pkFQty').value||0,
+    samples_sent_by:document.getElementById('pkFSentBy').value.trim(),
+    mrp:document.getElementById('pkFMrp').value||null,
+    received_by:document.getElementById('pkFRecvBy').value.trim(),
+    status:document.getElementById('pkFStatus').value,
+    received_date:document.getElementById('pkFRecvDate').value||pkToday,
+    testing_status:document.getElementById('pkFTestStatus').value,
+    remark:document.getElementById('pkFRemark').value.trim()
+  };
+  try{
+    const res=await fetch('/packing/api/save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    const data=await res.json();
+    if(data.status==='ok'){ pkCloseModal(); location.reload(); }
+    else alert(data.message||'Save failed');
+  }catch(e){alert('Network error');}
+}
+
+/* ── Packaging materials ── */
+const PKG_KEY='hcp_pkg_mats';
+function pkGetMats(){try{return JSON.parse(localStorage.getItem(PKG_KEY)||'[]');}catch{return [];}}
+function pkSaveMats(arr){localStorage.setItem(PKG_KEY,JSON.stringify(arr));}
+function pkLoadMats(){
+  const sel=document.getElementById('pkFMat');if(!sel)return;
+  const ex=[...sel.options].map(o=>o.value.toUpperCase());
+  pkGetMats().forEach(m=>{if(!ex.includes(m.toUpperCase())){const o=document.createElement('option');o.value=m;o.textContent=m;sel.appendChild(o);}});
+}
+function pkAddMat(){
+  const raw=prompt('Enter new Packaging Material:');if(!raw)return;
+  const name=raw.trim().toUpperCase();if(!name)return;
+  const sel=document.getElementById('pkFMat');
+  const ex=[...sel.options].map(o=>o.value.toUpperCase());
+  if(!ex.includes(name)){const o=document.createElement('option');o.value=name;o.textContent=name;sel.appendChild(o);}
+  sel.value=name;
+  const c=pkGetMats();if(!c.map(x=>x.toUpperCase()).includes(name)){c.push(name);pkSaveMats(c);}
+}
+
+/* ── Import ── */
+let pkImportFile=null;
+function pkOpenImport(){
+  pkImportFile=null;
+  document.getElementById('pkFileName').style.display='none';
+  document.getElementById('pkImportProgress').style.display='none';
+  document.getElementById('pkImportResult').style.display='none';
+  document.getElementById('pkImportBtn').disabled=true;
+  document.getElementById('pkCsvFile').value='';
+  document.getElementById('pkDropZone').style.borderColor='var(--border)';
+  document.getElementById('pkImportOverlay').classList.add('open');
+}
+function pkCloseImport(){document.getElementById('pkImportOverlay').classList.remove('open');}
+function pkFileChosen(input){
+  const file=input.files[0];if(!file)return;
+  pkImportFile=file;
+  document.getElementById('pkFileName').textContent='📄 '+file.name;
+  document.getElementById('pkFileName').style.display='block';
+  document.getElementById('pkImportBtn').disabled=false;
+}
+function pkDragOver(e){e.preventDefault();document.getElementById('pkDropZone').style.background='var(--blue-lt,#eff6ff)';}
+function pkDragLeave(e){document.getElementById('pkDropZone').style.background='var(--surface2,#f7f9fc)';}
+function pkDrop(e){
+  e.preventDefault();document.getElementById('pkDropZone').style.background='';
+  const file=e.dataTransfer.files[0];
+  if(!file||!file.name.endsWith('.csv')){alert('Please drop a .csv file');return;}
+  pkImportFile=file;
+  document.getElementById('pkFileName').textContent='📄 '+file.name;
+  document.getElementById('pkFileName').style.display='block';
+  document.getElementById('pkImportBtn').disabled=false;
+}
+async function pkDoImport(){
+  if(!pkImportFile)return;
+  const btn=document.getElementById('pkImportBtn');
+  btn.disabled=true;
+  document.getElementById('pkImportProgress').style.display='block';
+  const fd=new FormData();fd.append('file',pkImportFile);
+  try{
+    const res=await fetch('/packing/api/import',{method:'POST',body:fd});
+    const data=await res.json();
+    document.getElementById('pkImportProgress').style.display='none';
+    const result=document.getElementById('pkImportResult');
+    result.style.display='block';
+    if(data.status==='ok'){
+      result.style.cssText='display:block;padding:10px;border-radius:8px;font-weight:600;background:#dcfce7;color:#166534;margin-top:12px;';
+      result.textContent='✅ '+data.message;
+      setTimeout(()=>{pkCloseImport();location.reload();},1500);
+    }else{
+      result.style.cssText='display:block;padding:10px;border-radius:8px;font-weight:600;background:#fee2e2;color:#dc2626;margin-top:12px;';
+      result.textContent='❌ '+(data.message||'Import failed');
+      btn.disabled=false;
+    }
+  }catch(e){alert('Network error');btn.disabled=false;}
+}
+
+/* ── Keyboard ── */
+document.addEventListener('keydown',e=>{
+  if(e.altKey&&e.key.toLowerCase()==='n'){e.preventDefault();pkOpenModal();}
+  if(e.key==='Escape'){pkCloseModal();pkCloseImport();}
+});
+
+/* ── Init ── */
+document.addEventListener('DOMContentLoaded',()=>{
+  pkLoadCols();pkApplyColVis();
+});
+document.addEventListener('keydown',e=>{
+  if(e.altKey&&e.key.toLowerCase()==='n'){e.preventDefault();pkOpenModal();}
+});
+</script>
+{% endblock %}

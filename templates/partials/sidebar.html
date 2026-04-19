@@ -1,0 +1,88 @@
+{#
+  partials/sidebar.html
+  =====================
+  Left sidebar menu — sirf active modules show hote hain.
+  
+  Usage (base.html mein):
+    {% from 'partials/sidebar.html' import render_sidebar %}
+    {{ render_sidebar(nav_modules) }}
+  
+  Ya direct include:
+    {% include 'partials/sidebar.html' %}
+  
+  Context mein chahiye:
+    nav_modules — active Module objects (is_active=True only)
+                   Flask context processor se aata hai.
+#}
+
+<nav class="sidebar" id="mainSidebar">
+  
+  <!-- Logo -->
+  <div class="sidebar-logo">
+    <a href="{{ url_for('dashboard') }}" class="logo-link">
+      <img src="{{ url_for('static', filename='images/logo.png') }}" 
+           alt="HCP ERP" class="logo-img" 
+           onerror="this.style.display='none'">
+      <div class="logo-text">
+        <span class="logo-title">HCP <strong>ERP</strong></span>
+        <span class="logo-sub">MANUFACTURING</span>
+      </div>
+    </a>
+  </div>
+
+  <!-- Main Dashboard Link -->
+  <div class="sidebar-section">
+    <a href="{{ url_for('dashboard') }}" 
+       class="sidebar-item sidebar-dashboard {% if request.endpoint == 'dashboard' %}active{% endif %}">
+      <span class="sidebar-icon">🏠</span>
+      <span class="sidebar-label">Main Dashboard</span>
+    </a>
+  </div>
+
+  <!-- Dynamic Modules — sirf is_active=True wale show honge -->
+  {% set ns = namespace(current_group='') %}
+  
+  {% for mod in nav_modules %}
+    {% if mod.parent_id is none %}
+      {# ── Top-level module = Group Header ── #}
+      <div class="sidebar-group" id="sidegroup-{{ mod.name }}">
+        <div class="sidebar-group-title">
+          <span>{{ (mod.label or mod.name) | upper }}</span>
+        </div>
+
+        {# Module ka apna dashboard link (agar url_prefix hai) #}
+        {% if mod.url_prefix %}
+        <a href="{{ mod.url_prefix }}" 
+           class="sidebar-item {% if request.path.startswith(mod.url_prefix) and request.path == mod.url_prefix %}active{% endif %}">
+          <span class="sidebar-icon">{{ mod.icon or '📊' }}</span>
+          <span class="sidebar-label">{{ mod.label or mod.name }} Dashboard</span>
+        </a>
+        {% endif %}
+
+        {# Children (sub-modules) — sirf active wale #}
+        {% for child in nav_modules if child.parent_id == mod.id %}
+        <a href="{{ child.url_prefix or '#' }}"
+           class="sidebar-item sidebar-child {% if request.path.startswith(child.url_prefix or '___') %}active{% endif %}">
+          <span class="sidebar-icon">{{ child.icon or '📄' }}</span>
+          <span class="sidebar-label">{{ child.label or child.name }}</span>
+        </a>
+        {% endfor %}
+
+      </div>
+    {% endif %}
+  {% endfor %}
+
+  <!-- Settings (Admin only) -->
+  {% if current_user.role == 'admin' %}
+  <div class="sidebar-group sidebar-group-settings">
+    <div class="sidebar-group-title"><span>SETTINGS</span></div>
+    <a href="{{ url_for('module_settings.manage_modules') }}" 
+       class="sidebar-item {% if 'module_settings' in request.endpoint %}active{% endif %}">
+      <span class="sidebar-icon">⚙️</span>
+      <span class="sidebar-label">Module Settings</span>
+      <span class="sidebar-arrow">►</span>
+    </a>
+  </div>
+  {% endif %}
+
+</nav>

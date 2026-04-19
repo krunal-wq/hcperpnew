@@ -24,7 +24,7 @@ DB_HOST     = "localhost"
 DB_PORT     = 3306
 DB_NAME     = "erpdb"
 DB_USER     = "root"          # MySQL root user
-DB_PASSWORD = "Krunal@2424"   # MySQL root password
+DB_PASSWORD = "Mahadev@1234"   # MySQL root password
 APP_SECRET  = "erp-super-secret-key-2024"
 
 # Admin user jo create hoga

@@ -387,6 +387,11 @@ def _send_smtp(to_email, subject, html_body, from_email, from_name, attachment_b
 @mail_bp.route('/master')
 @login_required
 def mail_master():
+    from permissions import get_sub_perm
+    if not get_sub_perm('crm_settings', 'mail_master'):
+        from flask import flash, redirect, url_for
+        flash('Access denied: Mail Master permission nahi hai.', 'error')
+        return redirect(url_for('dashboard'))
     _get_or_create_npd_template()           # ensure NPD default exists
     _get_or_create_sample_order_template()  # ensure Sample Order default exists
     _get_or_create_quotation_template()     # ensure Quotation default exists

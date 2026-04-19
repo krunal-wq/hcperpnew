@@ -15,6 +15,23 @@
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+# ── CLI flags ──
+import argparse
+_arg_parser = argparse.ArgumentParser(description='ERPDEMO master migration + schema sync')
+_arg_parser.add_argument('--skip-sync',  action='store_true',
+                         help='Run only the hand-written steps; skip auto schema sync')
+_arg_parser.add_argument('--only-sync',  action='store_true',
+                         help='Skip everything else and only run auto schema sync')
+_arg_parser.add_argument('--dry-run',    action='store_true',
+                         help='Show what auto-sync WOULD do; do not apply it')
+_arg_parser.add_argument('--generate',   action='store_true',
+                         help='Write schema diff as a standalone migrate_diff.py file')
+_arg_parser.add_argument('--json',       action='store_true',
+                         help='Output schema diff as JSON (and nothing else)')
+_arg_parser.add_argument('--output',     default='migrate_diff.py',
+                         help='Output file for --generate (default: migrate_diff.py)')
+ARGS, _ = _arg_parser.parse_known_args()
+
 # ── Colors ──
 G = "\033[92m"; Y = "\033[93m"; R = "\033[91m"; C = "\033[96m"; B = "\033[1m"; E = "\033[0m"
 def ok(m):   print(f"  {G}✅ {m}{E}")
@@ -24,6 +41,14 @@ def step(m): print(f"\n{B}{C}── {m}{E}")
 
 print(f"\n{'='*60}")
 print(f"  {B}ERPDEMO — MASTER MIGRATION{E}")
+if ARGS.only_sync:
+    print(f"  {C}Mode: ONLY AUTO SCHEMA SYNC{E}")
+elif ARGS.dry_run:
+    print(f"  {C}Mode: DRY RUN (auto-sync only, no changes){E}")
+elif ARGS.generate:
+    print(f"  {C}Mode: GENERATE standalone migration file{E}")
+elif ARGS.skip_sync:
+    print(f"  {C}Mode: CLASSIC (hand-written steps only){E}")
 print(f"{'='*60}")
 
 # ── Load Flask app ──
@@ -34,6 +59,384 @@ except Exception as e:
     err(f"App load failed: {e}")
     err("Pehle 'python setup.py' chalao!")
     sys.exit(1)
+
+
+# ══════════════════════════════════════════════════════════════════
+# AUTO SCHEMA SYNC — helper (used by STEP FINAL below)
+# ══════════════════════════════════════════════════════════════════
+def _run_auto_schema_sync(db, raw, cur, args):
+    """
+    Compare SQLAlchemy model metadata with the live MySQL schema and
+    add anything that's missing:
+        • missing tables
+        • missing columns
+        • missing indexes
+        • missing foreign keys
+    All checks go through information_schema so it's safe to re-run.
+    """
+    import json as _json
+    from datetime import datetime as _dt
+    from sqlalchemy import inspect as _inspect
+    from sqlalchemy.schema import CreateTable as _CreateTable
+
+    step("STEP FINAL: Auto schema sync (models vs live DB)")
+
+    # Force-import the models package so every Table is registered
+    try:
+        import models as _models_pkg     # noqa: F401
+    except Exception:
+        pass
+
+    insp = _inspect(db.engine)
+    live_tables = set(insp.get_table_names())
+
+    missing_tables  = []   # [{name, sqla_table}]
+    missing_columns = []   # [{table, column, defn, sqla_col}]
+    missing_indexes = []   # [{table, name, columns, unique}]
+    missing_fks     = []   # [{table, column, ref_table, ref_column, on_delete}]
+
+    def _col_type_sql(col):
+        from sqlalchemy.dialects.mysql import dialect as _my_dialect
+        try:
+            t = col.type.compile(dialect=_my_dialect())
+        except Exception:
+            t = str(col.type)
+        parts = [t, 'NULL' if col.nullable else 'NOT NULL']
+        if col.default is not None and getattr(col.default, 'is_scalar', False):
+            d = col.default.arg
+            if isinstance(d, bool):
+                parts.append(f"DEFAULT {1 if d else 0}")
+            elif isinstance(d, (int, float)):
+                parts.append(f"DEFAULT {d}")
+            elif isinstance(d, str):
+                parts.append(f"DEFAULT '{d}'")
+        return ' '.join(parts)
+
+    # ── Walk every model ──
+    for tname, table in db.metadata.tables.items():
+        if tname not in live_tables:
+            missing_tables.append({'name': tname, 'sqla_table': table})
+            continue
+
+        live_cols = {c['name'] for c in insp.get_columns(tname)}
+        for col in table.columns:
+            if col.name not in live_cols:
+                missing_columns.append({
+                    'table':  tname,
+                    'column': col.name,
+                    'defn':   _col_type_sql(col),
+                    'sqla_col': col,
+                })
+
+        live_idx = {i['name'] for i in insp.get_indexes(tname)}
+        for idx in table.indexes:
+            if idx.name not in live_idx:
+                missing_indexes.append({
+                    'table':   tname,
+                    'name':    idx.name,
+                    'columns': [c.name for c in idx.columns],
+                    'unique':  bool(idx.unique),
+                })
+
+        live_fks = insp.get_foreign_keys(tname)
+        live_fk_keys = {
+            (fk['constrained_columns'][0], fk['referred_table'], fk['referred_columns'][0])
+            for fk in live_fks
+            if fk.get('constrained_columns') and fk.get('referred_columns')
+        }
+        for col in table.columns:
+            for fk in col.foreign_keys:
+                key = (col.name, fk.column.table.name, fk.column.name)
+                if key not in live_fk_keys:
+                    missing_fks.append({
+                        'table':      tname,
+                        'column':     col.name,
+                        'ref_table':  fk.column.table.name,
+                        'ref_column': fk.column.name,
+                        'on_delete':  fk.ondelete or 'NO ACTION',
+                    })
+
+    diff = {
+        'generated_at':    _dt.now().isoformat(),
+        'missing_tables':  missing_tables,
+        'missing_columns': missing_columns,
+        'missing_indexes': missing_indexes,
+        'missing_fks':     missing_fks,
+    }
+    has_changes = any([missing_tables, missing_columns, missing_indexes, missing_fks])
+
+    # ── JSON mode: print + exit ──
+    if args.json:
+        print(_json.dumps({k: (v if k != 'generated_at' else v)
+                           for k, v in diff.items()
+                           if k != 'generated_at'}
+                          | {'generated_at': diff['generated_at']},
+                          indent=2, default=lambda o: str(o)))
+        sys.exit(0)
+
+    # ── Pretty-print diff ──
+    print(f"\n  {B}Diff summary:{E}")
+    print(f"    tables:  {len(missing_tables)}   columns: {len(missing_columns)}   "
+          f"indexes: {len(missing_indexes)}   fks: {len(missing_fks)}")
+    if missing_tables:
+        print(f"\n  {C}Missing tables:{E}")
+        for t in missing_tables:
+            print(f"    + {t['name']}")
+    if missing_columns:
+        print(f"\n  {C}Missing columns:{E}")
+        for c in missing_columns:
+            print(f"    + {c['table']}.{c['column']}   {c['defn']}")
+    if missing_indexes:
+        print(f"\n  {C}Missing indexes:{E}")
+        for i in missing_indexes:
+            kind = 'UNIQUE INDEX' if i['unique'] else 'INDEX'
+            print(f"    + {kind} {i['name']} ON {i['table']} ({', '.join(i['columns'])})")
+    if missing_fks:
+        print(f"\n  {C}Missing foreign keys:{E}")
+        for f in missing_fks:
+            print(f"    + {f['table']}.{f['column']} → {f['ref_table']}.{f['ref_column']}  (ON DELETE {f['on_delete']})")
+
+    if not has_changes:
+        ok("Schema is already in sync with models — nothing to do.")
+        return
+
+    # ── GENERATE mode: write standalone file and return ──
+    if args.generate:
+        _write_standalone_migration(diff, args.output)
+        return
+
+    # ── DRY-RUN mode: stop here ──
+    if args.dry_run:
+        warn("\nDry-run mode — no changes applied. Re-run without --dry-run to apply.")
+        return
+
+    # ── APPLY mode (default) ──
+    print(f"\n  {B}Applying changes...{E}")
+    stats = {'tables': 0, 'columns': 0, 'indexes': 0, 'fks': 0, 'skipped': 0}
+
+    # 1. Missing tables
+    for t in missing_tables:
+        try:
+            ddl = str(_CreateTable(t['sqla_table']).compile(db.engine))
+            cur.execute(ddl)
+            raw.commit()
+            ok(f"created table `{t['name']}`")
+            stats['tables'] += 1
+        except Exception as e:
+            warn(f"skip `{t['name']}`: {e}")
+            stats['skipped'] += 1
+
+    # 2. Missing columns — re-check at apply time
+    for c in missing_columns:
+        cur.execute(
+            "SELECT COUNT(*) FROM information_schema.columns "
+            "WHERE table_schema=DATABASE() AND table_name=%s AND column_name=%s",
+            (c['table'], c['column'])
+        )
+        if cur.fetchone()[0] > 0:
+            stats['skipped'] += 1
+            continue
+        try:
+            cur.execute(
+                f"ALTER TABLE `{c['table']}` ADD COLUMN `{c['column']}` {c['defn']}"
+            )
+            raw.commit()
+            ok(f"added `{c['table']}.{c['column']}`")
+            stats['columns'] += 1
+        except Exception as e:
+            warn(f"skip `{c['table']}.{c['column']}`: {e}")
+            stats['skipped'] += 1
+
+    # 3. Missing indexes
+    for i in missing_indexes:
+        cur.execute(
+            "SELECT COUNT(*) FROM information_schema.statistics "
+            "WHERE table_schema=DATABASE() AND table_name=%s AND index_name=%s",
+            (i['table'], i['name'])
+        )
+        if cur.fetchone()[0] > 0:
+            stats['skipped'] += 1
+            continue
+        try:
+            kind = 'UNIQUE INDEX' if i['unique'] else 'INDEX'
+            cols_sql = ', '.join(f"`{c}`" for c in i['columns'])
+            cur.execute(f"CREATE {kind} `{i['name']}` ON `{i['table']}` ({cols_sql})")
+            raw.commit()
+            ok(f"created {kind.lower()} `{i['name']}`")
+            stats['indexes'] += 1
+        except Exception as e:
+            warn(f"skip `{i['name']}`: {e}")
+            stats['skipped'] += 1
+
+    # 4. Missing FKs
+    for f in missing_fks:
+        constraint = f"fk_{f['table']}_{f['column']}"
+        cur.execute(
+            "SELECT COUNT(*) FROM information_schema.key_column_usage "
+            "WHERE table_schema=DATABASE() AND table_name=%s AND column_name=%s "
+            "AND referenced_table_name IS NOT NULL",
+            (f['table'], f['column'])
+        )
+        if cur.fetchone()[0] > 0:
+            stats['skipped'] += 1
+            continue
+        try:
+            cur.execute(
+                f"ALTER TABLE `{f['table']}` ADD CONSTRAINT `{constraint}` "
+                f"FOREIGN KEY (`{f['column']}`) REFERENCES "
+                f"`{f['ref_table']}`(`{f['ref_column']}`) "
+                f"ON DELETE {f['on_delete']}"
+            )
+            raw.commit()
+            ok(f"added FK `{f['table']}.{f['column']}` → `{f['ref_table']}.{f['ref_column']}`")
+            stats['fks'] += 1
+        except Exception as e:
+            warn(f"skip FK `{f['table']}.{f['column']}`: {e}")
+            stats['skipped'] += 1
+
+    print(f"\n  {B}Auto-sync summary:{E}")
+    ok(f"tables created:  {stats['tables']}")
+    ok(f"columns added:   {stats['columns']}")
+    ok(f"indexes created: {stats['indexes']}")
+    ok(f"FKs added:       {stats['fks']}")
+    if stats['skipped']:
+        warn(f"skipped (race/existing): {stats['skipped']}")
+
+
+def _write_standalone_migration(diff, output_path):
+    """Write a self-contained migrate_diff.py that re-checks & applies."""
+    from sqlalchemy.schema import CreateTable as _CreateTable
+    from index import app as _app
+    from models import db as _db
+
+    lines = []
+    if diff['missing_tables']:
+        lines.append("    # ── Missing tables ──")
+        with _app.app_context():
+            for t in diff['missing_tables']:
+                try:
+                    ddl = str(_CreateTable(t['sqla_table']).compile(_db.engine))
+                    ddl_one = ' '.join(ddl.split())
+                    lines.append(f"    if not table_exists('{t['name']}'):")
+                    lines.append(f"        run({_py_literal(ddl_one)}, '+ table `{t['name']}`')")
+                    lines.append(f"    else:")
+                    lines.append(f"        info('skip existing table `{t['name']}`')")
+                except Exception as e:
+                    lines.append(f"    # (could not serialise {t['name']}: {e})")
+                lines.append('')
+
+    if diff['missing_columns']:
+        lines.append("    # ── Missing columns ──")
+        for c in diff['missing_columns']:
+            ddl = f"ALTER TABLE `{c['table']}` ADD COLUMN `{c['column']}` {c['defn']}"
+            lines.append(f"    if table_exists('{c['table']}') and not col_exists('{c['table']}', '{c['column']}'):")
+            lines.append(f"        run({_py_literal(ddl)}, '+ column `{c['table']}.{c['column']}`')")
+            lines.append(f"    else:")
+            lines.append(f"        info('skip existing column `{c['table']}.{c['column']}`')")
+            lines.append('')
+
+    if diff['missing_indexes']:
+        lines.append("    # ── Missing indexes ──")
+        for i in diff['missing_indexes']:
+            kind = 'UNIQUE INDEX' if i['unique'] else 'INDEX'
+            cols_sql = ', '.join(f"`{cc}`" for cc in i['columns'])
+            ddl = f"CREATE {kind} `{i['name']}` ON `{i['table']}` ({cols_sql})"
+            lines.append(f"    if table_exists('{i['table']}') and not idx_exists('{i['table']}', '{i['name']}'):")
+            lines.append(f"        run({_py_literal(ddl)}, '+ index `{i['name']}`')")
+            lines.append(f"    else:")
+            lines.append(f"        info('skip existing index `{i['name']}`')")
+            lines.append('')
+
+    if diff['missing_fks']:
+        lines.append("    # ── Missing foreign keys ──")
+        for f in diff['missing_fks']:
+            constraint = f"fk_{f['table']}_{f['column']}"
+            ddl = (f"ALTER TABLE `{f['table']}` ADD CONSTRAINT `{constraint}` "
+                   f"FOREIGN KEY (`{f['column']}`) REFERENCES `{f['ref_table']}`(`{f['ref_column']}`) "
+                   f"ON DELETE {f['on_delete']}")
+            lines.append(f"    if table_exists('{f['table']}') and col_exists('{f['table']}', '{f['column']}') and not fk_exists('{f['table']}', '{f['column']}'):")
+            lines.append(f"        run({_py_literal(ddl)}, '+ FK `{f['table']}.{f['column']}`')")
+            lines.append(f"    else:")
+            lines.append(f"        info('skip existing FK on `{f['table']}.{f['column']}`')")
+            lines.append('')
+
+    body = '\n'.join(lines) if lines else "    info('Schema is already in sync — nothing to do.')"
+    tpl = _STANDALONE_TEMPLATE.format(timestamp=diff['generated_at'], body=body)
+    with open(output_path, 'w', encoding='utf-8') as fh:
+        fh.write(tpl)
+    ok(f"Generated: {output_path}")
+    info(f"Review then run: python {output_path}")
+
+
+def _py_literal(s):
+    """Return a Python triple-quoted string literal safe for raw SQL."""
+    return '"""' + s.replace('\\', '\\\\').replace('"""', '\\"\\"\\"') + '"""'
+
+
+_STANDALONE_TEMPLATE = '''"""
+Auto-generated migration — safe to run multiple times.
+Generated: {timestamp}
+"""
+import sys, os, re
+from urllib.parse import unquote
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+from index import app
+from models import db
+
+G = "\\033[92m"; Y = "\\033[93m"; C = "\\033[96m"; E = "\\033[0m"
+def ok(m):   print("  " + G + "\\u2705 " + str(m) + E)
+def warn(m): print("  " + Y + "\\u26a0\\ufe0f  " + str(m) + E)
+def info(m): print("  " + C + "\\u2139\\ufe0f  " + str(m) + E)
+
+with app.app_context():
+    import pymysql
+    from config import Config
+
+    url = Config.SQLALCHEMY_DATABASE_URI
+    m = re.match(r'mysql\\+pymysql://([^:]+):([^@]+)@([^:/]+):?(\\d+)?/(.+)', url)
+    DB_USER, DB_PASS_ENC, DB_HOST, DB_PORT, DB_NAME = m.groups()
+    DB_PASS = unquote(DB_PASS_ENC)
+    raw = pymysql.connect(host=DB_HOST, port=int(DB_PORT or 3306),
+                          user=DB_USER, password=DB_PASS,
+                          database=DB_NAME, charset='utf8mb4')
+    cur = raw.cursor()
+
+    def table_exists(t):
+        cur.execute("SELECT COUNT(*) FROM information_schema.tables "
+                    "WHERE table_schema=DATABASE() AND table_name=%s", (t,))
+        return cur.fetchone()[0] > 0
+
+    def col_exists(t, c):
+        cur.execute("SELECT COUNT(*) FROM information_schema.columns "
+                    "WHERE table_schema=DATABASE() AND table_name=%s AND column_name=%s", (t, c))
+        return cur.fetchone()[0] > 0
+
+    def idx_exists(t, name):
+        cur.execute("SELECT COUNT(*) FROM information_schema.statistics "
+                    "WHERE table_schema=DATABASE() AND table_name=%s AND index_name=%s", (t, name))
+        return cur.fetchone()[0] > 0
+
+    def fk_exists(t, col):
+        cur.execute("SELECT COUNT(*) FROM information_schema.key_column_usage "
+                    "WHERE table_schema=DATABASE() AND table_name=%s AND column_name=%s "
+                    "AND referenced_table_name IS NOT NULL", (t, col))
+        return cur.fetchone()[0] > 0
+
+    def run(ddl, label):
+        try:
+            cur.execute(ddl); raw.commit(); ok(label)
+        except Exception as e:
+            warn(str(label) + " failed: " + str(e))
+
+    print("\\n" + C + "MIGRATION — Auto-generated schema sync" + E)
+
+{body}
+
+    raw.close()
+    ok("Migration complete")
+'''
+
 
 with app.app_context():
 
@@ -89,6 +492,19 @@ with app.app_context():
                 cur.execute(f"ALTER TABLE `{table}` MODIFY COLUMN `{col}` {defn}")
                 raw.commit()
             except: pass
+
+    # ══════════════════════════════════════════════════════
+    # EARLY EXIT — --only-sync mode skips all classic steps
+    # ══════════════════════════════════════════════════════
+    if ARGS.only_sync:
+        step("ONLY-SYNC MODE: skipping classic migration steps")
+        db.create_all()   # still create any brand-new tables from metadata
+        ok("db.create_all() done")
+        _run_auto_schema_sync(db, raw, cur, ARGS)
+        print(f"\n{'='*60}")
+        print(f"  {G}{B}✅ SYNC COMPLETE!{E}")
+        print(f"{'='*60}\n")
+        sys.exit(0)
 
     # ══════════════════════════════════════════════════════
     # STEP 1 — Create all tables
@@ -625,19 +1041,22 @@ with app.app_context():
     from models.permission import Module, RolePermission
 
     modules_data = [
-        ("dashboard",      "Dashboard",    "🏠", "/",                     1),
-        ("crm",            "CRM",          "📊", "/crm",                  2),
-        ("crm_leads",      "Leads",        "📋", "/crm/leads",            3),
-        ("crm_clients",    "Clients",      "👥", "/crm/clients",          4),
-        ("hr",             "HR",           "👔", "/hr",                   5),
-        ("hr_employees",   "Employees",    "🪪", "/hr/employees",         6),
-        ("hr_contractors", "Contractors",  "🤝", "/hr/contractors",       7),
-        ("npd",            "NPD",          "🔬", "/npd",                  8),
-        ("rd",             "R&D",          "🧪", "/rd",                   9),
-        ("masters",        "Masters",      "⚙️", "/masters",              10),
-        ("approvals",      "Approvals",    "✅", "/approvals",            11),
-        ("user_mgmt",      "Users",        "👤", "/admin/users",          12),
-        ("audit_logs",     "Audit Logs",   "🔍", "/admin/audit-logs",     13),
+        ("dashboard",         "Dashboard",      "🏠", "/",                      1),
+        ("crm",               "CRM",            "📊", "/crm",                   2),
+        ("crm_leads",         "Leads",          "📋", "/crm/leads",             3),
+        ("crm_clients",       "Clients",        "👥", "/crm/clients",           4),
+        ("hr",                "HR",             "👔", "/hr",                    5),
+        ("hr_employees",      "Employees",      "🪪", "/hr/employees",          6),
+        ("hr_contractors",    "Contractors",    "🤝", "/hr/contractors",        7),
+        ("npd",               "NPD",            "🔬", "/npd",                   8),
+        ("rd",                "R&D",            "🧪", "/rd",                    9),
+        ("rd_projects",       "R&D Projects",   "🗂️", "/rd/projects",           10),
+        ("rd_sample_ready",   "Sample Ready",   "📦", "/rd/sample-ready",       11),
+        ("rd_sample_history", "Sample History", "📋", "/rd/sample-history",     12),
+        ("masters",           "Masters",        "⚙️", "/masters",               13),
+        ("approvals",         "Approvals",      "✅", "/approvals",             14),
+        ("user_mgmt",         "Users",          "👤", "/admin/users",           15),
+        ("audit_logs",        "Audit Logs",     "🔍", "/admin/audit-logs",      16),
     ]
     mod_added = 0
     for name, label, icon, url, sort in modules_data:
@@ -1738,8 +2157,25 @@ with app.app_context():
             ok(f"Module '{old_name}' → '{new_name}' renamed")
 
     # Fix parent_id for child modules
-    parent_map = {'crm_leads': 'crm', 'crm_clients': 'crm',
-                  'hr_employees': 'hr', 'hr_contractors': 'hr'}
+    parent_map = {
+        'crm_leads':         'crm',
+        'crm_clients':       'crm',
+        'hr_employees':      'hr',
+        'hr_contractors':    'hr',
+        'rd_projects':       'rd',
+        'rd_sample_ready':   'rd',
+        'rd_sample_history': 'rd',
+    }
+
+    # rd_trials module DB se remove karo (sidebar se hata do)
+    _rd_trials_mod = Module.query.filter_by(name='rd_trials').first()
+    if _rd_trials_mod:
+        from models.permission import RolePermission, UserPermission
+        RolePermission.query.filter_by(module_id=_rd_trials_mod.id).delete()
+        UserPermission.query.filter_by(module_id=_rd_trials_mod.id).delete()
+        db.session.delete(_rd_trials_mod)
+        db.session.commit()
+        ok("rd_trials module removed from sidebar ✓")
     for child_name, parent_name in parent_map.items():
         child  = Module.query.filter_by(name=child_name).first()
         parent = Module.query.filter_by(name=parent_name).first()
@@ -2349,6 +2785,368 @@ with app.app_context():
         _pm_con.close()
     except Exception as _pm_e:
         warn(f"Packing Material columns: {_pm_e}")
+
+    # ══════════════════════════════════════════════════════
+    # STEP 18 — Packing Entries Table (Sample Receipt Log)
+    # ══════════════════════════════════════════════════════
+    step("STEP 18: packing_entries table create kar raha hai...")
+
+    import pymysql as _pym18
+    _uri18 = db.engine.url
+    _c18 = _pym18.connect(
+        host=str(_uri18.host), port=int(_uri18.port or 3306),
+        user=str(_uri18.username), password=str(_uri18.password),
+        database=str(_uri18.database), charset='utf8mb4'
+    )
+    _cur18 = _c18.cursor()
+
+    # ── Create table ──
+    _cur18.execute("""
+        CREATE TABLE IF NOT EXISTS `packing_entries` (
+            `id`                 INT           NOT NULL AUTO_INCREMENT,
+            `entry_date`         DATE          NOT NULL,
+            `brand`              VARCHAR(150)  NOT NULL,
+            `product_name`       VARCHAR(300)  NOT NULL,
+            `batch_no`           VARCHAR(50)   DEFAULT '',
+            `mfg_date`           VARCHAR(20)   DEFAULT '',
+            `exp_date`           VARCHAR(20)   DEFAULT '',
+            `sku_size`           VARCHAR(100)  DEFAULT '',
+            `packaging_material` VARCHAR(100)  DEFAULT '',
+            `quantity`           INT           DEFAULT 0,
+            `samples_sent_by`    VARCHAR(150)  DEFAULT '',
+            `mrp`                DECIMAL(10,2) DEFAULT NULL,
+            `received_by`        VARCHAR(150)  DEFAULT '',
+            `status`             VARCHAR(50)   DEFAULT 'Pending',
+            `received_date`      DATE          DEFAULT NULL,
+            `testing_status`     VARCHAR(50)   DEFAULT 'Pending',
+            `remark`             TEXT          DEFAULT NULL,
+            `created_by`         VARCHAR(100)  DEFAULT '',
+            `created_at`         DATETIME      DEFAULT CURRENT_TIMESTAMP,
+            `updated_at`         DATETIME      DEFAULT CURRENT_TIMESTAMP
+                                               ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (`id`),
+            KEY `idx_pk_entry_date` (`entry_date`),
+            KEY `idx_pk_brand`      (`brand`(50)),
+            KEY `idx_pk_status`     (`status`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    """)
+    _c18.commit()
+    ok("packing_entries table ready")
+
+    # ── Safe add missing columns (re-run safe) ──
+    _pk_cols = [
+        ('batch_no',           "VARCHAR(50)   DEFAULT ''"),
+        ('mfg_date',           "VARCHAR(20)   DEFAULT ''"),
+        ('exp_date',           "VARCHAR(20)   DEFAULT ''"),
+        ('sku_size',           "VARCHAR(100)  DEFAULT ''"),
+        ('packaging_material', "VARCHAR(100)  DEFAULT ''"),
+        ('quantity',           'INT           DEFAULT 0'),
+        ('samples_sent_by',    "VARCHAR(150)  DEFAULT ''"),
+        ('mrp',                'DECIMAL(10,2) DEFAULT NULL'),
+        ('received_by',        "VARCHAR(150)  DEFAULT ''"),
+        ('status',             "VARCHAR(50)   DEFAULT 'Pending'"),
+        ('received_date',      'DATE          DEFAULT NULL'),
+        ('testing_status',     "VARCHAR(50)   DEFAULT 'Pending'"),
+        ('remark',             'TEXT          DEFAULT NULL'),
+        ('created_by',         "VARCHAR(100)  DEFAULT ''"),
+        ('created_at',         'DATETIME      DEFAULT CURRENT_TIMESTAMP'),
+        ('updated_at',         'DATETIME      DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP'),
+    ]
+    _pk_added = 0
+    for _col, _defn in _pk_cols:
+        _cur18.execute(
+            "SELECT COUNT(*) FROM information_schema.columns "
+            "WHERE table_schema=DATABASE() AND table_name='packing_entries' AND column_name=%s",
+            (_col,)
+        )
+        if _cur18.fetchone()[0] == 0:
+            try:
+                _cur18.execute(f"ALTER TABLE `packing_entries` ADD COLUMN `{_col}` {_defn}")
+                _c18.commit()
+                ok(f"packing_entries.{_col} added")
+                _pk_added += 1
+            except Exception as _pe:
+                warn(f"packing_entries.{_col}: {_pe}")
+
+    ok(f"packing_entries: {_pk_added} columns added") if _pk_added else ok("packing_entries: all columns exist")
+
+    # ── Indexes (safe — skip if already exist) ──
+    for _iname, _icol in [
+        ('idx_pk_entry_date', 'entry_date'),
+        ('idx_pk_brand',      'brand(50)'),
+        ('idx_pk_status',     'status'),
+    ]:
+        try:
+            _cur18.execute(f"CREATE INDEX `{_iname}` ON `packing_entries`(`{_icol}`)")
+            _c18.commit()
+        except Exception:
+            pass  # already exists
+
+    # ── Add 'packing' module to permissions system ──
+    from models.permission import Module, RolePermission
+    _pk_mod = Module.query.filter_by(name='packing').first()
+    if not _pk_mod:
+        _pk_mod = Module(
+            name='packing', label='Packing',
+            icon='📋', url_prefix='/packing',
+            sort_order=60, is_active=True
+        )
+        db.session.add(_pk_mod)
+        db.session.flush()
+        _roles_pk = ['admin', 'manager', 'user', 'hr', 'viewer']
+        for _r in _roles_pk:
+            _cw = _r in ('admin', 'manager', 'user')
+            _cd = _r == 'admin'
+            db.session.add(RolePermission(
+                role=_r, module_id=_pk_mod.id,
+                can_view=True, can_add=_cw,
+                can_edit=_cw, can_delete=_cd,
+                can_export=(_r != 'viewer'), can_import=False,
+            ))
+        db.session.commit()
+        ok("packing module + permissions seeded")
+    else:
+        ok("packing module already exists")
+
+    _cur18.close()
+    _c18.close()
+    ok("✅ packing_entries setup complete!")
+
+
+    # ══════════════════════════════════════════════════════
+    # STEP 19 — Item Master (material_types, material_groups, materials)
+    # ══════════════════════════════════════════════════════
+    step("STEP 19: Item Master tables create kar raha hai...")
+
+    import pymysql as _pym19
+    _uri19 = db.engine.url
+    _c19 = _pym19.connect(
+        host=_uri19.host, port=int(_uri19.port or 3306),
+        user=_uri19.username, password=_uri19.password,
+        database=_uri19.database, charset='utf8mb4'
+    )
+    _cur19 = _c19.cursor()
+
+    # ── material_types ──
+    _cur19.execute("""
+        CREATE TABLE IF NOT EXISTS `material_types` (
+            `id`           INT NOT NULL AUTO_INCREMENT,
+            `type_name`    VARCHAR(100) NOT NULL,
+            `abbreviation` VARCHAR(10)  DEFAULT '',
+            `description`  TEXT         NULL,
+            `color`        VARCHAR(20)  DEFAULT '#6366f1',
+            `sort_order`   INT          DEFAULT 0,
+            `is_active`    TINYINT(1)   DEFAULT 1,
+            `has_sku`      TINYINT(1)   DEFAULT 0,
+            `created_at`   DATETIME     DEFAULT CURRENT_TIMESTAMP,
+            `created_by`   VARCHAR(100) DEFAULT '',
+            PRIMARY KEY (`id`),
+            UNIQUE KEY `uq_material_type_name` (`type_name`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    """)
+    _c19.commit()
+    ok("material_types table ready")
+
+    # ── material_groups ──
+    _cur19.execute("""
+        CREATE TABLE IF NOT EXISTS `material_groups` (
+            `id`          INT NOT NULL AUTO_INCREMENT,
+            `group_name`  VARCHAR(150) NOT NULL,
+            `parent_id`   INT          DEFAULT NULL,
+            `description` TEXT         DEFAULT NULL,
+            `created_at`  DATETIME     DEFAULT CURRENT_TIMESTAMP,
+            `updated_at`  DATETIME     DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            `created_by`  VARCHAR(100) DEFAULT '',
+            PRIMARY KEY (`id`),
+            CONSTRAINT `fk_mg_parent` FOREIGN KEY (`parent_id`)
+                REFERENCES `material_groups`(`id`) ON DELETE SET NULL
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    """)
+    _c19.commit()
+    ok("material_groups table ready")
+
+    # ── materials ──
+    _cur19.execute("""
+        CREATE TABLE IF NOT EXISTS `materials` (
+            `id`                  INT NOT NULL AUTO_INCREMENT,
+            `material_name`       VARCHAR(300)  NOT NULL,
+            `aliases`             TEXT          NULL,
+            `description`         TEXT          NULL,
+            `uom`                 VARCHAR(30)   DEFAULT 'KG',
+            `material_type_id`    INT           DEFAULT NULL,
+            `group_id`            INT           DEFAULT NULL,
+            `sku_sizes`           TEXT          NULL,
+            `supplier_name`       VARCHAR(300)  DEFAULT '',
+            `supplier_code`       VARCHAR(100)  DEFAULT '',
+            `opening_balance`     DECIMAL(14,3) DEFAULT 0.000,
+            `msl`                 DECIMAL(14,3) DEFAULT 0.000,
+            `lead_time_days`      INT           DEFAULT 0,
+            `std_pack_size`       DECIMAL(14,3) DEFAULT 0.000,
+            `last_purchase_rate`  DECIMAL(12,2) DEFAULT 0.00,
+            `ordered_qty`         DECIMAL(14,3) DEFAULT 0.000,
+            `buffer_qty`          DECIMAL(14,3) DEFAULT 0.000,
+            `hsn_code`            VARCHAR(20)   DEFAULT '',
+            `gst_rate`            DECIMAL(5,2)  DEFAULT 0.00,
+            `taxability`          VARCHAR(50)   DEFAULT 'Taxable',
+            `type_of_supply`      VARCHAR(50)   DEFAULT 'Goods',
+            `is_active`           TINYINT(1)    DEFAULT 1,
+            `created_by`          VARCHAR(100)  DEFAULT '',
+            `updated_by`          VARCHAR(100)  DEFAULT '',
+            `created_at`          DATETIME      DEFAULT CURRENT_TIMESTAMP,
+            `updated_at`          DATETIME      DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (`id`),
+            CONSTRAINT `fk_mat_type`  FOREIGN KEY (`material_type_id`) REFERENCES `material_types`(`id`) ON DELETE SET NULL,
+            CONSTRAINT `fk_mat_group` FOREIGN KEY (`group_id`)         REFERENCES `material_groups`(`id`) ON DELETE SET NULL,
+            INDEX `idx_mat_type`   (`material_type_id`),
+            INDEX `idx_mat_group`  (`group_id`),
+            INDEX `idx_mat_active` (`is_active`),
+            INDEX `idx_mat_name`   (`material_name`(100))
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    """)
+    _c19.commit()
+    ok("materials table ready")
+
+    # ── Seed default Material Types ──
+    _default_types = [
+        ('Raw Material',      'RM',  '#2563eb', 1, 0),
+        ('Packing Material',  'PM',  '#16a34a', 2, 1),
+        ('Finished Goods',    'FG',  '#7c3aed', 3, 0),
+        ('Semi-Finished',     'SFG', '#ca8a04', 4, 0),
+        ('Consumable',        'CON', '#0891b2', 5, 0),
+        ('Trading Goods',     'TG',  '#dc2626', 6, 0),
+    ]
+    _inserted_types = 0
+    for _tn, _ab, _col, _so, _hsku in _default_types:
+        _cur19.execute("SELECT id FROM material_types WHERE type_name=%s", (_tn,))
+        if not _cur19.fetchone():
+            _cur19.execute(
+                "INSERT INTO material_types (type_name,abbreviation,color,sort_order,has_sku,created_by) VALUES (%s,%s,%s,%s,%s,%s)",
+                (_tn, _ab, _col, _so, _hsku, 'system')
+            )
+            _inserted_types += 1
+    _c19.commit()
+    if _inserted_types:
+        ok(f"material_types: {_inserted_types} default types seeded")
+    else:
+        ok("material_types: default types already exist")
+
+    # ── Add 'material' module to permissions system ──
+    try:
+        from models import Module
+        _mat_mod = Module.query.filter_by(name='material').first()
+        if not _mat_mod:
+            _mat_mod = Module(
+                name='material', label='Item Master',
+                icon='📦', url_prefix='/material',
+                is_active=True, sort_order=19
+            )
+            db.session.add(_mat_mod)
+            db.session.commit()
+            ok("material module added to permissions")
+        else:
+            ok("material module already exists")
+    except Exception as _me:
+        warn(f"material module seed: {_me}")
+
+    _cur19.close()
+    _c19.close()
+    ok("✅ Item Master tables setup complete!")
+
+
+    # ══════════════════════════════════════════════════════
+    # STEP 20 — RD Project Logs table
+    # ══════════════════════════════════════════════════════
+    step("STEP 20: rd_project_logs table create kar raha hai...")
+    import pymysql as _pym20
+    _uri20 = db.engine.url
+    _c20 = _pym20.connect(
+        host=_uri20.host, port=int(_uri20.port or 3306),
+        user=_uri20.username, password=_uri20.password,
+        database=_uri20.database, charset='utf8mb4'
+    )
+    _cur20 = _c20.cursor()
+    _cur20.execute(
+        "CREATE TABLE IF NOT EXISTS `rd_project_logs` ("
+        "  `id`         INT NOT NULL AUTO_INCREMENT,"
+        "  `project_id` INT NOT NULL,"
+        "  `user_id`    INT DEFAULT NULL,"
+        "  `event`      VARCHAR(50) NOT NULL,"
+        "  `detail`     VARCHAR(500) DEFAULT NULL,"
+        "  `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,"
+        "  PRIMARY KEY (`id`),"
+        "  KEY `idx_rdlog_project` (`project_id`),"
+        "  KEY `idx_rdlog_event`   (`event`),"
+        "  CONSTRAINT `fk_rdlog_project` FOREIGN KEY (`project_id`)"
+        "    REFERENCES `npd_projects`(`id`) ON DELETE CASCADE,"
+        "  CONSTRAINT `fk_rdlog_user` FOREIGN KEY (`user_id`)"
+        "    REFERENCES `users`(`id`) ON DELETE SET NULL"
+        ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
+    )
+    _c20.commit()
+    _cur20.close()
+    _c20.close()
+    ok("rd_project_logs table ready")
+
+
+    # ══════════════════════════════════════════════════════
+    # STEP 21 — RD Sub Assignments table
+    # ══════════════════════════════════════════════════════
+    step("STEP 21: rd_sub_assignments table create kar raha hai...")
+    import pymysql as _pym21
+    _uri21 = db.engine.url
+    _c21 = _pym21.connect(
+        host=_uri21.host, port=int(_uri21.port or 3306),
+        user=_uri21.username, password=_uri21.password,
+        database=_uri21.database, charset='utf8mb4'
+    )
+    _cur21 = _c21.cursor()
+    _cur21.execute(
+        "CREATE TABLE IF NOT EXISTS `rd_sub_assignments` ("
+        "  `id`           INT NOT NULL AUTO_INCREMENT,"
+        "  `project_id`   INT NOT NULL,"
+        "  `user_id`      INT NOT NULL,"
+        "  `variant_code` VARCHAR(100) DEFAULT NULL,"
+        "  `notes`        VARCHAR(500) DEFAULT NULL,"
+        "  `assigned_by`  INT DEFAULT NULL,"
+        "  `assigned_at`  DATETIME DEFAULT CURRENT_TIMESTAMP,"
+        "  `started_at`   DATETIME DEFAULT NULL,"
+        "  `finished_at`  DATETIME DEFAULT NULL,"
+        "  `status`       VARCHAR(20) DEFAULT 'not_started',"
+        "  `total_seconds` INT DEFAULT 0,"
+        "  `is_active`    TINYINT(1) DEFAULT 1,"
+        "  PRIMARY KEY (`id`),"
+        "  KEY `idx_rdsa_project` (`project_id`),"
+        "  KEY `idx_rdsa_user`    (`user_id`),"
+        "  CONSTRAINT `fk_rdsa_project` FOREIGN KEY (`project_id`)"
+        "    REFERENCES `npd_projects`(`id`) ON DELETE CASCADE,"
+        "  CONSTRAINT `fk_rdsa_user` FOREIGN KEY (`user_id`)"
+        "    REFERENCES `users`(`id`) ON DELETE CASCADE,"
+        "  CONSTRAINT `fk_rdsa_assigner` FOREIGN KEY (`assigned_by`)"
+        "    REFERENCES `users`(`id`) ON DELETE SET NULL"
+        ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
+    )
+    _c21.commit()
+    _cur21.close()
+    _c21.close()
+    ok("rd_sub_assignments table ready")
+
+    # ══════════════════════════════════════════════════════
+    # STEP FINAL — AUTO SCHEMA SYNC
+    # ══════════════════════════════════════════════════════
+    # Compares SQLAlchemy models with the live DB and adds any
+    # missing tables / columns / indexes / foreign keys.
+    # Safe to run multiple times. Never drops or alters existing columns.
+    #
+    # CLI flags:
+    #   (default)        → apply missing changes
+    #   --dry-run        → show what would change, do not apply
+    #   --generate       → write a standalone migrate_diff.py
+    #   --json           → print machine-readable diff (and exit)
+    #   --skip-sync      → skip this step entirely
+    #   --only-sync      → skip all previous steps, run only this
+    # ══════════════════════════════════════════════════════
+    if not ARGS.skip_sync:
+        _run_auto_schema_sync(db, raw, cur, ARGS)
 
     # ══════════════════════════════════════════════════════
     # DONE
