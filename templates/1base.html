@@ -105,7 +105,7 @@
 
         {% if role in ('admin','manager','user','sales') %}
         {% set _perm_crm = get_perm('crm') %}
-        {% if _perm_crm is none or _perm_crm.can_view != false %}
+        {% if _perm_crm and _perm_crm.can_view %}
         <div class="sb-sec sb-accordion">
             <button class="sb-acc-hdr" onclick="toggleAccordion(this)">
                 <span class="sb-acc-ic">📋</span>
@@ -115,18 +115,24 @@
             <div class="sb-acc-body">
                 <a class="nav-a" href="/crm/dashboard"><span class="nav-ic">📊</span><span class="nav-txt">CRM Dashboard</span></a>
                 {% set _perm_leads = get_perm('crm_leads') %}
-                {% if _perm_leads is none or _perm_leads.can_view != false %}
+                {% if _perm_leads and _perm_leads.can_view %}
                 <a class="nav-a" href="/crm/leads"><span class="nav-ic">📋</span><span class="nav-txt">Leads</span></a>
                 {% endif %}
                 {% set _perm_clients = get_perm('crm_clients') %}
-                {% if _perm_clients is none or _perm_clients.can_view != false %}
+                {% if _perm_clients and _perm_clients.can_view %}
                 <a class="nav-a" href="/crm/clients"><span class="nav-ic">👥</span><span class="nav-txt">Client Master</span></a>
                 {% endif %}
                 {% set _perm_leads = get_perm('crm_leads') %}
-                {% if _perm_leads is none or _perm_leads.can_view != false %}
+                {% if _perm_leads and _perm_leads.can_view %}
+                {% set _so_subs = get_sub_perm('crm_leads', 'sample_order') %}
+                {% if _so_subs %}
                 <a class="nav-a" href="/crm/sample-orders"><span class="nav-ic">🧾</span><span class="nav-txt">Sample Orders</span></a>
+                {% endif %}
+                {% set _qt_subs = get_sub_perm('crm_leads', 'quotation') %}
+                {% if _qt_subs %}
                 <a class="nav-a" href="/crm/quotations"><span class="nav-ic">📄</span><span class="nav-txt">Quotations</span></a>
                 <a class="nav-a" href="/crm/quotations/products"><span class="nav-ic">📋</span><span class="nav-txt">Quot. Product List</span></a>
+                {% endif %}
                 {% endif %}
             </div>
         </div>
@@ -135,7 +141,7 @@
 
         {% if role in ('admin','manager','user','sales','rd_executive','rd_manager') %}
         {% set _perm_rd = get_perm('rd') %}
-        {% if _perm_rd is none or _perm_rd.can_view != false %}
+        {% if _perm_rd and _perm_rd.can_view %}
         <div class="sb-sec sb-accordion">
             <button class="sb-acc-hdr" onclick="toggleAccordion(this)">
                 <span class="sb-acc-ic">🔬</span>
@@ -179,7 +185,7 @@
 
         {% if role in ('admin','manager','hr') %}
         {% set _perm_hr = get_perm('hr') %}
-        {% if _perm_hr is none or _perm_hr.can_view != false %}
+        {% if _perm_hr and _perm_hr.can_view %}
         <div class="sb-sec sb-accordion">
             <button class="sb-acc-hdr" onclick="toggleAccordion(this)">
                 <span class="sb-acc-ic">👥</span>
@@ -189,7 +195,7 @@
             <div class="sb-acc-body">
                 <a class="nav-a" href="/hr/employees/dashboard"><span class="nav-ic">📊</span><span class="nav-txt">Dashboard</span></a>
                 {% set _perm_emp = get_perm('hr_employees') %}
-                {% if _perm_emp is none or _perm_emp.can_view != false %}
+                {% if _perm_emp and _perm_emp.can_view %}
                 <a class="nav-a" href="/hr/employees"><span class="nav-ic">🪪</span><span class="nav-txt">Employees</span></a>
                 {% endif %}
                 <a class="nav-a" href="/hr/contractors"><span class="nav-ic">🤝</span><span class="nav-txt">Contractors</span></a>
@@ -245,7 +251,7 @@
                 <span class="nav-ic">👥</span><span class="nav-txt">Client Master</span>
             </a>
             {% set _perm_leads = get_perm('crm_leads') %}
-            {% if _perm_leads is none or _perm_leads.can_view != false %}
+            {% if _perm_leads and _perm_leads.can_view %}
             <a class="nav-a {% if _pg == 'sample_orders' %}active{% endif %}" href="/crm/sample-orders">
                 <span class="nav-ic">🧾</span><span class="nav-txt">Sample Orders</span>
             </a>

@@ -184,9 +184,12 @@
 
         {# Leads #}
         <div class="sm">
-          <div class="sm-hdr" onclick="tog(this,'s-leads')"><span class="sm-arrow" id="a-s-leads">▶</span><span class="sm-nm">📋 Leads</span></div>
+          <div class="sm-hdr" onclick="tog(this,'s-leads')"><span class="sm-arrow" id="a-s-leads">▶</span><span class="sm-nm">📋 Leads</span>
+            {% set _leads_mo = modules|selectattr('name','eq','crm_leads')|first %}
+            {% if _leads_mo %}<button class="ea" data-uid="{{ uid }}" data-mid="{{ _leads_mo.id }}" onclick="mAll(event,this,true)">Enable All</button><button class="da" data-uid="{{ uid }}" data-mid="{{ _leads_mo.id }}" onclick="mAll(event,this,false)">Disable All</button>{% endif %}
+          </div>
           <div class="sm-body" id="s-leads">
-            {{ prow('crm_leads','Leads',uid,true) }}
+            {{ prow('crm_leads','Leads',uid) }}
             {{ chips('crm_leads',[
               ('filter','Filter'),('sort','Sort'),('columns','Columns'),
               ('inline_edit','Inline Edit'),('change_status','Change Status'),
@@ -204,9 +207,12 @@
 
         {# Clients #}
         <div class="sm">
-          <div class="sm-hdr" onclick="tog(this,'s-clients')"><span class="sm-arrow" id="a-s-clients">▶</span><span class="sm-nm">👥 Client Master</span></div>
+          <div class="sm-hdr" onclick="tog(this,'s-clients')"><span class="sm-arrow" id="a-s-clients">▶</span><span class="sm-nm">👥 Client Master</span>
+            {% set _clients_mo = modules|selectattr('name','eq','crm_clients')|first %}
+            {% if _clients_mo %}<button class="ea" data-uid="{{ uid }}" data-mid="{{ _clients_mo.id }}" onclick="mAll(event,this,true)">Enable All</button><button class="da" data-uid="{{ uid }}" data-mid="{{ _clients_mo.id }}" onclick="mAll(event,this,false)">Disable All</button>{% endif %}
+          </div>
           <div class="sm-body" id="s-clients">
-            {{ prow('crm_clients','Clients',uid,true) }}
+            {{ prow('crm_clients','Clients',uid) }}
             {{ chips('crm_clients',[
               ('filter','Filter'),('sort','Sort'),('columns','Columns'),
               ('inline_edit','Inline Edit'),('create_npd','Create NPD Project'),
@@ -219,7 +225,10 @@
 
         {# Sample Orders #}
         <div class="sm">
-          <div class="sm-hdr" onclick="tog(this,'s-sample')"><span class="sm-arrow" id="a-s-sample">▶</span><span class="sm-nm">🧾 Sample Orders</span></div>
+          <div class="sm-hdr" onclick="tog(this,'s-sample')"><span class="sm-arrow" id="a-s-sample">▶</span><span class="sm-nm">🧾 Sample Orders</span>
+            {% set _so_mo2 = modules|selectattr('name','eq','crm_leads')|first %}
+            {% if _so_mo2 %}<button class="ea" data-uid="{{ uid }}" data-mid="{{ _so_mo2.id }}" onclick="mAll(event,this,true)">Enable All</button><button class="da" data-uid="{{ uid }}" data-mid="{{ _so_mo2.id }}" onclick="mAll(event,this,false)">Disable All</button>{% endif %}
+          </div>
           <div class="sm-body" id="s-sample">
             {% set _so_mo = modules|selectattr('name','eq','crm_leads')|first %}
             {% if _so_mo %}
@@ -245,7 +254,10 @@
 
         {# Quotations #}
         <div class="sm">
-          <div class="sm-hdr" onclick="tog(this,'s-quot')"><span class="sm-arrow" id="a-s-quot">▶</span><span class="sm-nm">📄 Quotations</span></div>
+          <div class="sm-hdr" onclick="tog(this,'s-quot')"><span class="sm-arrow" id="a-s-quot">▶</span><span class="sm-nm">📄 Quotations</span>
+            {% set _qt_mo2 = modules|selectattr('name','eq','crm_leads')|first %}
+            {% if _qt_mo2 %}<button class="ea" data-uid="{{ uid }}" data-mid="{{ _qt_mo2.id }}" onclick="mAll(event,this,true)">Enable All</button><button class="da" data-uid="{{ uid }}" data-mid="{{ _qt_mo2.id }}" onclick="mAll(event,this,false)">Disable All</button>{% endif %}
+          </div>
           <div class="sm-body" id="s-quot">
             {% set _qt_mo = modules|selectattr('name','eq','crm_leads')|first %}
             {% if _qt_mo %}
