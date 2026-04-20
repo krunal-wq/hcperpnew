@@ -226,11 +226,11 @@
         {# Sample Orders #}
         <div class="sm">
           <div class="sm-hdr" onclick="tog(this,'s-sample')"><span class="sm-arrow" id="a-s-sample">▶</span><span class="sm-nm">🧾 Sample Orders</span>
-            {% set _so_mo2 = modules|selectattr('name','eq','crm_leads')|first %}
+            {% set _so_mo2 = modules|selectattr('name','eq','crm_sample_orders')|first %}
             {% if _so_mo2 %}<button class="ea" data-uid="{{ uid }}" data-mid="{{ _so_mo2.id }}" onclick="mAll(event,this,true)">Enable All</button><button class="da" data-uid="{{ uid }}" data-mid="{{ _so_mo2.id }}" onclick="mAll(event,this,false)">Disable All</button>{% endif %}
           </div>
           <div class="sm-body" id="s-sample">
-            {% set _so_mo = modules|selectattr('name','eq','crm_leads')|first %}
+            {% set _so_mo = modules|selectattr('name','eq','crm_sample_orders')|first %}
             {% if _so_mo %}
             {% set _so_mid = _so_mo.id %}
             {% set _so_up  = perm_map.get(_so_mid) %}
@@ -243,7 +243,7 @@
               <div class="pi"><span class="pi-lbl">Delete</span><button class="tg {{ 'on' if _so_cd else 'off' }}" data-uid="{{ uid }}" data-mid="{{ _so_mid }}" data-action="can_delete" onclick="tP(this)"></button></div>
             </div>
             {% endif %}
-            {{ chips('crm_leads',[
+            {{ chips('crm_sample_orders',[
               ('lead_view','Lead View'),('invoice_download','Invoice Download'),
               ('pdf_download','Download Sample Order PDF'),('mail_send','Mail Send'),
               ('invoice_upload','Invoice Upload'),('view_deleted','View Deleted Tab'),
@@ -255,11 +255,11 @@
         {# Quotations #}
         <div class="sm">
           <div class="sm-hdr" onclick="tog(this,'s-quot')"><span class="sm-arrow" id="a-s-quot">▶</span><span class="sm-nm">📄 Quotations</span>
-            {% set _qt_mo2 = modules|selectattr('name','eq','crm_leads')|first %}
+            {% set _qt_mo2 = modules|selectattr('name','eq','crm_quotations')|first %}
             {% if _qt_mo2 %}<button class="ea" data-uid="{{ uid }}" data-mid="{{ _qt_mo2.id }}" onclick="mAll(event,this,true)">Enable All</button><button class="da" data-uid="{{ uid }}" data-mid="{{ _qt_mo2.id }}" onclick="mAll(event,this,false)">Disable All</button>{% endif %}
           </div>
           <div class="sm-body" id="s-quot">
-            {% set _qt_mo = modules|selectattr('name','eq','crm_leads')|first %}
+            {% set _qt_mo = modules|selectattr('name','eq','crm_quotations')|first %}
             {% if _qt_mo %}
             {% set _qt_mid = _qt_mo.id %}
             {% set _qt_up  = perm_map.get(_qt_mid) %}
@@ -272,14 +272,60 @@
               <div class="pi"><span class="pi-lbl">Delete</span><button class="tg {{ 'on' if _qt_cd else 'off' }}" data-uid="{{ uid }}" data-mid="{{ _qt_mid }}" data-action="can_delete" onclick="tP(this)"></button></div>
             </div>
             {% endif %}
-            {{ chips('crm_leads',[
+            {{ chips('crm_quotations',[
               ('quotation','Create Quotation'),('send_email','Quot: Send Email'),
               ('status_change','Quot: Status Change')
             ], uid) }}
           </div>
         </div>
 
-                {# Settings #}
+        {# Quot. Product List #}
+        <div class="sm">
+          <div class="sm-hdr" onclick="tog(this,'s-qp')"><span class="sm-arrow" id="a-s-qp">▶</span><span class="sm-nm">📋 Quot. Product List</span>
+            {% set _qp_mo = modules|selectattr('name','eq','crm_quot_products')|first %}
+            {% if _qp_mo %}<button class="ea" data-uid="{{ uid }}" data-mid="{{ _qp_mo.id }}" onclick="mAll(event,this,true)">Enable All</button><button class="da" data-uid="{{ uid }}" data-mid="{{ _qp_mo.id }}" onclick="mAll(event,this,false)">Disable All</button>{% endif %}
+          </div>
+          <div class="sm-body" id="s-qp">
+            {% set _qp_mo = modules|selectattr('name','eq','crm_quot_products')|first %}
+            {% if _qp_mo %}
+            {% set _qp_mid = _qp_mo.id %}
+            {% set _qp_up  = perm_map.get(_qp_mid) %}
+            {% set _qp_rp  = role_perm_map.get(_qp_mid) %}
+            {% set _qp_cv  = _qp_up.can_view if _qp_up else (_qp_rp.can_view if _qp_rp else true) %}
+            <div class="pr">
+              <span class="pr-lbl">Quot. Product List</span>
+              <div class="pi"><span class="pi-lbl">View</span><button class="tg {{ 'on' if _qp_cv else 'off' }}" data-uid="{{ uid }}" data-mid="{{ _qp_mid }}" data-action="can_view" onclick="tP(this)"></button></div>
+            </div>
+            {% else %}
+            <p style="font-size:.75rem;color:var(--text3);padding:6px 0;">⚠️ Module DB mein nahi hai — fix_missing_modules.py run karo.</p>
+            {% endif %}
+          </div>
+        </div>
+
+        {# Leaderboard #}
+        <div class="sm">
+          <div class="sm-hdr" onclick="tog(this,'s-lb')"><span class="sm-arrow" id="a-s-lb">▶</span><span class="sm-nm">🏆 Leaderboard</span>
+            {% set _lb_mo = modules|selectattr('name','eq','crm_leaderboard')|first %}
+            {% if _lb_mo %}<button class="ea" data-uid="{{ uid }}" data-mid="{{ _lb_mo.id }}" onclick="mAll(event,this,true)">Enable All</button><button class="da" data-uid="{{ uid }}" data-mid="{{ _lb_mo.id }}" onclick="mAll(event,this,false)">Disable All</button>{% endif %}
+          </div>
+          <div class="sm-body" id="s-lb">
+            {% set _lb_mo = modules|selectattr('name','eq','crm_leaderboard')|first %}
+            {% if _lb_mo %}
+            {% set _lb_mid = _lb_mo.id %}
+            {% set _lb_up  = perm_map.get(_lb_mid) %}
+            {% set _lb_rp  = role_perm_map.get(_lb_mid) %}
+            {% set _lb_cv  = _lb_up.can_view if _lb_up else (_lb_rp.can_view if _lb_rp else true) %}
+            <div class="pr">
+              <span class="pr-lbl">Leaderboard</span>
+              <div class="pi"><span class="pi-lbl">View</span><button class="tg {{ 'on' if _lb_cv else 'off' }}" data-uid="{{ uid }}" data-mid="{{ _lb_mid }}" data-action="can_view" onclick="tP(this)"></button></div>
+            </div>
+            {% else %}
+            <p style="font-size:.75rem;color:var(--text3);padding:6px 0;">⚠️ Module DB mein nahi hai — fix_missing_modules.py run karo.</p>
+            {% endif %}
+          </div>
+        </div>
+
+        {# Settings #}
         <div class="sm">
           <div class="sm-hdr" onclick="tog(this,'s-crm-set')"><span class="sm-arrow" id="a-s-crm-set">▶</span><span class="sm-nm">⚙️ CRM Settings</span></div>
           <div class="sm-body" id="s-crm-set">
@@ -296,9 +342,12 @@
     </div>
 
     {# ═══════════════════════════════════════
-       R&D
+       R&D  (NPD nested inside)
     ═══════════════════════════════════════ #}
     {% set _rd = modules|selectattr('name','eq','rd')|first %}
+    {% set _npd = modules|selectattr('name','eq','npd')|first %}
+    {% set _npd_proj = modules|selectattr('name','eq','npd_projects')|first %}
+    {% set _npd_masters = modules|selectattr('name','eq','npd_masters')|first %}
     <div class="mg">
       <div class="mg-hdr" onclick="tog(this,'g-rd')">
         <span class="mg-arrow" id="a-g-rd">▶</span><span class="mg-ic">🔬</span>
@@ -306,49 +355,98 @@
         {% if _rd %}<button class="ea" data-uid="{{ uid }}" data-mid="{{ _rd.id }}" onclick="mAll(event,this,true)">Enable All</button><button class="da" data-uid="{{ uid }}" data-mid="{{ _rd.id }}" onclick="mAll(event,this,false)">Disable All</button>{% endif %}
       </div>
       <div class="mg-body" id="g-rd">
-        {{ prow('rd','R&D Projects',uid,true) }}
-        {{ chips('rd',[
-          ('unalloted_npd','Unalloted NPD'),('alloted_npd','Alloted NPD'),
-          ('closed_npd','Closed NPD'),('assign','Assign'),
-          ('trials_add','Log Trials Add'),('trials_list','Trials List'),
-          ('discussion','Discussion'),('performance','Performance'),('settings','Settings')
-        ], uid) }}
-      </div>
-    </div>
 
-    {# ═══════════════════════════════════════
-       NPD
-    ═══════════════════════════════════════ #}
-    {% set _npd = modules|selectattr('name','eq','npd')|first %}
-    <div class="mg">
-      <div class="mg-hdr" onclick="tog(this,'g-npd')">
-        <span class="mg-arrow" id="a-g-npd">▶</span><span class="mg-ic">🧪</span>
-        <span class="mg-nm">NPD</span>
-        {% if _npd %}<button class="ea" data-uid="{{ uid }}" data-mid="{{ _npd.id }}" onclick="mAll(event,this,true)">Enable All</button><button class="da" data-uid="{{ uid }}" data-mid="{{ _npd.id }}" onclick="mAll(event,this,false)">Disable All</button>{% endif %}
-      </div>
-      <div class="mg-body" id="g-npd">
-
-        {# NPD Projects #}
+        {# R&D Projects #}
         <div class="sm">
-          <div class="sm-hdr" onclick="tog(this,'s-npd-proj')"><span class="sm-arrow" id="a-s-npd-proj">▶</span><span class="sm-nm">📋 NPD Projects</span></div>
-          <div class="sm-body" id="s-npd-proj">
-            {{ prow('npd','NPD Projects',uid,true) }}
-            {{ chips('npd',[
-              ('inline_edit','Inline Edit'),('print','Print'),
-              ('overview','Overview'),('client_detail','Client Detail'),
-              ('discussion_board','Discussion Board'),('internal_discussion','Internal Discussion'),
-              ('activity_log','Activity Log'),('attachments','Attachments'),
-              ('notes','Notes'),('milestone','Milestone'),
-              ('close_project','Close Project'),
-              ('restore','Restore'),('permanent_delete','Permanent Delete'),
-              ('view_deleted','View Deleted Tab')
+          <div class="sm-hdr" onclick="tog(this,'s-rd-proj')">
+            <span class="sm-arrow" id="a-s-rd-proj">▶</span><span class="sm-nm">🔬 R&amp;D Projects</span>
+            {% if _rd %}<button class="ea" data-uid="{{ uid }}" data-mid="{{ _rd.id }}" onclick="mAll(event,this,true)">Enable All</button><button class="da" data-uid="{{ uid }}" data-mid="{{ _rd.id }}" onclick="mAll(event,this,false)">Disable All</button>{% endif %}
+          </div>
+          <div class="sm-body" id="s-rd-proj">
+            {# Custom row — View only, no Add/Edit/Delete/Export/Import #}
+            {% set _rd_mo = modules|selectattr('name','eq','rd')|first %}
+            {% if _rd_mo %}
+              {% set _rd_up = perm_map.get(_rd_mo.id) %}
+              {% set _rd_rp = role_perm_map.get(_rd_mo.id) %}
+              {% set _rd_cv = _rd_up.can_view if _rd_up else (_rd_rp.can_view if _rd_rp else true) %}
+              <div class="pr">
+                <span class="pr-lbl">R&amp;D Projects{% if _rd_up is not none %} <span class="ob">⚡</span>{% endif %}</span>
+                <div class="pi"><span class="pi-lbl">View</span><button class="tg {{ 'on' if _rd_cv else 'off' }}" data-uid="{{ uid }}" data-mid="{{ _rd_mo.id }}" data-action="can_view" onclick="tP(this)"></button></div>
+                <button class="ea" data-uid="{{ uid }}" data-mid="{{ _rd_mo.id }}" onclick="mAll(event,this,true)">Enable All</button>
+                <button class="da" data-uid="{{ uid }}" data-mid="{{ _rd_mo.id }}" onclick="mAll(event,this,false)">Disable All</button>
+              </div>
+            {% endif %}
+            {{ chips('rd',[
+              ('unalloted_npd','Unalloted NPD'),('alloted_npd','Alloted NPD'),
+              ('closed_npd','Closed NPD'),('assign','Assign')
             ], uid) }}
           </div>
         </div>
 
-        {# EPD Projects #}
+        {# NPD — nested inside R&D #}
         <div class="sm">
-          <div class="sm-hdr" onclick="tog(this,'s-epd-proj')"><span class="sm-arrow" id="a-s-epd-proj">▶</span><span class="sm-nm">📦 EPD Projects</span></div>
+          <div class="sm-hdr" onclick="tog(this,'s-npd-grp')">
+            <span class="sm-arrow" id="a-s-npd-grp">▶</span><span class="sm-nm">🧪 NPD</span>
+            {% if _npd %}<button class="ea" data-uid="{{ uid }}" data-mid="{{ _npd.id }}" onclick="mAll(event,this,true)">Enable All</button><button class="da" data-uid="{{ uid }}" data-mid="{{ _npd.id }}" onclick="mAll(event,this,false)">Disable All</button>{% endif %}
+          </div>
+          <div class="sm-body" id="s-npd-grp">
+
+            {# NPD Projects #}
+            <div class="sm" style="margin-bottom:5px;">
+              <div class="sm-hdr" onclick="tog(this,'s-npd-proj')"><span class="sm-arrow" id="a-s-npd-proj">▶</span><span class="sm-nm">📋 NPD Projects</span>
+              {% if _npd_proj %}<button class="ea" data-uid="{{ uid }}" data-mid="{{ _npd_proj.id }}" onclick="mAll(event,this,true)">Enable All</button><button class="da" data-uid="{{ uid }}" data-mid="{{ _npd_proj.id }}" onclick="mAll(event,this,false)">Disable All</button>{% endif %}
+            </div>
+              <div class="sm-body" id="s-npd-proj">
+                {{ prow('npd_projects','NPD Projects',uid,true) }}
+                {{ chips('npd_projects',[
+                  ('inline_edit','Inline Edit'),('print','Print'),
+                  ('overview','Overview'),('client_detail','Client Detail'),
+                  ('discussion_board','Discussion Board'),('internal_discussion','Internal Discussion'),
+                  ('activity_log','Activity Log'),('attachments','Attachments'),
+                  ('notes','Notes'),('milestone','Milestone'),
+                  ('close_project','Close Project'),
+                  ('restore','Restore'),('permanent_delete','Permanent Delete'),
+                  ('view_deleted','View Deleted Tab')
+                ], uid) }}
+              </div>
+            </div>
+
+            {# NPD Masters #}
+            <div class="sm" style="margin-bottom:5px;">
+              <div class="sm-hdr" onclick="tog(this,'s-npd-master')"><span class="sm-arrow" id="a-s-npd-master">▶</span><span class="sm-nm">⚙️ NPD Masters</span>
+              {% if _npd_masters %}<button class="ea" data-uid="{{ uid }}" data-mid="{{ _npd_masters.id }}" onclick="mAll(event,this,true)">Enable All</button><button class="da" data-uid="{{ uid }}" data-mid="{{ _npd_masters.id }}" onclick="mAll(event,this,false)">Disable All</button>{% endif %}
+            </div>
+              <div class="sm-body" id="s-npd-master">
+                {{ prow('npd_masters','NPD Masters',uid) }}
+                {{ chips('npd_masters',[
+                  ('milestone_master','Milestone Master'),('npd_status_master','NPD Status Master'),
+                  ('npd_category_master','NPD Category Master'),('milestone_status','Milestone Status'),
+                  ('param_master','Parameter Master'),('reports','Reports'),
+                  ('epd','EPD')
+                ], uid) }}
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    {# ═══════════════════════════════════════
+       EPD Projects — top-level (bahar)
+    ═══════════════════════════════════════ #}
+    <div class="mg">
+      <div class="mg-hdr" onclick="tog(this,'g-epd')">
+        <span class="mg-arrow" id="a-g-epd">▶</span><span class="mg-ic">📦</span>
+        <span class="mg-nm">EPD</span>
+        {% if _npd %}<button class="ea" data-uid="{{ uid }}" data-mid="{{ _npd.id }}" onclick="mAll(event,this,true)">Enable All</button><button class="da" data-uid="{{ uid }}" data-mid="{{ _npd.id }}" onclick="mAll(event,this,false)">Disable All</button>{% endif %}
+      </div>
+      <div class="mg-body" id="g-epd">
+        <div class="sm">
+          <div class="sm-hdr" onclick="tog(this,'s-epd-proj')"><span class="sm-arrow" id="a-s-epd-proj">▶</span><span class="sm-nm">📦 EPD Projects</span>
+          {% if _npd %}<button class="ea" data-uid="{{ uid }}" data-mid="{{ _npd.id }}" onclick="mAll(event,this,true)">Enable All</button><button class="da" data-uid="{{ uid }}" data-mid="{{ _npd.id }}" onclick="mAll(event,this,false)">Disable All</button>{% endif %}
+          </div>
           <div class="sm-body" id="s-epd-proj">
             {{ prow('npd','EPD Projects',uid) }}
             {{ chips('npd',[
@@ -362,21 +460,6 @@
             ], uid) }}
           </div>
         </div>
-
-        {# NPD Masters #}
-        <div class="sm">
-          <div class="sm-hdr" onclick="tog(this,'s-npd-master')"><span class="sm-arrow" id="a-s-npd-master">▶</span><span class="sm-nm">⚙️ NPD Masters</span></div>
-          <div class="sm-body" id="s-npd-master">
-            {{ prow('npd','NPD Masters',uid) }}
-            {{ chips('npd',[
-              ('milestone_master','Milestone Master'),('npd_status_master','NPD Status Master'),
-              ('npd_category_master','NPD Category Master'),('milestone_status','Milestone Status'),
-              ('param_master','Parameter Master'),('reports','Reports'),
-              ('epd','EPD')
-            ], uid) }}
-          </div>
-        </div>
-
       </div>
     </div>
 
@@ -394,7 +477,10 @@
 
         {# Employees #}
         <div class="sm">
-          <div class="sm-hdr" onclick="tog(this,'s-emp')"><span class="sm-arrow" id="a-s-emp">▶</span><span class="sm-nm">🪪 Employees</span></div>
+          {% set _hr_emp_mo = modules|selectattr('name','eq','hr_employees')|first %}
+          <div class="sm-hdr" onclick="tog(this,'s-emp')"><span class="sm-arrow" id="a-s-emp">▶</span><span class="sm-nm">🪪 Employees</span>
+            {% if _hr_emp_mo %}<button class="ea" data-uid="{{ uid }}" data-mid="{{ _hr_emp_mo.id }}" onclick="mAll(event,this,true)">Enable All</button><button class="da" data-uid="{{ uid }}" data-mid="{{ _hr_emp_mo.id }}" onclick="mAll(event,this,false)">Disable All</button>{% endif %}
+          </div>
           <div class="sm-body" id="s-emp">
             {{ prow('hr_employees','Employees',uid,true) }}
             {{ chips('hr_employees',[
@@ -414,7 +500,9 @@
 
         {# Attendance #}
         <div class="sm">
-          <div class="sm-hdr" onclick="tog(this,'s-att')"><span class="sm-arrow" id="a-s-att">▶</span><span class="sm-nm">📅 Attendance</span></div>
+          <div class="sm-hdr" onclick="tog(this,'s-att')"><span class="sm-arrow" id="a-s-att">▶</span><span class="sm-nm">📅 Attendance</span>
+            {% if _hr %}<button class="ea" data-uid="{{ uid }}" data-mid="{{ _hr.id }}" onclick="mAll(event,this,true)">Enable All</button><button class="da" data-uid="{{ uid }}" data-mid="{{ _hr.id }}" onclick="mAll(event,this,false)">Disable All</button>{% endif %}
+          </div>
           <div class="sm-body" id="s-att">
             {{ prow('hr','Attendance',uid) }}
             {{ chips('hr',[
@@ -425,7 +513,9 @@
 
         {# Rules & Policy #}
         <div class="sm">
-          <div class="sm-hdr" onclick="tog(this,'s-rules')"><span class="sm-arrow" id="a-s-rules">▶</span><span class="sm-nm">📜 Rules &amp; Policy</span></div>
+          <div class="sm-hdr" onclick="tog(this,'s-rules')"><span class="sm-arrow" id="a-s-rules">▶</span><span class="sm-nm">📜 Rules &amp; Policy</span>
+            {% if _hr %}<button class="ea" data-uid="{{ uid }}" data-mid="{{ _hr.id }}" onclick="mAll(event,this,true)">Enable All</button><button class="da" data-uid="{{ uid }}" data-mid="{{ _hr.id }}" onclick="mAll(event,this,false)">Disable All</button>{% endif %}
+          </div>
           <div class="sm-body" id="s-rules">
             {{ prow('hr','Rules & Policy',uid) }}
             {{ chips('hr',[
@@ -440,7 +530,9 @@
 
         {# HR Masters #}
         <div class="sm">
-          <div class="sm-hdr" onclick="tog(this,'s-hr-master')"><span class="sm-arrow" id="a-s-hr-master">▶</span><span class="sm-nm">⚙️ HR Masters</span></div>
+          <div class="sm-hdr" onclick="tog(this,'s-hr-master')"><span class="sm-arrow" id="a-s-hr-master">▶</span><span class="sm-nm">⚙️ HR Masters</span>
+            {% if _hr %}<button class="ea" data-uid="{{ uid }}" data-mid="{{ _hr.id }}" onclick="mAll(event,this,true)">Enable All</button><button class="da" data-uid="{{ uid }}" data-mid="{{ _hr.id }}" onclick="mAll(event,this,false)">Disable All</button>{% endif %}
+          </div>
           <div class="sm-body" id="s-hr-master">
             {{ prow('hr','HR Masters',uid) }}
             {{ chips('hr',[
@@ -453,7 +545,10 @@
 
         {# Contractors #}
         <div class="sm">
-          <div class="sm-hdr" onclick="tog(this,'s-cont')"><span class="sm-arrow" id="a-s-cont">▶</span><span class="sm-nm">🤝 Contractors</span></div>
+          {% set _hr_cont_mo = modules|selectattr('name','eq','hr_contractors')|first %}
+          <div class="sm-hdr" onclick="tog(this,'s-cont')"><span class="sm-arrow" id="a-s-cont">▶</span><span class="sm-nm">🤝 Contractors</span>
+            {% if _hr_cont_mo %}<button class="ea" data-uid="{{ uid }}" data-mid="{{ _hr_cont_mo.id }}" onclick="mAll(event,this,true)">Enable All</button><button class="da" data-uid="{{ uid }}" data-mid="{{ _hr_cont_mo.id }}" onclick="mAll(event,this,false)">Disable All</button>{% endif %}
+          </div>
           <div class="sm-body" id="s-cont">
             {{ prow('hr_contractors','Contractors',uid,true) }}
             {{ chips('hr_contractors',[
