@@ -106,7 +106,6 @@
             </a>
         </div>
 
-        {% if role in ('admin','manager','user','sales') %}
         {% set _perm_crm = get_perm('crm') %}
         {% if _perm_crm and _perm_crm.can_view and get_module_active('crm') %}
         <div class="sb-sec sb-accordion">
@@ -153,7 +152,6 @@
             </div>
         </div>
         {% endif %}
-        {% endif %}
 
         {% set _perm_packing = get_perm('packing') %}
         {% if _perm_packing and _perm_packing.can_view and get_module_active('packing') %}
@@ -169,7 +167,6 @@
         </div>
         {% endif %}
 
-        {% if role in ('admin','manager','user','sales','rd_executive','rd_manager') %}
         {% set _perm_rd = get_perm('rd') %}
         {% if _perm_rd and _perm_rd.can_view %}
         <div class="sb-sec sb-accordion">
@@ -219,9 +216,7 @@
             </div>
         </div>
         {% endif %}
-        {% endif %}
 
-        {% if role in ('admin','manager','hr') %}
         {% set _perm_hr = get_perm('hr') %}
         {% if _perm_hr and _perm_hr.can_view %}
         <div class="sb-sec sb-accordion">
@@ -240,9 +235,9 @@
             </div>
         </div>
         {% endif %}
-        {% endif %}
 
-        {% if role == 'admin' %}
+        {% set _perm_masters = get_perm('masters') %}
+        {% if _perm_masters and _perm_masters.can_view %}
         <div class="sb-sec sb-accordion">
             <button class="sb-acc-hdr" onclick="toggleAccordion(this)">
                 <span class="sb-acc-ic">🗂️</span>
@@ -329,7 +324,9 @@
             {% endif %}
 
             {# ── Import Group (collapsible) ── #}
-            {% if role in ('admin','manager') %}
+            {% set _perm_leads_imp = get_perm('crm_leads') %}
+            {% set _perm_clients_imp = get_perm('crm_clients') %}
+            {% if (_perm_leads_imp and _perm_leads_imp.can_import) or (_perm_clients_imp and _perm_clients_imp.can_import) %}
             {% set _in_import = _pg in ('lead_import','client_import') %}
             <button class="nav-group-toggle {% if _in_import %}open{% endif %}" onclick="toggleNavGroup(this)">
                 <span class="nav-ic">📥</span>
@@ -483,7 +480,8 @@
                 <span class="nav-ic">👤</span><span class="nav-txt">My Attendance</span>
             </a>
         </div>
-        {% if role in ('admin', 'manager', 'hr') %}
+        {% set _perm_hr_rules = get_perm('hr') %}
+        {% if _perm_hr_rules and _perm_hr_rules.can_view %}
         <div class="sb-sec">
             <div class="sb-sec-lbl">Rules & Policies</div>
 
@@ -756,13 +754,18 @@
             </span>
             <span class="bn-label">Home</span>
         </a>
-        {% if role in ('admin', 'manager', 'user') %}
+        {% set _bn_perm_leads = get_perm('crm_leads') %}
+        {% set _bn_perm_clients = get_perm('crm_clients') %}
+        {% if (_bn_perm_leads and _bn_perm_leads.can_view) or (_bn_perm_clients and _bn_perm_clients.can_view) %}
+        {% if _bn_perm_leads and _bn_perm_leads.can_view %}
         <a class="bn-item {% if active_page in ('leads', 'crm_dashboard') %}active{% endif %}" href="/crm/leads">
             <span class="bn-icon">
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
             </span>
             <span class="bn-label">Leads</span>
         </a>
+        {% endif %}
+        {% if _bn_perm_clients and _bn_perm_clients.can_view %}
         <a class="bn-item {% if active_page == 'clients' %}active{% endif %}" href="/crm/clients">
             <span class="bn-icon">
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
@@ -770,7 +773,9 @@
             <span class="bn-label">Clients</span>
         </a>
         {% endif %}
-        {% if role in ('admin', 'manager', 'hr') %}
+        {% endif %}
+        {% set _bn_perm_hr = get_perm('hr_employees') %}
+        {% if _bn_perm_hr and _bn_perm_hr.can_view %}
         <a class="bn-item {% if active_page in ('hr_employees', 'hr_emp_dashboard') %}active{% endif %}" href="/hr/employees">
             <span class="bn-icon">
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>

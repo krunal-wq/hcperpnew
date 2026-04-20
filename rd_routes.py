@@ -12,36 +12,45 @@ from permissions import get_perm, get_sub_perm
 rd = Blueprint('rd', __name__, url_prefix='/rd')
 
 
-# ── Helper: get all RD users (employees assigned to R&D) ──
+# ── Helper: get R&D department users only ──
 def get_rd_users():
-    """Return all active Users who are R&D executives/managers + 
-    Employees in R&D dept who have linked user accounts"""
+    """Return active Users whose linked Employee record belongs to the R&D
+    (Research & Development) department — in any of its spelling variations
+    (R&D, R & D, Research and Development, RND, etc.).
+    Users without an Employee record, or whose Employee is in any other
+    department, are excluded — even if they have the rd_executive /
+    rd_manager / admin role."""
     from models.employee import Employee
+    from models.rd_department import rd_department_filter, is_rd_department
 
-    # Base: Users with rd roles
-    rd_users = User.query.filter(
-        User.is_active == True,
-        User.role.in_(['rd_executive', 'rd_manager', 'admin'])
-    ).order_by(User.full_name).all()
-
-    # Also: Employees in R&D department who have a linked user_id
-    rd_emp_users = Employee.query.filter(
+    # SQL-level filter for efficiency — catches most variations
+    rd_emps = Employee.query.filter(
         Employee.is_deleted == False,
-        Employee.department.ilike('%r&d%'),
-        Employee.user_id != None
+        Employee.user_id.isnot(None),
+        rd_department_filter(Employee),
     ).order_by(Employee.first_name).all()
 
-    # Add their linked User objects if not already in list
-    existing_ids = {u.id for u in rd_users}
-    for emp in rd_emp_users:
+    # Python-side strict check — SQL patterns can be loose (e.g. 'rd' might
+    # match some edge cases), so we re-validate each row with the exact
+    # normalizer logic
+    rd_users = []
+    seen = set()
+    for emp in rd_emps:
+        if not is_rd_department(emp.department):
+            continue
         u = User.query.get(emp.user_id)
-        if u and u.id not in existing_ids and u.is_active:
-            # Tag with designation for display
+        if u and u.is_active and u.id not in seen:
             u._display_role = emp.designation or 'R&D Executive'
             rd_users.append(u)
-            existing_ids.add(u.id)
+            seen.add(u.id)
 
+    rd_users.sort(key=lambda x: (x.full_name or '').lower())
     return rd_users
+
+
+# ── Helper: set of allowed R&D user ids (for POST validation) ──
+def get_rd_user_ids():
+    return {u.id for u in get_rd_users()}
 
 
 # ══════════════════════════════════════════════════════════════
@@ -160,26 +169,51 @@ def projects():
         'closed_npd':    get_sub_perm('rd', 'closed_npd'),
         'assign':        get_sub_perm('rd', 'assign'),
     }
-    # Build emp_id → name map + user_id → name map for template
+    # ── Build member list per project from RDSubAssignment (source of truth) ──
+    # project_members = { project_id: [ {id, name, variant_code, status}, ... ] }
     from models.employee import Employee as _EmpM
-    _all_emp_ids = set()
-    _all_user_ids = set()
+    project_members = {}
+    all_subs = RDSubAssignment.query.filter(
+        RDSubAssignment.project_id.in_([p.id for p in projects]) if projects else False,
+        RDSubAssignment.is_active == True,
+    ).all() if projects else []
+
+    _sub_user_ids = {s.user_id for s in all_subs if s.user_id}
+    _sub_user_map = {u.id: u for u in User.query.filter(User.id.in_(_sub_user_ids)).all()} if _sub_user_ids else {}
+
+    for s in all_subs:
+        u = _sub_user_map.get(s.user_id)
+        if not u:
+            continue
+        project_members.setdefault(s.project_id, []).append({
+            'id'          : u.id,
+            'name'        : u.full_name or u.username or '—',
+            'variant_code': s.variant_code or '',
+            'status'      : s.status or 'not_started',
+        })
+
+    # Sort each project's member list alphabetically by name
+    for pid_key in project_members:
+        project_members[pid_key].sort(key=lambda m: (m['name'] or '').lower())
+
+    # ── Legacy emp_id → name map (kept for backward-compat with older rows) ──
+    _legacy_emp_ids = set()
+    _legacy_user_ids = set()
     for p in projects:
         if p.assigned_rd_members:
             for token in str(p.assigned_rd_members).split(','):
                 token = token.strip()
                 if token.startswith('u_'):
-                    try: _all_user_ids.add(int(token[2:]))
+                    try: _legacy_user_ids.add(int(token[2:]))
                     except: pass
                 elif token.isdigit():
-                    _all_emp_ids.add(int(token))
+                    _legacy_emp_ids.add(int(token))
     rd_emp_names = {}
-    if _all_emp_ids:
-        for e in _EmpM.query.filter(_EmpM.id.in_(_all_emp_ids), _EmpM.is_deleted==False).all():
+    if _legacy_emp_ids:
+        for e in _EmpM.query.filter(_EmpM.id.in_(_legacy_emp_ids), _EmpM.is_deleted==False).all():
             rd_emp_names[e.id] = e.full_name
-    # Also map u_<id> → user full_name
-    if _all_user_ids:
-        for u in User.query.filter(User.id.in_(_all_user_ids)).all():
+    if _legacy_user_ids:
+        for u in User.query.filter(User.id.in_(_legacy_user_ids)).all():
             rd_emp_names[f'u_{u.id}'] = u.full_name
 
     return render_template('rd/projects.html',
@@ -189,6 +223,7 @@ def projects():
         is_rd_manager=is_rd_manager, perm=get_perm('rd'),
         rd_sub=rd_sub,
         rd_emp_names=rd_emp_names,
+        project_members=project_members,
     )
 
 
@@ -625,6 +660,15 @@ def assign_project(pid):
     rd_id   = request.form.get('rd_id') or None
     sc_id   = request.form.get('sc_id') or None
 
+    # Guard: only users in the R&D department may be assigned
+    if rd_id:
+        try:
+            if int(rd_id) not in get_rd_user_ids():
+                return jsonify(success=False,
+                    error='Selected user is not in the R&D department.'), 400
+        except (TypeError, ValueError):
+            return jsonify(success=False, error='Invalid R&D user id.'), 400
+
     old_rd = proj.assigned_rd
     proj.assigned_rd  = int(rd_id)  if rd_id  else None
     proj.assigned_sc  = int(sc_id)  if sc_id  else proj.assigned_sc
@@ -660,6 +704,8 @@ def assign_multi(pid):
 
     names = []
     assigned_user_ids = []
+    allowed_rd_ids = get_rd_user_ids()
+    rejected = []
 
     for item in data:
         # item can be dict (JSON) or string (old form fallback)
@@ -690,6 +736,11 @@ def assign_multi(pid):
         if not user_obj:
             continue
 
+        # Guard: only R&D department users may be assigned
+        if user_obj.id not in allowed_rd_ids:
+            rejected.append(user_obj.full_name or user_obj.username)
+            continue
+
         names.append(user_obj.full_name)
         assigned_user_ids.append(f'u_{user_obj.id}')
 
@@ -715,6 +766,12 @@ def assign_multi(pid):
                 is_active    = True,
             )
             db.session.add(sub)
+
+    if not assigned_user_ids:
+        msg = 'No valid R&D department users selected.'
+        if rejected:
+            msg += ' Rejected (not in R&D): ' + ', '.join(rejected)
+        return jsonify(success=False, error=msg), 400
 
     # Update project level assigned_rd_members for backward compat
     proj.assigned_rd         = User.query.get(int(assigned_user_ids[0][2:])).id if assigned_user_ids else proj.assigned_rd
@@ -742,6 +799,7 @@ def assign_multi(pid):
         success      = True,
         proj_id      = pid,
         rd_names     = names,
+        rejected     = rejected,
         sc_name      = proj.sc_user.full_name if proj.sc_user else '—',
         status       = proj.status_label,
         status_color = proj.status_color,

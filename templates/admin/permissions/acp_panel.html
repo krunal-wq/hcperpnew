@@ -91,16 +91,22 @@
   {# ── LEFT: Users ── #}
   <div class="acp-left">
     <div class="acp-left-hdr">Portal Users</div>
-    <input type="text" class="acp-search" id="acpS" placeholder="🔍 Search...">
+    <input type="text" class="acp-search" id="acpS" placeholder="🔍 Search name / code / emp-id...">
     <div class="acp-users">
       {% for u in all_users %}
+      {% set _emp = emp_map.get(u.id) %}
+      {% set _ecode = _emp.employee_code if _emp else '' %}
+      {% set _eid   = _emp.employee_id   if _emp else '' %}
       <a href="{{ url_for('users_bp.acp_panel', user_id=u.id) }}"
          class="u-item {% if selected_user and selected_user.id==u.id %}active{% endif %}"
-         data-name="{{ (u.full_name or u.username)|lower }} {{ u.role|lower }} {{ u.username|lower }}">
+         data-name="{{ (u.full_name or u.username)|lower }} {{ u.role|lower }} {{ u.username|lower }} {{ _ecode|lower }} {{ _eid|lower }}">
         <div class="u-av">{{ (u.full_name or u.username)[:2]|upper }}</div>
         <div style="flex:1;min-width:0;">
           <div class="u-nm">{{ u.full_name or u.username }}</div>
-          <div class="u-sub">{{ u.username }} · {{ u.role }}</div>
+          <div class="u-sub">
+            {% if _ecode %}<b style="color:#2563eb;">{{ _ecode }}</b>{% if _eid %} · {{ _eid }}{% endif %}{% else %}{{ u.username }}{% endif %}
+            · {{ u.role }}
+          </div>
         </div>
         <span class="rp rp-{{ u.role }}">{{ u.role[:3] }}</span>
       </a>
@@ -114,9 +120,29 @@
     {% if selected_user %}
     <div class="u-hdr">
       <div class="u-av" style="width:38px;height:38px;font-size:.88rem;">{{ (selected_user.full_name or selected_user.username)[:2]|upper }}</div>
-      <div>
-        <div class="unm">{{ selected_user.full_name or selected_user.username }}</div>
-        <div class="usub">@{{ selected_user.username }} · {{ selected_user.email or '' }} · <b>{{ selected_user.role|title }}</b></div>
+      <div style="flex:1;">
+        <div class="unm">
+          {{ selected_user.full_name or selected_user.username }}
+          {% if selected_employee and selected_employee.employee_code %}
+            <span style="font-size:.72rem;background:#dbeafe;color:#1d4ed8;padding:2px 8px;border-radius:6px;margin-left:8px;font-weight:700;letter-spacing:.02em;">
+              🪪 {{ selected_employee.employee_code }}
+            </span>
+          {% endif %}
+          {% if selected_employee and selected_employee.employee_id %}
+            <span style="font-size:.7rem;background:#f0fdf4;color:#16a34a;padding:2px 8px;border-radius:6px;margin-left:4px;font-weight:600;" title="Biometric / Device ID">
+              🔢 {{ selected_employee.employee_id }}
+            </span>
+          {% endif %}
+        </div>
+        <div class="usub">
+          @{{ selected_user.username }}
+          {% if selected_user.email %} · {{ selected_user.email }}{% endif %}
+          {% if selected_employee %}
+            {% if selected_employee.department %} · 🏢 {{ selected_employee.department }}{% endif %}
+            {% if selected_employee.designation %} · 💼 {{ selected_employee.designation }}{% endif %}
+          {% endif %}
+          · <b>{{ selected_user.role|title }}</b>
+        </div>
       </div>
     </div>
 
@@ -129,15 +155,14 @@
       {% if mo %}
         {% set mid = mo.id %}
         {% set up  = perm_map.get(mid) %}
-        {% set rp  = role_perm_map.get(mid) %}
-        {% set cv = up.can_view   if up else (rp.can_view   if rp else true) %}
-        {% set ca = up.can_add    if up else (rp.can_add    if rp else false) %}
-        {% set ce = up.can_edit   if up else (rp.can_edit   if rp else false) %}
-        {% set cd = up.can_delete if up else (rp.can_delete if rp else false) %}
-        {% set cx = up.can_export if up else (rp.can_export if rp else false) %}
+        {% set cv = up.can_view   if up else false %}
+        {% set ca = up.can_add    if up else false %}
+        {% set ce = up.can_edit   if up else false %}
+        {% set cd = up.can_delete if up else false %}
+        {% set cx = up.can_export if up else false %}
         {% set ci = up.can_import if up else false %}
         <div class="pr">
-          <span class="pr-lbl">{{ label }}{% if up is not none %} <span class="ob">⚡</span>{% endif %}</span>
+          <span class="pr-lbl">{{ label }}</span>
           <div class="pi"><span class="pi-lbl">View</span><button class="tg {{ 'on' if cv else 'off' }}" data-uid="{{ uid }}" data-mid="{{ mid }}" data-action="can_view" onclick="tP(this)"></button></div>
           <div class="pi"><span class="pi-lbl">Add</span><button class="tg {{ 'on' if ca else 'off' }}" data-uid="{{ uid }}" data-mid="{{ mid }}" data-action="can_add" onclick="tP(this)"></button></div>
           <div class="pi"><span class="pi-lbl">Edit</span><button class="tg {{ 'on' if ce else 'off' }}" data-uid="{{ uid }}" data-mid="{{ mid }}" data-action="can_edit" onclick="tP(this)"></button></div>
@@ -234,9 +259,8 @@
             {% if _so_mo %}
             {% set _so_mid = _so_mo.id %}
             {% set _so_up  = perm_map.get(_so_mid) %}
-            {% set _so_rp  = role_perm_map.get(_so_mid) %}
-            {% set _so_cv  = _so_up.can_view   if _so_up else (_so_rp.can_view   if _so_rp else true) %}
-            {% set _so_cd  = _so_up.can_delete if _so_up else (_so_rp.can_delete if _so_rp else false) %}
+            {% set _so_cv  = _so_up.can_view   if _so_up else false %}
+            {% set _so_cd  = _so_up.can_delete if _so_up else false %}
             <div class="pr">
               <span class="pr-lbl">Sample Orders</span>
               <div class="pi"><span class="pi-lbl">View</span><button class="tg {{ 'on' if _so_cv else 'off' }}" data-uid="{{ uid }}" data-mid="{{ _so_mid }}" data-action="can_view" onclick="tP(this)"></button></div>
@@ -263,9 +287,8 @@
             {% if _qt_mo %}
             {% set _qt_mid = _qt_mo.id %}
             {% set _qt_up  = perm_map.get(_qt_mid) %}
-            {% set _qt_rp  = role_perm_map.get(_qt_mid) %}
-            {% set _qt_cv  = _qt_up.can_view   if _qt_up else (_qt_rp.can_view   if _qt_rp else true) %}
-            {% set _qt_cd  = _qt_up.can_delete if _qt_up else (_qt_rp.can_delete if _qt_rp else false) %}
+            {% set _qt_cv  = _qt_up.can_view   if _qt_up else false %}
+            {% set _qt_cd  = _qt_up.can_delete if _qt_up else false %}
             <div class="pr">
               <span class="pr-lbl">Quotations</span>
               <div class="pi"><span class="pi-lbl">View</span><button class="tg {{ 'on' if _qt_cv else 'off' }}" data-uid="{{ uid }}" data-mid="{{ _qt_mid }}" data-action="can_view" onclick="tP(this)"></button></div>
@@ -290,8 +313,7 @@
             {% if _qp_mo %}
             {% set _qp_mid = _qp_mo.id %}
             {% set _qp_up  = perm_map.get(_qp_mid) %}
-            {% set _qp_rp  = role_perm_map.get(_qp_mid) %}
-            {% set _qp_cv  = _qp_up.can_view if _qp_up else (_qp_rp.can_view if _qp_rp else true) %}
+            {% set _qp_cv  = _qp_up.can_view if _qp_up else false %}
             <div class="pr">
               <span class="pr-lbl">Quot. Product List</span>
               <div class="pi"><span class="pi-lbl">View</span><button class="tg {{ 'on' if _qp_cv else 'off' }}" data-uid="{{ uid }}" data-mid="{{ _qp_mid }}" data-action="can_view" onclick="tP(this)"></button></div>
@@ -313,8 +335,7 @@
             {% if _lb_mo %}
             {% set _lb_mid = _lb_mo.id %}
             {% set _lb_up  = perm_map.get(_lb_mid) %}
-            {% set _lb_rp  = role_perm_map.get(_lb_mid) %}
-            {% set _lb_cv  = _lb_up.can_view if _lb_up else (_lb_rp.can_view if _lb_rp else true) %}
+            {% set _lb_cv  = _lb_up.can_view if _lb_up else false %}
             <div class="pr">
               <span class="pr-lbl">Leaderboard</span>
               <div class="pi"><span class="pi-lbl">View</span><button class="tg {{ 'on' if _lb_cv else 'off' }}" data-uid="{{ uid }}" data-mid="{{ _lb_mid }}" data-action="can_view" onclick="tP(this)"></button></div>
@@ -367,10 +388,9 @@
             {% set _rd_mo = modules|selectattr('name','eq','rd')|first %}
             {% if _rd_mo %}
               {% set _rd_up = perm_map.get(_rd_mo.id) %}
-              {% set _rd_rp = role_perm_map.get(_rd_mo.id) %}
-              {% set _rd_cv = _rd_up.can_view if _rd_up else (_rd_rp.can_view if _rd_rp else true) %}
+              {% set _rd_cv = _rd_up.can_view if _rd_up else false %}
               <div class="pr">
-                <span class="pr-lbl">R&amp;D Projects{% if _rd_up is not none %} <span class="ob">⚡</span>{% endif %}</span>
+                <span class="pr-lbl">R&amp;D Projects</span>
                 <div class="pi"><span class="pi-lbl">View</span><button class="tg {{ 'on' if _rd_cv else 'off' }}" data-uid="{{ uid }}" data-mid="{{ _rd_mo.id }}" data-action="can_view" onclick="tP(this)"></button></div>
                 <button class="ea" data-uid="{{ uid }}" data-mid="{{ _rd_mo.id }}" onclick="mAll(event,this,true)">Enable All</button>
                 <button class="da" data-uid="{{ uid }}" data-mid="{{ _rd_mo.id }}" onclick="mAll(event,this,false)">Disable All</button>

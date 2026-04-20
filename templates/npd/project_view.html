@@ -381,7 +381,7 @@
       </div>
       {% elif my_sub and my_sub.status == 'finished' and my_sub.total_seconds %}
       {% set td = my_sub.total_seconds %}
-      {% set td_h = ((td % 86400) // 3600)|int %}
+      {% set td_h = (td // 3600)|int %}
       {% set td_m = ((td % 3600) // 60)|int %}
       {% set td_s = (td % 60)|int %}
       <div style="display:inline-flex;align-items:center;gap:10px;background:#f1f5f9;border:2px solid #cbd5e1;border-radius:100px;padding:8px 28px;">
@@ -800,7 +800,7 @@ function mySubEnd() {
     function pad(n){ return n < 10 ? '0'+n : ''+n; }
     function updateTimer(){
         var diff = Math.max(0, Math.floor((new Date() - startedAt) / 1000));
-        var h = Math.floor((diff % 86400) / 3600);
+        var h = Math.floor(diff / 3600);
         var m = Math.floor((diff % 3600) / 60);
         var s = diff % 60;
         timerEl.textContent = pad(h) + ':' + pad(m) + ':' + pad(s);
@@ -866,7 +866,24 @@ function mySubEnd() {
                     {% if proj.client_email %}<div class="info-row"><span class="info-lbl">Email</span><span class="info-val"><a href="mailto:{{ proj.client_email }}" style="color:var(--blue);">{{ proj.client_email }}</a></span></div>{% endif %}
                     {% if proj.client_phone %}<div class="info-row"><span class="info-lbl">Phone</span><span class="info-val">{{ proj.client_phone }}</span></div>{% endif %}
                     {% if proj.sc_user %}<div class="info-row"><span class="info-lbl">Sales Coordinator</span><span class="info-val">{{ proj.sc_user.full_name }}</span></div>{% endif %}
-                    {% if proj.rd_user %}<div class="info-row"><span class="info-lbl">R&D Person</span><span class="info-val">{{ proj.rd_user.full_name }}</span></div>{% endif %}
+                    {% if rd_members and rd_members|length > 0 %}
+                    <div class="info-row">
+                        <span class="info-lbl">R&D Person{% if rd_members|length > 1 %}s{% endif %}</span>
+                        <span class="info-val" style="display:flex;flex-wrap:wrap;gap:5px;">
+                            {% for m in rd_members %}
+                              {% set nparts = m.full_name.split() %}
+                              {% set ini = (nparts[0][0] + nparts[-1][0]).upper() if nparts|length > 1 else (m.full_name[:2]).upper() %}
+                              <span title="{{ m.full_name }}{% if m.variant_code %} — {{ m.variant_code }}{% endif %}"
+                                    style="display:inline-flex;align-items:center;gap:5px;background:var(--blue-lt);border:1px solid var(--blue-border);border-radius:100px;padding:2px 9px;font-size:.72rem;font-weight:600;color:var(--blue);">
+                                <span style="width:18px;height:18px;border-radius:50%;background:var(--blue);color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:.55rem;font-weight:800;">{{ ini }}</span>
+                                {{ m.full_name }}{% if m.variant_code %} <span style="color:#7c3aed;font-weight:700;">({{ m.variant_code }})</span>{% endif %}
+                              </span>
+                            {% endfor %}
+                        </span>
+                    </div>
+                    {% elif proj.rd_user %}
+                    <div class="info-row"><span class="info-lbl">R&D Person</span><span class="info-val">{{ proj.rd_user.full_name }}</span></div>
+                    {% endif %}
                 </div>
             </div>
             <div class="card">
@@ -894,6 +911,12 @@ function mySubEnd() {
                                 {% set parts = full.strip().split() %}
                                 {% set ini = (parts[0][0] + parts[-1][0]).upper() if parts|length > 1 else parts[0][:2].upper() if parts else '?' %}
                                 <span title="{{ full.strip() }}" style="width:26px;height:26px;border-radius:50%;background:var(--blue-lt);color:var(--blue);display:inline-flex;align-items:center;justify-content:center;font-size:.6rem;font-weight:800;border:2px solid #fff;margin-left:-4px;flex-shrink:0;">{{ ini }}</span>
+                                {% endfor %}
+                            {% elif rd_members %}
+                                {% for m in rd_members %}
+                                {% set nparts = m.full_name.split() %}
+                                {% set ini = (nparts[0][0] + nparts[-1][0]).upper() if nparts|length > 1 else (m.full_name[:2]).upper() %}
+                                <span title="{{ m.full_name }}" style="width:26px;height:26px;border-radius:50%;background:var(--blue-lt);color:var(--blue);display:inline-flex;align-items:center;justify-content:center;font-size:.6rem;font-weight:800;border:2px solid #fff;margin-left:-4px;flex-shrink:0;">{{ ini }}</span>
                                 {% endfor %}
                             {% else %}
                                 <span style="color:var(--text3);font-size:.82rem;">No members assigned</span>

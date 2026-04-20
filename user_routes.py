@@ -7,7 +7,8 @@ from flask_login import login_required, current_user
 from audit_helper import audit, snapshot
 from functools import wraps
 from datetime import datetime
-from models import db, User, LoginLog, Module, RolePermission, UserPermission
+from models import db, User, LoginLog, Module, UserPermission
+from models.employee import Employee
 from permissions import seed_permissions, MODULE_SUB_PERMS
 
 users_bp = Blueprint('users_bp', __name__, url_prefix='/admin')
@@ -147,53 +148,30 @@ def user_toggle(id):
 @login_required
 @admin_required
 def permissions():
-    modules = Module.query.filter_by(is_active=True).order_by(Module.sort_order).all()
-    roles   = ['admin','manager','hr','user']
-    # Build matrix: role → module_id → RolePermission
-    matrix  = {}
-    for role in roles:
-        matrix[role] = {}
-        perms = RolePermission.query.filter_by(role=role).all()
-        for p in perms:
-            matrix[role][p.module_id] = p
-    return render_template('admin/permissions/index.html',
-        modules=modules, roles=roles, matrix=matrix, active_page='permissions')
+    """DEPRECATED: Role-based permission matrix removed.
+    System is now user-only — har user ko individually permission do.
+    Redirect to Access Control Panel.
+    """
+    flash('Role-based permissions hata diye gaye hain. User-wise permissions yahan manage karo.', 'info')
+    return redirect(url_for('users_bp.acp_panel'))
 
 
 @users_bp.route('/permissions/save', methods=['POST'])
 @login_required
 @admin_required
 def perm_save():
-    data = request.json  # {role, module_id, action, value}
-    role      = data.get('role')
-    module_id = data.get('module_id')
-    action    = data.get('action')
-    value     = data.get('value', False)
-
-    if action not in ('can_view','can_add','can_edit','can_delete','can_export'):
-        return jsonify(success=False, error='Invalid action')
-
-    p = RolePermission.query.filter_by(role=role, module_id=module_id).first()
-    if not p:
-        p = RolePermission(role=role, module_id=module_id)
-        db.session.add(p)
-
-    setattr(p, action, bool(value))
-    # If disabling view, disable all others too
-    if action == 'can_view' and not value:
-        p.can_add = p.can_edit = p.can_delete = p.can_export = False
-    audit('users','PERMISSION_CHANGE', p.id, role, f'Permission updated by {current_user.username}: role={role} module={module_id} {action}={value}')
-    db.session.commit()
-    return jsonify(success=True)
+    """DEPRECATED: No-op. Role-based permission save removed."""
+    return jsonify(success=False, error='Role-based permissions removed. Use /admin/user-permissions/<user_id>/toggle')
 
 
 @users_bp.route('/permissions/seed', methods=['POST'])
 @login_required
 @admin_required
 def perm_seed():
+    """Seed default modules only (no role permissions)."""
     seed_permissions()
-    flash('Default permissions seeded!', 'success')
-    return redirect(url_for('users_bp.permissions'))
+    flash('Default modules seeded!', 'success')
+    return redirect(url_for('users_bp.acp_panel'))
 
 
 # ══════════════════════════════════════
@@ -433,30 +411,42 @@ def user_permissions_list():
 @login_required
 @admin_required
 def acp_panel(user_id=None):
-    """Access Control Panel — split panel design."""
+    """Access Control Panel — split panel design.
+    
+    User <-> Employee link via Employee.user_id. Har user ke saath uska
+    employee_code aur employee_id (biometric/device ID) bhi fetch karte hain
+    taki permission assign karte waqt HR team sahi employee identify kar sake.
+    """
     all_users = User.query.filter_by(is_active=True).order_by(User.full_name).all()
     modules   = Module.query.filter_by(is_active=True).order_by(Module.sort_order).all()
 
+    # ── Build user_id → Employee map (single query, efficient) ──
+    user_ids = [u.id for u in all_users]
+    emp_map = {}
+    if user_ids:
+        emps = Employee.query.filter(Employee.user_id.in_(user_ids)).all()
+        emp_map = {e.user_id: e for e in emps if e.user_id}
+
     selected_user = None
+    selected_employee = None
     perm_map = {}
-    role_perm_map = {}
     sub_perm_map = {}
 
     if user_id:
         selected_user = User.query.get_or_404(user_id)
+        selected_employee = emp_map.get(user_id)
         for up in UserPermission.query.filter_by(user_id=user_id).all():
             perm_map[up.module_id] = up
         sub_perm_map = {mid: up.get_sub_permissions() for mid, up in perm_map.items()}
-        for rp in RolePermission.query.filter_by(role=selected_user.role).all():
-            role_perm_map[rp.module_id] = rp
 
     return render_template('admin/permissions/acp_panel.html',
                            all_users=all_users,
+                           emp_map=emp_map,
                            selected_user=selected_user,
+                           selected_employee=selected_employee,
                            modules=modules,
                            perm_map=perm_map,
                            sub_perm_map=sub_perm_map,
-                           role_perm_map=role_perm_map,
                            module_sub_perms=MODULE_SUB_PERMS,
                            active_page='user_permissions')
 
@@ -472,37 +462,16 @@ def user_permissions(user_id):
     if request.method == 'POST':
         action = request.form.get('action', 'save')
 
-        if action == 'copy_from_role':
-            # Role ke permissions copy karo is user ke liye
-            role = request.form.get('role', u.role)
-            for mod in modules:
-                rp = RolePermission.query.filter_by(role=role, module_id=mod.id).first()
-                up = UserPermission.query.filter_by(user_id=user_id, module_id=mod.id).first()
-                if not up:
-                    up = UserPermission(user_id=user_id, module_id=mod.id)
-                    db.session.add(up)
-                if rp:
-                    up.can_view   = rp.can_view
-                    up.can_add    = rp.can_add
-                    up.can_edit   = rp.can_edit
-                    up.can_delete = rp.can_delete
-                    up.can_export = rp.can_export
-                else:
-                    up.can_view = up.can_add = up.can_edit = up.can_delete = up.can_export = False
-                up.updated_by = current_user.id
-            db.session.commit()
-            flash(f'Permissions copied from role "{role}" for {u.full_name}!', 'success')
-            return redirect(url_for('users_bp.user_permissions', user_id=user_id))
-
-        elif action == 'reset':
-            # User ke saare overrides delete karo (role pe wapas jaayega)
+        if action == 'reset':
+            # User ke saare permissions delete karo (no access)
             UserPermission.query.filter_by(user_id=user_id).delete()
             db.session.commit()
-            flash(f'{u.full_name} ke permissions reset ho gaye — ab role permissions follow hongi.', 'success')
+            flash(f'{u.full_name} ke sab permissions reset kar diye gaye — ab koi access nahi.', 'success')
             return redirect(url_for('users_bp.user_permissions', user_id=user_id))
 
         else:
             # Save individual module permissions
+            _enabled_module_ids = set()
             for mod in modules:
                 prefix = f'mod_{mod.id}_'
                 can_view   = request.form.get(f'{prefix}view') == 'on'
@@ -527,6 +496,32 @@ def user_permissions(user_id):
                 up.set_sub_permissions(sub_dict)
                 up.updated_by = current_user.id
 
+                if can_view:
+                    _enabled_module_ids.add(mod.id)
+
+            # ── Auto-enable parents of every enabled child ──
+            # Agar user ke pass child module ka can_view=True hai lekin parent
+            # disabled hai, to sidebar me parent nahi dikhega → child bhi nahi
+            # milega. Isliye saare enabled children ke parents ko cascade karke
+            # can_view=True kar do.
+            db.session.flush()
+            for mod in modules:
+                if mod.id in _enabled_module_ids and mod.parent_id:
+                    parent = Module.query.get(mod.parent_id)
+                    while parent:
+                        p_up = UserPermission.query.filter_by(
+                            user_id=user_id, module_id=parent.id
+                        ).first()
+                        if not p_up:
+                            p_up = UserPermission(
+                                user_id=user_id, module_id=parent.id, can_view=True
+                            )
+                            db.session.add(p_up)
+                        elif not p_up.can_view:
+                            p_up.can_view = True
+                        p_up.updated_by = current_user.id
+                        parent = Module.query.get(parent.parent_id) if parent.parent_id else None
+
             db.session.commit()
             audit('users', 'USER_PERM_SAVE', user_id, u.username,
                   f'User permissions saved for {u.full_name} by {current_user.username}')
@@ -543,20 +538,12 @@ def user_permissions(user_id):
     for mod_id, up in perm_map.items():
         sub_perm_map[mod_id] = up.get_sub_permissions()
 
-    role_perm_map = {}  # module_id → RolePermission (for reference)
-    for rp in RolePermission.query.filter_by(role=u.role).all():
-        role_perm_map[rp.module_id] = rp
-
-    roles = ['admin', 'manager', 'hr', 'user', 'sales', 'viewer']
-
     return render_template('admin/permissions/user_permissions.html',
                            target_user=u,
                            modules=modules,
                            perm_map=perm_map,
                            sub_perm_map=sub_perm_map,
-                           role_perm_map=role_perm_map,
                            module_sub_perms=MODULE_SUB_PERMS,
-                           roles=roles,
                            active_page='user_permissions')
 
 
@@ -596,9 +583,15 @@ def user_perm_toggle(user_id):
                 parent_up = UserPermission.query.filter_by(
                     user_id=user_id, module_id=mod.parent_id
                 ).first()
-                if parent_up and not parent_up.can_view:
+                if not parent_up:
+                    # Parent record exist nahi karti → create karke can_view=True set karo
+                    parent_up = UserPermission(
+                        user_id=user_id, module_id=mod.parent_id, can_view=True
+                    )
+                    db.session.add(parent_up)
+                elif not parent_up.can_view:
                     parent_up.can_view = True
-                    parent_up.updated_by = current_user.id
+                parent_up.updated_by = current_user.id
 
         db.session.commit()
         return jsonify({'ok': True, 'value': value})
@@ -644,9 +637,15 @@ def user_perm_toggle(user_id):
                 parent_up = UserPermission.query.filter_by(
                     user_id=user_id, module_id=mod.parent_id
                 ).first()
-                if parent_up and not parent_up.can_view:
+                if not parent_up:
+                    # Parent record exist nahi karti → create karke can_view=True set karo
+                    parent_up = UserPermission(
+                        user_id=user_id, module_id=mod.parent_id, can_view=True
+                    )
+                    db.session.add(parent_up)
+                elif not parent_up.can_view:
                     parent_up.can_view = True
-                    parent_up.updated_by = current_user.id
+                parent_up.updated_by = current_user.id
 
         up.updated_by = current_user.id
         db.session.commit()

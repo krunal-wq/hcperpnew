@@ -310,7 +310,7 @@ textarea.fi{resize:vertical;min-height:72px;}
         {# ── R&D Person multi-select ── #}
         <div class="fg">
             <label>R&D Person</label>
-            <input type="hidden" name="assigned_rd_members" id="fi_assigned_rd" value="{{ edit.assigned_rd_members if edit else '' }}">
+            <input type="hidden" name="assigned_rd_members" id="fi_assigned_rd" value="{{ edit_assigned_rd_emp_csv if edit_assigned_rd_emp_csv is defined else (edit.assigned_rd_members if edit else '') }}">
             <div class="msd" id="rd_dd">
                 <div class="msd-trigger" id="rd_trigger" onclick="msdToggle('rd')">
                     <span class="msd-lbl" id="rd_lbl">Select R&D Members</span>

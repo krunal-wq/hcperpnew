@@ -384,20 +384,72 @@ def project_view(pid):
     ms_pct      = round((ms_done/len(selected_ms))*100) if selected_ms else 0
 
     # Team members — unique from assigned_members + assigned_rd_members
+    # Supports 3 formats:
+    #   1. Plain digit → Employee ID (legacy)
+    #   2. u_<id>     → User ID (newer RD assign flow) → resolve via Employee.user_id
+    #   3. RDSubAssignment table (newest — R&D Projects "Assign" flow)
     from models.employee import Employee
-    assigned_ids = set()
+    from models.npd import RDSubAssignment as _RDSub
+
+    assigned_emp_ids  = set()   # Direct Employee IDs
+    assigned_user_ids = set()   # User IDs (from u_<id> tokens or RDSubAssignment)
+
     for field in [proj.assigned_members, proj.assigned_rd_members]:
         if field:
             for x in str(field).split(','):
                 x = x.strip()
-                if x and x.isdigit():
-                    assigned_ids.add(int(x))
+                if not x:
+                    continue
+                if x.startswith('u_'):
+                    try:
+                        assigned_user_ids.add(int(x[2:]))
+                    except Exception:
+                        pass
+                elif x.isdigit():
+                    assigned_emp_ids.add(int(x))
+
+    # Pull active RDSubAssignments as well (source of truth for newer assignments)
+    for s in _RDSub.query.filter_by(project_id=proj.id, is_active=True).all():
+        if s.user_id:
+            assigned_user_ids.add(s.user_id)
+
+    # Resolve User IDs → Employee IDs (via Employee.user_id link)
+    if assigned_user_ids:
+        linked_emps = Employee.query.filter(
+            Employee.user_id.in_(assigned_user_ids),
+            Employee.is_deleted == False
+        ).all()
+        for e in linked_emps:
+            assigned_emp_ids.add(e.id)
+
     team_members = []
-    if assigned_ids:
+    if assigned_emp_ids:
         team_members = Employee.query.filter(
-            Employee.id.in_(assigned_ids),
+            Employee.id.in_(assigned_emp_ids),
             Employee.is_deleted == False
         ).order_by(Employee.first_name).all()
+
+    # ── Build rd_members list with variant codes (for R&D Persons section) ──
+    # Source: active RDSubAssignment rows + legacy assigned_rd fallback
+    # Each item: {'full_name': str, 'variant_code': str}
+    rd_members = []
+    _seen_names = set()
+    for s in _RDSub.query.filter_by(project_id=proj.id, is_active=True).all():
+        u = User.query.get(s.user_id) if s.user_id else None
+        if not u: continue
+        nm = u.full_name or u.username or '—'
+        if nm in _seen_names: continue
+        _seen_names.add(nm)
+        rd_members.append({
+            'full_name'   : nm,
+            'variant_code': s.variant_code or '',
+        })
+    # Legacy fallback — if no RDSubAssignment but assigned_rd is set
+    if not rd_members and proj.rd_user:
+        rd_members.append({
+            'full_name'   : proj.rd_user.full_name or proj.rd_user.username,
+            'variant_code': '',
+        })
 
     from models.npd import NPDActivityLog, NPDComment, NPDNote
     activity_logs     = NPDActivityLog.query.filter_by(project_id=pid)                            .order_by(NPDActivityLog.created_at.desc()).all()
@@ -480,6 +532,7 @@ def project_view(pid):
         active_page='npd_projects',
         proj=proj, users=users,
         team_members=team_members,
+        rd_members=rd_members,
         selected_ms=selected_ms, ms_done=ms_done, ms_pct=ms_pct,
         activity_logs=activity_logs,
         disc_comments=disc_comments,
@@ -656,38 +709,92 @@ def edit_project(pid):
                 proj.npd_fee_receipt = save_upload(f)
 
         # ── Update milestone selection ──
+        # Template form submits TWO kinds of checkbox values:
+        #   name="milestone_ids" → existing MilestoneMaster row IDs (user is
+        #       keeping/deselecting rows that already exist for this project)
+        #   name="milestones"    → template milestone_type strings for rows that
+        #       don't exist yet in this project but user ticked them
+        # We handle BOTH, and we also deselect any existing row whose
+        # milestone_type is not in the current NPDMilestoneTemplate master
+        # (legacy/orphan rows).
         from models.npd import MilestoneMaster as _MS, NPDMilestoneTemplate as _TMPL
         _all_ms = _MS.query.filter_by(project_id=proj.id).all()
 
-        if _all_ms:
-            # CASE 1: MilestoneMaster rows exist → update is_selected via checkbox IDs
-            milestone_ids = request.form.getlist('milestone_ids')
-            _selected_set = set(int(x) for x in milestone_ids if x.isdigit())
-            _mandatory_types = set(
-                t.milestone_type for t in _TMPL.query.filter_by(is_mandatory=True).all()
+        submitted_ids   = set(int(x) for x in request.form.getlist('milestone_ids') if x.isdigit())
+        submitted_types = set(request.form.getlist('milestones'))
+
+        # Current active template types (source of truth for what's valid)
+        active_template_types = {
+            t.milestone_type for t in _TMPL.query.filter_by(is_active=True).all()
+        }
+        _mandatory_types = {
+            t.milestone_type for t in _TMPL.query.filter_by(is_mandatory=True, is_active=True).all()
+        }
+
+        existing_types = set()
+        for _ms in _all_ms:
+            existing_types.add(_ms.milestone_type)
+
+            # Rule 1: legacy row whose type is no longer in the template master → always deselect
+            if _ms.milestone_type not in active_template_types:
+                if _ms.is_selected:
+                    _ms.is_selected = False
+                continue
+
+            # Rule 2: mandatory template types stay selected regardless of form
+            if _ms.milestone_type in _mandatory_types:
+                _ms.is_selected = True
+                continue
+
+            # Rule 3: normal flow — selected iff its id was submitted OR
+            # its type was submitted (covers the case where the checkbox was
+            # rendered with name="milestones" because the Jinja map missed it).
+            _ms.is_selected = (
+                _ms.id in submitted_ids or
+                _ms.milestone_type in submitted_types
             )
-            for _ms in _all_ms:
-                if _ms.milestone_type not in _mandatory_types:
-                    _ms.is_selected = (_ms.id in _selected_set)
-            log_npd(proj.id, f"Milestones updated: {len(_selected_set)} selected")
-        else:
-            # CASE 2: No MilestoneMaster rows yet → create them from template
-            _selected_types = set(request.form.getlist('milestones'))
-            _templates = get_milestone_templates(proj.project_type)
-            for _tmpl in _templates:
-                _is_sel = True if _tmpl.is_mandatory else (_tmpl.milestone_type in _selected_types)
-                _new_ms = _MS(
+
+        # Rule 4: any submitted type that doesn't yet have a row in this
+        # project → create a new MilestoneMaster row for it.
+        types_needing_new_row = submitted_types - existing_types
+        if types_needing_new_row:
+            new_templates = _TMPL.query.filter(
+                _TMPL.milestone_type.in_(types_needing_new_row),
+                _TMPL.is_active == True
+            ).all()
+            for _tmpl in new_templates:
+                db.session.add(_MS(
                     project_id    = proj.id,
                     milestone_type= _tmpl.milestone_type,
                     title         = _tmpl.title,
                     sort_order    = _tmpl.sort_order,
-                    is_selected   = _is_sel,
+                    is_selected   = True,
                     status        = 'pending',
                     created_by    = current_user.id,
-                )
-                db.session.add(_new_ms)
-            proj.milestone_master_created = True
-            log_npd(proj.id, f"Milestones created for project during edit")
+                ))
+
+        # Rule 5: ensure all mandatory template types exist for this project
+        _missing_mandatory = _mandatory_types - existing_types - types_needing_new_row
+        if _missing_mandatory:
+            _m_templates = _TMPL.query.filter(
+                _TMPL.milestone_type.in_(_missing_mandatory),
+                _TMPL.is_active == True
+            ).all()
+            for _tmpl in _m_templates:
+                db.session.add(_MS(
+                    project_id    = proj.id,
+                    milestone_type= _tmpl.milestone_type,
+                    title         = _tmpl.title,
+                    sort_order    = _tmpl.sort_order,
+                    is_selected   = True,
+                    status        = 'pending',
+                    created_by    = current_user.id,
+                ))
+
+        total_selected = sum(1 for m in _all_ms if m.is_selected) + len(types_needing_new_row) + len(_missing_mandatory)
+        log_npd(proj.id, f"Milestones updated: {total_selected} selected "
+                         f"(existing rows updated, {len(types_needing_new_row)} new rows created)")
+        proj.milestone_master_created = True
 
         log_npd(proj.id, f"Project updated by {current_user.full_name}")
         db.session.commit()
@@ -727,6 +834,33 @@ def edit_project(pid):
     npd_statuses = NPDStatus.query.filter_by(is_active=True).order_by(NPDStatus.sort_order).all()
     clients = ClientMaster.query.filter_by(is_deleted=False).order_by(ClientMaster.contact_name).all()
 
+    # ── Build normalized Employee-ID CSV for R&D member pre-selection ──
+    # assigned_rd_members may contain mixed tokens: "u_<user_id>" or plain Employee IDs.
+    # Also merge active RDSubAssignment records (newest source of truth).
+    from models.npd import RDSubAssignment as _RDSub
+    _rd_emp_ids  = set()
+    _rd_user_ids = set()
+    if proj.assigned_rd_members:
+        for tok in str(proj.assigned_rd_members).split(','):
+            tok = tok.strip()
+            if not tok: continue
+            if tok.startswith('u_'):
+                try: _rd_user_ids.add(int(tok[2:]))
+                except: pass
+            elif tok.isdigit():
+                _rd_emp_ids.add(int(tok))
+    for s in _RDSub.query.filter_by(project_id=proj.id, is_active=True).all():
+        if s.user_id:
+            _rd_user_ids.add(s.user_id)
+    # Resolve User IDs → Employee IDs
+    if _rd_user_ids:
+        for e in Employee.query.filter(
+            Employee.user_id.in_(_rd_user_ids),
+            Employee.is_deleted == False
+        ).all():
+            _rd_emp_ids.add(e.id)
+    edit_assigned_rd_emp_csv = ','.join(str(x) for x in sorted(_rd_emp_ids))
+
     return render_template(tmpl,
         active_page='npd_projects',
         edit=proj, users=users, leads=leads,
@@ -737,6 +871,7 @@ def edit_project(pid):
         categories=categories,
         prefill_lead=None, prefill_url={},
         default_milestones=get_milestone_templates(proj.project_type),
+        edit_assigned_rd_emp_csv=edit_assigned_rd_emp_csv,
     )
 
 

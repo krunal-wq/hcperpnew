@@ -1,11 +1,18 @@
 """
 permissions.py — Permission helpers used across the app
-Priority: UserPermission (user-specific) → RolePermission (role fallback)
+
+Permission model: USER-ONLY (no role fallback).
+  - Admin role → default full rights (with safety: can_view kabhi False nahi).
+  - Non-admin → access sirf UserPermission record se milega.
+  - Koi UserPermission record nahi → no access (menu bhi hide).
+
+RolePermission table abhi DB mein hai (historical), lekin code isse use
+nahi karta. Migration ke liye baadme cleanup kar sakte ho.
 """
 from functools import wraps
 from flask import flash, redirect, url_for, abort
 from flask_login import current_user
-from models import db, RolePermission, Module, UserGridConfig, UserPermission
+from models import db, Module, UserGridConfig, UserPermission
 
 
 # ── Sub-permission keys per module ──────────────────────────────────────────
@@ -139,93 +146,96 @@ MODULE_SUB_PERMS = {
 # ── Fetch permission for current user ───────────────────────────────────────
 def get_perm(module_name):
     """
-    Priority:
-    1. UserPermission record hai → use that
-       (Admin ke liye: can_view force True — admin apna module band na kare)
-    2. RolePermission se fallback
-    3. Koi record nahi → view_only (menu dikhega)
+    Permission model (user-only, no role fallback):
+    1. Admin role → always _full_perm() (default full rights, apart from explicit
+       UserPermission override — and admin ka can_view kabhi False nahi hota)
+    2. Non-admin with UserPermission record → use that record
+    3. Non-admin with no UserPermission → _no_perm()  (nothing until explicitly granted)
     """
     if not current_user.is_authenticated:
         return None
     try:
+        # Admin gets full rights regardless of whether module exists
+        is_admin = (current_user.role == 'admin')
+
         mod = Module.query.filter_by(name=module_name).first()
         if not mod:
-            if current_user.role == 'admin':
-                return _full_perm()
-            return _view_only_perm()
+            return _full_perm() if is_admin else _no_perm()
 
-        # Priority 1: User-specific override
+        # Admin override safety: admin ka can_view kabhi False nahi hoga
         user_perm = UserPermission.query.filter_by(
             user_id=current_user.id, module_id=mod.id
         ).first()
-        if user_perm is not None:
-            # Admin ka can_view kabhi False nahi hoga
-            if current_user.role == 'admin' and not user_perm.can_view:
+
+        if is_admin:
+            # Admin ke liye UserPermission optional — agar hai to respect karo,
+            # lekin can_view ko force True rakho warna apna hi module hide ho jaata hai
+            if user_perm is not None and not user_perm.can_view:
                 return _full_perm()
+            return user_perm if user_perm is not None else _full_perm()
+
+        # Non-admin: sirf UserPermission se chalega. Koi record nahi → no access.
+        if user_perm is not None:
             return user_perm
-
-        # Priority 2: Admin ko full access agar koi UserPermission nahi
-        if current_user.role == 'admin':
-            return _full_perm()
-
-        # Priority 3: Role fallback
-        role_perm = RolePermission.query.filter_by(
-            role=current_user.role, module_id=mod.id
-        ).first()
-        if role_perm is not None:
-            return role_perm
-
-        # Koi record nahi — by default view allow karo
-        return _view_only_perm()
+        return _no_perm()
     except Exception:
-        if current_user.role == 'admin':
+        if current_user.is_authenticated and current_user.role == 'admin':
             return _full_perm()
-        return _view_only_perm()
+        return _no_perm()
 
 
 def get_sub_perm(module_name, key):
-    """Check specific sub-permission for current user on a module."""
+    """Check specific sub-permission for current user on a module.
+    Admin → always True.
+    Non-admin → UserPermission.sub_permissions se dekhega; record nahi → False.
+    """
     if not current_user.is_authenticated:
         return False
+    # Admin ko sab sub-perms always allow
+    if current_user.role == 'admin':
+        return True
     try:
         mod = Module.query.filter_by(name=module_name).first()
         if not mod:
-            # Module DB mein nahi — default True
-            return True
-        # User-specific override check karo (admin ke liye bhi)
+            return False
         user_perm = UserPermission.query.filter_by(
             user_id=current_user.id, module_id=mod.id
         ).first()
         if user_perm is not None:
             subs = user_perm.get_sub_permissions()
-            # Agar key explicitly set hai toh use karo
-            # Agar key missing hai (purana record) — default True (naya perm add hua)
-            return subs.get(key, True)
-        # UserPermission record nahi — default True (koi restriction nahi lagayi)
-        return True
+            # Missing key → False (explicit grant chahiye)
+            return subs.get(key, False)
+        # UserPermission record nahi → no access
+        return False
     except Exception:
-        return True
+        return False
 
 
 def _full_perm(module_name=None):
     class FullPerm:
-        can_view = can_add = can_edit = can_delete = can_export = True
+        can_view = can_add = can_edit = can_delete = can_export = can_import = True
         def get_visible_fields(self): return []
+        def get_sub_permissions(self): return {}
+        def has_sub_perm(self, key): return True
     return FullPerm()
 
 
 def _view_only_perm():
     class ViewPerm:
         can_view = True
-        can_add = can_edit = can_delete = can_export = False
+        can_add = can_edit = can_delete = can_export = can_import = False
         def get_visible_fields(self): return []
+        def get_sub_permissions(self): return {}
+        def has_sub_perm(self, key): return False
     return ViewPerm()
 
 
 def _no_perm():
     class NoPerm:
-        can_view = can_add = can_edit = can_delete = can_export = False
+        can_view = can_add = can_edit = can_delete = can_export = can_import = False
         def get_visible_fields(self): return []
+        def get_sub_permissions(self): return {}
+        def has_sub_perm(self, key): return False
     return NoPerm()
 
 
@@ -320,8 +330,7 @@ def save_grid_columns(module_name, cols):
 def get_module_active(module_name):
     """
     Check karo ki current user ke liye module visible hai ya nahi.
-    UserPermission.can_view=False → hide karo sidebar se.
-    Agar koi record nahi → default show karo.
+    Admin → always True. Non-admin → UserPermission.can_view hi dekhega.
     """
     if not current_user.is_authenticated:
         return False
@@ -331,35 +340,28 @@ def get_module_active(module_name):
     try:
         mod = Module.query.filter_by(name=module_name).first()
         if not mod:
-            return True
+            return False
         # Module globally disabled hai?
         if not mod.is_active:
             return False
-        # User-specific permission check
+        # User-specific permission check (only source of truth for non-admin)
         user_perm = UserPermission.query.filter_by(
             user_id=current_user.id, module_id=mod.id
         ).first()
         if user_perm is not None:
-            return user_perm.can_view
-        # Role-level permission check
-        role_perm = RolePermission.query.filter_by(
-            role=current_user.role, module_id=mod.id
-        ).first()
-        if role_perm is not None:
-            return role_perm.can_view
-        return True
+            return bool(user_perm.can_view)
+        # Koi record nahi → no access
+        return False
     except Exception:
-        return True
+        return False
 
 
 # ── Get all visible menu modules for current user ──
 def get_menu_modules():
     """
     Returns top-level modules visible to current user in the sidebar.
-    Priority: UserPermission (user-specific override) → RolePermission (role fallback).
-    A module is visible only if:
-      - is_active = True (not disabled globally)
-      - The user has can_view = True (from UserPermission or RolePermission)
+    Admin → all active modules (except ones explicitly disabled via UserPermission).
+    Non-admin → only modules with UserPermission.can_view = True.
     """
     if not current_user.is_authenticated:
         return []
@@ -380,32 +382,22 @@ def get_menu_modules():
             visible.append(mod)
         return visible
 
-    # Non-admin: check UserPermission first, then RolePermission
+    # Non-admin: sirf UserPermission se visibility (no role fallback)
     visible = []
     for mod in all_active:
-        # Priority 1: User-specific override
         user_perm = UserPermission.query.filter_by(
             user_id=current_user.id, module_id=mod.id
         ).first()
-        if user_perm is not None:
-            if user_perm.can_view:
-                visible.append(mod)
-            continue  # Override found — don't fall through to role
-
-        # Priority 2: Role permission
-        role_perm = RolePermission.query.filter_by(
-            role=current_user.role, module_id=mod.id, can_view=True
-        ).first()
-        if role_perm:
+        if user_perm is not None and user_perm.can_view:
             visible.append(mod)
-
     return visible
 
 
 def get_visible_sub_modules(parent_module):
     """
     Returns active child modules of a parent that the current user can view.
-    Used for rendering sub-menu items.
+    Admin → all active children (minus explicit disables).
+    Non-admin → only children with UserPermission.can_view = True.
     """
     if not current_user.is_authenticated:
         return []
@@ -425,19 +417,13 @@ def get_visible_sub_modules(parent_module):
             visible.append(mod)
         return visible
 
+    # Non-admin: sirf UserPermission se
     visible = []
     for mod in children:
         user_perm = UserPermission.query.filter_by(
             user_id=current_user.id, module_id=mod.id
         ).first()
-        if user_perm is not None:
-            if user_perm.can_view:
-                visible.append(mod)
-            continue
-        role_perm = RolePermission.query.filter_by(
-            role=current_user.role, module_id=mod.id, can_view=True
-        ).first()
-        if role_perm:
+        if user_perm is not None and user_perm.can_view:
             visible.append(mod)
     return visible
 
@@ -511,20 +497,9 @@ def seed_permissions():
             db.session.flush()
         mod_map[m['name']] = existing.id
 
-    # Create role permissions
-    for role, mods in DEFAULT_ROLE_PERMS.items():
-        for mod_name, actions in mods.items():
-            mod_id = mod_map.get(mod_name)
-            if not mod_id:
-                continue
-            existing = RolePermission.query.filter_by(role=role, module_id=mod_id).first()
-            if not existing:
-                perm = RolePermission(role=role, module_id=mod_id,
-                                      can_view=actions.get('can_view', False),
-                                      can_add=actions.get('can_add', False),
-                                      can_edit=actions.get('can_edit', False),
-                                      can_delete=actions.get('can_delete', False),
-                                      can_export=actions.get('can_export', False))
-                db.session.add(perm)
+    # NOTE: Role-based permission seeding removed. System is now user-only.
+    # Admin gets default full rights in code (no DB row needed).
+    # Non-admin users must be granted access via UserPermission in the
+    # Access Control Panel (/admin/acp).
     db.session.commit()
     return mod_map
