@@ -13,7 +13,8 @@ from werkzeug.utils import secure_filename
 from models import (db, User, Lead, NPDMilestoneTemplate,
                     NPDProject, MilestoneMaster, MilestoneLog,
                     NPDFormulation, NPDPackingMaterial, NPDArtwork, NPDActivityLog,
-                    OfficeDispatchToken, OfficeDispatchItem)
+                    OfficeDispatchToken, OfficeDispatchItem,
+                    SampleApprovalLog)
 
 from permissions import get_perm, get_sub_perm
 npd = Blueprint('npd', __name__, url_prefix='/npd')
@@ -2760,11 +2761,136 @@ def sample_history_items(tid):
             'handover_to' : it.handover_to  or '',
             'submitted_by': it.submitted_by or '',
             'rd_sub_assignment_id': it.rd_sub_assignment_id,   # NEW — for Revert button
+            # ── Approval state (NEW)
+            'approval_status': it.approval_status or 'pending',
+            'reject_reason'  : it.reject_reason or '',
+            'actioned_by'    : (it.actioner.full_name if it.actioner else ''),
+            'actioned_at'    : (it.actioned_at.strftime('%d %b %Y, %I:%M %p') if it.actioned_at else ''),
         })
     return jsonify(token_no=token.token_no,
         dispatched_at=token.dispatched_at.strftime('%d %b %Y, %I:%M %p'),
         dispatcher=token.dispatcher.full_name if token.dispatcher else '—',
         notes=token.notes or '', count=len(items), items=items)
+
+
+# ═══════════════════════════════════════════════════════════════
+# SAMPLE APPROVE / REJECT  (per-item action)
+#
+# On APPROVE:  project.status → 'sent_to_client'
+# On REJECT :  project.status → 'rejected'
+#              project.assigned_rd → None
+#              all active RDSubAssignment rows deactivated (project moves
+#              to "Unassigned Project List" on R&D dashboard).
+# On RESET :   approval flags cleared. Project status reverts to
+#              'sample_ready' ONLY if no other items in the token are still
+#              approved/rejected (otherwise status is left alone).
+#              Reset does NOT re-assign the R&D person — admin must do that.
+#
+# Every action is audit-logged to sample_approval_logs including
+# whether WhatsApp was sent by the user.
+# ═══════════════════════════════════════════════════════════════
+@npd.route('/sample-history/item/<int:iid>/approve-reject', methods=['POST'])
+@login_required
+def sample_history_item_approve_reject(iid):
+    """
+    Body JSON:
+      { action: 'approve' | 'reject' | 'reset',
+        reason: 'required for reject, optional otherwise',
+        whatsapp_sent: bool (whether user chose to send WhatsApp) }
+    """
+    from models.npd import RDSubAssignment  # local import
+
+    try:
+        item    = OfficeDispatchItem.query.get_or_404(iid)
+        data    = request.get_json(silent=True) or {}
+        action  = (data.get('action') or '').strip().lower()
+        reason  = (data.get('reason') or '').strip()
+        wa_sent = bool(data.get('whatsapp_sent', False))
+
+        if action not in ('approve', 'reject', 'reset'):
+            return jsonify(success=False, error='Invalid action.'), 400
+
+        if action == 'reject' and not reason:
+            return jsonify(success=False, error='Reject reason is required.'), 400
+
+        # Capture snapshot of project state *before* we mutate anything
+        project = NPDProject.query.get(item.project_id)
+        prev_status      = project.status if project else None
+        prev_assigned_rd = project.assigned_rd if project else None
+
+        now = datetime.now()
+
+        if action == 'approve':
+            item.approval_status = 'approved'
+            item.reject_reason   = None
+            item.actioned_by     = current_user.id
+            item.actioned_at     = now
+            # Project moves to "Sent to Client"
+            if project and project.status != 'sent_to_client':
+                project.status = 'sent_to_client'
+
+        elif action == 'reject':
+            item.approval_status = 'rejected'
+            item.reject_reason   = reason
+            item.actioned_by     = current_user.id
+            item.actioned_at     = now
+            if project:
+                # Status → rejected
+                project.status = 'rejected'
+                # Unassign the R&D person
+                project.assigned_rd = None
+                # Deactivate every active RDSubAssignment for this project
+                active_subs = RDSubAssignment.query.filter_by(
+                    project_id=project.id, is_active=True
+                ).all()
+                for sub in active_subs:
+                    sub.is_active = False
+
+        else:  # reset → back to pending
+            item.approval_status = 'pending'
+            item.reject_reason   = None
+            item.actioned_by     = None
+            item.actioned_at     = None
+            # Only touch project status if no other items in *this token* are
+            # still approved/rejected (otherwise we'd yank status out from
+            # under another still-actioned sample).
+            if project:
+                sibling_actioned = OfficeDispatchItem.query.filter(
+                    OfficeDispatchItem.token_id == item.token_id,
+                    OfficeDispatchItem.id != item.id,
+                    OfficeDispatchItem.approval_status.in_(['approved', 'rejected'])
+                ).count()
+                if sibling_actioned == 0 and project.status in ('sent_to_client', 'rejected'):
+                    project.status = 'sample_ready'
+                # Note: we do NOT re-assign R&D person on reset — by design.
+
+        # ── Audit log entry ───────────────────────────────────────
+        log = SampleApprovalLog(
+            item_id            = item.id,
+            project_id         = item.project_id,
+            action             = action,
+            reason             = reason or None,
+            user_id            = current_user.id,
+            whatsapp_sent      = wa_sent,
+            created_at         = now,
+            prev_project_status= prev_status,
+            prev_assigned_rd   = prev_assigned_rd,
+        )
+        db.session.add(log)
+
+        db.session.commit()
+
+        return jsonify(
+            success         = True,
+            approval_status = item.approval_status,
+            reject_reason   = item.reject_reason or '',
+            actioned_by     = (item.actioner.full_name if item.actioner else ''),
+            actioned_at     = (item.actioned_at.strftime('%d %b %Y, %I:%M %p') if item.actioned_at else ''),
+            project_status  = (project.status if project else None),
+        )
+    except Exception as e:
+        db.session.rollback()
+        return jsonify(success=False, error=str(e)), 500
 
 # ── Sample Label PDF ──
 @npd.route('/sample-label/<int:pid>')

@@ -17,7 +17,8 @@ from .hr_rules import (HRShift, HRLocation, HRLateRule, HRLatePenaltySlab,
 from .npd        import (NPDProject, MilestoneMaster, MilestoneLog, NPDMilestoneTemplate,
                          NPDFormulation, NPDPackingMaterial, NPDArtwork, NPDActivityLog,
                          NPDComment, NPDNote,
-                         OfficeDispatchToken, OfficeDispatchItem)
+                         OfficeDispatchToken, OfficeDispatchItem,
+                         SampleApprovalLog)
 from .packing    import PackingEntry
 from .material  import MaterialType, MaterialGroup, Material
 

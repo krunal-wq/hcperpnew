@@ -222,4 +222,79 @@
     </div>
 
 </div>
+
+{% if is_rd_manager and rejected_samples %}
+<!-- Rejected Samples — R&D Manager only -->
+<div class="card" style="margin-top:1rem; border:1.5px solid #fecaca;">
+    <div class="card-hdr" style="background:linear-gradient(to right, #fef2f2, #fff); border-bottom:1px solid #fecaca;">
+        <div class="card-title" style="color:#b91c1c;">❌ Rejected Samples</div>
+        <span style="font-size:.7rem; background:#fee2e2; color:#b91c1c; padding:3px 10px; border-radius:100px; font-weight:700;">
+            {{ rejected_samples|length }} recent
+        </span>
+    </div>
+    <div style="overflow-x:auto;">
+        <table class="rd-tbl" style="width:100%;">
+            <thead>
+                <tr>
+                    <th style="width:38px;">#</th>
+                    <th>Project</th>
+                    <th>Sample Code</th>
+                    <th>Reason</th>
+                    <th>Rejected By</th>
+                    <th>When</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in rejected_samples %}
+                <tr>
+                    <td style="color:var(--text3); font-size:.72rem;">{{ loop.index }}</td>
+                    <td>
+                        {% if r.project_id %}
+                        <a href="{{ url_for('npd.project_view', pid=r.project_id) }}"
+                           style="text-decoration:none; color:inherit;">
+                            <div style="font-weight:700; font-size:.83rem;
+                                        overflow:hidden; text-overflow:ellipsis;
+                                        white-space:nowrap; max-width:200px;"
+                                 title="{{ r.project_name }}">{{ r.project_name }}</div>
+                            <div style="font-size:.7rem; color:var(--text3);
+                                        font-family:var(--font-mono);">
+                                {{ r.project_no }} · {{ r.client_name }}
+                            </div>
+                        </a>
+                        {% else %}
+                        <div style="font-weight:700; font-size:.83rem;">{{ r.project_name }}</div>
+                        <div style="font-size:.7rem; color:var(--text3);">{{ r.project_no }}</div>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <span style="display:inline-block; background:#fef2f2; color:#b91c1c;
+                                     padding:2px 8px; border-radius:6px; font-size:.72rem;
+                                     font-weight:700; font-family:var(--font-mono);
+                                     border:1px solid #fecaca;">
+                            {{ r.sample_code }}
+                        </span>
+                    </td>
+                    <td style="font-size:.78rem; color:var(--text2); max-width:280px;">
+                        <div style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"
+                             title="{{ r.reason }}">{{ r.reason }}</div>
+                    </td>
+                    <td style="font-size:.78rem;">{{ r.actioned_by }}</td>
+                    <td style="font-size:.72rem; color:var(--text3); white-space:nowrap;">
+                        {{ r.actioned_at }}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <div style="padding:.5rem 1rem; font-size:.72rem; color:var(--text3);
+                background:#fafafa; border-top:1px solid var(--border);">
+        These projects have been <strong>unassigned</strong> and moved to the
+        <a href="{{ url_for('rd.projects') }}?filter=unallotted"
+           style="color:var(--blue); font-weight:600;">Unassigned list</a>
+        — reassign them to a team member to continue.
+    </div>
+</div>
+{% endif %}
+
 {% endblock %}

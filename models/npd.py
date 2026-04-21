@@ -593,8 +593,16 @@ class OfficeDispatchItem(db.Model):
                                      db.ForeignKey('rd_sub_assignments.id', ondelete='SET NULL'),
                                      nullable=True)
 
+    # ── Sample Approval (post-dispatch review)
+    # approval_status: 'pending' (default), 'approved', 'rejected'
+    approval_status = db.Column(db.String(20), default='pending', nullable=False)
+    reject_reason   = db.Column(db.Text,    nullable=True)       # only set when rejected
+    actioned_by     = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+    actioned_at     = db.Column(db.DateTime, nullable=True)
+
     project         = db.relationship('NPDProject', backref='dispatch_items', lazy=True)
     rd_sub_assignment = db.relationship('RDSubAssignment', backref='dispatch_items', lazy=True)
+    actioner        = db.relationship('User', foreign_keys=[actioned_by], lazy=True)
 
     def __repr__(self):
         return f'<OfficeDispatchItem token={self.token_id} project={self.project_id}>'
@@ -657,3 +665,33 @@ class RDSubAssignment(db.Model):
 
     def __repr__(self):
         return f'<RDSubAssignment proj={self.project_id} user={self.user_id} code={self.variant_code}>'
+
+
+# ─────────────────────────────────────────────────────────────
+# Sample Approval Log — audit trail for approve/reject/reset
+# ─────────────────────────────────────────────────────────────
+class SampleApprovalLog(db.Model):
+    __tablename__ = 'sample_approval_logs'
+
+    id              = db.Column(db.Integer, primary_key=True)
+    item_id         = db.Column(db.Integer, db.ForeignKey('office_dispatch_items.id', ondelete='SET NULL'), nullable=True)
+    project_id      = db.Column(db.Integer, db.ForeignKey('npd_projects.id'), nullable=True)
+    action          = db.Column(db.String(20), nullable=False)    # approve / reject / reset
+    reason          = db.Column(db.Text, nullable=True)
+    user_id         = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+    whatsapp_sent   = db.Column(db.Boolean, default=False, nullable=False)
+    created_at      = db.Column(db.DateTime, default=datetime.now, nullable=False)
+
+    # Snapshot of what the project looked like before reject, so we can undo if needed
+    prev_project_status = db.Column(db.String(50), nullable=True)
+    prev_assigned_rd    = db.Column(db.Integer, nullable=True)
+
+    item    = db.relationship('OfficeDispatchItem',
+                              foreign_keys=[item_id],
+                              backref=db.backref('approval_logs', lazy=True),
+                              lazy=True)
+    project = db.relationship('NPDProject', foreign_keys=[project_id], lazy=True)
+    user    = db.relationship('User', foreign_keys=[user_id], lazy=True)
+
+    def __repr__(self):
+        return f'<SampleApprovalLog item={self.item_id} action={self.action}>'

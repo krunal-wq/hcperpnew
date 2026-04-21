@@ -127,6 +127,12 @@
 .sh-bar-btn.a4:hover:not(:disabled){      background:#dcfce7; }
 .sh-bar-btn.sticker{ border-color:#c4b5fd; color:#6d28d9; background:#f5f3ff; }
 .sh-bar-btn.sticker:hover:not(:disabled){ background:#ede9fe; }
+.sh-bar-btn.whatsapp{ border-color:#86efac; color:#15803d; background:#f0fdf4; }
+.sh-bar-btn.whatsapp:hover:not(:disabled){ background:#dcfce7; }
+.sh-bar-btn.approve{ border-color:#86efac; color:#15803d; background:#fff; }
+.sh-bar-btn.approve:hover:not(:disabled){ background:#f0fdf4; }
+.sh-bar-btn.reject{  border-color:#fecaca; color:#b91c1c; background:#fff; }
+.sh-bar-btn.reject:hover:not(:disabled){  background:#fef2f2; }
 .sh-bar-count{
     display:inline-block; min-width:20px; padding:1px 7px;
     background:rgba(0,0,0,.08); border-radius:100px;
@@ -407,6 +413,59 @@ body.sh-print-a4 #sh-a4Sheet{
 /* Hide sticker modal during print */
 body.sh-print-sticker #sh-stkModal,
 body.sh-print-a4 #sh-stkModal{ display:none !important; }
+
+/* ═══════════════════════════════════════════════════════════
+   SAMPLE APPROVAL — per-row action buttons + status chips
+   ═══════════════════════════════════════════════════════════ */
+.sh-appr-btns{display:inline-flex;gap:6px;justify-content:center;}
+.sh-appr-btn{
+    width:30px;height:30px;border-radius:8px;border:1.5px solid;
+    background:#fff;cursor:pointer;
+    display:inline-flex;align-items:center;justify-content:center;
+    font-size:.95rem;transition:all .12s ease;padding:0;
+}
+.sh-appr-btn.ok{border-color:#bbf7d0;color:#16a34a;}
+.sh-appr-btn.ok:hover{background:#f0fdf4;border-color:#16a34a;}
+.sh-appr-btn.no{border-color:#fecaca;color:#dc2626;}
+.sh-appr-btn.no:hover{background:#fef2f2;border-color:#dc2626;}
+.sh-appr-btn:disabled{opacity:.5;cursor:wait;}
+
+.sh-appr-chip{
+    display:inline-flex;align-items:center;gap:6px;
+    padding:3px 10px 3px 8px;border-radius:100px;
+    font-size:.72rem;font-weight:700;white-space:nowrap;
+    cursor:help;
+}
+.sh-appr-chip.approved{background:#dcfce7;color:#15803d;border:1px solid #bbf7d0;}
+.sh-appr-chip.rejected{background:#fee2e2;color:#b91c1c;border:1px solid #fecaca;}
+.sh-appr-undo{
+    background:transparent;border:none;cursor:pointer;
+    padding:0;margin-left:4px;color:inherit;opacity:.55;
+    font-size:.75rem;line-height:1;
+}
+.sh-appr-undo:hover{opacity:1;}
+
+/* Reject reason modal */
+.sh-rej-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:10000;align-items:center;justify-content:center;}
+.sh-rej-bg.open{display:flex;}
+.sh-rej-box{background:#fff;border-radius:16px;width:480px;max-width:94vw;box-shadow:0 20px 60px rgba(0,0,0,.2);overflow:hidden;}
+.sh-rej-hdr{padding:24px 24px 0;text-align:center;}
+.sh-rej-ic{width:52px;height:52px;border-radius:50%;background:#fee2e2;display:flex;align-items:center;justify-content:center;font-size:1.4rem;margin:0 auto 12px;}
+.sh-rej-tt{font-size:1.02rem;font-weight:800;color:var(--text);margin-bottom:4px;}
+.sh-rej-sub{font-size:.82rem;color:var(--text3);}
+.sh-rej-body{padding:16px 24px 0;}
+.sh-rej-label{font-size:.75rem;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px;display:block;}
+.sh-rej-ta{width:100%;min-height:90px;resize:vertical;border:1.5px solid var(--border);border-radius:10px;padding:10px 12px;font-family:inherit;font-size:.88rem;color:var(--text);outline:none;transition:border-color .12s;box-sizing:border-box;}
+.sh-rej-ta:focus{border-color:#dc2626;}
+.sh-rej-err{font-size:.78rem;color:#dc2626;margin-top:6px;min-height:1em;}
+.sh-rej-ft{display:flex;gap:8px;padding:14px 24px 20px;justify-content:flex-end;}
+.sh-rej-ft .del-btn-cancel,
+.sh-rej-ft .del-btn-confirm{padding:9px 18px;border-radius:9px;font-weight:700;font-size:.85rem;cursor:pointer;border:1.5px solid transparent;}
+.sh-rej-ft .del-btn-cancel{background:#fff;border-color:var(--border);color:var(--text2);}
+.sh-rej-ft .del-btn-cancel:hover{background:#f8fafc;}
+.sh-rej-ft .del-btn-confirm{background:#dc2626;border-color:#dc2626;color:#fff;}
+.sh-rej-ft .del-btn-confirm:hover{background:#b91c1c;border-color:#b91c1c;}
+.sh-rej-ft .del-btn-confirm:disabled{opacity:.6;cursor:wait;}
 </style>
 <link rel="stylesheet" href="{{ url_for('static', filename='css/modules/npd-sample-history.css') }}">
 {% endblock %}
@@ -535,12 +594,15 @@ body.sh-print-a4 #sh-stkModal{ display:none !important; }
         <th>Date &amp; Time</th>
         <th>Samples</th>
         <th>Notes</th>
-        <th>Action</th>
       </tr>
     </thead>
     <tbody>
       {% for t in tokens.items %}
-      <tr class="token-row" id="trow-{{ t.id }}" onclick="toggleExpand({{ t.id }})" title="Click to expand">
+      <tr class="token-row" id="trow-{{ t.id }}"
+          data-token-no="{{ t.token_no }}"
+          data-token-date="{{ t.dispatched_at.strftime('%d %b %Y') }}"
+          data-token-time="{{ t.dispatched_at.strftime('%I:%M %p') }}"
+          onclick="toggleExpand({{ t.id }})" title="Click to expand">
         <td><span style="font-size:.78rem;color:var(--text3);font-weight:600;">{{ (tokens.page-1)*25 + loop.index }}</span></td>
         <td><span class="token-chip">{{ t.token_no }}</span><span class="expand-arrow">▼</span></td>
         <td>
@@ -553,14 +615,9 @@ body.sh-print-a4 #sh-stkModal{ display:none !important; }
         <td>
           <span style="font-size:.78rem;color:var(--text3);">{{ t.notes[:40] + '…' if t.notes and t.notes|length > 40 else (t.notes or '—') }}</span>
         </td>
-        <td onclick="event.stopPropagation()">
-          <button class="btn-del-token" data-tid="{{ t.id }}" data-token="{{ t.token_no }}" data-count="{{ t.items|length }}" title="Delete Token" onclick="deleteToken(this)">🗑️</button>
-          <button class="btn-del-token" style="background:#f0fdf4;color:#166534;margin-left:4px;" title="Print List" onclick="printToken({{ t.id }}, '{{ t.token_no }}', '{{ t.dispatched_at.strftime('%d/%m/%Y') }}')">🖨️</button>
-          <button class="btn-del-token" style="background:#eff6ff;color:#1d4ed8;margin-left:4px;" title="Print Sample Labels" onclick="window.open('/npd/token-label/{{ t.id }}', '_blank')">🏷️</button>
-        </td>
       </tr>
       <tr class="expand-row" id="exp-{{ t.id }}">
-        <td class="expand-cell" colspan="6">
+        <td class="expand-cell" colspan="5">
           <div class="expand-inner" id="exp-inner-{{ t.id }}">
             <div class="expand-loading">⏳ Loading…</div>
           </div>
@@ -957,7 +1014,15 @@ async function toggleExpand(tid) {
         ' data-client="'     + (item.client_name  || '').replace(/"/g,'&quot;') + '"' +
         ' data-handover="'   + (item.handover_to  || '').replace(/"/g,'&quot;') + '"' +
         ' data-submitted="'  + (item.submitted_by || '').replace(/"/g,'&quot;') + '"' +
-        ' data-code="'       + (item.sample_code  || '').replace(/"/g,'&quot;') + '"';
+        ' data-code="'       + (item.sample_code  || '').replace(/"/g,'&quot;') + '"' +
+        ' data-approval="'   + (item.approval_status || 'pending') + '"' +
+        ' data-proj-status-label="' + (item.status_label || '—').replace(/"/g,'&quot;') + '"' +
+        ' data-proj-status-color="' + (item.status_color || '#6b7280') + '"';
+
+      // Build Approval cell — buttons if pending, chip + undo if actioned
+      var approvalHtml = buildApprovalCell(item);
+      // Build Status cell — sample-level, not project-level
+      var statusHtml = buildStatusCell(item);
 
       rows +=
         '<tr id="item-row-' + iid + '" class="sh-item-row"' + dataAttrs + '>' +
@@ -969,7 +1034,8 @@ async function toggleExpand(tid) {
         '<td><span style="font-size:.8rem;font-weight:600;">' + (item.handover_to  || '—') + '</span></td>' +
         '<td><span style="font-size:.8rem;font-weight:600;">' + (item.submitted_by || '—') + '</span></td>' +
         '<td>' + scHtml + '</td>' +
-        '<td style="white-space:nowrap;"><span style="background:' + item.status_color + '22;color:' + item.status_color + ';padding:2px 8px;border-radius:100px;font-size:.72rem;font-weight:700;">' + item.status_label + '</span></td>' +
+        '<td style="white-space:nowrap;" class="sh-status-cell" id="status-cell-' + iid + '">' + statusHtml + '</td>' +
+        '<td style="text-align:center;white-space:nowrap;" class="sh-approval-cell" id="approval-cell-' + iid + '">' + approvalHtml + '</td>' +
         '</tr>';
     });
 
@@ -979,12 +1045,15 @@ async function toggleExpand(tid) {
         '<button type="button" class="sh-bar-btn revert"   data-tid="' + tid + '" onclick="bulkRevert(this)" disabled>↩️ Revert <span class="sh-bar-count">0</span></button>' +
         '<button type="button" class="sh-bar-btn a4"       data-tid="' + tid + '" onclick="bulkPrintA4(this)" disabled>📄 Print A4 <span class="sh-bar-count">0</span></button>' +
         '<button type="button" class="sh-bar-btn sticker"  data-tid="' + tid + '" onclick="bulkPrintStickers(this)" disabled>🖨️ Print Sticker <span class="sh-bar-count">0</span></button>' +
+        '<button type="button" class="sh-bar-btn whatsapp" data-tid="' + tid + '" onclick="bulkWhatsApp(this)" disabled>💬 WhatsApp <span class="sh-bar-count">0</span></button>' +
+        '<button type="button" class="sh-bar-btn approve"  data-tid="' + tid + '" onclick="bulkApprove(this)" disabled>✓ Approve <span class="sh-bar-count">0</span></button>' +
+        '<button type="button" class="sh-bar-btn reject"   data-tid="' + tid + '" onclick="bulkReject(this)"  disabled>✕ Reject <span class="sh-bar-count">0</span></button>' +
         '<span class="sh-bar-hint">Select rows below to enable actions</span>' +
       '</div>' +
       '<table class="items-table sh-items-table" id="items-table-' + tid + '" data-tid="' + tid + '" style="width:100%;">' +
       '<thead><tr>' +
         '<th style="width:40px;text-align:center;"><input type="checkbox" class="sh-select-all" data-tid="' + tid + '" onchange="shToggleAll(this)"></th>' +
-        '<th>#</th><th>Project No</th><th>Product Name</th><th>Client Name</th><th>Handover To</th><th>Submitted By</th><th>Sample Code</th><th>Status</th>' +
+        '<th>#</th><th>Project No</th><th>Product Name</th><th>Client Name</th><th>Handover To</th><th>Submitted By</th><th>Sample Code</th><th>Status</th><th style="text-align:center;min-width:150px;">Approval</th>' +
       '</tr></thead>' +
       '<tbody>' + rows + '</tbody></table>';
 
@@ -1142,6 +1211,376 @@ flatpickr('#to_date', {
 
 
 /* ══════════════════════════════════════════════════════════════
+   SAMPLE APPROVAL — per-row Approve / Reject / Reset
+   ══════════════════════════════════════════════════════════════ */
+
+// Build the Approval column cell HTML based on item state
+function buildApprovalCell(item){
+  var st  = (item.approval_status || 'pending').toLowerCase();
+  var iid = item.item_id;
+
+  if (st === 'approved' || st === 'rejected'){
+    var who  = (item.actioned_by || '').replace(/"/g,'&quot;');
+    var when = (item.actioned_at || '').replace(/"/g,'&quot;');
+    var label = (st === 'approved') ? '✓ Approved' : '✕ Rejected';
+    var titleParts = [];
+    if (st === 'rejected' && item.reject_reason){
+      titleParts.push('Reason: ' + item.reject_reason);
+    }
+    if (who)  titleParts.push('By: '  + who);
+    if (when) titleParts.push('When: ' + when);
+    var title = titleParts.join(' • ').replace(/"/g,'&quot;');
+
+    return '<span class="sh-appr-chip ' + st + '" title="' + title + '">' +
+             label +
+             '<button type="button" class="sh-appr-undo" title="Undo — set back to pending" ' +
+                     'onclick="resetApproval(' + iid + ')">↺</button>' +
+           '</span>';
+  }
+
+  // Pending → show Approve / Reject buttons
+  return '<div class="sh-appr-btns">' +
+           '<button type="button" class="sh-appr-btn ok" title="Approve sample" ' +
+                   'onclick="approveItem(' + iid + ')">✓</button>' +
+           '<button type="button" class="sh-appr-btn no" title="Reject sample" ' +
+                   'onclick="openRejectModal(' + iid + ')">✕</button>' +
+         '</div>';
+}
+
+// Build the Status column cell HTML — sample-level, NOT project-level.
+// If the sample has been actioned (approved/rejected), show that.
+// Otherwise fall back to the project's status label/color.
+function buildStatusCell(item){
+  var st = (item.approval_status || 'pending').toLowerCase();
+
+  if (st === 'approved'){
+    return '<span style="background:#dcfce7;color:#15803d;padding:2px 8px;' +
+           'border-radius:100px;font-size:.72rem;font-weight:700;' +
+           'border:1px solid #bbf7d0;">Sent to Client</span>';
+  }
+  if (st === 'rejected'){
+    return '<span style="background:#fee2e2;color:#b91c1c;padding:2px 8px;' +
+           'border-radius:100px;font-size:.72rem;font-weight:700;' +
+           'border:1px solid #fecaca;">Rejected</span>';
+  }
+  // Pending → fall back to project-level status
+  var color = item.status_color || '#6b7280';
+  var label = item.status_label || '—';
+  return '<span style="background:' + color + '22;color:' + color +
+         ';padding:2px 8px;border-radius:100px;font-size:.72rem;font-weight:700;">' +
+         label + '</span>';
+}
+
+// Re-render one row's approval + status cells from server response
+function renderApprovalCell(iid, data){
+  var cell = document.getElementById('approval-cell-' + iid);
+  if (!cell) return;
+
+  // Pull existing project-level fallback fields from the row (stored as data attrs
+  // on original render) so the "pending" branch of buildStatusCell still works
+  // after a reset.
+  var row = document.getElementById('item-row-' + iid);
+  var fallbackLabel = row ? (row.dataset.projStatusLabel || '—')      : '—';
+  var fallbackColor = row ? (row.dataset.projStatusColor || '#6b7280') : '#6b7280';
+
+  var item = {
+    item_id         : iid,
+    approval_status : data.approval_status,
+    reject_reason   : data.reject_reason || '',
+    actioned_by     : data.actioned_by   || '',
+    actioned_at     : data.actioned_at   || '',
+    status_label    : fallbackLabel,
+    status_color    : fallbackColor
+  };
+  cell.innerHTML = buildApprovalCell(item);
+
+  // Also repaint the Status column — this is what was showing "Rejected"
+  // on every sibling row before the fix.
+  var statusCell = document.getElementById('status-cell-' + iid);
+  if (statusCell) statusCell.innerHTML = buildStatusCell(item);
+
+  // Keep row data-approval in sync (for any future row-level logic)
+  if (row) row.dataset.approval = data.approval_status;
+
+  // Re-run selection accounting so Revert button count/disabled state
+  // reflects the new per-row approval status.
+  if (row){
+    var tbl = row.closest('table.sh-items-table');
+    var tid = tbl ? tbl.dataset.tid : null;
+    if (tid) shUpdateSelection(tid);
+  }
+}
+
+// POST helper — hits /npd/sample-history/item/<iid>/approve-reject
+async function postApproval(iid, action, reason, whatsappSent){
+  var res = await fetch('/npd/sample-history/item/' + iid + '/approve-reject', {
+    method  : 'POST',
+    headers : { 'Content-Type': 'application/json' },
+    body    : JSON.stringify({
+      action        : action,
+      reason        : reason || '',
+      whatsapp_sent : !!whatsappSent
+    })
+  });
+  return res.json();
+}
+
+// ── Build a short status-update WhatsApp message for NPD team ──
+// Used when user selects Yes on the WhatsApp-confirmation popup after
+// approve / reject actions. Includes one line per row.
+function shBuildStatusUpdateMsg(action, rowDescriptors, reason){
+  var title = (action === 'approve')
+    ? '*✓ Sample Approved — Sent to Client*'
+    : '*✕ Sample Rejected*';
+
+  var lines = [title, ''];
+  rowDescriptors.forEach(function(r, i){
+    var product = (r.product || '—').toUpperCase();
+    lines.push((i + 1) + '. *' + product + '*');
+    if (r.npd)   lines.push('   Project No  : ' + r.npd);
+    if (r.code)  lines.push('   Sample Code : ' + r.code);
+    if (action === 'reject' && reason){
+      lines.push('   Reason      : ' + reason);
+    }
+    lines.push('');
+  });
+  lines.push('_' + rowDescriptors.length + ' sample' +
+             (rowDescriptors.length === 1 ? '' : 's') + ' — ' +
+             (action === 'approve' ? 'Approved' : 'Rejected') + '_');
+  return lines.join('\n');
+}
+
+// ── Collect descriptor for a single iid by reading its row DOM ──
+function shRowDescriptor(iid){
+  var tr = document.getElementById('item-row-' + iid);
+  if (!tr) return { iid: iid };
+  return {
+    iid      : iid,
+    npd      : tr.dataset.npd       || '',
+    product  : tr.dataset.product   || '',
+    client   : tr.dataset.client    || '',
+    code     : tr.dataset.code      || '',
+    handover : tr.dataset.handover  || '',
+    submitted: tr.dataset.submitted || ''
+  };
+}
+
+// ── Ask Yes/No WhatsApp, then persist action for each iid ──
+// `iids`: array (length 1 is fine).
+// `reason`: only used for reject.
+// Returns true on full success, false on any failure.
+async function shRunActionWithWaPrompt(action, iids, reason){
+  // 1. Ask user: send WhatsApp update?
+  var label = (action === 'approve') ? 'approve' : 'reject';
+  var countTxt = (iids.length > 1) ? iids.length + ' samples' : 'this sample';
+  var waYes = await shConfirm({
+    icon    : '💬',
+    title   : 'Send status update on WhatsApp?',
+    message : 'After you ' + label + ' ' + countTxt + ', do you want to send a status update to the R & D Team on WhatsApp?',
+    okText  : 'Yes, send WhatsApp',
+    cancelText : 'No, just save'
+  });
+
+  // 2. Fire requests sequentially. Pass waYes so backend can log it.
+  var results = [];
+  var okCount = 0, failCount = 0, lastErr = '';
+  for (var i = 0; i < iids.length; i++){
+    var iid = iids[i];
+    try {
+      var data = await postApproval(iid, action, reason, waYes);
+      results.push({ iid: iid, data: data });
+      if (data.success){
+        renderApprovalCell(iid, data);
+        okCount++;
+      } else {
+        failCount++;
+        lastErr = data.error || 'Unknown error';
+      }
+    } catch(e){
+      failCount++;
+      lastErr = 'Network error';
+      results.push({ iid: iid, data: { success: false } });
+    }
+  }
+
+  // 3. If user asked for WhatsApp, open wa.me (only for the rows that saved OK).
+  if (waYes && okCount > 0){
+    var okIids = results.filter(function(r){ return r.data && r.data.success; })
+                        .map(function(r){ return r.iid; });
+    var descriptors = okIids.map(shRowDescriptor);
+    var msg = shBuildStatusUpdateMsg(action, descriptors, reason);
+    var url = 'https://wa.me/?text=' + encodeURIComponent(msg);
+    window.open(url, '_blank');
+  }
+
+  // 4. Surface result summary
+  if (failCount > 0){
+    shAlert({
+      icon: '⚠️',
+      title: 'Some actions failed',
+      message: okCount + ' succeeded, ' + failCount + ' failed.' + (lastErr ? ' (' + lastErr + ')' : '')
+    });
+  }
+  return failCount === 0;
+}
+
+async function approveItem(iid){
+  var cell = document.getElementById('approval-cell-' + iid);
+  if (cell) cell.innerHTML = '<span style="font-size:.75rem;color:var(--text3);">Saving…</span>';
+  var ok = await shRunActionWithWaPrompt('approve', [iid], '');
+  // If the save failed, renderApprovalCell was not called — restore pending UI
+  if (!ok){
+    var finalCell = document.getElementById('approval-cell-' + iid);
+    // Only repaint if it's still in the "Saving…" placeholder state
+    if (finalCell && finalCell.textContent.trim() === 'Saving…'){
+      renderApprovalCell(iid, { approval_status: 'pending' });
+    }
+  }
+}
+
+async function resetApproval(iid){
+  // Reset doesn't need a WhatsApp prompt — just undo locally.
+  var cell = document.getElementById('approval-cell-' + iid);
+  if (cell) cell.innerHTML = '<span style="font-size:.75rem;color:var(--text3);">Saving…</span>';
+  try {
+    var data = await postApproval(iid, 'reset', '', false);
+    if (!data.success){
+      shAlert({ icon:'⚠️', title:'Could not reset', message: data.error || 'Unknown error' });
+      return;
+    }
+    renderApprovalCell(iid, data);
+  } catch(e){
+    shAlert({ icon:'⚠️', title:'Network error', message:'Please try again.' });
+  }
+}
+
+// ── Reject modal state ──
+// Always holds an array of iids (1 or more). Modal UI adjusts based on count.
+var _rejectIids = [];
+
+function openRejectModal(iid){
+  // Single-row entry point (from the per-row red X button)
+  openRejectModalMany([iid]);
+}
+
+function openRejectModalMany(iids){
+  _rejectIids = Array.isArray(iids) ? iids.slice() : [iids];
+
+  var ta    = document.getElementById('shRejReason');
+  var err   = document.getElementById('shRejErr');
+  var sub   = document.getElementById('shRejSub');
+  var title = document.querySelector('#shRejModal .sh-rej-tt');
+  var btn   = document.getElementById('shRejConfirm');
+
+  ta.value = '';
+  err.textContent = '';
+
+  if (_rejectIids.length > 1){
+    title.textContent = 'Reject ' + _rejectIids.length + ' Samples';
+    sub.textContent   = 'This reason will be applied to all ' + _rejectIids.length + ' selected samples.';
+    btn.innerHTML     = '✕ Reject ' + _rejectIids.length + ' Samples';
+  } else {
+    title.textContent = 'Reject Sample';
+    sub.textContent   = 'Provide a reason for rejecting this sample.';
+    btn.innerHTML     = '✕ Reject Sample';
+  }
+
+  document.getElementById('shRejModal').classList.add('open');
+  setTimeout(function(){ ta.focus(); }, 50);
+}
+
+function closeRejectModal(){
+  _rejectIids = [];
+  document.getElementById('shRejModal').classList.remove('open');
+}
+
+async function confirmReject(){
+  if (!_rejectIids.length) return;
+  var ta  = document.getElementById('shRejReason');
+  var err = document.getElementById('shRejErr');
+  var reason = (ta.value || '').trim();
+
+  if (!reason){
+    err.textContent = 'Please provide a reason.';
+    ta.focus();
+    return;
+  }
+  err.textContent = '';
+
+  // Snapshot before closing the modal (which clears _rejectIids)
+  var targets = _rejectIids.slice();
+  closeRejectModal();
+
+  // Paint "Saving…" placeholders on affected cells
+  targets.forEach(function(iid){
+    var cell = document.getElementById('approval-cell-' + iid);
+    if (cell) cell.innerHTML = '<span style="font-size:.75rem;color:var(--text3);">Saving…</span>';
+  });
+
+  // Ask WA? → fire requests → open WhatsApp if yes
+  var ok = await shRunActionWithWaPrompt('reject', targets, reason);
+  if (ok && targets.length > 1){
+    shAlert({ icon:'✓', title:'Rejected', message: targets.length + ' samples rejected.' });
+  }
+}
+
+// ESC closes reject modal; Ctrl+Enter submits
+document.addEventListener('keydown', function(e){
+  var modal = document.getElementById('shRejModal');
+  if (!modal || !modal.classList.contains('open')) return;
+  if (e.key === 'Escape'){ e.preventDefault(); closeRejectModal(); }
+  else if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)){ e.preventDefault(); confirmReject(); }
+});
+
+// Click on backdrop closes
+document.addEventListener('click', function(e){
+  var modal = document.getElementById('shRejModal');
+  if (e.target === modal) closeRejectModal();
+});
+
+
+/* ══════════════════════════════════════════════════════════════
+   BULK APPROVE / REJECT — action-bar buttons
+   ══════════════════════════════════════════════════════════════ */
+
+async function bulkApprove(btn){
+  var tid  = btn.dataset.tid;
+  var rows = shSelectedRows(tid);
+  if (!rows.length) return;
+
+  var origLbl = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = 'Approving ' + rows.length + '…';
+
+  // Paint "Saving…" placeholders
+  rows.forEach(function(r){
+    var cell = document.getElementById('approval-cell-' + r.iid);
+    if (cell) cell.innerHTML = '<span style="font-size:.75rem;color:var(--text3);">Saving…</span>';
+  });
+
+  try {
+    var iids = rows.map(function(r){ return r.iid; });
+    var ok = await shRunActionWithWaPrompt('approve', iids, '');
+    if (ok && rows.length > 1){
+      shAlert({ icon:'✓', title:'Approved', message: rows.length + ' samples approved.' });
+    }
+  } finally {
+    btn.innerHTML = origLbl;
+    btn.disabled  = false;
+  }
+}
+
+function bulkReject(btn){
+  var tid  = btn.dataset.tid;
+  var rows = shSelectedRows(tid);
+  if (!rows.length) return;
+  // Open reject modal once — reason will be applied to all selected iids
+  var iids = rows.map(function(r){ return r.iid; });
+  openRejectModalMany(iids);
+}
+
+
+/* ══════════════════════════════════════════════════════════════
    BULK ACTIONS — select rows inside an expanded token and
    Revert / Print A4 / Print Sticker them together
    ══════════════════════════════════════════════════════════════ */
@@ -1158,12 +1597,19 @@ function shUpdateSelection(tid){
   var tbl = document.getElementById('items-table-' + tid);
   if (!tbl) return;
 
-  var checks = tbl.querySelectorAll('.sh-row-check');
-  var checked = 0;
+  var checks    = tbl.querySelectorAll('.sh-row-check');
+  var checked   = 0;
+  var pendingCt = 0;     // selected rows that are still pending approval
   checks.forEach(function(cb){
     var tr = cb.closest('tr');
-    if (cb.checked){ tr.classList.add('sh-sel'); checked++; }
-    else { tr.classList.remove('sh-sel'); }
+    if (cb.checked){
+      tr.classList.add('sh-sel');
+      checked++;
+      var st = (tr.dataset.approval || 'pending').toLowerCase();
+      if (st === 'pending') pendingCt++;
+    } else {
+      tr.classList.remove('sh-sel');
+    }
   });
 
   // Update select-all state (check / indeterminate / uncheck)
@@ -1178,9 +1624,21 @@ function shUpdateSelection(tid){
   var bar = document.getElementById('sh-bar-' + tid);
   if (!bar) return;
   bar.querySelectorAll('.sh-bar-btn').forEach(function(btn){
-    btn.disabled = (checked === 0);
-    var span = btn.querySelector('.sh-bar-count');
-    if (span) span.textContent = checked;
+    var isRevert = btn.classList.contains('revert');
+    if (isRevert){
+      // Revert only makes sense for pending rows
+      btn.disabled = (pendingCt === 0);
+      var span = btn.querySelector('.sh-bar-count');
+      if (span) span.textContent = pendingCt;
+      btn.title = (checked > pendingCt)
+        ? 'Already-approved/rejected rows will be skipped. Use ↺ undo first.'
+        : '';
+    } else {
+      btn.disabled = (checked === 0);
+      var span2 = btn.querySelector('.sh-bar-count');
+      if (span2) span2.textContent = checked;
+      btn.title = '';
+    }
   });
 }
 
@@ -1211,8 +1669,32 @@ async function bulkRevert(btn){
   var rows = shSelectedRows(tid);
   if (!rows.length) return;
 
+  // Exclude rows that have already been Approved or Rejected —
+  // reverting those would lose the approval audit trail and leave
+  // the project in a broken state.
+  var locked = rows.filter(function(r){
+    var tr = document.getElementById('item-row-' + r.iid);
+    var st = tr ? (tr.dataset.approval || 'pending').toLowerCase() : 'pending';
+    return st === 'approved' || st === 'rejected';
+  });
+  var actionable = rows.filter(function(r){
+    var tr = document.getElementById('item-row-' + r.iid);
+    var st = tr ? (tr.dataset.approval || 'pending').toLowerCase() : 'pending';
+    return st === 'pending';
+  });
+
+  if (!actionable.length){
+    shAlert({
+      icon:'⚠️', title:'Cannot revert',
+      message:'All selected samples are already Approved or Rejected. ' +
+              'Use the ↺ undo button on the Approval column first to bring them back to Pending.',
+      theme:'warn',
+    });
+    return;
+  }
+
   // Only rows that actually have an rd_sub_assignment_id are revertable
-  var revertable = rows.filter(function(r){ return r.rd_id; });
+  var revertable = actionable.filter(function(r){ return r.rd_id; });
   if (!revertable.length){
     shAlert({
       icon:'⚠️', title:'Cannot revert',
@@ -1222,9 +1704,12 @@ async function bulkRevert(btn){
     return;
   }
 
-  var skipped = rows.length - revertable.length;
+  var skippedNoRd = actionable.length - revertable.length;
   var detail  = '<b>' + revertable.length + '</b> sample(s) will move back to R&D Sample Log as "Finished".';
-  if (skipped > 0) detail += '<br><small>(' + skipped + ' non-R&D rows will be skipped.)</small>';
+  if (skippedNoRd > 0) detail += '<br><small>(' + skippedNoRd + ' non-R&D rows will be skipped.)</small>';
+  if (locked.length > 0) detail += '<br><small>(' + locked.length +
+        ' already-actioned row' + (locked.length === 1 ? '' : 's') +
+        ' will be skipped — use ↺ undo first.)</small>';
 
   var ok = await shConfirm({
     icon:'↩️', title:'Revert selected samples?',
@@ -1320,6 +1805,58 @@ function bulkPrintStickers(btn){
   var rows = shSelectedRows(btn.dataset.tid);
   if (!rows.length) return;
   shOpenStickerModal(rows);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   BULK WHATSAPP — build message in R&D Sample Receipt format
+   and open wa.me (no number → WhatsApp contact picker opens)
+   ══════════════════════════════════════════════════════════════ */
+
+function bulkWhatsApp(btn){
+  var tid  = btn.dataset.tid;
+  var rows = shSelectedRows(tid);
+  if (!rows.length) return;
+
+  var msg = shBuildWaMessage(tid, rows);
+  // Empty phone → WhatsApp opens its own contact picker
+  var url = 'https://wa.me/?text=' + encodeURIComponent(msg);
+  window.open(url, '_blank');
+}
+
+// Build the WhatsApp message text in R&D Sample Receipt format.
+// Uses only widely-supported emoji to avoid � on some WhatsApp clients.
+function shBuildWaMessage(tid, rows){
+  var tokenRow   = document.getElementById('trow-' + tid);
+  var tokenNo    = tokenRow ? (tokenRow.dataset.tokenNo   || '')  : '';
+  var tokenDate  = tokenRow ? (tokenRow.dataset.tokenDate || '') : '';
+  var tokenTime  = tokenRow ? (tokenRow.dataset.tokenTime || '') : '';
+
+  var lines = [];
+  lines.push('*R & D Sample Receipt Report*');
+  if (tokenDate) lines.push('Date: ' + tokenDate + (tokenTime ? '  |  Time: ' + tokenTime : ''));
+  if (tokenNo)   lines.push('Token: ' + tokenNo);
+  lines.push('');
+
+  rows.forEach(function(r, i){
+    var product  = (r.product   || '—').toUpperCase();
+    var code     = r.code       || '—';
+    var handover = r.handover   || '—';
+    var sentBy   = r.submitted  || '—';
+    var client   = r.client     || '—';
+    var npd      = r.npd        || '—';
+
+    lines.push((i + 1) + '. *' + product + '*');
+    lines.push('   Project No       : ' + npd);
+    lines.push('   Client           : ' + client);
+    lines.push('   Sample Code      : ' + code);
+    lines.push('   Handover To      : ' + handover);
+    lines.push('   Samples Sent By  : ' + sentBy);
+    lines.push('   Receiving Status : Pending');
+    lines.push('');
+  });
+
+  lines.push('_Total samples: ' + rows.length + '_');
+  return lines.join('\n');
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -1474,15 +2011,28 @@ function shEsc(s){
 function shOpenPopup(opts){
   opts = opts || {};
   var ov = document.getElementById('sh-popup-ov');
-  ov.querySelector('.sh-ic').textContent  = opts.icon  || 'ℹ️';
-  ov.querySelector('.sh-tt').textContent  = opts.title || 'Notice';
-  ov.querySelector('.sh-msg').textContent = opts.message || '';
-  ov.querySelector('.sh-det').innerHTML   = opts.detail  || '';
+  if (!ov){
+    // Fallback so failure to render popup doesn't swallow real messages
+    if (opts.showCancel) return Promise.resolve(confirm(opts.message || opts.title || ''));
+    alert((opts.title ? opts.title + '\n\n' : '') + (opts.message || ''));
+    return Promise.resolve(true);
+  }
+  var icEl  = ov.querySelector('.sh-ic');
+  var ttEl  = ov.querySelector('.sh-tt');
+  var msgEl = ov.querySelector('.sh-msg');
+  var detEl = ov.querySelector('.sh-det');
+  if (icEl)  icEl.textContent  = opts.icon  || 'ℹ️';
+  if (ttEl)  ttEl.textContent  = opts.title || 'Notice';
+  if (msgEl) msgEl.textContent = opts.message || '';
+  if (detEl) detEl.innerHTML   = opts.detail  || '';
 
   var themeClass = { success:'success', danger:'danger', warn:'primary' }[opts.theme] || 'primary';
   var ok = ov.querySelector('.sh-ok-btn');
   var cn = ov.querySelector('.sh-cancel-btn');
-  ok.className = themeClass;
+  // Preserve the identifier class — only replace the theme token.
+  // Previously this did `ok.className = themeClass;` which stripped
+  // `sh-ok-btn` entirely after the first call, breaking the second call.
+  ok.className = 'sh-ok-btn ' + themeClass;
   ok.textContent = opts.okText || 'OK';
 
   if (opts.showCancel){
@@ -1591,4 +2141,27 @@ function shConfirm(opts){ opts = opts || {}; opts.showCancel = true; return shOp
     </div>
   </div>
 </div>
+
+{# ── Reject Reason Modal ──────────────────────────────────── #}
+<div class="sh-rej-bg" id="shRejModal" role="dialog" aria-modal="true">
+  <div class="sh-rej-box">
+    <div class="sh-rej-hdr">
+      <div class="sh-rej-ic">✕</div>
+      <div class="sh-rej-tt">Reject Sample</div>
+      <div class="sh-rej-sub" id="shRejSub">Provide a reason for rejecting this sample.</div>
+    </div>
+    <div class="sh-rej-body">
+      <label class="sh-rej-label" for="shRejReason">Reject Reason <span style="color:#dc2626;">*</span></label>
+      <textarea class="sh-rej-ta" id="shRejReason" placeholder="e.g. Fragrance too strong, texture not smooth, colour off…" maxlength="1000"></textarea>
+      <div class="sh-rej-err" id="shRejErr"></div>
+    </div>
+    <div class="sh-rej-ft">
+      <button type="button" class="del-btn-cancel" onclick="closeRejectModal()">Cancel</button>
+      <button type="button" class="del-btn-confirm" id="shRejConfirm" onclick="confirmReject()">✕ Reject Sample</button>
+    </div>
+  </div>
+</div>
+
+{# ── WhatsApp Send Modal ──────────────────────────────────── #}
+{# Removed — we now open wa.me with no number, so WhatsApp's own contact picker is used. #}
 {% endblock %}

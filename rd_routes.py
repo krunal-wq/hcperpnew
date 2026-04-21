@@ -101,6 +101,33 @@ def dashboard():
      .filter(NP.is_deleted == False, NP.status.notin_(['complete', 'cancelled']))\
      .group_by(User.id, User.full_name).all()
 
+    # ─────────────────────────────────────────────────────────
+    # Rejected Samples — visible to R&D Manager / Admin only.
+    # Shows recently rejected OfficeDispatchItem rows with project
+    # name, sample code, and rejection reason.
+    # ─────────────────────────────────────────────────────────
+    rejected_samples = []
+    if is_rd_manager:
+        from models.npd import OfficeDispatchItem
+        q = OfficeDispatchItem.query.filter_by(approval_status='rejected') \
+            .order_by(OfficeDispatchItem.actioned_at.desc()) \
+            .limit(25).all()
+
+        for it in q:
+            proj = it.project
+            rejected_samples.append({
+                'item_id'     : it.id,
+                'project_id'  : proj.id if proj else None,
+                'project_no'  : (proj.code if proj else '—'),
+                'project_name': (proj.product_name if proj else '—'),
+                'client_name' : (proj.client_name if proj and proj.client_name else '—'),
+                'sample_code' : it.sample_code or '—',
+                'reason'      : it.reject_reason or '—',
+                'actioned_by' : (it.actioner.full_name if it.actioner else '—'),
+                'actioned_at' : (it.actioned_at.strftime('%d %b %Y, %I:%M %p')
+                                 if it.actioned_at else '—'),
+            })
+
     perm = get_perm('rd')
     return render_template('rd/dashboard.html',
         active_page='rd_dashboard', perm=perm,
@@ -111,6 +138,8 @@ def dashboard():
         recent_projects=recent_projects,
         recent_trials=recent_trials,
         sc_workload=sc_workload,
+        is_rd_manager=is_rd_manager,
+        rejected_samples=rejected_samples,
     )
 
 
@@ -162,6 +191,80 @@ def projects():
     unallotted = [p for p in projects if p.id not in assigned_project_ids and (p.status or '').lower() not in CLOSED_STATUSES]
     allotted   = [p for p in projects if p.id in assigned_project_ids and (p.status or '').lower() not in CLOSED_STATUSES]
     closed     = [p for p in projects if (p.status or '').lower() in CLOSED_STATUSES]
+
+    # ─────────────────────────────────────────────────────────
+    # CLOSED tab visibility:
+    #   • Admin / R&D Manager → sees all closed projects
+    #   • Everyone else → sees only closed projects THEY were
+    #     assigned to, whether via assigned_rd / assigned_sc /
+    #     npd_poc, any (historical) RDSubAssignment, or the legacy
+    #     assigned_rd_members / assigned_members tokens.
+    # Active-project tabs (unallotted / allotted) are unchanged —
+    # access there is already governed by the assignment page itself.
+    # ─────────────────────────────────────────────────────────
+    if not is_rd_manager and closed:
+        uid = current_user.id
+
+        # 1. Any RDSubAssignment (active or not) referencing this user
+        closed_pids = [p.id for p in closed]
+        my_sub_pids = {
+            s.project_id for s in RDSubAssignment.query.filter(
+                RDSubAssignment.user_id == uid,
+                RDSubAssignment.project_id.in_(closed_pids)
+            ).all()
+        } if closed_pids else set()
+
+        # 2. Helper for legacy comma-separated member tokens
+        def _user_in_member_str(member_str, user_id):
+            if not member_str:
+                return False
+            for token in str(member_str).split(','):
+                token = token.strip()
+                if not token:
+                    continue
+                # Only user-id tokens (u_<id>) can match a user id directly.
+                # Pure numeric legacy tokens are employee-ids and we can't
+                # reliably reverse-map them here without extra queries, so
+                # we also resolve via Employee.user_id below.
+                if token.startswith('u_'):
+                    try:
+                        if int(token[2:]) == user_id:
+                            return True
+                    except ValueError:
+                        pass
+            return False
+
+        # 3. Legacy numeric-only tokens → check if current user's Employee.id
+        #    is in the member list (covers pre-u_ rows).
+        my_emp_id = None
+        try:
+            from models.employee import Employee as _EmpForCheck
+            _emp = _EmpForCheck.query.filter_by(user_id=uid, is_deleted=False).first()
+            my_emp_id = _emp.id if _emp else None
+        except Exception:
+            my_emp_id = None
+
+        def _emp_id_in_member_str(member_str, emp_id):
+            if not member_str or not emp_id:
+                return False
+            for token in str(member_str).split(','):
+                token = token.strip()
+                if token.isdigit() and int(token) == emp_id:
+                    return True
+            return False
+
+        def _user_is_assigned(p):
+            if p.assigned_rd == uid: return True
+            if p.assigned_sc == uid: return True
+            if p.npd_poc     == uid: return True
+            if p.id in my_sub_pids:  return True
+            if _user_in_member_str(p.assigned_rd_members, uid): return True
+            if _user_in_member_str(p.assigned_members,   uid):  return True
+            if _emp_id_in_member_str(p.assigned_rd_members, my_emp_id): return True
+            if _emp_id_in_member_str(p.assigned_members,   my_emp_id):  return True
+            return False
+
+        closed = [p for p in closed if _user_is_assigned(p)]
 
     rd_sub = {
         'unalloted_npd': get_sub_perm('rd', 'unalloted_npd'),
