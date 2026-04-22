@@ -181,10 +181,76 @@ def perm_seed():
 @users_bp.route('/profile', methods=['GET', 'POST'])
 @login_required
 def profile():
-    from models.employee import Employee
-    from datetime import date as date_type
+    from models.employee import (Employee, Contractor, EmployeeTypeMaster,
+                                 EmployeeLocationMaster, DepartmentMaster,
+                                 DesignationMaster)
+    from datetime import date as date_type, datetime as _dt
     # Find linked employee
     emp = Employee.query.filter_by(user_id=current_user.id).first()
+
+    # ─────────────────────────────────────────────────────────────────
+    # Auto-link: if the current user has no employee record yet, try to
+    # (a) find one by matching email, and link it; else
+    # (b) create a minimal employee record so profile tabs are usable.
+    # This fixes cases like "admin" user who was never added via HR form.
+    # ─────────────────────────────────────────────────────────────────
+    if not emp:
+        # (a) Match by email first (case-insensitive)
+        if current_user.email:
+            emp = Employee.query.filter(
+                Employee.email.ilike(current_user.email),
+                Employee.user_id.is_(None)
+            ).first()
+            if emp:
+                emp.user_id = current_user.id
+                db.session.commit()
+
+        # (b) Still nothing — auto-create minimal employee record
+        if not emp:
+            # Derive code from username (uppercase, no special chars)
+            base_code = ''.join(ch for ch in (current_user.username or 'USER')
+                                if ch.isalnum()).upper() or 'USER'
+            emp_code = base_code
+            i = 1
+            while Employee.query.filter(Employee.employee_code.ilike(emp_code)).first():
+                i += 1
+                emp_code = f'{base_code}{i}'
+
+            # Split full_name into first/last
+            fn = (current_user.full_name or current_user.username or 'User').strip()
+            parts = fn.split(maxsplit=1)
+            first = parts[0]
+            last  = parts[1] if len(parts) > 1 else '—'
+
+            emp = Employee(
+                employee_code = emp_code,
+                first_name    = first,
+                last_name     = last,
+                mobile        = '0000000000',    # placeholder — user can edit
+                email         = current_user.email or f'{current_user.username}@hcp.com',
+                user_id       = current_user.id,
+                status        = 'active',
+                employee_type = 'Full Time',
+                country       = 'India',
+                is_probation  = False,
+                created_by    = current_user.id,
+            )
+            db.session.add(emp)
+            try:
+                db.session.commit()
+                flash('Profile record auto-created. Please fill in your details.', 'info')
+            except Exception as ex:
+                db.session.rollback()
+                emp = None   # fall through to "no employee" UI
+                flash(f'Could not auto-create profile record: {ex}', 'warning')
+
+    def _pd(v):
+        try: return date_type.fromisoformat(v) if v else None
+        except: return None
+
+    def _dec(v):
+        try: return float(v) if v else None
+        except: return None
 
     if request.method == 'POST':
         action = request.form.get('action', 'profile')
@@ -203,45 +269,231 @@ def profile():
                 db.session.commit()
                 audit('users','PASSWORD_CHANGE', current_user.id, current_user.username, f'Password changed by {current_user.username}')
                 flash('Password changed successfully!', 'success')
-        else:
-            # Update user basic info
-            current_user.full_name = request.form.get('full_name', '').strip()
-            current_user.email     = request.form.get('email', '').strip()
+            return redirect(url_for('users_bp.profile'))
 
-            # Update employee fields if linked
-            if emp:
-                def _pd(v):
-                    try: return date_type.fromisoformat(v) if v else None
-                    except: return None
+        # ═══════════════════════════════════════════════════════════════════
+        # Full profile save — mirrors hr.emp_edit field-for-field
+        # ═══════════════════════════════════════════════════════════════════
+        # Update user basic info
+        current_user.full_name = request.form.get('full_name', '').strip() or current_user.full_name
+        new_email = request.form.get('email', '').strip()
+        if new_email:
+            current_user.email = new_email
 
-                photo = request.form.get('photo_base64', '').strip()
-                if photo: emp.profile_photo = photo
+        if emp:
+            # Photo & QR
+            photo  = request.form.get('photo_base64', '').strip()
+            if photo: emp.profile_photo = photo
+            qr_b64 = request.form.get('qr_base64', '').strip()
+            if qr_b64: emp.qr_code_base64 = qr_b64
 
-                emp.first_name     = request.form.get('first_name', '').strip() or emp.first_name
-                emp.last_name      = request.form.get('last_name', '').strip() or emp.last_name
-                emp.mobile         = request.form.get('mobile', '').strip()
-                emp.email          = current_user.email
-                emp.gender         = request.form.get('gender', '')
-                emp.linkedin       = request.form.get('linkedin', '').strip()
-                emp.facebook       = request.form.get('facebook', '').strip()
-                emp.date_of_birth  = _pd(request.form.get('date_of_birth'))
-                emp.blood_group    = request.form.get('blood_group', '').strip()
-                emp.marital_status = request.form.get('marital_status', '')
-                emp.address        = request.form.get('address', '').strip()
-                emp.city           = request.form.get('city', '').strip()
-                emp.state          = request.form.get('state', '').strip()
-                emp.country        = request.form.get('country', '').strip()
-                emp.zip_code       = request.form.get('zip_code', '').strip()
-                emp.remark         = request.form.get('remark', '').strip()
+            # Emp code is read-only on profile
+            emp.employee_id   = request.form.get('employee_id', '').strip() or None
+            emp.first_name    = request.form.get('first_name', emp.first_name).strip() or emp.first_name
+            emp.middle_name   = request.form.get('middle_name', emp.middle_name or '').strip()
+            emp.last_name     = request.form.get('last_name', emp.last_name).strip() or emp.last_name
+            emp.mobile        = request.form.get('mobile', emp.mobile).strip() or emp.mobile
+            emp.email         = new_email or emp.email
+            emp.gender        = request.form.get('gender', '')
+            emp.linkedin      = request.form.get('linkedin', '').strip()
+            emp.facebook      = request.form.get('facebook', '').strip()
+            emp.department    = request.form.get('department', '').strip()
+            emp.designation   = request.form.get('designation', '').strip()
+            emp.employee_type = request.form.get('employee_type', '')
+            emp.location      = request.form.get('location', '').strip()
+            emp.is_contractor = request.form.get('is_contractor') == 'yes'
+            cid = request.form.get('contractor_id') or None
+            emp.contractor_id = int(cid) if cid and emp.is_contractor else None
+            emp.date_of_joining = _pd(request.form.get('date_of_joining'))
+            emp.date_of_birth   = _pd(request.form.get('date_of_birth'))
+            emp.blood_group     = request.form.get('blood_group', '').strip()
+            emp.marital_status  = request.form.get('marital_status', '')
+            emp.is_block        = request.form.get('is_block') == 'yes'
+            emp.is_late         = request.form.get('is_late') == 'yes'
+            emp.is_probation    = request.form.get('is_probation') == 'yes'
+            emp.status          = request.form.get('status', emp.status or 'active')
+            emp.remark          = request.form.get('remark', '').strip()
+            rto = request.form.get('reports_to', '').strip()
+            try:
+                emp.reports_to = int(rto) if rto else None
+            except (ValueError, TypeError):
+                emp.reports_to = None
 
-            db.session.commit()
-            audit('users','PROFILE_UPDATE', current_user.id, current_user.username, f'Profile updated by {current_user.username}')
-            flash('Profile updated successfully!', 'success')
+            # Address
+            emp.address  = request.form.get('address', '').strip()
+            emp.city     = request.form.get('city', '').strip()
+            emp.state    = request.form.get('state', '').strip()
+            emp.country  = request.form.get('country', '').strip() or 'India'
+            emp.zip_code = request.form.get('zip_code', '').strip()
+
+            # Professional
+            emp.pay_grade        = request.form.get('pay_grade', '').strip()
+            emp.shift            = request.form.get('shift', '').strip()
+            emp.weekly_off       = request.form.get('weekly_off', '').strip()
+            emp.notice_period_days = int(request.form.get('notice_period_days') or 30)
+            emp.work_hours_per_day = float(request.form.get('work_hours_per_day') or 8)
+            emp.rehire_eligible  = request.form.get('rehire_eligible') == 'yes'
+            emp.confirmation_date = _pd(request.form.get('confirmation_date'))
+            emp.resignation_date  = _pd(request.form.get('resignation_date'))
+            emp.last_working_date = _pd(request.form.get('last_working_date'))
+
+            # KYC
+            emp.nationality     = request.form.get('nationality', 'Indian').strip()
+            emp.religion        = request.form.get('religion', '').strip()
+            emp.caste           = request.form.get('caste', '').strip()
+            emp.physically_handicapped = request.form.get('physically_handicapped') == 'yes'
+            ma_raw = request.form.get('marriage_anniversary', '').strip()
+            if emp.marital_status == 'Married' and ma_raw:
+                emp.marriage_anniversary = _pd(ma_raw)
+            elif emp.marital_status != 'Married':
+                emp.marriage_anniversary = None
+            emp.aadhar_number   = request.form.get('aadhar_number', '').strip()
+            emp.pan_number      = request.form.get('pan_number', '').strip().upper()
+            emp.uan_number      = request.form.get('uan_number', '').strip()
+            emp.esic_number     = request.form.get('esic_number', '').strip()
+            emp.passport_number = request.form.get('passport_number', '').strip()
+            emp.passport_expiry = _pd(request.form.get('passport_expiry'))
+            emp.driving_license = request.form.get('driving_license', '').strip()
+            emp.dl_expiry       = _pd(request.form.get('dl_expiry'))
+
+            # Emergency
+            emp.emergency_name     = request.form.get('emergency_name', '').strip()
+            emp.emergency_relation = request.form.get('emergency_relation', '').strip()
+            emp.emergency_phone    = request.form.get('emergency_phone', '').strip()
+            emp.emergency_address  = request.form.get('emergency_address', '').strip()
+
+            # Bank
+            emp.bank_account_holder = request.form.get('bank_account_holder', '').strip()
+            emp.bank_name           = request.form.get('bank_name', '').strip()
+            emp.bank_account_number = request.form.get('bank_account_number', '').strip()
+            emp.bank_ifsc           = request.form.get('bank_ifsc', '').strip().upper()
+            emp.bank_branch         = request.form.get('bank_branch', '').strip()
+            emp.bank_account_type   = request.form.get('bank_account_type', '').strip()
+
+            # Salary — READ-ONLY from Profile page (security).
+            # Users cannot modify their own salary. HR must use Employee Edit form.
+            # The fields below are intentionally NOT updated, even if they appear in the POST body.
+            # ─────────────────────────────────────────────────────────────
+            # emp.salary_ctc, emp.salary_basic, emp.salary_hra, emp.salary_da,
+            # emp.salary_ta, emp.salary_medical_allow, emp.salary_special_allow,
+            # emp.salary_pf_employee, emp.salary_pf_employer,
+            # emp.salary_esic_employee, emp.salary_esic_employer,
+            # emp.salary_professional_tax, emp.salary_tds, emp.salary_net,
+            # emp.salary_mode, emp.salary_effective_date,
+            # emp.salary_conveyance, emp.salary_bonus, emp.salary_incentive, emp.salary_gross
+            # ─────────────────────────────────────────────────────────────
+
+            # Education
+            emp.highest_qualification = request.form.get('highest_qualification', '').strip()
+            emp.university            = request.form.get('university', '').strip()
+            emp.passing_year          = int(request.form.get('passing_year') or 0) or None
+            emp.specialization        = request.form.get('specialization', '').strip()
+            emp.prev_company          = request.form.get('prev_company', '').strip()
+            emp.prev_designation      = request.form.get('prev_designation', '').strip()
+            emp.total_experience_yrs  = _dec(request.form.get('total_experience_yrs'))
+            emp.prev_from_date        = _pd(request.form.get('prev_from_date'))
+            emp.prev_to_date          = _pd(request.form.get('prev_to_date'))
+            emp.prev_leaving_reason   = request.form.get('prev_leaving_reason', '').strip()
+
+            # Documents
+            emp.documents_json = request.form.get('documents_json', emp.documents_json or '[]')
+
+            # ── Phase-1: Family / Contact ───────────────────────
+            emp.father_name       = request.form.get('father_name', '').strip() or None
+            emp.mother_name       = request.form.get('mother_name', '').strip() or None
+            emp.alternate_mobile  = request.form.get('alternate_mobile', '').strip() or None
+            emp.personal_email    = request.form.get('personal_email', '').strip() or None
+
+            # ── Phase-1: Permanent Address ──────────────────────
+            emp.permanent_address    = request.form.get('permanent_address', '').strip() or None
+            emp.permanent_city       = request.form.get('permanent_city', '').strip() or None
+            emp.permanent_state      = request.form.get('permanent_state', '').strip() or None
+            emp.permanent_country    = request.form.get('permanent_country', 'India').strip() or None
+            emp.permanent_zip        = request.form.get('permanent_zip', '').strip() or None
+            emp.same_as_current_addr = request.form.get('same_as_current_addr') == 'yes'
+
+            # ── Phase-1: Grade / Probation ──────────────────────
+            emp.grade_level = request.form.get('grade_level', '').strip() or None
+            try:
+                emp.probation_period_months = int(request.form.get('probation_period_months') or 6)
+            except (ValueError, TypeError):
+                emp.probation_period_months = 6
+            emp.probation_end_date = _pd(request.form.get('probation_end_date'))
+
+            # ── Phase-1: Salary extras (READ-ONLY — HR only) ────────────
+            # emp.salary_conveyance, emp.salary_bonus, emp.salary_incentive, emp.salary_gross
+            # NOT updated from profile page. See Salary block above for rationale.
+
+            # ── Phase-1: PF ─────────────────────────────────────
+            emp.pf_applicable        = request.form.get('pf_applicable') == 'yes'
+            emp.pf_number            = request.form.get('pf_number', '').strip() or None
+            emp.eps_applicable       = request.form.get('eps_applicable') == 'yes'
+            emp.previous_pf_transfer = request.form.get('previous_pf_transfer') == 'yes'
+            emp.previous_pf_number   = request.form.get('previous_pf_number', '').strip() or None
+
+            # ── Phase-1: ESIC ───────────────────────────────────
+            emp.esic_applicable       = request.form.get('esic_applicable') == 'yes'
+            emp.esic_nominee_name     = request.form.get('esic_nominee_name', '').strip() or None
+            emp.esic_nominee_relation = request.form.get('esic_nominee_relation', '').strip() or None
+            emp.esic_family_details   = request.form.get('esic_family_details', '').strip() or None
+            emp.esic_dispensary       = request.form.get('esic_dispensary', '').strip() or None
+
+            # ── Phase-1: TDS / Tax ──────────────────────────────
+            emp.aadhaar_pan_linked      = request.form.get('aadhaar_pan_linked') == 'yes'
+            emp.tax_regime              = request.form.get('tax_regime', 'New').strip() or 'New'
+            emp.prev_employer_income    = _dec(request.form.get('prev_employer_income'))
+            emp.monthly_tds             = _dec(request.form.get('monthly_tds'))
+            emp.investment_declaration  = request.form.get('investment_declaration', '').strip() or None
+            emp.proof_submission_status = request.form.get('proof_submission_status', 'Pending').strip() or 'Pending'
+
+            # ── Phase-1: Statutory ──────────────────────────────
+            emp.professional_tax_applicable = request.form.get('professional_tax_applicable', 'yes') == 'yes'
+            emp.labour_welfare_fund         = request.form.get('labour_welfare_fund') == 'yes'
+            emp.gratuity_eligible           = request.form.get('gratuity_eligible') == 'yes'
+            emp.bonus_eligible              = request.form.get('bonus_eligible', 'yes') == 'yes'
+
+            # ── Phase-1: Attendance / Leave ─────────────────────
+            emp.attendance_code       = request.form.get('attendance_code', '').strip() or None
+            emp.overtime_eligible     = request.form.get('overtime_eligible') == 'yes'
+            emp.casual_leave_balance  = _dec(request.form.get('casual_leave_balance')) or 0
+            emp.sick_leave_balance    = _dec(request.form.get('sick_leave_balance')) or 0
+            emp.paid_leave_balance    = _dec(request.form.get('paid_leave_balance')) or 0
+            emp.leave_policy          = request.form.get('leave_policy', '').strip() or None
+
+            # ── Phase-1: System Access ──────────────────────────
+            emp.official_email = request.form.get('official_email', '').strip() or None
+            emp.role_access    = request.form.get('role_access', '').strip() or None
+
+            # ── Phase-1: Exit extras ────────────────────────────
+            emp.exit_interview_done  = request.form.get('exit_interview_done') == 'yes'
+            emp.exit_interview_notes = request.form.get('exit_interview_notes', '').strip() or None
+            emp.ff_settlement_status = request.form.get('ff_settlement_status', 'Pending').strip() or 'Pending'
+            emp.ff_settlement_amount = _dec(request.form.get('ff_settlement_amount'))
+            emp.ff_settlement_date   = _pd(request.form.get('ff_settlement_date'))
+
+            emp.updated_at = _dt.utcnow()
+
+        db.session.commit()
+        audit('users', 'PROFILE_UPDATE', current_user.id, current_user.username,
+              f'Profile updated by {current_user.username}')
+        flash('Profile updated successfully!', 'success')
         return redirect(url_for('users_bp.profile'))
 
+    # GET — load dropdown data same as emp_edit
+    contractors   = Contractor.query.filter_by(status=1, is_deleted=0).order_by(Contractor.company_name).all() if emp else []
+    all_employees = Employee.query.filter_by(status='active').order_by(Employee.first_name).all() if emp else []
+    emp_types     = EmployeeTypeMaster.query.order_by(EmployeeTypeMaster.name).all() if emp else []
+    departments   = DepartmentMaster.query.order_by(DepartmentMaster.name).all() if emp else []
+    designations  = DesignationMaster.query.order_by(DesignationMaster.name).all() if emp else []
+    locations     = EmployeeLocationMaster.query.order_by(EmployeeLocationMaster.name).all() if emp else []
+
     logs = LoginLog.query.filter_by(user_id=current_user.id)\
-               .order_by(LoginLog.timestamp.desc()).limit(10).all()
-    return render_template('admin/profile.html', employee=emp, logs=logs, active_page='profile')
+               .order_by(LoginLog.timestamp.desc()).limit(20).all()
+    return render_template('admin/profile.html',
+        employee=emp, logs=logs, active_page='profile',
+        contractors=contractors, all_employees=all_employees,
+        emp_types=emp_types, departments=departments,
+        designations=designations, locations=locations)
 
 
 # ══════════════════════════════════════

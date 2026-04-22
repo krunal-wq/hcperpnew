@@ -43,6 +43,81 @@ EMP_COLS_ALL = {
     'blood_group':    'Blood Group',
     'status':         'Status',
     'qr':             'QR Code',
+    # ── Phase-1 additions: Family / Contact ──────────────────
+    'father_name':       'Father Name',
+    'mother_name':       'Mother Name',
+    'alternate_mobile':  'Alt Mobile',
+    'personal_email':    'Personal Email',
+    # ── Phase-1: Permanent Address ───────────────────────────
+    'permanent_city':    'Perm. City',
+    'permanent_state':   'Perm. State',
+    # ── Phase-1: Professional extras ─────────────────────────
+    'pay_grade':              'Pay Grade',
+    'grade_level':            'Grade / Level',
+    'shift':                  'Shift',
+    'weekly_off':             'Weekly Off',
+    'notice_period_days':     'Notice (Days)',
+    'probation_period_months':'Probation (Mo)',
+    'probation_end_date':     'Probation End',
+    'confirmation_date':      'Confirmation',
+    'resignation_date':       'Resignation',
+    'last_working_date':      'Last Working',
+    # ── Phase-1: KYC identifiers ─────────────────────────────
+    'aadhar_number':     'Aadhaar',
+    'pan_number':        'PAN',
+    'uan_number':        'UAN',
+    'esic_number':       'ESIC No',
+    # ── Phase-1: PF ──────────────────────────────────────────
+    'pf_applicable':        'PF Applicable',
+    'pf_number':            'PF Number',
+    'eps_applicable':       'EPS Applicable',
+    'previous_pf_transfer': 'Prev PF Transfer',
+    # ── Phase-1: ESIC ────────────────────────────────────────
+    'esic_applicable':       'ESIC Applicable',
+    'esic_nominee_name':     'ESIC Nominee',
+    'esic_dispensary':       'Dispensary',
+    # ── Phase-1: TDS / Tax ───────────────────────────────────
+    'aadhaar_pan_linked':      'Aadhaar-PAN Linked',
+    'tax_regime':              'Tax Regime',
+    'monthly_tds':             'Monthly TDS',
+    'proof_submission_status': 'Proof Status',
+    # ── Phase-1: Statutory flags ─────────────────────────────
+    'professional_tax_applicable': 'PT Applicable',
+    'labour_welfare_fund':         'LWF',
+    'gratuity_eligible':           'Gratuity',
+    'bonus_eligible':              'Bonus Eligible',
+    # ── Phase-1: Attendance / Leave ──────────────────────────
+    'attendance_code':      'Att. Code',
+    'overtime_eligible':    'OT Eligible',
+    'casual_leave_balance': 'CL Balance',
+    'sick_leave_balance':   'SL Balance',
+    'paid_leave_balance':   'PL Balance',
+    'leave_policy':         'Leave Policy',
+    # ── Phase-1: Salary extras ───────────────────────────────
+    'salary_ctc':       'CTC',
+    'salary_gross':     'Gross',
+    'salary_net':       'Net',
+    'salary_basic':     'Basic',
+    'salary_hra':       'HRA',
+    'salary_conveyance':'Conveyance',
+    'salary_bonus':     'Bonus',
+    'salary_incentive': 'Incentive',
+    'salary_mode':      'Salary Mode',
+    # ── Phase-1: System Access ───────────────────────────────
+    'official_email':  'Official Email',
+    'role_access':     'Role Access',
+    # ── Phase-1: Exit extras ─────────────────────────────────
+    'exit_interview_done':  'Exit Interview',
+    'ff_settlement_status': 'F&F Status',
+    'ff_settlement_amount': 'F&F Amount',
+    'ff_settlement_date':   'F&F Date',
+    # ── Previously hidden but common ─────────────────────────
+    'date_of_birth':  'Date of Birth',
+    'gender':         'Gender',
+    'city':           'City',
+    'state':          'State',
+    'nationality':    'Nationality',
+    'reports_to':     'Reports To',
 }
 
 CTR_COLS_DEFAULT = ['contract_id','company_name','supply','contact_person','contact_no','email_address','pancard','gstno','status']
@@ -462,6 +537,11 @@ def emp_add():
         qr_b64  = request.form.get('qr_base64', '').strip() or None
 
         rto = request.form.get('reports_to', '').strip()
+
+        def _dec_add(v):
+            try: return float(v) if v else None
+            except: return None
+
         e = Employee(
             employee_code   = emp_code,
             employee_id     = request.form.get('employee_id', '').strip() or None,
@@ -519,6 +599,67 @@ def emp_add():
             # Documents
             documents_json  = request.form.get('documents_json','[]'),
             marriage_anniversary = _parse_date(request.form.get('marriage_anniversary')) if request.form.get('marital_status')=='Married' else None,
+            # ── Phase-1 additions: Family / Contact ─────────────────
+            father_name       = request.form.get('father_name','').strip() or None,
+            mother_name       = request.form.get('mother_name','').strip() or None,
+            alternate_mobile  = request.form.get('alternate_mobile','').strip() or None,
+            personal_email    = request.form.get('personal_email','').strip() or None,
+            # ── Phase-1: Permanent Address ──────────────────────────
+            permanent_address    = request.form.get('permanent_address','').strip() or None,
+            permanent_city       = request.form.get('permanent_city','').strip() or None,
+            permanent_state      = request.form.get('permanent_state','').strip() or None,
+            permanent_country    = request.form.get('permanent_country','India').strip() or None,
+            permanent_zip        = request.form.get('permanent_zip','').strip() or None,
+            same_as_current_addr = request.form.get('same_as_current_addr') == 'yes',
+            # ── Phase-1: Grade / Probation ──────────────────────────
+            grade_level             = request.form.get('grade_level','').strip() or None,
+            probation_period_months = int(request.form.get('probation_period_months') or 6),
+            probation_end_date      = _parse_date(request.form.get('probation_end_date')),
+            # ── Phase-1: Salary extras ──────────────────────────────
+            salary_conveyance = _dec_add(request.form.get('salary_conveyance')),
+            salary_bonus      = _dec_add(request.form.get('salary_bonus')),
+            salary_incentive  = _dec_add(request.form.get('salary_incentive')),
+            salary_gross      = _dec_add(request.form.get('salary_gross')),
+            # ── Phase-1: PF ─────────────────────────────────────────
+            pf_applicable        = request.form.get('pf_applicable') == 'yes',
+            pf_number            = request.form.get('pf_number','').strip() or None,
+            eps_applicable       = request.form.get('eps_applicable') == 'yes',
+            previous_pf_transfer = request.form.get('previous_pf_transfer') == 'yes',
+            previous_pf_number   = request.form.get('previous_pf_number','').strip() or None,
+            # ── Phase-1: ESIC ───────────────────────────────────────
+            esic_applicable       = request.form.get('esic_applicable') == 'yes',
+            esic_nominee_name     = request.form.get('esic_nominee_name','').strip() or None,
+            esic_nominee_relation = request.form.get('esic_nominee_relation','').strip() or None,
+            esic_family_details   = request.form.get('esic_family_details','').strip() or None,
+            esic_dispensary       = request.form.get('esic_dispensary','').strip() or None,
+            # ── Phase-1: TDS / Tax ──────────────────────────────────
+            aadhaar_pan_linked      = request.form.get('aadhaar_pan_linked') == 'yes',
+            tax_regime              = request.form.get('tax_regime','New').strip() or 'New',
+            prev_employer_income    = _dec_add(request.form.get('prev_employer_income')),
+            monthly_tds             = _dec_add(request.form.get('monthly_tds')),
+            investment_declaration  = request.form.get('investment_declaration','').strip() or None,
+            proof_submission_status = request.form.get('proof_submission_status','Pending').strip() or 'Pending',
+            # ── Phase-1: Statutory ──────────────────────────────────
+            professional_tax_applicable = request.form.get('professional_tax_applicable','yes') == 'yes',
+            labour_welfare_fund         = request.form.get('labour_welfare_fund') == 'yes',
+            gratuity_eligible           = request.form.get('gratuity_eligible') == 'yes',
+            bonus_eligible              = request.form.get('bonus_eligible','yes') == 'yes',
+            # ── Phase-1: Attendance / Leave ─────────────────────────
+            attendance_code       = request.form.get('attendance_code','').strip() or None,
+            overtime_eligible     = request.form.get('overtime_eligible') == 'yes',
+            casual_leave_balance  = _dec_add(request.form.get('casual_leave_balance')) or 0,
+            sick_leave_balance    = _dec_add(request.form.get('sick_leave_balance')) or 0,
+            paid_leave_balance    = _dec_add(request.form.get('paid_leave_balance')) or 0,
+            leave_policy          = request.form.get('leave_policy','').strip() or None,
+            # ── Phase-1: System Access ──────────────────────────────
+            official_email = request.form.get('official_email','').strip() or None,
+            role_access    = request.form.get('role_access','').strip() or None,
+            # ── Phase-1: Exit extras ────────────────────────────────
+            exit_interview_done  = request.form.get('exit_interview_done') == 'yes',
+            exit_interview_notes = request.form.get('exit_interview_notes','').strip() or None,
+            ff_settlement_status = request.form.get('ff_settlement_status','Pending').strip() or 'Pending',
+            ff_settlement_amount = _dec_add(request.form.get('ff_settlement_amount')),
+            ff_settlement_date   = _parse_date(request.form.get('ff_settlement_date')),
             created_by      = current_user.id,
         )
         db.session.add(e)
@@ -691,6 +832,71 @@ def emp_edit(id):
         # Documents
         e.documents_json       = request.form.get('documents_json','[]')
 
+        # ── Phase-1 additions: Family / Contact ─────────────────
+        e.father_name       = request.form.get('father_name','').strip() or None
+        e.mother_name       = request.form.get('mother_name','').strip() or None
+        e.alternate_mobile  = request.form.get('alternate_mobile','').strip() or None
+        e.personal_email    = request.form.get('personal_email','').strip() or None
+        # ── Phase-1: Permanent Address ──────────────────────────
+        e.permanent_address    = request.form.get('permanent_address','').strip() or None
+        e.permanent_city       = request.form.get('permanent_city','').strip() or None
+        e.permanent_state      = request.form.get('permanent_state','').strip() or None
+        e.permanent_country    = request.form.get('permanent_country','India').strip() or None
+        e.permanent_zip        = request.form.get('permanent_zip','').strip() or None
+        e.same_as_current_addr = request.form.get('same_as_current_addr') == 'yes'
+        # ── Phase-1: Grade / Probation ──────────────────────────
+        e.grade_level             = request.form.get('grade_level','').strip() or None
+        try:
+            e.probation_period_months = int(request.form.get('probation_period_months') or 6)
+        except (ValueError, TypeError):
+            e.probation_period_months = 6
+        e.probation_end_date      = _parse_date(request.form.get('probation_end_date'))
+        # ── Phase-1: Salary extras ──────────────────────────────
+        e.salary_conveyance = _dec(request.form.get('salary_conveyance'))
+        e.salary_bonus      = _dec(request.form.get('salary_bonus'))
+        e.salary_incentive  = _dec(request.form.get('salary_incentive'))
+        e.salary_gross      = _dec(request.form.get('salary_gross'))
+        # ── Phase-1: PF ─────────────────────────────────────────
+        e.pf_applicable        = request.form.get('pf_applicable') == 'yes'
+        e.pf_number            = request.form.get('pf_number','').strip() or None
+        e.eps_applicable       = request.form.get('eps_applicable') == 'yes'
+        e.previous_pf_transfer = request.form.get('previous_pf_transfer') == 'yes'
+        e.previous_pf_number   = request.form.get('previous_pf_number','').strip() or None
+        # ── Phase-1: ESIC ───────────────────────────────────────
+        e.esic_applicable       = request.form.get('esic_applicable') == 'yes'
+        e.esic_nominee_name     = request.form.get('esic_nominee_name','').strip() or None
+        e.esic_nominee_relation = request.form.get('esic_nominee_relation','').strip() or None
+        e.esic_family_details   = request.form.get('esic_family_details','').strip() or None
+        e.esic_dispensary       = request.form.get('esic_dispensary','').strip() or None
+        # ── Phase-1: TDS / Tax ──────────────────────────────────
+        e.aadhaar_pan_linked      = request.form.get('aadhaar_pan_linked') == 'yes'
+        e.tax_regime              = request.form.get('tax_regime','New').strip() or 'New'
+        e.prev_employer_income    = _dec(request.form.get('prev_employer_income'))
+        e.monthly_tds             = _dec(request.form.get('monthly_tds'))
+        e.investment_declaration  = request.form.get('investment_declaration','').strip() or None
+        e.proof_submission_status = request.form.get('proof_submission_status','Pending').strip() or 'Pending'
+        # ── Phase-1: Statutory ──────────────────────────────────
+        e.professional_tax_applicable = request.form.get('professional_tax_applicable','yes') == 'yes'
+        e.labour_welfare_fund         = request.form.get('labour_welfare_fund') == 'yes'
+        e.gratuity_eligible           = request.form.get('gratuity_eligible') == 'yes'
+        e.bonus_eligible              = request.form.get('bonus_eligible','yes') == 'yes'
+        # ── Phase-1: Attendance / Leave ─────────────────────────
+        e.attendance_code       = request.form.get('attendance_code','').strip() or None
+        e.overtime_eligible     = request.form.get('overtime_eligible') == 'yes'
+        e.casual_leave_balance  = _dec(request.form.get('casual_leave_balance')) or 0
+        e.sick_leave_balance    = _dec(request.form.get('sick_leave_balance')) or 0
+        e.paid_leave_balance    = _dec(request.form.get('paid_leave_balance')) or 0
+        e.leave_policy          = request.form.get('leave_policy','').strip() or None
+        # ── Phase-1: System Access ──────────────────────────────
+        e.official_email = request.form.get('official_email','').strip() or None
+        e.role_access    = request.form.get('role_access','').strip() or None
+        # ── Phase-1: Exit extras ────────────────────────────────
+        e.exit_interview_done  = request.form.get('exit_interview_done') == 'yes'
+        e.exit_interview_notes = request.form.get('exit_interview_notes','').strip() or None
+        e.ff_settlement_status = request.form.get('ff_settlement_status','Pending').strip() or 'Pending'
+        e.ff_settlement_amount = _dec(request.form.get('ff_settlement_amount'))
+        e.ff_settlement_date   = _parse_date(request.form.get('ff_settlement_date'))
+
         e.updated_at     = datetime.utcnow()
         db.session.commit()
         flash('Employee updated!', 'success')
@@ -842,6 +1048,18 @@ def emp_ajax_save_tab(id):
         e.state          = (data.get('state') or '').strip()
         e.country        = (data.get('country') or '').strip()
         e.zip_code       = (data.get('zip_code') or '').strip()
+        # ── Phase-1: Family / Contact ──────────────────────────
+        e.father_name       = (data.get('father_name') or '').strip() or None
+        e.mother_name       = (data.get('mother_name') or '').strip() or None
+        e.alternate_mobile  = (data.get('alternate_mobile') or '').strip() or None
+        e.personal_email    = (data.get('personal_email') or '').strip() or None
+        # ── Phase-1: Permanent Address ─────────────────────────
+        e.permanent_address    = (data.get('permanent_address') or '').strip() or None
+        e.permanent_city       = (data.get('permanent_city') or '').strip() or None
+        e.permanent_state      = (data.get('permanent_state') or '').strip() or None
+        e.permanent_country    = (data.get('permanent_country') or 'India').strip() or None
+        e.permanent_zip        = (data.get('permanent_zip') or '').strip() or None
+        e.same_as_current_addr = data.get('same_as_current_addr') == 'yes'
         
 
     elif tab == 'professional':
@@ -874,6 +1092,30 @@ def emp_ajax_save_tab(id):
             e.reports_to = int(rto) if rto and str(rto).strip() else None
         except (ValueError, TypeError):
             e.reports_to = None
+        # ── Phase-1: Grade / Probation ─────────────────────────
+        e.grade_level = (data.get('grade_level') or '').strip() or None
+        try:
+            e.probation_period_months = int(data.get('probation_period_months') or 6)
+        except (ValueError, TypeError):
+            e.probation_period_months = 6
+        e.probation_end_date = _parse_date(data.get('probation_end_date'))
+        # ── Phase-1: Attendance ────────────────────────────────
+        e.attendance_code    = (data.get('attendance_code') or '').strip() or None
+        e.overtime_eligible  = data.get('overtime_eligible') == 'yes'
+        # ── Phase-1: Leave balances ────────────────────────────
+        e.casual_leave_balance = _dec(data.get('casual_leave_balance')) or 0
+        e.sick_leave_balance   = _dec(data.get('sick_leave_balance')) or 0
+        e.paid_leave_balance   = _dec(data.get('paid_leave_balance')) or 0
+        e.leave_policy         = (data.get('leave_policy') or '').strip() or None
+        # ── Phase-1: System Access ─────────────────────────────
+        e.official_email = (data.get('official_email') or '').strip() or None
+        e.role_access    = (data.get('role_access') or '').strip() or None
+        # ── Phase-1: Exit extras ───────────────────────────────
+        e.exit_interview_done  = data.get('exit_interview_done') == 'yes'
+        e.exit_interview_notes = (data.get('exit_interview_notes') or '').strip() or None
+        e.ff_settlement_status = (data.get('ff_settlement_status') or 'Pending').strip() or 'Pending'
+        e.ff_settlement_amount = _dec(data.get('ff_settlement_amount'))
+        e.ff_settlement_date   = _parse_date(data.get('ff_settlement_date'))
 
     elif tab == 'kyc':
         e.nationality        = (data.get('nationality') or 'Indian').strip()
@@ -892,6 +1134,30 @@ def emp_ajax_save_tab(id):
         e.emergency_relation = (data.get('emergency_relation') or '').strip()
         e.emergency_phone    = (data.get('emergency_phone') or '').strip()
         e.emergency_address  = (data.get('emergency_address') or '').strip()
+        # ── Phase-1: PF ────────────────────────────────────────
+        e.pf_applicable        = data.get('pf_applicable') == 'yes'
+        e.pf_number            = (data.get('pf_number') or '').strip() or None
+        e.eps_applicable       = data.get('eps_applicable') == 'yes'
+        e.previous_pf_transfer = data.get('previous_pf_transfer') == 'yes'
+        e.previous_pf_number   = (data.get('previous_pf_number') or '').strip() or None
+        # ── Phase-1: ESIC ──────────────────────────────────────
+        e.esic_applicable       = data.get('esic_applicable') == 'yes'
+        e.esic_nominee_name     = (data.get('esic_nominee_name') or '').strip() or None
+        e.esic_nominee_relation = (data.get('esic_nominee_relation') or '').strip() or None
+        e.esic_family_details   = (data.get('esic_family_details') or '').strip() or None
+        e.esic_dispensary       = (data.get('esic_dispensary') or '').strip() or None
+        # ── Phase-1: TDS / Tax ─────────────────────────────────
+        e.aadhaar_pan_linked      = data.get('aadhaar_pan_linked') == 'yes'
+        e.tax_regime              = (data.get('tax_regime') or 'New').strip() or 'New'
+        e.prev_employer_income    = _dec(data.get('prev_employer_income'))
+        e.monthly_tds             = _dec(data.get('monthly_tds'))
+        e.investment_declaration  = (data.get('investment_declaration') or '').strip() or None
+        e.proof_submission_status = (data.get('proof_submission_status') or 'Pending').strip() or 'Pending'
+        # ── Phase-1: Statutory ─────────────────────────────────
+        e.professional_tax_applicable = data.get('professional_tax_applicable', 'yes') == 'yes'
+        e.labour_welfare_fund         = data.get('labour_welfare_fund') == 'yes'
+        e.gratuity_eligible           = data.get('gratuity_eligible') == 'yes'
+        e.bonus_eligible              = data.get('bonus_eligible', 'yes') == 'yes'
 
     elif tab == 'bank':
         e.bank_account_holder= (data.get('bank_account_holder') or '').strip()
@@ -918,6 +1184,11 @@ def emp_ajax_save_tab(id):
         e.salary_net           = _dec(data.get('salary_net'))
         e.salary_mode          = (data.get('salary_mode') or '').strip()
         e.salary_effective_date= _parse_date(data.get('salary_effective_date'))
+        # ── Phase-1: Salary extras ──────────────────────────────
+        e.salary_conveyance = _dec(data.get('salary_conveyance'))
+        e.salary_bonus      = _dec(data.get('salary_bonus'))
+        e.salary_incentive  = _dec(data.get('salary_incentive'))
+        e.salary_gross      = _dec(data.get('salary_gross'))
 
     elif tab == 'education':
         e.highest_qualification= (data.get('highest_qualification') or '').strip()
@@ -1451,6 +1722,116 @@ def emp_import():
                         ptd = _pd(_gv(ed,'Prev To','prev_to_date'))
                         if ptd: e.prev_to_date = ptd
 
+                        # ── Phase-1: Basic — Family / Contact / Permanent Addr ────────
+                        fth = _gv(row,'Father Name','father_name')
+                        if fth: e.father_name = fth
+                        mth = _gv(row,'Mother Name','mother_name')
+                        if mth: e.mother_name = mth
+                        altm = _gv(row,'Alternate Mobile','alternate_mobile')
+                        if altm: e.alternate_mobile = altm
+                        pem = _gv(row,'Personal Email','personal_email')
+                        if pem: e.personal_email = pem
+                        pa = _gv(row,'Permanent Address','permanent_address')
+                        if pa: e.permanent_address = pa
+                        pc = _gv(row,'Permanent City','permanent_city')
+                        if pc: e.permanent_city = pc
+                        ps = _gv(row,'Permanent State','permanent_state')
+                        if ps: e.permanent_state = ps
+                        pcn = _gv(row,'Permanent Country','permanent_country')
+                        if pcn: e.permanent_country = pcn
+                        pz = _gv(row,'Permanent ZIP','Permanent Zip','permanent_zip')
+                        if pz: e.permanent_zip = pz
+                        sac = _gv(row,'Same as Current','same_as_current_addr')
+                        if sac: e.same_as_current_addr = sac.lower() == 'yes'
+
+                        # ── Phase-1: Professional — Grade / Probation / Attendance / Leave / System / Exit extras
+                        gl = _gv(p,'Grade Level','grade_level')
+                        if gl: e.grade_level = gl
+                        pm = _gv(p,'Probation Months','probation_period_months')
+                        if pm:
+                            try: e.probation_period_months = int(pm)
+                            except: pass
+                        ped = _pd(_gv(p,'Probation End','probation_end_date'))
+                        if ped: e.probation_end_date = ped
+                        ac = _gv(p,'Attendance Code','attendance_code')
+                        if ac: e.attendance_code = ac
+                        ot = _gv(p,'Overtime Eligible','overtime_eligible')
+                        if ot: e.overtime_eligible = ot.lower() == 'yes'
+                        clv = _dec(_gv(p,'CL Balance','casual_leave_balance'))
+                        if clv is not None: e.casual_leave_balance = clv
+                        slv = _dec(_gv(p,'SL Balance','sick_leave_balance'))
+                        if slv is not None: e.sick_leave_balance = slv
+                        plv = _dec(_gv(p,'PL Balance','paid_leave_balance'))
+                        if plv is not None: e.paid_leave_balance = plv
+                        lp = _gv(p,'Leave Policy','leave_policy')
+                        if lp: e.leave_policy = lp
+                        oe = _gv(p,'Official Email','official_email')
+                        if oe: e.official_email = oe
+                        ra = _gv(p,'Role Access','role_access')
+                        if ra: e.role_access = ra
+                        eid_ = _gv(p,'Exit Interview','exit_interview_done')
+                        if eid_: e.exit_interview_done = eid_.lower() == 'yes'
+                        ein = _gv(p,'Exit Notes','exit_interview_notes')
+                        if ein: e.exit_interview_notes = ein
+                        ffs = _gv(p,'FF Status','ff_settlement_status')
+                        if ffs: e.ff_settlement_status = ffs
+                        ffa = _dec(_gv(p,'FF Amount','ff_settlement_amount'))
+                        if ffa is not None: e.ff_settlement_amount = ffa
+                        ffd = _pd(_gv(p,'FF Date','ff_settlement_date'))
+                        if ffd: e.ff_settlement_date = ffd
+
+                        # ── Phase-1: KYC — PF / ESIC / TDS / Statutory
+                        pfa = _gv(k,'PF Applicable','pf_applicable')
+                        if pfa: e.pf_applicable = pfa.lower() == 'yes'
+                        pfn = _gv(k,'PF Number','pf_number')
+                        if pfn: e.pf_number = pfn
+                        eps = _gv(k,'EPS Applicable','eps_applicable')
+                        if eps: e.eps_applicable = eps.lower() == 'yes'
+                        ppt = _gv(k,'Previous PF Transfer','previous_pf_transfer')
+                        if ppt: e.previous_pf_transfer = ppt.lower() == 'yes'
+                        ppn = _gv(k,'Previous PF Number','previous_pf_number')
+                        if ppn: e.previous_pf_number = ppn
+                        esa = _gv(k,'ESIC Applicable','esic_applicable')
+                        if esa: e.esic_applicable = esa.lower() == 'yes'
+                        enn = _gv(k,'ESIC Nominee','esic_nominee_name')
+                        if enn: e.esic_nominee_name = enn
+                        enr = _gv(k,'Nominee Relation','esic_nominee_relation')
+                        if enr: e.esic_nominee_relation = enr
+                        efd = _gv(k,'ESIC Family','esic_family_details')
+                        if efd: e.esic_family_details = efd
+                        edp = _gv(k,'Dispensary','esic_dispensary')
+                        if edp: e.esic_dispensary = edp
+                        apl = _gv(k,'Aadhaar PAN Linked','aadhaar_pan_linked')
+                        if apl: e.aadhaar_pan_linked = apl.lower() == 'yes'
+                        tr = _gv(k,'Tax Regime','tax_regime')
+                        if tr: e.tax_regime = tr
+                        pei = _dec(_gv(k,'Prev Employer Income','prev_employer_income'))
+                        if pei is not None: e.prev_employer_income = pei
+                        mtd = _dec(_gv(k,'Monthly TDS','monthly_tds'))
+                        if mtd is not None: e.monthly_tds = mtd
+                        idec = _gv(k,'Investment Declaration','investment_declaration')
+                        if idec: e.investment_declaration = idec
+                        pss = _gv(k,'Proof Status','proof_submission_status')
+                        if pss: e.proof_submission_status = pss
+                        pta = _gv(k,'PT Applicable','professional_tax_applicable')
+                        if pta: e.professional_tax_applicable = pta.lower() == 'yes'
+                        lwf = _gv(k,'LWF','labour_welfare_fund')
+                        if lwf: e.labour_welfare_fund = lwf.lower() == 'yes'
+                        ge = _gv(k,'Gratuity Eligible','gratuity_eligible')
+                        if ge: e.gratuity_eligible = ge.lower() == 'yes'
+                        be = _gv(k,'Bonus Eligible','bonus_eligible')
+                        if be: e.bonus_eligible = be.lower() == 'yes'
+
+                        # ── Phase-1: Salary — Conveyance / Bonus / Incentive / Gross
+                        cv = _dec(_gv(sl,'Conveyance','salary_conveyance'))
+                        if cv is not None: e.salary_conveyance = cv
+                        bn = _dec(_gv(sl,'Bonus','salary_bonus'))
+                        if bn is not None: e.salary_bonus = bn
+                        inc = _dec(_gv(sl,'Incentive','salary_incentive'))
+                        if inc is not None: e.salary_incentive = inc
+                        gr = _dec(_gv(sl,'Gross','salary_gross'))
+                        if gr is not None: e.salary_gross = gr
+
                         skipped += 1
                         errors.append(f'Row {i}: Code "{emp_code}" updated \u2705')
 
@@ -1546,6 +1927,60 @@ def emp_import():
                         prev_leaving_reason = _gv(ed,'Leaving Reason','prev_leaving_reason'),
                         total_experience_yrs = _dec(_gv(ed,'Experience (Yrs)','total_experience_yrs')),
                         documents_json  = '[]',
+                        # ── Phase-1: Basic — Family / Contact / Permanent Addr ──
+                        father_name       = _gv(row,'Father Name','father_name') or None,
+                        mother_name       = _gv(row,'Mother Name','mother_name') or None,
+                        alternate_mobile  = _gv(row,'Alternate Mobile','alternate_mobile') or None,
+                        personal_email    = _gv(row,'Personal Email','personal_email') or None,
+                        permanent_address = _gv(row,'Permanent Address','permanent_address') or None,
+                        permanent_city    = _gv(row,'Permanent City','permanent_city') or None,
+                        permanent_state   = _gv(row,'Permanent State','permanent_state') or None,
+                        permanent_country = _gv(row,'Permanent Country','permanent_country') or 'India',
+                        permanent_zip     = _gv(row,'Permanent ZIP','Permanent Zip','permanent_zip') or None,
+                        same_as_current_addr = _gv(row,'Same as Current','same_as_current_addr').lower() == 'yes',
+                        # ── Phase-1: Professional ───────────────────
+                        grade_level             = _gv(p,'Grade Level','grade_level') or None,
+                        probation_period_months = int(_gv(p,'Probation Months','probation_period_months') or 6),
+                        probation_end_date      = _pd(_gv(p,'Probation End','probation_end_date')),
+                        attendance_code         = _gv(p,'Attendance Code','attendance_code') or None,
+                        overtime_eligible       = _gv(p,'Overtime Eligible','overtime_eligible').lower() == 'yes',
+                        casual_leave_balance    = _dec(_gv(p,'CL Balance','casual_leave_balance')) or 0,
+                        sick_leave_balance      = _dec(_gv(p,'SL Balance','sick_leave_balance')) or 0,
+                        paid_leave_balance      = _dec(_gv(p,'PL Balance','paid_leave_balance')) or 0,
+                        leave_policy            = _gv(p,'Leave Policy','leave_policy') or None,
+                        official_email          = _gv(p,'Official Email','official_email') or None,
+                        role_access             = _gv(p,'Role Access','role_access') or None,
+                        exit_interview_done     = _gv(p,'Exit Interview','exit_interview_done').lower() == 'yes',
+                        exit_interview_notes    = _gv(p,'Exit Notes','exit_interview_notes') or None,
+                        ff_settlement_status    = _gv(p,'FF Status','ff_settlement_status') or 'Pending',
+                        ff_settlement_amount    = _dec(_gv(p,'FF Amount','ff_settlement_amount')),
+                        ff_settlement_date      = _pd(_gv(p,'FF Date','ff_settlement_date')),
+                        # ── Phase-1: KYC — PF / ESIC / TDS / Statutory
+                        pf_applicable        = _gv(k,'PF Applicable','pf_applicable').lower() == 'yes',
+                        pf_number            = _gv(k,'PF Number','pf_number') or None,
+                        eps_applicable       = _gv(k,'EPS Applicable','eps_applicable').lower() == 'yes',
+                        previous_pf_transfer = _gv(k,'Previous PF Transfer','previous_pf_transfer').lower() == 'yes',
+                        previous_pf_number   = _gv(k,'Previous PF Number','previous_pf_number') or None,
+                        esic_applicable       = _gv(k,'ESIC Applicable','esic_applicable').lower() == 'yes',
+                        esic_nominee_name     = _gv(k,'ESIC Nominee','esic_nominee_name') or None,
+                        esic_nominee_relation = _gv(k,'Nominee Relation','esic_nominee_relation') or None,
+                        esic_family_details   = _gv(k,'ESIC Family','esic_family_details') or None,
+                        esic_dispensary       = _gv(k,'Dispensary','esic_dispensary') or None,
+                        aadhaar_pan_linked      = _gv(k,'Aadhaar PAN Linked','aadhaar_pan_linked').lower() == 'yes',
+                        tax_regime              = _gv(k,'Tax Regime','tax_regime') or 'New',
+                        prev_employer_income    = _dec(_gv(k,'Prev Employer Income','prev_employer_income')),
+                        monthly_tds             = _dec(_gv(k,'Monthly TDS','monthly_tds')),
+                        investment_declaration  = _gv(k,'Investment Declaration','investment_declaration') or None,
+                        proof_submission_status = _gv(k,'Proof Status','proof_submission_status') or 'Pending',
+                        professional_tax_applicable = (_gv(k,'PT Applicable','professional_tax_applicable') or 'yes').lower() == 'yes',
+                        labour_welfare_fund         = _gv(k,'LWF','labour_welfare_fund').lower() == 'yes',
+                        gratuity_eligible           = _gv(k,'Gratuity Eligible','gratuity_eligible').lower() == 'yes',
+                        bonus_eligible              = (_gv(k,'Bonus Eligible','bonus_eligible') or 'yes').lower() == 'yes',
+                        # ── Phase-1: Salary extras ──────────────────
+                        salary_conveyance = _dec(_gv(sl,'Conveyance','salary_conveyance')),
+                        salary_bonus      = _dec(_gv(sl,'Bonus','salary_bonus')),
+                        salary_incentive  = _dec(_gv(sl,'Incentive','salary_incentive')),
+                        salary_gross      = _dec(_gv(sl,'Gross','salary_gross')),
                         created_by      = current_user.id,
                     )
 
@@ -1651,25 +2086,25 @@ def emp_import_template():
     # ── Sheet 1: Basic Info ──
     ws1 = wb.active; ws1.title = "1 - Basic Info"
     build_tpl(ws1, "1E3A5F",
-        ["Employee Code","Employee ID","First Name","Middle Name","Last Name","Mobile","Email","Gender","Date of Birth","Blood Group","Marital Status","Marriage Anniversary","Address","City","State","Country","ZIP","LinkedIn","Facebook","Status"],
-        ["Required. Unique code","Biometric/Device ID","Required","Optional","Optional","10 digits","Valid email","Male/Female/Other","DD-MM-YYYY","A+/B+/O+...","Single/Married/Divorced","DD-MM-YYYY if Married","Street address","City","State","Default: India","Pincode","URL optional","URL optional","active/inactive"],
-        ["EMP0001","1001","Krunal","Naresh","Chandi","9876543210","krunal@hcp.com","Male","15-06-1990","A+","Married","20-02-2015","123 MG Road","Ahmedabad","Gujarat","India","380001","","","active"]
+        ["Employee Code","Employee ID","First Name","Middle Name","Last Name","Mobile","Email","Gender","Date of Birth","Blood Group","Marital Status","Marriage Anniversary","Father Name","Mother Name","Alternate Mobile","Personal Email","Address","City","State","Country","ZIP","Permanent Address","Permanent City","Permanent State","Permanent Country","Permanent ZIP","Same as Current","LinkedIn","Facebook","Status"],
+        ["Required. Unique code","Biometric/Device ID","Required","Optional","Optional","10 digits","Valid email","Male/Female/Other","DD-MM-YYYY","A+/B+/O+...","Single/Married/Divorced","DD-MM-YYYY if Married","Father's name","Mother's name","Optional","Personal Gmail/Yahoo","Street address","City","State","Default: India","Pincode","Permanent street","City","State","India","Pincode","Yes/No","URL optional","URL optional","active/inactive"],
+        ["EMP0001","1001","Krunal","Naresh","Chandi","9876543210","krunal@hcp.com","Male","15-06-1990","A+","Married","20-02-2015","Naresh Chandi","Suman Chandi","9876512345","krunal.p@gmail.com","123 MG Road","Ahmedabad","Gujarat","India","380001","123 MG Road","Ahmedabad","Gujarat","India","380001","Yes","","","active"]
     )
 
     # ── Sheet 2: Professional ──
     ws2 = wb.create_sheet("2 - Professional")
     build_tpl(ws2, "1D4ED8",
-        ["Code","Full Name","Department","Designation","Employee Type","Location","Pay Grade","DOJ","Confirmation","Shift","Work Hrs","Weekly Off","Notice Days","Contractor","Probation","Block","Status","Reports To"],
-        ["Match Sheet1 Code","For reference","e.g. Sales","e.g. Manager","Full Time/Part Time/Contract/Intern","City/Branch","G1/G2/G3","DD-MM-YYYY","DD-MM-YYYY","General/Night","8","Sunday","30","Yes/No","Yes/No","Yes/No","active","Manager full name"],
-        ["EMP0001","Krunal Chandi","Sales","Sales Manager","Full Time","Ahmedabad","G2","01-01-2022","01-07-2022","General (9-6)","8","Sunday","30","No","No","No","active","Rajesh Shah"]
+        ["Code","Full Name","Department","Designation","Employee Type","Location","Pay Grade","Grade Level","DOJ","Confirmation","Shift","Work Hrs","Weekly Off","Notice Days","Probation Months","Probation End","Contractor","Probation","Block","Status","Reports To","Attendance Code","Overtime Eligible","CL Balance","SL Balance","PL Balance","Leave Policy","Official Email","Role Access","Exit Interview","Exit Notes","FF Status","FF Amount","FF Date"],
+        ["Match Sheet1 Code","For reference","e.g. Sales","e.g. Manager","Full Time/Part Time/Contract/Intern","City/Branch","G1/G2/G3","L1/L2/Senior","DD-MM-YYYY","DD-MM-YYYY","General/Night","8","Sunday","30","6","DD-MM-YYYY","Yes/No","Yes/No","Yes/No","active","Manager full name","ATT1001","Yes/No","0","0","0","Standard","name@co.com","Staff/Manager/HR Admin","Yes/No","Feedback text","Pending/Processed/Paid","Amount ₹","DD-MM-YYYY"],
+        ["EMP0001","Krunal Chandi","Sales","Sales Manager","Full Time","Ahmedabad","G2","L2","01-01-2022","01-07-2022","General (9-6)","8","Sunday","30","6","01-07-2022","No","No","No","active","Rajesh Shah","ATT0001","Yes","10","8","12","Standard","krunal@hcp.com","Manager","No","","Pending","","",""]
     )
 
     # ── Sheet 3: KYC ──
     ws3 = wb.create_sheet("3 - KYC")
     build_tpl(ws3, "7C3AED",
-        ["Code","Full Name","Nationality","Religion","Aadhaar","PAN","UAN","ESIC","Passport No.","Passport Expiry","DL No","DL Expiry","Emergency Name","Emergency Relation","Emergency Phone","Emergency Address"],
-        ["Match Sheet1 Code","For reference","Indian","Hindu/Muslim/..","12 digits","ABCDE1234F","12 digits","17 digits","A1234567","DD-MM-YYYY","GJ01 2024 123456","DD-MM-YYYY","Contact name","Father/Spouse/..","10 digits","Address"],
-        ["EMP0001","Krunal Chandi","Indian","Hindu","123456789012","ABCDE1234F","100123456789","1234567890123456","A1234567","31-12-2030","GJ01 2024 123","31-12-2030","Ramesh Chandi","Father","9876500000","123 MG Road Ahmedabad"]
+        ["Code","Full Name","Nationality","Religion","Aadhaar","PAN","UAN","ESIC","Passport No.","Passport Expiry","DL No","DL Expiry","Emergency Name","Emergency Relation","Emergency Phone","Emergency Address","PF Applicable","PF Number","EPS Applicable","Previous PF Transfer","Previous PF Number","ESIC Applicable","ESIC Nominee","Nominee Relation","ESIC Family","Dispensary","Aadhaar PAN Linked","Tax Regime","Prev Employer Income","Monthly TDS","Investment Declaration","Proof Status","PT Applicable","LWF","Gratuity Eligible","Bonus Eligible"],
+        ["Match Sheet1 Code","For reference","Indian","Hindu/Muslim/..","12 digits","ABCDE1234F","12 digits","17 digits","A1234567","DD-MM-YYYY","GJ01 2024 123456","DD-MM-YYYY","Contact name","Father/Spouse/..","10 digits","Address","Yes/No","PF A/c No.","Yes/No","Yes/No","Old PF No.","Yes/No","Nominee name","Spouse/Father/..","Family details","Dispensary name","Yes/No","New/Old","Amount ₹","Amount ₹","Declaration text","Pending/Submitted/Verified","Yes/No","Yes/No","Yes/No","Yes/No"],
+        ["EMP0001","Krunal Chandi","Indian","Hindu","123456789012","ABCDE1234F","100123456789","1234567890123456","A1234567","31-12-2030","GJ01 2024 123","31-12-2030","Ramesh Chandi","Father","9876500000","123 MG Road Ahmedabad","Yes","PF/GJ/12345/67890","Yes","No","","Yes","Priya Chandi","Spouse","Spouse + 1 child","ESIC Ahmedabad","Yes","New","","","","Pending","Yes","No","No","Yes"]
     )
 
     # ── Sheet 4: Bank ──
@@ -1683,9 +2118,9 @@ def emp_import_template():
     # ── Sheet 5: Salary ──
     ws5 = wb.create_sheet("5 - Salary")
     build_tpl(ws5, "B45309",
-        ["Code","Full Name","CTC Annual","Basic","HRA","DA","TA","Medical","Special","PF Emp","PF Er","ESIC Emp","ESIC Er","Prof Tax","TDS","Net Salary","Mode","Effective Date"],
-        ["Match Sheet1 Code","For reference","Annual CTC in ₹","Monthly basic","Monthly HRA","Monthly DA","Transport","Medical allow","Special allow","PF deduction","PF employer","ESIC employee","ESIC employer","Prof. tax","TDS monthly","Net take-home","Cash/Bank Transfer/Cheque","DD-MM-YYYY"],
-        ["EMP0001","Krunal Chandi","480000","16000","8000","1600","1600","1250","0","1920","1920","0","0","200","0","15280","Bank Transfer","01-01-2022"]
+        ["Code","Full Name","CTC Annual","Basic","HRA","DA","TA","Conveyance","Medical","Special","Bonus","Incentive","Gross","PF Emp","PF Er","ESIC Emp","ESIC Er","Prof Tax","TDS","Net Salary","Mode","Effective Date"],
+        ["Match Sheet1 Code","For reference","Annual CTC in ₹","Monthly basic","Monthly HRA","Monthly DA","Transport","Conveyance","Medical allow","Special allow","Monthly bonus","Monthly incentive","Monthly gross","PF deduction","PF employer","ESIC employee","ESIC employer","Prof. tax","TDS monthly","Net take-home","Cash/Bank Transfer/Cheque","DD-MM-YYYY"],
+        ["EMP0001","Krunal Chandi","480000","16000","8000","1600","1600","800","1250","0","0","0","28250","1920","1920","0","0","200","0","26130","Bank Transfer","01-01-2022"]
     )
 
     # ── Sheet 6: Education ──
@@ -2063,41 +2498,69 @@ def emp_export():
         ws.freeze_panes = "A2"
 
     def fd(d): return d.strftime('%d-%m-%Y') if d else ''
+    def fc(v):
+        try: return round(float(v),2) if v is not None and v != '' else ''
+        except: return ''
 
     # Sheet 1: Basic Info
     ws1 = wb.active; ws1.title = "1 - Basic Info"
-    h1 = ["Code","First Name","Last Name","Full Name","Mobile","Email","Gender","DOB","Blood Group","Marital Status","Address","City","State","Country","ZIP","LinkedIn","Facebook","Status","Created At"]
+    h1 = ["Code","First Name","Last Name","Full Name","Mobile","Email","Gender","DOB","Blood Group","Marital Status","Father Name","Mother Name","Alternate Mobile","Personal Email","Address","City","State","Country","ZIP","Permanent Address","Permanent City","Permanent State","Permanent Country","Permanent ZIP","Same as Current","LinkedIn","Facebook","Status","Created At"]
     r1 = []
     for e in emps:
         r1.append([e.employee_code or '',e.first_name or '',e.last_name or '',e.full_name,
             e.mobile or '',e.email or '',e.gender or '',fd(e.date_of_birth),e.blood_group or '',
-            e.marital_status or '',e.address or '',e.city or '',e.state or '',e.country or '',e.zip_code or '',
+            e.marital_status or '',
+            e.father_name or '', e.mother_name or '', e.alternate_mobile or '', e.personal_email or '',
+            e.address or '',e.city or '',e.state or '',e.country or '',e.zip_code or '',
+            e.permanent_address or '', e.permanent_city or '', e.permanent_state or '',
+            e.permanent_country or '', e.permanent_zip or '',
+            'Yes' if e.same_as_current_addr else 'No',
             e.linkedin or '',e.facebook or'',(e.status or '').title(),
             e.created_at.strftime('%d-%m-%Y') if e.created_at else ''])
     build_sheet(ws1,"1E3A5F",h1,r1)
 
     # Sheet 2: Professional
     ws2 = wb.create_sheet("2 - Professional")
-    h2 = ["Code","Full Name","Department","Designation","Employee Type","Location","Pay Grade","DOJ","Confirmation","Shift","Work Hrs","Weekly Off","Notice Days","Contractor","Probation","Block","Status","Reports To"]
+    h2 = ["Code","Full Name","Department","Designation","Employee Type","Location","Pay Grade","Grade Level","DOJ","Confirmation","Shift","Work Hrs","Weekly Off","Notice Days","Probation Months","Probation End","Contractor","Probation","Block","Status","Reports To","Attendance Code","Overtime Eligible","CL Balance","SL Balance","PL Balance","Leave Policy","Official Email","Role Access","Exit Interview","Exit Notes","FF Status","FF Amount","FF Date"]
     r2 = []
     for e in emps:
         r2.append([e.employee_code or '',e.full_name,e.department or '',e.designation or '',
-            e.employee_type or '',e.location or '',e.pay_grade or '',fd(e.date_of_joining),
+            e.employee_type or '',e.location or '',e.pay_grade or '', e.grade_level or '',
+            fd(e.date_of_joining),
             fd(e.confirmation_date),e.shift or '',str(e.work_hours_per_day or ''),e.weekly_off or '',
-            str(e.notice_period_days or ''),'Yes' if e.is_contractor else 'No',
+            str(e.notice_period_days or ''),
+            str(e.probation_period_months or ''), fd(e.probation_end_date),
+            'Yes' if e.is_contractor else 'No',
             'Yes' if e.is_probation else 'No','Yes' if e.is_block else 'No',
-            (e.status or '').title(),e.manager_emp.full_name if e.manager_emp else ''])
+            (e.status or '').title(),e.manager_emp.full_name if e.manager_emp else '',
+            e.attendance_code or '', 'Yes' if e.overtime_eligible else 'No',
+            str(e.casual_leave_balance or 0), str(e.sick_leave_balance or 0), str(e.paid_leave_balance or 0),
+            e.leave_policy or '', e.official_email or '', e.role_access or '',
+            'Yes' if e.exit_interview_done else 'No', e.exit_interview_notes or '',
+            e.ff_settlement_status or '', fc(e.ff_settlement_amount), fd(e.ff_settlement_date)])
     build_sheet(ws2,"1D4ED8",h2,r2)
 
     # Sheet 3: KYC
     ws3 = wb.create_sheet("3 - KYC")
-    h3 = ["Code","Full Name","Nationality","Religion","Aadhaar","PAN","UAN","ESIC","Passport No","Passport Expiry","DL No","DL Expiry","Emergency Name","Emergency Phone"]
+    h3 = ["Code","Full Name","Nationality","Religion","Aadhaar","PAN","UAN","ESIC","Passport No","Passport Expiry","DL No","DL Expiry","Emergency Name","Emergency Phone","PF Applicable","PF Number","EPS Applicable","Previous PF Transfer","Previous PF Number","ESIC Applicable","ESIC Nominee","Nominee Relation","ESIC Family","Dispensary","Aadhaar PAN Linked","Tax Regime","Prev Employer Income","Monthly TDS","Investment Declaration","Proof Status","PT Applicable","LWF","Gratuity Eligible","Bonus Eligible"]
     r3 = []
     for e in emps:
         r3.append([e.employee_code or '',e.full_name,e.nationality or '',e.religion or '',
             e.aadhar_number or '',e.pan_number or '',e.uan_number or '',e.esic_number or '',
             e.passport_number or '',fd(e.passport_expiry),e.driving_license or '',fd(e.dl_expiry),
-            e.emergency_name or '',e.emergency_phone or ''])
+            e.emergency_name or '',e.emergency_phone or '',
+            'Yes' if e.pf_applicable else 'No', e.pf_number or '',
+            'Yes' if e.eps_applicable else 'No',
+            'Yes' if e.previous_pf_transfer else 'No', e.previous_pf_number or '',
+            'Yes' if e.esic_applicable else 'No', e.esic_nominee_name or '',
+            e.esic_nominee_relation or '', e.esic_family_details or '', e.esic_dispensary or '',
+            'Yes' if e.aadhaar_pan_linked else 'No', e.tax_regime or '',
+            fc(e.prev_employer_income), fc(e.monthly_tds), e.investment_declaration or '',
+            e.proof_submission_status or '',
+            'Yes' if e.professional_tax_applicable else 'No',
+            'Yes' if e.labour_welfare_fund else 'No',
+            'Yes' if e.gratuity_eligible else 'No',
+            'Yes' if e.bonus_eligible else 'No'])
     build_sheet(ws3,"7C3AED",h3,r3)
 
     # Sheet 4: Bank
@@ -2112,15 +2575,16 @@ def emp_export():
 
     # Sheet 5: Salary
     ws5 = wb.create_sheet("5 - Salary")
-    h5 = ["Code","Full Name","CTC Annual","Basic","HRA","DA","TA","Medical","Special","PF Emp","PF Er","ESIC Emp","ESIC Er","Prof Tax","TDS","Net Salary","Mode"]
+    h5 = ["Code","Full Name","CTC Annual","Basic","HRA","DA","TA","Conveyance","Medical","Special","Bonus","Incentive","Gross","PF Emp","PF Er","ESIC Emp","ESIC Er","Prof Tax","TDS","Net Salary","Mode","Effective Date"]
     r5 = []
-    def fc(v): return round(float(v),2) if v else ''
     for e in emps:
         r5.append([e.employee_code or '',e.full_name,fc(e.salary_ctc),fc(e.salary_basic),
-            fc(e.salary_hra),fc(e.salary_da),fc(e.salary_ta),fc(e.salary_medical_allow),
-            fc(e.salary_special_allow),fc(e.salary_pf_employee),fc(e.salary_pf_employer),
+            fc(e.salary_hra),fc(e.salary_da),fc(e.salary_ta), fc(e.salary_conveyance),
+            fc(e.salary_medical_allow),
+            fc(e.salary_special_allow), fc(e.salary_bonus), fc(e.salary_incentive), fc(e.salary_gross),
+            fc(e.salary_pf_employee),fc(e.salary_pf_employer),
             fc(e.salary_esic_employee),fc(e.salary_esic_employer),fc(e.salary_professional_tax),
-            fc(e.salary_tds),fc(e.salary_net),e.salary_mode or ''])
+            fc(e.salary_tds),fc(e.salary_net),e.salary_mode or '', fd(e.salary_effective_date)])
     build_sheet(ws5,"B45309",h5,r5)
 
     # Sheet 6: Education
@@ -2184,7 +2648,13 @@ def salary_config_save():
         allowed_keys = {
             'basic_pct', 'hra_pct', 'da_pct', 'ta_fixed', 'med_fixed',
             'pf_emp_pct', 'pf_er_pct', 'esic_emp_pct', 'esic_er_pct',
-            'esic_limit', 'pt_fixed'
+            'esic_limit', 'pt_fixed',
+            # ── HCP Policy keys (Phase 7) ─────────────────────────
+            'hcp_enabled', 'hcp_high_gross_thresh', 'hcp_esic_limit',
+            'hcp_low_basic_fixed', 'hcp_high_basic_pct', 'hcp_hra_pct_of_basic',
+            'hcp_conv_pct_of_basic', 'hcp_medical_fixed', 'hcp_pt_threshold',
+            'hcp_pt_amount', 'hcp_pf_emp_pct', 'hcp_pf_er_pct',
+            'hcp_esic_emp_pct', 'hcp_esic_er_pct', 'hcp_bonus_pct',
         }
         clean = {k: v for k, v in data.items() if k in allowed_keys}
         if not clean:

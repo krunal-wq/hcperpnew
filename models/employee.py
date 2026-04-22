@@ -253,6 +253,23 @@ class SalaryConfig(db.Model):
         'esic_er_pct':  '3.25',
         'esic_limit':   '21000',
         'pt_fixed':     '200',
+
+        # ─── HCP Salary Policy Rules (Phase 7) ──────────────────────
+        'hcp_enabled':             '1',       # 1 = use HCP rules, 0 = use legacy CTC calc
+        'hcp_high_gross_thresh':   '30000',   # Gross >= this uses "high" rules
+        'hcp_esic_limit':          '21000',   # Gross <= this → ESIC applies (HO only)
+        'hcp_low_basic_fixed':     '15000',   # Fixed Basic+DA when Gross < threshold
+        'hcp_high_basic_pct':      '50',      # Basic % of Gross when Gross >= threshold
+        'hcp_hra_pct_of_basic':    '40',      # HRA % of Basic+DA
+        'hcp_conv_pct_of_basic':   '30',      # Conveyance % of Basic+DA
+        'hcp_medical_fixed':       '1200',    # Medical fixed amount (high range)
+        'hcp_pt_threshold':        '12000',   # Gross >= this → PT applies
+        'hcp_pt_amount':           '200',     # PT amount when applicable
+        'hcp_pf_emp_pct':          '12',      # PF Employee %
+        'hcp_pf_er_pct':           '13',      # PF Employer % (incl admin + EDLI)
+        'hcp_esic_emp_pct':        '0.75',    # ESIC Employee %
+        'hcp_esic_er_pct':         '3.25',    # ESIC Employer %
+        'hcp_bonus_pct':           '8.33',    # Bonus % of Gross
     }
 
     @classmethod

@@ -113,21 +113,52 @@
     ℹ️ <span>Config <strong>database mein save hoti hai</strong> — ek baar set karo, sabhi employees ki salary calculation automatically isi se hogi.</span>
   </div>
 
-  <!-- Live Preview -->
+  <!-- Live Preview — HCP Rules (Phase 7) -->
   <div class="sc-preview">
-    <h3>📊 Live Preview</h3>
-    <div class="sc-prev-ctc">
-      <label>Annual CTC (₹)</label>
-      <input type="number" id="prevCtc" value="600000" oninput="updatePreview()">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.6rem;">
+      <h3 style="margin:0;">📊 Live Preview — HCP Rules</h3>
+      <span style="font-size:.7rem;opacity:.75;">Changes to HCP config reflect instantly here</span>
     </div>
+
+    <!-- Category + Gross input -->
+    <div style="display:flex;gap:.75rem;flex-wrap:wrap;align-items:center;margin-bottom:.85rem;">
+      <div style="display:flex;align-items:center;gap:.4rem;">
+        <label style="font-size:.78rem;opacity:.85;">Category:</label>
+        <select id="prevCategory" onchange="updatePreview()" style="padding:.32rem .6rem;border:1.5px solid rgba(255,255,255,.3);border-radius:7px;background:rgba(255,255,255,.12);color:#fff;font-size:.82rem;font-weight:600;">
+          <option value="HCP OFFICE" style="color:#000;">🏢 HO — Office</option>
+          <option value="HCP FACTORY STAFF" style="color:#000;">🏭 Plant — Factory Staff</option>
+          <option value="HCP WORKER" style="color:#000;">🏭 Plant — Worker</option>
+          <option value="WFH" style="color:#000;">🏢 HO — WFH</option>
+        </select>
+      </div>
+      <div style="display:flex;align-items:center;gap:.4rem;">
+        <label style="font-size:.78rem;opacity:.85;">Gross (Monthly) ₹</label>
+        <input type="number" id="prevGross" value="30000" step="500" oninput="updatePreview()" style="width:120px;padding:.32rem .6rem;border:1.5px solid rgba(255,255,255,.3);border-radius:7px;background:rgba(255,255,255,.12);color:#fff;font-size:.88rem;font-weight:700;text-align:right;">
+      </div>
+      <span id="prevCategoryLabel" style="background:rgba(255,255,255,.18);padding:3px 10px;border-radius:99px;font-size:.72rem;font-weight:700;"></span>
+    </div>
+
     <div class="sc-prev-grid">
-      <div class="sc-prev-item"><label>Monthly CTC</label><span class="val" id="pv_monthly">—</span></div>
-      <div id="prevEarningRows"></div>
+      <div class="sc-prev-item"><label>Basic + DA</label><span class="val" id="pv_basic">—</span></div>
+      <div class="sc-prev-item"><label>HRA</label><span class="val" id="pv_hra">—</span></div>
+      <div class="sc-prev-item"><label>Conveyance</label><span class="val" id="pv_conv">—</span></div>
+      <div class="sc-prev-item"><label>Medical</label><span class="val" id="pv_med">—</span></div>
+      <div class="sc-prev-item"><label>Other / Special</label><span class="val" id="pv_other">—</span></div>
+      <div class="sc-prev-item hi"><label>Gross Salary</label><span class="val" id="pv_gross">—</span></div>
+
       <div class="sc-prev-divider"></div>
-      <div id="prevDeductRows"></div>
-      <div class="sc-prev-divider"></div>
+
+      <div class="sc-prev-item"><label>PF (Employee)</label><span class="val" id="pv_pf_emp">—</span></div>
+      <div class="sc-prev-item"><label>ESIC (Employee)</label><span class="val" id="pv_esic_emp">—</span></div>
+      <div class="sc-prev-item"><label>Professional Tax</label><span class="val" id="pv_pt">—</span></div>
       <div class="sc-prev-item hi"><label>Net Take Home</label><span class="val" id="pv_net">—</span></div>
-      <div class="sc-prev-item hi"><label>Cost to Company</label><span class="val" id="pv_ctc_total">—</span></div>
+
+      <div class="sc-prev-divider"></div>
+
+      <div class="sc-prev-item"><label>PF (Employer) <span style="opacity:.55;font-size:.6rem">(er)</span></label><span class="val" id="pv_pf_er">—</span></div>
+      <div class="sc-prev-item"><label>ESIC (Employer) <span style="opacity:.55;font-size:.6rem">(er)</span></label><span class="val" id="pv_esic_er">—</span></div>
+      <div class="sc-prev-item"><label>Bonus <span style="opacity:.55;font-size:.6rem">(er)</span></label><span class="val" id="pv_bonus">—</span></div>
+      <div class="sc-prev-item hi"><label>Cost to Company (Annual)</label><span class="val" id="pv_ctc_total">—</span></div>
     </div>
   </div>
 
@@ -153,6 +184,138 @@
       </div>
     </div>
   </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════
+       HCP SALARY POLICY RULES  (Phase 7 — new configurable section)
+       ═══════════════════════════════════════════════════════════════════ -->
+  <div class="sc-card" style="border:2px solid #1d4ed8;">
+    <div class="sc-card-hdr" style="background:linear-gradient(90deg,#eff6ff 0%,#dbeafe 100%);">
+      <div class="sc-card-hdr-l">
+        <h3>🏭 HCP Salary Policy Rules</h3>
+        <span style="color:#1d4ed8;font-weight:600;">Applies to Employee form & Profile page</span>
+      </div>
+      <label style="display:flex;align-items:center;gap:6px;font-size:.78rem;font-weight:600;cursor:pointer;">
+        <input type="checkbox" id="cfg_hcp_enabled" {{ 'checked' if cfg.hcp_enabled == 1 }} onchange="markChanged(this)" style="accent-color:#2563eb;width:15px;height:15px;">
+        Enable HCP Rules
+      </label>
+    </div>
+    <div style="padding:.75rem 1.2rem;background:#fffbeb;border-bottom:1px solid #fcd34d;font-size:.77rem;color:#92400e;">
+      ⚠️ <b>3 Categories auto-detect</b> from Employee Type + Gross:
+      <br>
+      • <b>Plant</b> (HCP FACTORY STAFF / HCP WORKER): ESIC <u>not applicable</u>, even below 21K
+      <br>
+      • <b>HO</b> (HCP OFFICE / WFH): ESIC applicable if Gross ≤ ESIC limit
+      <br>
+      • <b>High vs Low Gross</b> split: above threshold → % formula, below → fixed Basic
+    </div>
+
+    <div class="sc-grid">
+      <!-- Thresholds -->
+      <div class="sc-field">
+        <label>High Gross Threshold <small>Gross ≥ this → Basic = % of Gross (else fixed)</small></label>
+        <div class="sc-inp-wrap">
+          <input type="number" class="sc-inp" style="width:105px" id="cfg_hcp_high_gross_thresh" value="{{ cfg.hcp_high_gross_thresh|int if cfg.hcp_high_gross_thresh else 30000 }}" min="0" step="1000" oninput="markChanged(this)">
+          <span class="sc-unit">₹</span>
+        </div>
+      </div>
+      <div class="sc-field">
+        <label>ESIC Limit (HO only) <small>Gross ≤ this → ESIC applies in HO (Plant = never)</small></label>
+        <div class="sc-inp-wrap">
+          <input type="number" class="sc-inp" style="width:105px" id="cfg_hcp_esic_limit" value="{{ cfg.hcp_esic_limit|int if cfg.hcp_esic_limit else 21000 }}" min="0" step="500" oninput="markChanged(this)">
+          <span class="sc-unit">₹</span>
+        </div>
+      </div>
+      <div class="sc-field">
+        <label>Low-Gross Fixed Basic <small>Basic+DA amount when Gross &lt; threshold</small></label>
+        <div class="sc-inp-wrap">
+          <input type="number" class="sc-inp" style="width:105px" id="cfg_hcp_low_basic_fixed" value="{{ cfg.hcp_low_basic_fixed|int if cfg.hcp_low_basic_fixed else 15000 }}" min="0" step="500" oninput="markChanged(this)">
+          <span class="sc-unit">₹</span>
+        </div>
+      </div>
+      <div class="sc-field">
+        <label>High-Gross Basic % <small>Basic = this % of Gross (when Gross ≥ threshold)</small></label>
+        <div class="sc-inp-wrap">
+          <input type="number" class="sc-inp" id="cfg_hcp_high_basic_pct" value="{{ cfg.hcp_high_basic_pct if cfg.hcp_high_basic_pct else 50 }}" min="0" max="100" step="0.5" oninput="markChanged(this)">
+          <span class="sc-unit">%</span>
+        </div>
+      </div>
+
+      <!-- Allowance percentages -->
+      <div class="sc-field">
+        <label>HRA % <small>% of Basic+DA</small></label>
+        <div class="sc-inp-wrap">
+          <input type="number" class="sc-inp" id="cfg_hcp_hra_pct_of_basic" value="{{ cfg.hcp_hra_pct_of_basic if cfg.hcp_hra_pct_of_basic else 40 }}" min="0" max="100" step="0.5" oninput="markChanged(this)">
+          <span class="sc-unit">%</span>
+        </div>
+      </div>
+      <div class="sc-field">
+        <label>Conveyance % <small>% of Basic+DA (high-gross branch)</small></label>
+        <div class="sc-inp-wrap">
+          <input type="number" class="sc-inp" id="cfg_hcp_conv_pct_of_basic" value="{{ cfg.hcp_conv_pct_of_basic if cfg.hcp_conv_pct_of_basic else 30 }}" min="0" max="100" step="0.5" oninput="markChanged(this)">
+          <span class="sc-unit">%</span>
+        </div>
+      </div>
+      <div class="sc-field">
+        <label>Medical Fixed <small>Fixed amount for Medical Allow (high-gross)</small></label>
+        <div class="sc-inp-wrap">
+          <input type="number" class="sc-inp" id="cfg_hcp_medical_fixed" value="{{ cfg.hcp_medical_fixed|int if cfg.hcp_medical_fixed else 1200 }}" min="0" step="50" oninput="markChanged(this)">
+          <span class="sc-unit">₹</span>
+        </div>
+      </div>
+      <div class="sc-field">
+        <label>Bonus % <small>% of Gross (employer contribution)</small></label>
+        <div class="sc-inp-wrap">
+          <input type="number" class="sc-inp" id="cfg_hcp_bonus_pct" value="{{ cfg.hcp_bonus_pct if cfg.hcp_bonus_pct else 8.33 }}" min="0" max="100" step="0.01" oninput="markChanged(this)">
+          <span class="sc-unit">%</span>
+        </div>
+      </div>
+
+      <!-- Deductions -->
+      <div class="sc-field">
+        <label>PT Threshold <small>Gross ≥ this → PT applies</small></label>
+        <div class="sc-inp-wrap">
+          <input type="number" class="sc-inp" style="width:105px" id="cfg_hcp_pt_threshold" value="{{ cfg.hcp_pt_threshold|int if cfg.hcp_pt_threshold else 12000 }}" min="0" step="500" oninput="markChanged(this)">
+          <span class="sc-unit">₹</span>
+        </div>
+      </div>
+      <div class="sc-field">
+        <label>PT Amount <small>Fixed PT when applicable</small></label>
+        <div class="sc-inp-wrap">
+          <input type="number" class="sc-inp" id="cfg_hcp_pt_amount" value="{{ cfg.hcp_pt_amount|int if cfg.hcp_pt_amount else 200 }}" min="0" step="10" oninput="markChanged(this)">
+          <span class="sc-unit">₹</span>
+        </div>
+      </div>
+      <div class="sc-field">
+        <label>PF Employee % <small>% of Basic+DA</small></label>
+        <div class="sc-inp-wrap">
+          <input type="number" class="sc-inp" id="cfg_hcp_pf_emp_pct" value="{{ cfg.hcp_pf_emp_pct if cfg.hcp_pf_emp_pct else 12 }}" min="0" max="100" step="0.1" oninput="markChanged(this)">
+          <span class="sc-unit">%</span>
+        </div>
+      </div>
+      <div class="sc-field">
+        <label>PF Employer % <small>% of Basic+DA (incl. admin &amp; EDLI ≈ 13%)</small></label>
+        <div class="sc-inp-wrap">
+          <input type="number" class="sc-inp" id="cfg_hcp_pf_er_pct" value="{{ cfg.hcp_pf_er_pct if cfg.hcp_pf_er_pct else 13 }}" min="0" max="100" step="0.1" oninput="markChanged(this)">
+          <span class="sc-unit">%</span>
+        </div>
+      </div>
+      <div class="sc-field">
+        <label>ESIC Employee % <small>% of Gross (HO, if Gross ≤ ESIC limit)</small></label>
+        <div class="sc-inp-wrap">
+          <input type="number" class="sc-inp" id="cfg_hcp_esic_emp_pct" value="{{ cfg.hcp_esic_emp_pct if cfg.hcp_esic_emp_pct else 0.75 }}" min="0" max="100" step="0.01" oninput="markChanged(this)">
+          <span class="sc-unit">%</span>
+        </div>
+      </div>
+      <div class="sc-field">
+        <label>ESIC Employer % <small>% of Gross (HO, if Gross ≤ ESIC limit)</small></label>
+        <div class="sc-inp-wrap">
+          <input type="number" class="sc-inp" id="cfg_hcp_esic_er_pct" value="{{ cfg.hcp_esic_er_pct if cfg.hcp_esic_er_pct else 3.25 }}" min="0" max="100" step="0.01" oninput="markChanged(this)">
+          <span class="sc-unit">%</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
 
   <!-- Earning Components -->
   <div class="sc-card">
@@ -417,31 +580,131 @@ function _calcOne(c, basic, gross, monthly){
 }
 
 function updatePreview(){
-  var ctc = parseFloat(document.getElementById('prevCtc').value) || 0;
-  if(!ctc) return;
-  var res = calcPreview(ctc);
-  document.getElementById('pv_monthly').textContent = fmt(res.monthly);
+  // Read HCP config LIVE from form inputs — so user sees effect of changes before saving
+  function _n(id, fallback){ var el=document.getElementById(id); return el ? (parseFloat(el.value)||fallback) : fallback; }
+  var cfg = {
+    hcp_enabled:             document.getElementById('cfg_hcp_enabled').checked ? 1 : 0,
+    hcp_high_gross_thresh:   _n('cfg_hcp_high_gross_thresh',   30000),
+    hcp_esic_limit:          _n('cfg_hcp_esic_limit',          21000),
+    hcp_low_basic_fixed:     _n('cfg_hcp_low_basic_fixed',     15000),
+    hcp_high_basic_pct:      _n('cfg_hcp_high_basic_pct',      50),
+    hcp_hra_pct_of_basic:    _n('cfg_hcp_hra_pct_of_basic',    40),
+    hcp_conv_pct_of_basic:   _n('cfg_hcp_conv_pct_of_basic',   30),
+    hcp_medical_fixed:       _n('cfg_hcp_medical_fixed',       1200),
+    hcp_pt_threshold:        _n('cfg_hcp_pt_threshold',        12000),
+    hcp_pt_amount:           _n('cfg_hcp_pt_amount',           200),
+    hcp_pf_emp_pct:          _n('cfg_hcp_pf_emp_pct',          12),
+    hcp_pf_er_pct:           _n('cfg_hcp_pf_er_pct',           13),
+    hcp_esic_emp_pct:        _n('cfg_hcp_esic_emp_pct',        0.75),
+    hcp_esic_er_pct:         _n('cfg_hcp_esic_er_pct',         3.25),
+    hcp_bonus_pct:           _n('cfg_hcp_bonus_pct',           8.33)
+  };
 
-  var eHtml = '', dHtml = '';
-  COMPS.filter(function(c){ return c.is_active && c.component_type==='earning'; }).forEach(function(c){
-    eHtml += '<div class="sc-prev-item"><label>'+c.name+'</label><span class="val">'+fmt(res[c.code]||0)+'</span></div>';
-  });
-  COMPS.filter(function(c){ return c.is_active && (c.component_type==='deduction'||c.component_type==='employer_contrib'); }).forEach(function(c){
-    var v = res[c.code]||0;
-    var lbl = c.name + (c.component_type==='employer_contrib' ? ' <span style="opacity:.55;font-size:.6rem">(er)</span>' : '');
-    dHtml += '<div class="sc-prev-item"><label>'+lbl+'</label><span class="val">'+(v>0?fmt(v):'—')+'</span></div>';
-  });
-  document.getElementById('prevEarningRows').innerHTML = eHtml;
-  document.getElementById('prevDeductRows').innerHTML  = dHtml;
-  document.getElementById('pv_net').textContent       = fmt(res.net);
-  document.getElementById('pv_ctc_total').textContent = fmt(res.ctc_total);
+  var empType = document.getElementById('prevCategory').value || 'HCP OFFICE';
+  var gross   = parseFloat(document.getElementById('prevGross').value) || 0;
+  var catLbl  = document.getElementById('prevCategoryLabel');
+
+  if (!cfg.hcp_enabled) {
+    catLbl.textContent = '⚠️ HCP Rules DISABLED';
+    catLbl.style.background = 'rgba(251,191,36,.3)';
+    ['pv_basic','pv_hra','pv_conv','pv_med','pv_other','pv_gross',
+     'pv_pf_emp','pv_esic_emp','pv_pt','pv_net',
+     'pv_pf_er','pv_esic_er','pv_bonus','pv_ctc_total'].forEach(function(id){
+       document.getElementById(id).textContent = '—';
+     });
+    return;
+  }
+
+  if (gross <= 0) {
+    catLbl.textContent = 'Enter Gross';
+    return;
+  }
+
+  // Categorize
+  var t = empType.toUpperCase();
+  var isPlant  = (t.indexOf('FACTORY') !== -1) || (t.indexOf('WORKER') !== -1);
+  var isOffice = (t.indexOf('OFFICE') !== -1) || (t.indexOf('HO') === 0) || (t.indexOf('WFH') !== -1);
+  if (!isPlant && !isOffice) isOffice = true;
+  var highGross = gross >= cfg.hcp_high_gross_thresh;
+  var cat = (isPlant ? 'Plant' : 'HO') + ' — ' + (highGross ? '≥' : '<') + (cfg.hcp_high_gross_thresh/1000|0) + 'K';
+  catLbl.textContent = '🏭 ' + cat;
+  catLbl.style.background = 'rgba(255,255,255,.22)';
+
+  // Calculate
+  var basic, hra, conv, med, other, pfEmp, pfEr, esicEmp, esicEr, pt, bonus;
+
+  if (highGross) {
+    basic = Math.round(gross * cfg.hcp_high_basic_pct / 100);
+    hra   = Math.round(basic * cfg.hcp_hra_pct_of_basic / 100);
+    conv  = Math.round(basic * cfg.hcp_conv_pct_of_basic / 100);
+    med   = cfg.hcp_medical_fixed;
+    other = Math.max(0, gross - (basic + hra + conv + med));
+    esicEmp = 0; esicEr = 0;
+  } else if (isPlant) {
+    basic = cfg.hcp_low_basic_fixed;
+    hra   = Math.round(basic * cfg.hcp_hra_pct_of_basic / 100);
+    conv  = Math.round(basic * cfg.hcp_conv_pct_of_basic / 100);
+    med   = 0;
+    other = Math.max(0, gross - (basic + hra + conv + med));
+    esicEmp = 0; esicEr = 0;
+  } else {
+    basic = cfg.hcp_low_basic_fixed;
+    hra   = Math.round(basic * cfg.hcp_hra_pct_of_basic / 100);
+    conv  = 0; med = 0;
+    other = Math.max(0, gross - (basic + hra + conv + med));
+    if (gross <= cfg.hcp_esic_limit) {
+      esicEmp = Math.round(gross * cfg.hcp_esic_emp_pct) / 100;
+      esicEr  = Math.round(gross * cfg.hcp_esic_er_pct)  / 100;
+    } else { esicEmp = 0; esicEr = 0; }
+  }
+
+  pfEmp = Math.round(basic * cfg.hcp_pf_emp_pct / 100);
+  pfEr  = Math.round(basic * cfg.hcp_pf_er_pct  / 100);
+  pt    = gross >= cfg.hcp_pt_threshold ? cfg.hcp_pt_amount : 0;
+  bonus = Math.round(gross * cfg.hcp_bonus_pct / 100);
+  var deductions = pfEmp + esicEmp + pt;
+  var net = Math.round(gross - deductions);
+  var ctcAnnual = Math.round((gross + pfEr + esicEr + bonus) * 12);
+
+  // Render
+  document.getElementById('pv_basic').textContent   = fmt(basic);
+  document.getElementById('pv_hra').textContent     = fmt(hra);
+  document.getElementById('pv_conv').textContent    = conv > 0 ? fmt(conv) : '—';
+  document.getElementById('pv_med').textContent     = med > 0 ? fmt(med) : '—';
+  document.getElementById('pv_other').textContent   = other > 0 ? fmt(other) : '—';
+  document.getElementById('pv_gross').textContent   = fmt(gross);
+  document.getElementById('pv_pf_emp').textContent  = fmt(pfEmp);
+  document.getElementById('pv_esic_emp').textContent = esicEmp > 0 ? fmt(Math.round(esicEmp)) : '—';
+  document.getElementById('pv_pt').textContent      = pt > 0 ? fmt(pt) : '—';
+  document.getElementById('pv_net').textContent     = fmt(net);
+  document.getElementById('pv_pf_er').textContent   = fmt(pfEr);
+  document.getElementById('pv_esic_er').textContent = esicEr > 0 ? fmt(Math.round(esicEr)) : '—';
+  document.getElementById('pv_bonus').textContent   = fmt(bonus);
+  document.getElementById('pv_ctc_total').textContent = fmt(ctcAnnual);
 }
 
 // ── Core config save ──
 function saveCoreConfig(){
+  function _v(id, fallback){ var el=document.getElementById(id); return el ? (parseFloat(el.value)||fallback) : fallback; }
   var cfg = {
-    basic_pct:  parseFloat(document.getElementById('cfg_basic').value)||40,
-    esic_limit: parseFloat(document.getElementById('cfg_esic_limit').value)||21000,
+    basic_pct:  _v('cfg_basic', 40),
+    esic_limit: _v('cfg_esic_limit', 21000),
+    // ── HCP Policy Rules (Phase 7) ────────────────────────
+    hcp_enabled:             document.getElementById('cfg_hcp_enabled').checked ? 1 : 0,
+    hcp_high_gross_thresh:   _v('cfg_hcp_high_gross_thresh',   30000),
+    hcp_esic_limit:          _v('cfg_hcp_esic_limit',          21000),
+    hcp_low_basic_fixed:     _v('cfg_hcp_low_basic_fixed',     15000),
+    hcp_high_basic_pct:      _v('cfg_hcp_high_basic_pct',      50),
+    hcp_hra_pct_of_basic:    _v('cfg_hcp_hra_pct_of_basic',    40),
+    hcp_conv_pct_of_basic:   _v('cfg_hcp_conv_pct_of_basic',   30),
+    hcp_medical_fixed:       _v('cfg_hcp_medical_fixed',       1200),
+    hcp_pt_threshold:        _v('cfg_hcp_pt_threshold',        12000),
+    hcp_pt_amount:           _v('cfg_hcp_pt_amount',           200),
+    hcp_pf_emp_pct:          _v('cfg_hcp_pf_emp_pct',          12),
+    hcp_pf_er_pct:           _v('cfg_hcp_pf_er_pct',           13),
+    hcp_esic_emp_pct:        _v('cfg_hcp_esic_emp_pct',        0.75),
+    hcp_esic_er_pct:         _v('cfg_hcp_esic_er_pct',         3.25),
+    hcp_bonus_pct:           _v('cfg_hcp_bonus_pct',           8.33),
   };
   var btn = document.getElementById('saveBtn');
   btn.disabled=true; btn.textContent='⏳ Saving…';

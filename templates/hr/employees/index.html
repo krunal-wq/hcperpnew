@@ -394,6 +394,70 @@
               <span id="qrCell_{{ e.id }}" style="font-size:.7rem;color:#94a3b8;">⏳</span>
               <script>pendingQR.push({ id: {{ e.id }}, code: '{{ e.employee_code }}' });</script>
               {% else %}<span style="color:var(--text3);">—</span>{% endif %}
+            {#— ── Phase-1 new columns ───────────────────────────────────────── —#}
+            {% elif col == 'is_contractor' %}{% if e.is_contractor %}<span style="background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:10px;font-size:.72rem;font-weight:700;">🤝 Yes</span>{% else %}<span style="color:var(--text3);font-size:.78rem;">No</span>{% endif %}
+            {% elif col == 'father_name' %}<span style="font-size:.78rem;">{{ e.father_name or '—' }}</span>
+            {% elif col == 'mother_name' %}<span style="font-size:.78rem;">{{ e.mother_name or '—' }}</span>
+            {% elif col == 'alternate_mobile' %}<span style="font-size:.78rem;">{{ e.alternate_mobile or '—' }}</span>
+            {% elif col == 'personal_email' %}<span style="font-size:.78rem;color:var(--text2);">{{ e.personal_email or '—' }}</span>
+            {% elif col == 'permanent_city' %}<span style="font-size:.78rem;">{{ e.permanent_city or '—' }}</span>
+            {% elif col == 'permanent_state' %}<span style="font-size:.78rem;">{{ e.permanent_state or '—' }}</span>
+            {% elif col == 'pay_grade' %}{% if e.pay_grade %}<span style="background:#eef2ff;color:#4338ca;padding:2px 8px;border-radius:10px;font-size:.72rem;font-weight:700;">{{ e.pay_grade }}</span>{% else %}—{% endif %}
+            {% elif col == 'grade_level' %}<span style="font-size:.78rem;">{{ e.grade_level or '—' }}</span>
+            {% elif col == 'shift' %}<span style="font-size:.78rem;">{{ e.shift or '—' }}</span>
+            {% elif col == 'weekly_off' %}<span style="font-size:.78rem;">{{ e.weekly_off or '—' }}</span>
+            {% elif col == 'notice_period_days' %}<span style="font-size:.78rem;">{{ e.notice_period_days or '—' }}{% if e.notice_period_days %} d{% endif %}</span>
+            {% elif col == 'probation_period_months' %}<span style="font-size:.78rem;">{{ e.probation_period_months or '—' }}{% if e.probation_period_months %} mo{% endif %}</span>
+            {% elif col == 'probation_end_date' %}<span style="font-size:.78rem;">{{ e.probation_end_date.strftime('%d %b %Y') if e.probation_end_date else '—' }}</span>
+            {% elif col == 'confirmation_date' %}<span style="font-size:.78rem;">{{ e.confirmation_date.strftime('%d %b %Y') if e.confirmation_date else '—' }}</span>
+            {% elif col == 'resignation_date' %}<span style="font-size:.78rem;">{{ e.resignation_date.strftime('%d %b %Y') if e.resignation_date else '—' }}</span>
+            {% elif col == 'last_working_date' %}<span style="font-size:.78rem;">{{ e.last_working_date.strftime('%d %b %Y') if e.last_working_date else '—' }}</span>
+            {% elif col == 'aadhar_number' %}<span style="font-family:monospace;font-size:.75rem;">{{ e.aadhar_number or '—' }}</span>
+            {% elif col == 'pan_number' %}<span style="font-family:monospace;font-size:.75rem;font-weight:700;">{{ e.pan_number or '—' }}</span>
+            {% elif col == 'uan_number' %}<span style="font-family:monospace;font-size:.75rem;">{{ e.uan_number or '—' }}</span>
+            {% elif col == 'esic_number' %}<span style="font-family:monospace;font-size:.75rem;">{{ e.esic_number or '—' }}</span>
+            {% elif col == 'pf_applicable' %}{% if e.pf_applicable %}<span style="background:#dcfce7;color:#15803d;padding:2px 8px;border-radius:10px;font-size:.72rem;font-weight:700;">Yes</span>{% else %}<span style="color:var(--text3);font-size:.78rem;">No</span>{% endif %}
+            {% elif col == 'pf_number' %}<span style="font-family:monospace;font-size:.75rem;">{{ e.pf_number or '—' }}</span>
+            {% elif col == 'eps_applicable' %}{% if e.eps_applicable %}<span style="background:#dcfce7;color:#15803d;padding:2px 8px;border-radius:10px;font-size:.72rem;font-weight:700;">Yes</span>{% else %}<span style="color:var(--text3);font-size:.78rem;">No</span>{% endif %}
+            {% elif col == 'previous_pf_transfer' %}{% if e.previous_pf_transfer %}<span style="background:#dcfce7;color:#15803d;padding:2px 8px;border-radius:10px;font-size:.72rem;font-weight:700;">Yes</span>{% else %}<span style="color:var(--text3);font-size:.78rem;">No</span>{% endif %}
+            {% elif col == 'esic_applicable' %}{% if e.esic_applicable %}<span style="background:#dcfce7;color:#15803d;padding:2px 8px;border-radius:10px;font-size:.72rem;font-weight:700;">Yes</span>{% else %}<span style="color:var(--text3);font-size:.78rem;">No</span>{% endif %}
+            {% elif col == 'esic_nominee_name' %}<span style="font-size:.78rem;">{{ e.esic_nominee_name or '—' }}</span>
+            {% elif col == 'esic_dispensary' %}<span style="font-size:.78rem;">{{ e.esic_dispensary or '—' }}</span>
+            {% elif col == 'aadhaar_pan_linked' %}{% if e.aadhaar_pan_linked %}<span style="background:#dcfce7;color:#15803d;padding:2px 8px;border-radius:10px;font-size:.72rem;font-weight:700;">✓ Linked</span>{% else %}<span style="background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:10px;font-size:.72rem;font-weight:700;">Not Linked</span>{% endif %}
+            {% elif col == 'tax_regime' %}{% if e.tax_regime %}<span style="background:#eff6ff;color:#1d4ed8;padding:2px 8px;border-radius:10px;font-size:.72rem;font-weight:700;">{{ e.tax_regime }}</span>{% else %}—{% endif %}
+            {% elif col == 'monthly_tds' %}<span style="font-size:.78rem;">{% if e.monthly_tds %}₹{{ e.monthly_tds|int }}{% else %}—{% endif %}</span>
+            {% elif col == 'proof_submission_status' %}{% if e.proof_submission_status %}<span style="background:{% if e.proof_submission_status=='Verified' %}#dcfce7;color:#15803d{% elif e.proof_submission_status=='Submitted' %}#dbeafe;color:#1d4ed8{% elif e.proof_submission_status=='Rejected' %}#fee2e2;color:#b91c1c{% else %}#fef3c7;color:#92400e{% endif %};padding:2px 8px;border-radius:10px;font-size:.72rem;font-weight:700;">{{ e.proof_submission_status }}</span>{% else %}—{% endif %}
+            {% elif col == 'professional_tax_applicable' %}{% if e.professional_tax_applicable %}<span style="background:#dcfce7;color:#15803d;padding:2px 8px;border-radius:10px;font-size:.72rem;font-weight:700;">Yes</span>{% else %}<span style="color:var(--text3);font-size:.78rem;">No</span>{% endif %}
+            {% elif col == 'labour_welfare_fund' %}{% if e.labour_welfare_fund %}<span style="background:#dcfce7;color:#15803d;padding:2px 8px;border-radius:10px;font-size:.72rem;font-weight:700;">Yes</span>{% else %}<span style="color:var(--text3);font-size:.78rem;">No</span>{% endif %}
+            {% elif col == 'gratuity_eligible' %}{% if e.gratuity_eligible %}<span style="background:#dcfce7;color:#15803d;padding:2px 8px;border-radius:10px;font-size:.72rem;font-weight:700;">Yes</span>{% else %}<span style="color:var(--text3);font-size:.78rem;">No</span>{% endif %}
+            {% elif col == 'bonus_eligible' %}{% if e.bonus_eligible %}<span style="background:#dcfce7;color:#15803d;padding:2px 8px;border-radius:10px;font-size:.72rem;font-weight:700;">Yes</span>{% else %}<span style="color:var(--text3);font-size:.78rem;">No</span>{% endif %}
+            {% elif col == 'attendance_code' %}<span style="font-family:monospace;font-size:.75rem;">{{ e.attendance_code or '—' }}</span>
+            {% elif col == 'overtime_eligible' %}{% if e.overtime_eligible %}<span style="background:#dcfce7;color:#15803d;padding:2px 8px;border-radius:10px;font-size:.72rem;font-weight:700;">Yes</span>{% else %}<span style="color:var(--text3);font-size:.78rem;">No</span>{% endif %}
+            {% elif col == 'casual_leave_balance' %}<span style="font-size:.78rem;font-weight:600;">{{ e.casual_leave_balance if e.casual_leave_balance is not none else '—' }}</span>
+            {% elif col == 'sick_leave_balance' %}<span style="font-size:.78rem;font-weight:600;">{{ e.sick_leave_balance if e.sick_leave_balance is not none else '—' }}</span>
+            {% elif col == 'paid_leave_balance' %}<span style="font-size:.78rem;font-weight:600;">{{ e.paid_leave_balance if e.paid_leave_balance is not none else '—' }}</span>
+            {% elif col == 'leave_policy' %}<span style="font-size:.78rem;">{{ e.leave_policy or '—' }}</span>
+            {% elif col == 'salary_ctc' %}<span style="font-size:.78rem;font-weight:700;color:#15803d;">{% if e.salary_ctc %}₹{{ e.salary_ctc|int }}{% else %}—{% endif %}</span>
+            {% elif col == 'salary_gross' %}<span style="font-size:.78rem;font-weight:700;">{% if e.salary_gross %}₹{{ e.salary_gross|int }}{% else %}—{% endif %}</span>
+            {% elif col == 'salary_net' %}<span style="font-size:.78rem;font-weight:700;color:#15803d;">{% if e.salary_net %}₹{{ e.salary_net|int }}{% else %}—{% endif %}</span>
+            {% elif col == 'salary_basic' %}<span style="font-size:.78rem;">{% if e.salary_basic %}₹{{ e.salary_basic|int }}{% else %}—{% endif %}</span>
+            {% elif col == 'salary_hra' %}<span style="font-size:.78rem;">{% if e.salary_hra %}₹{{ e.salary_hra|int }}{% else %}—{% endif %}</span>
+            {% elif col == 'salary_conveyance' %}<span style="font-size:.78rem;">{% if e.salary_conveyance %}₹{{ e.salary_conveyance|int }}{% else %}—{% endif %}</span>
+            {% elif col == 'salary_bonus' %}<span style="font-size:.78rem;">{% if e.salary_bonus %}₹{{ e.salary_bonus|int }}{% else %}—{% endif %}</span>
+            {% elif col == 'salary_incentive' %}<span style="font-size:.78rem;">{% if e.salary_incentive %}₹{{ e.salary_incentive|int }}{% else %}—{% endif %}</span>
+            {% elif col == 'salary_mode' %}<span style="font-size:.78rem;">{{ e.salary_mode or '—' }}</span>
+            {% elif col == 'official_email' %}<span style="font-size:.78rem;color:var(--text2);">{{ e.official_email or '—' }}</span>
+            {% elif col == 'role_access' %}{% if e.role_access %}<span style="background:#f3e8ff;color:#7c2d92;padding:2px 8px;border-radius:10px;font-size:.72rem;font-weight:700;">{{ e.role_access }}</span>{% else %}—{% endif %}
+            {% elif col == 'exit_interview_done' %}{% if e.exit_interview_done %}<span style="background:#dcfce7;color:#15803d;padding:2px 8px;border-radius:10px;font-size:.72rem;font-weight:700;">✓ Done</span>{% else %}<span style="color:var(--text3);font-size:.78rem;">Pending</span>{% endif %}
+            {% elif col == 'ff_settlement_status' %}{% if e.ff_settlement_status %}<span style="background:{% if e.ff_settlement_status=='Paid' %}#dcfce7;color:#15803d{% elif e.ff_settlement_status=='Processed' %}#dbeafe;color:#1d4ed8{% elif e.ff_settlement_status=='On Hold' %}#fee2e2;color:#b91c1c{% else %}#fef3c7;color:#92400e{% endif %};padding:2px 8px;border-radius:10px;font-size:.72rem;font-weight:700;">{{ e.ff_settlement_status }}</span>{% else %}—{% endif %}
+            {% elif col == 'ff_settlement_amount' %}<span style="font-size:.78rem;font-weight:600;">{% if e.ff_settlement_amount %}₹{{ e.ff_settlement_amount|int }}{% else %}—{% endif %}</span>
+            {% elif col == 'ff_settlement_date' %}<span style="font-size:.78rem;">{{ e.ff_settlement_date.strftime('%d %b %Y') if e.ff_settlement_date else '—' }}</span>
+            {% elif col == 'date_of_birth' %}<span style="font-size:.78rem;">{{ e.date_of_birth.strftime('%d %b %Y') if e.date_of_birth else '—' }}</span>
+            {% elif col == 'gender' %}<span style="font-size:.78rem;">{{ e.gender or '—' }}</span>
+            {% elif col == 'city' %}<span style="font-size:.78rem;">{{ e.city or '—' }}</span>
+            {% elif col == 'state' %}<span style="font-size:.78rem;">{{ e.state or '—' }}</span>
+            {% elif col == 'nationality' %}<span style="font-size:.78rem;">{{ e.nationality or '—' }}</span>
+            {% elif col == 'reports_to' %}<span style="font-size:.78rem;">{{ e.manager_emp.full_name if e.manager_emp else '—' }}</span>
             {% endif %}
           </td>
           {% endfor %}

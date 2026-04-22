@@ -148,7 +148,7 @@
                 </div>
                 <div class="fg">
                     <label class="fl">Employee Type<span class="req-star">*</span></label>
-                    <select name="employee_type" id="empTypeSelect" class="fi sd">
+                    <select name="employee_type" id="empTypeSelect" class="fi sd" onchange="hcpOnEmpTypeChange()">
                         <option value="">Select</option>
                         {% for t in emp_types %}
                         <option value="{{ t.name }}" {{ 'selected' if employee and employee.employee_type==t.name }}>{{ t.name }}</option>
@@ -202,13 +202,37 @@
                     </select>
                 </div>
             </div>
-            <div class="sec-hdr">📍 Address</div>
+
+            <div class="sec-hdr">👨‍👩‍👧 Family & Contact</div>
+            <div class="fgrid-2">
+                <div class="fg"><label class="fl">Father's Name</label><input type="text" name="father_name" class="fi" value="{{ employee.father_name if employee else '' }}" placeholder="Father's full name"></div>
+                <div class="fg"><label class="fl">Mother's Name</label><input type="text" name="mother_name" class="fi" value="{{ employee.mother_name if employee else '' }}" placeholder="Mother's full name"></div>
+                <div class="fg"><label class="fl">Alternate Mobile</label><input type="text" name="alternate_mobile" class="fi" value="{{ employee.alternate_mobile if employee else '' }}" placeholder="Alternate contact number"></div>
+                <div class="fg"><label class="fl">Personal Email</label><input type="email" name="personal_email" class="fi" value="{{ employee.personal_email if employee else '' }}" placeholder="personal@email.com"></div>
+            </div>
+
+            <div class="sec-hdr">📍 Current Address</div>
             <div class="fgrid-2">
                 <div class="fg" style="grid-column:1/-1;"><label class="fl">Address</label><textarea name="address" class="fi" rows="2" placeholder="Street address...">{{ employee.address if employee else '' }}</textarea></div>
                 <div class="fg"><label class="fl">City</label><input type="text" name="city" class="fi" value="{{ employee.city if employee else '' }}" placeholder="City"></div>
                 <div class="fg"><label class="fl">State</label><input type="text" name="state" class="fi" value="{{ employee.state if employee else '' }}" placeholder="State"></div>
                 <div class="fg"><label class="fl">Country</label><input type="text" name="country" class="fi" value="{{ employee.country if employee else 'India' }}"></div>
                 <div class="fg"><label class="fl">ZIP / Pin Code</label><input type="text" name="zip_code" class="fi" value="{{ employee.zip_code if employee else '' }}" placeholder="PIN Code"></div>
+            </div>
+
+            <div class="sec-hdr" style="display:flex;align-items:center;justify-content:space-between;">
+                <span>🏡 Permanent Address</span>
+                <label style="display:flex;align-items:center;gap:6px;font-size:.75rem;font-weight:600;cursor:pointer;color:var(--text2);">
+                    <input type="checkbox" name="same_as_current_addr" id="sameAsCurrentChk" value="yes" onchange="copyCurrentToPermanent(this.checked)" {{ 'checked' if employee and employee.same_as_current_addr }} style="accent-color:var(--blue);width:14px;height:14px;">
+                    Same as Current
+                </label>
+            </div>
+            <div class="fgrid-2">
+                <div class="fg" style="grid-column:1/-1;"><label class="fl">Permanent Address</label><textarea name="permanent_address" id="permAddr" class="fi" rows="2" placeholder="Permanent street address...">{{ employee.permanent_address if employee else '' }}</textarea></div>
+                <div class="fg"><label class="fl">City</label><input type="text" name="permanent_city" id="permCity" class="fi" value="{{ employee.permanent_city if employee else '' }}" placeholder="City"></div>
+                <div class="fg"><label class="fl">State</label><input type="text" name="permanent_state" id="permState" class="fi" value="{{ employee.permanent_state if employee else '' }}" placeholder="State"></div>
+                <div class="fg"><label class="fl">Country</label><input type="text" name="permanent_country" id="permCountry" class="fi" value="{{ employee.permanent_country if employee else 'India' }}"></div>
+                <div class="fg"><label class="fl">ZIP / Pin Code</label><input type="text" name="permanent_zip" id="permZip" class="fi" value="{{ employee.permanent_zip if employee else '' }}" placeholder="PIN Code"></div>
             </div>
             {% if not employee %}
             <div style="margin-top:.75rem;background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:8px;padding:.5rem .75rem;">
@@ -254,6 +278,7 @@
                     {% for g in ['G1','G2','G3','G4','G5','G6','M1','M2','M3','E1','E2','E3'] %}<option value="{{ g }}" {{ 'selected' if employee and employee.pay_grade==g }}>{{ g }}</option>{% endfor %}
                 </select>
             </div>
+            <div class="fg"><label class="fl">Grade / Level</label><input type="text" name="grade_level" class="fi" value="{{ employee.grade_level if employee else '' }}" placeholder="e.g. L1, L2, Senior"></div>
             <div class="fg"><label class="fl">Date of Joining</label><input type="date" name="date_of_joining" class="fi" value="{{ employee.date_of_joining.strftime('%Y-%m-%d') if employee and employee.date_of_joining else '' }}"></div>
             <div class="fg"><label class="fl">Confirmation Date</label><input type="date" name="confirmation_date" class="fi" value="{{ employee.confirmation_date.strftime('%Y-%m-%d') if employee and employee.confirmation_date else '' }}"></div>
             <div class="fg">
@@ -281,6 +306,8 @@
                 </select>
             </div>
             <div class="fg"><label class="fl">Notice Period (Days)</label><input type="number" name="notice_period_days" class="fi" min="0" max="365" value="{{ employee.notice_period_days if employee and employee.notice_period_days else '30' }}"></div>
+            <div class="fg"><label class="fl">Probation Period (Months)</label><input type="number" name="probation_period_months" class="fi" min="0" max="36" value="{{ employee.probation_period_months if employee and employee.probation_period_months is not none else '6' }}"></div>
+            <div class="fg"><label class="fl">Probation End Date</label><input type="date" name="probation_end_date" class="fi" value="{{ employee.probation_end_date.strftime('%Y-%m-%d') if employee and employee.probation_end_date else '' }}"></div>
             <div class="fg">
                 <label class="fl">Reports To (Manager)</label>
                 <select name="reports_to" class="fi sd">
@@ -315,10 +342,46 @@
             </div>
         </div>
 
+        <div class="sec-hdr">🕐 Attendance</div>
+        <div class="fgrid-3">
+            <div class="fg"><label class="fl">Attendance Code</label><input type="text" name="attendance_code" class="fi" value="{{ employee.attendance_code if employee else '' }}" placeholder="e.g. ATT1001"></div>
+            <div class="fg"><label class="fl">Overtime Eligible?</label><select name="overtime_eligible" class="fi"><option value="no" {{ 'selected' if not employee or not employee.overtime_eligible }}>No</option><option value="yes" {{ 'selected' if employee and employee.overtime_eligible }}>Yes</option></select></div>
+        </div>
+
+        <div class="sec-hdr">🌴 Leave Balances</div>
+        <div class="fgrid-3">
+            <div class="fg"><label class="fl">Casual Leave (CL)</label><input type="number" step="0.5" min="0" name="casual_leave_balance" class="fi" value="{{ employee.casual_leave_balance if employee and employee.casual_leave_balance is not none else '0' }}" placeholder="0"></div>
+            <div class="fg"><label class="fl">Sick Leave (SL)</label><input type="number" step="0.5" min="0" name="sick_leave_balance" class="fi" value="{{ employee.sick_leave_balance if employee and employee.sick_leave_balance is not none else '0' }}" placeholder="0"></div>
+            <div class="fg"><label class="fl">Paid Leave (PL)</label><input type="number" step="0.5" min="0" name="paid_leave_balance" class="fi" value="{{ employee.paid_leave_balance if employee and employee.paid_leave_balance is not none else '0' }}" placeholder="0"></div>
+            <div class="fg"><label class="fl">Leave Policy</label><input type="text" name="leave_policy" class="fi" value="{{ employee.leave_policy if employee else '' }}" placeholder="e.g. Standard, Sr. Mgmt"></div>
+        </div>
+
+        <div class="sec-hdr">🔐 System Access</div>
+        <div class="fgrid-3">
+            <div class="fg"><label class="fl">Official Email</label><input type="email" name="official_email" class="fi" value="{{ employee.official_email if employee else '' }}" placeholder="name@company.com"></div>
+            <div class="fg">
+                <label class="fl">Role Access</label>
+                <select name="role_access" class="fi sd">
+                    <option value="">Select</option>
+                    {% for r in ['Staff','Manager','HR Admin','Finance','Super Admin','Read Only'] %}<option value="{{ r }}" {{ 'selected' if employee and employee.role_access==r }}>{{ r }}</option>{% endfor %}
+                </select>
+            </div>
+        </div>
+
         <div class="sec-hdr">🔚 Exit Details</div>
         <div class="fgrid-3">
             <div class="fg"><label class="fl">Resignation Date</label><input type="date" name="resignation_date" class="fi" value="{{ employee.resignation_date.strftime('%Y-%m-%d') if employee and employee.resignation_date else '' }}"></div>
             <div class="fg"><label class="fl">Last Working Date</label><input type="date" name="last_working_date" class="fi" value="{{ employee.last_working_date.strftime('%Y-%m-%d') if employee and employee.last_working_date else '' }}"></div>
+            <div class="fg"><label class="fl">Exit Interview Done?</label><select name="exit_interview_done" class="fi"><option value="no" {{ 'selected' if not employee or not employee.exit_interview_done }}>No</option><option value="yes" {{ 'selected' if employee and employee.exit_interview_done }}>Yes</option></select></div>
+            <div class="fg">
+                <label class="fl">F&F Settlement Status</label>
+                <select name="ff_settlement_status" class="fi sd">
+                    {% for s in ['Pending','Processed','Paid','On Hold'] %}<option value="{{ s }}" {{ 'selected' if employee and employee.ff_settlement_status==s else ('selected' if not employee and s=='Pending' else '') }}>{{ s }}</option>{% endfor %}
+                </select>
+            </div>
+            <div class="fg"><label class="fl">F&F Amount ₹</label><input type="number" step="1" min="0" name="ff_settlement_amount" class="fi" value="{{ employee.ff_settlement_amount|int if employee and employee.ff_settlement_amount else '' }}" placeholder="0"></div>
+            <div class="fg"><label class="fl">F&F Payment Date</label><input type="date" name="ff_settlement_date" class="fi" value="{{ employee.ff_settlement_date.strftime('%Y-%m-%d') if employee and employee.ff_settlement_date else '' }}"></div>
+            <div class="fg" style="grid-column:1/-1;"><label class="fl">Exit Interview Notes</label><textarea name="exit_interview_notes" class="fi" rows="2" placeholder="Exit interview feedback / notes...">{{ employee.exit_interview_notes if employee else '' }}</textarea></div>
         </div>
 
         <div class="sec-hdr">🌐 Social Profiles</div>
@@ -365,6 +428,52 @@
             <div class="fg"><label class="fl">Contact Phone</label><input type="text" name="emergency_phone" class="fi" value="{{ employee.emergency_phone if employee else '' }}" placeholder="Mobile number"></div>
             <div class="fg" style="grid-column:1/-1;"><label class="fl">Contact Address</label><textarea name="emergency_address" class="fi" rows="2" placeholder="Emergency contact address...">{{ employee.emergency_address if employee else '' }}</textarea></div>
         </div>
+
+        <div class="sec-hdr">🏦 PF (Provident Fund)</div>
+        <div class="fgrid-3">
+            <div class="fg"><label class="fl">PF Applicable?</label><select name="pf_applicable" class="fi"><option value="no" {{ 'selected' if not employee or not employee.pf_applicable }}>No</option><option value="yes" {{ 'selected' if employee and employee.pf_applicable }}>Yes</option></select></div>
+            <div class="fg"><label class="fl">PF Number</label><input type="text" name="pf_number" class="fi" value="{{ employee.pf_number if employee else '' }}" placeholder="PF Account No."></div>
+            <div class="fg"><label class="fl">EPS Applicable?</label><select name="eps_applicable" class="fi"><option value="no" {{ 'selected' if not employee or not employee.eps_applicable }}>No</option><option value="yes" {{ 'selected' if employee and employee.eps_applicable }}>Yes</option></select></div>
+            <div class="fg"><label class="fl">Previous PF Transfer?</label><select name="previous_pf_transfer" class="fi"><option value="no" {{ 'selected' if not employee or not employee.previous_pf_transfer }}>No</option><option value="yes" {{ 'selected' if employee and employee.previous_pf_transfer }}>Yes</option></select></div>
+            <div class="fg"><label class="fl">Previous PF Number</label><input type="text" name="previous_pf_number" class="fi" value="{{ employee.previous_pf_number if employee else '' }}" placeholder="Old PF A/c (if transferring)"></div>
+        </div>
+
+        <div class="sec-hdr">🏥 ESIC Details</div>
+        <div class="fgrid-3">
+            <div class="fg"><label class="fl">ESIC Applicable?</label><select name="esic_applicable" class="fi"><option value="no" {{ 'selected' if not employee or not employee.esic_applicable }}>No</option><option value="yes" {{ 'selected' if employee and employee.esic_applicable }}>Yes</option></select></div>
+            <div class="fg"><label class="fl">Nominee Name</label><input type="text" name="esic_nominee_name" class="fi" value="{{ employee.esic_nominee_name if employee else '' }}" placeholder="Nominee's full name"></div>
+            <div class="fg"><label class="fl">Nominee Relation</label><select name="esic_nominee_relation" class="fi sd"><option value="">Select</option>{% for rel in ['Spouse','Father','Mother','Son','Daughter','Brother','Sister','Other'] %}<option value="{{ rel }}" {{ 'selected' if employee and employee.esic_nominee_relation==rel }}>{{ rel }}</option>{% endfor %}</select></div>
+            <div class="fg"><label class="fl">Dispensary</label><input type="text" name="esic_dispensary" class="fi" value="{{ employee.esic_dispensary if employee else '' }}" placeholder="ESIC dispensary name"></div>
+            <div class="fg" style="grid-column:1/-1;"><label class="fl">Family Details</label><textarea name="esic_family_details" class="fi" rows="2" placeholder="Family members covered under ESIC (name, relation, DOB)...">{{ employee.esic_family_details if employee else '' }}</textarea></div>
+        </div>
+
+        <div class="sec-hdr">💸 TDS / Income Tax</div>
+        <div class="fgrid-3">
+            <div class="fg"><label class="fl">Aadhaar linked to PAN?</label><select name="aadhaar_pan_linked" class="fi"><option value="no" {{ 'selected' if not employee or not employee.aadhaar_pan_linked }}>No</option><option value="yes" {{ 'selected' if employee and employee.aadhaar_pan_linked }}>Yes</option></select></div>
+            <div class="fg">
+                <label class="fl">Tax Regime</label>
+                <select name="tax_regime" class="fi sd">
+                    {% for r in ['New','Old'] %}<option value="{{ r }}" {{ 'selected' if employee and employee.tax_regime==r else ('selected' if not employee and r=='New' else '') }}>{{ r }} Regime</option>{% endfor %}
+                </select>
+            </div>
+            <div class="fg"><label class="fl">Previous Employer Income ₹</label><input type="number" step="1" min="0" name="prev_employer_income" class="fi" value="{{ employee.prev_employer_income|int if employee and employee.prev_employer_income else '' }}" placeholder="Annual income"></div>
+            <div class="fg"><label class="fl">Monthly TDS ₹</label><input type="number" step="1" min="0" name="monthly_tds" class="fi" value="{{ employee.monthly_tds|int if employee and employee.monthly_tds else '' }}" placeholder="TDS / month"></div>
+            <div class="fg">
+                <label class="fl">Proof Submission Status</label>
+                <select name="proof_submission_status" class="fi sd">
+                    {% for s in ['Pending','Submitted','Verified','Rejected'] %}<option value="{{ s }}" {{ 'selected' if employee and employee.proof_submission_status==s else ('selected' if not employee and s=='Pending' else '') }}>{{ s }}</option>{% endfor %}
+                </select>
+            </div>
+            <div class="fg" style="grid-column:1/-1;"><label class="fl">Investment Declaration</label><textarea name="investment_declaration" class="fi" rows="2" placeholder="Section 80C, 80D, HRA, Home Loan etc. — amounts and details...">{{ employee.investment_declaration if employee else '' }}</textarea></div>
+        </div>
+
+        <div class="sec-hdr">⚖️ Statutory Compliance</div>
+        <div class="fgrid-3">
+            <div class="fg"><label class="fl">Professional Tax Applicable?</label><select name="professional_tax_applicable" class="fi"><option value="yes" {{ 'selected' if not employee or employee.professional_tax_applicable }}>Yes</option><option value="no" {{ 'selected' if employee and not employee.professional_tax_applicable }}>No</option></select></div>
+            <div class="fg"><label class="fl">Labour Welfare Fund?</label><select name="labour_welfare_fund" class="fi"><option value="no" {{ 'selected' if not employee or not employee.labour_welfare_fund }}>No</option><option value="yes" {{ 'selected' if employee and employee.labour_welfare_fund }}>Yes</option></select></div>
+            <div class="fg"><label class="fl">Gratuity Eligible?</label><select name="gratuity_eligible" class="fi"><option value="no" {{ 'selected' if not employee or not employee.gratuity_eligible }}>No</option><option value="yes" {{ 'selected' if employee and employee.gratuity_eligible }}>Yes</option></select></div>
+            <div class="fg"><label class="fl">Bonus Eligible?</label><select name="bonus_eligible" class="fi"><option value="yes" {{ 'selected' if not employee or employee.bonus_eligible }}>Yes</option><option value="no" {{ 'selected' if employee and not employee.bonus_eligible }}>No</option></select></div>
+        </div>
     </div>
 </div>
 </div>
@@ -397,8 +506,18 @@
 <div class="card">
     <div class="card-hdr-sm"><span class="card-title">💰 Salary Structure</span></div>
     <div class="card-body-sm">
+        <!-- HCP policy banner -->
+        <div id="hcpPolicyBanner" style="background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:8px;padding:.55rem .85rem;margin-bottom:.75rem;font-size:.75rem;color:#1e3a8a;">
+            <strong>📋 HCP Salary Policy:</strong>
+            <span id="hcpPolicyText">Enter Gross Salary below — Basic, HRA, PF, ESIC etc. will auto-calculate as per company rules.</span>
+        </div>
         <div class="fgrid-3" style="margin-bottom:.75rem;">
-            <div class="fg"><label class="fl">CTC (Annual) ₹</label><input type="number" name="salary_ctc" id="salCtc" class="fi" step="1000" value="{{ employee.salary_ctc|int if employee and employee.salary_ctc else '' }}" placeholder="e.g. 500000" oninput="autoCalcSalary()"></div>
+            <div class="fg" style="background:#fef3c7;border:1.5px solid #fcd34d;border-radius:8px;padding:.4rem .6rem;">
+                <label class="fl" style="color:#92400e;">💵 Gross Salary (Monthly) ₹ *</label>
+                <input type="number" id="salGrossInput" class="fi" step="500" min="0" value="{{ employee.salary_gross|int if employee and employee.salary_gross else '' }}" placeholder="e.g. 30000" oninput="hcpAutoFromGross()" style="font-weight:700;font-size:1rem;">
+                <span style="font-size:.68rem;color:#92400e;margin-top:2px;">Drives all calculations</span>
+            </div>
+            <div class="fg"><label class="fl">CTC (Annual) ₹ <span style="font-size:.65rem;color:var(--text3);">(auto)</span></label><input type="number" name="salary_ctc" id="salCtc" class="fi" step="1000" value="{{ employee.salary_ctc|int if employee and employee.salary_ctc else '' }}" placeholder="auto-calculated" readonly style="background:#f8fafc;font-weight:700;"></div>
             <div class="fg"><label class="fl">Salary Mode</label><select name="salary_mode" class="fi sd"><option value="">Select</option>{% for sm in ['Bank Transfer','Cash','Cheque'] %}<option value="{{ sm }}" {{ 'selected' if employee and employee.salary_mode==sm else ('selected' if sm=='Bank Transfer' and not employee else '') }}>{{ sm }}</option>{% endfor %}</select></div>
             <div class="fg"><label class="fl">Effective Date</label><input type="date" name="salary_effective_date" class="fi" value="{{ employee.salary_effective_date.strftime('%Y-%m-%d') if employee and employee.salary_effective_date else '' }}"></div>
         </div>
@@ -407,8 +526,12 @@
         <div class="sal-row"><label>HRA (House Rent)</label><input type="number" name="salary_hra" id="salHra" class="fi" step="100" value="{{ employee.salary_hra|int if employee and employee.salary_hra else '' }}" oninput="recalcNet()" placeholder="0"></div>
         <div class="sal-row"><label>DA (Dearness Allow.)</label><input type="number" name="salary_da" id="salDa" class="fi" step="100" value="{{ employee.salary_da|int if employee and employee.salary_da else '' }}" oninput="recalcNet()" placeholder="0"></div>
         <div class="sal-row"><label>Transport Allow.</label><input type="number" name="salary_ta" id="salTa" class="fi" step="100" value="{{ employee.salary_ta|int if employee and employee.salary_ta else '' }}" oninput="recalcNet()" placeholder="0"></div>
+        <div class="sal-row"><label>Conveyance</label><input type="number" name="salary_conveyance" id="salConv" class="fi" step="100" value="{{ employee.salary_conveyance|int if employee and employee.salary_conveyance else '' }}" oninput="recalcNet()" placeholder="0"></div>
         <div class="sal-row"><label>Medical Allow.</label><input type="number" name="salary_medical_allow" id="salMed" class="fi" step="100" value="{{ employee.salary_medical_allow|int if employee and employee.salary_medical_allow else '' }}" oninput="recalcNet()" placeholder="0"></div>
         <div class="sal-row"><label>Special Allow.</label><input type="number" name="salary_special_allow" id="salSpecial" class="fi" step="100" value="{{ employee.salary_special_allow|int if employee and employee.salary_special_allow else '' }}" oninput="recalcNet()" placeholder="0"></div>
+        <div class="sal-row"><label>Bonus (Monthly)</label><input type="number" name="salary_bonus" id="salBonus" class="fi" step="100" value="{{ employee.salary_bonus|int if employee and employee.salary_bonus else '' }}" oninput="recalcNet()" placeholder="0"></div>
+        <div class="sal-row"><label>Incentive</label><input type="number" name="salary_incentive" id="salIncent" class="fi" step="100" value="{{ employee.salary_incentive|int if employee and employee.salary_incentive else '' }}" oninput="recalcNet()" placeholder="0"></div>
+        <div class="sal-row" style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:8px;padding:.35rem .6rem;margin:.3rem 0;"><label style="font-weight:700;color:#15803d;">Gross Salary (Auto)</label><input type="number" name="salary_gross" id="salGross" class="fi" step="100" value="{{ employee.salary_gross|int if employee and employee.salary_gross else '' }}" placeholder="auto-calculated" readonly style="background:#ecfdf5;font-weight:700;color:#15803d;"></div>
         <div class="sec-hdr">➖ Deductions (Monthly)</div>
         <div class="sal-row"><label>PF Employee (12%)</label><input type="number" name="salary_pf_employee" id="salPfEmp" class="fi" step="10" value="{{ employee.salary_pf_employee|int if employee and employee.salary_pf_employee else '' }}" oninput="recalcNet()" placeholder="0"></div>
         <div class="sal-row"><label>PF Employer (12%)</label><input type="number" name="salary_pf_employer" id="salPfEr" class="fi" step="10" value="{{ employee.salary_pf_employer|int if employee and employee.salary_pf_employer else '' }}" placeholder="0"></div>
@@ -423,8 +546,9 @@
                 <input type="number" name="salary_net" id="salNet" class="fi" style="width:160px;font-weight:800;font-size:1rem;border:none;background:transparent;" value="{{ employee.salary_net|int if employee and employee.salary_net else '' }}" placeholder="0">
             </div>
             <div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;">
-              <button type="button" onclick="autoCalcSalary()" class="btn-primary" style="font-size:.78rem;padding:6px 14px;">🔁 Auto Calculate</button>
+              <button type="button" onclick="hcpAutoFromGross(true)" class="btn-primary" style="font-size:.78rem;padding:6px 14px;" title="Fetch latest config from server and recalculate">🔁 Recalculate (HCP Rules)</button>
               <a href="/hr/salary-config/page" target="_blank" style="padding:6px 12px;border:1.5px solid #bfdbfe;background:#eff6ff;color:#1d4ed8;border-radius:8px;font-size:.78rem;font-weight:700;cursor:pointer;font-family:inherit;text-decoration:none;">⚙️ Config</a>
+              <span style="font-size:.72rem;color:var(--text3);">💡 Agar admin ne config update ki hai, "🔁 Recalculate" click karo for latest values</span>
             </div>
         </div>
     </div>
@@ -632,6 +756,30 @@ if(codeInput){
   }
 }
 function toggleContractor(val){document.getElementById('contractorRow').style.display=val==='yes'?'':'none';}
+
+function copyCurrentToPermanent(checked){
+    var map = {'address':'permAddr','city':'permCity','state':'permState','country':'permCountry','zip_code':'permZip'};
+    Object.keys(map).forEach(function(srcName){
+        var src = document.querySelector('[name="'+srcName+'"]');
+        var dst = document.getElementById(map[srcName]);
+        if(!src||!dst) return;
+        if(checked){
+            dst.dataset.prevVal = dst.value || '';
+            dst.value = src.value || '';
+            dst.readOnly = true;
+            dst.style.background = '#f1f5f9';
+        }else{
+            dst.readOnly = false;
+            dst.style.background = '';
+            if(dst.dataset.prevVal !== undefined){ dst.value = dst.dataset.prevVal; delete dst.dataset.prevVal; }
+        }
+    });
+}
+// On load, if "same as current" is checked, grey out permanent fields
+document.addEventListener('DOMContentLoaded', function(){
+    var chk = document.getElementById('sameAsCurrentChk');
+    if(chk && chk.checked) copyCurrentToPermanent(true);
+});
 toggleContractor(document.getElementById('isContractorSel').value);
 function toggleMarriageDate(val){
     var row = document.getElementById('marriageDateRow');
@@ -751,7 +899,219 @@ function autoCalcSalary() {
     _fetchCompsAndCalc(ctcA);
 }
 
-function recalcNet(){var earn=['salBasic','salHra','salDa','salTa','salMed','salSpecial'].reduce((s,id)=>s+(parseFloat(document.getElementById(id).value)||0),0);var deduct=['salPfEmp','salEsicEmp','salPt','salTds'].reduce((s,id)=>s+(parseFloat(document.getElementById(id).value)||0),0);var net=Math.round(earn-deduct);document.getElementById('salNet').value=net;updateSalSummary(parseFloat(document.getElementById('salCtc').value)||0,earn,deduct,net);}
+// ═════════════════════════════════════════════════════════════════════════
+// HCP Salary Policy Calculator — configurable via /hr/salary-config
+// ═════════════════════════════════════════════════════════════════════════
+// Config fetched from server on first use, cached for session.
+// Admin can edit at /hr/salary-config/page under "HCP Salary Policy Rules".
+// ═════════════════════════════════════════════════════════════════════════
+
+var _hcpCfg = null;  // cached config
+
+function _hcpDefaultCfg(){
+    return {
+        hcp_enabled: 1,
+        hcp_high_gross_thresh: 30000,
+        hcp_esic_limit: 21000,
+        hcp_low_basic_fixed: 15000,
+        hcp_high_basic_pct: 50,
+        hcp_hra_pct_of_basic: 40,
+        hcp_conv_pct_of_basic: 30,
+        hcp_medical_fixed: 1200,
+        hcp_pt_threshold: 12000,
+        hcp_pt_amount: 200,
+        hcp_pf_emp_pct: 12,
+        hcp_pf_er_pct: 13,
+        hcp_esic_emp_pct: 0.75,
+        hcp_esic_er_pct: 3.25,
+        hcp_bonus_pct: 8.33
+    };
+}
+
+function _hcpFetchCfg(cb, forceRefresh){
+    if (_hcpCfg && !forceRefresh) { cb(_hcpCfg); return; }
+    // Cache-bust with timestamp when force refresh
+    var url = '/hr/salary-config' + (forceRefresh ? '?t=' + Date.now() : '');
+    fetch(url, {headers:{'X-Requested-With':'XMLHttpRequest'}, cache: forceRefresh ? 'no-store' : 'default'})
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+        var def = _hcpDefaultCfg();
+        if (d && d.ok && d.config) {
+            Object.keys(def).forEach(function(k){
+                if (d.config[k] !== undefined && d.config[k] !== null) {
+                    def[k] = parseFloat(d.config[k]);
+                }
+            });
+        }
+        _hcpCfg = def;
+        cb(_hcpCfg);
+    })
+    .catch(function(){ _hcpCfg = _hcpDefaultCfg(); cb(_hcpCfg); });
+}
+
+function _hcpGetCategory(empType, gross, cfg) {
+    var t = (empType || '').toUpperCase();
+    var isPlant  = (t.indexOf('FACTORY') !== -1) || (t.indexOf('WORKER') !== -1);
+    var isOffice = (t.indexOf('OFFICE') !== -1) || (t.indexOf('HO') === 0) || (t.indexOf('WFH') !== -1);
+    if (!isPlant && !isOffice) isOffice = true;
+    var highGross = gross >= (cfg.hcp_high_gross_thresh || 30000);
+    var cat = (isPlant ? 'plant' : 'ho') + (highGross ? '_high' : '_low');
+    return { category: cat, isPlant: isPlant, isOffice: isOffice, highGross: highGross };
+}
+
+function _hcpSetField(id, val) {
+    var el = document.getElementById(id);
+    if (el) el.value = Math.round(val);
+}
+
+function hcpAutoFromGross(forceRefresh) {
+    _hcpFetchCfg(function(cfg){
+        _hcpDoCalc(cfg);
+    }, forceRefresh);
+}
+
+function _hcpDoCalc(cfg) {
+    var gross = parseFloat(document.getElementById('salGrossInput').value) || 0;
+    if (gross <= 0) {
+        ['salBasic','salHra','salConv','salTa','salMed','salSpecial','salBonus','salIncent',
+         'salPfEmp','salPfEr','salEsicEmp','salEsicEr','salPt','salTds','salNet','salGross','salCtc']
+            .forEach(function(id){ var el=document.getElementById(id); if(el) el.value=''; });
+        _hcpUpdateBanner(null, gross, cfg);
+        return;
+    }
+
+    // Check if HCP rules are enabled
+    if (cfg.hcp_enabled != 1) {
+        _hcpUpdateBanner({disabled:true}, gross, cfg);
+        return;
+    }
+
+    var empType = (document.getElementById('empTypeSelect') || {}).value || '';
+    var info    = _hcpGetCategory(empType, gross, cfg);
+    var basic, hra, conv, med, other, pfEmp, pfEr, esicEmp, esicEr, pt, bonus;
+
+    var HIGH_BASIC_PCT = cfg.hcp_high_basic_pct / 100;
+    var HRA_PCT        = cfg.hcp_hra_pct_of_basic / 100;
+    var CONV_PCT       = cfg.hcp_conv_pct_of_basic / 100;
+
+    if (info.highGross) {
+        // ── Plant & HO — Gross ≥ threshold ──
+        basic = Math.round(gross * HIGH_BASIC_PCT);
+        hra   = Math.round(basic * HRA_PCT);
+        conv  = Math.round(basic * CONV_PCT);
+        med   = cfg.hcp_medical_fixed;
+        other = Math.max(0, gross - (basic + hra + conv + med));
+        esicEmp = 0;
+        esicEr  = 0;
+    } else if (info.isPlant) {
+        // ── Plant — Gross < threshold ──
+        basic = cfg.hcp_low_basic_fixed;
+        hra   = Math.round(basic * HRA_PCT);
+        conv  = Math.round(basic * CONV_PCT);
+        med   = 0;
+        other = Math.max(0, gross - (basic + hra + conv + med));
+        esicEmp = 0;   // factory — ESIC never applicable
+        esicEr  = 0;
+    } else {
+        // ── HO — Gross < threshold ──
+        basic = cfg.hcp_low_basic_fixed;
+        var curHra = parseFloat((document.getElementById('salHra')||{}).value) || 0;
+        hra   = curHra > 0 ? curHra : Math.round(basic * HRA_PCT);
+        conv  = parseFloat((document.getElementById('salConv')||{}).value) || 0;
+        med   = parseFloat((document.getElementById('salMed') ||{}).value) || 0;
+        other = Math.max(0, gross - (basic + hra + conv + med));
+        if (gross <= cfg.hcp_esic_limit) {
+            esicEmp = Math.round(gross * cfg.hcp_esic_emp_pct) / 100;
+            esicEr  = Math.round(gross * cfg.hcp_esic_er_pct)  / 100;
+        } else {
+            esicEmp = 0;
+            esicEr  = 0;
+        }
+    }
+
+    pfEmp = Math.round(basic * cfg.hcp_pf_emp_pct / 100);
+    pfEr  = Math.round(basic * cfg.hcp_pf_er_pct  / 100);
+    pt    = gross >= cfg.hcp_pt_threshold ? cfg.hcp_pt_amount : 0;
+    bonus = Math.round(gross * cfg.hcp_bonus_pct / 100);
+
+    _hcpSetField('salBasic',    basic);
+    _hcpSetField('salHra',      hra);
+    _hcpSetField('salConv',     conv);
+    _hcpSetField('salTa',       0);
+    _hcpSetField('salMed',      med);
+    _hcpSetField('salSpecial',  other);
+    _hcpSetField('salBonus',    0);
+    _hcpSetField('salIncent',   0);
+    _hcpSetField('salPfEmp',    pfEmp);
+    _hcpSetField('salPfEr',     pfEr);
+    _hcpSetField('salEsicEmp',  esicEmp);
+    _hcpSetField('salEsicEr',   esicEr);
+    _hcpSetField('salPt',       pt);
+    _hcpSetField('salGross',    gross);
+
+    var tds = parseFloat((document.getElementById('salTds')||{}).value) || 0;
+    var deductions = pfEmp + esicEmp + pt + tds;
+    var net = Math.round(gross - deductions);
+    _hcpSetField('salNet', net);
+
+    var ctcAnnual = Math.round((gross + pfEr + esicEr + bonus) * 12);
+    _hcpSetField('salCtc', ctcAnnual);
+
+    _hcpUpdateBanner(info, gross, cfg);
+    if (typeof updateSalSummary === 'function') updateSalSummary(ctcAnnual, gross, deductions, net);
+}
+
+function _hcpUpdateBanner(info, gross, cfg) {
+    var el = document.getElementById('hcpPolicyText');
+    if (!el) return;
+    cfg = cfg || _hcpCfg || _hcpDefaultCfg();
+    if (!info || gross <= 0) {
+        el.textContent = 'Enter Gross Salary below — Basic, HRA, PF, ESIC etc. will auto-calculate as per company rules.';
+        return;
+    }
+    if (info.disabled) {
+        el.innerHTML = '⚠️ <b>HCP rules are DISABLED</b> in Salary Configuration. Enable them at <a href="/hr/salary-config/page" target="_blank" style="color:#1d4ed8;">Salary Config page</a>.';
+        return;
+    }
+    var threshK = (cfg.hcp_high_gross_thresh/1000)|0;
+    var esicK   = (cfg.hcp_esic_limit/1000)|0;
+    var msgs = {
+        plant_high: '🏭 <b>Plant — Gross ≥ '+threshK+'K</b>: Basic='+cfg.hcp_high_basic_pct+'% of Gross, HRA='+cfg.hcp_hra_pct_of_basic+'% of Basic, Conv='+cfg.hcp_conv_pct_of_basic+'% of Basic, Med=₹'+cfg.hcp_medical_fixed+' fixed, ESIC=0.',
+        plant_low:  '🏭 <b>Plant — Gross < '+threshK+'K</b>: Basic=₹'+cfg.hcp_low_basic_fixed+' FIXED. ESIC <b>NOT applicable</b> in factory.',
+        ho_high:    '🏢 <b>HO — Gross ≥ '+threshK+'K</b>: Basic='+cfg.hcp_high_basic_pct+'% of Gross, HRA='+cfg.hcp_hra_pct_of_basic+'%, Conv='+cfg.hcp_conv_pct_of_basic+'%, Med=₹'+cfg.hcp_medical_fixed+', ESIC=0.',
+        ho_low:     '🏢 <b>HO — Gross < '+threshK+'K</b>: Basic=₹'+cfg.hcp_low_basic_fixed+' FIXED. ' + (gross <= cfg.hcp_esic_limit ? '<b>ESIC applicable</b> ('+cfg.hcp_esic_emp_pct+'% emp + '+cfg.hcp_esic_er_pct+'% er).' : 'ESIC=0 (Gross > '+esicK+'K).')
+    };
+    el.innerHTML = msgs[info.category] || 'Salary rules applied.';
+}
+
+// Employee Type change handler
+function hcpOnEmpTypeChange() {
+    var gIn = document.getElementById('salGrossInput');
+    if (gIn && parseFloat(gIn.value) > 0) {
+        hcpAutoFromGross();
+    } else {
+        _hcpFetchCfg(function(cfg){
+            var empType = (document.getElementById('empTypeSelect') || {}).value || '';
+            var gross = parseFloat((gIn || {}).value) || 0;
+            _hcpUpdateBanner(_hcpGetCategory(empType, gross, cfg), gross, cfg);
+        });
+    }
+}
+
+// On load — pre-fetch config & set banner
+document.addEventListener('DOMContentLoaded', function(){
+    _hcpFetchCfg(function(cfg){
+        var gIn = document.getElementById('salGrossInput');
+        if (gIn && parseFloat(gIn.value) > 0) {
+            var empType = (document.getElementById('empTypeSelect') || {}).value || '';
+            var gross   = parseFloat(gIn.value) || 0;
+            _hcpUpdateBanner(_hcpGetCategory(empType, gross, cfg), gross, cfg);
+        }
+    });
+});
+
+
+function recalcNet(){var earnIds=['salBasic','salHra','salDa','salTa','salConv','salMed','salSpecial','salBonus','salIncent'];var earn=earnIds.reduce((s,id)=>{var el=document.getElementById(id);return s+(el?(parseFloat(el.value)||0):0);},0);var grossEl=document.getElementById('salGross');if(grossEl)grossEl.value=Math.round(earn);var deduct=['salPfEmp','salEsicEmp','salPt','salTds'].reduce((s,id)=>{var el=document.getElementById(id);return s+(el?(parseFloat(el.value)||0):0);},0);var net=Math.round(earn-deduct);document.getElementById('salNet').value=net;updateSalSummary(parseFloat(document.getElementById('salCtc').value)||0,earn,deduct,net);}
 function updateSalSummary(ctcA,gross,deduct,net){document.getElementById('salSummary').innerHTML='<div style="display:flex;flex-direction:column;gap:.4rem;font-size:.8rem;"><div style="display:flex;justify-content:space-between;padding:.3rem 0;border-bottom:1px solid #f1f5f9;"><span style="color:var(--text2);">CTC (Annual)</span><strong>₹'+Number(ctcA).toLocaleString('en-IN')+'</strong></div><div style="display:flex;justify-content:space-between;padding:.3rem 0;"><span style="color:var(--text2);">Gross Monthly</span><strong>₹'+Math.round(gross).toLocaleString('en-IN')+'</strong></div><div style="display:flex;justify-content:space-between;padding:.3rem 0;"><span style="color:#dc2626;">Total Deductions</span><strong style="color:#dc2626;">- ₹'+Math.round(deduct).toLocaleString('en-IN')+'</strong></div><div style="display:flex;justify-content:space-between;padding:.5rem .6rem;background:#dcfce7;border-radius:7px;margin-top:.2rem;"><span style="color:#16a34a;font-weight:800;">Net Take Home</span><strong style="color:#16a34a;font-size:1rem;">₹'+Math.round(net).toLocaleString('en-IN')+'</strong></div></div>';}
 var currentDocType='',docFiles=[];
 try{docFiles=JSON.parse(document.getElementById('documentsJson').value||'[]');}catch(e){docFiles=[];}
