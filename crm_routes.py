@@ -103,6 +103,36 @@ def get_team_users():
     return users
 
 
+def get_lead_team_users():
+    """Lead Add/Edit form ke Team Members dropdown ke liye:
+    Sirf Admin/Manager role + NPD + Management department wale users."""
+    from models.employee import Employee
+    # Admin/Manager role wale hamesha included
+    admin_users = User.query.filter(
+        User.is_active == True,
+        User.role.in_(['admin', 'manager'])
+    ).all()
+    admin_ids = {u.id for u in admin_users}
+
+    # Sirf NPD + Management department wale employees
+    dept_emps = Employee.query.filter(
+        Employee.is_deleted == False,
+        Employee.status == 'active',
+        db.or_(
+            Employee.department.ilike('%npd%'),
+            Employee.department.ilike('%management%')
+        )
+    ).all()
+    dept_user_ids = {e.user_id for e in dept_emps if e.user_id}
+
+    all_ids = admin_ids | dept_user_ids
+    if all_ids:
+        users = User.query.filter(User.id.in_(all_ids), User.is_active == True).order_by(User.full_name).all()
+    else:
+        users = admin_users
+    return users
+
+
 def add_contribution(lead_id, action_type, user_id=None, note=''):
     """Track contribution points for a user on a lead."""
     uid = user_id or (current_user.id if current_user.is_authenticated else None)
@@ -556,6 +586,24 @@ def leads():
     show_trash = request.args.get('trash', '') == '1'
     query = Lead.query.filter_by(is_deleted=True) if show_trash else Lead.query.filter_by(is_deleted=False)
 
+    # ── Role-based visibility ──
+    # Admin/Manager sab leads dekh sakte hain.
+    # Baaki users sirf wo leads jinme wo team_members me hain, assigned_to hain, ya jo unhone create ki hain.
+    _is_admin_mgr = current_user.role in ('admin', 'manager')
+    if not _is_admin_mgr:
+        _uid     = current_user.id
+        _uid_str = str(_uid)
+        query = query.filter(
+            db.or_(
+                Lead.assigned_to == _uid,
+                Lead.created_by  == _uid,
+                Lead.team_members.like(f'%,{_uid_str},%'),
+                Lead.team_members.like(f'{_uid_str},%'),
+                Lead.team_members.like(f'%,{_uid_str}'),
+                Lead.team_members == _uid_str,
+            )
+        )
+
     # ── Performance period filter ──
     if perf_period and not date_from and not date_to:
         from datetime import date as _date
@@ -654,14 +702,34 @@ def leads():
 
     all_leads = query.all()
 
-    # Dynamic counts — all statuses from DB
+    # ── Role-based visibility helper for counts ──
+    # Admin/Manager -> sab counts, baaki users -> sirf apne leads ke counts
+    def _apply_visibility(q):
+        if _is_admin_mgr:
+            return q
+        return q.filter(
+            db.or_(
+                Lead.assigned_to == current_user.id,
+                Lead.created_by  == current_user.id,
+                Lead.team_members.like(f'%,{current_user.id},%'),
+                Lead.team_members.like(f'{current_user.id},%'),
+                Lead.team_members.like(f'%,{current_user.id}'),
+                Lead.team_members == str(current_user.id),
+            )
+        )
+
+    # Dynamic counts — all statuses from DB (filtered by visibility)
     _all_statuses = LeadStatus.query.filter_by(is_active=True).order_by(LeadStatus.sort_order).all()
-    counts = {st.name: Lead.query.filter_by(status=st.name, is_deleted=False).count()
+    counts = {st.name: _apply_visibility(
+                  Lead.query.filter_by(status=st.name, is_deleted=False)
+              ).count()
               for st in _all_statuses}
     # Always include core statuses for backward compat
     for _s in ('open','in_process','close','cancel'):
-        counts.setdefault(_s, Lead.query.filter_by(status=_s, is_deleted=False).count())
-    deleted_count = Lead.query.filter_by(is_deleted=True).count()
+        counts.setdefault(_s, _apply_visibility(
+            Lead.query.filter_by(status=_s, is_deleted=False)
+        ).count())
+    deleted_count = _apply_visibility(Lead.query.filter_by(is_deleted=True)).count()
 
     # Filter options
     all_sources   = [r[0] for r in db.session.query(Lead.source).distinct().all() if r[0]]
@@ -1188,7 +1256,7 @@ def lead_add():
             return redirect(request.url)
 
     clients      = ClientMaster.query.filter_by(status='active').order_by(ClientMaster.contact_name).all()
-    all_users    = get_team_users()
+    all_users    = get_lead_team_users()
     lead_statuses  = LeadStatus.query.filter_by(is_active=True).order_by(LeadStatus.sort_order).all()
     lead_sources   = LeadSource.query.filter_by(is_active=True).order_by(LeadSource.sort_order).all()
     lead_categories= LeadCategory.query.filter_by(is_active=True).order_by(LeadCategory.sort_order).all()
@@ -1261,7 +1329,7 @@ def lead_edit(id):
             return redirect(request.url)
 
     clients        = ClientMaster.query.filter_by(status='active').order_by(ClientMaster.contact_name).all()
-    all_users      = get_team_users()
+    all_users      = get_lead_team_users()
     lead_statuses  = LeadStatus.query.filter_by(is_active=True).order_by(LeadStatus.sort_order).all()
     lead_sources   = LeadSource.query.filter_by(is_active=True).order_by(LeadSource.sort_order).all()
     lead_categories= LeadCategory.query.filter_by(is_active=True).order_by(LeadCategory.sort_order).all()

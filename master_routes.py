@@ -77,9 +77,15 @@ def add(mtype):
     if Model.query.filter_by(name=name).first():
         flash(f'"{name}" already exists','warning')
         return redirect(url_for('masters.index'))
+    # Icon: user-provided, else model column's default (e.g. 🔵 / 📌 / 🏷️ / 📦)
+    _icon = request.form.get('icon', '').strip()
+    if not _icon:
+        _col = getattr(Model, 'icon', None)
+        _default = getattr(getattr(_col, 'default', None), 'arg', '') if _col is not None else ''
+        _icon = _default or ''
     obj = Model(
         name       = name,
-        icon       = request.form.get('icon','').strip() or obj.__class__.__dict__.get('icon',''),
+        icon       = _icon,
         sort_order = int(request.form.get('sort_order', 0) or 0),
         is_active  = 'is_active' in request.form,
     )
