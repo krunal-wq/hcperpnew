@@ -344,11 +344,11 @@
                     {% endif %}
                     <div style="border-top:1px solid #f1f5f9;margin:2px 0;"></div>
 
-                    {# Hidden POST forms — submitted by custom modal #}
+                    {# Hidden POST forms — kept for backward compatibility (legacy convert-lead endpoint) #}
                     <form id="form-npd-convert" method="POST" action="/npd/convert-lead/{{ lead.id }}/npd"></form>
                     <form id="form-epd-convert" method="POST" action="/npd/convert-lead/{{ lead.id }}/existing"></form>
 
-                    {# ── NPD Button ── #}
+                    {# ── NPD Button → new gate flow (GET /npd/start/<lead_id>/npd) ── #}
                     {% if sub_perms.create_npd %}
                     <button type="button"
                         onclick="openConvertModal('npd', {% if lead.client_id %}true{% else %}false{% endif %}); toggleLeadMenu();"
@@ -357,22 +357,22 @@
                         <span>
                             NPD Project
                             <span style="display:block;font-size:0.72rem;color:#9ca3af;font-weight:400;">
-                                {% if lead.client_id %}Client linked → Client View{% else %}Status → NPD Project{% endif %}
+                                {% if lead.client_id %}Client linked → Project Form{% else %}Create Client → Project Form{% endif %}
                             </span>
                         </span>
                     </button>
                     {% endif %}
 
-                    {# ── EPD Button ── #}
+                    {# ── EPD Button → new gate flow (GET /npd/start/<lead_id>/epd) ── #}
                     {% if sub_perms.create_epd %}
                     <button type="button"
-                        onclick="openConvertModal('existing', {% if lead.client_id %}true{% else %}false{% endif %}); toggleLeadMenu();"
+                        onclick="openConvertModal('epd', {% if lead.client_id %}true{% else %}false{% endif %}); toggleLeadMenu();"
                         style="width:100%;display:flex;align-items:center;gap:10px;padding:10px 14px;font-size:0.85rem;color:#059669;background:none;border:none;cursor:pointer;text-align:left;transition:background .12s;font-weight:600;">
                         <span style="width:20px;text-align:center;">📦</span>
                         <span>
                             EPD Project
                             <span style="display:block;font-size:0.72rem;color:#9ca3af;font-weight:400;">
-                                {% if lead.client_id %}Client linked → Client View{% else %}Status → Existing Project{% endif %}
+                                {% if lead.client_id %}Client linked → Project Form{% else %}Create Client → Project Form{% endif %}
                             </span>
                         </span>
                     </button>
@@ -572,7 +572,8 @@
                             <div id="filePreview" class="file-preview-wrap" style="display:none;"></div>
 
                             <div style="display:flex;justify-content:flex-end;margin-top:0.65rem;">
-                                <button type="submit" class="btn-primary" style="font-size:0.83rem;padding:7px 20px;">💬 Post Comment</button>
+                                <button type="submit" id="postCommentBtn" class="btn-primary" style="font-size:0.83rem;padding:7px 20px;"
+                                        onmousedown="event.preventDefault(); var ed=document.getElementById('rte-main-ed'); var h=document.getElementById('commentBoxHidden'); if(ed&&h){h.value=ed.innerHTML;} if(this.disabled)return; this.disabled=true; this.style.opacity='0.6'; document.getElementById('discussionForm').submit();">💬 Post Comment</button>
                             </div>
                         </div>
                     </div>
@@ -935,10 +936,13 @@
 
 
 <script>
-var _convertType = 'npd';
+var _convertType = 'npd';          // 'npd' | 'epd'
+var _convertHasClient = false;     // lead.client_id ? true : false
+var _leadId = {{ lead.id }};
 
 function openConvertModal(type, hasClient) {
-    _convertType = type;
+    _convertType       = type;
+    _convertHasClient  = !!hasClient;
     var modal = document.getElementById('convertModal');
     var icon  = document.getElementById('convertModalIcon');
     var title = document.getElementById('convertModalTitle');
@@ -950,6 +954,9 @@ function openConvertModal(type, hasClient) {
     var btnTx = document.getElementById('convertModalBtnText');
     var hdr   = document.getElementById('convertModalHeader');
 
+    // Reset button state (in case it was left in "Creating..." from a prior open)
+    btn.disabled = false;
+
     if (type === 'npd') {
         icon.textContent  = '🧪';
         icon.style.background = '#f3e8ff';
@@ -958,18 +965,23 @@ function openConvertModal(type, hasClient) {
         hdr.style.borderBottom = '1px solid #f3e8ff';
         btn.style.background   = '#7c3aed';
         btnIc.textContent = '🧪';
-        btnTx.textContent = 'Create NPD Project';
+        btnTx.textContent = hasClient ? 'Open NPD Project Form' : 'Create Client First';
+
         body.innerHTML = hasClient
-            ? 'Is lead ka <strong>client pehle se linked hai</strong>. NPD Project create hoga aur aap <strong>Client View</strong> pe redirect honge.'
-            : 'Is lead ke liye ek naya <strong>NPD (New Product Development) Project</strong> create hoga.';
-        steps.innerHTML = [
-            '✅ Lead status → <strong style="color:#7c3aed;">NPD Project</strong>',
-            '✅ NPD Project create hoga with lead details',
-            '✅ Default milestones attach honge',
-            hasClient
-              ? '✅ Client view open hoga (client already linked)'
-              : '✅ NPD Project view pe redirect hoga'
-        ].map(s => `<div style="font-size:.82rem;color:#374151;display:flex;align-items:flex-start;gap:.4rem;"><span style="margin-top:1px;">${s}</span></div>`).join('');
+            ? '✅ <strong>Client already linked</strong> to this lead. Aap seedha <strong>NPD Project Creation Form</strong> par redirect ho jayenge — client & lead details auto-filled honge.'
+            : '⚠️ Is lead ka <strong>koi client mapped nahi hai</strong>. Pehle <strong>Client Creation Form</strong> khulega — details pre-filled milenge. Save karte hi <strong>NPD Project Form</strong> par redirect ho jayenge.';
+
+        steps.innerHTML = hasClient ? [
+            '✅ Client mapping verified',
+            '✅ NPD Project Form opens with Client ID, Client Name, Lead ID pre-filled',
+            '✅ You review/edit details and click Save',
+            '✅ Project will be linked to the existing client'
+        ].map(stepHtml).join('') : [
+            '1️⃣  Client Creation Form opens (pre-filled from lead)',
+            '2️⃣  On Save — client auto-maps to this lead',
+            '3️⃣  NPD Project Form opens (Client ID, Name, Lead ID auto-filled)',
+            '4️⃣  Review & Save → Project created with linked client'
+        ].map(stepHtml).join('');
     } else {
         icon.textContent  = '📦';
         icon.style.background = '#d1fae5';
@@ -978,21 +990,30 @@ function openConvertModal(type, hasClient) {
         hdr.style.borderBottom = '1px solid #d1fae5';
         btn.style.background   = '#059669';
         btnIc.textContent = '📦';
-        btnTx.textContent = 'Create EPD Project';
+        btnTx.textContent = hasClient ? 'Open EPD Project Form' : 'Create Client First';
+
         body.innerHTML = hasClient
-            ? 'Is lead ka <strong>client pehle se linked hai</strong>. EPD Project create hoga aur aap <strong>Client View</strong> pe redirect honge.'
-            : 'Is lead ke liye ek naya <strong>EPD (Existing Product) Project</strong> create hoga.';
-        steps.innerHTML = [
-            '✅ Lead status → <strong style="color:#059669;">Existing Project</strong>',
-            '✅ EPD Project create hoga with lead details',
-            '✅ Default milestones attach honge',
-            hasClient
-              ? '✅ Client view open hoga (client already linked)'
-              : '✅ EPD Project view pe redirect hoga'
-        ].map(s => `<div style="font-size:.82rem;color:#374151;display:flex;align-items:flex-start;gap:.4rem;"><span style="margin-top:1px;">${s}</span></div>`).join('');
+            ? '✅ <strong>Client already linked</strong> to this lead. Aap seedha <strong>EPD Project Creation Form</strong> par redirect ho jayenge — client & lead details auto-filled honge.'
+            : '⚠️ Is lead ka <strong>koi client mapped nahi hai</strong>. Pehle <strong>Client Creation Form</strong> khulega — details pre-filled milenge. Save karte hi <strong>EPD Project Form</strong> par redirect ho jayenge.';
+
+        steps.innerHTML = hasClient ? [
+            '✅ Client mapping verified',
+            '✅ EPD Project Form opens with Client ID, Client Name, Lead ID pre-filled',
+            '✅ You review/edit details and click Save',
+            '✅ Project will be linked to the existing client'
+        ].map(stepHtml).join('') : [
+            '1️⃣  Client Creation Form opens (pre-filled from lead)',
+            '2️⃣  On Save — client auto-maps to this lead',
+            '3️⃣  EPD Project Form opens (Client ID, Name, Lead ID auto-filled)',
+            '4️⃣  Review & Save → Project created with linked client'
+        ].map(stepHtml).join('');
     }
 
     modal.style.display = 'flex';
+}
+
+function stepHtml(s) {
+    return '<div style="font-size:.82rem;color:#374151;display:flex;align-items:flex-start;gap:.4rem;"><span style="margin-top:1px;">' + s + '</span></div>';
 }
 
 function closeConvertModal() {
@@ -1000,12 +1021,26 @@ function closeConvertModal() {
 }
 
 function submitConvertForm() {
-    var formId = _convertType === 'npd' ? 'form-npd-convert' : 'form-epd-convert';
-    // Show loading state
-    var btn = document.getElementById('convertModalConfirmBtn');
+    // ── New gate flow: simple GET to /npd/start/<lead_id>/<npd|epd>
+    //    Backend decides whether to show client form first or project form directly.
+    var btn   = document.getElementById('convertModalConfirmBtn');
+    var btnTx = document.getElementById('convertModalBtnText');
+
+    // Loader state
     btn.disabled = true;
-    btn.innerHTML = '<span style="opacity:.7;">Creating...</span>';
-    document.getElementById(formId).submit();
+    btnTx.innerHTML = '<span style="opacity:.85;">⏳ Checking client mapping…</span>';
+
+    // Friendly intermediate message (optional enhancement from spec)
+    var body = document.getElementById('convertModalBody');
+    body.innerHTML = _convertHasClient
+        ? '<div style="color:#065f46;font-weight:600;">✅ Client already exists. Redirecting to project creation…</div>'
+        : '<div style="color:#92400e;font-weight:600;">ℹ️ No client found. Opening client creation form first…</div>';
+
+    // Small delay so the user actually sees the status change, then navigate.
+    setTimeout(function () {
+        var pt = (_convertType === 'npd') ? 'npd' : 'epd';
+        window.location.href = '/npd/start/' + _leadId + '/' + pt;
+    }, 350);
 }
 
 // Close on backdrop click

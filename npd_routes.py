@@ -138,7 +138,77 @@ def log_npd(project_id, action, user_id=None):
 
 
 def get_users():
-    return User.query.filter_by(is_active=True).order_by(User.full_name).all()
+    """Sirf NPD + Management department + admin/manager role wale users.
+    Yeh function NPD project form ke 'Assign Members' dropdown me use hota hai.
+    """
+    from models.employee import Employee
+    # Admin/Manager role wale hamesha included
+    admin_users = User.query.filter(
+        User.is_active == True,
+        User.role.in_(['admin', 'manager'])
+    ).all()
+    admin_ids = {u.id for u in admin_users}
+
+    # Sirf NPD + Management department wale employees
+    dept_emps = Employee.query.filter(
+        Employee.is_deleted == False,
+        Employee.status == 'active',
+        db.or_(
+            Employee.department.ilike('%npd%'),
+            Employee.department.ilike('%management%')
+        )
+    ).all()
+    dept_user_ids = {e.user_id for e in dept_emps if e.user_id}
+
+    all_ids = admin_ids | dept_user_ids
+    if all_ids:
+        return User.query.filter(
+            User.id.in_(all_ids), User.is_active == True
+        ).order_by(User.full_name).all()
+    return admin_users
+
+
+def get_npd_team_employees():
+    """Sirf NPD + Management department wale active employees — NPD form ke
+    'Assign Members' dropdown me yeh use hote hain.
+    Admin/Manager role wale User se linked Employee bhi include hote hain.
+    """
+    from models.employee import Employee
+    # Admin/Manager role users
+    admin_users = User.query.filter(
+        User.is_active == True,
+        User.role.in_(['admin', 'manager'])
+    ).all()
+    admin_user_ids = [u.id for u in admin_users]
+
+    # Department-based employees (NPD + Management)
+    dept_emps = Employee.query.filter(
+        Employee.is_deleted == False,
+        db.or_(
+            Employee.department.ilike('%npd%'),
+            Employee.department.ilike('%management%')
+        )
+    ).all()
+
+    # Admin/Manager ke linked employees (department chahe jo bhi ho)
+    admin_emps = []
+    if admin_user_ids:
+        admin_emps = Employee.query.filter(
+            Employee.is_deleted == False,
+            Employee.user_id.in_(admin_user_ids)
+        ).all()
+
+    # Merge (dedupe by Employee.id)
+    seen = set()
+    merged = []
+    for e in list(dept_emps) + list(admin_emps):
+        if e.id in seen:
+            continue
+        seen.add(e.id)
+        merged.append(e)
+    # Sort by first_name
+    merged.sort(key=lambda e: (e.first_name or '').lower())
+    return merged
 
 
 # ══════════════════════════════════════════════════════════════
@@ -815,7 +885,8 @@ def edit_project(pid):
     from models.master import NPDStatus, CategoryMaster
     from models.client import ClientMaster
     categories = CategoryMaster.query.filter_by(status=True, is_deleted=False).order_by(CategoryMaster.name).all()
-    employees = Employee.query.filter_by(is_deleted=False).order_by(Employee.first_name).all()
+    # Sirf NPD + Management team ke employees (Assign Members dropdown ke liye)
+    employees = get_npd_team_employees()
     rd_employees = Employee.query.filter(
         Employee.is_deleted==False,
         db.or_(
@@ -1637,7 +1708,82 @@ def api_lead_info(lid):
 
 
 # ══════════════════════════════════════════════════════════════
-# CONVERT LEAD → NPD/EPD PROJECT (Direct — No Form)
+# START NPD/EPD PROJECT FROM LEAD (Gate — Check Client Mapping)
+# Lead view → "NPD Project" / "EPD Project" button click hone pe yahan aata hai.
+#
+# Flow:
+#   1. Lead fetch karo, client mapping check karo
+#   2. IF lead.client_id exists:
+#        → Seedha NPD/EPD Project Creation Form open karo
+#        → Client ID, Client Name, Lead ID auto-fill honge
+#   3. IF lead.client_id NOT exists:
+#        → Pehle Client Creation Form open karo (prefilled from lead)
+#        → Client save hone ke baad:
+#            - Client auto-map to lead
+#            - Redirect to NPD/EPD Project Creation Form (prefilled)
+#
+# Validation:
+#   - Project creation not allowed without client (enforced in npd_new/epd_new POST)
+#   - Duplicate client creation prevented (existing client → form direct khulta hai)
+# ══════════════════════════════════════════════════════════════
+
+@npd.route('/start/<int:lead_id>/<project_type>', methods=['GET'])
+@login_required
+def start_from_lead(lead_id, project_type):
+    """
+    Gate route — Lead view se NPD/EPD click hone pe client mapping check karta hai
+    aur appropriate form par redirect karta hai.
+
+    project_type: 'npd' or 'epd' (UI-friendly) — maps to 'npd' / 'existing' internally
+    """
+    from models import Lead
+
+    # Normalize project_type — UI says 'epd', internal schema uses 'existing'
+    if project_type in ('epd', 'existing'):
+        pt_ui       = 'epd'
+        form_route  = 'npd.epd_new'
+    elif project_type == 'npd':
+        pt_ui       = 'npd'
+        form_route  = 'npd.npd_new'
+    else:
+        flash('Invalid project type', 'error')
+        return redirect(url_for('crm.lead_view', id=lead_id))
+
+    lead = Lead.query.get_or_404(lead_id)
+
+    # ── Case 1: Client already mapped → straight to Project Creation Form ──
+    if lead.client_id:
+        flash(
+            f'✅ Client already linked to this lead. Redirecting to '
+            f'{pt_ui.upper()} Project creation form…',
+            'info'
+        )
+        return redirect(url_for(form_route,
+            lead_id   = lead.id,
+            client_id = lead.client_id,
+        ))
+
+    # ── Case 2: No client mapped → Client Creation Form first ──
+    flash(
+        f'ℹ️ No client linked to this lead yet. Please create the client first — '
+        f'after saving, you\'ll be redirected to the {pt_ui.upper()} Project form.',
+        'info'
+    )
+    return redirect(url_for('crm.client_add',
+        lead_id      = lead.id,
+        next_action  = pt_ui,          # <- tells client_add where to send us after save
+        contact_name = lead.contact_name or '',
+        company_name = lead.company_name or '',
+        email        = lead.email or '',
+        mobile       = lead.phone or '',
+        city         = lead.city or '',
+        state        = lead.state or '',
+    ))
+
+
+# ══════════════════════════════════════════════════════════════
+# CONVERT LEAD → NPD/EPD PROJECT (Direct — No Form)  [LEGACY]
+# Kept for backward compatibility. New flow uses /start/<lead_id>/<type>.
 # Lead se seedha project create karo, status update karo
 # ══════════════════════════════════════════════════════════════
 
@@ -2286,6 +2432,12 @@ def npd_new():
                                    users=users, leads=leads, prefill_lead=prefill_lead,
                                    prefill_url=prefill_url, edit=None)
 
+        # ── Business rule: project cannot be created without a client ──
+        _client_id_raw = request.form.get('client_id', '').strip()
+        if not _client_id_raw:
+            flash('A client is required to create an NPD Project. Please select or create a client first.', 'error')
+            return redirect(url_for('npd.npd_new', lead_id=request.form.get('lead_id') or ''))
+
         g = request.form.get  # shorthand
         proj = NPDProject(
             code=gen_npd_code(), project_type='npd',
@@ -2365,7 +2517,8 @@ def npd_new():
         from models.master import NPDStatus, CategoryMaster
         from models.client import ClientMaster
         categories = CategoryMaster.query.filter_by(status=True, is_deleted=False).order_by(CategoryMaster.name).all()
-        employees = Employee.query.filter_by(is_deleted=False).order_by(Employee.first_name).all()
+        # Sirf NPD + Management team ke employees (Assign Members dropdown ke liye)
+        employees = get_npd_team_employees()
         rd_employees = Employee.query.filter(
             Employee.is_deleted==False,
             db.or_(
@@ -2497,6 +2650,12 @@ def epd_new():
                                    users=users, leads=leads, prefill_lead=prefill_lead,
                                    prefill_url=prefill_url, edit=None)
 
+        # ── Business rule: project cannot be created without a client ──
+        _client_id_raw = request.form.get('client_id', '').strip()
+        if not _client_id_raw:
+            flash('A client is required to create an EPD Project. Please select or create a client first.', 'error')
+            return redirect(url_for('npd.epd_new', lead_id=request.form.get('lead_id') or ''))
+
         proj = NPDProject(
             code=gen_npd_code(), project_type='existing', status='not_started',
             product_name=product_name,
@@ -2515,6 +2674,11 @@ def epd_new():
             milestone_master_created=True,
             created_by=current_user.id,
         )
+        # Attach client_id FK so project is linked to a real ClientMaster row
+        try:
+            proj.client_id = int(_client_id_raw)
+        except (ValueError, TypeError):
+            pass
         db.session.add(proj)
         db.session.flush()
 

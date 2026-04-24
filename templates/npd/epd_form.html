@@ -88,10 +88,16 @@
 <!-- Client Info -->
 <div class="form-card">
     <div class="form-section-title">👤 Client Information</div>
+    {% if prefill_url and prefill_url.client_id %}
+    <div style="background:#ecfdf5;border:1px solid #a7f3d0;border-radius:10px;padding:.7rem .9rem;margin-bottom:.9rem;font-size:.82rem;color:#065f46;display:flex;align-items:center;gap:.5rem;">
+        🔗 <span>Client <strong>{{ prefill_url.client_name }}</strong>{% if prefill_url.client_company %} ({{ prefill_url.client_company }}){% endif %} is linked to this project from the lead.</span>
+    </div>
+    {% endif %}
+    <input type="hidden" name="client_id" value="{{ edit.client_id if edit else (prefill_url.client_id if prefill_url and prefill_url.client_id else '') }}">
     <div class="form-grid">
         <div class="form-group">
             <label>Client Name</label>
-            <input type="text" name="client_name" value="{{ edit.client_name if edit else ((prefill_url.client_name if prefill_url and prefill_url.client_name else '') or (prefill_lead.contact_name if prefill_lead else '')) }}" placeholder="Contact person">
+            <input type="text" name="client_name" value="{{ edit.client_name if edit else ((prefill_url.client_name if prefill_url and prefill_url.client_name else '') or (prefill_lead.contact_name if prefill_lead else '')) }}" placeholder="Contact person"{% if prefill_url and prefill_url.client_id %} readonly{% endif %}>
         </div>
         <div class="form-group">
             <label>Company</label>

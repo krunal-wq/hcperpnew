@@ -399,16 +399,33 @@ def client_add():
 
         db.session.commit()
         is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+
+        # ── Gate-flow redirect: if started from Lead view (next_action=npd|epd),
+        #    send user to NPD/EPD Project creation form with client+lead prefilled ──
+        _next_action = (request.form.get('next_action') or request.args.get('next_action') or '').strip().lower()
+        if _next_action in ('npd', 'epd') and lead_id_link:
+            if is_ajax:
+                _target = url_for('npd.npd_new', lead_id=lead_id_link, client_id=c.id) if _next_action == 'npd' \
+                          else url_for('npd.epd_new', lead_id=lead_id_link, client_id=c.id)
+                return jsonify(success=True,
+                               message=f'✅ Client created & linked. Redirecting to {_next_action.upper()} Project form…',
+                               redirect=_target)
+            flash(f'✅ Client {c.contact_name} created & linked to lead. Now fill in {_next_action.upper()} Project details.', 'success')
+            if _next_action == 'npd':
+                return redirect(url_for('npd.npd_new', lead_id=lead_id_link, client_id=c.id))
+            else:
+                return redirect(url_for('npd.epd_new', lead_id=lead_id_link, client_id=c.id))
+
         if is_ajax:
             return jsonify(success=True, message=f'Client {c.contact_name} added! (Code: {c.code})', redirect=url_for('crm.clients'))
         flash(f'Client {c.contact_name} added! (Code: {c.code})', 'success')
 
-        # If came from NPD convert flow → go to client view
+        # If came from NPD convert flow (legacy) → go to client view
         if proj_id_link:
             return redirect(url_for('crm.client_view', id=c.id))
         return redirect(url_for('crm.clients'))
 
-    # Pre-fill from URL params (when coming from NPD convert flow)
+    # Pre-fill from URL params (when coming from NPD convert flow or NPD/EPD gate flow)
     _prefill = {
         'contact_name': request.args.get('contact_name', ''),
         'company_name': request.args.get('company_name', ''),
@@ -418,8 +435,9 @@ def client_add():
         'state':        request.args.get('state', ''),
         'lead_id_link': request.args.get('lead_id', ''),
         'proj_id_link': request.args.get('proj_id', ''),
+        'next_action':  request.args.get('next_action', ''),   # 'npd' | 'epd' | ''
     }
-    _from_npd = bool(request.args.get('proj_id'))
+    _from_npd = bool(request.args.get('proj_id')) or _prefill['next_action'] in ('npd', 'epd')
     return render_template('crm/clients/client_form.html',
         client=None, brands=[], active_page='clients',
         prefill=_prefill, from_npd=_from_npd)

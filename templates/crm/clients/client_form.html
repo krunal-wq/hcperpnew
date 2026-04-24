@@ -130,8 +130,16 @@
 <div style="background:linear-gradient(135deg,#7c3aed11,#059669011);border:1.5px solid #7c3aed33;border-radius:14px;padding:.9rem 1.2rem;margin-bottom:1.1rem;display:flex;align-items:center;gap:.75rem;">
     <span style="font-size:1.5rem;">🔗</span>
     <div>
+        {% if prefill and prefill.next_action == 'npd' %}
+        <div style="font-weight:800;font-size:.9rem;color:#3b0764;">Step 1 of 2 — Create Client for NPD Project</div>
+        <div style="font-size:.78rem;color:#6b21a8;margin-top:2px;">No client linked to this lead yet. Fill in the details below (pre-filled from the lead) and save. You'll be redirected to the <strong>NPD Project creation form</strong> automatically.</div>
+        {% elif prefill and prefill.next_action == 'epd' %}
+        <div style="font-weight:800;font-size:.9rem;color:#064e3b;">Step 1 of 2 — Create Client for EPD Project</div>
+        <div style="font-size:.78rem;color:#065f46;margin-top:2px;">No client linked to this lead yet. Fill in the details below (pre-filled from the lead) and save. You'll be redirected to the <strong>EPD Project creation form</strong> automatically.</div>
+        {% else %}
         <div style="font-weight:800;font-size:.9rem;color:#3b0764;">NPD/EPD Project se client create ho raha hai</div>
         <div style="font-size:.78rem;color:#6b21a8;margin-top:2px;">Details pre-filled hain — verify karke Save karo. Client create hone ke baad automatically lead se link ho jayega.</div>
+        {% endif %}
     </div>
 </div>
 {% endif %}
@@ -443,6 +451,9 @@
     {% endif %}
     {% if prefill and prefill.proj_id_link %}
     <input type="hidden" name="proj_id_link" value="{{ prefill.proj_id_link }}">
+    {% endif %}
+    {% if prefill and prefill.next_action %}
+    <input type="hidden" name="next_action" value="{{ prefill.next_action }}">
     {% endif %}
 </form>
 </div>
