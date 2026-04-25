@@ -62,9 +62,18 @@ PROJECT_SCOPED_ROLES = {'rd_executive', 'sales', 'lead', 'team_lead', 'hr', 'npd
 # Everyone else → employee bucket (own rows only, on own projects)
 
 
-def _user_bucket(role: str) -> str:
-    """Return one of: 'full' | 'project' | 'employee'."""
-    r = (role or '').lower()
+def _user_bucket(role_or_user) -> str:
+    """Return one of: 'full' | 'project' | 'employee'.
+
+    Accepts either a role string (legacy) or a User object.
+    Manager = User.role in FULL_ACCESS_ROLES. No designation magic.
+    """
+    # Get role string from either input type
+    if isinstance(role_or_user, str) or role_or_user is None:
+        r = (role_or_user or '').lower()
+    else:
+        r = (getattr(role_or_user, 'role', '') or '').lower()
+
     if r in FULL_ACCESS_ROLES:
         return 'full'
     if r in PROJECT_SCOPED_ROLES:
@@ -82,7 +91,7 @@ def get_accessible_project_ids(user) -> list[int] | None:
     Returns None (meaning NO filter — see everything) for full-access roles.
     Returns [] if the user has no assignments (→ empty page).
     """
-    if _user_bucket(user.role) == 'full':
+    if _user_bucket(user) == 'full':
         return None
 
     uid = user.id
@@ -139,7 +148,7 @@ def index():
                 message='You do not have access to R&D Sample Log.'
             ), 403
 
-    bucket = _user_bucket(current_user.role)
+    bucket = _user_bucket(current_user)
     accessible_pids = get_accessible_project_ids(current_user)
 
     # ── Build the sample-log query ──
@@ -273,7 +282,7 @@ def index():
 @login_required
 def api_list():
     """Return the same filtered list as JSON."""
-    bucket = _user_bucket(current_user.role)
+    bucket = _user_bucket(current_user)
     accessible_pids = get_accessible_project_ids(current_user)
 
     q = RDSubAssignment.query.filter(RDSubAssignment.is_active == True)
@@ -331,7 +340,7 @@ def api_debug():
     if current_user.role not in ('admin', 'manager'):
         return jsonify({'ok': False, 'error': 'Admin access required'}), 403
 
-    bucket = _user_bucket(current_user.role)
+    bucket = _user_bucket(current_user)
     accessible_pids = get_accessible_project_ids(current_user)
 
     # All projects where the user is referenced somewhere
@@ -601,7 +610,7 @@ def api_save_sample_codes():
         }), 404
 
     # Access control — employees can only save their OWN rows
-    bucket = _user_bucket(current_user.role)
+    bucket = _user_bucket(current_user)
     if bucket == 'employee':
         bad = [i for i, r in rows_by_id.items() if r.user_id != current_user.id]
         if bad:
@@ -663,7 +672,7 @@ def api_save_sample_codes():
 
 def _apply_scope(q, user):
     """Re-usable project-scope filter — mirror of the logic in index()."""
-    bucket = _user_bucket(user.role)
+    bucket = _user_bucket(user)
     accessible_pids = get_accessible_project_ids(user)
     if accessible_pids is not None:
         if not accessible_pids:
@@ -744,7 +753,7 @@ def api_send_to_office():
     if missing:
         return jsonify({'ok': False, 'error': 'Row(s) not found: {}'.format(missing)}), 404
 
-    bucket = _user_bucket(current_user.role)
+    bucket = _user_bucket(current_user)
     if bucket == 'employee':
         bad = [i for i, r in rows_by_id.items() if r.user_id != current_user.id]
         if bad:
@@ -829,6 +838,24 @@ def api_send_to_office():
 
         saved.append({'id': r['id'], 'codes': combined})
 
+    # Flush sub-assignment changes so the recompute sees them
+    db.session.flush()
+
+    # ─────────────────────────────────────────────────────────────
+    # Aggregate project status after dispatch.
+    # Per spec: "When all employees send their completed samples to
+    # office → Status should change to Sent to Office".
+    # `_recompute_project_status` checks if ALL active subs of each
+    # affected project are now sent_to_office and updates accordingly.
+    # ─────────────────────────────────────────────────────────────
+    affected_pids = {row.project_id for row in rows_by_id.values()}
+    try:
+        from rd_routes import _recompute_project_status
+        for _pid in affected_pids:
+            _recompute_project_status(_pid)
+    except Exception:
+        import traceback; traceback.print_exc()
+
     db.session.commit()
 
     return jsonify({
@@ -857,7 +884,7 @@ def api_revert(row_id):
         return jsonify({'ok': False, 'error': 'Row not found.'}), 404
 
     # Permission check
-    bucket = _user_bucket(current_user.role)
+    bucket = _user_bucket(current_user)
     if bucket == 'employee' and row.user_id != current_user.id:
         return jsonify({'ok': False, 'error': 'Permission denied.'}), 403
 
@@ -889,6 +916,17 @@ def api_revert(row_id):
             tok = OfficeDispatchToken.query.get(tid)
             if tok:
                 db.session.delete(tok)
+
+    db.session.flush()
+
+    # Re-aggregate project status — when this row reverts, project may go
+    # back from 'sent_to_office' / 'approved_by_office' / 'rejected_by_office'
+    # to 'sample_ready' (since not all subs are dispatched anymore).
+    try:
+        from rd_routes import _recompute_project_status
+        _recompute_project_status(row.project_id)
+    except Exception:
+        import traceback; traceback.print_exc()
 
     db.session.commit()
 
@@ -949,7 +987,7 @@ def api_diagnose():
     sample log. No permission gate so every user can self-diagnose.
     """
     uid    = current_user.id
-    bucket = _user_bucket(current_user.role)
+    bucket = _user_bucket(current_user)
     accessible_pids = get_accessible_project_ids(current_user)
 
     # Raw totals (no scoping)
@@ -1054,7 +1092,7 @@ def api_activate():
     """
     scope = (request.args.get('scope') or 'mine').lower()
     if scope == 'all':
-        if _user_bucket(current_user.role) != 'full':
+        if _user_bucket(current_user) != 'full':
             return jsonify({
                 'ok': False,
                 'error': 'scope=all requires admin/manager role.'

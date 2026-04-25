@@ -101,6 +101,50 @@ HCP Wellness Private Limited</p>
 SAMPLE_ORDER_DEFAULT_SUBJECT = "{company} - Sample Order #{order_number}"
 
 
+# ── Default Sample Dispatch (to client) Email template ──
+# Used by Client Dispatch module — sends approved samples to client with
+# tracking details. Variables available at render time:
+#   {client_name}, {company}, {project_code}, {product_name}
+#   {tracking_no}, {courier_name}, {tracking_line}
+#   {sample_lines_html}        ← <li>code – product</li>... bullet list
+#   {sender_name}, {extra_notes}
+SAMPLE_DISPATCH_DEFAULT_SUBJECT = "Sample Dispatch Details – {project_code}"
+
+SAMPLE_DISPATCH_DEFAULT_BODY = """<div style="font-family:Arial,sans-serif;font-size:14px;color:#333;line-height:1.6;">
+
+<p>Dear <b>{client_name}</b>,</p>
+
+<p>Greetings from HCP Wellness.</p>
+
+<p>We have dispatched the samples for the above-mentioned project.
+Please find the tracking details below:</p>
+
+<p style="margin:14px 0;">
+  <b>Tracking Details:</b> {tracking_line}
+</p>
+
+<p>We request you to kindly acknowledge receipt of the samples upon
+delivery and share your feedback at the earliest to help us proceed
+further.</p>
+
+<p>Looking forward to your response.</p>
+
+<ul style="margin:14px 0;padding-left:24px;">
+  {sample_lines_html}
+</ul>
+
+{extra_notes_block}
+
+<p style="margin-top:24px;"><b>Warm Regards,</b><br/>
+<b>{sender_name}</b><br/>
+<b>HCP Wellness Pvt. Ltd.</b></p>
+
+<hr style="border:none;border-top:1px solid #ccc;margin:16px 0;">
+<span style="font-size:11px;color:#cc0000;"><b>IMPORTANT NOTICE:</b> This email and any attachments may contain information that is confidential and privileged. It is intended to be received only by persons entitled to receive the information. If you are not the intended recipient, please delete it from your system and notify the sender. You should not copy it or use it for any purpose nor disclose or distribute its contents to any other person.</span>
+
+</div>"""
+
+
 # ── Default Quotation Email template ──
 QUOTATION_DEFAULT_SUBJECT = "Final Quote for {company} - {quot_number}"
 
@@ -172,6 +216,84 @@ def _get_or_create_sample_order_template():
         t.subject = SAMPLE_ORDER_DEFAULT_SUBJECT
         db.session.commit()
     return t
+
+
+def _get_or_create_sample_dispatch_template():
+    """Get Sample Dispatch (to client) template — created on first access.
+
+    Unlike sample_order/npd_project which sync to defaults on every load,
+    this one is created once and then USER-EDITABLE via Mail Master.
+    Admin can customize subject/body without code changes.
+    """
+    t = EmailTemplate.query.filter_by(code='sample_dispatch').first()
+    if not t:
+        t = EmailTemplate(
+            code       = 'sample_dispatch',
+            name       = 'Sample Dispatch Email',
+            subject    = SAMPLE_DISPATCH_DEFAULT_SUBJECT,
+            body       = SAMPLE_DISPATCH_DEFAULT_BODY,
+            from_email = 'info@hcpwellness.in',
+            from_name  = 'HCP Wellness Pvt. Ltd.',
+            is_active  = True,
+        )
+        db.session.add(t)
+        db.session.commit()
+    return t
+
+
+def _render_sample_dispatch_vars(text, project, items, courier_name,
+                                 tracking_no, extra_notes, sender_name):
+    """Replace {variables} in subject/body for Sample Dispatch emails."""
+    if not text:
+        return ''
+
+    # Build sample lines HTML
+    sample_lines_html = ''
+    for it in items:
+        code = (it.sample_code or '—')
+        product = (project.product_name or '')
+        sample_lines_html += f'<li style="margin:4px 0;">{code} – {product}</li>'
+
+    # Build tracking line — show BOTH courier and tracking number when
+    # available (clearer than packing them in parentheses).
+    parts = []
+    if courier_name:
+        parts.append(f'<b>Courier:</b> {courier_name}')
+    if tracking_no:
+        parts.append(f'<b>Tracking No.:</b> {tracking_no}')
+    if not parts:
+        tracking_line = '—'
+    else:
+        tracking_line = '<br>'.join(parts)
+
+    extra_notes_block = ''
+    if extra_notes:
+        extra_notes_block = (
+            f'<p style="margin:14px 0 0;color:#374151;">'
+            f'<b>Note:</b> {extra_notes}</p>'
+        )
+
+    client_name = (
+        project.client_name or project.client_company or 'Sir/Madam'
+    )
+
+    mapping = {
+        '{client_name}'      : client_name,
+        '{company}'          : project.client_company or '',
+        '{project_code}'     : project.code or '',
+        '{product_name}'     : project.product_name or '',
+        '{tracking_no}'      : tracking_no or '',
+        '{courier_name}'     : courier_name or '',
+        '{tracking_line}'    : tracking_line,
+        '{sample_lines_html}': sample_lines_html,
+        '{extra_notes}'      : extra_notes or '',
+        '{extra_notes_block}': extra_notes_block,
+        '{sender_name}'      : sender_name or 'Administrator',
+    }
+    out = text
+    for k, v in mapping.items():
+        out = out.replace(k, str(v))
+    return out
 
 
 def _get_or_create_quotation_template():
@@ -392,9 +514,10 @@ def mail_master():
         from flask import flash, redirect, url_for
         flash('Access denied: Mail Master permission nahi hai.', 'error')
         return redirect(url_for('dashboard'))
-    _get_or_create_npd_template()           # ensure NPD default exists
-    _get_or_create_sample_order_template()  # ensure Sample Order default exists
-    _get_or_create_quotation_template()     # ensure Quotation default exists
+    _get_or_create_npd_template()              # ensure NPD default exists
+    _get_or_create_sample_order_template()     # ensure Sample Order default exists
+    _get_or_create_quotation_template()        # ensure Quotation default exists
+    _get_or_create_sample_dispatch_template()  # ensure Sample Dispatch default exists
     templates = EmailTemplate.query.order_by(EmailTemplate.name).all()
     return render_template('mail/master.html',
         templates=templates, active_page='mail_master')

@@ -61,7 +61,7 @@ def _parse_date(val):
     return None
 
 UPLOAD_FOLDER = os.path.join(os.path.dirname(__file__), 'static', 'uploads', 'npd')
-ALLOWED = {'pdf','png','jpg','jpeg','gif','doc','docx','xls','xlsx','txt','zip'}
+ALLOWED = {'pdf','png','jpg','jpeg','gif','webp','svg','heic','bmp','doc','docx','xls','xlsx','txt','zip'}
 
 # ── Default Milestone types ──
 # Static fallback (used only if DB has no templates yet)
@@ -1333,10 +1333,31 @@ def packing_row_update(pid, pmid):
     pm.pm_type  = request.form.get('category', pm.pm_type)
     pm.supplier = request.form.get('vendor_name', pm.supplier)
     pm.cost     = request.form.get('cost', pm.cost)
+
+    # ─────────────────────────────────────────────────────────────
+    # Image upload — pehle silently skip kar deta tha agar extension
+    # allowed list me nahi hoti, but client ko success bhejta tha.
+    # Result: "uploaded successfully" toast dikhta tha but DB me
+    # path empty hi rehta tha aur thumbnail render nahi hoti thi.
+    # Ab proper error response bhejte hain validation fail pe.
+    # ─────────────────────────────────────────────────────────────
     if 'image' in request.files:
         f = request.files['image']
-        if f and f.filename and allowed_file(f.filename):
-            pm.attachments = save_upload(f)
+        if f and f.filename:
+            if not allowed_file(f.filename):
+                allowed_str = ', '.join(sorted(ALLOWED))
+                return jsonify(
+                    success=False,
+                    error=f"File type not allowed. Allowed: {allowed_str}"
+                ), 400
+            try:
+                pm.attachments = save_upload(f)
+            except Exception as _ex:
+                import traceback; traceback.print_exc()
+                return jsonify(
+                    success=False,
+                    error=f"Could not save file: {str(_ex)}"
+                ), 500
     db.session.commit()
     return jsonify(success=True, image=pm.attachments or '')
 
@@ -2989,9 +3010,9 @@ def sample_history_item_approve_reject(iid):
             item.reject_reason   = None
             item.actioned_by     = current_user.id
             item.actioned_at     = now
-            # Project moves to "Sent to Client"
-            if project and project.status != 'sent_to_client':
-                project.status = 'sent_to_client'
+            # Project status will be derived after — _recompute_project_status
+            # handles aggregate logic: only when ALL items approved →
+            # 'approved_by_office'; mixed → stays 'sent_to_office'.
 
         elif action == 'reject':
             item.approval_status = 'rejected'
@@ -2999,11 +3020,10 @@ def sample_history_item_approve_reject(iid):
             item.actioned_by     = current_user.id
             item.actioned_at     = now
             if project:
-                # Status → rejected
-                project.status = 'rejected'
-                # Unassign the R&D person
+                # Spec: ANY rejection → project rejected_by_office.
+                # Recompute will set this; here we only handle the
+                # side-effects (unassign R&D, deactivate subs).
                 project.assigned_rd = None
-                # Deactivate every active RDSubAssignment for this project
                 active_subs = RDSubAssignment.query.filter_by(
                     project_id=project.id, is_active=True
                 ).all()
@@ -3015,18 +3035,33 @@ def sample_history_item_approve_reject(iid):
             item.reject_reason   = None
             item.actioned_by     = None
             item.actioned_at     = None
-            # Only touch project status if no other items in *this token* are
-            # still approved/rejected (otherwise we'd yank status out from
-            # under another still-actioned sample).
+            # Project status auto-recomputes — if no items actioned, project
+            # falls back to 'sent_to_office' / 'sample_ready' as appropriate.
+
+        # ── Aggregate project status from current state ──────────────
+        # Pehle direct status set hota tha jisse partial approve/reject
+        # pe project status forward chal jata tha. Spec ke according
+        # ALL items approved → approved_by_office, ANY rejected →
+        # rejected_by_office, otherwise sent_to_office. Recompute helper
+        # ye logic centralised handle karta hai.
+        db.session.flush()
+        try:
+            from rd_routes import _recompute_project_status
+            _recompute_project_status(item.project_id)
+        except Exception:
+            import traceback; traceback.print_exc()
+            # Safety fallback — keep old behaviour if helper fails
             if project:
-                sibling_actioned = OfficeDispatchItem.query.filter(
-                    OfficeDispatchItem.token_id == item.token_id,
-                    OfficeDispatchItem.id != item.id,
-                    OfficeDispatchItem.approval_status.in_(['approved', 'rejected'])
-                ).count()
-                if sibling_actioned == 0 and project.status in ('sent_to_client', 'rejected'):
-                    project.status = 'sample_ready'
-                # Note: we do NOT re-assign R&D person on reset — by design.
+                if action == 'reject':
+                    project.status = 'rejected_by_office'
+                elif action == 'approve' and project.status != 'approved_by_office':
+                    # Only if THIS was the last pending item
+                    pending_left = OfficeDispatchItem.query.filter(
+                        OfficeDispatchItem.project_id == item.project_id,
+                        OfficeDispatchItem.approval_status == 'pending',
+                    ).count()
+                    if pending_left == 0:
+                        project.status = 'approved_by_office'
 
         # ── Audit log entry ───────────────────────────────────────
         log = SampleApprovalLog(
@@ -3247,25 +3282,14 @@ def update_npd_milestone(pid):
 # ── Milestone Discussion — GET comments ──
 def _resolve_ms_key(pid, ms_key):
     """
-    artwork_qc milestone ka key → artwork milestone ke key se replace karo.
-    Dono share karte hain ek hi discussion thread.
+    Return ms_key as-is. Each milestone (Artwork, Artwork QC Approval,
+    etc.) has its OWN independent discussion thread / data — no
+    cross-sharing between milestones.
+
+    Earlier this mapped 'artwork_qc' → 'artwork' so both milestones
+    shared a single thread, but business requirement is that they be
+    fully independent (different stakeholders, different stages).
     """
-    from models.npd import NPDProjectMilestone
-    # Is key ka milestone_type check karo
-    all_ms = NPDProjectMilestone.query.filter_by(
-        project_id=pid, is_selected=True
-    ).order_by(NPDProjectMilestone.id).all()
-    # ms_key = 'ms_1', 'ms_2', etc — index based
-    try:
-        idx = int(ms_key.replace('ms_', '')) - 1
-        mtype = all_ms[idx].milestone_type if idx < len(all_ms) else ''
-    except Exception:
-        return ms_key
-    # artwork_qc → use artwork key instead
-    if mtype == 'artwork_qc':
-        for i, ms in enumerate(all_ms):
-            if ms.milestone_type == 'artwork':
-                return 'ms_' + str(i + 1)
     return ms_key
 
 
@@ -3292,40 +3316,79 @@ def get_milestone_comments(pid, ms_key):
 @npd.route('/<int:pid>/milestone-comments/<ms_key>/add', methods=['POST'])
 @login_required
 def add_milestone_comment(pid, ms_key):
-    import os, time
+    """
+    Post a comment / attachment to a milestone discussion thread.
+    Returns clear error messages for client display.
+    """
+    import os, time, traceback
     from models.npd import NPDComment
-    ms_key = _resolve_ms_key(pid, ms_key)  # artwork_qc → artwork shared thread
-    comment_text = request.form.get('comment', '').strip()
-    file = request.files.get('attachment')
-    att_str = ''
-    if file and file.filename:
-        import werkzeug.utils
-        safe_name = werkzeug.utils.secure_filename(file.filename)
-        ts = time.strftime('%Y%m%d%H%M%S')
-        fname = f"{ts}_{safe_name}"
-        upload_dir = os.path.join('static', 'uploads', 'npd')
-        os.makedirs(upload_dir, exist_ok=True)
-        file.save(os.path.join(upload_dir, fname))
-        att_str = f"{fname}|{safe_name}"
-    if not comment_text and not att_str:
-        return jsonify(success=False, error='Empty')
-    c = NPDComment(
-        project_id=pid,
-        user_id=current_user.id,
-        comment=comment_text or ('📎 ' + (att_str.split('|')[1] if '|' in att_str else att_str)),
-        is_internal=False,
-        milestone_key=ms_key,
-        attachment=att_str or None
-    )
-    db.session.add(c)
-    db.session.commit()
-    return jsonify(success=True, comment={
-        'id'        : c.id,
-        'user'      : current_user.full_name,
-        'comment'   : c.comment,
-        'attachment': c.attachment or '',
-        'created_at': c.created_at.strftime('%d-%m-%Y %H:%M')
-    })
+    try:
+        ms_key = _resolve_ms_key(pid, ms_key)
+        comment_text = request.form.get('comment', '').strip()
+        file = request.files.get('attachment')
+
+        att_str = ''
+        if file and file.filename:
+            # ── Validate extension against same ALLOWED list ──
+            if not allowed_file(file.filename):
+                allowed_str = ', '.join(sorted(ALLOWED))
+                return jsonify(
+                    success=False,
+                    error=f"File type not allowed. Allowed: {allowed_str}"
+                ), 400
+
+            from werkzeug.utils import secure_filename
+            safe_name = secure_filename(file.filename) or 'file'
+            ts = time.strftime('%Y%m%d%H%M%S')
+            fname = f"{ts}_{safe_name}"
+
+            # ── Use absolute UPLOAD_FOLDER (not relative path) ──
+            # Pehle relative 'static/uploads/npd' use ho raha tha, jo
+            # Flask app launch directory pe depend karta tha — kabhi
+            # kabhi path resolve nahi hota tha aur file save fail ho
+            # jaati thi. Ab absolute path use karte hain (same as
+            # packing material upload).
+            os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+            try:
+                file.save(os.path.join(UPLOAD_FOLDER, fname))
+            except Exception as save_ex:
+                traceback.print_exc()
+                return jsonify(
+                    success=False,
+                    error=f"Could not save file: {str(save_ex)}"
+                ), 500
+
+            att_str = f"{fname}|{safe_name}"
+
+        if not comment_text and not att_str:
+            return jsonify(success=False, error='Empty comment'), 400
+
+        c = NPDComment(
+            project_id    = pid,
+            user_id       = current_user.id,
+            comment       = comment_text or ('📎 ' + (att_str.split('|')[1] if '|' in att_str else att_str)),
+            is_internal   = False,
+            milestone_key = ms_key,
+            attachment    = att_str or None,
+        )
+        db.session.add(c)
+        db.session.commit()
+
+        return jsonify(success=True, comment={
+            'id'        : c.id,
+            'user'      : current_user.full_name,
+            'comment'   : c.comment,
+            'attachment': c.attachment or '',
+            'created_at': c.created_at.strftime('%d-%m-%Y %H:%M') if c.created_at else '',
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        traceback.print_exc()
+        return jsonify(
+            success=False,
+            error=f"Server error: {str(e)}"
+        ), 500
 
 # ── BOM Formulation Sheet — GET ──
 # ── BOM List — GET all BOMs ──

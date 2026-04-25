@@ -53,9 +53,152 @@ def get_rd_user_ids():
     return {u.id for u in get_rd_users()}
 
 
+# ── Helper: check if a user is an R&D Manager ──
+# Manager = User.role explicitly set to 'rd_manager' or 'admin'.
+#
+# Earlier versions ke ek iteration me designation-based fallback bhi
+# tha ('Manager'/'Head' word in employee.designation), magar wo false
+# positives deta tha (jaise koi user role='user' rakhta tha but
+# designation 'Manager' hone se accidentally manager treat ho jata tha).
+# Industry-standard explicit role check hi rakha hai — jis-jis ko R&D
+# Manager banana hai, unka User.role MySQL me 'rd_manager' set karna
+# zaruri hai (ek bar ka SQL kaam, deterministic).
+def is_rd_manager_user(user=None):
+    """True if `user` (default: current_user) should see ALL R&D projects.
+
+    Manager = User.role in ('rd_manager', 'admin'). No magic guessing
+    from designation — explicit role assignment only.
+    """
+    u = user or current_user
+    if not u or not getattr(u, 'is_authenticated', False):
+        return False
+    return getattr(u, 'role', None) in ('rd_manager', 'admin')
+
+
 # ══════════════════════════════════════════════════════════════
 # DASHBOARD
 # ══════════════════════════════════════════════════════════════
+
+# ─────────────────────────────────────────────────────────────────────
+# Project Status Aggregator — central helper
+# ─────────────────────────────────────────────────────────────────────
+# Spec (multi-user assignment):
+#
+#   1. Sample Inprocess  : kisi bhi 1 user ne start kiya (and not all done)
+#   2. Sample Ready      : SARE assigned users finish kar chuke
+#   3. Sent to Office    : SARE finished rows ka status 'sent_to_office'
+#   4. Approved By Office: SARE office_dispatch_items 'approved'
+#   5. Rejected By Office: KOI bhi 1 office_dispatch_item 'rejected'
+#
+# Partial completion ke liye status forward NAHI badhta — strict aggregate.
+#
+# Terminal manual states (cancelled, on_hold, finish) — agar user ne
+# manually set kiya, recompute touch nahi karta. Sirf workflow-driven
+# status transitions handle karta hai.
+def _recompute_project_status(pid, *, commit=False):
+    """
+    Re-derive `npd_project.status` from the underlying RDSubAssignment +
+    OfficeDispatchItem state. Idempotent — safe to call multiple times.
+
+    Returns the new status string (whatever was set, even if unchanged).
+    """
+    from models.npd import (NPDProject, RDSubAssignment,
+                             OfficeDispatchItem, RDProjectLog)
+
+    # Manually-set terminal states — never overwrite
+    MANUAL_TERMINAL = {'cancelled', 'finish', 'finished', 'on_hold',
+                       'sample_approved', 'sample_rejected',
+                       'sent_to_client'}
+
+    proj = NPDProject.query.get(pid)
+    if not proj:
+        return None
+    if proj.status in MANUAL_TERMINAL:
+        return proj.status
+
+    subs = RDSubAssignment.query.filter_by(
+        project_id=pid, is_active=True
+    ).all()
+
+    # Edge case — sub-assignments may have been deactivated by a reject
+    # flow. In that case, derive status purely from office dispatch items
+    # if any exist for this project.
+    if not subs:
+        items = OfficeDispatchItem.query.filter_by(project_id=pid).all()
+        if items:
+            statuses = [(i.approval_status or 'pending').lower() for i in items]
+            if any(st == 'rejected' for st in statuses):
+                _new = 'rejected_by_office'
+            elif all(st == 'approved' for st in statuses):
+                _new = 'approved_by_office'
+            else:
+                _new = 'sent_to_office'
+            if _new != proj.status:
+                proj.status = _new
+        return proj.status   # don't infer further from sub-state
+
+    sub_statuses = [(s.status or 'not_started').lower() for s in subs]
+
+    # ── Aggregate decision tree ──
+    new_status = None
+
+    # Stage 4/5: ALL subs sent_to_office → check office dispatch items
+    if all(st == 'sent_to_office' for st in sub_statuses):
+        items = OfficeDispatchItem.query.filter_by(project_id=pid).all()
+        if items:
+            statuses = [(i.approval_status or 'pending').lower() for i in items]
+            if any(st == 'rejected' for st in statuses):
+                # Spec: ANY rejected → project rejected by office
+                new_status = 'rejected_by_office'
+            elif all(st == 'approved' for st in statuses):
+                # Spec: ALL approved → project approved by office
+                new_status = 'approved_by_office'
+            else:
+                # Some pending → still in office review queue
+                new_status = 'sent_to_office'
+        else:
+            new_status = 'sent_to_office'
+
+    # Stage 2/3: ALL finished or finished+sent_to_office mix → sample_ready
+    # (Mixed = waiting for remaining members to dispatch — don't progress
+    # to sent_to_office until ALL members have dispatched.)
+    elif all(st in ('finished', 'sent_to_office') for st in sub_statuses):
+        new_status = 'sample_ready'
+
+    # Stage 1: ANY sub started/finished/sent → sample_inprocess
+    elif any(st in ('in_progress', 'finished', 'sent_to_office')
+             for st in sub_statuses):
+        new_status = 'sample_inprocess'
+
+    # Stage 0: All not_started
+    else:
+        new_status = 'not_started'
+
+    if new_status and new_status != proj.status:
+        old_status = proj.status
+        proj.status = new_status
+        if new_status == 'sample_ready' and not proj.finished_at:
+            proj.finished_at = datetime.now()
+            if proj.started_at:
+                proj.total_duration_seconds = int(
+                    (proj.finished_at - proj.started_at).total_seconds()
+                )
+        try:
+            db.session.add(RDProjectLog(
+                project_id = pid,
+                user_id    = current_user.id if current_user.is_authenticated else None,
+                event      = new_status,
+                detail     = f"Auto: {old_status or 'none'} → {new_status} (aggregate of {len(subs)} R&D members)",
+                created_at = datetime.now(),
+            ))
+        except Exception:
+            pass
+
+    if commit:
+        db.session.commit()
+
+    return proj.status
+
 
 @rd.route('/')
 @rd.route('/dashboard')
@@ -79,7 +222,7 @@ def dashboard():
     total_users = User.query.filter_by(is_active=True).count()
 
     # Recent projects — R&D Manager sees all, executive sees only assigned
-    is_rd_manager = current_user.role in ('rd_manager', 'admin')
+    is_rd_manager = is_rd_manager_user()
     if is_rd_manager:
         recent_projects = NPDProject.query.filter_by(is_deleted=False)\
             .order_by(NPDProject.created_at.desc()).limit(6).all()
@@ -171,7 +314,7 @@ def projects():
 
     projects = query.order_by(NPDProject.created_at.desc()).all()
     users    = get_rd_users()
-    is_rd_manager = current_user.role in ('rd_manager', 'admin')
+    is_rd_manager = is_rd_manager_user()
 
     # Unallotted = no R&D team member assigned (rd_manager alone doesn't count)
     # A project is "allotted" only when an rd_executive is assigned
@@ -343,7 +486,7 @@ def trials():
     project_id = request.args.get('project_id', type=int)
 
     # ── Trials query ──
-    is_admin = current_user.role in ('admin', 'rd_manager')
+    is_admin = is_rd_manager_user()
     query = NPDFormulation.query
     if project_id:
         query = query.filter(NPDFormulation.project_id == project_id)
@@ -759,6 +902,14 @@ def edit_trial(tid):
 @login_required
 def assign_project(pid):
     from models.npd import NPDProject, NPDActivityLog
+
+    # Guard: only R&D Manager / Admin can (re)assign projects.
+    # Non-manager users may have stumbled onto this endpoint via dev
+    # tools — block them at the server side regardless of UI hiding.
+    if not is_rd_manager_user():
+        return jsonify(success=False,
+            error='Only R&D Manager can assign or reassign projects.'), 403
+
     proj    = NPDProject.query.get_or_404(pid)
     rd_id   = request.form.get('rd_id') or None
     sc_id   = request.form.get('sc_id') or None
@@ -793,6 +944,12 @@ def assign_project(pid):
 def assign_multi(pid):
     """Assign multiple R&D executives with individual variant codes"""
     from models.npd import NPDProject, NPDActivityLog, RDSubAssignment
+
+    # Guard: only R&D Manager / Admin can (re)assign projects.
+    if not is_rd_manager_user():
+        return jsonify(success=False,
+            error='Only R&D Manager can assign or reassign projects.'), 403
+
     proj = NPDProject.query.get_or_404(pid)
 
     # Expecting JSON: [{user_id, variant_code, notes}, ...]
@@ -807,6 +964,7 @@ def assign_multi(pid):
 
     names = []
     assigned_user_ids = []
+    assigned_user_ids_int = set()   # raw int ids — for deactivation diff
     allowed_rd_ids = get_rd_user_ids()
     rejected = []
 
@@ -846,6 +1004,7 @@ def assign_multi(pid):
 
         names.append(user_obj.full_name)
         assigned_user_ids.append(f'u_{user_obj.id}')
+        assigned_user_ids_int.add(user_obj.id)
 
         # Upsert RDSubAssignment — one per (project, user)
         sub = RDSubAssignment.query.filter_by(
@@ -881,10 +1040,34 @@ def assign_multi(pid):
     proj.assigned_rd_members = ','.join(assigned_user_ids)
     proj.updated_by          = current_user.id
 
+    # ─────────────────────────────────────────────────────────────
+    # Deactivate stale assignments — un-checked users hatao.
+    # Bug fix: pehle code sirf upsert karta tha; un-checked users
+    # is_active=True hi pade rehte the aur UI me dikhte rehte the.
+    # Ab har un-active assignment ko soft-delete (is_active=False)
+    # kar dete hain — audit trail preserve hota hai, UI clean.
+    # ─────────────────────────────────────────────────────────────
+    removed_names = []
+    stale_subs = RDSubAssignment.query.filter(
+        RDSubAssignment.project_id == proj.id,
+        RDSubAssignment.is_active  == True,
+        ~RDSubAssignment.user_id.in_(assigned_user_ids_int),
+    ).all()
+    for s in stale_subs:
+        s.is_active = False
+        removed_user = User.query.get(s.user_id)
+        if removed_user:
+            removed_names.append(removed_user.full_name or removed_user.username)
+    # ─────────────────────────────────────────────────────────────
+
     db.session.add(NPDActivityLog(
         project_id = proj.id,
         user_id    = current_user.id,
-        action     = f"R&D team assigned: {', '.join(names)} — by {current_user.full_name}",
+        action     = (
+            f"R&D team assigned: {', '.join(names)}"
+            + (f" — Removed: {', '.join(removed_names)}" if removed_names else "")
+            + f" — by {current_user.full_name}"
+        ),
         created_at = datetime.now(),
     ))
     # RD Project Log
@@ -893,7 +1076,11 @@ def assign_multi(pid):
         project_id = proj.id,
         user_id    = current_user.id,
         event      = 'assigned',
-        detail     = f"Members: {', '.join(names)} — by {current_user.full_name}",
+        detail     = (
+            f"Members: {', '.join(names)}"
+            + (f" — Removed: {', '.join(removed_names)}" if removed_names else "")
+            + f" — by {current_user.full_name}"
+        ),
         created_at = datetime.now(),
     ))
     db.session.commit()
@@ -1222,8 +1409,22 @@ def project_logs(pid):
     from models.npd import RDProjectLog, NPDProject, RDSubAssignment
     proj = NPDProject.query.get_or_404(pid)
 
-    # Activity logs
-    logs = RDProjectLog.query.filter_by(project_id=pid)                             .order_by(RDProjectLog.created_at.asc()).all()
+    # ─────────────────────────────────────────────────────────────
+    # Role-based log visibility
+    #   • rd_manager / admin  → sare users ke logs
+    #   • Other roles         → sirf apne logs (user_id = current_user.id)
+    #                            + 'System' events (user_id = NULL) — taaki
+    #                            milestone changes / auto-events bhi dikhe
+    # ─────────────────────────────────────────────────────────────
+    log_q = RDProjectLog.query.filter_by(project_id=pid)
+    if not is_rd_manager_user():
+        log_q = log_q.filter(
+            db.or_(
+                RDProjectLog.user_id == current_user.id,
+                RDProjectLog.user_id.is_(None),
+            )
+        )
+    logs = log_q.order_by(RDProjectLog.created_at.asc()).all()
     result = []
     for l in logs:
         result.append({
@@ -1235,7 +1436,11 @@ def project_logs(pid):
         })
 
     # Per-executive sub-assignment summary
-    subs = RDSubAssignment.query.filter_by(project_id=pid, is_active=True).all()
+    # Same role rule — non-managers ko sirf apni summary row dikhao
+    sub_q = RDSubAssignment.query.filter_by(project_id=pid, is_active=True)
+    if not is_rd_manager_user():
+        sub_q = sub_q.filter(RDSubAssignment.user_id == current_user.id)
+    subs = sub_q.all()
     members = []
     for s in subs:
         def fmt_sec(sec):
@@ -1252,11 +1457,12 @@ def project_logs(pid):
         })
 
     return jsonify(
-        success   = True,
-        logs      = result,
-        members   = members,
-        proj_code = proj.code,
-        proj_name = proj.product_name,
+        success         = True,
+        logs            = result,
+        members         = members,
+        proj_code       = proj.code,
+        proj_name       = proj.product_name,
+        is_manager_view = is_rd_manager_user(),
     )
 
 
@@ -1289,8 +1495,8 @@ def my_assignment(pid):
 @rd.route('/projects/<int:pid>/sub-start', methods=['POST'])
 @login_required
 def sub_start(pid):
-    """Executive starts their own timer — project status → in_progress"""
-    from models.npd import RDSubAssignment, RDProjectLog, NPDProject, NPDActivityLog
+    """Executive starts their own timer — project status auto-derived."""
+    from models.npd import RDSubAssignment, RDProjectLog, NPDProject
     sub = RDSubAssignment.query.filter_by(
         project_id=pid, user_id=current_user.id, is_active=True
     ).first()
@@ -1302,17 +1508,10 @@ def sub_start(pid):
     sub.started_at = datetime.now()
     sub.status     = 'in_progress'
 
-    # Project status → in_progress (if not already)
+    # Stamp project.started_at on first start (any user)
     proj = NPDProject.query.get(pid)
-    if proj and proj.status != 'in_progress':
-        proj.status     = 'in_progress'
-        proj.started_at = proj.started_at or datetime.now()
-        db.session.add(NPDActivityLog(
-            project_id = pid,
-            user_id    = current_user.id,
-            action     = f"Project started by {current_user.full_name}",
-            created_at = datetime.now(),
-        ))
+    if proj and not proj.started_at:
+        proj.started_at = datetime.now()
 
     db.session.add(RDProjectLog(
         project_id = pid,
@@ -1321,6 +1520,11 @@ def sub_start(pid):
         detail     = f"Started by {current_user.full_name}" + (f" | Variant: {sub.variant_code}" if sub.variant_code else ""),
         created_at = datetime.now(),
     ))
+
+    # Flush so recompute sees the new sub state, then derive project status
+    db.session.flush()
+    _recompute_project_status(pid)
+
     db.session.commit()
     return jsonify(
         success    = True,
@@ -1332,8 +1536,8 @@ def sub_start(pid):
 @rd.route('/projects/<int:pid>/sub-end', methods=['POST'])
 @login_required
 def sub_end(pid):
-    """Executive ends their own timer — if all done, project → sample_ready"""
-    from models.npd import RDSubAssignment, RDProjectLog, NPDProject, NPDActivityLog
+    """Executive ends their own timer — project status auto-derived."""
+    from models.npd import RDSubAssignment, RDProjectLog, NPDProject
     sub = RDSubAssignment.query.filter_by(
         project_id=pid, user_id=current_user.id, is_active=True
     ).first()
@@ -1356,40 +1560,9 @@ def sub_end(pid):
         created_at = datetime.now(),
     ))
 
-    # Check if ALL active sub-assignments are finished
+    # Flush so recompute sees new state, then derive aggregate project status
     db.session.flush()
-    all_subs = RDSubAssignment.query.filter_by(project_id=pid, is_active=True).all()
-    all_done = all(s.status == 'finished' for s in all_subs)
-
-    proj = NPDProject.query.get(pid)
-    if proj:
-        if all_done:
-            # All executives done → project sample_ready
-            proj.status      = 'sample_ready'
-            proj.finished_at = datetime.now()
-            if proj.started_at:
-                proj.total_duration_seconds = int((proj.finished_at - proj.started_at).total_seconds())
-            db.session.add(NPDActivityLog(
-                project_id = pid,
-                user_id    = current_user.id,
-                action     = f"Project completed — all R&D work done. Status → Sample Ready",
-                created_at = datetime.now(),
-            ))
-            db.session.add(RDProjectLog(
-                project_id = pid,
-                user_id    = current_user.id,
-                event      = 'sample_ready',
-                detail     = f"All executives finished. Project → Sample Ready",
-                created_at = datetime.now(),
-            ))
-        else:
-            # Some still working — log individual completion
-            db.session.add(NPDActivityLog(
-                project_id = pid,
-                user_id    = current_user.id,
-                action     = f"{current_user.full_name} finished work (Variant: {sub.variant_code or '—'}). Other members still working.",
-                created_at = datetime.now(),
-            ))
+    _recompute_project_status(pid)
 
     db.session.commit()
     return jsonify(

@@ -185,23 +185,60 @@
                 <a class="nav-a {% if _pg == 'rd_sample_history' %}active{% endif %}" href="/rd/sample-history"><span class="nav-ic">📋</span><span class="nav-txt">Sample History</span></a>
                 <a class="nav-a {% if _pg == 'rd_sample_log' %}active{% endif %}" href="/rd/sample-log"><span class="nav-ic">🧪</span><span class="nav-txt">R&amp;D Sample Log</span></a>
 
-                {# ── NPD Section ── #}
-                {% if true %}
+            </div>
+        </div>
+        {% endif %}
+
+        {# ════ NPD ACCORDION (sibling — not nested in R&D) ════ #}
+        {% set _perm_npd = get_perm('npd') %}
+        {% if (_perm_npd and _perm_npd.can_view) or role == 'admin' %}
+        <div class="sb-sec sb-accordion">
+            <button class="sb-acc-hdr" onclick="toggleAccordion(this)">
+                <span class="sb-acc-ic">🧪</span>
+                <span class="sb-acc-lbl">NPD</span>
+                <span class="sb-acc-arrow">▶</span>
+            </button>
+            <div class="sb-acc-body">
+                <a class="nav-a" href="/npd/npd-dashboard"><span class="nav-ic">📊</span><span class="nav-txt">NPD Dashboard</span></a>
+                <a class="nav-a" href="/npd/npd-projects"><span class="nav-ic">📋</span><span class="nav-txt">NPD Projects</span></a>
+                <a class="nav-a {% if _pg == 'npd_sample_ready' %}active{% endif %}" href="/npd/sample-ready"><span class="nav-ic">🧪</span><span class="nav-txt">Sample Ready</span></a>
+                <a class="nav-a {% if _pg == 'npd_sample_history' %}active{% endif %}" href="/npd/sample-history"><span class="nav-ic">📋</span><span class="nav-txt">Sample History</span></a>
+                <a class="nav-a {% if _pg == 'client_dispatch' %}active{% endif %}" href="/client-dispatch/"><span class="nav-ic">📤</span><span class="nav-txt">Client Dispatch</span></a>
+
+                {# ── EPD Sub-section ── #}
+                <div class="sb-acc-sub-lbl">📦 EPD</div>
+                <a class="nav-a" href="/npd/epd-dashboard"><span class="nav-ic">📊</span><span class="nav-txt">EPD Dashboard</span></a>
+                <a class="nav-a" href="/npd/epd-projects"><span class="nav-ic">📋</span><span class="nav-txt">EPD Projects</span></a>
+
+                {# ── NPD Masters (permission-based) ── #}
+                {% set _npd_masters_perm3 = get_perm('npd_masters') %}
+                {% if role == 'admin' or (_npd_masters_perm3 and _npd_masters_perm3.can_view) %}
+                <div class="sb-acc-sub-lbl">⚙️ NPD Masters</div>
+                <a class="nav-a" href="/npd/milestone-master"><span class="nav-ic">🎯</span><span class="nav-txt">Milestone Master</span></a>
+                <a class="nav-a {% if _pg == 'npd_status_master' %}active{% endif %}" href="/masters/npd-status"><span class="nav-ic">⚙️</span><span class="nav-txt">NPD Status Master</span></a>
+                <a class="nav-a {% if _pg == 'npd_category_master' %}active{% endif %}" href="/masters/npd-category"><span class="nav-ic">🗂️</span><span class="nav-txt">NPD Category Master</span></a>
+                <a class="nav-a {% if _pg == 'milestone_status_master' %}active{% endif %}" href="/masters/milestone-status"><span class="nav-ic">🎖️</span><span class="nav-txt">Milestone Status</span></a>
+                <a class="nav-a" href="/rd/param-master"><span class="nav-ic">🔧</span><span class="nav-txt">Parameter Master</span></a>
+                <a class="nav-a" href="/npd/reports"><span class="nav-ic">📈</span><span class="nav-txt">Reports</span></a>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+        {# ════ END NPD ACCORDION ════ #}
+
+        {# (legacy block below kept temporarily — emptied to avoid duplicates) #}
+        {% if false %}
                 <div class="sb-acc-sub-lbl">🧪 NPD</div>
                 <a class="nav-a" href="/npd/npd-dashboard"><span class="nav-ic">📊</span><span class="nav-txt">NPD Dashboard</span></a>
                 <a class="nav-a" href="/npd/npd-projects"><span class="nav-ic">📋</span><span class="nav-txt">NPD Projects</span></a>
                 <a class="nav-a {% if _pg == 'npd_sample_ready' %}active{% endif %}" href="/npd/sample-ready"><span class="nav-ic">🧪</span><span class="nav-txt">Sample Ready</span></a>
                 <a class="nav-a {% if _pg == 'npd_sample_history' %}active{% endif %}" href="/npd/sample-history"><span class="nav-ic">📋</span><span class="nav-txt">Sample History</span></a>
-                {% endif %}
+                <a class="nav-a {% if _pg == 'client_dispatch' %}active{% endif %}" href="/client-dispatch/"><span class="nav-ic">📤</span><span class="nav-txt">Client Dispatch</span></a>
 
-                {# ── EPD Section ── #}
-                {% if true %}
                 <div class="sb-acc-sub-lbl">📦 EPD</div>
                 <a class="nav-a" href="/npd/epd-dashboard"><span class="nav-ic">📊</span><span class="nav-txt">EPD Dashboard</span></a>
                 <a class="nav-a" href="/npd/epd-projects"><span class="nav-ic">📋</span><span class="nav-txt">EPD Projects</span></a>
-                {% endif %}
 
-                {# ── NPD Masters (permission-based) ── #}
                 {% set _npd_masters_perm2 = get_perm('npd_masters') %}
                 {% if role == 'admin' or (_npd_masters_perm2 and _npd_masters_perm2.can_view) %}
                 <div class="sb-acc-sub-lbl">⚙️ NPD Masters</div>
@@ -212,6 +249,10 @@
                 <a class="nav-a" href="/rd/param-master"><span class="nav-ic">🔧</span><span class="nav-txt">Parameter Master</span></a>
                 <a class="nav-a" href="/npd/reports"><span class="nav-ic">📈</span><span class="nav-txt">Reports</span></a>
                 {% endif %}
+        {% endif %}{# end legacy #}
+
+        {# Empty placeholder — old enclosing R&D body is closed above #}
+        {% if false %}
 
             </div>
         </div>
@@ -261,6 +302,12 @@
                 <a class="nav-a" href="/approvals"><span class="nav-ic">✅</span><span class="nav-txt">Approvals</span></a>
                 <a class="nav-a {% if active_page == 'user_permissions' %}active{% endif %}" href="/admin/user-permissions"><span class="nav-ic">👤</span><span class="nav-txt">User Permissions</span></a>
                 <a class="nav-a" href="/admin/audit-logs"><span class="nav-ic">🔍</span><span class="nav-txt">Audit Logs</span></a>
+                {% if role == 'admin' %}
+                <div class="sb-acc-sub-lbl">⚙️ Settings</div>
+                <a class="nav-a {% if _pg == 'mail_master' %}active{% endif %}" href="/mail/master"><span class="nav-ic">✉️</span><span class="nav-txt">Mail Master</span></a>
+                <a class="nav-a {% if _pg == 'contribution_config' %}active{% endif %}" href="/crm/contribution-config"><span class="nav-ic">⭐</span><span class="nav-txt">Points Config</span></a>
+                <a class="nav-a {% if _pg == 'masters' %}active{% endif %}" href="/masters/"><span class="nav-ic">🏷️</span><span class="nav-txt">Lead Masters</span></a>
+                {% endif %}
             </div>
         </div>
         {% endif %}
@@ -399,6 +446,9 @@
             </a>
             <a class="nav-a {% if _pg == 'npd_sample_history' %}active{% endif %}" href="/npd/sample-history">
                 <span class="nav-ic">📋</span><span class="nav-txt">Sample History</span>
+            </a>
+            <a class="nav-a {% if _pg == 'client_dispatch' %}active{% endif %}" href="/client-dispatch/">
+                <span class="nav-ic">📤</span><span class="nav-txt">Client Dispatch</span>
             </a>
         </div>
         {% endif %}

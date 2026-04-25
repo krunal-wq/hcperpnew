@@ -1145,11 +1145,31 @@ body.print-a4 #slA4Sheet input{
                 credentials: 'same-origin',
                 body: JSON.stringify({ rows: payload })
             });
-            const data = await res.json().catch(() => ({}));
+
+            // ── Robust response parsing — log full text on failure ──
+            // Earlier code used `res.json().catch(() => ({}))` which
+            // silently swallowed non-JSON responses (HTML 500 page, empty
+            // body, redirect HTML, etc.) and showed a useless
+            // "Server error (HTTP 200)" alert. Now we read body text first
+            // and try to parse — exposing the real cause.
+            const rawText = await res.text();
+            let data = {};
+            try {
+                data = rawText ? JSON.parse(rawText) : {};
+            } catch (parseErr) {
+                console.error('Sticker print — non-JSON response:', rawText);
+                sampleLogAlert(
+                    'Server returned a non-JSON response (HTTP ' + res.status + ').\n\n' +
+                    'First 200 chars:\n' + rawText.slice(0, 200) +
+                    '\n\nCheck server logs for the full traceback.'
+                );
+                return;
+            }
 
             if (!res.ok || !data.ok){
                 // Server-side validation failed (usually a duplicate)
-                let msg = data.error || ('Server error (HTTP ' + res.status + ')');
+                let msg = data.error
+                    || ('Server returned ok=false with no error field (HTTP ' + res.status + ')');
                 if (Array.isArray(data.duplicates) && data.duplicates.length){
                     msg += '\n\nDuplicate codes:\n  • ' + data.duplicates.join('\n  • ');
                     // Highlight matching rows
@@ -1162,6 +1182,7 @@ body.print-a4 #slA4Sheet input{
                         }
                     });
                 }
+                console.error('Sticker print failed:', { status: res.status, data: data });
                 sampleLogAlert(msg);
                 return;
             }

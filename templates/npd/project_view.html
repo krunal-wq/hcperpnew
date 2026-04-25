@@ -1799,17 +1799,22 @@ function loadPmRows() {
 }
 
 function pmRowHtml(r, srno) {
+  // Cache-buster on image URL — browser sometimes caches a 404 or old
+  // version, especially right after upload. Adding ?t=<id> forces
+  // a fresh fetch so the new file appears immediately.
+  var imgUrl = r.image ? ('/static/uploads/npd/' + encodeURIComponent(r.image) + '?t=' + r.id) : '';
   var imgHtml = r.image
-    ? '<div style="display:flex;align-items:center;gap:6px;">' +
-        '<a href="/static/uploads/npd/' + r.image + '" target="_blank">' +
-          '<img src="/static/uploads/npd/' + r.image + '" style="width:40px;height:40px;object-fit:cover;border-radius:5px;border:1px solid #e2e8f0;" onerror="this.style.display=\'none\'">' +
+    ? '<div style="display:flex;align-items:center;gap:6px;justify-content:center;">' +
+        '<a href="' + imgUrl + '" target="_blank">' +
+          '<img src="' + imgUrl + '" style="width:40px;height:40px;object-fit:cover;border-radius:5px;border:1px solid #e2e8f0;" ' +
+          'onerror="this.outerHTML=\'<span style=&quot;font-size:.7rem;color:#dc2626;&quot;>⚠️ Missing</span>\'">' +
         '</a>' +
         '<label style="font-size:.7rem;color:#6366f1;cursor:pointer;font-weight:700;">' +
           '📷 Change' +
           '<input type="file" accept="image/*" style="display:none;" onchange="pmUploadImage(this,' + r.id + ')">' +
         '</label>' +
       '</div>'
-    : '<label style="font-size:.75rem;color:#6366f1;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:4px;">' +
+    : '<label style="font-size:.75rem;color:#6366f1;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:4px;justify-content:center;">' +
         '📤 Upload' +
         '<input type="file" accept="image/*" style="display:none;" onchange="pmUploadImage(this,' + r.id + ')">' +
       '</label>';
@@ -1861,11 +1866,95 @@ function pmSaveField(pmid, field, value) {
 function pmUploadImage(input, pmid) {
   if (window._msLocked) { alert('Milestone is marked as Done. Mark as Pending to make changes.'); return; }
   if (!input.files || !input.files[0]) return;
+
+  var file = input.files[0];
+
+  // Client-side validations — fast fail with clear message
+  if (!file.type.match(/^image\//)) {
+    alert('❌ Please select an image file (jpg, png, webp, gif).');
+    input.value = '';
+    return;
+  }
+  // Match backend's ALLOWED extension list — heic/svg/bmp also OK on server
+  var allowedExt = ['png','jpg','jpeg','gif','webp','svg','heic','bmp'];
+  var ext = (file.name.split('.').pop() || '').toLowerCase();
+  if (allowedExt.indexOf(ext) === -1) {
+    alert('❌ File extension ".' + ext + '" not allowed.\n\nAllowed: ' + allowedExt.join(', '));
+    input.value = '';
+    return;
+  }
+  if (file.size > 10 * 1024 * 1024) {  // 10 MB cap
+    alert('❌ File too large. Maximum size is 10 MB.\n\nYour file: ' + (file.size / 1024 / 1024).toFixed(2) + ' MB');
+    input.value = '';
+    return;
+  }
+
+  // ── Show "uploading..." state on the row ──
+  var row = document.getElementById('pm-row-' + pmid);
+  var imgCell = row ? row.children[4] : null;     // Image column
+  var prevHtml = imgCell ? imgCell.innerHTML : '';
+  if (imgCell) {
+    imgCell.innerHTML =
+      '<div style="display:flex;align-items:center;justify-content:center;gap:6px;color:#6366f1;font-size:.75rem;font-weight:700;">' +
+        '<span class="pm-spinner" style="display:inline-block;width:14px;height:14px;border:2px solid #c7d2fe;border-top-color:#6366f1;border-radius:50%;animation:pmspin .7s linear infinite;"></span>' +
+        '<span>Uploading ' + (file.size / 1024).toFixed(0) + ' KB...</span>' +
+      '</div>';
+  }
+  // Inject spinner keyframe once
+  if (!document.getElementById('pm-spinner-style')) {
+    var st = document.createElement('style');
+    st.id = 'pm-spinner-style';
+    st.textContent = '@keyframes pmspin{to{transform:rotate(360deg);}}';
+    document.head.appendChild(st);
+  }
+
   var fd = new FormData();
-  fd.append('image', input.files[0]);
-  fetch('/npd/' + PROJ_ID + '/packing/row/' + pmid + '/update', { method: 'POST', body: fd })
-    .then(function(r){ return r.json(); })
-    .then(function(d) { if (d.success) loadPmRows(); });
+  fd.append('image', file);
+
+  fetch('/npd/' + PROJ_ID + '/packing/row/' + pmid + '/update', {
+    method: 'POST',
+    body:   fd
+  })
+  .then(function(r){
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    return r.json();
+  })
+  .then(function(d) {
+    if (d && d.success && d.image) {
+      pmShowToast('✅ Image uploaded successfully', 'success');
+      loadPmRows();
+    } else if (d && d.success && !d.image) {
+      // Server accepted request but returned empty image path —
+      // means file was silently skipped (validation, disk error, etc.)
+      if (imgCell) imgCell.innerHTML = prevHtml;
+      pmShowToast('⚠️ File was rejected by server. Check file type/size.', 'error');
+    } else {
+      throw new Error((d && d.error) || 'Upload failed');
+    }
+  })
+  .catch(function(err) {
+    console.error('PM upload error:', err);
+    if (imgCell) imgCell.innerHTML = prevHtml;
+    pmShowToast('❌ Upload failed: ' + (err.message || 'Network error'), 'error');
+  });
+}
+
+// ── Toast helper for Packing Material upload feedback ──
+function pmShowToast(msg, kind) {
+  var bg = kind === 'error' ? '#fee2e2' : '#d1fae5';
+  var fg = kind === 'error' ? '#991b1b' : '#065f46';
+  var br = kind === 'error' ? '#fca5a5' : '#6ee7b7';
+  var t = document.createElement('div');
+  t.style.cssText = 'position:fixed;bottom:24px;right:24px;background:' + bg + ';color:' + fg +
+    ';border:1.5px solid ' + br + ';padding:10px 18px;border-radius:10px;font-size:.85rem;font-weight:700;' +
+    'box-shadow:0 4px 16px rgba(0,0,0,.12);z-index:99999;max-width:340px;';
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(function(){
+    t.style.transition = 'opacity .3s';
+    t.style.opacity = '0';
+    setTimeout(function(){ if (t.parentNode) t.parentNode.removeChild(t); }, 300);
+  }, 2800);
 }
 
 var _pmDeleteId = null;
@@ -2791,14 +2880,10 @@ function saveBOM(idx) {
 
 // Artwork QC Approval → Artwork Design ke saath shared comments key
 function getMsCommentKey(idx) {
-  var mtype = (MS_TYPES[idx - 1] || '').toLowerCase();
-  if (mtype === 'artwork_qc' || mtype === 'artwork_qc_approval') {
-    for (var i = 0; i < MS_TYPES.length; i++) {
-      if (MS_TYPES[i].toLowerCase() === 'artwork') {
-        return 'ms_' + (i + 1);
-      }
-    }
-  }
+  // Each milestone has its OWN independent discussion thread.
+  // Earlier code mapped 'artwork_qc' / 'artwork_qc_approval' → 'artwork'
+  // so all three shared one thread, but business requirement is that
+  // they be fully separate (different stages, different reviewers).
   return 'ms_' + idx;
 }
 
@@ -2909,6 +2994,16 @@ function postMsComment(idx) {
   var file    = fileEl && fileEl.files.length ? fileEl.files[0] : null;
   if ((!comment || comment === '<br>') && !file) return;
 
+  // Optional client-side file size guard — keep in sync with backend
+  if (file && file.size > 25 * 1024 * 1024) {
+    alert('❌ File too large. Maximum size is 25 MB.\n\nYour file: ' + (file.size / 1024 / 1024).toFixed(2) + ' MB');
+    return;
+  }
+
+  var sendBtn = document.querySelector('#ms-detail-panel button[onclick^="postMsComment"]');
+  var origBtn = sendBtn ? sendBtn.innerHTML : '';
+  if (sendBtn) { sendBtn.innerHTML = 'Sending...'; sendBtn.disabled = true; }
+
   var fd = new FormData();
   fd.append('comment', comment);
   if (file) fd.append('attachment', file);
@@ -2916,31 +3011,77 @@ function postMsComment(idx) {
   fetch('/npd/' + PROJ_ID + '/milestone-comments/' + key + '/add', {
     method: 'POST', body: fd
   })
-  .then(function(r){ return r.json(); })
-  .then(function(data) {
-    if (data.success) {
+  .then(function(r){
+    return r.json().then(function(data){ return { ok: r.ok, data: data }; });
+  })
+  .then(function(res) {
+    if (sendBtn) { sendBtn.innerHTML = origBtn; sendBtn.disabled = false; }
+    var data = res.data || {};
+    if (res.ok && data.success) {
       if (editor) editor.innerHTML = '';
       if (fileEl) fileEl.value = '';
       var fn = document.getElementById('ms-disc-fname');
       if (fn) fn.textContent = '';
       loadMsComments(idx);
+    } else {
+      // Server-side error — show actual reason
+      var msg = data.error || 'Could not post comment.';
+      console.error('postMsComment failed:', res, data);
+      alert('❌ ' + msg);
     }
   })
-  .catch(function(){ alert('Error posting comment.'); });
+  .catch(function(err){
+    if (sendBtn) { sendBtn.innerHTML = origBtn; sendBtn.disabled = false; }
+    console.error('postMsComment network error:', err);
+    alert('❌ Network error. Please check connection and try again.\n\nDetails: ' + (err && err.message ? err.message : 'unknown'));
+  });
 }
 
 function _applyLockOverlay() {
-  // Called after each panel renders — if locked, disable all interactive elements
-  if (!window._msLocked) return;
+  // Called after each panel renders. First, ALWAYS clear any leftover
+  // lock state from a previously-rendered panel (banner, disabled inputs,
+  // contenteditable=false). Then, if the current milestone is locked,
+  // re-apply.
+  //
+  // Earlier this only applied lock — never removed it. So if user
+  // navigated from a Done milestone to a Pending one, stale disabled
+  // state could leak: editor showed contenteditable=false, opacity 0.5,
+  // pointer-events disabled. User couldn't type. Hum ab har render pe
+  // pehle clean slate banate hain.
   var panel = document.getElementById('ms-detail-panel');
   if (!panel) return;
 
+  // ── Remove any stale lock banner from previous render ──
+  var oldBanner = panel.querySelector('#ms-lock-banner');
+  if (oldBanner && oldBanner.parentNode) oldBanner.parentNode.removeChild(oldBanner);
+
+  // ── Restore interactive elements (in case styles leaked) ──
+  panel.querySelectorAll('button, input, textarea, select, [contenteditable], label').forEach(function(el){
+    if (el.tagName === 'BUTTON' || el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT') {
+      el.disabled = false;
+    }
+    // Reset only the inline styles we set, not page-level styling
+    if (el.style.opacity === '0.4' || el.style.opacity === '0.5') el.style.opacity = '';
+    if (el.style.cursor === 'not-allowed') el.style.cursor = '';
+    if (el.style.background === 'rgb(241, 245, 249)') el.style.background = '';
+    if (el.style.pointerEvents === 'none') el.style.pointerEvents = '';
+    // contenteditable elements: only re-enable those that were originally true
+    // We mark them with data-was-editable when we disable, then restore.
+    if (el.getAttribute('data-was-editable') === 'true') {
+      el.setAttribute('contenteditable', 'true');
+      el.removeAttribute('data-was-editable');
+    }
+  });
+
+  // If not locked → done, panel is fully editable
+  if (!window._msLocked) return;
+
+  // ── Apply lock state ──
   // Show locked banner
   var banner = document.createElement('div');
   banner.id = 'ms-lock-banner';
   banner.style.cssText = 'background:#fef3c7;border:1.5px solid #f59e0b;border-radius:10px;padding:10px 16px;margin-bottom:12px;display:flex;align-items:center;gap:8px;font-size:.82rem;font-weight:700;color:#92400e;';
   banner.innerHTML = '🔒 This milestone is marked as Done. Editing is disabled. Mark as Pending to make changes.';
-  var firstChild = panel.querySelector('div > div:not(#ms-lock-banner)');
   var container = panel.querySelector('div');
   if (container) container.insertBefore(banner, container.children[1]);
 
@@ -2958,6 +3099,7 @@ function _applyLockOverlay() {
       el.style.background = '#f1f5f9';
     }
     if (el.getAttribute('contenteditable') === 'true') {
+      el.setAttribute('data-was-editable', 'true');   // remember for restore
       el.setAttribute('contenteditable', 'false');
       el.style.opacity = '0.5';
       el.style.background = '#f1f5f9';
@@ -2980,13 +3122,46 @@ function toggleMilestone(idx) {
   var key = 'ms_' + idx;
   var cur = (MS_STATE[key] || {}).status || 'pending';
 
-  // Once Done — NO revert allowed
+  // ─────────────────────────────────────────────────────────────
+  // Done → Pending: revert allowed with confirmation.
+  // Earlier code blocked this entirely ("This action cannot be
+  // undone"), but the locked-state banner explicitly tells the
+  // user to "Mark as Pending to make changes" — so we honour that
+  // and allow the revert. This unblocks editing of milestones
+  // like Ingredients List / BOM where the user may need to
+  // correct data after marking Done.
+  // ─────────────────────────────────────────────────────────────
   if (cur === 'done') {
+    var nameElDone = document.querySelector('#ms-detail-panel div[style*="font-weight:800"]');
+    var nameDone = nameElDone ? nameElDone.textContent.trim() : 'this milestone';
     showMsConfirm(
-      '\u{1F512} Already Completed',
-      'This milestone is already marked as <strong>Done</strong>.<br><br>' +
-      '<span style="color:#ef4444;font-size:.82rem;">\u26A0\uFE0F This action cannot be undone.</span>',
-      null, null, 'OK', null
+      '\u{1F513} Revert to Pending?',
+      'Mark <strong>' + nameDone + '</strong> as Pending so you can edit its data?<br><br>' +
+      '<span style="color:#6b7280;font-size:.82rem;">You can mark it Done again after saving your changes.</span>',
+      function() {
+        fetch('/npd/' + PROJ_ID + '/milestones/update', {
+          method: 'POST',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({key: key, status: 'pending'})
+        })
+        .then(function(r){ return r.json(); })
+        .then(function(data) {
+          if (data.success) {
+            MS_STATE[key] = {status: 'pending', date: '', note: (MS_STATE[key]||{}).note || ''};
+            window._msLocked = false;
+            // Re-render panel so editor becomes editable again
+            if (typeof selectMilestone === 'function') {
+              selectMilestone(idx);
+            } else {
+              location.reload();
+            }
+          } else {
+            alert(data.error || 'Could not revert milestone.');
+          }
+        })
+        .catch(function(){ alert('Network error. Please try again.'); });
+      },
+      null, 'Yes, revert to Pending', 'Cancel'
     );
     return;
   }
@@ -2997,7 +3172,7 @@ function toggleMilestone(idx) {
   showMsConfirm(
     '\u2705 Mark as Done?',
     'Are you sure you want to mark <strong>' + name + '</strong> as Done?<br><br>' +
-    '<span style="color:#ef4444;font-size:.82rem;">\u26A0\uFE0F Once marked as Done, this cannot be reverted.</span>',
+    '<span style="color:#6b7280;font-size:.82rem;">You can revert to Pending later if you need to edit.</span>',
     function() {
       fetch('/npd/' + PROJ_ID + '/milestones/update', {
         method: 'POST',

@@ -600,9 +600,20 @@ class OfficeDispatchItem(db.Model):
     actioned_by     = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
     actioned_at     = db.Column(db.DateTime, nullable=True)
 
+    # ── Client Dispatch (post-approval — sent to client)
+    # When operator selects approved items and dispatches to client,
+    # these get stamped with the ClientDispatch batch reference.
+    client_dispatch_id = db.Column(db.Integer,
+                                   db.ForeignKey('client_dispatch.id', ondelete='SET NULL'),
+                                   nullable=True)
+    sent_to_client_at  = db.Column(db.DateTime, nullable=True)
+
     project         = db.relationship('NPDProject', backref='dispatch_items', lazy=True)
     rd_sub_assignment = db.relationship('RDSubAssignment', backref='dispatch_items', lazy=True)
     actioner        = db.relationship('User', foreign_keys=[actioned_by], lazy=True)
+    client_dispatch = db.relationship('ClientDispatch',
+                                      backref='items', lazy=True,
+                                      foreign_keys=[client_dispatch_id])
 
     def __repr__(self):
         return f'<OfficeDispatchItem token={self.token_id} project={self.project_id}>'
@@ -695,3 +706,42 @@ class SampleApprovalLog(db.Model):
 
     def __repr__(self):
         return f'<SampleApprovalLog item={self.item_id} action={self.action}>'
+
+
+# ──────────────────────────────────────────────────────────────────────
+# ClientDispatch — "Send Approved Samples to Client" workflow
+# ──────────────────────────────────────────────────────────────────────
+# Once OfficeDispatchItem.approval_status='approved', operator can batch
+# selected items and send to client. Each batch creates one ClientDispatch
+# row (token + tracking + email/whatsapp flags) and stamps every item
+# with client_dispatch_id + sent_to_client_at.
+#
+# Companion DB columns on office_dispatch_items added by SQL migration:
+#   - client_dispatch_id (FK to client_dispatch.id, nullable)
+#   - sent_to_client_at  (datetime, nullable)
+# ──────────────────────────────────────────────────────────────────────
+class ClientDispatch(db.Model):
+    __tablename__ = 'client_dispatch'
+
+    id            = db.Column(db.Integer, primary_key=True)
+    token_no      = db.Column(db.String(50), nullable=False)
+    project_id    = db.Column(db.Integer,
+                              db.ForeignKey('npd_projects.id'),
+                              nullable=False)
+    courier_name  = db.Column(db.String(100))
+    tracking_no   = db.Column(db.String(150))
+    extra_notes   = db.Column(db.Text)
+    email_sent_to = db.Column(db.String(200))
+    email_sent_at = db.Column(db.DateTime)
+    whatsapp_sent = db.Column(db.Boolean, default=False, nullable=False)
+    dispatched_by = db.Column(db.Integer,
+                              db.ForeignKey('users.id'), nullable=False)
+    dispatched_at = db.Column(db.DateTime, nullable=False, default=datetime.now)
+
+    project    = db.relationship('NPDProject',
+                                 backref='client_dispatches', lazy=True)
+    dispatcher = db.relationship('User',
+                                 foreign_keys=[dispatched_by], lazy=True)
+
+    def __repr__(self):
+        return f'<ClientDispatch {self.token_no} project={self.project_id}>'

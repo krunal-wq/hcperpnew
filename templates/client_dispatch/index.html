@@ -1,0 +1,414 @@
+{% extends "base.html" %}
+{% block title %}Client Dispatch{% endblock %}
+{% block page_title %}Send Approved Samples to Client{% endblock %}
+{% block bread %}NPD / Client Dispatch{% endblock %}
+
+{% block extra_css %}
+<style>
+.cd-wrap{display:grid;grid-template-columns:340px 1fr;gap:14px;align-items:start;}
+@media(max-width:980px){.cd-wrap{grid-template-columns:1fr;}}
+
+.cd-card{background:var(--white);border:1px solid var(--border);border-radius:var(--r-lg);padding:14px;}
+.cd-card h3{margin:0 0 10px;font-size:.95rem;color:var(--text);}
+
+.cd-proj{padding:10px 12px;border:1px solid var(--border);border-radius:var(--r-sm);
+         margin-bottom:8px;cursor:pointer;background:var(--white);transition:.1s;}
+.cd-proj:hover{border-color:var(--blue);box-shadow:0 1px 4px rgba(37,99,235,.1);}
+.cd-proj.active{border-color:var(--blue);background:var(--blue-lt);}
+.cd-proj-code{font-size:.75rem;font-weight:800;color:var(--blue);}
+.cd-proj-name{font-size:.82rem;font-weight:600;color:var(--text);margin-top:2px;}
+.cd-proj-meta{font-size:.7rem;color:var(--text3);margin-top:4px;display:flex;justify-content:space-between;}
+.cd-pill{background:#dcfce7;color:#15803d;padding:2px 8px;border-radius:10px;font-weight:700;font-size:.66rem;}
+
+.cd-empty{padding:30px;text-align:center;color:var(--text3);font-size:.85rem;}
+.cd-loading{padding:18px;text-align:center;color:var(--text3);font-size:.8rem;}
+
+.cd-items{width:100%;border-collapse:collapse;margin-top:10px;}
+.cd-items th{text-align:left;padding:8px 10px;background:#f3f4f6;border-bottom:1px solid var(--border);
+             font-size:.7rem;text-transform:uppercase;color:var(--text2);font-weight:700;letter-spacing:.4px;}
+.cd-items td{padding:9px 10px;border-bottom:1px solid #f1f5f9;font-size:.84rem;}
+.cd-items tbody tr:hover{background:#fafafa;}
+.cd-items input[type="checkbox"]{transform:scale(1.15);cursor:pointer;}
+
+.cd-form{margin-top:14px;padding-top:14px;border-top:1px dashed var(--border);}
+.cd-form label{display:block;font-size:.74rem;font-weight:700;color:var(--text2);
+               text-transform:uppercase;letter-spacing:.3px;margin:10px 0 4px;}
+.cd-form input,.cd-form textarea{
+   width:100%;padding:.5rem .7rem;border:1px solid var(--border);border-radius:var(--r-sm);
+   font-size:.85rem;background:var(--white);color:var(--text);outline:none;font-family:inherit;
+}
+.cd-form input:focus,.cd-form textarea:focus{border-color:var(--blue);box-shadow:0 0 0 3px var(--blue-lt);}
+.cd-form-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+@media(max-width:640px){.cd-form-grid{grid-template-columns:1fr;}}
+
+.cd-send-btn{margin-top:14px;padding:.55rem 1.2rem;color:#fff;border:none;
+             border-radius:var(--r-sm);font-size:.85rem;font-weight:700;cursor:pointer;letter-spacing:.2px;
+             transition:.15s;}
+.cd-send-btn:disabled{background:#94a3b8 !important;cursor:not-allowed;}
+
+.cd-send-row{display:flex;justify-content:flex-end;margin-top:14px;}
+.cd-main-btn{background:#2563eb;}
+.cd-main-btn:hover:not(:disabled){background:#1d4ed8;}
+
+.cd-toolbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+.cd-history-link{font-size:.78rem;color:var(--blue);text-decoration:none;font-weight:700;}
+.cd-history-link:hover{text-decoration:underline;}
+
+.cd-result{padding:14px;background:#dcfce7;border:1.5px solid #6ee7b7;border-radius:10px;
+           margin-top:14px;font-size:.85rem;color:#065f46;}
+.cd-result.err{background:#fee2e2;border-color:#fca5a5;color:#991b1b;}
+.cd-wa-link{display:inline-block;margin-top:8px;padding:7px 14px;background:#25d366;color:#fff;
+            border-radius:6px;text-decoration:none;font-weight:700;font-size:.82rem;}
+.cd-wa-link:hover{background:#1ea952;}
+
+.cd-pcli{font-size:.74rem;color:var(--text3);margin-top:4px;}
+.cd-meta-line{display:flex;justify-content:space-between;align-items:center;
+              margin-bottom:8px;font-size:.85rem;}
+.cd-meta-line strong{color:var(--text);}
+
+/* ── Confirmation / Success Modal ───────────────────────── */
+.cd-mod-ov{position:fixed;inset:0;background:rgba(15,23,42,.55);display:none;
+           align-items:center;justify-content:center;z-index:9999;animation:cdFadeIn .15s ease-out;}
+.cd-mod-ov.open{display:flex;}
+@keyframes cdFadeIn{from{opacity:0;}to{opacity:1;}}
+@keyframes cdSlideIn{from{transform:translateY(-16px) scale(.96);opacity:0;}
+                      to  {transform:translateY(0) scale(1);opacity:1;}}
+.cd-mod{background:#fff;border-radius:14px;width:min(460px,92vw);
+        box-shadow:0 20px 50px rgba(0,0,0,.25);overflow:hidden;
+        animation:cdSlideIn .2s ease-out;}
+.cd-mod-hd{padding:18px 22px 12px;display:flex;align-items:center;gap:10px;}
+.cd-mod-ic{width:42px;height:42px;border-radius:50%;display:flex;align-items:center;
+           justify-content:center;font-size:1.4rem;flex-shrink:0;}
+.cd-mod-ic.warn{background:#fef3c7;color:#d97706;}
+.cd-mod-ic.ok{background:#dcfce7;color:#16a34a;}
+.cd-mod-ic.err{background:#fee2e2;color:#dc2626;}
+.cd-mod-ic.info{background:#dbeafe;color:#2563eb;}
+.cd-mod-ttl{font-size:1.05rem;font-weight:800;color:#0f172a;margin:0;line-height:1.3;}
+.cd-mod-bd{padding:0 22px 18px;font-size:.88rem;color:#374151;line-height:1.55;}
+.cd-mod-bd strong{color:#0f172a;}
+.cd-warn-line{margin-top:10px;padding:8px 12px;background:#fff7ed;border-left:3px solid #f59e0b;
+              border-radius:0 6px 6px 0;font-size:.8rem;color:#9a3412;}
+.cd-success-stat{margin-top:10px;padding:10px 14px;background:#f0fdf4;border:1px solid #bbf7d0;
+                 border-radius:8px;font-size:.83rem;color:#065f46;}
+.cd-success-stat .row{display:flex;justify-content:space-between;padding:3px 0;}
+.cd-mod-ft{padding:14px 22px 18px;display:flex;justify-content:flex-end;gap:8px;
+           background:#fafbfc;border-top:1px solid #f1f5f9;}
+.cd-mod-btn{padding:8px 18px;border-radius:8px;font-size:.85rem;font-weight:700;
+            cursor:pointer;border:1px solid var(--border);background:#fff;color:#374151;
+            text-decoration:none;display:inline-flex;align-items:center;transition:.1s;}
+.cd-mod-btn:hover{background:#f3f4f6;}
+.cd-mod-btn.primary{background:#2563eb;color:#fff;border-color:#2563eb;}
+.cd-mod-btn.primary:hover{background:#1d4ed8;}
+.cd-mod-btn.wa{background:#25d366;color:#fff;border-color:#25d366;}
+.cd-mod-btn.wa:hover{background:#1ea952;}
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Reusable modal container -->
+<div class="cd-mod-ov" id="cd-modal" onclick="if(event.target===this)closeCdModal()">
+  <div class="cd-mod">
+    <div class="cd-mod-hd">
+      <div class="cd-mod-ic" id="cd-mod-ic">ℹ️</div>
+      <h3 class="cd-mod-ttl" id="cd-mod-ttl"></h3>
+    </div>
+    <div class="cd-mod-bd" id="cd-mod-bd"></div>
+    <div class="cd-mod-ft" id="cd-mod-ft"></div>
+  </div>
+</div>
+
+<div class="cd-toolbar">
+  <div style="font-size:.82rem;color:var(--text2);">
+    Select an approved project on the left, then choose samples to dispatch.
+  </div>
+  <a href="{{ url_for('client_dispatch.history') }}" class="cd-history-link">📜 Dispatch History</a>
+</div>
+
+<div class="cd-wrap">
+
+  <!-- Left: Projects List -->
+  <div class="cd-card" style="max-height:75vh;overflow:auto;">
+    <h3>📦 Approved Projects <span id="cd-proj-count" style="color:var(--text3);font-weight:600;font-size:.8rem;"></span></h3>
+    <div id="cd-proj-list">
+      <div class="cd-loading">Loading…</div>
+    </div>
+  </div>
+
+  <!-- Right: Selected Project + Items + Send Form -->
+  <div class="cd-card" id="cd-detail">
+    <div class="cd-empty">← Select a project from the left to see its approved samples.</div>
+  </div>
+
+</div>
+
+<script>
+const CD_PROJ_LIST_URL = '{{ url_for("client_dispatch.api_projects") }}';
+const CD_ITEMS_URL_TPL = '{{ url_for("client_dispatch.api_project_items", pid=0) }}';   // contains /0/items — replace 0 with actual pid
+const CD_SEND_URL      = '{{ url_for("client_dispatch.api_send") }}';
+
+let CD_CURRENT_PROJ = null;
+
+// ── Load list of projects ──
+async function loadProjects() {
+  const list = document.getElementById('cd-proj-list');
+  try {
+    const r = await fetch(CD_PROJ_LIST_URL);
+    const d = await r.json();
+    if (!d.success) throw new Error(d.error || 'Failed');
+    document.getElementById('cd-proj-count').textContent = '(' + d.projects.length + ')';
+    if (!d.projects.length) {
+      list.innerHTML = '<div class="cd-empty">No approved projects pending dispatch.</div>';
+      return;
+    }
+    list.innerHTML = d.projects.map(p => `
+      <div class="cd-proj" data-pid="${p.id}" onclick="selectProject(${p.id}, this)">
+        <div class="cd-proj-code">${escapeHtml(p.code)}</div>
+        <div class="cd-proj-name">${escapeHtml(p.product_name)}</div>
+        <div class="cd-pcli">👤 ${escapeHtml(p.client_name || '—')}</div>
+        <div class="cd-proj-meta">
+          <span>${escapeHtml(p.client_email || '—')}</span>
+          <span class="cd-pill">${p.pending_count} sample${p.pending_count > 1 ? 's' : ''}</span>
+        </div>
+      </div>
+    `).join('');
+  } catch (err) {
+    list.innerHTML = '<div class="cd-empty" style="color:#dc2626;">Failed to load: ' + escapeHtml(err.message) + '</div>';
+  }
+}
+
+// ── Select project → load its approved items ──
+async function selectProject(pid, el) {
+  document.querySelectorAll('.cd-proj').forEach(x => x.classList.remove('active'));
+  if (el) el.classList.add('active');
+
+  const detail = document.getElementById('cd-detail');
+  detail.innerHTML = '<div class="cd-loading">Loading samples…</div>';
+
+  try {
+    // URL template: /client-dispatch/api/project/0/items — replace /0/ with /<pid>/
+    const url = CD_ITEMS_URL_TPL.replace('/project/0/', '/project/' + pid + '/');
+    const r = await fetch(url);
+    // Read raw text first — if backend returned HTML (404/500), we'll
+    // see <!DOCTYPE and surface a useful error instead of "Unexpected token".
+    const rawText = await r.text();
+    let d;
+    try {
+      d = JSON.parse(rawText);
+    } catch (parseErr) {
+      console.error('Non-JSON response:', rawText.slice(0, 300));
+      throw new Error('Server returned HTML (HTTP ' + r.status + '). Check Flask logs / URL.');
+    }
+    if (!d.success) throw new Error(d.error || 'Failed');
+
+    CD_CURRENT_PROJ = d.project;
+    renderDetail(d.project, d.items);
+  } catch (err) {
+    detail.innerHTML = '<div class="cd-empty" style="color:#dc2626;">Failed: ' + escapeHtml(err.message) + '</div>';
+  }
+}
+
+function renderDetail(p, items) {
+  const detail = document.getElementById('cd-detail');
+  if (!items.length) {
+    detail.innerHTML = '<div class="cd-empty">No approved samples available for this project.</div>';
+    return;
+  }
+
+  const itemRows = items.map(it => `
+    <tr>
+      <td><input type="checkbox" class="cd-item-chk" data-iid="${it.id}" data-code="${escapeHtml(it.sample_code)}"></td>
+      <td><strong>${escapeHtml(it.sample_code) || '—'}</strong></td>
+      <td>${escapeHtml(it.submitted_by) || '—'}</td>
+      <td>${escapeHtml(it.actioned_by) || '—'}</td>
+      <td style="font-size:.75rem;color:var(--text3);">${escapeHtml(it.actioned_at) || '—'}</td>
+    </tr>
+  `).join('');
+
+  detail.innerHTML = `
+    <div class="cd-meta-line">
+      <div>
+        <strong>${escapeHtml(p.code)}</strong> — ${escapeHtml(p.product_name)}
+        <div class="cd-pcli">👤 ${escapeHtml(p.client_name || '—')}
+          ${p.client_email ? ' | 📧 ' + escapeHtml(p.client_email) : ''}
+          ${p.client_phone ? ' | 📱 ' + escapeHtml(p.client_phone) : ''}
+        </div>
+      </div>
+      <button onclick="toggleAllItems(this)" style="font-size:.75rem;background:none;border:1px solid var(--border);padding:5px 10px;border-radius:6px;cursor:pointer;">Select All</button>
+    </div>
+
+    <table class="cd-items">
+      <thead>
+        <tr>
+          <th style="width:40px;"></th>
+          <th>Sample Code</th>
+          <th>Submitted By</th>
+          <th>Approved By</th>
+          <th>Approved At</th>
+        </tr>
+      </thead>
+      <tbody>${itemRows}</tbody>
+    </table>
+
+    <div class="cd-form">
+      <h3 style="margin:0 0 4px;font-size:.85rem;">Tracking Details</h3>
+      <div class="cd-form-grid">
+        <div>
+          <label>Courier Name <span style="color:#dc2626;">*</span></label>
+          <input type="text" id="cd-courier" placeholder="e.g. BlueDart, DTDC, Delhivery">
+        </div>
+        <div>
+          <label>Tracking No. <span style="color:#dc2626;">*</span></label>
+          <input type="text" id="cd-tracking" placeholder="e.g. 1234567890">
+        </div>
+      </div>
+
+      <label>Notes (optional)</label>
+      <textarea id="cd-notes" rows="2" placeholder="Any extra info for the client"></textarea>
+
+      <label>Email Address (override)</label>
+      <input type="email" id="cd-email" value="${escapeHtml(p.client_email || '')}" placeholder="client@example.com">
+
+      <div class="cd-send-row">
+        <button class="cd-send-btn cd-main-btn" id="cd-send-btn" onclick="saveDispatch()">
+          📤 Send to Client
+        </button>
+      </div>
+      <div id="cd-result"></div>
+    </div>
+  `;
+}
+
+function toggleAllItems(btn) {
+  const boxes = document.querySelectorAll('.cd-item-chk');
+  const allChecked = Array.from(boxes).every(b => b.checked);
+  boxes.forEach(b => b.checked = !allChecked);
+  btn.textContent = allChecked ? 'Select All' : 'Deselect All';
+}
+
+// ── Common: validate & gather form data ──
+function gatherSendInputs() {
+  const selected = Array.from(document.querySelectorAll('.cd-item-chk:checked'))
+                        .map(b => parseInt(b.dataset.iid, 10));
+  if (!selected.length) {
+    showCdModal({icon:'⚠️', iconClass:'warn', title:'No samples selected',
+                 body:'Please tick at least one sample to dispatch.',
+                 footer:'<button class="cd-mod-btn primary" onclick="closeCdModal()">OK</button>'});
+    return null;
+  }
+  const courier  = document.getElementById('cd-courier').value.trim();
+  const tracking = document.getElementById('cd-tracking').value.trim();
+  if (!courier) {
+    showCdModal({icon:'⚠️', iconClass:'warn', title:'Courier name required',
+                 body:'Please enter the <strong>Courier Name</strong> (e.g. BlueDart, DTDC, Delhivery).',
+                 footer:'<button class="cd-mod-btn primary" onclick="closeCdModal();document.getElementById(&quot;cd-courier&quot;).focus();">OK</button>'});
+    return null;
+  }
+  if (!tracking) {
+    showCdModal({icon:'⚠️', iconClass:'warn', title:'Tracking number required',
+                 body:'Please enter the <strong>Tracking No.</strong> from the courier so the client can track the parcel.',
+                 footer:'<button class="cd-mod-btn primary" onclick="closeCdModal();document.getElementById(&quot;cd-tracking&quot;).focus();">OK</button>'});
+    return null;
+  }
+  return {
+    project_id  : CD_CURRENT_PROJ.id,
+    item_ids    : selected,
+    courier_name: courier,
+    tracking_no : tracking,
+    notes       : document.getElementById('cd-notes').value.trim(),
+    to_email    : document.getElementById('cd-email').value.trim(),
+  };
+}
+
+// ── 📤 Save dispatch — no email/whatsapp; those happen from History page ──
+async function saveDispatch() {
+  const payload = gatherSendInputs();
+  if (!payload) return;
+
+  payload.send_email    = false;     // notification happens later from History
+  payload.send_whatsapp = false;
+
+  const btn = document.getElementById('cd-send-btn');
+  const orig = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '⏳ Saving...';
+
+  try {
+    const r = await fetch(CD_SEND_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const rawText = await r.text();
+    let d;
+    try { d = JSON.parse(rawText); }
+    catch (e) {
+      console.error('Non-JSON response:', rawText.slice(0, 300));
+      throw new Error('Server returned HTML (HTTP ' + r.status + ')');
+    }
+    if (!d.success) throw new Error(d.error || 'Failed');
+
+    // Success modal — direct user to History page for actual notification
+    showCdModal({
+      icon: '✓', iconClass: 'ok',
+      title: 'Dispatch saved',
+      body: `
+        Token <strong>${escapeHtml(d.token_no)}</strong> created.
+        <div class="cd-success-stat">
+          <div class="row"><span>Samples dispatched:</span><strong>${payload.item_ids.length}</strong></div>
+          <div class="row"><span>Dispatched at:</span><strong>${escapeHtml(d.dispatched_at)}</strong></div>
+          <div class="row"><span>Project status:</span><strong>Sent to Client</strong></div>
+        </div>
+        <div style="margin-top:14px;font-size:.83rem;color:#374151;">
+          📧 To send <strong>Email</strong> or 📱 <strong>WhatsApp</strong> notification,
+          go to <strong>Dispatch History</strong> and click the buttons next to this token.
+        </div>
+      `,
+      footer: `
+        <button class="cd-mod-btn" onclick="closeCdModal();afterSend();">Close</button>
+        <a class="cd-mod-btn primary" href="/client-dispatch/history">📜 Open History</a>
+      `,
+    });
+
+  } catch (err) {
+    showCdModal({
+      icon:'✕', iconClass:'err', title:'Could not save dispatch',
+      body:'<strong>Reason:</strong> ' + escapeHtml(err.message),
+      footer:'<button class="cd-mod-btn primary" onclick="closeCdModal()">Close</button>',
+    });
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = orig;
+  }
+}
+
+// ── Refresh project list and reset detail panel after a successful send ──
+function afterSend() {
+  loadProjects();
+  const detail = document.getElementById('cd-detail');
+  detail.innerHTML = '<div class="cd-empty">✅ Dispatched. Select another project.</div>';
+}
+
+// ── Reusable modal helpers ──
+function showCdModal({icon, iconClass, title, body, footer}) {
+  document.getElementById('cd-mod-ic').textContent = icon || 'ℹ️';
+  document.getElementById('cd-mod-ic').className = 'cd-mod-ic ' + (iconClass || 'info');
+  document.getElementById('cd-mod-ttl').textContent = title || '';
+  document.getElementById('cd-mod-bd').innerHTML = body || '';
+  document.getElementById('cd-mod-ft').innerHTML = footer || '';
+  document.getElementById('cd-modal').classList.add('open');
+}
+function closeCdModal() {
+  document.getElementById('cd-modal').classList.remove('open');
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeCdModal(); });
+
+function escapeHtml(s) {
+  if (s == null) return '';
+  return String(s).replace(/[&<>"']/g, c => ({
+    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+  }[c]));
+}
+
+document.addEventListener('DOMContentLoaded', loadProjects);
+</script>
+{% endblock %}
