@@ -2,6 +2,10 @@
 {% block title %}Packing Entry — HCP ERP{% endblock %}
 {% block page_title %}Packing Entry{% endblock %}
 {% block bread %}Packing / Sample Receipt Log{% endblock %}
+{# ============================================================ #}
+{# PAGINATION FIX v2 — if you don't see "PAGINATION v2 LOADED"  #}
+{# in the browser console (F12), this file is being cached.     #}
+{# ============================================================ #}
 
 {% block extra_css %}
 <style>
@@ -149,22 +153,25 @@ input[type="checkbox"] { width:14px; height:14px; cursor:pointer; accent-color:v
   <span class="pk-chip">Total: <span class="val" id="pkTotal">{{ entries|length }}</span></span>
   <span class="pk-chip" id="pkSelChip" style="display:none">Selected: <span class="val" id="pkSelCnt">0</span></span>
   <div class="pk-toolbar-right">
-    {% if role in ['admin','manager','Packing'] %}
+    {% if pk_perms and pk_perms.whatsapp %}
     <button class="btn-pk-wa" id="pkWaBtn" onclick="pkWhatsApp()" disabled>
       <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.125.555 4.122 1.528 5.857L0 24l6.335-1.51A11.95 11.95 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.97 0-3.81-.536-5.39-1.47l-.387-.23-3.76.897.944-3.653-.253-.396A9.956 9.956 0 012 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/></svg>
       WhatsApp
     </button>
     {% endif %}
-<button class="btn-grid-action" onclick="pkExportCSV()">
+    {% if pk_perms and pk_perms.export %}
+    <button class="btn-grid-action" onclick="pkExportCSV()">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
       Export CSV
     </button>
-    {% if role in ['admin', 'manager'] %}
+    {% endif %}
+    {% if pk_perms and pk_perms.import_csv %}
     <button class="btn-grid-action" onclick="pkOpenImport()">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
       Import CSV
     </button>
     {% endif %}
+    {% if pk_perms and pk_perms.columns %}
     <div class="pk-col-wrap">
       <button class="btn-grid-action" onclick="pkToggleColPanel(event)">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
@@ -176,15 +183,20 @@ input[type="checkbox"] { width:14px; height:14px; cursor:pointer; accent-color:v
         <button onclick="pkApplyColumns()" style="width:100%;padding:7px;border-radius:7px;background:#2563eb;color:#fff;border:none;font-size:12.5px;font-weight:700;cursor:pointer;">Apply</button>
       </div>
     </div>
-        <button class="btn-grid-action" onclick="window.print()">
+    {% endif %}
+    {% if pk_perms and pk_perms.print %}
+    <button class="btn-grid-action" onclick="window.print()">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
       Print
     </button>
+    {% endif %}
+    {% if pk_perms and pk_perms.new_entry %}
     <button class="btn-add-new" onclick="pkOpenModal()" title="Alt+N">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
       New Entry
       <kbd style="font-size:9px;opacity:.75;background:rgba(255,255,255,.2);border-radius:3px;padding:1px 5px;margin-left:2px">Alt+N</kbd>
     </button>
+    {% endif %}
   </div>
 </div>
 
@@ -192,7 +204,7 @@ input[type="checkbox"] { width:14px; height:14px; cursor:pointer; accent-color:v
 <div class="pk-filter-bar">
   <div class="pk-fg">
     <label class="pk-flbl">Show</label>
-    <select class="pk-pg-sz" id="pkPgSzSel" onchange="pkPageSz=+this.value;pkPage=1;pkRender()">
+    <select class="pk-pg-sz" id="pkPgSzSel" onchange="pkSetPageSize(+this.value)">
       <option value="20">20 / page</option>
       <option value="50" selected>50 / page</option>
       <option value="100">100 / page</option>
@@ -237,6 +249,7 @@ input[type="checkbox"] { width:14px; height:14px; cursor:pointer; accent-color:v
         <th data-col="mrp">MRP</th><th data-col="status">Receiving<br>Status</th><th data-col="received_date">Received<br>Date</th>
         <th data-col="remark">Remark</th><th>Actions</th>
       </tr>
+      {% if pk_perms and pk_perms.filter %}
       <tr>
         <td></td><td></td>
         <td data-col="entry_date"></td>
@@ -258,6 +271,7 @@ input[type="checkbox"] { width:14px; height:14px; cursor:pointer; accent-color:v
         </td>
         <td></td><td></td><td></td>
       </tr>
+      {% endif %}
     </thead>
     <tbody id="pkTbody">
       {% if entries %}
@@ -270,8 +284,8 @@ input[type="checkbox"] { width:14px; height:14px; cursor:pointer; accent-color:v
             data-recvdate="{{ r.received_date.strftime('%Y-%m-%d') if r.received_date else '' }}"
             data-recvby="{{ r.received_by or '' }}"
             data-teststatus="{{ r.testing_status or 'Pending' }}"
-            ondblclick="{% if not locked %}pkEditRow({{ r.id }}){% endif %}"
-            style="cursor:{% if not locked %}pointer{% else %}default{% endif %}">
+            ondblclick="{% if not locked and pk_perms and pk_perms.inline_edit %}pkEditRow({{ r.id }}){% endif %}"
+            style="cursor:{% if not locked and pk_perms and pk_perms.inline_edit %}pointer{% else %}default{% endif %}">
           <td class="chk-col" onclick="event.stopPropagation()">
             <input type="checkbox" class="pk-row-cb" value="{{ r.id }}" onchange="pkUpdSelChip()">
           </td>
@@ -296,7 +310,7 @@ input[type="checkbox"] { width:14px; height:14px; cursor:pointer; accent-color:v
           <td onclick="event.stopPropagation()">
             {% if locked %}
               <span style="font-size:11px;color:var(--text3)">🔒</span>
-            {% else %}
+            {% elif pk_perms and pk_perms.delete %}
               <button class="act-del" onclick="pkDelete({{ r.id }})">🗑</button>
             {% endif %}
           </td>
@@ -540,22 +554,119 @@ function pkExportCSV(){
   a.download='packing_entries.csv';a.click();
 }
 
-/* ── Column filter (client-side) ── */
-function pkFilterCol(){
+/* ──────────────────────────────────────────────────────────────────────
+   PAGINATION + FILTER + SEARCH PIPELINE
+   ──────────────────────────────────────
+   Single source of truth: every row's visibility is decided by pkRender().
+   - pkApplyFilters() walks the rows once, marks each as matched/unmatched
+     for filter+search, and stores the result on a data attribute.
+   - pkRender() then shows only the matched rows for the current page.
+   Everything else (sort buttons, search box, column filters, page-size
+   dropdown, pagination buttons) just flips state and calls pkRender().
+   ────────────────────────────────────────────────────────────────────── */
+
+let pkPageSz   = 50;   // rows per page (matches default <option selected>)
+let pkPage     = 1;    // current page (1-based)
+let pkSearchQ  = '';   // current global search term
+const PK_DATA_MATCH = 'data-pk-match';   // '1' = passes filters, '0' = filtered out
+
+/* ── Re-evaluate which rows pass current filters + search ── */
+function pkApplyFilters(){
   const filters={};
   document.querySelectorAll('.pk-cf[id]').forEach(el=>{filters[el.id]=(el.value||'').toLowerCase();});
+  const q = pkSearchQ;
   document.querySelectorAll('#pkTable tbody tr').forEach(tr=>{
-    let show=true;
-    if(filters['cf-brand']    && !(tr.querySelector('td[data-col=brand]')?.textContent||'').toLowerCase().includes(filters['cf-brand']))    show=false;
-    if(filters['cf-product']  && !(tr.querySelector('td[data-col=product_name]')?.textContent||'').toLowerCase().includes(filters['cf-product']))  show=false;
-    if(filters['cf-batch']    && !(tr.querySelector('td[data-col=batch_no]')?.textContent||'').toLowerCase().includes(filters['cf-batch']))    show=false;
-    if(filters['cf-sku']      && !(tr.querySelector('td[data-col=sku_size]')?.textContent||'').toLowerCase().includes(filters['cf-sku']))      show=false;
-    if(filters['cf-pkgmat']   && !(tr.querySelector('td[data-col=packaging_material]')?.textContent||'').toLowerCase().includes(filters['cf-pkgmat']))   show=false;
-    if(filters['cf-sentby']   && !(tr.querySelector('td[data-col=samples_sent_by]')?.textContent||'').toLowerCase().includes(filters['cf-sentby']))   show=false;
-    if(filters['cf-status']   && !(tr.querySelector('td[data-col=status]')?.textContent||'').toLowerCase().includes(filters['cf-status']))   show=false;
-    tr.style.display=show?'':'none';
+    // empty-state row has no data-id — skip pagination on it
+    if(!tr.hasAttribute('data-id')) return;
+    let ok=true;
+    if(filters['cf-brand']    && !(tr.querySelector('td[data-col=brand]')?.textContent||'').toLowerCase().includes(filters['cf-brand']))    ok=false;
+    if(ok && filters['cf-product']  && !(tr.querySelector('td[data-col=product_name]')?.textContent||'').toLowerCase().includes(filters['cf-product']))  ok=false;
+    if(ok && filters['cf-batch']    && !(tr.querySelector('td[data-col=batch_no]')?.textContent||'').toLowerCase().includes(filters['cf-batch']))    ok=false;
+    if(ok && filters['cf-mfg']      && !(tr.querySelector('td[data-col=mfg_date]')?.textContent||'').toLowerCase().includes(filters['cf-mfg']))      ok=false;
+    if(ok && filters['cf-exp']      && !(tr.querySelector('td[data-col=exp_date]')?.textContent||'').toLowerCase().includes(filters['cf-exp']))      ok=false;
+    if(ok && filters['cf-sku']      && !(tr.querySelector('td[data-col=sku_size]')?.textContent||'').toLowerCase().includes(filters['cf-sku']))      ok=false;
+    if(ok && filters['cf-pkgmat']   && !(tr.querySelector('td[data-col=packaging_material]')?.textContent||'').toLowerCase().includes(filters['cf-pkgmat']))   ok=false;
+    if(ok && filters['cf-sentby']   && !(tr.querySelector('td[data-col=samples_sent_by]')?.textContent||'').toLowerCase().includes(filters['cf-sentby']))   ok=false;
+    if(ok && filters['cf-status']   && !(tr.querySelector('td[data-col=status]')?.textContent||'').toLowerCase().includes(filters['cf-status']))   ok=false;
+    if(ok && q && !tr.textContent.toLowerCase().includes(q)) ok=false;
+    tr.setAttribute(PK_DATA_MATCH, ok ? '1' : '0');
   });
 }
+
+/* ── Show only the rows for the current page; build pagination buttons ── */
+function pkRender(){
+  const rows = document.querySelectorAll('#pkTable tbody tr['+PK_DATA_MATCH+'="1"]');
+  const total = rows.length;
+
+  // Hide all data rows first; then show this page's slice.
+  document.querySelectorAll('#pkTable tbody tr['+PK_DATA_MATCH+']').forEach(tr=>{tr.style.display='none';});
+
+  const totalPages = Math.max(1, Math.ceil(total / pkPageSz));
+  if(pkPage > totalPages) pkPage = totalPages;
+  if(pkPage < 1) pkPage = 1;
+
+  const start = (pkPage - 1) * pkPageSz;
+  const end   = Math.min(start + pkPageSz, total);
+  let srNo = start + 1;
+  for(let i=start; i<end; i++){
+    rows[i].style.display='';
+    // Renumber the visible Sr No
+    const sr = rows[i].querySelector('td.td-sr');
+    if(sr) sr.textContent = srNo++;
+  }
+
+  // Info text
+  const info = document.getElementById('pkPgInfo');
+  if(info){
+    if(total === 0){ info.textContent = 'No matching entries'; }
+    else { info.textContent = `Showing ${start+1}–${end} of ${total}`; }
+  }
+
+  // Build buttons (compact: « ‹ 1 … 4 5 [6] 7 8 … 20 › »)
+  const btnWrap = document.getElementById('pkPgBtns');
+  if(btnWrap){
+    btnWrap.innerHTML = '';
+    if(totalPages <= 1){ return; }
+    const mk = (label, page, opts={}) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'pk-pg-btn' + (opts.active ? ' active' : '');
+      b.textContent = label;
+      if(opts.disabled) b.disabled = true;
+      else b.onclick = () => { pkPage = page; pkRender(); };
+      btnWrap.appendChild(b);
+    };
+    mk('«', 1,            {disabled: pkPage === 1});
+    mk('‹', pkPage - 1,   {disabled: pkPage === 1});
+
+    // Numbered window
+    const win = 1;  // pages on each side of current
+    const pages = new Set([1, totalPages, pkPage]);
+    for(let p = pkPage - win; p <= pkPage + win; p++){
+      if(p >= 1 && p <= totalPages) pages.add(p);
+    }
+    const sorted = [...pages].sort((a,b)=>a-b);
+    let prev = 0;
+    for(const p of sorted){
+      if(p - prev > 1){
+        const ell = document.createElement('span');
+        ell.textContent = '…';
+        ell.style.cssText = 'padding:0 4px;color:var(--text2);font-size:12px;align-self:center;';
+        btnWrap.appendChild(ell);
+      }
+      mk(String(p), p, {active: p === pkPage});
+      prev = p;
+    }
+
+    mk('›', pkPage + 1,   {disabled: pkPage === totalPages});
+    mk('»', totalPages,   {disabled: pkPage === totalPages});
+  }
+}
+
+/* ── Public entry points used by inline handlers ── */
+function pkSetPageSize(n){ pkPageSz = n || 50; pkPage = 1; pkRender(); }
+function pkFilterCol(){ pkApplyFilters(); pkPage = 1; pkRender(); }
+function pkGlobalSearch(q){ pkSearchQ = (q||'').toLowerCase(); pkApplyFilters(); pkPage = 1; pkRender(); }
 
 /* ── Date filter (reload page) ── */
 function pkApplyDates(){
@@ -565,14 +676,6 @@ function pkApplyDates(){
   if(from) url+='from='+from+'&';
   if(to)   url+='to='+to;
   window.location.href=url;
-}
-
-/* ── Search bar ── */
-function pkGlobalSearch(q){
-  q=q.toLowerCase();
-  document.querySelectorAll('#pkTable tbody tr').forEach(tr=>{
-    tr.style.display=tr.textContent.toLowerCase().includes(q)?'':'none';
-  });
 }
 
 /* ── WhatsApp (selected rows) ── */
@@ -787,7 +890,18 @@ document.addEventListener('keydown',e=>{
 
 /* ── Init ── */
 document.addEventListener('DOMContentLoaded',()=>{
+  console.log('%c[PACKING] PAGINATION v2 LOADED','color:#16a34a;font-weight:bold;font-size:13px');
   pkLoadCols();pkApplyColVis();
+  // Initialize pagination — read default page size from the dropdown
+  const sel = document.getElementById('pkPgSzSel');
+  if(sel) pkPageSz = +sel.value || 50;
+  try {
+    pkApplyFilters();
+    pkRender();
+    console.log('[PACKING] Pagination initialised — page size:', pkPageSz);
+  } catch(err) {
+    console.error('[PACKING] Pagination init failed:', err);
+  }
 });
 document.addEventListener('keydown',e=>{
   if(e.altKey&&e.key.toLowerCase()==='n'){e.preventDefault();pkOpenModal();}

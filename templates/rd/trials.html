@@ -397,11 +397,23 @@
                     </div>
                 </div>
 
-                <!-- Sample No -->
+                <!-- Sample Code ─────────────────────────────────────
+                     Plain text input. When a project is selected, the
+                     codes assigned to the current user (from the
+                     manager's RDSubAssignment.sample_code list) are
+                     auto-filled here as a comma-separated string.
+                     User can edit / customise before saving. If a user
+                     has multiple codes (e.g. "SMP001,SMP002"), all
+                     come pre-populated and the user can trim down or
+                     add more as needed. -->
                 <div class="fg">
-                    <label>Sample No.</label>
-                    <input type="text" name="formulation_name" placeholder="e.g. S-001"
+                    <label>Sample Code</label>
+                    <input type="text" name="formulation_name" id="sample-code-input"
+                           placeholder="Project select karo — codes auto-fill ho jayenge"
                            style="padding:.45rem .75rem;border:1px solid var(--border);border-radius:var(--r-sm);font-size:.85rem;background:var(--white);color:var(--text);width:100%;outline:none;">
+                    <div id="sample-code-hint" style="font-size:.7rem;color:var(--text3);margin-top:.25rem;display:none;">
+                        💡 Multiple codes hain — comma-separated edit kar sakte ho
+                    </div>
                 </div>
 
                 <!-- Parameters Table -->
@@ -426,27 +438,20 @@
                     <textarea name="parameters" id="params-hidden" style="display:none;"></textarea>
                 </div>
 
-                <!-- Status + Rejection for main sample -->
-                <div class="gr2" style="margin-bottom:.85rem;">
-                    <div class="fg" style="margin-bottom:0;">
-                        <label>Status</label>
-                        <select name="status" id="trial-status-sel" onchange="onStatusChange(this.value,'main')"
-                                style="width:100%;padding:.45rem .75rem;border:1px solid var(--border);border-radius:var(--r-sm);font-size:.85rem;background:var(--white);color:var(--text);outline:none;">
-                            <option value="pending">⏳ Pending</option>
-                            <option value="approved">✅ Approved</option>
-                            <option value="rejected">❌ Rejected</option>
-                            <option value="submitted_npd">📤 Submitted to NPD Team</option>
-                            <option value="submitted_client">📨 Submitted to Client</option>
-                            <option value="client_approved">✅ Client Approved</option>
-                            <option value="client_rejected">❌ Client Rejected</option>
-                        </select>
-                    </div>
-                    <div class="fg" style="margin-bottom:0;" id="rejection-reason-row" style="display:none;">
-                        <label>Rejection Reason <span style="color:var(--red);">*</span></label>
-                        <input type="text" name="rejection_reason" id="rejection-reason-inp" placeholder="Reason mandatory for rejection..."
-                               style="padding:.45rem .75rem;border:1px solid var(--border);border-radius:var(--r-sm);font-size:.85rem;background:var(--white);color:var(--text);width:100%;outline:none;">
-                    </div>
-                </div>
+                <!-- Status + Rejection block — REMOVED at user request:
+                     "Status remove ker do nai aayega"
+                     "Rejection Reason remove ker do nai aayega kyuki Approved
+                      huva ho woh hi entry yaha aayegi"
+                     The trials list on this page only shows samples that are
+                     already approved by the client, so the executive logging
+                     test results doesn't need to set a status — they're just
+                     recording observations + parameters. Backend defaults
+                     `status='pending'` (it's a non-NULL column) and
+                     `rejection_reason` is left NULL. If status workflow is
+                     reintroduced, it should live on the sample listing/detail
+                     page, not in the trial-log modal. -->
+                <input type="hidden" name="status" value="pending">
+                <input type="hidden" name="rejection_reason" value="">
 
                 <!-- Observations -->
                 <div class="fg">
@@ -528,19 +533,26 @@
 <script>
 
 // ── TRIAL DATA ──
+// Source: rd_trial_logs table (RDTrialLog model). Field name mapping:
+//   sample_code      ← was: formulation_name
+//   rd_user_id       ← was: rd_person
+//   rd_user_name     ← was: rd_person_name
+//   parameters_json  ← was: formulation_desc
+//   observations     ← was: rd_notes
 const TRIAL_DATA = {
     {% for t in trials %}
     "{{ t.id }}": {
         proj_id:  {{ t.project_id or 'null' }},
-        rd_id:    {{ t.rd_person or 'null' }},
-        name:     {{ t.formulation_name|tojson }},
-        params:   {{ t.formulation_desc|tojson if t.formulation_desc else '""' }},
-        obs:      {{ t.rd_notes|tojson if t.rd_notes else '""' }}
+        rd_id:    {{ t.rd_user_id or 'null' }},
+        name:     {{ t.sample_code|tojson }},
+        params:   {{ t.parameters_json|tojson if t.parameters_json else '""' }},
+        obs:      {{ t.observations|tojson if t.observations else '""' }}
     }{% if not loop.last %},{% endif %}
     {% endfor %}
 };
 
-// Trials grouped by project_id
+// Trials grouped by project_id — used by the right-panel listing
+// when an executive clicks a project card.
 const TRIALS_BY_PROJECT = {};
 {% for t in trials %}
 (function(){
@@ -548,14 +560,13 @@ const TRIALS_BY_PROJECT = {};
     if(!pid) return;
     if(!TRIALS_BY_PROJECT[pid]) TRIALS_BY_PROJECT[pid] = [];
     TRIALS_BY_PROJECT[pid].push({
-        id:       {{ t.id }},
-        iter:     {{ t.iteration }},
-        name:     {{ t.formulation_name|tojson }},
-        rd:       {{ t.rd_user.full_name|tojson if t.rd_user else (t.rd_person|string|tojson if t.rd_person else '""') }},
-        date:     "{{ t.created_at.strftime('%d %b %Y') if t.created_at else '' }}",
-        status:   "{{ t.client_status or 'pending' }}",
-        t_status: "{{ t.status or 'pending' }}",
-        rejection_reason: {{ t.rejection_reason|tojson if t.rejection_reason is defined and t.rejection_reason else '""'|safe }}
+        id:    {{ t.id }},
+        name:  {{ t.sample_code|tojson }},
+        // Snapshot name (rd_user_name) preferred — stable even if the
+        // underlying user is renamed/deactivated; fall back to the live
+        // join then the user_id.
+        rd:    {{ t.rd_user_name|tojson if t.rd_user_name else (t.rd_user.full_name|tojson if t.rd_user else (t.rd_user_id|string|tojson if t.rd_user_id else '""')) }},
+        date:  "{{ t.created_at.strftime('%d %b %Y') if t.created_at else '' }}"
     });
 })();
 {% endfor %}
@@ -578,6 +589,51 @@ const RD_PROJECTS = {
     {% endfor %}
 };
 
+// ── USER SAMPLE CODES ──
+// Map: { project_id : [code1, code2, ...] }
+// Populated by the backend from RDSubAssignment.sample_code for the
+// current user. Used to auto-populate the Sample Code dropdown when
+// the trial-log modal opens.
+const USER_SAMPLE_CODES = {{ user_sample_codes|tojson if user_sample_codes is defined else '{}'|safe }};
+
+// Auto-fill the Sample Code text input from the user's assigned codes
+// for the given project. Codes are pulled from USER_SAMPLE_CODES (set
+// from RDSubAssignment.sample_code on the backend) and joined with
+// commas — user can edit further before saving.
+//
+// Why a plain text input (not a dropdown):
+//   A user may have multiple codes assigned to the same project (e.g.
+//   "SMP001,SMP002") and may need to log results that reference more
+//   than one OR just trim down to a single code. Forcing a dropdown
+//   collapsed both cases into "pick one" — text input handles both
+//   workflows cleanly. The hint below the field tells the user that
+//   comma-separated edits are allowed when multiple codes are present.
+function setSampleCodeOptions(pid) {
+    var codes = USER_SAMPLE_CODES[pid] || USER_SAMPLE_CODES[String(pid)] || [];
+    var inp  = document.getElementById('sample-code-input');
+    var hint = document.getElementById('sample-code-hint');
+    if (!inp) return;
+
+    if (codes && codes.length > 0) {
+        // Auto-fill comma-separated. Single code = just that code; no
+        // trailing comma.
+        inp.value = codes.join(', ');
+        inp.placeholder = 'e.g. ' + codes[0];
+        if (hint) hint.style.display = (codes.length > 1) ? '' : 'none';
+    } else {
+        // No assigned codes — let the user type. Don't clobber an
+        // existing value (e.g. when called from openExistingTrial and
+        // we've already filled the saved code).
+        inp.placeholder = 'e.g. SMP001 (manager ne assign nahi kiya — type karo)';
+        if (hint) hint.style.display = 'none';
+        // Only clear if currently empty AND we're in add mode
+        // (heuristic: edit-id hidden field carries a value in edit mode).
+        var editId = document.getElementById('trial-edit-id');
+        var isEdit = editId && editId.value;
+        if (!isEdit && !inp.value) inp.value = '';
+    }
+}
+
 // ── PARAM MASTER + ALL FUNCTIONS ──
 // ── Close modal ──
 function closeTrialModal(){
@@ -597,12 +653,31 @@ document.addEventListener('DOMContentLoaded',function(){
 // ── Project select → show client details ──
 function onProjectChange(pid){
     var card = document.getElementById('client-info-card');
-    if(!pid || !RD_PROJECTS[pid]){card.style.display='none';return;}
+    if(!pid || !RD_PROJECTS[pid]){
+        card.style.display='none';
+        // No project picked — clear the sample code field, hide hint
+        var inp = document.getElementById('sample-code-input');
+        if (inp) {
+            inp.value = '';
+            inp.placeholder = 'Project select karo — codes auto-fill ho jayenge';
+        }
+        var hint = document.getElementById('sample-code-hint');
+        if (hint) hint.style.display = 'none';
+        return;
+    }
     var p = RD_PROJECTS[pid];
     document.getElementById('ci-client').textContent  = p.client  || '—';
     document.getElementById('ci-company').textContent = p.company || '—';
     document.getElementById('ci-status').textContent  = p.status  || '—';
     card.style.display = 'block';
+
+    // Auto-fill sample code(s) for THIS project from the user's
+    // assignments. Single source of truth — onProjectChange is hit
+    // from both the dropdown (in "+ Log Trial" flow) and the project
+    // card click (openTrialForProject flow).
+    if (typeof setSampleCodeOptions === 'function') {
+        setSampleCodeOptions(pid);
+    }
 }
 
 // ── Simple Rich Text Editor (no CDN dependency) ──
@@ -750,13 +825,30 @@ function openTrialModalWith() {
     // Reset selects
     var sel = document.getElementById('proj-select');
     if(sel) { sel.value = ''; onProjectChange(''); }
+    // Default R&D Executive dropdown to current user — see comment in
+    // openTrialForProject for the multi-user-assignment context.
     var exec = document.querySelector('select[name="exec_id"]');
-    if(exec) exec.value = '';
+    if(exec) {
+        var CURRENT_USER_ID = '{{ current_user.id }}';
+        exec.disabled = false;
+        exec.value = CURRENT_USER_ID;
+    }
+    // Disable the hidden-input variant (used by openTrialForProject)
+    // so we don't submit exec_id twice.
+    var execHidden = document.getElementById('exec-label-hidden');
+    if(execHidden) execHidden.disabled = true;
 
-    // Reset status & rejection
-    var stSel = document.getElementById('trial-status-sel');
-    if(stSel) stSel.value = 'pending';
-    onStatusChange('pending');
+    // Reset sample code — no project picked yet, so the text input
+    // sits empty with the placeholder. When the user picks a project
+    // from the dropdown, onProjectChange → setSampleCodeOptions will
+    // auto-fill it.
+    var inp = document.getElementById('sample-code-input');
+    if(inp) {
+        inp.value = '';
+        inp.placeholder = 'Project select karo — codes auto-fill ho jayenge';
+    }
+    var hint = document.getElementById('sample-code-hint');
+    if(hint) hint.style.display = 'none';
 
     renderParamTable();
     document.getElementById('trial-modal').classList.add('open');
@@ -807,9 +899,19 @@ function openExistingTrial(el) {
     document.getElementById('edit-info-bar').style.display = 'block';
     document.getElementById('proj-exec-row').style.display = 'none';
 
-    // Fill iteration/sample name
-    var nameInp = document.querySelector('input[name="formulation_name"]');
-    if(nameInp) nameInp.value = formName || '';
+    // Fill Sample Code — saved value goes into the text input directly.
+    // We DON'T re-run setSampleCodeOptions here; that would clobber
+    // the saved value with the user's current assignment list (which
+    // may have changed since the trial was logged). Edit shows what
+    // was saved, exactly.
+    var inp = document.getElementById('sample-code-input');
+    if (inp) {
+        inp.value = formName || '';
+    }
+    // Hide the comma-separated hint in edit mode — value is what was
+    // actually saved, not a fresh auto-fill.
+    var hint = document.getElementById('sample-code-hint');
+    if (hint) hint.style.display = 'none';
 
     // Fill parameters — clean JSON from JS object
     var parsedParams = [];
@@ -820,14 +922,10 @@ function openExistingTrial(el) {
     }
     renderParamTable(Array.isArray(parsedParams) ? parsedParams : []);
 
-    // Fill status
-    var trialStatus = d.t_status || 'pending';
-    var stSel = document.getElementById('trial-status-sel');
-    if(stSel) stSel.value = trialStatus;
-    onStatusChange(trialStatus);
-    // Fill rejection reason if any
-    var rejInp = document.getElementById('rejection-reason-inp');
-    if(rejInp) rejInp.value = d.rejection_reason || '';
+    // Status select + Rejection Reason input were removed from the
+    // modal at user request — only approved samples reach this page,
+    // so the executive doesn't choose status here. This block used to
+    // populate them in edit mode; nothing to do now.
 
     // Fill observations
     setTimeout(function(){
@@ -855,16 +953,36 @@ function openTrialForProject(pid, name, code, type, client, status, rdUserId) {
     if(sel) { sel.value = pid; }
     onProjectChange(pid);
 
-    // Fill R&D executive label
-    document.getElementById('exec-label-hidden').value = rdUserId || '';
-    // Find exec name from the dropdown options
-    var execName = '—';
+    // Disable the dropdown-form exec_id when we're using the
+    // hidden-input form (proj-label-row). Both share name="exec_id"
+    // so without disabling, the form would submit two values.
     var execSel = document.querySelector('#proj-exec-row select[name="exec_id"]');
-    if(execSel && rdUserId) {
-        var opt = execSel.querySelector('option[value="' + rdUserId + '"]');
-        if(opt) execName = opt.textContent;
+    if(execSel) execSel.disabled = true;
+
+    // ── R&D Executive: ALWAYS the current logged-in user ──
+    // The previous version pulled `rdUserId` from the project card
+    // which carried `p.assigned_rd` (legacy single-user FK). For
+    // multi-user projects (assigned via RDSubAssignment) that field
+    // is often NULL or points to a different user, so the executive
+    // showed up as "—" even though a logged-in user was about to log
+    // a trial. Fix: each user logs trials under their OWN name —
+    // that's what the data model expects (rd_person = current user).
+    var CURRENT_USER_ID   = '{{ current_user.id }}';
+    var CURRENT_USER_NAME = {{ current_user.full_name|tojson }};
+    var execHidden = document.getElementById('exec-label-hidden');
+    if(execHidden) {
+        execHidden.disabled = false;
+        execHidden.value = CURRENT_USER_ID;
     }
-    document.getElementById('exec-label-name').textContent = execName;
+    document.getElementById('exec-label-name').textContent = CURRENT_USER_NAME || '—';
+
+    // ── Sample Code: populate dropdown from THIS user's assigned
+    //    sample codes for THIS project (pulled from RDSubAssignment
+    //    via the backend USER_SAMPLE_CODES map). If the manager has
+    //    assigned codes, dropdown shows them with the first selected;
+    //    if not, the field falls back to a text input the user can
+    //    type into. See `setSampleCodeOptions` for the full logic.
+    setSampleCodeOptions(pid);
 
     document.getElementById('trial-modal').classList.add('open');
 }
@@ -1024,37 +1142,23 @@ function selectProject(pid, name, code, rdId) {
 
     var html = '';
     projectTrials.forEach(function(t){
-        var statusHtml = '';
-        var st = t.t_status || t.status || 'pending';
-        var statusMap = {
-            'pending':             ['#fef3c7','#92400e','#fcd34d','⏳ Pending'],
-            'approved':            ['#d1fae5','#065f46','#6ee7b7','✅ Approved'],
-            'rejected':            ['#fee2e2','#991b1b','#fca5a5','❌ Rejected'],
-            'submitted_npd':       ['#ede9fe','#5b21b6','#c4b5fd','📤 Submitted to NPD'],
-            'submitted_client':    ['#dbeafe','#1e40af','#93c5fd','📨 Submitted to Client'],
-            'client_approved':     ['#d1fae5','#065f46','#6ee7b7','✅ Client Approved'],
-            'client_rejected':     ['#fee2e2','#991b1b','#fca5a5','❌ Client Rejected']
-        };
-        var sm = statusMap[st] || statusMap['pending'];
-        statusHtml = '<span style="background:'+sm[0]+';color:'+sm[1]+';border:1px solid '+sm[2]+';padding:2px 8px;border-radius:100px;font-size:.7rem;font-weight:700;">'+sm[3]+'</span>';
-
+        // RDTrialLog has no status field by design — workflow state
+        // (approved/rejected) belongs on the dispatch/review side, not
+        // on the trial log itself. Just show sample code, executive,
+        // and date here. Double-click opens the edit modal.
         html +=
             '<div style="padding:.75rem 1rem;border-bottom:1px solid var(--border);cursor:pointer;transition:.12s;"' +
             '     onmouseover="this.style.background=\'var(--blue-lt)\'" onmouseout="this.style.background=\'\'"' +
             '     data-tid="' + t.id + '" ondblclick="openExistingTrial(this)">' +
             '  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:3px;">' +
             '    <div style="display:flex;align-items:center;gap:.5rem;">' +
-            '      <span style="font-family:monospace;font-size:.78rem;font-weight:700;background:var(--bg);padding:2px 7px;border-radius:5px;border:1px solid var(--border);color:var(--blue);">#' + t.iter + '</span>' +
-            '      <span style="font-size:.84rem;font-weight:700;">' + (t.name || 'Iteration ' + t.iter) + '</span>' +
+            '      <span style="font-family:monospace;font-size:.82rem;font-weight:700;background:var(--bg);padding:2px 8px;border-radius:5px;border:1px solid var(--border);color:var(--blue);">' + (t.name || '—') + '</span>' +
             '    </div>' +
-            '    <span style="font-size:.7rem;color:var(--text3);">' + t.date + '</span>' +
+            '    <span style="font-size:.7rem;color:var(--text3);">' + (t.date || '') + '</span>' +
             '  </div>' +
             '  <div style="display:flex;align-items:center;justify-content:space-between;margin-top:4px;">' +
             '    <span style="font-size:.75rem;color:var(--text2);">🧪 ' + (t.rd || '—') + '</span>' +
-            '    <div style="display:flex;align-items:center;gap:.5rem;">' +
-            '      ' + statusHtml +
-            '      <span style="font-size:.65rem;color:var(--text3);">↕ Double-click to edit</span>' +
-            '    </div>' +
+            '    <span style="font-size:.65rem;color:var(--text3);">↕ Double-click to edit</span>' +
             '  </div>' +
             '</div>';
     });
@@ -1201,7 +1305,17 @@ function savePredefineParams() {
 function printTrialLabels() {
     var projName = document.getElementById('proj-label-name').textContent.trim() ||
                    (document.getElementById('right-proj-name') ? document.getElementById('right-proj-name').textContent.trim() : '') || '';
-    var sampleNo = document.querySelector('input[name="formulation_name"]').value.trim() || '—';
+
+    // Sample code can come from either the dropdown (assigned codes
+    // Single text input now — comma-separated codes get printed as-is
+    // on the label. If the user wanted separate labels per code, we
+    // could split on commas; for now keep one label = one entry,
+    // matching what the user actually typed.
+    var sampleNo = '—';
+    var inp = document.getElementById('sample-code-input');
+    if (inp && inp.value) {
+        sampleNo = inp.value.trim() || '—';
+    }
 
     var labelCard =
         '<div class="label-card">' +

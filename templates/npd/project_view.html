@@ -816,13 +816,30 @@ function mySubEnd() {
 <!-- Tabs (same as lead_view) -->
 <div class="tab-nav">
     <div class="tab-nav-inner">
+        {# Each tab is gated by its sub-permission so a user with the
+           tab toggled OFF in ACP doesn't see the tab button at all.
+           Overview is always shown — it's the default landing tab and
+           is the project's basic identity page; hiding it would orphan
+           the user. #}
         <a href="#" class="tab-btn active" onclick="switchTab('overview',this);return false;">Overview</a>
+        {% if npd_sub.discussion_board %}
         <a href="#" class="tab-btn" onclick="switchTab('discussion',this);return false;">Discussion Board</a>
+        {% endif %}
+        {% if npd_sub.internal_discussion %}
         <a href="#" class="tab-btn" onclick="switchTab('internal',this);return false;">Internal Discussion Board</a>
+        {% endif %}
+        {% if npd_sub.activity_log %}
         <a href="#" class="tab-btn" onclick="switchTab('activity',this);return false;">Activity Log</a>
+        {% endif %}
+        {% if npd_sub.attachments %}
         <a href="#" class="tab-btn" onclick="switchTab('attachments',this);return false;">Attachments List</a>
+        {% endif %}
+        {% if npd_sub.notes %}
         <a href="#" class="tab-btn" onclick="switchTab('note',this);return false;">Note</a>
+        {% endif %}
+        {% if npd_sub.milestone %}
         <a href="#" class="tab-btn" onclick="switchTab('milestones',this);return false;">Milestones</a>
+        {% endif %}
     </div>
 </div>
 
@@ -929,6 +946,7 @@ function mySubEnd() {
     </div>
 </div>
 
+{% if npd_sub.discussion_board %}
 <!-- TAB 2: DISCUSSION BOARD -->
 <div id="tab-discussion" class="tab-pane">
     <div class="card">
@@ -1008,7 +1026,9 @@ function mySubEnd() {
         </div>
     </div>
 </div>
+{% endif %}
 
+{% if npd_sub.internal_discussion %}
 <!-- TAB 3: INTERNAL DISCUSSION -->
 <div id="tab-internal" class="tab-pane">
     <div class="card">
@@ -1088,7 +1108,9 @@ function mySubEnd() {
         </div>
     </div>
 </div>
+{% endif %}
 
+{% if npd_sub.activity_log %}
 <!-- TAB 4: ACTIVITY LOG -->
 <div id="tab-activity" class="tab-pane">
 
@@ -1192,7 +1214,9 @@ function mySubEnd() {
         </div>
     </div>
 </div>
+{% endif %}
 
+{% if npd_sub.attachments %}
 <!-- TAB 5: ATTACHMENTS LIST -->
 <div id="tab-attachments" class="tab-pane">
     <div class="card">
@@ -1220,7 +1244,9 @@ function mySubEnd() {
         </div>
     </div>
 </div>
+{% endif %}
 
+{% if npd_sub.notes %}
 <!-- TAB 6: NOTE -->
 <div id="tab-note" class="tab-pane">
     <div class="card">
@@ -1252,7 +1278,9 @@ function mySubEnd() {
         </div>
     </div>
 </div>
+{% endif %}
 
+{% if npd_sub.milestone %}
 <!-- TAB 7: MILESTONES -->
 <div id="tab-milestones" class="tab-pane">
 
@@ -1305,6 +1333,7 @@ function mySubEnd() {
 
   </div>
 </div>
+{% endif %}
 
 {# ── CLOSE PROJECT CONFIRM MODAL ── #}
 <div id="closeProjectModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:10000;align-items:center;justify-content:center;" onclick="if(event.target===this)closeProjectModal()">

@@ -31,6 +31,24 @@ import json as _json
 app.jinja_env.filters['from_json'] = lambda s: _json.loads(s) if s else []   # 100MB — base64 photos + docs
 db.init_app(app)
 
+# ── Anti-cache: force browser to always fetch fresh HTML ──
+# Without this, browsers and proxies cache rendered pages, so updated
+# templates/scripts won't take effect until the user does a hard refresh.
+# Static files (CSS/JS under /static/) are NOT affected by this.
+app.config['TEMPLATES_AUTO_RELOAD'] = True
+app.jinja_env.auto_reload = True
+app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
+
+@app.after_request
+def _add_no_cache_headers(response):
+    # Only no-cache for HTML pages — let static files cache normally
+    ctype = response.headers.get('Content-Type', '')
+    if 'text/html' in ctype:
+        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate, max-age=0'
+        response.headers['Pragma']        = 'no-cache'
+        response.headers['Expires']       = '0'
+    return response
+
 # ── Jinja filter: safe base64 encode for JS embedding ──
 import base64 as _b64
 @app.template_filter('b64encode')
@@ -296,4 +314,34 @@ def _log(user_id, username, ip, status):
 
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    # ─────────────────────────────────────────────────────────────
+    #  Why use_reloader=False?
+    #  ────────────────────────
+    #  `debug=True` alone enables BOTH the interactive debugger AND
+    #  Flask's file-system watcher (`use_reloader=True` by default).
+    #  The watcher restarts the server whenever any .py file changes.
+    #
+    #  On Windows + Notepad++ (or any editor that does atomic-save
+    #  via a temp file rename), this triggered repeatedly — sometimes
+    #  in the MIDDLE of a multipart POST while a discussion-board
+    #  attachment was uploading. Symptom: first Send click looked
+    #  like nothing happened; second click worked. The first request
+    #  was actually being torn down by the reloader.
+    #
+    #  Setting `use_reloader=False` keeps the rich error pages on
+    #  failure but stops the auto-restart. After editing code, just
+    #  Ctrl+C and re-run `python index.py` — explicit, predictable,
+    #  no surprise mid-request reloads.
+    #
+    #  `threaded=True` lets the dev server handle parallel requests
+    #  (image-inline uploads + the form POST that follows) without
+    #  blocking each other — also helps stability for the discussion
+    #  board flow.
+    # ─────────────────────────────────────────────────────────────
+    app.run(
+        debug=True,
+        use_reloader=False,
+        threaded=True,
+        host='127.0.0.1',
+        port=5000,
+    )

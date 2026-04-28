@@ -584,6 +584,36 @@
     </div>
 
     {# ═══════════════════════════════════════
+       Packing
+    ═══════════════════════════════════════ #}
+    {% set _pk = modules|selectattr('name','eq','packing')|first %}
+    <div class="mg">
+      <div class="mg-hdr" onclick="tog(this,'g-packing')">
+        <span class="mg-arrow" id="a-g-packing">▶</span><span class="mg-ic">📦</span>
+        <span class="mg-nm">Packing</span>
+        {% if _pk %}<button class="ea" data-uid="{{ uid }}" data-mid="{{ _pk.id }}" onclick="mAll(event,this,true)">Enable All</button><button class="da" data-uid="{{ uid }}" data-mid="{{ _pk.id }}" onclick="mAll(event,this,false)">Disable All</button>{% endif %}
+      </div>
+      <div class="mg-body" id="g-packing">
+        {% if _pk %}
+        {{ prow('packing','Sample Receipt Log',uid,true) }}
+        {{ chips('packing',[
+          ('new_entry','New Entry'),
+          ('export','Export CSV'),
+          ('import','Import CSV'),
+          ('print','Print'),
+          ('columns','Columns'),
+          ('whatsapp','WhatsApp'),
+          ('filter','Filter'),
+          ('delete','Delete'),
+          ('inline_edit','Inline Edit')
+        ], uid) }}
+        {% else %}
+        <p style="font-size:.75rem;color:var(--text3);padding:6px 0;">⚠️ Module DB mein nahi hai — fix_packing_module.py run karo.</p>
+        {% endif %}
+      </div>
+    </div>
+
+    {# ═══════════════════════════════════════
        Masters
     ═══════════════════════════════════════ #}
     {% set _m = modules|selectattr('name','eq','masters')|first %}

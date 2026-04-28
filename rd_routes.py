@@ -336,28 +336,49 @@ def projects():
     closed     = [p for p in projects if (p.status or '').lower() in CLOSED_STATUSES]
 
     # ─────────────────────────────────────────────────────────
-    # CLOSED tab visibility:
-    #   • Admin / R&D Manager → sees all closed projects
-    #   • Everyone else → sees only closed projects THEY were
-    #     assigned to, whether via assigned_rd / assigned_sc /
-    #     npd_poc, any (historical) RDSubAssignment, or the legacy
-    #     assigned_rd_members / assigned_members tokens.
-    # Active-project tabs (unallotted / allotted) are unchanged —
-    # access there is already governed by the assignment page itself.
+    # NON-MANAGER VISIBILITY
     # ─────────────────────────────────────────────────────────
-    if not is_rd_manager and closed:
+    # Admin / R&D Manager → sees everything.
+    # Everyone else → sees only projects where THEY are an assignee,
+    # checked across ALL assignment systems we currently use:
+    #   1. RDSubAssignment row referencing the user (multi-user system)
+    #   2. Legacy single-user fields: assigned_rd / assigned_sc / npd_poc
+    #   3. Legacy comma-separated tokens in assigned_rd_members /
+    #      assigned_members (both u_<id> and pure-numeric emp-id forms)
+    #
+    # Previously this filter only ran on `closed`, and the template
+    # filtered `allotted` using just `p.rd_user.id` — which missed
+    # users assigned ONLY via RDSubAssignment (the modern path).
+    # That's why R&D executives reported "I was assigned but I don't
+    # see the project". Now we filter allotted + closed at the route
+    # so the template sees a pre-filtered list and tab counts are
+    # also correct.
+    # ─────────────────────────────────────────────────────────
+    if not is_rd_manager:
         uid = current_user.id
 
-        # 1. Any RDSubAssignment (active or not) referencing this user
-        closed_pids = [p.id for p in closed]
-        my_sub_pids = {
-            s.project_id for s in RDSubAssignment.query.filter(
-                RDSubAssignment.user_id == uid,
-                RDSubAssignment.project_id.in_(closed_pids)
-            ).all()
-        } if closed_pids else set()
+        # 1. RDSubAssignment lookup — single query covers both lists.
+        relevant_pids = [p.id for p in (allotted + closed)]
+        my_sub_pids = set()
+        if relevant_pids:
+            my_sub_pids = {
+                s.project_id for s in RDSubAssignment.query.filter(
+                    RDSubAssignment.user_id == uid,
+                    RDSubAssignment.project_id.in_(relevant_pids),
+                ).all()
+            }
 
-        # 2. Helper for legacy comma-separated member tokens
+        # 2. Resolve current user's Employee.id for legacy numeric tokens.
+        my_emp_id = None
+        try:
+            from models.employee import Employee as _EmpForCheck
+            _emp = _EmpForCheck.query.filter_by(
+                user_id=uid, is_deleted=False
+            ).first()
+            my_emp_id = _emp.id if _emp else None
+        except Exception:
+            my_emp_id = None
+
         def _user_in_member_str(member_str, user_id):
             if not member_str:
                 return False
@@ -365,10 +386,6 @@ def projects():
                 token = token.strip()
                 if not token:
                     continue
-                # Only user-id tokens (u_<id>) can match a user id directly.
-                # Pure numeric legacy tokens are employee-ids and we can't
-                # reliably reverse-map them here without extra queries, so
-                # we also resolve via Employee.user_id below.
                 if token.startswith('u_'):
                     try:
                         if int(token[2:]) == user_id:
@@ -376,16 +393,6 @@ def projects():
                     except ValueError:
                         pass
             return False
-
-        # 3. Legacy numeric-only tokens → check if current user's Employee.id
-        #    is in the member list (covers pre-u_ rows).
-        my_emp_id = None
-        try:
-            from models.employee import Employee as _EmpForCheck
-            _emp = _EmpForCheck.query.filter_by(user_id=uid, is_deleted=False).first()
-            my_emp_id = _emp.id if _emp else None
-        except Exception:
-            my_emp_id = None
 
         def _emp_id_in_member_str(member_str, emp_id):
             if not member_str or not emp_id:
@@ -397,17 +404,21 @@ def projects():
             return False
 
         def _user_is_assigned(p):
+            # Legacy single-user fields
             if p.assigned_rd == uid: return True
             if p.assigned_sc == uid: return True
             if p.npd_poc     == uid: return True
-            if p.id in my_sub_pids:  return True
+            # Modern multi-user system
+            if p.id in my_sub_pids: return True
+            # Legacy comma-separated token fields
             if _user_in_member_str(p.assigned_rd_members, uid): return True
             if _user_in_member_str(p.assigned_members,   uid):  return True
             if _emp_id_in_member_str(p.assigned_rd_members, my_emp_id): return True
             if _emp_id_in_member_str(p.assigned_members,   my_emp_id):  return True
             return False
 
-        closed = [p for p in closed if _user_is_assigned(p)]
+        allotted = [p for p in allotted if _user_is_assigned(p)]
+        closed   = [p for p in closed   if _user_is_assigned(p)]
 
     rd_sub = {
         'unalloted_npd': get_sub_perm('rd', 'unalloted_npd'),
@@ -480,33 +491,59 @@ def projects():
 @rd.route('/trials')
 @login_required
 def trials():
-    from models.npd import NPDFormulation, NPDProject
+    from models.npd import NPDProject, RDSubAssignment, RDTrialLog
     q          = request.args.get('q', '').strip()
-    result     = request.args.get('result', '')
     project_id = request.args.get('project_id', type=int)
 
-    # ── Trials query ──
     is_admin = is_rd_manager_user()
-    query = NPDFormulation.query
+
+    # ─────────────────────────────────────────────────────────
+    #  Resolve which project IDs THIS user is assigned to.
+    #  Used to scope the "My Projects" left panel — without this,
+    #  an executive who's assigned via RDSubAssignment (modern
+    #  multi-user) but not the legacy `assigned_rd` field sees
+    #  nothing on this page even though they have samples to log
+    #  trials against.
+    # ─────────────────────────────────────────────────────────
+    if is_admin:
+        my_assigned_pids = None   # sentinel: see all
+    else:
+        legacy_pids = {
+            p.id for p in NPDProject.query.filter(
+                NPDProject.is_deleted == False,
+                NPDProject.assigned_rd == current_user.id,
+            ).all()
+        }
+        sub_pids = {
+            s.project_id for s in RDSubAssignment.query.filter_by(
+                user_id=current_user.id
+            ).all()
+        }
+        my_assigned_pids = legacy_pids | sub_pids
+
+    # ─────────────────────────────────────────────────────────
+    #  Trial query — uses the new dedicated rd_trial_logs table.
+    #  NPDFormulation is no longer touched here; that table belongs
+    #  to the legacy NPD sample-dispatch / client-review workflow.
+    # ─────────────────────────────────────────────────────────
+    query = RDTrialLog.query
     if project_id:
-        query = query.filter(NPDFormulation.project_id == project_id)
+        query = query.filter(RDTrialLog.project_id == project_id)
     if q:
+        # Search across sample code, parameters JSON, and observations.
         query = query.filter(db.or_(
-            NPDFormulation.formulation_name.ilike(f'%{q}%'),
-            NPDFormulation.formulation_desc.ilike(f'%{q}%'),
+            RDTrialLog.sample_code.ilike(f'%{q}%'),
+            RDTrialLog.parameters_json.ilike(f'%{q}%'),
+            RDTrialLog.observations.ilike(f'%{q}%'),
         ))
-    if result == 'pass':
-        query = query.filter(NPDFormulation.client_status == 'approved')
-    elif result == 'fail':
-        query = query.filter(NPDFormulation.status.like('%rejected%'))
-    elif result == 'pending':
-        query = query.filter(NPDFormulation.client_status == 'pending')
 
-    # Admin/manager = sare trials, executive = sirf apne
+    # Executive sees only their own trials. Admin/manager sees all.
+    # We don't filter by project here — the project-level filter is
+    # the user's left-panel selection driving project_id above.
     if not is_admin:
-        query = query.filter(NPDFormulation.rd_person == current_user.id)
+        query = query.filter(RDTrialLog.rd_user_id == current_user.id)
 
-    trials = query.order_by(NPDFormulation.created_at.desc()).all()
+    trials = query.order_by(RDTrialLog.created_at.desc()).all()
     users  = get_rd_users()
 
     # ── All active projects for modal dropdown ──
@@ -518,9 +555,7 @@ def trials():
     # ── project_filter for banner (when coming from projects page) ──
     project_filter = NPDProject.query.get(project_id) if project_id else None
 
-    # ── Grid 1: my_projects ──
-    # Admin/manager = sare active projects
-    # Executive = sirf apne assigned (assigned_rd == current_user.id)
+    # ── Grid 1: my_projects (left panel) ──
     active_q = NPDProject.query.filter(
         NPDProject.is_deleted == False,
         NPDProject.status.notin_(['complete', 'cancelled'])
@@ -528,9 +563,12 @@ def trials():
     if is_admin:
         my_projects = active_q.order_by(NPDProject.created_at.desc()).all()
     else:
-        my_projects = active_q.filter(
-            NPDProject.assigned_rd == current_user.id
-        ).order_by(NPDProject.created_at.desc()).all()
+        if my_assigned_pids:
+            my_projects = active_q.filter(
+                NPDProject.id.in_(list(my_assigned_pids))
+            ).order_by(NPDProject.created_at.desc()).all()
+        else:
+            my_projects = []
 
     # ── test_params for parameter table in modal ──
     try:
@@ -540,74 +578,121 @@ def trials():
     except Exception:
         test_params = []
 
+    # ── User's sample codes per project ──
+    # Each user-on-project assignment in RDSubAssignment may carry
+    # one or more comma-separated sample codes assigned by the
+    # manager (e.g. "SMP001,SMP002"). The trial-log modal uses these
+    # to populate the Sample Code dropdown.
+    user_sample_codes = {}
+    if not is_admin:
+        my_subs = RDSubAssignment.query.filter_by(
+            user_id=current_user.id, is_active=True
+        ).all()
+        for s in my_subs:
+            codes = [c.strip() for c in (s.sample_code or '').split(',') if c.strip()]
+            if codes:
+                existing = user_sample_codes.get(s.project_id, [])
+                merged = list(dict.fromkeys(existing + codes))
+                user_sample_codes[s.project_id] = merged
+
     return render_template('rd/trials.html',
         active_page='rd_trials',
-        trials=trials, q=q, result=result,
+        trials=trials, q=q, result='',
         users=users, all_projects=all_projects,
         my_projects=my_projects,
         project_filter=project_filter,
         test_params=test_params,
+        user_sample_codes=user_sample_codes,
     )
 
 
 @rd.route('/trials/add', methods=['POST'])
 @login_required
 def add_trial():
-    from models.npd import NPDFormulation, NPDProject, NPDActivityLog
+    """Log a new R&D trial against a project.
+
+    Writes to the new `rd_trial_logs` table (RDTrialLog model),
+    not the legacy npd_formulations table. The form fields the
+    template sends are:
+      - project_id          (required) — npd_projects.id
+      - formulation_name    — sample code from the manager's
+                              RDSubAssignment.sample_code list
+      - exec_id             — rd_user_id (defaults to current user
+                              when the modal is opened from a project
+                              card; admin can override)
+      - parameters          — JSON string of [{parameter, result}, ...]
+      - observations        — CKEditor HTML notes
+    """
+    from models.npd import NPDProject, NPDActivityLog, RDTrialLog
     project_id = request.form.get('project_id')
     if not project_id:
         flash('Project is required', 'error')
         return redirect(url_for('rd.trials'))
 
     proj = NPDProject.query.get_or_404(int(project_id))
-    last_iter = db.session.query(db.func.max(NPDFormulation.iteration))\
-                    .filter_by(project_id=proj.id).scalar() or 0
 
-    trial = NPDFormulation(
-        project_id        = proj.id,
-        iteration         = last_iter + 1,
-        formulation_name  = request.form.get('formulation_name', ''),
-        formulation_desc  = request.form.get('parameters', ''),
-        rd_person         = request.form.get('exec_id') or None,
-        rd_notes          = request.form.get('observations', ''),
-        rd_submitted_at   = datetime.now(),
-        status            = 'pending',
-        created_by        = current_user.id,
-        created_at        = datetime.now(),
+    # Resolve the rd_user_id and take a name snapshot.
+    # `exec_id` is a hidden form field set client-side to the
+    # logged-in user's id when the modal opens from a project card,
+    # OR the value chosen from the dropdown when opened from the
+    # global "+ Log Trial" button. Bad/missing values fall back to
+    # the current user since whoever clicked Log Trial logged in.
+    raw_exec_id = request.form.get('exec_id')
+    rd_user_id  = None
+    rd_user_name = None
+    if raw_exec_id:
+        try:
+            rd_user_id = int(raw_exec_id)
+        except (TypeError, ValueError):
+            rd_user_id = None
+    if not rd_user_id:
+        rd_user_id = current_user.id
+
+    _u = User.query.get(rd_user_id)
+    rd_user_name = _u.full_name if _u else current_user.full_name
+
+    sample_code = (request.form.get('formulation_name') or '').strip()
+    if not sample_code:
+        flash('Sample code is required', 'error')
+        return redirect(url_for('rd.trials'))
+
+    log = RDTrialLog(
+        project_id      = proj.id,
+        sample_code     = sample_code,
+        rd_user_id      = rd_user_id,
+        rd_user_name    = rd_user_name,
+        parameters_json = request.form.get('parameters', '') or None,
+        observations    = request.form.get('observations', '') or None,
+        created_at      = datetime.now(),
+        updated_at      = datetime.now(),
     )
-    db.session.add(trial)
+    db.session.add(log)
+
     db.session.add(NPDActivityLog(
         project_id = proj.id,
         user_id    = current_user.id,
-        action     = f"R&D Trial #{last_iter+1} logged: {trial.formulation_name}",
+        action     = f"R&D Trial logged: {sample_code} by {rd_user_name or current_user.full_name}",
         created_at = datetime.now(),
     ))
     db.session.commit()
-    flash(f'Trial #{last_iter+1} logged successfully!', 'success')
+    flash(f'Trial logged successfully for sample {sample_code}', 'success')
     return redirect(url_for('rd.trials'))
 
 
 @rd.route('/trials/<int:tid>/result', methods=['POST'])
 @login_required
 def update_trial_result(tid):
-    from models.npd import NPDFormulation
-    trial  = NPDFormulation.query.get_or_404(tid)
-    result = request.form.get('result', '')  # pass / fail / pending
+    """Legacy endpoint — no longer applicable to RDTrialLog rows.
 
-    if result == 'pass':
-        trial.client_status = 'approved'
-        trial.client_responded_at = datetime.now()
-        trial.status = 'client_approved'
-    elif result == 'fail':
-        trial.status = 'client_rejected'
-        trial.client_status = 'rejected'
-    else:
-        trial.client_status = 'pending'
-        trial.status = 'pending'
-
-    trial.client_feedback = request.form.get('notes', '')
-    db.session.commit()
-    return jsonify(success=True, result=result)
+    Trial pass/fail used to be tracked on `npd_formulations.client_status`,
+    but the new dedicated `rd_trial_logs` table doesn't carry workflow
+    state — it's a record of what was tested, nothing more. Keep the
+    route alive so any old client code that hits it gets a meaningful
+    response instead of a 404 / 500.
+    """
+    return jsonify(success=True,
+                   note='Trial result tracking is no longer maintained '
+                        'on this endpoint.')
 
 
 # ══════════════════════════════════════════════════════════════
@@ -649,7 +734,7 @@ def executives():
         ).count()
         trials_fail = NPDFormulation.query.filter(
             NPDFormulation.rd_person == u.id,
-            NPDFormulation.status.like('%rejected%')
+            NPDFormulation.client_status == 'rejected'
         ).count()
         total_t = trials_pass + trials_fail
         user_stats[u.id] = {
@@ -693,7 +778,7 @@ def performance():
         ).count()
         t_fail = NPDFormulation.query.filter(
             NPDFormulation.rd_person == u.id,
-            NPDFormulation.status.like('%rejected%')
+            NPDFormulation.client_status == 'rejected'
         ).count()
         total_t = t_pass + t_fail
         trial_rate  = round(t_pass / total_t * 100) if total_t else 0
@@ -855,39 +940,61 @@ def api_stats():
 @rd.route('/trials/<int:tid>/edit', methods=['GET','POST'])
 @login_required
 def edit_trial(tid):
-    from models.npd import NPDFormulation, NPDProject, NPDActivityLog
-    trial = NPDFormulation.query.get_or_404(tid)
+    """Update an existing R&D trial entry.
+
+    Operates on the new `rd_trial_logs` table. Visibility check —
+    non-admin users can only edit their own trials, never someone
+    else's; this matches the listing where they only see their own.
+    """
+    from models.npd import NPDActivityLog, RDTrialLog
+    trial = RDTrialLog.query.get_or_404(tid)
+
+    # Non-admin: can only edit own trials
+    if not is_rd_manager_user() and trial.rd_user_id != current_user.id:
+        flash('You can only edit your own trial entries', 'error')
+        return redirect(url_for('rd.trials'))
 
     if request.method == 'POST':
-        trial.formulation_name = request.form.get('formulation_name', trial.formulation_name)
-        trial.formulation_desc = request.form.get('parameters', trial.formulation_desc)
-        trial.rd_notes         = request.form.get('observations', trial.rd_notes)
+        sample_code = (request.form.get('formulation_name') or '').strip()
+        if sample_code:
+            trial.sample_code = sample_code
+        params = request.form.get('parameters')
+        if params is not None:
+            trial.parameters_json = params or None
+        observations = request.form.get('observations')
+        if observations is not None:
+            trial.observations = observations or None
+
+        # Allow the executive to be reassigned (admin / manager only —
+        # non-admin can't reach this branch since we'd have rejected
+        # them above on rd_user_id mismatch).
         exec_id = request.form.get('exec_id')
         if exec_id:
-            trial.rd_person = int(exec_id)
+            try:
+                new_uid = int(exec_id)
+                trial.rd_user_id = new_uid
+                _u = User.query.get(new_uid)
+                trial.rd_user_name = _u.full_name if _u else None
+            except (TypeError, ValueError):
+                pass
+
         proj_id = request.form.get('project_id')
         if proj_id:
-            trial.project_id = int(proj_id)
+            try:
+                trial.project_id = int(proj_id)
+            except (TypeError, ValueError):
+                pass
 
-        result = request.form.get('result', '')
-        if result == 'pass':
-            trial.client_status = 'approved'
-            trial.status = 'client_approved'
-        elif result == 'fail':
-            trial.client_status = 'rejected'
-            trial.status = 'client_rejected'
-        else:
-            trial.client_status = 'pending'
-            trial.status = 'pending'
+        trial.updated_at = datetime.now()
 
         db.session.add(NPDActivityLog(
             project_id = trial.project_id,
             user_id    = current_user.id,
-            action     = f"R&D Trial #{trial.iteration} updated by {current_user.full_name}",
+            action     = f"R&D Trial updated: {trial.sample_code} by {current_user.full_name}",
             created_at = datetime.now(),
         ))
         db.session.commit()
-        flash(f'Trial #{trial.iteration} updated!', 'success')
+        flash(f'Trial {trial.sample_code} updated', 'success')
         return redirect(url_for('rd.trials'))
 
     # GET: redirect to trials page (modal handles display)
@@ -1565,6 +1672,23 @@ def sub_end(pid):
     _recompute_project_status(pid)
 
     db.session.commit()
+
+    # ── Compute response payload ──
+    # Frontend uses `success` to call location.reload() — anything that
+    # raises a NameError here returns 500 and the page never refreshes,
+    # which is exactly the bug users were hitting: clicking END seemed
+    # to do nothing until they manually reloaded. Previously `all_done`
+    # and `proj` were referenced without being defined; resolve them
+    # explicitly here so the response is always well-formed.
+    proj = NPDProject.query.get(pid)
+    # all_done = every active sub-assignment for this project is finished
+    open_subs = RDSubAssignment.query.filter(
+        RDSubAssignment.project_id == pid,
+        RDSubAssignment.is_active == True,
+        RDSubAssignment.status != 'finished',
+    ).count()
+    all_done = (open_subs == 0)
+
     return jsonify(
         success       = True,
         finished_at   = sub.finished_at.strftime('%d-%m-%Y %I:%M %p'),

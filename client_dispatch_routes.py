@@ -417,8 +417,32 @@ def api_send():
             it.client_dispatch_id = cd.id
             it.sent_to_client_at  = now
 
-        # Project status → sent_to_client
-        proj.status = 'sent_to_client'
+        # ── Spec rule #10: ALL approved samples must be dispatched
+        # before the project status flips to "Sample Send to Client".
+        # Partial dispatch should NOT change project status.
+        #
+        # Slug correction: code earlier set 'sent_to_client', but that
+        # slug was a corrupted master row. The correct slug for "Sample
+        # Send to Client" in the master is `sample_sent` (row 3). The
+        # 'approved_by_office' state is preserved on partial dispatch.
+        #
+        # NPD team retains manual override capability via the project
+        # edit screen — this auto-update only handles the happy path.
+        db.session.flush()
+        _approved_q = OfficeDispatchItem.query.filter(
+            OfficeDispatchItem.project_id      == pid,
+            OfficeDispatchItem.approval_status == 'approved',
+        )
+        approved_total      = _approved_q.count()
+        approved_dispatched = _approved_q.filter(
+            OfficeDispatchItem.client_dispatch_id.isnot(None)
+        ).count()
+
+        all_dispatched = (approved_total > 0
+                          and approved_dispatched >= approved_total)
+        if all_dispatched:
+            proj.status = 'sample_sent'   # "Sample Send to Client"
+        # else: leave status as-is (typically 'approved_by_office')
 
         # Audit logs
         sample_str = ', '.join(it.sample_code or '?' for it in items)
@@ -772,11 +796,13 @@ def api_revert(cid):
             created_at = datetime.now(),
         ))
 
-        # Reset project status — was 'sent_to_client', go back to
-        # 'approved_by_office' (since items are still approved, just not dispatched)
+        # Reset project status — if no other dispatches remain, fall back
+        # to 'approved_by_office'. Recognise both the new slug
+        # ('sample_sent' = "Sample Send to Client") and the legacy slug
+        # ('sent_to_client') for projects created before the slug fix.
         from models.npd import NPDProject
         proj = NPDProject.query.get(pid)
-        if proj and proj.status == 'sent_to_client':
+        if proj and proj.status in ('sample_sent', 'sent_to_client'):
             proj.status = 'approved_by_office'
 
         db.session.commit()
@@ -791,3 +817,161 @@ def api_revert(cid):
         db.session.rollback()
         import traceback; traceback.print_exc()
         return jsonify(success=False, error=f'Server error: {e}'), 500
+
+
+# ═══════════════════════════════════════════════════════════════════
+# CLIENT FEEDBACK FLOW  (Spec rules #11, #12)
+# ───────────────────────────────────────────────────────────────────
+# After a project's samples have been dispatched to the client, the
+# operator records the client's response on the dispatch history page.
+# Two outcomes:
+#
+#   APPROVE  → project.status = 'sample_approved'   (= "Sample Approved By Client")
+#              linked Lead.status = 'Close'
+#   REJECT   → project.status = 'sample_rejected'   (= "Sample Rejected By Client")
+#              All active RDSubAssignment rows are deactivated so the
+#              project surfaces in the R&D Manager's "Rejected /
+#              reassign" queue. Reassignment goes through the standard
+#              `/rd/projects/<pid>/assign-multi` route — which will
+#              create fresh sub-assignments and the sample loop starts
+#              over (Spec rule #12).
+#
+# Eligibility:
+#   • Project must be in 'sample_sent' (or legacy 'sent_to_client') —
+#     i.e. samples actually went out to the client.
+#   • Spec rule "no skipping" — can't approve/reject before dispatch.
+#
+# Audit:
+#   • NPDActivityLog + RDProjectLog rows recorded.
+#   • Project status transition logged.
+# ═══════════════════════════════════════════════════════════════════
+
+# Spec slug → master row mapping (kept here as a single source of truth
+# so future renames touch one place):
+_CLIENT_APPROVED_SLUG = 'sample_approved'   # "Sample Approved By Client"
+_CLIENT_REJECTED_SLUG = 'sample_rejected'   # "Sample Rejected By Client"
+_DISPATCHED_SLUGS     = ('sample_sent', 'sent_to_client')
+
+
+@client_dispatch_bp.route('/<int:pid>/client-response', methods=['POST'])
+@login_required
+def client_response(pid):
+    """
+    Record the client's response to a dispatched sample.
+
+    Body JSON:
+      { action: 'approve' | 'reject',
+        feedback: '<free-text, optional for approve, required for reject>' }
+    """
+    from models.npd import RDSubAssignment
+
+    proj = NPDProject.query.get_or_404(pid)
+    data = request.get_json(silent=True) or {}
+    action   = (data.get('action') or '').strip().lower()
+    feedback = (data.get('feedback') or '').strip()
+
+    if action not in ('approve', 'reject'):
+        return jsonify(success=False,
+            error="Invalid action. Use 'approve' or 'reject'."), 400
+
+    if action == 'reject' and not feedback:
+        return jsonify(success=False,
+            error='Rejection feedback is required.'), 400
+
+    # ── Eligibility check (spec: no skipping) ──
+    # Project must currently be in a dispatched state. Allow re-recording
+    # of an existing decision (idempotent), but block jumps from earlier
+    # stages.
+    if proj.status not in (*_DISPATCHED_SLUGS,
+                           _CLIENT_APPROVED_SLUG, _CLIENT_REJECTED_SLUG):
+        return jsonify(success=False, error=(
+            f'Project must be dispatched to client before recording '
+            f'feedback. Current status: {proj.status_label}.'
+        )), 400
+
+    now = datetime.now()
+    prev_status = proj.status
+
+    if action == 'approve':
+        proj.status = _CLIENT_APPROVED_SLUG
+
+        # ── Spec rule #11: close the linked Lead ──
+        lead_msg = ''
+        if proj.lead_id:
+            try:
+                from models import Lead as _LeadM
+                _lead = _LeadM.query.get(proj.lead_id)
+                if _lead and _lead.status not in ('close', 'cancel'):
+                    _lead.status      = 'close'
+                    _lead.closed_at   = now
+                    _lead.updated_at  = now
+                    _lead.modified_by = current_user.id
+                    lead_msg = f' | Lead #{_lead.id} closed.'
+            except Exception:
+                import traceback; traceback.print_exc()
+
+        action_label = (
+            f"Client APPROVED samples — project marked "
+            f"'Sample Approved By Client'.{lead_msg}"
+        )
+
+    else:  # reject
+        proj.status = _CLIENT_REJECTED_SLUG
+
+        # ── Spec rule #12: re-open for R&D reassignment ──
+        # Deactivate all active sub-assignments so the project is
+        # treated as "unallotted" by the R&D Projects page. Manager
+        # can then assign fresh users via /rd/projects/<pid>/assign-multi.
+        # Office-dispatch items are kept intact for history.
+        active_subs = RDSubAssignment.query.filter_by(
+            project_id=proj.id, is_active=True
+        ).all()
+        deactivated = 0
+        for sub in active_subs:
+            sub.is_active = False
+            deactivated += 1
+
+        # Clear the legacy single-user pointer too — the project should
+        # show as unassigned until a manager re-allocates.
+        proj.assigned_rd = None
+
+        action_label = (
+            f"Client REJECTED samples — feedback: {feedback} | "
+            f"R&D unassigned ({deactivated} sub-assignment(s) closed). "
+            f"Awaiting reassignment by R&D Manager."
+        )
+
+    # ── Audit logs ──
+    db.session.add(NPDActivityLog(
+        project_id = pid,
+        user_id    = current_user.id,
+        action     = action_label,
+        created_at = now,
+    ))
+    db.session.add(RDProjectLog(
+        project_id = pid,
+        user_id    = current_user.id,
+        event      = proj.status,
+        detail     = (
+            f"Client response: {action.upper()} | "
+            f"{prev_status or 'unknown'} → {proj.status}"
+            + (f" | Feedback: {feedback}" if feedback else "")
+        ),
+        created_at = now,
+    ))
+
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        import traceback; traceback.print_exc()
+        return jsonify(success=False, error=f'Server error: {e}'), 500
+
+    return jsonify(
+        success     = True,
+        project_id  = pid,
+        action      = action,
+        prev_status = prev_status,
+        new_status  = proj.status,
+        new_status_label = proj.status_label,
+    )

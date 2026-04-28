@@ -30,6 +30,14 @@ _arg_parser.add_argument('--json',       action='store_true',
                          help='Output schema diff as JSON (and nothing else)')
 _arg_parser.add_argument('--output',     default='migrate_diff.py',
                          help='Output file for --generate (default: migrate_diff.py)')
+_arg_parser.add_argument('--data-merge', action='store_true',
+                         help='Merge data from a mysqldump SQL file into live DB (skip rows that already exist)')
+_arg_parser.add_argument('--data-source', default=None,
+                         help='Path to .sql file (mysqldump output) for --data-merge mode')
+_arg_parser.add_argument('--data-only',  action='store_true',
+                         help='With --data-merge: skip schema steps, run ONLY data merge')
+_arg_parser.add_argument('--data-tables', default=None,
+                         help='Comma-separated list of tables to merge (default: all). Example: --data-tables="users,leads"')
 ARGS, _ = _arg_parser.parse_known_args()
 
 # ── Colors ──
@@ -49,6 +57,8 @@ elif ARGS.generate:
     print(f"  {C}Mode: GENERATE standalone migration file{E}")
 elif ARGS.skip_sync:
     print(f"  {C}Mode: CLASSIC (hand-written steps only){E}")
+elif ARGS.data_merge:
+    print(f"  {C}Mode: DATA MERGE from {ARGS.data_source}{E}")
 print(f"{'='*60}")
 
 # ── Load Flask app ──
@@ -438,6 +448,322 @@ with app.app_context():
 '''
 
 
+# ══════════════════════════════════════════════════════════════════
+# DATA MERGE — copy rows from a mysqldump SQL file into the live DB,
+# skipping rows that already exist (matched by primary key or by
+# unique-key columns when no PK is dumped).
+#
+# Why a custom merger instead of plain `mysql < dump.sql`?
+#   • Plain import will FAIL on duplicate-key errors (already-imported
+#     IDs) and abort half-way through.
+#   • `INSERT IGNORE` would skip silently but corrupt FK relationships
+#     when sequences differ between source and target.
+#   • `mysqldump --insert-ignore` rewrites the file but still drops
+#     rows you might have wanted updated.
+#
+# This merger:
+#   1. Parses INSERT statements out of the dump file (regex, streaming).
+#   2. For every row, checks whether the PK / unique-key already exists.
+#   3. SKIPS if it does, INSERTS if it doesn't.
+#   4. FK checks disabled during the merge, re-enabled at the end.
+#   5. Reports per-table counts (inserted / skipped / errors).
+# ══════════════════════════════════════════════════════════════════
+
+def _run_data_merge(raw, cur, sql_file_path, tables_filter=None):
+    """
+    Merge rows from a mysqldump .sql file into the live DB.
+
+    Parameters
+    ----------
+    raw : pymysql.Connection
+        Open connection to the LIVE (target) database.
+    cur : pymysql.cursors.Cursor
+        Cursor on the same connection.
+    sql_file_path : str
+        Path to the .sql file produced by `mysqldump`.
+    tables_filter : list[str] | None
+        If given, only these tables are merged. Otherwise all.
+    """
+    import re as _re
+    import os as _os
+
+    if not _os.path.exists(sql_file_path):
+        err(f"SQL file not found: {sql_file_path}")
+        return False
+
+    file_size = _os.path.getsize(sql_file_path)
+    step(f"DATA MERGE: reading {sql_file_path} ({file_size/1024/1024:.1f} MB)")
+
+    if tables_filter:
+        info(f"Tables filter active: {', '.join(tables_filter)}")
+
+    # ── Read whole file (mysqldump files are usually <500MB; if yours is
+    # larger we'd need to stream, but for ERPDEMO-scale this is fine).
+    with open(sql_file_path, 'r', encoding='utf-8', errors='replace') as f:
+        sql_text = f.read()
+
+    # ── Parse INSERT statements
+    # mysqldump emits one of two forms:
+    #   INSERT INTO `table` VALUES (..),(..),(..);
+    #   INSERT INTO `table` (`col1`,`col2`) VALUES (..),(..);
+    # We handle both. The VALUES tuples are kept as raw SQL strings — we
+    # do NOT try to parse them into Python; we re-emit them verbatim
+    # inside an INSERT IGNORE-or-skip statement, which is much more
+    # reliable than trying to deserialise every datatype.
+    insert_re = _re.compile(
+        r"INSERT\s+(?:IGNORE\s+)?INTO\s+`([A-Za-z0-9_]+)`\s*"
+        r"(\([^)]+\))?\s*VALUES\s*",
+        _re.IGNORECASE
+    )
+
+    # ── First pass: discover which tables exist in the dump
+    tables_in_dump = []
+    for m in insert_re.finditer(sql_text):
+        tname = m.group(1)
+        if tname not in tables_in_dump:
+            tables_in_dump.append(tname)
+
+    if not tables_in_dump:
+        err("Koi INSERT statement file mein nahi mila — kya yeh mysqldump file hai?")
+        return False
+
+    info(f"Dump file mein {len(tables_in_dump)} tables ke INSERTs hain")
+
+    # Apply table filter if given
+    if tables_filter:
+        tables_in_dump = [t for t in tables_in_dump if t in tables_filter]
+        if not tables_in_dump:
+            warn("Filter ke baad koi table merge karne ko nahi bacha")
+            return False
+
+    # ── Disable FK checks for the whole merge (re-enable at end)
+    cur.execute("SET FOREIGN_KEY_CHECKS=0")
+    cur.execute("SET UNIQUE_CHECKS=0")
+    cur.execute("SET autocommit=0")
+
+    grand_inserted = 0
+    grand_skipped  = 0
+    grand_errors   = 0
+
+    # ── For each table, find every INSERT block and merge row-by-row
+    for tname in tables_in_dump:
+        # Sanity: does the table exist in the live DB?
+        cur.execute(
+            "SELECT COUNT(*) FROM information_schema.tables "
+            "WHERE table_schema = DATABASE() AND table_name = %s",
+            (tname,)
+        )
+        if cur.fetchone()[0] == 0:
+            warn(f"  {tname}: live DB mein table nahi hai — skip")
+            continue
+
+        # Get column names (in order) for INSERTs that omit the column list
+        cur.execute(
+            "SELECT column_name FROM information_schema.columns "
+            "WHERE table_schema = DATABASE() AND table_name = %s "
+            "ORDER BY ordinal_position",
+            (tname,)
+        )
+        live_cols = [r[0] for r in cur.fetchall()]
+
+        # Get primary key column(s) for duplicate detection
+        cur.execute(
+            "SELECT column_name FROM information_schema.key_column_usage "
+            "WHERE table_schema = DATABASE() AND table_name = %s "
+            "  AND constraint_name = 'PRIMARY' "
+            "ORDER BY ordinal_position",
+            (tname,)
+        )
+        pk_cols = [r[0] for r in cur.fetchall()]
+
+        if not pk_cols:
+            # No primary key — fall back to "skip the whole table if any
+            # rows are already present" (safer than blind insert that
+            # could create duplicates).
+            cur.execute(f"SELECT COUNT(*) FROM `{tname}`")
+            if cur.fetchone()[0] > 0:
+                warn(f"  {tname}: PK nahi hai aur live DB mein data hai — skip")
+                continue
+
+        t_inserted = 0
+        t_skipped  = 0
+        t_errors   = 0
+
+        # Find every INSERT for this specific table
+        table_insert_re = _re.compile(
+            r"INSERT\s+(?:IGNORE\s+)?INTO\s+`" + _re.escape(tname) + r"`\s*"
+            r"(\([^)]+\))?\s*VALUES\s*",
+            _re.IGNORECASE
+        )
+
+        for stmt_match in table_insert_re.finditer(sql_text):
+            # Determine columns for this INSERT — explicit list or default
+            col_part = stmt_match.group(1)
+            if col_part:
+                stmt_cols = [c.strip().strip('`')
+                             for c in col_part.strip('()').split(',')]
+            else:
+                stmt_cols = live_cols
+
+            # Find the index of each PK column inside this INSERT's columns
+            pk_idx = []
+            for pk in pk_cols:
+                if pk in stmt_cols:
+                    pk_idx.append(stmt_cols.index(pk))
+                else:
+                    pk_idx = None
+                    break
+
+            # Walk past `VALUES ` to the start of the tuples
+            tuples_start = stmt_match.end()
+
+            # Now scan tuples one by one, respecting quotes / escapes /
+            # nested parens so a value like "(hello)" inside a string
+            # doesn't confuse us. State machine: paren_depth + in_string.
+            i = tuples_start
+            n = len(sql_text)
+            tuple_strings = []
+            cur_start = None
+            paren_depth = 0
+            in_str = False
+            str_quote = None
+            escape = False
+
+            while i < n:
+                ch = sql_text[i]
+
+                if escape:
+                    escape = False
+                elif ch == '\\' and in_str:
+                    escape = True
+                elif in_str:
+                    if ch == str_quote:
+                        in_str = False
+                elif ch == "'" or ch == '"':
+                    in_str = True
+                    str_quote = ch
+                elif ch == '(':
+                    if paren_depth == 0:
+                        cur_start = i + 1
+                    paren_depth += 1
+                elif ch == ')':
+                    paren_depth -= 1
+                    if paren_depth == 0:
+                        tuple_strings.append(sql_text[cur_start:i])
+                        cur_start = None
+                elif ch == ';' and paren_depth == 0:
+                    break
+
+                i += 1
+
+            # ── Now process each tuple
+            for tup in tuple_strings:
+                # Split by commas at top-level (respect quotes/escapes
+                # the same way as before)
+                parts = []
+                buf = []
+                in_str = False
+                str_quote = None
+                escape = False
+                paren_depth = 0
+                for ch in tup:
+                    if escape:
+                        buf.append(ch); escape = False
+                    elif ch == '\\' and in_str:
+                        buf.append(ch); escape = True
+                    elif in_str:
+                        buf.append(ch)
+                        if ch == str_quote:
+                            in_str = False
+                    elif ch == "'" or ch == '"':
+                        buf.append(ch); in_str = True; str_quote = ch
+                    elif ch == '(':
+                        buf.append(ch); paren_depth += 1
+                    elif ch == ')':
+                        buf.append(ch); paren_depth -= 1
+                    elif ch == ',' and paren_depth == 0:
+                        parts.append(''.join(buf).strip())
+                        buf = []
+                    else:
+                        buf.append(ch)
+                if buf:
+                    parts.append(''.join(buf).strip())
+
+                if len(parts) != len(stmt_cols):
+                    t_errors += 1
+                    continue
+
+                # ── Build the duplicate-check query
+                if pk_idx is not None and pk_cols:
+                    where_clauses = []
+                    where_values  = []
+                    for col, idx in zip(pk_cols, pk_idx):
+                        raw_val = parts[idx]
+                        if raw_val.upper() == 'NULL':
+                            where_clauses = None
+                            break
+                        # Strip surrounding quotes for parameter passing
+                        if (raw_val.startswith("'") and raw_val.endswith("'")) or \
+                           (raw_val.startswith('"') and raw_val.endswith('"')):
+                            v = raw_val[1:-1].replace("\\'", "'").replace('\\\\', '\\')
+                        else:
+                            v = raw_val
+                        where_clauses.append(f"`{col}`=%s")
+                        where_values.append(v)
+
+                    if where_clauses:
+                        check_sql = (f"SELECT 1 FROM `{tname}` WHERE "
+                                     + " AND ".join(where_clauses) + " LIMIT 1")
+                        try:
+                            cur.execute(check_sql, where_values)
+                            if cur.fetchone():
+                                t_skipped += 1
+                                continue
+                        except Exception:
+                            # If the check itself fails (e.g. type
+                            # mismatch), fall through to attempt INSERT
+                            pass
+
+                # ── INSERT this row (re-emitting the original VALUES
+                # tuple verbatim — preserves NULL, hex literals, etc.)
+                cols_sql = ",".join(f"`{c}`" for c in stmt_cols)
+                insert_sql = f"INSERT INTO `{tname}` ({cols_sql}) VALUES ({tup})"
+                try:
+                    cur.execute(insert_sql)
+                    t_inserted += 1
+                except Exception as e:
+                    t_errors += 1
+                    # Common case: duplicate-key on a UNIQUE column even
+                    # though the PK was different — treat as skip
+                    msg = str(e).lower()
+                    if 'duplicate' in msg or '1062' in msg:
+                        t_skipped += 1
+                        t_errors -= 1
+
+            # Commit per-table so a later failure doesn't roll back
+            # everything that already merged successfully.
+            raw.commit()
+
+        if t_inserted or t_skipped or t_errors:
+            ok(f"  {tname:<32s} inserted={t_inserted:<6} skipped={t_skipped:<6} errors={t_errors}")
+        else:
+            info(f"  {tname:<32s} (no rows in dump)")
+
+        grand_inserted += t_inserted
+        grand_skipped  += t_skipped
+        grand_errors   += t_errors
+
+    # ── Re-enable FK checks
+    cur.execute("SET FOREIGN_KEY_CHECKS=1")
+    cur.execute("SET UNIQUE_CHECKS=1")
+    cur.execute("SET autocommit=1")
+    raw.commit()
+
+    print()
+    ok(f"DATA MERGE done — total inserted={grand_inserted}, skipped={grand_skipped}, errors={grand_errors}")
+    return True
+
+
 with app.app_context():
 
     import pymysql
@@ -503,6 +829,23 @@ with app.app_context():
         _run_auto_schema_sync(db, raw, cur, ARGS)
         print(f"\n{'='*60}")
         print(f"  {G}{B}✅ SYNC COMPLETE!{E}")
+        print(f"{'='*60}\n")
+        sys.exit(0)
+
+    # ══════════════════════════════════════════════════════
+    # EARLY EXIT — --data-only runs ONLY the data merge
+    # ══════════════════════════════════════════════════════
+    if ARGS.data_only:
+        step("DATA-ONLY MODE: skipping schema steps")
+        if not ARGS.data_merge or not ARGS.data_source:
+            err("--data-only requires --data-merge and --data-source=<path/to/dump.sql>")
+            sys.exit(1)
+        tables_filter = None
+        if ARGS.data_tables:
+            tables_filter = [t.strip() for t in ARGS.data_tables.split(',') if t.strip()]
+        _run_data_merge(raw, cur, ARGS.data_source, tables_filter)
+        print(f"\n{'='*60}")
+        print(f"  {G}{B}✅ DATA MERGE COMPLETE!{E}")
         print(f"{'='*60}\n")
         sys.exit(0)
 
@@ -3147,6 +3490,43 @@ with app.app_context():
     # ══════════════════════════════════════════════════════
     if not ARGS.skip_sync:
         _run_auto_schema_sync(db, raw, cur, ARGS)
+
+    # ══════════════════════════════════════════════════════
+    # STEP DATA-MERGE — Smart data import from a mysqldump file
+    # ══════════════════════════════════════════════════════
+    # Triggered by --data-merge --data-source=path/to/dump.sql
+    # Skips rows that already exist (by primary key); inserts the rest.
+    # FK checks disabled during merge, re-enabled at the end.
+    #
+    # Typical usage on production:
+    #   1. Local pe export karo:
+    #        mysqldump -u root -p --routines --triggers \
+    #          --single-transaction --default-character-set=utf8mb4 \
+    #          erpdb > erpdb_backup.sql
+    #
+    #   2. File live server pe upload karo (FileZilla / scp).
+    #
+    #   3. Live pe live DB ka backup le lo (rollback ke liye):
+    #        mysqldump -u root -p --single-transaction erpdb \
+    #          > /tmp/live_backup_$(date +%F).sql
+    #
+    #   4. Run merger:
+    #        python migrate.py --data-merge \
+    #          --data-source=/tmp/erpdb_backup.sql \
+    #          --skip-sync
+    #
+    #   Optional flags:
+    #     --data-only            schema steps skip karo, sirf merge
+    #     --data-tables="x,y"    sirf yeh tables merge karo
+    # ══════════════════════════════════════════════════════
+    if ARGS.data_merge:
+        if not ARGS.data_source:
+            err("--data-merge ke saath --data-source=<path/to/dump.sql> dena zaroori hai")
+            sys.exit(1)
+        tables_filter = None
+        if ARGS.data_tables:
+            tables_filter = [t.strip() for t in ARGS.data_tables.split(',') if t.strip()]
+        _run_data_merge(raw, cur, ARGS.data_source, tables_filter)
 
     # ══════════════════════════════════════════════════════
     # DONE

@@ -679,6 +679,59 @@ class RDSubAssignment(db.Model):
 
 
 # ─────────────────────────────────────────────────────────────
+# RD Trial Log — purpose-built table for R&D trial logging
+# ─────────────────────────────────────────────────────────────
+# Each row represents one trial / sample iteration logged by an
+# R&D executive against a project. We keep this DELIBERATELY simple:
+# project + sample_code + user + parameters + notes — no status
+# workflow, no client review fields, no dispatch tracking.
+#
+# Why a separate table from NPDFormulation?
+#   NPDFormulation has grown to 20+ columns covering the entire
+#   sample-dispatch-and-review workflow (SC review, sample creation,
+#   client feedback, etc.). The R&D trial-logging UI only needs the
+#   five fields below; mixing the two concerns made the schema hard
+#   to reason about and required us to drop columns the NPD module
+#   was still relying on. Keep them separate.
+#
+# Stable name reference:
+#   `rd_user_id` is the live FK to users — query/filter by this.
+#   `rd_user_name` is the snapshot at insert time — display this so
+#   the UI doesn't shift when users.full_name is later edited.
+class RDTrialLog(db.Model):
+    __tablename__ = 'rd_trial_logs'
+
+    id              = db.Column(db.Integer, primary_key=True)
+
+    project_id      = db.Column(db.Integer,
+                                db.ForeignKey('npd_projects.id', ondelete='CASCADE'),
+                                nullable=False, index=True)
+
+    sample_code     = db.Column(db.String(100), nullable=False)
+
+    rd_user_id      = db.Column(db.Integer,
+                                db.ForeignKey('users.id'),
+                                nullable=False, index=True)
+    rd_user_name    = db.Column(db.String(200))
+
+    parameters_json = db.Column(db.Text)
+    observations    = db.Column(db.Text)
+
+    created_at      = db.Column(db.DateTime, default=datetime.now)
+    updated_at      = db.Column(db.DateTime, default=datetime.now,
+                                onupdate=datetime.now)
+
+    # Relationships — eager loading off, opt in via .options(joinedload(...))
+    project = db.relationship('NPDProject', backref='rd_trial_logs',
+                              lazy=True, foreign_keys=[project_id])
+    rd_user = db.relationship('User', backref='rd_trial_logs',
+                              lazy=True, foreign_keys=[rd_user_id])
+
+    def __repr__(self):
+        return f'<RDTrialLog proj={self.project_id} sample={self.sample_code} user={self.rd_user_id}>'
+
+
+# ─────────────────────────────────────────────────────────────
 # Sample Approval Log — audit trail for approve/reject/reset
 # ─────────────────────────────────────────────────────────────
 class SampleApprovalLog(db.Model):

@@ -54,11 +54,104 @@ CLIENT_COLS_ALL = {
 UPLOAD_FOLDER = os.path.join(os.path.dirname(__file__), 'static', 'uploads')
 ALLOWED_EXTENSIONS = {'pdf', 'png', 'jpg', 'jpeg', 'gif', 'doc', 'docx', 'xls', 'xlsx', 'txt'}
 
+# Per-file size cap for discussion uploads. 25 MB matches typical email
+# attachment limits and keeps disk usage sane on shared hosting.
+MAX_DISCUSSION_FILE_SIZE = 25 * 1024 * 1024  # 25 MB
+
+# Extensions we never accept on the discussion board — these are
+# server-executable on common hosts and would be a clear security
+# risk if uploaded into a publicly-served /static path. Anything not
+# on this list is allowed (matches the NPD project_view approach,
+# which accepts any file type the user attaches).
+BLOCKED_EXTENSIONS = {
+    'php', 'phtml', 'php3', 'php4', 'php5', 'phar',
+    'jsp', 'asp', 'aspx', 'cgi',
+    'exe', 'bat', 'cmd', 'com', 'msi',
+    'dll', 'so', 'dylib',
+}
+
 crm = Blueprint('crm', __name__, url_prefix='/crm')
 
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
+def _file_ext(filename):
+    """Return lowercase extension without the dot, or empty string."""
+    if not filename or '.' not in filename:
+        return ''
+    return filename.rsplit('.', 1)[1].lower()
+
+
+def save_discussion_attachment(file_storage, dest_folder=None):
+    """Save an uploaded werkzeug FileStorage to disk for the lead
+    discussion board.
+
+    Lenient by design — mirrors the NPD project_view discussion board:
+      • Any file type the user attaches is accepted, except the
+        narrow set of server-executable types in BLOCKED_EXTENSIONS.
+      • Filename collisions are avoided by prepending a short uuid.
+      • Files exceeding MAX_DISCUSSION_FILE_SIZE are refused with a
+        clear error rather than the legacy silent-skip behaviour.
+
+    Returns:
+        (ok: bool, stored_name: str | None, web_path: str | None,
+         error: str | None)
+
+      • web_path is the value we store in LeadAttachment.file_path
+        (everything AFTER the /static/ prefix), matching the existing
+        convention used elsewhere in this file.
+    """
+    import uuid
+    if dest_folder is None:
+        dest_folder = UPLOAD_FOLDER
+
+    if not file_storage or not file_storage.filename:
+        return False, None, None, 'Empty file'
+
+    original = file_storage.filename
+    ext = _file_ext(original)
+
+    if ext in BLOCKED_EXTENSIONS:
+        return False, None, None, (
+            f"'{original}' refused — executable file types are not allowed"
+        )
+
+    # Size check — werkzeug does NOT pre-validate, so we seek/tell the
+    # underlying stream. The stream is seekable for normal browser
+    # uploads (SpooledTemporaryFile); on the rare non-seekable stream
+    # we let it through and rely on save() to surface errors.
+    try:
+        stream = file_storage.stream
+        stream.seek(0, os.SEEK_END)
+        size = stream.tell()
+        stream.seek(0)
+        if size > MAX_DISCUSSION_FILE_SIZE:
+            return False, None, None, (
+                f"'{original}' refused — exceeds "
+                f"{MAX_DISCUSSION_FILE_SIZE // (1024*1024)} MB limit"
+            )
+    except Exception:
+        pass
+
+    # Build a unique, filesystem-safe name. secure_filename() can return
+    # an empty string for heavily-non-ASCII inputs (Hindi/Gujarati/etc),
+    # which would make f.save() write into the folder itself and crash.
+    # Fall back to 'file' + the original extension in that case.
+    safe_base = secure_filename(original) or 'file'
+    if '.' not in safe_base and ext:
+        safe_base = f'{safe_base}.{ext}'
+    stored_name = f'{uuid.uuid4().hex[:8]}_{safe_base}'
+
+    os.makedirs(dest_folder, exist_ok=True)
+    fpath = os.path.join(dest_folder, stored_name)
+    try:
+        file_storage.save(fpath)
+    except OSError as e:
+        return False, None, None, f"'{original}' save failed: {e}"
+
+    return True, stored_name, f'uploads/{stored_name}', None
 
 
 def gen_code(model, prefix):
@@ -1474,6 +1567,44 @@ def lead_view(id):
 def lead_discussion_add(id):
     l       = Lead.query.get_or_404(id)
     comment = request.form.get('comment', '').strip()
+
+    # ── Comment-size sanitisation ──
+    # The DB column is TEXT (65,535 bytes). A single inline base64
+    # image can blow past that. The frontend uploads images via
+    # /upload-inline-image and embeds a small <img src=".../static/.."
+    # tag, so a well-behaved client never produces a huge comment.
+    # But a stale client, paste from another app, or a manual
+    # request could still try to send embedded base64 — handle that
+    # here so the user gets a clear message instead of a 500.
+    if comment:
+        # Strip any data: URIs that snuck through (replace with a
+        # placeholder so the user knows something was dropped).
+        if 'data:image/' in comment or 'data:application/' in comment:
+            import re as _re
+            comment = _re.sub(
+                r'<img[^>]+src="data:[^"]+"[^>]*>',
+                '[image upload failed — please re-attach]',
+                comment, flags=_re.IGNORECASE,
+            )
+            comment = _re.sub(
+                r'src="data:[^"]{200,}"',
+                'src=""',
+                comment, flags=_re.IGNORECASE,
+            )
+
+        # Hard ceiling: TEXT is 65,535 bytes. UTF-8 chars can be up to
+        # 4 bytes each, so we clamp at ~16,000 chars conservatively.
+        # If we still exceed after stripping, refuse rather than
+        # truncate-and-corrupt mid-tag.
+        encoded = comment.encode('utf-8')
+        if len(encoded) > 64000:
+            flash(
+                'Comment is too long. Please shorten it or upload large '
+                'images as attachments instead of embedding them inline.',
+                'warning'
+            )
+            return redirect(url_for('crm.lead_view', id=id, tab='discussion'))
+
     if not comment:
         flash('Comment cannot be empty!', 'warning')
         return redirect(url_for('crm.lead_view', id=id, tab='discussion'))
@@ -1487,23 +1618,33 @@ def lead_discussion_add(id):
     db.session.add(disc)
     db.session.flush()
 
-    # Handle file attachments
-    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+    # Handle file attachments — UI advertises support for any non-executable
+    # file type up to 25 MB. We use save_discussion_attachment() (no
+    # whitelist; only server-executable extensions are blocked). Files
+    # that fail are collected as (name, reason) tuples so the page can
+    # surface them in a modal on the next render — much clearer than the
+    # previous silent-skip behaviour.
     files = request.files.getlist('attachments[]')
+    saved_count = 0
+    failures    = []  # list of (filename, reason) tuples
     for f in files:
-        if f and f.filename and allowed_file(f.filename):
-            fname = secure_filename(f.filename)
-            fpath = os.path.join(UPLOAD_FOLDER, fname)
-            f.save(fpath)
-            att = LeadAttachment(
-                lead_id       = id,
-                discussion_id = disc.id,
-                file_name     = fname,
-                file_path     = f'uploads/{fname}',
-                file_type     = f.content_type,
-                uploaded_by   = current_user.id
-            )
-            db.session.add(att)
+        if not f or not f.filename:
+            continue
+        ok, stored_name, web_path, err = save_discussion_attachment(f)
+        if not ok:
+            failures.append((f.filename or '(unnamed)',
+                             err or 'could not be saved'))
+            continue
+        att = LeadAttachment(
+            lead_id       = id,
+            discussion_id = disc.id,
+            file_name     = f.filename,           # display the user's name
+            file_path     = web_path,             # stored as 'uploads/<unique>_name'
+            file_type     = f.content_type,
+            uploaded_by   = current_user.id,
+        )
+        db.session.add(att)
+        saved_count += 1
 
     # Update last contact
     l.last_contact = datetime.utcnow()
@@ -1511,8 +1652,98 @@ def lead_discussion_add(id):
     add_contribution(id, 'comment', note='Added comment')
     db.session.commit()
     audit('leads','DISCUSSION', id, f'Lead #{id}', f'Comment added by {current_user.username}')
-    flash('Comment added!', 'success')
+
+    if failures:
+        # Two flashes:
+        #   • 'success' / 'warning' toast for the comment-save outcome
+        #   • A 'file_errors' JSON payload that the lead_view template
+        #     picks up on load and renders inside the file-error modal.
+        # Each error in the modal cleanly lists filename + reason —
+        # the previous "Comment saved with errors" toast string was
+        # hard to read once you had more than 2 failures.
+        if saved_count:
+            flash(f'Comment saved with {saved_count} attachment(s).',
+                  'success')
+        else:
+            flash('Comment saved (no attachments uploaded).', 'warning')
+        # Strip the leading "'name' refused — " from each reason since
+        # the modal renders filename and reason as separate fields.
+        import json as _json
+        cleaned = []
+        for fname, reason in failures:
+            r = reason
+            # save_discussion_attachment formats errors as
+            # "'<file>' refused — <reason>" — strip the redundant prefix.
+            prefix = f"'{fname}' refused — "
+            if r.startswith(prefix):
+                r = r[len(prefix):]
+            else:
+                # Other variants like "'<file>' save failed: <err>"
+                alt = f"'{fname}' "
+                if r.startswith(alt):
+                    r = r[len(alt):]
+            cleaned.append({'name': fname, 'reason': r})
+        flash(_json.dumps(cleaned), 'file_errors')
+    else:
+        flash('Comment added!', 'success')
     return redirect(url_for('crm.lead_view', id=id, tab='discussion'))
+
+
+@crm.route('/leads/<int:id>/discussion/upload-inline-image', methods=['POST'])
+@login_required
+def lead_discussion_inline_image(id):
+    """Upload an image to be embedded inline inside a discussion comment.
+
+    Why this exists:
+      The discussion editor is contenteditable. When the user pastes
+      a screenshot or picks an image from the toolbar, the easy thing
+      is to embed it as a base64 data URL inside the comment HTML.
+      That works visually but blows past the `lead_discussions.comment`
+      column's TEXT (65 KB) ceiling — a single 500 KB JPEG turns into
+      a ~700,000-character base64 string and the INSERT explodes with
+      "Data too long for column 'comment'".
+
+    What this does instead:
+      Save the image to disk as a normal upload, return its public
+      URL. The frontend then inserts a tiny `<img src="/static/...">`
+      tag — DB row stays small, image is browser-cacheable, and
+      multiple comments referencing the same screenshot don't each
+      duplicate hundreds of KB of base64 in the database.
+
+    Stored in the same /static/uploads folder used for attachment
+    chips so attachment cleanup / serving paths don't have to know
+    about a special case.
+
+    Returns JSON:
+      { ok: true, url: '/static/uploads/<unique>_name.jpg' }
+      { ok: false, error: '<message>' }
+    """
+    if 'image' not in request.files:
+        return jsonify(ok=False, error='No image field in request'), 400
+    f = request.files['image']
+    if not f or not f.filename:
+        return jsonify(ok=False, error='Empty file'), 400
+
+    # Reject non-image content. The frontend only ever calls this for
+    # image picks/pastes/drops, but a user could craft a request — so
+    # be defensive.
+    ctype = (f.content_type or '').lower()
+    ext = _file_ext(f.filename).lower()
+    is_image_ct  = ctype.startswith('image/')
+    is_image_ext = ext in ('jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg', 'heic', 'heif')
+    if not (is_image_ct or is_image_ext):
+        return jsonify(ok=False, error='Only image files are allowed here'), 400
+
+    ok, stored_name, web_path, err = save_discussion_attachment(f)
+    if not ok:
+        return jsonify(ok=False, error=err or 'Upload failed'), 400
+
+    # web_path is "uploads/<name>"; the public URL is /static/<that>.
+    return jsonify(
+        ok    = True,
+        url   = f'/static/{web_path}',
+        name  = f.filename,
+    )
 
 
 @crm.route('/leads/discussion/<int:did>/edit', methods=['POST'])
@@ -1525,39 +1756,55 @@ def lead_discussion_edit(did):
     if not new_comment:
         return jsonify(success=False, error='Comment cannot be empty')
     d.comment = new_comment
-    # Check if new files uploaded
-    files = [f for f in request.files.getlist('attachments[]') if f and f.filename]
-    if files:
-        # Delete existing attachments from DB (cascade deletes them)
+
+    # Process new files first — DON'T delete old attachments until we
+    # know the new ones save cleanly. The previous version deleted the
+    # old files immediately and silently dropped any new files that
+    # failed `allowed_file()`, leaving the discussion with zero
+    # attachments — irrecoverable data loss.
+    incoming = [f for f in request.files.getlist('attachments[]') if f and f.filename]
+    new_atts     = []   # successfully-saved temp records (model instances, not yet added)
+    new_failures = []
+    for f in incoming:
+        ok, stored_name, web_path, err = save_discussion_attachment(f)
+        if not ok:
+            new_failures.append(err or f"'{f.filename}' could not be saved")
+            continue
+        new_atts.append(LeadAttachment(
+            lead_id       = d.lead_id,
+            discussion_id = d.id,
+            file_name     = f.filename,
+            file_path     = web_path,
+            file_type     = f.content_type,
+            uploaded_by   = current_user.id,
+        ))
+
+    # Only swap if at least one new file came through cleanly. Edit form
+    # may also be used with zero files (just text edit) — leave existing
+    # attachments alone in that case.
+    if new_atts:
         for old_att in list(d.attachments):
-            # Optionally delete physical file too
-            old_fpath = os.path.join(os.path.dirname(UPLOAD_FOLDER), 'static', old_att.file_path)
+            old_fpath = os.path.join(os.path.dirname(UPLOAD_FOLDER),
+                                     'static', old_att.file_path)
             try:
-                if os.path.exists(old_fpath): os.remove(old_fpath)
-            except: pass
+                if os.path.exists(old_fpath):
+                    os.remove(old_fpath)
+            except Exception:
+                pass
             db.session.delete(old_att)
         db.session.flush()
-        # Add new files
-        for f in files:
-            if allowed_file(f.filename):
-                os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-                fname = secure_filename(f.filename)
-                fpath = os.path.join(UPLOAD_FOLDER, fname)
-                f.save(fpath)
-                att = LeadAttachment(
-                    lead_id       = d.lead_id,
-                    discussion_id = d.id,
-                    file_name     = fname,
-                    file_path     = f'uploads/{fname}',
-                    file_type     = f.content_type,
-                    uploaded_by   = current_user.id
-                )
-                db.session.add(att)
+        for att in new_atts:
+            db.session.add(att)
+
     db.session.commit()
     log_activity(d.lead_id, f'Comment edited by {current_user.full_name}')
-    # Return updated attachments
     all_atts = [{'name': a.file_name, 'path': a.file_path} for a in d.attachments]
-    return jsonify(success=True, comment=d.comment, attachments=all_atts)
+    return jsonify(
+        success      = True,
+        comment      = d.comment,
+        attachments  = all_atts,
+        warnings     = new_failures,  # frontend can surface these
+    )
 
 
 @crm.route('/leads/discussion/<int:did>/delete', methods=['POST'])

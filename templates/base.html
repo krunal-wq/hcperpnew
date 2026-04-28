@@ -302,7 +302,17 @@
                 <a class="nav-a" href="/approvals"><span class="nav-ic">✅</span><span class="nav-txt">Approvals</span></a>
                 <a class="nav-a {% if active_page == 'user_permissions' %}active{% endif %}" href="/admin/user-permissions"><span class="nav-ic">👤</span><span class="nav-txt">User Permissions</span></a>
                 <a class="nav-a" href="/admin/audit-logs"><span class="nav-ic">🔍</span><span class="nav-txt">Audit Logs</span></a>
-                {% if role == 'admin' %}
+                {# Settings group — visible if user has CRM Settings access.
+                   The CRM Settings tile in ACP panel maps to the `crm`
+                   module's top-level can_view. Same pattern as Leads /
+                   Clients / Sample Orders blocks: parent module can_view
+                   controls menu visibility; sub-permission chips on the
+                   ACP panel control finer-grained page-level actions
+                   (handled inside each settings page itself).
+                   Admin role always sees everything via get_perm()'s
+                   built-in admin override. #}
+                {% set _crm_perm = get_perm('crm') %}
+                {% if _crm_perm and _crm_perm.can_view %}
                 <div class="sb-acc-sub-lbl">⚙️ Settings</div>
                 <a class="nav-a {% if _pg == 'mail_master' %}active{% endif %}" href="/mail/master"><span class="nav-ic">✉️</span><span class="nav-txt">Mail Master</span></a>
                 <a class="nav-a {% if _pg == 'contribution_config' %}active{% endif %}" href="/crm/contribution-config"><span class="nav-ic">⭐</span><span class="nav-txt">Points Config</span></a>
@@ -390,8 +400,11 @@
             </div>
             {% endif %}
 
-            {# ── Settings Group (admin only, collapsible) ── #}
-            {% if role == 'admin' %}
+            {# ── Settings Group — gated by `crm` module can_view.
+                 Same pattern as other CRM menu items above. Admin
+                 always sees everything via get_perm()'s admin override. ── #}
+            {% set _crm_perm = get_perm('crm') %}
+            {% if _crm_perm and _crm_perm.can_view %}
             {% set _in_settings = _pg in ('mail_master','contribution_config','masters') %}
             <button class="nav-group-toggle {% if _in_settings %}open{% endif %}" onclick="toggleNavGroup(this)">
                 <span class="nav-ic">⚙️</span>

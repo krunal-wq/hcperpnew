@@ -198,6 +198,81 @@ class Employee(db.Model):
     # Documents (JSON list of {name, type, filename, base64, uploaded_at})
     documents_json      = db.Column(db.Text(16777215))   # MEDIUMTEXT — base64 docs
 
+    # ─── Phase-1: Family / Contact ────────────────────────────────────────
+    father_name         = db.Column(db.String(150))
+    mother_name         = db.Column(db.String(150))
+    alternate_mobile    = db.Column(db.String(20))
+    personal_email      = db.Column(db.String(150))
+
+    # ─── Phase-1: Permanent Address ───────────────────────────────────────
+    permanent_address    = db.Column(db.Text)
+    permanent_city       = db.Column(db.String(100))
+    permanent_state      = db.Column(db.String(100))
+    permanent_country    = db.Column(db.String(100), default='India')
+    permanent_zip        = db.Column(db.String(20))
+    same_as_current_addr = db.Column(db.Boolean, default=False)
+
+    # ─── Phase-1: Grade / Probation ───────────────────────────────────────
+    grade_level             = db.Column(db.String(50))
+    probation_period_months = db.Column(db.Integer, default=6)
+    probation_end_date      = db.Column(db.Date)
+
+    # ─── Phase-1: PF ──────────────────────────────────────────────────────
+    pf_applicable        = db.Column(db.Boolean, default=False)
+    pf_number            = db.Column(db.String(50))
+    eps_applicable       = db.Column(db.Boolean, default=False)
+    previous_pf_transfer = db.Column(db.Boolean, default=False)
+    previous_pf_number   = db.Column(db.String(50))
+
+    # ─── Phase-1: ESIC ────────────────────────────────────────────────────
+    esic_applicable       = db.Column(db.Boolean, default=False)
+    esic_nominee_name     = db.Column(db.String(150))
+    esic_nominee_relation = db.Column(db.String(50))
+    esic_family_details   = db.Column(db.Text)
+    esic_dispensary       = db.Column(db.String(150))
+
+    # ─── Phase-1: TDS / Tax ───────────────────────────────────────────────
+    aadhaar_pan_linked      = db.Column(db.Boolean, default=False)
+    tax_regime              = db.Column(db.String(20), default='New')
+    prev_employer_income    = db.Column(db.Numeric(12, 2))
+    monthly_tds             = db.Column(db.Numeric(12, 2))
+    investment_declaration  = db.Column(db.Text)
+    proof_submission_status = db.Column(db.String(30), default='Pending')
+
+    # ─── Phase-1: Statutory ───────────────────────────────────────────────
+    professional_tax_applicable = db.Column(db.Boolean, default=True)
+    labour_welfare_fund         = db.Column(db.Boolean, default=False)
+    gratuity_eligible           = db.Column(db.Boolean, default=False)
+    bonus_eligible              = db.Column(db.Boolean, default=True)
+
+    # ─── Phase-1: Attendance / Leave ──────────────────────────────────────
+    attendance_code      = db.Column(db.String(50))
+    overtime_eligible    = db.Column(db.Boolean, default=False)
+    casual_leave_balance = db.Column(db.Numeric(5, 1), default=0)
+    sick_leave_balance   = db.Column(db.Numeric(5, 1), default=0)
+    paid_leave_balance   = db.Column(db.Numeric(5, 1), default=0)
+    leave_policy         = db.Column(db.String(100))
+
+    # ─── Phase-1: System Access ───────────────────────────────────────────
+    official_email = db.Column(db.String(150))
+    role_access    = db.Column(db.String(100))
+
+    # ─── Phase-1: Exit extras ─────────────────────────────────────────────
+    exit_interview_done  = db.Column(db.Boolean, default=False)
+    exit_interview_notes = db.Column(db.Text)
+    ff_settlement_status = db.Column(db.String(30), default='Pending')
+    ff_settlement_amount = db.Column(db.Numeric(12, 2))
+    ff_settlement_date   = db.Column(db.Date)
+
+    # ─── Phase-1: Salary extras (HR-only) ─────────────────────────────────
+    salary_conveyance = db.Column(db.Numeric(12, 2))
+    salary_bonus      = db.Column(db.Numeric(12, 2))
+    salary_incentive  = db.Column(db.Numeric(12, 2))
+    salary_gross      = db.Column(db.Numeric(12, 2))
+
+    # ─── Soft delete ──────────────────────────────────────────────────────
+    deleted_at = db.Column(db.DateTime)
+
     created_by      = db.Column(db.Integer, db.ForeignKey('users.id'))
     created_at      = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at      = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

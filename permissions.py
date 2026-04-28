@@ -18,6 +18,20 @@ from models import db, Module, UserGridConfig, UserPermission
 # ── Sub-permission keys per module ──────────────────────────────────────────
 # Ye dict define karta hai har module ke andar kaunse granular sub-permissions hain
 MODULE_SUB_PERMS = {
+    # ── CRM parent module — sub-perms are the "Settings" page chips
+    # rendered under the "CRM Settings" tile in the ACP panel. Each key
+    # gates one settings sub-page (Mail Master, Points Config, etc).
+    # WITHOUT this key, the Enable All / Disable All flow on CRM Settings
+    # silently saves an empty sub-permission dict, which makes the chips
+    # appear stuck-OFF after a page reload.
+    'crm': [
+        ('mail_master',    'Mail Master'),
+        ('points_config',  'Points Config'),
+        ('lead_status',    'Lead Status'),
+        ('lead_source',    'Lead Source'),
+        ('lead_category',  'Lead Category'),
+        ('product_range',  'Product Range'),
+    ],
     'crm_leads': [
         ('filter',            'Filter'),
         ('sort',              'Sort'),
@@ -139,6 +153,17 @@ MODULE_SUB_PERMS = {
         ('alloted_npd',           'Alloted NPD'),
         ('closed_npd',            'Closed NPD'),
         ('assign',                'Assign'),
+    ],
+    'packing': [
+        ('new_entry',             'New Entry'),
+        ('export',                'Export CSV'),
+        ('import',                'Import CSV'),
+        ('print',                 'Print'),
+        ('columns',               'Columns'),
+        ('whatsapp',              'WhatsApp'),
+        ('filter',                'Filter'),
+        ('delete',                'Delete'),
+        ('inline_edit',           'Inline Edit'),
     ],
 }
 
@@ -436,10 +461,13 @@ DEFAULT_MODULES = [
     {'name':'crm_quotations','label':'Quotations','icon':'📄','url_prefix':'/crm/quotations','sort_order':6,'parent':'crm'},
     {'name':'crm_sample_orders','label':'Sample Orders','icon':'🧾','url_prefix':'/crm/sample-orders','sort_order':5,'parent':'crm'},
     {'name':'crm_clients',  'label':'Clients',        'icon':'👥', 'url_prefix':'/crm/clients','sort_order':4, 'parent':'crm'},
+    {'name':'crm_leaderboard','label':'Leaderboard',  'icon':'🏆','url_prefix':'/crm/leaderboard','sort_order':7,'parent':'crm'},
+    {'name':'crm_quot_products','label':'Quotation Products','icon':'📦','url_prefix':'/crm/quot-products','sort_order':8,'parent':'crm'},
     {'name':'rd',           'label':'R&D',          'icon':'🔬','url_prefix':'/rd',              'sort_order':13},
     {'name':'npd',          'label':'NPD',          'icon':'🧪','url_prefix':'/npd',             'sort_order':14},
     {'name':'npd_projects', 'label':'NPD Projects', 'icon':'📋','url_prefix':'/npd/npd-projects','sort_order':15,'parent':'npd'},
     {'name':'npd_masters',  'label':'NPD Masters',  'icon':'⚙️','url_prefix':'/npd/masters',     'sort_order':16,'parent':'npd'},
+    {'name':'packing',      'label':'Packing',        'icon':'📦', 'url_prefix':'/packing',   'sort_order':17},
     {'name':'hr',           'label':'HR',             'icon':'👔', 'url_prefix':'/hr',        'sort_order':5},
     {'name':'hr_employees', 'label':'Employees',      'icon':'🪪', 'url_prefix':'/hr/employees','sort_order':6,'parent':'hr'},
     {'name':'hr_contractors','label':'Contractors',   'icon':'🤝', 'url_prefix':'/hr/contractors','sort_order':7,'parent':'hr'},

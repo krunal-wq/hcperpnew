@@ -19,6 +19,148 @@ from models import (db, User, Lead, NPDMilestoneTemplate,
 from permissions import get_perm, get_sub_perm
 npd = Blueprint('npd', __name__, url_prefix='/npd')
 
+
+# ─────────────────────────────────────────────────────────────────
+#  Visibility helpers — who sees which NPD/EPD project
+# ─────────────────────────────────────────────────────────────────
+#  Mirrors the pattern in rd_routes.py (`is_rd_manager_user`,
+#  `_user_is_assigned`). Without these, every NPD-team member sees
+#  every project regardless of assignment — that's the bug Sneha
+#  reported (in NPD team but not assigned to a specific project,
+#  yet seeing it on /npd/npd-projects).
+#
+#  Manager / admin → sees everything.
+#  Everyone else  → sees only projects where they appear in any of:
+#      • assigned_rd / assigned_sc / npd_poc  (legacy single-user FKs)
+#      • RDSubAssignment.user_id              (modern multi-user table)
+#      • assigned_rd_members / assigned_members  (legacy comma-separated
+#        tokens — both `u_<user_id>` and pure-numeric employee_id forms)
+#  Project creator (created_by) is intentionally NOT auto-included —
+#  spec says creators of leads/projects must be explicitly assigned to
+#  retain visibility, otherwise NPD coordinators end up watching every
+#  project they ever spawned.
+#
+#  Manager role: User.role in ('npd_manager', 'admin'). Set this in
+#  the users table for whoever should see the full pipeline. No magic
+#  designation guessing — explicit role only.
+def is_npd_manager_user(user=None):
+    """True if `user` (default current_user) should see ALL NPD/EPD
+    projects without per-assignment filtering."""
+    u = user or current_user
+    if not u or not getattr(u, 'is_authenticated', False):
+        return False
+    return getattr(u, 'role', None) in ('npd_manager', 'admin')
+
+
+def _filter_npd_projects_for_user(query):
+    """Apply per-user assignment visibility filter to an NPDProject query.
+
+    Returns the same query object (no-op) when the current user is an
+    NPD manager / admin. Otherwise narrows the query to projects where
+    the current user appears in any assignment field (legacy or modern).
+
+    Use this BEFORE pagination — that's how the count and the visible
+    page stay in sync.
+
+    Implementation note (collation-safe):
+      The naive approach was to put everything inside one SQL `WHERE`
+      with `assigned_members LIKE '%u_82%'` style clauses. That blew
+      up on databases where the schema is utf8mb4_unicode_ci but the
+      session/connection default is utf8mb4_0900_ai_ci — MySQL refuses
+      to compare across collations and throws error 1267 ("Illegal mix
+      of collations"). When SQLAlchemy hit that, the entire filter
+      query failed and Flask either errored out OR (worse) silently
+      fell through to an unfiltered list — which is exactly what made
+      Sneha (a normal `user` role with no assignments) see projects
+      she shouldn't.
+
+      The fix here:
+        1. Build a small list of project IDs in Python by scanning
+           the comma-separated `assigned_*_members` columns ourselves
+           — Python string matching is collation-agnostic.
+        2. Combine that with the FK / RDSubAssignment lookups (which
+           are integer comparisons and never have collation issues).
+        3. Final WHERE is `id IN (small list) OR fk_field = uid`.
+
+      This is slightly heavier than a single SQL query but the only
+      lists that get pulled to Python are the *_members text columns,
+      which are at most a few hundred bytes each. Practical impact is
+      negligible for realistic NPD project counts.
+    """
+    if is_npd_manager_user():
+        return query
+
+    from models.npd import NPDProject as _NP, RDSubAssignment as _RDSub
+
+    uid = current_user.id
+
+    # Resolve current user's Employee.id once for the legacy emp-id
+    # comma-separated tokens.
+    my_emp_id = None
+    try:
+        from models.employee import Employee as _Emp
+        _e = _Emp.query.filter_by(user_id=uid, is_deleted=False).first()
+        my_emp_id = _e.id if _e else None
+    except Exception:
+        my_emp_id = None
+
+    # Modern multi-user assignment (RDSubAssignment) — collect project
+    # IDs the user appears in. Pure integer comparison, no collation.
+    sub_pids = {
+        s.project_id for s in _RDSub.query.filter_by(user_id=uid).all()
+    }
+
+    # ── Python-side scan of comma-separated token columns ──
+    # Pull (id, assigned_rd_members, assigned_members) for every NPD/EPD
+    # project that has at least one of those columns populated, then
+    # filter in Python where collation doesn't apply. This sidesteps the
+    # SQL 1267 error completely.
+    u_token = f'u_{uid}'
+    token_pids = set()
+    rows = db.session.query(
+        _NP.id, _NP.assigned_rd_members, _NP.assigned_members
+    ).filter(
+        _NP.is_deleted == False,
+        db.or_(
+            _NP.assigned_rd_members.isnot(None),
+            _NP.assigned_members.isnot(None),
+        )
+    ).all()
+    for pid, rd_mem, mem in rows:
+        for raw in (rd_mem, mem):
+            if not raw:
+                continue
+            tokens = [t.strip() for t in str(raw).split(',') if t.strip()]
+            if u_token in tokens:
+                token_pids.add(pid)
+                break
+            if my_emp_id is not None and str(my_emp_id) in tokens:
+                token_pids.add(pid)
+                break
+
+    # Combine all matching project IDs we found via the various
+    # assignment systems. RDSubAssignment + token scan together.
+    all_assigned_pids = sub_pids | token_pids
+
+    # Final WHERE: any of these match
+    #   • assigned_rd / assigned_sc / npd_poc FK = current user
+    #   • project id ∈ (RDSubAssignment ∪ token-scan results)
+    clauses = [
+        _NP.assigned_rd == uid,
+        _NP.assigned_sc == uid,
+        _NP.npd_poc     == uid,
+    ]
+    if all_assigned_pids:
+        clauses.append(_NP.id.in_(list(all_assigned_pids)))
+    else:
+        # User has zero token/sub assignments — only FK matches matter.
+        # We still need a WHERE clause so SQLAlchemy doesn't no-op the
+        # filter. The three FK clauses above are enough.
+        pass
+
+    return query.filter(db.or_(*clauses))
+
+
 # ── NPD Grid Columns ──
 NPD_COLS_DEFAULT = ['created_at','code','category','client_name','product_name','assigned_members','reference_brand','priority','last_connected','milestones','project_age','status','project_start_date']
 
@@ -218,15 +360,23 @@ def get_npd_team_employees():
 @npd.route('/dashboard')
 @login_required
 def dashboard():
+    # ── Dashboard tiles must respect per-user visibility ──
+    # If we just count all projects, a non-manager sees inflated tile
+    # numbers but only some of them in the underlying lists — confusing.
+    # Wrap every count/list query in `_filter_npd_projects_for_user`
+    # so every number on this page is "what THIS user can see".
+    def _scoped(query):
+        return _filter_npd_projects_for_user(query)
+
     # Stats
-    total       = NPDProject.query.filter_by(is_deleted=False).count()
-    active      = NPDProject.query.filter(
+    total       = _scoped(NPDProject.query.filter_by(is_deleted=False)).count()
+    active      = _scoped(NPDProject.query.filter(
                     NPDProject.is_deleted==False,
-                    NPDProject.status.notin_(['finish','cancelled'])).count()
-    completed   = NPDProject.query.filter_by(is_deleted=False, status='complete').count()
-    cancelled   = NPDProject.query.filter_by(is_deleted=False, status='cancelled').count()
-    npd_count   = NPDProject.query.filter_by(is_deleted=False, project_type='npd').count()
-    epd_count   = NPDProject.query.filter_by(is_deleted=False, project_type='existing').count()
+                    NPDProject.status.notin_(['finish','cancelled']))).count()
+    completed   = _scoped(NPDProject.query.filter_by(is_deleted=False, status='complete')).count()
+    cancelled   = _scoped(NPDProject.query.filter_by(is_deleted=False, status='cancelled')).count()
+    npd_count   = _scoped(NPDProject.query.filter_by(is_deleted=False, project_type='npd')).count()
+    epd_count   = _scoped(NPDProject.query.filter_by(is_deleted=False, project_type='existing')).count()
 
     # Pending milestones
     pending_milestones = MilestoneMaster.query.filter(
@@ -234,21 +384,21 @@ def dashboard():
         MilestoneMaster.is_selected==True
     ).count()
 
-    # Projects by status
+    # Projects by status — also scoped to user.
     from sqlalchemy import func
-    status_counts = db.session.query(
+    status_counts = _scoped(db.session.query(
         NPDProject.status, func.count(NPDProject.id)
-    ).filter_by(is_deleted=False).group_by(NPDProject.status).all()
+    ).filter_by(is_deleted=False)).group_by(NPDProject.status).all()
 
-    # Recent projects
-    recent = NPDProject.query.filter_by(is_deleted=False)\
+    # Recent projects (scoped)
+    recent = _scoped(NPDProject.query.filter_by(is_deleted=False))\
                 .order_by(NPDProject.created_at.desc()).limit(10).all()
 
-    # Sampling rejection ratio per project (for chart)
-    projects_all = NPDProject.query.filter(
+    # Sampling rejection ratio per project (for chart) — scoped
+    projects_all = _scoped(NPDProject.query.filter(
         NPDProject.is_deleted==False,
         NPDProject.project_type=='npd'
-    ).all()
+    )).all()
 
     # Milestone completion %
     ms_total = MilestoneMaster.query.filter_by(is_selected=True).count()
@@ -286,6 +436,9 @@ def projects():
     page     = request.args.get('page', 1, type=int)
 
     query = NPDProject.query.filter_by(is_deleted=False)
+
+    # Per-user visibility — same rule as /npd/npd-projects.
+    query = _filter_npd_projects_for_user(query)
 
     if q:
         query = query.filter(
@@ -1547,7 +1700,9 @@ def reports():
 
     # Sampling rejection ratio
     form_total    = NPDFormulation.query.count()
-    form_rejected = NPDFormulation.query.filter(NPDFormulation.status.like('%rejected%')).count()
+    # `status` column was dropped — `client_status` is the real
+    # source of truth for client review state.
+    form_rejected = NPDFormulation.query.filter(NPDFormulation.client_status == 'rejected').count()
     rejection_ratio = round((form_rejected/form_total)*100, 1) if form_total else 0
 
     # SC performance
@@ -2016,6 +2171,13 @@ def npd_projects():
     else:
         query = NPDProject.query.filter_by(is_deleted=False, project_type='npd')
 
+    # ── Per-user visibility ──
+    # Non-manager/admin users see only projects where they're an
+    # assignee. See `_filter_npd_projects_for_user` doc for the full
+    # list of fields checked. This must run before pagination so the
+    # count and the displayed page stay consistent.
+    query = _filter_npd_projects_for_user(query)
+
     if q:
         query = query.filter(db.or_(
             NPDProject.code.ilike(f'%{q}%'),
@@ -2026,7 +2188,13 @@ def npd_projects():
     if status and not show_deleted:
         query = query.filter_by(status=status)
 
-    deleted_count = NPDProject.query.filter_by(is_deleted=True, project_type='npd').count()
+    # Deleted-tab count must respect the same visibility rule, otherwise
+    # a non-manager would see an inflated counter for a tab they can't
+    # actually populate.
+    deleted_query = NPDProject.query.filter_by(is_deleted=True, project_type='npd')
+    deleted_query = _filter_npd_projects_for_user(deleted_query)
+    deleted_count = deleted_query.count()
+
     projects = query.order_by(NPDProject.created_at.desc()).paginate(page=page, per_page=25)
     users    = get_users()
     perm = get_perm('npd_projects')
@@ -2164,6 +2332,341 @@ def sample_ready():
         rd_members_map=rd_members_map,
         rd_all_names=rd_all_names,
         total=projects.total,
+    )
+
+
+# ════════════════════════════════════════════════════════════════
+#  NPD Form PDF generator
+# ════════════════════════════════════════════════════════════════
+#  Produces a filled-in HCP Wellness "NEW PRODUCT DEVELOPMENT FORM"
+#  PDF for any NPDProject. Layout mirrors the printed form clients
+#  receive — logo + title block on top, project meta strip, then a
+#  large product-info table with all the fields populated from the
+#  database row.
+#
+#  The work happens in `_build_npd_form_pdf` which returns the PDF
+#  bytes; the route just wraps it in a Flask Response with a download
+#  filename. Anything that pulls or reformats data lives inside the
+#  builder so it's easy to test in isolation.
+# ════════════════════════════════════════════════════════════════
+def _npd_form_styles():
+    """ReportLab styles for the NPD form PDF. Cached per-call rather
+    than module-level to avoid the global-styles-mutation gotcha
+    when the same name gets registered twice."""
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib import colors
+    from reportlab.lib.enums import TA_CENTER
+    HCP_BLUE = colors.HexColor('#0B2A6B')
+    base = getSampleStyleSheet()
+    return {
+        'HCP_BLUE':    HCP_BLUE,
+        'HCP_LABEL_BG': HCP_BLUE,
+        'HCP_LABEL_FG': colors.white,
+        'HCP_BORDER':  colors.HexColor('#000000'),
+        'title':       ParagraphStyle('npdTitle', parent=base['Heading1'],
+                                      fontName='Helvetica-Bold',
+                                      fontSize=18, leading=22,
+                                      textColor=HCP_BLUE,
+                                      alignment=TA_CENTER),
+        'subtitle':    ParagraphStyle('npdSubtitle', parent=base['Normal'],
+                                      fontName='Helvetica-Bold',
+                                      fontSize=15, leading=18,
+                                      textColor=HCP_BLUE,
+                                      alignment=TA_CENTER),
+        'label':       ParagraphStyle('npdLabel', parent=base['Normal'],
+                                      fontName='Helvetica-Bold',
+                                      fontSize=9, leading=12,
+                                      textColor=colors.white),
+        'value':       ParagraphStyle('npdValue', parent=base['Normal'],
+                                      fontName='Helvetica',
+                                      fontSize=9, leading=12,
+                                      textColor=colors.black),
+    }
+
+
+def _npd_safe(v, dash='—'):
+    """Render any DB value as a non-empty user-friendly string."""
+    if v is None:
+        return dash
+    s = str(v).strip()
+    return s if s else dash
+
+
+def _build_npd_form_pdf(proj):
+    """Generate the NPD Form PDF for the given NPDProject row.
+
+    Returns:
+        (bytes, filename) — PDF binary content plus a suggested
+        download filename of the form `NPD_Form_<code>.pdf`.
+    """
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.units import mm
+    from reportlab.platypus import (
+        SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image,
+    )
+
+    s = _npd_form_styles()
+    HCP_LABEL_BG = s['HCP_LABEL_BG']
+    HCP_LABEL_FG = s['HCP_LABEL_FG']
+    HCP_BORDER   = s['HCP_BORDER']
+
+    # ── Pull values out of the project. Some fields are nullable; we
+    #    use _npd_safe to avoid 'None' text cluttering the form.
+    code         = _npd_safe(proj.code, dash='—')
+    date_str     = (proj.created_at.strftime('%d-%m-%Y %H:%M:%S')
+                    if proj.created_at else '—')
+    coordinator  = _npd_safe(proj.client_coordinator)
+    product_name = _npd_safe(proj.product_name)
+    client_name  = _npd_safe(proj.client_name)
+    client_company = _npd_safe(proj.client_company)
+    market_level   = _npd_safe(proj.market_level)
+    area_app     = _npd_safe(proj.area_of_application)
+    description  = _npd_safe(proj.description)
+    ingredients  = _npd_safe(proj.ingredients)
+    video_link   = _npd_safe(proj.video_link)
+    active_ing   = _npd_safe(proj.active_ingredients)
+    no_samples   = _npd_safe(proj.no_of_samples if proj.no_of_samples is not None else 0,
+                             dash='0')
+    start_date   = (proj.project_start_date.strftime('%Y-%m-%d')
+                    if proj.project_start_date else '—')
+    ref_brand    = _npd_safe(proj.reference_brand)
+    ref_product  = _npd_safe(proj.reference_product_name)
+    variant      = _npd_safe(proj.variant_type)
+    appearance   = _npd_safe(proj.appearance)
+    product_claim= _npd_safe(proj.product_claim)
+    label_claim  = _npd_safe(proj.label_claim)
+    costing      = _npd_safe(proj.costing_range)
+    fragrance    = _npd_safe(proj.fragrance)
+    ph_value     = _npd_safe(proj.ph_value)
+    viscosity    = _npd_safe(proj.viscosity)
+    packaging    = _npd_safe(proj.packaging_type)
+
+    label_p = lambda txt: Paragraph(txt, s['label'])
+    val_p   = lambda txt: Paragraph(_npd_safe(txt), s['value'])
+
+    # ── Header: logo + big title ──
+    logo_path = os.path.join(
+        os.path.dirname(__file__), 'static', 'images', 'icons', 'hcp-logo.png'
+    )
+    if os.path.exists(logo_path):
+        logo = Image(logo_path, width=24*mm, height=24*mm)
+    else:
+        logo = Paragraph('<b>HCP</b>', s['title'])
+
+    title_para = Paragraph('NPD FORM', s['title'])
+    sub_para   = Paragraph('(NEW PRODUCT DEVELOPMENT FORM)', s['subtitle'])
+
+    title_table = Table(
+        [[logo, [title_para, Spacer(1, 4), sub_para]]],
+        colWidths=[40*mm, 130*mm],
+    )
+    title_table.setStyle(TableStyle([
+        ('VALIGN',     (0, 0), (-1, -1), 'MIDDLE'),
+        ('ALIGN',      (0, 0), (0, 0),   'CENTER'),
+        ('ALIGN',      (1, 0), (1, 0),   'CENTER'),
+        ('LEFTPADDING',(0, 0), (-1, -1), 6),
+        ('RIGHTPADDING',(0,0), (-1, -1), 6),
+        ('TOPPADDING', (0, 0), (-1, -1), 4),
+        ('BOTTOMPADDING',(0,0),(-1,-1), 4),
+        ('BOX',        (0, 0), (-1, -1), 1, HCP_BORDER),
+    ]))
+
+    # ── Project meta strip: Project No / Date / Coordinator ──
+    meta_table = Table(
+        [
+            ['PROJECT NO.', 'DATE', 'CLIENT CO-ORDINATOR'],
+            [code, date_str, coordinator],
+        ],
+        colWidths=[60*mm, 50*mm, 60*mm],
+    )
+    meta_table.setStyle(TableStyle([
+        ('FONTNAME',     (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE',     (0, 0), (-1, 0), 9),
+        ('TEXTCOLOR',    (0, 0), (-1, 0), HCP_LABEL_FG),
+        ('BACKGROUND',   (0, 0), (-1, 0), HCP_LABEL_BG),
+        ('FONTNAME',     (0, 1), (-1, 1), 'Helvetica'),
+        ('FONTSIZE',     (0, 1), (-1, 1), 9),
+        ('GRID',         (0, 0), (-1, -1), 0.5, HCP_BORDER),
+        ('VALIGN',       (0, 0), (-1, -1), 'MIDDLE'),
+        ('LEFTPADDING',  (0, 0), (-1, -1), 6),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 6),
+        ('TOPPADDING',   (0, 0), (-1, -1), 4),
+        ('BOTTOMPADDING',(0, 0), (-1, -1), 4),
+    ]))
+
+    # ── Main info table — 4-column grid with SPANs where a field
+    #    needs more space. col widths sum to 175mm = A4 minus margins.
+    LABEL_W1, VAL_W1, LABEL_W2, VAL_W2 = 35*mm, 60*mm, 35*mm, 45*mm
+    col_widths = [LABEL_W1, VAL_W1, LABEL_W2, VAL_W2]
+
+    rows  = []
+    spans = []
+    r = 0
+
+    # PRODUCT NAME [val] | MARKET LEVEL [val spans 3 rows down]
+    rows.append([label_p('PRODUCT NAME'), val_p(product_name),
+                 label_p('MARKET LEVEL'), val_p(market_level)])
+    market_row = r
+    r += 1
+
+    # CLIENT NAME [val] | (market level continues)
+    rows.append([label_p('CLIENT NAME'), val_p(client_name), '', ''])
+    r += 1
+
+    # COMPANY [val]
+    rows.append([label_p('COMPANY'), val_p(client_company), '', ''])
+    r += 1
+
+    # Market-level vertical span: market_row..r-1, both label cell (col 2)
+    # and value cell (col 3) span vertically.
+    spans.append(('SPAN', (2, market_row), (2, r - 1)))
+    spans.append(('SPAN', (3, market_row), (3, r - 1)))
+
+    def _full_width_row(label_text, value_text):
+        nonlocal r
+        rows.append([label_p(label_text), val_p(value_text), '', ''])
+        spans.append(('SPAN', (1, r), (3, r)))
+        r += 1
+
+    _full_width_row('AREA OF APPLICANT', area_app)
+    _full_width_row('DESCRIPTION',       description)
+    _full_width_row('INGREDIENTS',       ingredients)
+    _full_width_row('VIDEO LINK',        video_link)
+    _full_width_row('ACTIVE ING. REQ.',  active_ing)
+    _full_width_row('NO OF SAMPLE',      no_samples)
+
+    # Days [empty middle] [date]
+    rows.append([label_p('Days'), val_p(''), val_p(''), val_p(start_date)])
+    spans.append(('SPAN', (1, r), (2, r)))
+    r += 1
+
+    # 3-column header row: REFERENCE BRAND | REFERENCE PRODUCT NAME | VARIANT
+    rows.append([label_p('REFERENCE BRAND'),
+                 label_p('REFERENCE PRODUCT NAME'),
+                 label_p('VARIANT / VARIETY / TYPE'),
+                 ''])
+    spans.append(('SPAN', (2, r), (3, r)))
+    label_row_3col = r
+    r += 1
+
+    # Values for the 3-column row
+    rows.append([val_p(ref_brand),
+                 val_p(ref_product),
+                 val_p(variant), ''])
+    spans.append(('SPAN', (2, r), (3, r)))
+    r += 1
+
+    _full_width_row('APPEARANCE',    appearance)
+    _full_width_row('PRODUCT CLAIM', product_claim)
+    _full_width_row('LABEL CLAIM',   label_claim)
+
+    # COSTING RANGE [v] | ODOUR/FRAGRANCE [v]
+    rows.append([label_p('COSTING RANGE'), val_p(costing),
+                 label_p('ODOUR/FRAGRANCE'), val_p(fragrance)])
+    costing_row = r
+    r += 1
+
+    # pH : NUMBER [v] | VISCOSITY [v]
+    rows.append([label_p('pH : NUMBER'), val_p(ph_value),
+                 label_p('VISCOSITY'), val_p(viscosity)])
+    ph_row = r
+    r += 1
+
+    # PACKAGING TYPE [val spans 3]
+    _full_width_row('PACKAGING TYPE', packaging)
+
+    tbl = Table(rows, colWidths=col_widths)
+
+    style = [
+        ('GRID',         (0, 0), (-1, -1), 0.5, HCP_BORDER),
+        ('VALIGN',       (0, 0), (-1, -1), 'MIDDLE'),
+        ('LEFTPADDING',  (0, 0), (-1, -1), 5),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 5),
+        ('TOPPADDING',   (0, 0), (-1, -1), 4),
+        ('BOTTOMPADDING',(0, 0), (-1, -1), 4),
+    ]
+    style.extend(spans)
+
+    # Color column-0 (primary label) cells, except the all-label header row
+    for row_i in range(len(rows)):
+        if row_i == label_row_3col:
+            continue
+        style.append(('BACKGROUND', (0, row_i), (0, row_i), HCP_LABEL_BG))
+        style.append(('TEXTCOLOR',  (0, row_i), (0, row_i), HCP_LABEL_FG))
+
+    # Color column-2 label cells (only on the rows where col 2 is used as a label)
+    for row_i in (market_row, costing_row, ph_row):
+        style.append(('BACKGROUND', (2, row_i), (2, row_i), HCP_LABEL_BG))
+        style.append(('TEXTCOLOR',  (2, row_i), (2, row_i), HCP_LABEL_FG))
+
+    # The 3-column header row gets an entirely blue background
+    style.append(('BACKGROUND', (0, label_row_3col), (-1, label_row_3col), HCP_LABEL_BG))
+    style.append(('TEXTCOLOR',  (0, label_row_3col), (-1, label_row_3col), HCP_LABEL_FG))
+
+    tbl.setStyle(TableStyle(style))
+
+    # ── Build the document into a memory buffer ──
+    buf = io.BytesIO()
+    doc = SimpleDocTemplate(
+        buf,
+        pagesize=A4,
+        leftMargin=15*mm, rightMargin=15*mm,
+        topMargin=12*mm,  bottomMargin=12*mm,
+        title=f"NPD Form - {product_name}",
+        author='HCP Wellness',
+    )
+    story = [title_table, meta_table, Spacer(1, 6), tbl]
+    doc.build(story)
+    pdf_bytes = buf.getvalue()
+    buf.close()
+
+    # Filename: NPD_Form_<code>.pdf, with a fallback for projects that
+    # don't have a code yet (rare — typically only freshly created
+    # rows before the auto-numbering job runs).
+    safe_code = (code or f'project_{proj.id}').replace('/', '-').replace(' ', '_')
+    filename = f'NPD_Form_{safe_code}.pdf'
+    return pdf_bytes, filename
+
+
+@npd.route('/projects/<int:pid>/download-form', methods=['GET'])
+@login_required
+def download_npd_form(pid):
+    """Generate and stream the HCP NPD Form PDF for a project.
+
+    Visibility is gated by the same per-user rule that hides projects
+    on the listing page — a user can only download forms for projects
+    they're allowed to see. (Without this, a non-assigned user could
+    enumerate /download-form?pid=1,2,3,... to read every project's
+    client and product details.)
+    """
+    from flask import Response
+
+    proj = NPDProject.query.get_or_404(pid)
+    if proj.is_deleted:
+        flash('Project has been deleted', 'warning')
+        return redirect(url_for('npd.npd_projects'))
+
+    # Visibility check — manager / admin always allowed; others must
+    # be assigned via one of the assignment vectors handled by
+    # _filter_npd_projects_for_user. We re-use that helper by running
+    # a single-row query through it.
+    if not is_npd_manager_user():
+        allowed = _filter_npd_projects_for_user(
+            NPDProject.query.filter_by(id=pid)
+        ).first()
+        if not allowed:
+            flash('You do not have permission to download this form', 'danger')
+            return redirect(url_for('npd.npd_projects'))
+
+    pdf_bytes, filename = _build_npd_form_pdf(proj)
+    return Response(
+        pdf_bytes,
+        mimetype='application/pdf',
+        headers={
+            'Content-Disposition': f'attachment; filename="{filename}"',
+            'Content-Length':       str(len(pdf_bytes)),
+            'Cache-Control':        'no-store',
+        },
     )
 
 
@@ -2620,6 +3123,11 @@ def epd_projects():
     page   = request.args.get('page', 1, type=int)
 
     query = NPDProject.query.filter_by(is_deleted=False, project_type='existing')
+
+    # Same per-user visibility filter as npd_projects — non-manager
+    # users only see EPD projects where they're explicitly assigned.
+    query = _filter_npd_projects_for_user(query)
+
     if q:
         query = query.filter(db.or_(
             NPDProject.code.ilike(f'%{q}%'),

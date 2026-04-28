@@ -7,7 +7,7 @@ from datetime import datetime, date
 from flask import Blueprint, render_template, request, jsonify
 from flask_login import login_required, current_user
 from models import db, PackingEntry
-from permissions import get_perm
+from permissions import get_perm, get_sub_perm
 
 packing = Blueprint('packing', __name__, url_prefix='/packing')
 
@@ -38,7 +38,34 @@ def _can_delete():
     if current_user.role == 'admin':
         return True
     perm = get_perm('packing')
-    return bool(perm and perm.can_delete)
+    if not (perm and perm.can_delete):
+        return False
+    # Sub-permission gate: admin + can_delete + 'delete' chip ON
+    return get_sub_perm('packing', 'delete')
+
+
+def _can_import():
+    """CSV import requires can_edit AND 'import' sub-permission ON."""
+    if not current_user.is_authenticated:
+        return False
+    if current_user.role == 'admin':
+        return True
+    perm = get_perm('packing')
+    if not (perm and perm.can_edit):
+        return False
+    return get_sub_perm('packing', 'import')
+
+
+def _can_new_entry():
+    """Add new entry requires can_add AND 'new_entry' sub-permission ON."""
+    if not current_user.is_authenticated:
+        return False
+    if current_user.role == 'admin':
+        return True
+    perm = get_perm('packing')
+    if not (perm and perm.can_add):
+        return False
+    return get_sub_perm('packing', 'new_entry')
 
 
 def _is_qc():
@@ -90,6 +117,22 @@ def packing_page():
     except Exception:
         brands = []
 
+    # Sub-permission flags. get_sub_perm() returns True for admin
+    # automatically (admin override is built into permissions.py), so we
+    # don't need any role-based fallback here. Non-admin users get the
+    # button only if the corresponding sub-perm chip is ON.
+    pk_perms = {
+        'new_entry':   _can_new_entry(),
+        'export':      get_sub_perm('packing', 'export'),
+        'import_csv':  _can_import(),
+        'print':       get_sub_perm('packing', 'print'),
+        'columns':     get_sub_perm('packing', 'columns'),
+        'whatsapp':    get_sub_perm('packing', 'whatsapp'),
+        'filter':      get_sub_perm('packing', 'filter'),
+        'delete':      _can_delete(),
+        'inline_edit': get_sub_perm('packing', 'inline_edit'),
+    }
+
     return render_template(
         'packing/packing.html',
         active_page='packing',
@@ -99,6 +142,7 @@ def packing_page():
         brands=brands,
         from_date=from_date.strftime('%Y-%m-%d'),
         to_date=to_date.strftime('%Y-%m-%d'),
+        pk_perms=pk_perms,
     )
 
 
@@ -157,6 +201,9 @@ def api_save():
             else:
                 _fill_entry(entry, d)
         else:
+            # New entry requires the 'new_entry' sub-permission
+            if not _can_new_entry():
+                return jsonify({'status': 'error', 'message': 'New Entry permission required'}), 403
             entry = PackingEntry()
             _fill_entry(entry, d)
             entry.created_by = getattr(current_user, 'username', '') or ''
@@ -222,8 +269,8 @@ def api_delete():
 def api_import():
     if _is_qc():
         return jsonify({'status': 'error', 'message': 'QC users cannot import entries'}), 403
-    if not _can_edit():
-        return jsonify({'status': 'error', 'message': 'Access denied'}), 403
+    if not _can_import():
+        return jsonify({'status': 'error', 'message': 'Import permission required'}), 403
 
     f = request.files.get('file')
     if not f or not f.filename.endswith('.csv'):

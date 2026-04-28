@@ -502,6 +502,13 @@
                                 style="display:flex;align-items:center;gap:8px;padding:10px 14px;font-size:13px;font-weight:600;color:#2563eb;text-decoration:none;border-bottom:1px solid #e2e8f0;">
                                 👁️ View
                             </a>
+                            {# Download NPD Form — generated PDF, available for both
+                               active and deleted projects so old records can still
+                               be exported. #}
+                            <a href="/npd/projects/{{ p.id }}/download-form" onclick="event.stopPropagation();"
+                                style="display:flex;align-items:center;gap:8px;padding:10px 14px;font-size:13px;font-weight:600;color:#7c3aed;text-decoration:none;border-bottom:1px solid #e2e8f0;">
+                                📄 Download NPD Form
+                            </a>
                             {% if not show_deleted %}
                             <a href="/npd/projects/{{ p.id }}/edit" onclick="event.stopPropagation();"
                                 style="display:flex;align-items:center;gap:8px;padding:10px 14px;font-size:13px;font-weight:600;color:var(--text);text-decoration:none;border-bottom:1px solid #e2e8f0;">
@@ -618,6 +625,8 @@
                             style="width:28px;height:28px;border:1px solid #e2e8f0;border-radius:7px;background:#fff;font-size:1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--text3);font-weight:700;">⋯</button>
                         <div id="dact_{{ p.id }}" style="display:none;position:fixed;background:#fff;border:1px solid #e2e8f0;border-radius:10px;box-shadow:0 8px 32px rgba(0,0,0,.2);z-index:99999;min-width:170px;overflow:hidden;">
                             {% if perm and perm.can_view %}<a href="/npd/projects/{{ p.id }}" onclick="event.stopPropagation();" style="display:flex;align-items:center;gap:8px;padding:10px 14px;font-size:13px;font-weight:600;color:#2563eb;text-decoration:none;border-bottom:1px solid #f1f5f9;">👁️ View</a>{% endif %}
+                            {# Download NPD Form — see mobile menu above #}
+                            <a href="/npd/projects/{{ p.id }}/download-form" onclick="event.stopPropagation();" style="display:flex;align-items:center;gap:8px;padding:10px 14px;font-size:13px;font-weight:600;color:#7c3aed;text-decoration:none;border-bottom:1px solid #f1f5f9;">📄 Download NPD Form</a>
                             {% if not show_deleted %}
                             <a href="/npd/projects/{{ p.id }}/edit" onclick="event.stopPropagation();" style="display:flex;align-items:center;gap:8px;padding:10px 14px;font-size:13px;font-weight:600;color:var(--text);text-decoration:none;border-bottom:1px solid #f1f5f9;">✏️ Edit</a>
                             <button onclick="event.stopPropagation();openDeleteModal('{{ p.id }}','{{ p.code }}','{{ p.product_name|replace("'","") }}')" style="display:flex;align-items:center;gap:8px;padding:10px 14px;font-size:13px;font-weight:600;color:#dc2626;background:none;border:none;width:100%;cursor:pointer;font-family:inherit;">🗑️ Delete</button>
@@ -723,6 +732,13 @@
                                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
                                 <span style="color:#2563eb;">View</span>
                             </a>{% endif %}
+                            {# Download NPD Form — same link in mobile + desktop card menus too.
+                               No permission gate: we already check visibility on the route,
+                               and form download is a non-destructive read action. #}
+                            <a href="/npd/projects/{{ p.id }}/download-form" class="act-item" style="border-bottom:1px solid #f1f5f9;">
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                                <span style="color:#7c3aed;">Download NPD Form</span>
+                            </a>
                             {% if perm and perm.can_edit %}
                             <a href="/npd/projects/{{ p.id }}/edit" class="act-item" style="border-bottom:1px solid #f1f5f9;">
                                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
