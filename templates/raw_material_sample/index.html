@@ -1,0 +1,1872 @@
+{% extends "base.html" %}
+{% block title %}Raw Material Sample Request{% endblock %}
+{% block page_title %}Raw Material Sample Request{% endblock %}
+{% block bread %}NPD &amp; R&amp;D / Raw Material Sample Request{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ════════════════════════════════════════════════════════════════
+   Raw Material Sample Request — console
+   ──────────────────────────────────────
+   Class prefix: rms-
+   Aligned with the R&D Sample Log / Client Dispatch visual language
+   already used elsewhere in the app.
+   ════════════════════════════════════════════════════════════════ */
+
+/* ── Top summary cards ─────────────────────────────────────────── */
+.rms-summary{display:grid;grid-template-columns:repeat(6, 1fr);gap:10px;margin-bottom:16px;}
+@media(max-width:1200px){.rms-summary{grid-template-columns:repeat(3,1fr);}}
+@media(max-width:640px) {.rms-summary{grid-template-columns:repeat(2,1fr);}}
+
+.rms-stat{background:var(--white);border:1px solid var(--border);border-radius:var(--r-lg);
+          padding:14px;display:flex;align-items:center;gap:12px;cursor:pointer;
+          transition:.15s;}
+.rms-stat:hover{transform:translateY(-1px);box-shadow:0 4px 14px rgba(0,0,0,.06);
+                border-color:var(--blue);}
+.rms-stat.active{border-color:var(--blue);box-shadow:0 0 0 2px var(--blue-lt);}
+.rms-stat .rms-ic{width:42px;height:42px;border-radius:10px;display:flex;align-items:center;
+                  justify-content:center;font-size:1.25rem;flex-shrink:0;}
+.rms-stat .rms-val{font-size:1.35rem;font-weight:800;color:var(--text);line-height:1;}
+.rms-stat .rms-lbl{font-size:.7rem;color:var(--text3);font-weight:600;
+                   text-transform:uppercase;margin-top:4px;letter-spacing:.3px;}
+.rms-stat.t-total .rms-ic{background:#eef2ff;color:#4338ca;}
+.rms-stat.t-pend  .rms-ic{background:#fef3c7;color:#d97706;}
+.rms-stat.t-sup   .rms-ic{background:#ede9fe;color:#7c3aed;}
+.rms-stat.t-ord   .rms-ic{background:#dbeafe;color:#2563eb;}
+.rms-stat.t-disp  .rms-ic{background:#cffafe;color:#0891b2;}
+.rms-stat.t-recv  .rms-ic{background:#dcfce7;color:#16a34a;}
+
+/* ── Filter / toolbar bar ──────────────────────────────────────── */
+.rms-toolbar{background:var(--white);border:1px solid var(--border);border-radius:var(--r-lg);
+             padding:12px 14px;margin-bottom:14px;display:flex;flex-wrap:wrap;gap:10px;
+             align-items:end;}
+.rms-toolbar .rms-fg{display:flex;flex-direction:column;gap:4px;min-width:160px;}
+.rms-toolbar label{font-size:.7rem;font-weight:700;color:var(--text2);
+                   text-transform:uppercase;letter-spacing:.3px;}
+.rms-toolbar select,.rms-toolbar input{
+    padding:.45rem .65rem;border:1px solid var(--border);border-radius:var(--r-sm);
+    font-size:.85rem;background:var(--white);color:var(--text);outline:none;
+    font-family:inherit;
+}
+.rms-toolbar select:focus,.rms-toolbar input:focus{
+    border-color:var(--blue);box-shadow:0 0 0 3px var(--blue-lt);
+}
+.rms-toolbar .rms-grow{flex:1;min-width:200px;}
+.rms-btn{padding:.55rem 1rem;border-radius:var(--r-sm);font-size:.84rem;font-weight:700;
+         cursor:pointer;border:1px solid var(--border);background:var(--white);
+         color:var(--text);transition:.1s;display:inline-flex;align-items:center;gap:6px;}
+.rms-btn:hover{background:var(--bg);}
+.rms-btn.primary{background:#2563eb;border-color:#2563eb;color:#fff;}
+.rms-btn.primary:hover{background:#1d4ed8;}
+.rms-btn.success{background:#16a34a;border-color:#16a34a;color:#fff;}
+.rms-btn.success:hover{background:#15803d;}
+.rms-btn.warn{background:#f59e0b;border-color:#f59e0b;color:#fff;}
+.rms-btn.warn:hover{background:#d97706;}
+.rms-btn.danger{background:#fff;border-color:#fca5a5;color:#dc2626;}
+.rms-btn.danger:hover{background:#fef2f2;}
+.rms-btn.ghost{background:transparent;border-color:transparent;color:var(--text2);}
+.rms-btn.ghost:hover{background:var(--bg);color:var(--text);}
+.rms-btn:disabled{opacity:.4;cursor:not-allowed;}
+
+/* ── Card / table ──────────────────────────────────────────────── */
+.rms-card{background:var(--white);border:1px solid var(--border);border-radius:var(--r-lg);
+          overflow:hidden;}
+.rms-card-hdr{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;
+              align-items:center;justify-content:space-between;background:#f8fafc;}
+.rms-card-title{font-weight:700;font-size:.95rem;color:var(--text);
+                display:flex;align-items:center;gap:8px;}
+
+/* ── Bulk action bar (visible when ≥1 row selected) ── */
+.rms-bulk-bar{display:flex;align-items:center;gap:14px;padding:10px 16px;
+              background:linear-gradient(90deg,#eff6ff 0%,#fef3c7 100%);
+              border-bottom:1px solid #93c5fd;flex-wrap:wrap;}
+.rms-bulk-cnt{font-size:.82rem;font-weight:700;color:#1e40af;
+              background:#fff;padding:5px 11px;border-radius:7px;
+              border:1px solid #93c5fd;}
+.rms-bulk-cnt b{color:#1d4ed8;font-size:.95rem;}
+.rms-bulk-btns{display:flex;gap:6px;flex-wrap:wrap;}
+.rms-wa-btn{background:#25D366 !important;color:#fff !important;
+            border-color:#1ea354 !important;}
+.rms-wa-btn:hover{background:#1ea354 !important;}
+
+/* Row checkbox */
+.rms-tbl input[type="checkbox"]{cursor:pointer;width:15px;height:15px;
+                                accent-color:#2563eb;}
+tr.rms-row-sel td{background:#eff6ff !important;}
+
+/* Per-row bulk modal cards */
+.rms-pr-card{border:1px solid #e2e8f0;border-radius:8px;padding:10px 12px 12px;
+             margin-bottom:10px;background:#fafbfc;}
+.rms-pr-hd{font-weight:700;font-size:.82rem;color:#1e293b;margin-bottom:8px;
+           padding-bottom:6px;border-bottom:1px dashed #cbd5e1;}
+.rms-pr-hd .rms-id{margin-right:6px;}
+
+/* Wide variant — overrides .sm width for per-row bulk modals.
+   !important needed because .sm sets explicit width that competes
+   with max-width on the same element. */
+.rms-mod.wide{width:min(1080px,96vw) !important;max-width:1080px !important;}
+
+/* ── Daily Reminder modal — red themed ── */
+.rms-reminder-hd{background:linear-gradient(135deg,#dc2626 0%,#991b1b 100%);
+                 color:#fff;padding:14px 18px;display:flex;align-items:center;
+                 justify-content:space-between;}
+.rms-reminder-hd .r-tag{font-size:.66rem;font-weight:800;letter-spacing:.12em;
+                        opacity:.9;}
+.rms-reminder-hd .r-ttl{font-size:1.05rem;font-weight:800;margin-top:2px;}
+.rms-reminder-badge{background:rgba(255,255,255,.18);backdrop-filter:blur(4px);
+                    border:1px solid rgba(255,255,255,.3);padding:6px 14px;
+                    border-radius:8px;font-weight:800;font-size:.95rem;
+                    white-space:nowrap;}
+.rms-reminder-tbl{width:100%;border-collapse:collapse;font-size:.82rem;}
+.rms-reminder-tbl thead th{background:#f8fafc;text-align:left;
+                           padding:9px 14px;font-size:.7rem;font-weight:800;
+                           color:#475569;letter-spacing:.05em;
+                           border-bottom:1px solid #e2e8f0;}
+.rms-reminder-tbl tbody td{padding:8px 14px;border-bottom:1px solid #f1f5f9;
+                           color:#1e293b;}
+.rms-reminder-tbl tbody tr:last-child td{border-bottom:none;}
+.rms-reminder-tbl tbody td:first-child{color:#94a3b8;font-variant-numeric:tabular-nums;}
+.rms-reminder-tbl tbody td:nth-child(2){font-weight:600;}
+
+.rms-tbl{width:100%;border-collapse:collapse;font-size:.84rem;}
+.rms-tbl thead tr{background:#f8fafc;border-bottom:2px solid #e2e8f0;}
+.rms-tbl th{padding:10px 12px;text-align:left;color:#64748b;font-weight:700;
+            font-size:.71rem;text-transform:uppercase;letter-spacing:.4px;
+            white-space:nowrap;}
+.rms-tbl td{padding:11px 12px;border-bottom:1px solid #f1f5f9;color:#374151;
+            vertical-align:middle;}
+.rms-tbl tr:hover td{background:#fafbfc;}
+.rms-tbl tr:last-child td{border-bottom:none;}
+
+.rms-id{background:#eef2ff;color:#4338ca;border-radius:5px;padding:2px 8px;
+        font-size:.72rem;font-weight:700;font-family:monospace;display:inline-block;}
+
+.rms-status{display:inline-block;padding:3px 10px;border-radius:100px;font-size:.7rem;
+            font-weight:700;border:1px solid;letter-spacing:.2px;}
+
+.rms-empty{text-align:center;padding:3.5rem 1rem;color:var(--text3);}
+.rms-empty .e-ic{font-size:2.25rem;margin-bottom:.5rem;opacity:.6;}
+.rms-empty .e-t{font-weight:700;color:var(--text2);margin-bottom:.25rem;}
+.rms-empty .e-s{font-size:.82rem;}
+
+/* ── Pagination ────────────────────────────────────────────────── */
+.rms-pager{padding:10px 16px;display:flex;justify-content:space-between;align-items:center;
+           background:#fafbfc;border-top:1px solid var(--border);font-size:.8rem;
+           color:var(--text2);}
+.rms-pager .rms-pg-btns{display:flex;gap:6px;}
+.rms-pg-btn{padding:.35rem .8rem;border:1px solid var(--border);border-radius:var(--r-sm);
+            background:#fff;cursor:pointer;font-size:.8rem;font-weight:600;color:var(--text2);}
+.rms-pg-btn:hover:not(:disabled){background:var(--bg);}
+.rms-pg-btn:disabled{opacity:.4;cursor:not-allowed;}
+
+/* ── Modal (used for: New, Detail, Action forms) ───────────────── */
+.rms-mod-ov{position:fixed;inset:0;background:rgba(15,23,42,.55);display:none;
+            align-items:flex-start;justify-content:center;z-index:9999;
+            padding:32px 16px;overflow-y:auto;backdrop-filter:blur(2px);}
+.rms-mod-ov.open{display:flex;}
+.rms-mod{background:#fff;border-radius:14px;width:min(820px,96vw);
+         box-shadow:0 20px 50px rgba(0,0,0,.25);overflow:hidden;
+         animation:rmsSlide .2s ease-out;}
+.rms-mod.sm{width:min(520px,96vw);}
+@keyframes rmsSlide{from{transform:translateY(-12px);opacity:0;}
+                    to  {transform:translateY(0);opacity:1;}}
+
+.rms-mod-hd{background:linear-gradient(135deg,#1e3a5f 0%,#2563eb 100%);
+            color:#fff;padding:16px 22px;display:flex;align-items:center;
+            justify-content:space-between;}
+.rms-mod-hd .ttl{font-size:1rem;font-weight:800;display:flex;align-items:center;gap:8px;}
+.rms-mod-hd .sub{font-size:.78rem;opacity:.85;margin-top:2px;}
+.rms-mod-hd .x{cursor:pointer;font-size:1.4rem;font-weight:300;line-height:1;
+               opacity:.85;border:none;background:transparent;color:#fff;}
+.rms-mod-hd .x:hover{opacity:1;}
+
+.rms-mod-bd{padding:18px 22px;max-height:calc(90vh - 200px);overflow-y:auto;}
+.rms-mod-ft{padding:14px 22px;display:flex;justify-content:flex-end;gap:8px;
+            background:#fafbfc;border-top:1px solid var(--border);}
+
+.rms-section{margin-bottom:18px;}
+.rms-section-ttl{font-size:.78rem;font-weight:800;color:#475569;text-transform:uppercase;
+                 letter-spacing:.4px;border-bottom:1px solid #e2e8f0;padding-bottom:6px;
+                 margin-bottom:12px;display:flex;align-items:center;gap:6px;}
+.rms-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.rms-grid + .rms-grid{margin-top:12px;}
+@media(max-width:640px){.rms-grid{grid-template-columns:1fr;}}
+.rms-grid.cols-3{grid-template-columns:1fr 1fr 1fr;}
+@media(max-width:740px){.rms-grid.cols-3{grid-template-columns:1fr;}}
+.rms-grid.cols-5{grid-template-columns:repeat(5, 1fr);}
+@media(max-width:980px){.rms-grid.cols-5{grid-template-columns:1fr 1fr 1fr;}}
+@media(max-width:640px){.rms-grid.cols-5{grid-template-columns:1fr;}}
+
+.rms-fg{display:flex;flex-direction:column;gap:4px;}
+.rms-fg.full{grid-column:1 / -1;}
+.rms-fg label{font-size:.7rem;font-weight:700;color:var(--text2);
+              text-transform:uppercase;letter-spacing:.3px;}
+.rms-fg label .req{color:#dc2626;margin-left:2px;}
+.rms-fg input,.rms-fg textarea,.rms-fg select{
+    width:100%;padding:.5rem .7rem;border:1px solid var(--border);border-radius:var(--r-sm);
+    font-size:.85rem;background:var(--white);color:var(--text);outline:none;
+    font-family:inherit;
+}
+.rms-fg textarea{resize:vertical;min-height:72px;}
+.rms-fg input:focus,.rms-fg textarea:focus,.rms-fg select:focus{
+    border-color:var(--blue);box-shadow:0 0 0 3px var(--blue-lt);
+}
+.rms-fg input:disabled,.rms-fg textarea:disabled{
+    background:#f8fafc;color:#64748b;cursor:not-allowed;
+}
+
+/* ── Detail modal — read-only display blocks ──────────────────── */
+.rms-info{display:grid;grid-template-columns:1fr 1fr;gap:10px 18px;}
+@media(max-width:640px){.rms-info{grid-template-columns:1fr;}}
+.rms-info .lbl{font-size:.68rem;font-weight:700;color:#94a3b8;text-transform:uppercase;
+               letter-spacing:.3px;margin-bottom:2px;}
+.rms-info .val{font-size:.86rem;color:#0f172a;font-weight:500;word-break:break-word;}
+.rms-info .val.empty{color:#cbd5e1;font-style:italic;font-weight:400;}
+
+/* ── Status timeline ──────────────────────────────────────────── */
+.rms-timeline{padding:6px 0;}
+.rms-tl-row{display:flex;gap:12px;padding:10px 0;position:relative;}
+.rms-tl-row:not(:last-child)::before{
+    content:"";position:absolute;left:14px;top:32px;bottom:-10px;
+    width:2px;background:#e2e8f0;
+}
+.rms-tl-dot{width:30px;height:30px;border-radius:50%;background:#e2e8f0;color:#64748b;
+            display:flex;align-items:center;justify-content:center;font-size:.85rem;
+            flex-shrink:0;font-weight:800;z-index:1;border:2px solid #fff;
+            box-shadow:0 0 0 1px #e2e8f0;}
+.rms-tl-row.done .rms-tl-dot{background:#16a34a;color:#fff;box-shadow:0 0 0 1px #16a34a;}
+.rms-tl-row.cur  .rms-tl-dot{background:#2563eb;color:#fff;box-shadow:0 0 0 1px #2563eb;
+                              animation:rmsPulse 1.6s ease-in-out infinite;}
+@keyframes rmsPulse{
+    0%,100%{box-shadow:0 0 0 1px #2563eb,0 0 0 0 rgba(37,99,235,.45);}
+    50%    {box-shadow:0 0 0 1px #2563eb,0 0 0 8px rgba(37,99,235,0);}
+}
+.rms-tl-bd{flex:1;}
+.rms-tl-ttl{font-size:.86rem;font-weight:700;color:#0f172a;}
+.rms-tl-meta{font-size:.74rem;color:#64748b;margin-top:2px;}
+.rms-tl-note{font-size:.78rem;color:#475569;margin-top:4px;font-style:italic;}
+
+/* ── Status pill colors (data-driven via inline style) ─────────── */
+/* The actual color is applied inline in JS using row.status_color   */
+
+/* ── Action buttons row inside detail modal ───────────────────── */
+.rms-action-row{display:flex;flex-wrap:wrap;gap:8px;padding:14px 22px;
+                background:#f8fafc;border-top:1px solid var(--border);
+                border-bottom:1px solid var(--border);}
+
+/* ── Toast (lightweight) ──────────────────────────────────────── */
+.rms-toast-wrap{position:fixed;bottom:20px;right:20px;z-index:99999;display:flex;
+                flex-direction:column;gap:8px;}
+.rms-toast{background:#0f172a;color:#fff;padding:12px 18px;border-radius:8px;
+           font-size:.85rem;font-weight:600;box-shadow:0 8px 24px rgba(0,0,0,.2);
+           min-width:240px;animation:rmsToastIn .2s ease-out;}
+.rms-toast.ok {background:#15803d;}
+.rms-toast.err{background:#b91c1c;}
+@keyframes rmsToastIn{from{transform:translateX(20px);opacity:0;}
+                      to  {transform:translateX(0);opacity:1;}}
+
+/* Tabs row above the toolbar */
+.rms-tabs{display:flex;gap:4px;margin-bottom:12px;border-bottom:1px solid var(--border);}
+.rms-tab{padding:.55rem 1rem;cursor:pointer;font-size:.85rem;font-weight:600;
+         color:var(--text2);border-bottom:2px solid transparent;}
+.rms-tab.active{color:#2563eb;border-bottom-color:#2563eb;}
+.rms-tab .ct{font-size:.7rem;background:#e2e8f0;color:#64748b;padding:1px 7px;
+             border-radius:10px;margin-left:4px;font-weight:700;}
+.rms-tab.active .ct{background:#dbeafe;color:#2563eb;}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="rms-wrap">
+
+    <!-- ═══ Top stats ═══ -->
+    <div class="rms-summary" id="rmsSummary">
+        <div class="rms-stat t-total active" data-status="all">
+            <div class="rms-ic">📦</div>
+            <div>
+                <div class="rms-val" id="cnt-total">0</div>
+                <div class="rms-lbl">Total Requests</div>
+            </div>
+        </div>
+        <div class="rms-stat t-pend" data-status="sent_to_purchase">
+            <div class="rms-ic">⏳</div>
+            <div>
+                <div class="rms-val" id="cnt-pend">0</div>
+                <div class="rms-lbl">Pending Purchase</div>
+            </div>
+        </div>
+        <div class="rms-stat t-sup" data-status="supplier_finalized">
+            <div class="rms-ic">🤝</div>
+            <div>
+                <div class="rms-val" id="cnt-sup">0</div>
+                <div class="rms-lbl">Supplier Finalised</div>
+            </div>
+        </div>
+        <div class="rms-stat t-disp" data-status="order_dispatched">
+            <div class="rms-ic">🚚</div>
+            <div>
+                <div class="rms-val" id="cnt-disp">0</div>
+                <div class="rms-lbl">Dispatched</div>
+            </div>
+        </div>
+        <div class="rms-stat t-recv" data-status="sample_received">
+            <div class="rms-ic">✅</div>
+            <div>
+                <div class="rms-val" id="cnt-recv">0</div>
+                <div class="rms-lbl">Received</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ Toolbar (filters + new button) ═══ -->
+    <div class="rms-toolbar">
+        <div class="rms-fg rms-grow">
+            <label>Search</label>
+            <input id="fQ" type="text" placeholder="Material / INCI / Order No / Tracking…">
+        </div>
+        <div class="rms-fg">
+            <label>From</label>
+            <input id="fFrom" type="date">
+        </div>
+        <div class="rms-fg">
+            <label>To</label>
+            <input id="fTo" type="date">
+        </div>
+        <button class="rms-btn" onclick="rmsLoad()">🔍 Apply</button>
+        <button class="rms-btn ghost" onclick="rmsResetFilters()">↺ Reset</button>
+        <div style="margin-left:auto;display:flex;gap:6px;flex-wrap:wrap;">
+            <button class="rms-btn ghost" onclick="rmsOpenColumns()" title="Choose columns">⚙️ Columns</button>
+            {% if can_export %}
+            <button class="rms-btn ghost" onclick="rmsExport()" title="Export filtered list as CSV">📤 Export</button>
+            {% endif %}
+            {% if can_import %}
+            <button class="rms-btn ghost" onclick="rmsOpenImport()" title="Bulk import from CSV">📥 Import</button>
+            {% endif %}
+            {% if is_requester or is_admin %}
+            <button class="rms-btn primary" onclick="rmsOpenNew()">
+                ➕ New Request
+            </button>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- ═══ Listing ═══ -->
+    <div class="rms-card">
+        <div class="rms-card-hdr">
+            <div class="rms-card-title">
+                📋 Requests
+                <span class="rms-id" id="rmsCount" style="margin-left:6px;">0</span>
+            </div>
+            <button class="rms-btn ghost" onclick="rmsLoad()" title="Refresh">🔄</button>
+        </div>
+
+        {# ══ Bulk action toolbar — visible only when ≥1 row selected ══ #}
+        <div id="rmsBulkBar" class="rms-bulk-bar" style="display:none;">
+            <span class="rms-bulk-cnt">📌 <b id="rmsBulkCnt">0</b> selected</span>
+            <div class="rms-bulk-btns">
+                {% if is_admin or rms_perms.finalize_supplier %}
+                <button class="rms-btn warn"    data-action="finalize_supplier" onclick="rmsBulkFinalize()">🤝 Finalise</button>
+                {% endif %}
+                {% if is_admin or rms_perms.mark_dispatched %}
+                <button class="rms-btn primary" data-action="mark_dispatched"   onclick="rmsBulkDispatch()">🚚 Dispatch</button>
+                {% endif %}
+                {% if is_admin or rms_perms.mark_received %}
+                <button class="rms-btn success" data-action="mark_received"     onclick="rmsBulkReceive()">✅ Received</button>
+                {% endif %}
+                {% if is_admin or rms_perms.cancel_request %}
+                <button class="rms-btn danger"  data-action="cancel_request"    onclick="rmsBulkCancel()">✕ Cancel</button>
+                {% endif %}
+                {% if can_delete %}
+                <button class="rms-btn danger"  data-action="can_delete"        onclick="rmsBulkDelete()">🗑 Delete</button>
+                {% endif %}
+                {# WhatsApp share — always available, no status restriction #}
+                <button class="rms-btn rms-wa-btn" onclick="rmsBulkWhatsApp()">📱 WhatsApp</button>
+            </div>
+            <button class="rms-btn ghost" onclick="rmsClearSelection()" style="margin-left:auto;">↺ Clear</button>
+        </div>
+
+        <div style="overflow-x:auto;">
+            <table class="rms-tbl" id="rmsTbl">
+                <thead>
+                    <tr id="rmsThead">
+                        <th style="width:32px;text-align:center;">
+                            <input type="checkbox" id="rmsSelAll" onchange="rmsSelectAll(this)" title="Select all on this page">
+                        </th>
+                        <!-- Dynamic columns injected here by rmsRenderHeaders() -->
+                        <th style="text-align:right;">Action</th>
+                    </tr>
+                </thead>
+                <tbody id="rmsBody">
+                    <tr><td colspan="9">
+                        <div class="rms-empty">
+                            <div class="e-ic">⏳</div>
+                            <div class="e-t">Loading…</div>
+                        </div>
+                    </td></tr>
+                </tbody>
+            </table>
+        </div>
+        <div class="rms-pager" id="rmsPager" style="display:none;">
+            <span id="pgInfo">—</span>
+            <div class="rms-pg-btns">
+                <button class="rms-pg-btn" id="pgPrev" onclick="rmsPage(-1)">‹ Prev</button>
+                <button class="rms-pg-btn" id="pgNext" onclick="rmsPage( 1)">Next ›</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<!-- ════════════════════════════════════════════════════════════
+     NEW REQUEST MODAL — used by NPD/R&D
+     ════════════════════════════════════════════════════════════ -->
+<div class="rms-mod-ov" id="newMod">
+    <div class="rms-mod">
+        <div class="rms-mod-hd">
+            <div>
+                <div class="ttl" id="newModTtl">🧪 New Sample Request</div>
+                <div class="sub" id="newModSub">Raised by NPD / R&amp;D · auto-assigns to Purchase</div>
+            </div>
+            <button class="x" type="button" onclick="rmsClose('newMod')">&times;</button>
+        </div>
+        <div class="rms-mod-bd">
+
+            <div class="rms-section">
+                <div class="rms-section-ttl">📋 Material Details</div>
+                <div class="rms-grid">
+                    <div class="rms-fg">
+                        <label>Material / Trade Name <span class="req">*</span></label>
+                        <input id="nMaterial" type="text" placeholder="e.g. Tulsi Extract">
+                    </div>
+                    <div class="rms-fg">
+                        <label>INCI / Scientific Name</label>
+                        <input id="nInci" type="text" placeholder="Official INCI / scientific name">
+                    </div>
+                </div>
+            </div>
+
+            <div class="rms-section">
+                <div class="rms-section-ttl">📦 Quantity &amp; Use</div>
+                <div class="rms-grid cols-3">
+                    <div class="rms-fg">
+                        <label>Requested Quantity</label>
+                        <input id="nQty" type="text" placeholder="e.g. 500 GM">
+                    </div>
+                    <div class="rms-fg">
+                        <label>Required Date</label>
+                        <input id="nReqDate" type="date">
+                    </div>
+                    <div class="rms-fg">
+                        <label>Application</label>
+                        <input id="nApp" type="text" placeholder="e.g. Skin Care, Hair Care">
+                    </div>
+                </div>
+                <div class="rms-grid">
+                    <div class="rms-fg">
+                        <label>Required By</label>
+                        <input id="nReqBy" type="text"
+                               value="{{ (current_user.full_name or current_user.username) if current_user.is_authenticated else '' }}"
+                               readonly
+                               style="background:#f1f5f9;color:#475569;cursor:not-allowed;">
+                    </div>
+                    <div class="rms-fg">
+                        <label>Suggested Supplier (optional)</label>
+                        <input id="nSupplier" type="text" placeholder="Preferred supplier name">
+                    </div>
+                </div>
+                <div class="rms-grid">
+                    <div class="rms-fg full">
+                        <label>Purpose / R&amp;D Remarks</label>
+                        <textarea id="nRemarks"
+                            placeholder="Why this material — formulation note, project context, special instructions for Purchase"></textarea>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+        <div class="rms-mod-ft">
+            <button class="rms-btn" onclick="rmsClose('newMod')">Cancel</button>
+            <button class="rms-btn primary" id="newModSubmit" onclick="rmsSubmitNew()">💾 Submit Request</button>
+        </div>
+    </div>
+</div>
+
+
+<!-- ════════════════════════════════════════════════════════════
+     DETAIL / ACTION MODAL
+     ════════════════════════════════════════════════════════════ -->
+<div class="rms-mod-ov" id="detMod">
+    <div class="rms-mod">
+        <div class="rms-mod-hd">
+            <div>
+                <div class="ttl" id="detTtl">Request Details</div>
+                <div class="sub" id="detSub">—</div>
+            </div>
+            <button class="x" type="button" onclick="rmsClose('detMod')">&times;</button>
+        </div>
+
+        <div id="detActionRow" class="rms-action-row" style="display:none;"></div>
+
+        <div class="rms-mod-bd" id="detBody">
+            <div class="rms-empty">
+                <div class="e-ic">⏳</div>
+                <div class="e-t">Loading…</div>
+            </div>
+        </div>
+        <div class="rms-mod-ft">
+            <button class="rms-btn" onclick="rmsClose('detMod')">Close</button>
+        </div>
+    </div>
+</div>
+
+
+<!-- ════════════════════════════════════════════════════════════
+     ACTION MODAL — supplier / order / dispatch / receive
+     ════════════════════════════════════════════════════════════ -->
+<div class="rms-mod-ov" id="actMod">
+    <div class="rms-mod sm">
+        <div class="rms-mod-hd">
+            <div>
+                <div class="ttl" id="actTtl">Action</div>
+                <div class="sub" id="actSub">—</div>
+            </div>
+            <button class="x" type="button" onclick="rmsClose('actMod')">&times;</button>
+        </div>
+        <div class="rms-mod-bd" id="actBody"></div>
+        <div class="rms-mod-ft">
+            <button class="rms-btn" onclick="rmsClose('actMod')">Cancel</button>
+            <button class="rms-btn primary" id="actSubmit">Save</button>
+        </div>
+    </div>
+</div>
+
+
+<!-- ════════════════════════════════════════════════════════════
+     Import CSV modal
+     ════════════════════════════════════════════════════════════ -->
+<div class="rms-mod-ov" id="impMod">
+    <div class="rms-mod sm">
+        <div class="rms-mod-hd">
+            <div>
+                <div class="ttl">📥 Import Requests from CSV</div>
+                <div class="sub">Upload a CSV file with raw-material requests</div>
+            </div>
+            <button class="x" type="button" onclick="rmsClose('impMod')">&times;</button>
+        </div>
+        <div class="rms-mod-bd">
+            <div class="rms-fg" style="margin-bottom:14px;">
+                <label>CSV File <span class="req">*</span></label>
+                <input id="impFile" type="file" accept=".csv,text/csv">
+                <div style="font-size:.74rem;color:#64748b;margin-top:6px;">
+                    Required column: <b>material_name</b>. Optional: inci_name, quantity,
+                    required_by_date (YYYY-MM-DD), application, suggested_supplier, purpose_remarks.
+                </div>
+            </div>
+            <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:7px;padding:9px 11px;font-size:.78rem;">
+                <a href="/raw-material-sample/api/import-template" download>
+                    📄 Download CSV template
+                </a>
+                — fill it in Excel and upload here.
+            </div>
+            <div id="impResult" style="margin-top:12px;font-size:.82rem;"></div>
+        </div>
+        <div class="rms-mod-ft">
+            <button class="rms-btn" onclick="rmsClose('impMod')">Close</button>
+            <button class="rms-btn primary" onclick="rmsSubmitImport()">📥 Upload</button>
+        </div>
+    </div>
+</div>
+
+
+<!-- ════════════════════════════════════════════════════════════
+     Columns chooser modal
+     ════════════════════════════════════════════════════════════ -->
+<div class="rms-mod-ov" id="colMod">
+    <div class="rms-mod sm">
+        <div class="rms-mod-hd">
+            <div>
+                <div class="ttl">⚙️ Choose Columns</div>
+                <div class="sub">Pick which columns appear in your grid</div>
+            </div>
+            <button class="x" type="button" onclick="rmsClose('colMod')">&times;</button>
+        </div>
+        <div class="rms-mod-bd" id="colBody">
+            <!-- Populated by rmsOpenColumns() -->
+        </div>
+        <div class="rms-mod-ft">
+            <button class="rms-btn ghost" onclick="rmsResetColumns()">Reset to Default</button>
+            <button class="rms-btn" onclick="rmsClose('colMod')">Cancel</button>
+            <button class="rms-btn primary" onclick="rmsSaveColumns()">💾 Save</button>
+        </div>
+    </div>
+</div>
+
+
+<!-- ════════════════════════════════════════════════════════════
+     Daily Pending Reminder modal — red themed, once per day
+     ════════════════════════════════════════════════════════════ -->
+<div class="rms-mod-ov" id="reminderMod">
+    <div class="rms-mod sm" style="overflow:hidden;">
+        <div class="rms-reminder-hd">
+            <div style="display:flex;align-items:center;gap:12px;">
+                <div style="font-size:1.7rem;line-height:1;">🔔</div>
+                <div>
+                    <div class="r-tag">DAILY REMINDER</div>
+                    <div class="r-ttl">Pending Materials Alert</div>
+                </div>
+            </div>
+            <div class="rms-reminder-badge">
+                <span id="reminderCnt">0</span> Pending
+            </div>
+        </div>
+        <div class="rms-mod-bd" style="padding:14px 18px 12px;">
+            <div style="font-size:.85rem;color:#1e293b;line-height:1.5;
+                        display:flex;align-items:flex-start;gap:8px;">
+                <span style="color:#dc2626;font-weight:800;font-size:1.05rem;line-height:1;flex-shrink:0;">!</span>
+                <span>The following materials have been <b>Pending</b>
+                    since on or after <b id="reminderDate">—</b> and need your attention today.</span>
+            </div>
+            <div style="margin-top:12px;max-height:340px;overflow:auto;border:1px solid #e2e8f0;border-radius:8px;">
+                <table class="rms-reminder-tbl" id="reminderTbl">
+                    <thead>
+                        <tr>
+                            <th style="width:50px;">#</th>
+                            <th>TRADE NAME</th>
+                            <th style="width:120px;">STATUS</th>
+                        </tr>
+                    </thead>
+                    <tbody id="reminderBody"></tbody>
+                </table>
+            </div>
+        </div>
+        <div class="rms-mod-ft" style="display:flex;justify-content:space-between;align-items:center;">
+            <span style="font-size:.74rem;color:#64748b;">
+                🔔 This reminder appears once per day.
+            </span>
+            <button class="rms-btn" id="reminderAck"
+                    style="background:#dc2626;color:#fff;border-color:#b91c1c;"
+                    onclick="rmsAcknowledgeReminder()">
+                ✓ Acknowledged
+            </button>
+        </div>
+    </div>
+</div>
+
+
+<!-- ════════════════════════════════════════════════════════════
+     Toasts container
+     ════════════════════════════════════════════════════════════ -->
+<div class="rms-toast-wrap" id="rmsToasts"></div>
+
+
+<!-- ════════════════════════════════════════════════════════════
+     SCRIPTS
+     ════════════════════════════════════════════════════════════ -->
+<script>
+/* ── Server-supplied flags (Jinja → JS) ── */
+const RMS_ME = {
+    is_admin     : {{ 'true' if is_admin     else 'false' }},
+    is_purchase  : {{ 'true' if is_purchase  else 'false' }},
+    is_requester : {{ 'true' if is_requester else 'false' }}
+};
+
+/* ── Per-action sub-permissions (set per-user in ACP panel chips) ── */
+const RMS_PERMS = {{ (rms_perms | default({})) | tojson }};
+const RMS_CAN_EDIT   = {{ 'true' if can_edit   else 'false' }};
+const RMS_CAN_DELETE = {{ 'true' if can_delete else 'false' }};
+
+/* Statuses where a request can still be edited / deleted / cancelled.
+   Once supplier is finalised, the request is locked. */
+const RMS_MUTABLE = ['request_created', 'sent_to_purchase'];
+
+/* All available grid columns (key, label) — server-supplied */
+const RMS_ALL_COLS = {{ all_columns | tojson }};
+/* User's currently active column set (subset of keys above) */
+let RMS_USER_COLS = {{ user_columns | tojson }};
+
+/* Eligibility map — for each bulk action, which statuses are applicable.
+   Used to hide bulk action buttons when no selected row qualifies. */
+const RMS_BULK_ELIGIBLE = {
+    finalize_supplier : ['request_created', 'sent_to_purchase'],
+    mark_dispatched   : ['supplier_finalized', 'order_placed'],
+    mark_received     : ['order_dispatched', 'order_placed'],
+    cancel_request    : ['request_created', 'sent_to_purchase'],
+    can_delete        : ['request_created', 'sent_to_purchase'],
+};
+
+/* ── Bulk selection state — Map<id, status> so we can compute eligibility ── */
+const rmsSelected = new Map();
+
+/* Cache of last-loaded items keyed by id — used by bulk modals to look
+   up full row data (request_no, material_name, suggested_supplier, etc.)
+   without an extra fetch. Refreshed every rmsLoad(). */
+const rmsItemsCache = new Map();
+
+/* ── State ── */
+let rmsState = {
+    page      : 1,
+    page_size : 25,
+    total     : 0,
+    status    : 'all',
+    items     : [],
+};
+
+/* ── Tiny helpers ── */
+function $(id){return document.getElementById(id);}
+function esc(s){
+    if(s===null||s===undefined) return '';
+    return String(s).replace(/[&<>"']/g, c=>({
+        '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+    }[c]));
+}
+function toast(msg, type='ok'){
+    const wrap = $('rmsToasts');
+    const el   = document.createElement('div');
+    el.className = 'rms-toast ' + (type==='err'?'err':type==='warn'?'':'ok');
+    el.textContent = msg;
+    wrap.appendChild(el);
+    setTimeout(()=>{ el.style.opacity='0'; el.style.transform='translateX(20px)';
+                     setTimeout(()=>el.remove(), 250); }, 2400);
+}
+function rmsOpen(id){ $(id).classList.add('open'); }
+function rmsClose(id){ $(id).classList.remove('open'); }
+
+/* ── Load list ── */
+async function rmsLoad(){
+    const params = new URLSearchParams();
+    params.set('page',     rmsState.page);
+    params.set('page_size',rmsState.page_size);
+    if (rmsState.status && rmsState.status !== 'all'){
+        params.set('status', rmsState.status);
+    }
+    const q    = $('fQ').value.trim();
+    const f    = $('fFrom').value;
+    const t    = $('fTo').value;
+    if (q)    params.set('q', q);
+    if (f)    params.set('from', f);
+    if (t)    params.set('to',   t);
+
+    $('rmsBody').innerHTML =
+        `<tr><td colspan="${_rmsColspan()}"><div class="rms-empty"><div class="e-ic">⏳</div>`
+        + '<div class="e-t">Loading…</div></div></td></tr>';
+
+    try{
+        const r  = await fetch('/raw-material-sample/api/list?' + params.toString());
+        const js = await r.json();
+        if (!r.ok){ throw new Error(js.error || 'Load failed'); }
+
+        rmsState.items = js.items || [];
+        rmsState.total = js.total || 0;
+        $('rmsCount').textContent = js.total;
+        rmsRender(js.items);
+        rmsRenderSummary(js.summary || {});
+        rmsRenderPager();
+    }catch(e){
+        $('rmsBody').innerHTML =
+            `<tr><td colspan="${_rmsColspan()}"><div class="rms-empty">`
+            + '<div class="e-ic">⚠️</div><div class="e-t">Failed to load</div>'
+            + '<div class="e-s">'+esc(e.message)+'</div></div></td></tr>';
+    }
+}
+
+function rmsRenderSummary(s){
+    $('cnt-total').textContent = s.total ?? 0;
+    $('cnt-pend' ).textContent = s.sent_to_purchase   ?? 0;
+    $('cnt-sup'  ).textContent = s.supplier_finalized ?? 0;
+    $('cnt-disp' ).textContent = s.order_dispatched   ?? 0;
+    $('cnt-recv' ).textContent = s.sample_received    ?? 0;
+}
+
+function rmsRenderPager(){
+    const totalPages = Math.max(1, Math.ceil(rmsState.total / rmsState.page_size));
+    $('rmsPager').style.display = rmsState.total ? 'flex' : 'none';
+    $('pgInfo').textContent = `Page ${rmsState.page} of ${totalPages}  ·  ${rmsState.total} record(s)`;
+    $('pgPrev').disabled = rmsState.page <= 1;
+    $('pgNext').disabled = rmsState.page >= totalPages;
+}
+
+function rmsPage(delta){
+    rmsState.page = Math.max(1, rmsState.page + delta);
+    rmsLoad();
+}
+
+/* ── Per-column cell renderers ──
+   Each function takes the row item and returns the cell INNER HTML
+   (without <td> wrapper). Add new entries here when adding columns. */
+const RMS_COL_RENDER = {
+    request_no:       it => `<span class="rms-id">${esc(it.request_no)}</span>`,
+    created_at:       it => esc((it.created_at || '').split(' ')[0] || ''),
+    material:         it => `<div style="font-weight:600;color:#0f172a;">${esc(it.material_name)}</div>`
+                          + (it.inci_name ? `<div style="font-size:.74rem;color:#64748b;">${esc(it.inci_name)}</div>` : ''),
+    quantity:         it => esc(it.quantity || '—'),
+    required_by_date: it => esc(it.required_by_date || '—'),
+    supplier:         it => esc(it.actual_supplier || it.suggested_supplier || '—'),
+    status:           it => {
+        const s = `background:${it.status_color}1a;color:${it.status_color};`
+                + `border-color:${it.status_color}55;`;
+        return `<span class="rms-status" style="${s}">${esc(it.status_label)}</span>`;
+    },
+    requested_by:     it => esc(it.requester_name || '—'),
+    application:      it => esc(it.application || '—'),
+    order_no:         it => esc(it.order_no || '—'),
+    courier_name:     it => esc(it.courier_name || '—'),
+    tracking_no:      it => esc(it.tracking_no || '—'),
+    dispatch_date:    it => esc(it.dispatch_date || '—'),
+    received_date:    it => esc(it.received_date || '—'),
+};
+
+function rmsRenderHeaders(){
+    /* Inject <th> elements based on RMS_USER_COLS, between the leading
+       checkbox column and the trailing Action column. */
+    const labelMap = Object.fromEntries(RMS_ALL_COLS);
+    const head = $('rmsThead');
+    if (!head) return;
+    // First child = checkbox, last = Action — keep both, replace middle
+    const first = head.querySelector('th:first-child');
+    const last  = head.querySelector('th:last-child');
+    head.innerHTML = '';
+    head.appendChild(first);
+    RMS_USER_COLS.forEach(key => {
+        const th = document.createElement('th');
+        th.textContent = labelMap[key] || key;
+        head.appendChild(th);
+    });
+    head.appendChild(last);
+}
+
+function _rmsColspan(){ return RMS_USER_COLS.length + 2; }   // checkbox + cols + action
+
+function rmsRender(items){
+    rmsItemsCache.clear();
+    (items || []).forEach(it => rmsItemsCache.set(it.id, it));
+    rmsRenderHeaders();
+    const cs = _rmsColspan();
+    if (!items || !items.length){
+        $('rmsBody').innerHTML =
+            `<tr><td colspan="${cs}"><div class="rms-empty">`
+            + '<div class="e-ic">📭</div><div class="e-t">No requests found</div>'
+            + '<div class="e-s">Try clearing filters or create a new request.</div>'
+            + '</div></td></tr>';
+        return;
+    }
+    let html = '';
+    for (const it of items){
+        const checked = rmsSelected.has(it.id) ? 'checked' : '';
+        const rowCls  = rmsSelected.has(it.id) ? 'rms-row-sel' : '';
+        const mutable = RMS_MUTABLE.includes(it.status);
+        let rowActions = `<button class="rms-btn ghost" onclick="rmsOpenDetail(${it.id})" title="View">🔍</button>`;
+        if (RMS_CAN_EDIT && mutable){
+            rowActions += ` <button class="rms-btn ghost" onclick="rmsOpenEdit(${it.id})" title="Edit">✎</button>`;
+        }
+        if (RMS_CAN_DELETE && mutable){
+            rowActions += ` <button class="rms-btn ghost" style="color:#dc2626;" onclick="rmsRowDelete(${it.id}, '${esc(it.request_no)}')" title="Delete">🗑</button>`;
+        }
+        // Build dynamic cells per user's column choice
+        let cells = '';
+        for (const key of RMS_USER_COLS){
+            const fn = RMS_COL_RENDER[key];
+            cells += `<td>${fn ? fn(it) : ''}</td>`;
+        }
+        html += `
+            <tr class="${rowCls}" data-id="${it.id}">
+                <td style="text-align:center;">
+                    <input type="checkbox" class="rms-row-chk" data-id="${it.id}" data-status="${esc(it.status)}" ${checked} onchange="rmsToggleRow(${it.id}, '${esc(it.status)}', this)">
+                </td>
+                ${cells}
+                <td style="text-align:right;white-space:nowrap;">${rowActions}</td>
+            </tr>
+        `;
+    }
+    $('rmsBody').innerHTML = html;
+    rmsRefreshBulkBar();
+}
+
+/* ── Filter helpers ── */
+function rmsResetFilters(){
+    $('fQ').value='';
+    $('fFrom').value=''; $('fTo').value='';
+    rmsState.status = 'all'; rmsState.page = 1;
+    document.querySelectorAll('.rms-stat').forEach(s=>{
+        s.classList.toggle('active', s.dataset.status === 'all');
+    });
+    rmsLoad();
+}
+
+document.querySelectorAll('.rms-stat').forEach(card=>{
+    card.addEventListener('click', ()=>{
+        document.querySelectorAll('.rms-stat').forEach(s=>s.classList.remove('active'));
+        card.classList.add('active');
+        rmsState.status = card.dataset.status || 'all';
+        rmsState.page = 1;
+        rmsLoad();
+    });
+});
+
+/* ── New / Edit request (single modal — switches mode via rmsEditId) ── */
+let rmsEditId = null;
+
+function rmsOpenNew(){
+    rmsEditId = null;
+    $('newModTtl').textContent = '🧪 New Sample Request';
+    $('newModSub').textContent = 'Raised by NPD / R&D · auto-assigns to Purchase';
+    $('newModSubmit').innerHTML = '💾 Submit Request';
+    ['nMaterial','nInci','nQty','nReqDate','nApp',
+     'nSupplier','nRemarks'].forEach(id=>$(id).value='');
+    // Reset Required By to current user
+    const myName = `{{ ((current_user.full_name or current_user.username) | e) if current_user.is_authenticated else '' }}`;
+    if ($('nReqBy')) $('nReqBy').value = myName;
+    rmsOpen('newMod');
+    setTimeout(()=>$('nMaterial').focus(), 100);
+}
+
+async function rmsOpenEdit(id){
+    try{
+        const r = await fetch(`/raw-material-sample/api/${id}`);
+        const js = await r.json();
+        if (!r.ok){ throw new Error(js.error || 'Failed to load'); }
+        const it = js.item;
+        if (!RMS_MUTABLE.includes(it.status)){
+            toast('This request is locked — supplier already finalised.', 'err');
+            return;
+        }
+        rmsEditId = id;
+        $('newModTtl').textContent = `✎ Edit Request · ${it.request_no}`;
+        $('newModSub').textContent = 'Editable until Purchase finalises supplier';
+        $('newModSubmit').innerHTML = '💾 Save Changes';
+        $('nMaterial').value = it.material_name || '';
+        $('nInci').value     = it.inci_name || '';
+        $('nQty').value      = it.quantity || '';
+        $('nReqDate').value  = it.required_by_date || '';
+        $('nApp').value      = it.application || '';
+        $('nSupplier').value = it.suggested_supplier || '';
+        $('nRemarks').value  = it.purpose_remarks || '';
+        if ($('nReqBy')) $('nReqBy').value = it.requester_name || '';
+        rmsOpen('newMod');
+        setTimeout(()=>$('nMaterial').focus(), 100);
+    }catch(e){ toast(e.message, 'err'); }
+}
+
+async function rmsSubmitNew(){
+    const material = $('nMaterial').value.trim();
+    if (!material){ toast('Material name is required', 'err'); return; }
+
+    const payload = {
+        material_name      : material,
+        inci_name          : $('nInci').value.trim(),
+        quantity           : $('nQty').value.trim(),
+        required_by_date   : $('nReqDate').value,
+        application        : $('nApp').value.trim(),
+        suggested_supplier : $('nSupplier').value.trim(),
+        purpose_remarks    : $('nRemarks').value.trim(),
+    };
+
+    const isEdit = !!rmsEditId;
+    const url    = isEdit ? `/raw-material-sample/api/${rmsEditId}/edit`
+                          : '/raw-material-sample/api/create';
+
+    try{
+        const r  = await fetch(url, {
+            method  : 'POST',
+            headers : {'Content-Type':'application/json'},
+            body    : JSON.stringify(payload),
+        });
+        const js = await r.json();
+        if (!r.ok){ throw new Error(js.error || 'Save failed'); }
+        toast(isEdit ? 'Request updated ✅' : 'Request created — sent to Purchase ✅');
+        rmsClose('newMod');
+        rmsEditId = null;
+        rmsState.page = 1; rmsLoad();
+    }catch(e){ toast(e.message, 'err'); }
+}
+
+/* ── Single-row delete from listing ── */
+async function rmsRowDelete(id, reqNo){
+    if (!confirm(`Delete ${reqNo}? Soft delete — record stays in DB with is_deleted=1.`)) return;
+    try{
+        const r = await fetch(`/raw-material-sample/api/${id}`, {method:'DELETE'});
+        const js = await r.json();
+        if (!r.ok){ throw new Error(js.error || 'Delete failed'); }
+        toast(`${reqNo} deleted ✅`);
+        rmsLoad();
+    }catch(e){ toast(e.message, 'err'); }
+}
+
+/* ── Detail modal ── */
+async function rmsOpenDetail(id){
+    rmsOpen('detMod');
+    $('detTtl').textContent = 'Request Details';
+    $('detSub').textContent = '—';
+    $('detActionRow').style.display = 'none';
+    $('detActionRow').innerHTML = '';
+    $('detBody').innerHTML =
+        '<div class="rms-empty"><div class="e-ic">⏳</div><div class="e-t">Loading…</div></div>';
+
+    try{
+        const r  = await fetch('/raw-material-sample/api/' + id);
+        const js = await r.json();
+        if (!r.ok){ throw new Error(js.error || 'Load failed'); }
+        rmsRenderDetail(js.item);
+    }catch(e){
+        $('detBody').innerHTML =
+            '<div class="rms-empty"><div class="e-ic">⚠️</div>'
+            + '<div class="e-t">Failed to load</div>'
+            + '<div class="e-s">'+esc(e.message)+'</div></div>';
+    }
+}
+
+function rmsField(label, value){
+    const empty = !value;
+    return `<div>
+        <div class="lbl">${esc(label)}</div>
+        <div class="val ${empty?'empty':''}">${empty?'—':esc(value)}</div>
+    </div>`;
+}
+
+const RMS_FLOW = [
+    ['sent_to_purchase'  , '1', 'Sent to Purchase'   ],
+    ['supplier_finalized', '2', 'Supplier Finalised' ],
+    ['order_dispatched'  , '3', 'Order Dispatched'   ],
+    ['sample_received'   , '4', 'Sample Received'    ],
+];
+
+function rmsRenderTimeline(item){
+    // Effective progress order: order_placed maps to "after supplier_finalized"
+    // so legacy records still highlight correctly even though we no longer
+    // show that step as a separate row.
+    const order = ['sent_to_purchase','supplier_finalized',
+                   'order_dispatched','sample_received'];
+    let stat = item.status;
+    if (stat === 'order_placed') stat = 'supplier_finalized';
+    const curIdx = order.indexOf(stat);
+    const cancelled = item.status === 'cancelled';
+    // sample_received is the terminal complete state — every step is done,
+    // not "current". Visually: all green ✓ instead of blue 4.
+    const isComplete = item.status === 'sample_received';
+
+    let html = '<div class="rms-timeline">';
+    RMS_FLOW.forEach(([slug, num, label], idx)=>{
+        let cls = '';
+        if (cancelled){
+            cls = '';
+        } else if (isComplete || idx < curIdx){
+            cls = 'done';
+        } else if (idx === curIdx){
+            cls = 'cur';
+        }
+
+        let metaTime = '';
+        let note = '';
+        if (slug === 'sent_to_purchase' && item.created_at){
+            metaTime = item.created_at + ' · by ' + (item.requester_name || '—');
+        } else if (slug === 'supplier_finalized' && item.supplier_finalized_at){
+            metaTime = item.supplier_finalized_at + ' · by ' + (item.finalizer_name || '—');
+            note     = 'Supplier: ' + (item.actual_supplier || '—');
+        } else if (slug === 'order_placed' && item.order_placed_at){
+            metaTime = item.order_placed_at + ' · by ' + (item.placer_name || '—');
+            note     = 'Order #' + (item.order_no || '—');
+        } else if (slug === 'order_dispatched' && item.dispatched_at){
+            metaTime = item.dispatched_at + ' · by ' + (item.dispatcher_name || '—');
+            note     = 'Courier: ' + (item.courier_name || '—')
+                     + ' · Tracking: ' + (item.tracking_no || '—');
+        } else if (slug === 'sample_received' && item.received_at){
+            metaTime = item.received_at + ' · by ' + (item.receiver_name || '—');
+            note     = 'Qty: ' + (item.received_qty || '—')
+                     + ' · Batch: ' + (item.batch_no || '—');
+        }
+
+        html += `<div class="rms-tl-row ${cls}">
+            <div class="rms-tl-dot">${cls==='done' ? '✓' : num}</div>
+            <div class="rms-tl-bd">
+                <div class="rms-tl-ttl">${esc(label)}</div>
+                ${metaTime ? '<div class="rms-tl-meta">'+esc(metaTime)+'</div>' : ''}
+                ${note     ? '<div class="rms-tl-note">'+esc(note)+'</div>'    : ''}
+            </div>
+        </div>`;
+    });
+    if (cancelled){
+        html += `<div class="rms-tl-row cur" style="margin-top:6px;">
+            <div class="rms-tl-dot" style="background:#dc2626;color:#fff;box-shadow:0 0 0 1px #dc2626;">✕</div>
+            <div class="rms-tl-bd">
+                <div class="rms-tl-ttl" style="color:#dc2626;">Cancelled</div>
+            </div>
+        </div>`;
+    }
+    html += '</div>';
+    return html;
+}
+
+function rmsRenderDetail(item){
+    $('detTtl').textContent = `${item.request_no} · ${item.material_name}`;
+    const statusStyle = `background:${item.status_color}1a;color:${item.status_color};`
+                      + `border-color:${item.status_color}55;`;
+    $('detSub').innerHTML = `<span class="rms-status" style="${statusStyle}">`
+                          + esc(item.status_label) + `</span>`;
+
+    /* ── Action buttons row ── */
+    const actions = [];
+    const s = item.status;
+
+    if ((RMS_ME.is_admin || RMS_PERMS.finalize_supplier)
+        && (s === 'sent_to_purchase' || s === 'request_created')){
+        actions.push(`<button class="rms-btn warn" onclick="rmsActionFinalize(${item.id})">
+            🤝 Finalise Supplier</button>`);
+    }
+    if ((RMS_ME.is_admin || RMS_PERMS.mark_dispatched)
+        && (s === 'supplier_finalized' || s === 'order_placed')){
+        actions.push(`<button class="rms-btn primary" onclick="rmsActionDispatch(${item.id})">
+            🚚 Mark Dispatched</button>`);
+    }
+    if ((RMS_ME.is_admin || RMS_PERMS.mark_received)
+        && (s === 'order_dispatched' || s === 'order_placed')){
+        actions.push(`<button class="rms-btn success" onclick="rmsActionReceive(${item.id})">
+            ✅ Mark Received</button>`);
+    }
+    // Cancel only allowed BEFORE supplier finalisation. Once Purchase
+    // engages with vendors, cancel needs manual coordination.
+    if ((RMS_ME.is_admin || RMS_PERMS.cancel_request)
+        && RMS_MUTABLE.includes(s)){
+        actions.push(`<button class="rms-btn danger" onclick="rmsActionCancel(${item.id})">
+            ✕ Cancel</button>`);
+    }
+
+    if (actions.length){
+        $('detActionRow').style.display = 'flex';
+        $('detActionRow').innerHTML = actions.join('');
+    } else {
+        $('detActionRow').style.display = 'none';
+    }
+
+    /* ── Body ── */
+    let html = '';
+
+    /* Timeline */
+    html += `<div class="rms-section">
+        <div class="rms-section-ttl">📍 Status Timeline</div>
+        ${rmsRenderTimeline(item)}
+    </div>`;
+
+    /* Request Part */
+    html += `<div class="rms-section">
+        <div class="rms-section-ttl">📋 Request Details</div>
+        <div class="rms-info">
+            ${rmsField('Request No', item.request_no)}
+            ${rmsField('Material / Trade Name', item.material_name)}
+            ${rmsField('INCI / Scientific Name', item.inci_name)}
+            ${rmsField('Quantity', item.quantity)}
+            ${rmsField('Required Date', item.required_by_date)}
+            ${rmsField('Application', item.application)}
+            ${rmsField('Suggested Supplier', item.suggested_supplier)}
+            ${rmsField('Required By', item.requester_name)}
+            ${rmsField('Created At', item.created_at)}
+            <div style="grid-column:1/-1;">
+                ${rmsField('Purpose / Remarks', item.purpose_remarks)}
+            </div>
+        </div>
+    </div>`;
+
+    /* Purchase Part */
+    if (item.actual_supplier || item.order_no){
+        html += `<div class="rms-section">
+            <div class="rms-section-ttl">🛒 Purchase / Supplier</div>
+            <div class="rms-info">
+                ${rmsField('Actual Supplier',     item.actual_supplier)}
+                ${rmsField('Supplier Contact',    item.supplier_contact)}
+                ${rmsField('Rate / KG (₹)',       item.rate_per_kg ? item.rate_per_kg : '')}
+                ${rmsField('MOQ',                 item.moq)}
+                ${rmsField('Lead Time',           item.lead_time)}
+                ${rmsField('Finalised By',        item.finalizer_name)}
+                ${rmsField('Finalised At',        item.supplier_finalized_at)}
+                ${rmsField('Order / PO No',       item.order_no)}
+            </div>
+        </div>`;
+    }
+
+    /* Dispatch Part */
+    if (item.courier_name || item.tracking_no || item.dispatch_date){
+        html += `<div class="rms-section">
+            <div class="rms-section-ttl">🚚 Dispatch</div>
+            <div class="rms-info">
+                ${rmsField('Courier / Transport', item.courier_name)}
+                ${rmsField('Tracking No',         item.tracking_no)}
+                ${rmsField('Dispatch Date',       item.dispatch_date)}
+                ${rmsField('Dispatched By',       item.dispatcher_name)}
+                ${rmsField('Dispatched At',       item.dispatched_at)}
+                <div style="grid-column:1/-1;">
+                    ${rmsField('Dispatch Remarks', item.dispatch_remarks)}
+                </div>
+            </div>
+        </div>`;
+    }
+
+    /* Receipt Part */
+    if (item.received_qty || item.batch_no || item.received_date){
+        html += `<div class="rms-section">
+            <div class="rms-section-ttl">✅ Receipt Confirmation</div>
+            <div class="rms-info">
+                ${rmsField('Received Qty',  item.received_qty)}
+                ${rmsField('Batch No',      item.batch_no)}
+                ${rmsField('Received Date', item.received_date)}
+                ${rmsField('Received By',   item.receiver_name)}
+                ${rmsField('Received At',   item.received_at)}
+                <div style="grid-column:1/-1;">
+                    ${rmsField('Receipt Remarks', item.receipt_remarks)}
+                </div>
+            </div>
+        </div>`;
+    }
+
+    /* Activity Log */
+    if (item.activity_logs && item.activity_logs.length){
+        let logHtml = '';
+        for (const l of item.activity_logs){
+            logHtml += `<div style="padding:8px 12px;border-left:3px solid #cbd5e1;
+                                     margin-bottom:6px;background:#f8fafc;border-radius:0 6px 6px 0;">
+                <div style="font-size:.78rem;color:#475569;">
+                    <strong>${esc(l.full_name||l.username||'system')}</strong>
+                    · ${esc(l.action)}
+                    ${l.from_label && l.to_label && l.from_label !== l.to_label
+                        ? ` · <span style="color:#64748b;">${esc(l.from_label)}</span> → <span style="color:#0f172a;font-weight:600;">${esc(l.to_label)}</span>`
+                        : ''}
+                </div>
+                ${l.note ? '<div style="font-size:.74rem;color:#64748b;margin-top:2px;">'+esc(l.note)+'</div>' : ''}
+                <div style="font-size:.7rem;color:#94a3b8;margin-top:2px;">${esc(l.created_at)}</div>
+            </div>`;
+        }
+        html += `<div class="rms-section">
+            <div class="rms-section-ttl">📜 Activity Log</div>
+            ${logHtml}
+        </div>`;
+    }
+
+    $('detBody').innerHTML = html;
+}
+
+/* ════════════════════════════════════════════════════════════
+   Action helpers — open small modal with form, POST on submit
+   ════════════════════════════════════════════════════════════ */
+
+function rmsBuildActionModal(title, subtitle, fields, onSubmit){
+    /* Reset modal width to default in case the per-row builder used it */
+    document.querySelector('#actMod .rms-mod').classList.remove('wide');
+    $('actTtl').textContent = title;
+    $('actSub').textContent = subtitle;
+
+    let html = '';
+    fields.forEach(f=>{
+        const id = 'a_' + f.key;
+        if (f.type === 'textarea'){
+            html += `<div class="rms-fg" style="margin-bottom:10px;">
+                <label>${esc(f.label)} ${f.required ? '<span class="req">*</span>':''}</label>
+                <textarea id="${id}" placeholder="${esc(f.placeholder||'')}">${esc(f.value||'')}</textarea>
+            </div>`;
+        } else {
+            html += `<div class="rms-fg" style="margin-bottom:10px;">
+                <label>${esc(f.label)} ${f.required ? '<span class="req">*</span>':''}</label>
+                <input id="${id}" type="${f.type||'text'}" placeholder="${esc(f.placeholder||'')}"
+                       value="${esc(f.value||'')}">
+            </div>`;
+        }
+    });
+    $('actBody').innerHTML = html;
+    $('actSubmit').onclick = async ()=>{
+        const data = {};
+        let missing = false;
+        fields.forEach(f=>{
+            const v = ($('a_' + f.key).value || '').trim();
+            data[f.key] = v;
+            if (f.required && !v){ missing = true; }
+        });
+        if (missing){ toast('Please fill required fields', 'err'); return; }
+        await onSubmit(data);
+    };
+    rmsOpen('actMod');
+}
+
+/* ── Per-row bulk modal — one card per selected request ──
+   Each card has its own field set so user can enter
+   different values per material (different supplier, rate, etc.). */
+function rmsBuildPerRowModal(title, subtitle, items, fields, onSubmit){
+    document.querySelector('#actMod .rms-mod').classList.add('wide');
+    $('actTtl').textContent = title;
+    $('actSub').textContent = subtitle;
+
+    let html = '';
+    items.forEach((it, i) => {
+        const matInfo = it.material_name + (it.inci_name ? ` · ${it.inci_name}` : '');
+        html += `<div class="rms-pr-card" data-rowid="${it.id}">
+            <div class="rms-pr-hd">
+                <span class="rms-id">${esc(it.request_no)}</span>
+                <span style="color:#475569;">${esc(matInfo)}</span>
+                ${it.quantity ? `<span style="color:#94a3b8;font-weight:500;font-size:.74rem;margin-left:6px;">· Qty: ${esc(it.quantity)}</span>` : ''}
+            </div>
+            <div class="rms-grid cols-5">`;
+        fields.forEach(f => {
+            const fid  = `pr_${i}_${f.key}`;
+            // Pre-fill from the row's data when prefillKey is given
+            let val = '';
+            if (f.prefillKey && it[f.prefillKey] != null) val = it[f.prefillKey];
+            else if (f.value != null) val = f.value;
+            const reqMark = f.required ? '<span class="req">*</span>' : '';
+            const ph      = esc(f.placeholder || '');
+            if (f.type === 'textarea'){
+                html += `<div class="rms-fg" style="grid-column:1/-1;">
+                    <label>${esc(f.label)} ${reqMark}</label>
+                    <textarea id="${fid}" placeholder="${ph}">${esc(val)}</textarea>
+                </div>`;
+            } else {
+                html += `<div class="rms-fg">
+                    <label>${esc(f.label)} ${reqMark}</label>
+                    <input id="${fid}" type="${f.type||'text'}" placeholder="${ph}" value="${esc(val)}">
+                </div>`;
+            }
+        });
+        html += `</div></div>`;
+    });
+    $('actBody').innerHTML = html;
+
+    $('actSubmit').textContent = '💾 Save All';
+    $('actSubmit').onclick = async () => {
+        const rows = [];
+        let missingRow = null, missingField = null;
+        items.forEach((it, i) => {
+            const r = {id: it.id};
+            fields.forEach(f => {
+                const el = $(`pr_${i}_${f.key}`);
+                const v  = el ? (el.value || '').trim() : '';
+                r[f.key] = v;
+                if (f.required && !v && missingRow === null){
+                    missingRow = it.request_no;
+                    missingField = f.label;
+                }
+            });
+            rows.push(r);
+        });
+        if (missingRow){
+            toast(`${missingRow}: ${missingField} is required`, 'err');
+            return;
+        }
+        await onSubmit({rows});
+    };
+    rmsOpen('actMod');
+}
+
+async function rmsPostAction(url, payload){
+    try{
+        const r = await fetch(url, {
+            method: 'POST',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify(payload || {}),
+        });
+        const js = await r.json();
+        if (!r.ok){ throw new Error(js.error || 'Action failed'); }
+        toast('Saved ✅');
+        rmsClose('actMod');
+        rmsClose('detMod');
+        rmsLoad();
+    }catch(e){ toast(e.message, 'err'); }
+}
+
+function rmsActionFinalize(id){
+    rmsBuildActionModal(
+        '🤝 Finalise Supplier',
+        'Select the supplier you finalised in the market.',
+        [
+            {key:'actual_supplier', label:'Supplier Name', required:true,
+             placeholder:'e.g. Gayatri Industries'},
+            {key:'supplier_contact', label:'Supplier Contact', placeholder:'Phone / Email'},
+            {key:'rate_per_kg', label:'Rate / KG (₹)', type:'number', placeholder:'0.00'},
+            {key:'moq', label:'MOQ', placeholder:'e.g. 1 KG'},
+            {key:'lead_time', label:'Lead Time', placeholder:'e.g. 7-10 days'},
+        ],
+        d => rmsPostAction(`/raw-material-sample/api/${id}/finalize-supplier`, d)
+    );
+}
+
+function rmsActionDispatch(id){
+    const today = new Date().toISOString().slice(0,10);
+    rmsBuildActionModal(
+        '🚚 Mark as Dispatched',
+        'Enter courier / tracking details. NPD &amp; R&amp;D will be notified.',
+        [
+            {key:'order_no', label:'Order / PO No (optional)',
+             placeholder:'e.g. PO-2026-0123'},
+            {key:'courier_name',  label:'Courier / Transport', required:true,
+             placeholder:'e.g. BlueDart, DTDC, …'},
+            {key:'tracking_no',   label:'Tracking No', required:true,
+             placeholder:'e.g. 1234567890'},
+            {key:'dispatch_date', label:'Dispatch Date', type:'date', value:today},
+            {key:'dispatch_remarks', label:'Remarks', type:'textarea',
+             placeholder:'Optional — any note for NPD/R&D team'},
+        ],
+        d => rmsPostAction(`/raw-material-sample/api/${id}/dispatch`, d)
+    );
+}
+
+function rmsActionReceive(id){
+    const today = new Date().toISOString().slice(0,10);
+    rmsBuildActionModal(
+        '✅ Confirm Sample Received',
+        'Update receipt details so the request can be closed.',
+        [
+            {key:'received_qty',  label:'Received Qty', placeholder:'e.g. 500 GM'},
+            {key:'batch_no',      label:'Batch No',     placeholder:'Supplier batch number'},
+            {key:'received_date', label:'Received Date', type:'date', value:today},
+            {key:'receipt_remarks', label:'Receipt Remarks', type:'textarea',
+             placeholder:'Condition, packaging, anything notable'},
+        ],
+        d => rmsPostAction(`/raw-material-sample/api/${id}/receive`, d)
+    );
+}
+
+function rmsActionCancel(id){
+    rmsBuildActionModal(
+        '✕ Cancel Request',
+        'This will mark the request as cancelled and notify both teams.',
+        [
+            {key:'reason', label:'Reason for cancellation', type:'textarea', required:true,
+             placeholder:'Briefly explain why this request is being cancelled'},
+        ],
+        d => rmsPostAction(`/raw-material-sample/api/${id}/cancel`, d)
+    );
+}
+
+/* ════════════════════════════════════════════════════════════
+   Bulk action helpers
+   ════════════════════════════════════════════════════════════ */
+
+function rmsToggleRow(id, status, chk){
+    if (chk.checked) rmsSelected.set(id, status);
+    else             rmsSelected.delete(id);
+    chk.closest('tr').classList.toggle('rms-row-sel', chk.checked);
+    rmsRefreshBulkBar();
+}
+
+function rmsSelectAll(chk){
+    document.querySelectorAll('.rms-row-chk').forEach(c=>{
+        c.checked = chk.checked;
+        const id  = parseInt(c.dataset.id, 10);
+        const st  = c.dataset.status || '';
+        if (chk.checked) rmsSelected.set(id, st);
+        else             rmsSelected.delete(id);
+        c.closest('tr').classList.toggle('rms-row-sel', chk.checked);
+    });
+    rmsRefreshBulkBar();
+}
+
+function rmsClearSelection(){
+    rmsSelected.clear();
+    document.querySelectorAll('.rms-row-chk').forEach(c=>{
+        c.checked = false;
+        c.closest('tr').classList.remove('rms-row-sel');
+    });
+    const sa = $('rmsSelAll'); if (sa) sa.checked = false;
+    rmsRefreshBulkBar();
+}
+
+function _rmsAllEligible(actionKey){
+    /* Strict rule: returns true only if EVERY selected row's status is
+       in the eligible set. If even one selected row is non-applicable
+       (e.g. already dispatched / received / cancelled), button hides.
+       Prevents accidental partial bulk operations on mixed selections. */
+    const eligible = RMS_BULK_ELIGIBLE[actionKey] || [];
+    if (rmsSelected.size === 0) return false;
+    for (const status of rmsSelected.values()){
+        if (!eligible.includes(status)) return false;
+    }
+    return true;
+}
+
+function rmsRefreshBulkBar(){
+    const n = rmsSelected.size;
+    const bar = $('rmsBulkBar');
+    if (!bar) return;
+    if (n === 0){
+        bar.style.display = 'none';
+    } else {
+        bar.style.display = 'flex';
+        $('rmsBulkCnt').textContent = n;
+    }
+
+    /* Per-action visibility — hide button unless ALL selected rows are
+       eligible. Mixed selection where any row can't take the action hides
+       the button entirely (no silent partial bulk). */
+    document.querySelectorAll('#rmsBulkBar [data-action]').forEach(btn=>{
+        const ak = btn.dataset.action;
+        btn.style.display = (n > 0 && _rmsAllEligible(ak)) ? '' : 'none';
+    });
+
+    /* Sync header checkbox with current page state */
+    const allRowChks = document.querySelectorAll('.rms-row-chk');
+    const sa = $('rmsSelAll');
+    if (sa && allRowChks.length){
+        const allChecked = Array.from(allRowChks).every(c=>c.checked);
+        sa.checked = allChecked;
+    } else if (sa){
+        sa.checked = false;
+    }
+}
+
+async function rmsPostBulk(url, payload){
+    payload.ids = Array.from(rmsSelected.keys());
+    try{
+        const r = await fetch(url, {
+            method: 'POST',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify(payload),
+        });
+        const j = await r.json();
+        if (!r.ok){
+            toast(j.error || 'Bulk action failed', 'err');
+            return;
+        }
+        const sk = j.skipped || 0;
+        const ok = j.success || 0;
+        let msg = `${ok} succeeded`;
+        if (sk) msg += ` · ${sk} skipped (wrong status)`;
+        if (j.errors && j.errors.length) msg += ` · ${j.errors.length} errors`;
+        toast(msg, ok ? 'ok' : 'warn');
+        rmsClose('actMod');
+        rmsClearSelection();
+        rmsLoad();
+    } catch(e){
+        toast('Network error', 'err');
+    }
+}
+
+function rmsBulkGuard(){
+    if (rmsSelected.size === 0){
+        toast('Select at least one request', 'warn');
+        return false;
+    }
+    return true;
+}
+
+function _rmsSelectedItems(){
+    /* Returns full row objects for current selection (in selection order
+       where possible). If an item is not in cache it's skipped — could
+       happen if user selected on a previous page; rare but safe. */
+    const out = [];
+    for (const id of rmsSelected.keys()){
+        const it = rmsItemsCache.get(id);
+        if (it) out.push(it);
+    }
+    return out;
+}
+
+function rmsBulkFinalize(){
+    if (!rmsBulkGuard()) return;
+    const items = _rmsSelectedItems();
+    if (!items.length){ toast('No row data found — try refreshing.', 'err'); return; }
+    rmsBuildPerRowModal(
+        `🤝 Finalise Supplier`,
+        `${items.length} requests · enter details per material`,
+        items,
+        [
+            {key:'actual_supplier',  label:'Actual Supplier', required:true,
+             prefillKey:'suggested_supplier', placeholder:'Supplier name'},
+            {key:'supplier_contact', label:'Contact (phone / email)',
+             prefillKey:'supplier_contact', placeholder:'Optional'},
+            {key:'rate_per_kg',      label:'Rate per KG (₹)', type:'number',
+             prefillKey:'rate_per_kg', placeholder:'0.00'},
+            {key:'moq',              label:'MOQ',
+             prefillKey:'moq', placeholder:'e.g. 25 KG'},
+            {key:'lead_time',        label:'Lead Time',
+             prefillKey:'lead_time', placeholder:'e.g. 7 days'},
+        ],
+        d => rmsPostBulk('/raw-material-sample/api/bulk/finalize-supplier', d)
+    );
+}
+
+function rmsBulkDispatch(){
+    if (!rmsBulkGuard()) return;
+    const items = _rmsSelectedItems();
+    if (!items.length){ toast('No row data found — try refreshing.', 'err'); return; }
+    const today = new Date().toISOString().slice(0,10);
+    rmsBuildPerRowModal(
+        `🚚 Mark Dispatched`,
+        `${items.length} requests · tracking is unique per shipment`,
+        items,
+        [
+            {key:'order_no',         label:'Order / PO No',
+             prefillKey:'order_no', placeholder:'PO-2026-0123'},
+            {key:'courier_name',     label:'Courier', required:true,
+             prefillKey:'courier_name', placeholder:'BlueDart, DTDC…'},
+            {key:'tracking_no',      label:'Tracking No', required:true,
+             prefillKey:'tracking_no', placeholder:'Unique per shipment'},
+            {key:'dispatch_date',    label:'Dispatch Date', type:'date', value:today},
+            {key:'dispatch_remarks', label:'Remarks', type:'textarea'},
+        ],
+        d => rmsPostBulk('/raw-material-sample/api/bulk/dispatch', d)
+    );
+}
+
+function rmsBulkReceive(){
+    if (!rmsBulkGuard()) return;
+    const items = _rmsSelectedItems();
+    if (!items.length){ toast('No row data found — try refreshing.', 'err'); return; }
+    const today = new Date().toISOString().slice(0,10);
+    rmsBuildPerRowModal(
+        `✅ Mark Received`,
+        `${items.length} requests · enter received details per material`,
+        items,
+        [
+            {key:'received_date',   label:'Received Date', type:'date', value:today},
+            {key:'received_qty',    label:'Received Qty',
+             prefillKey:'quantity', placeholder:'e.g. 500 GM'},
+            {key:'batch_no',        label:'Batch No',
+             prefillKey:'batch_no', placeholder:'Vendor batch'},
+            {key:'receipt_remarks', label:'Remarks', type:'textarea'},
+        ],
+        d => rmsPostBulk('/raw-material-sample/api/bulk/receive', d)
+    );
+}
+
+function rmsBulkCancel(){
+    if (!rmsBulkGuard()) return;
+    rmsBuildActionModal(
+        `✕ Cancel ${rmsSelected.size} Requests`,
+        'These will be cancelled and both teams notified. Rows already dispatched / received cannot be cancelled and will be skipped.',
+        [
+            {key:'reason', label:'Reason for cancellation', type:'textarea', required:true,
+             placeholder:'Why are these requests being cancelled?'},
+        ],
+        d => rmsPostBulk('/raw-material-sample/api/bulk/cancel', d)
+    );
+}
+
+function rmsBulkDelete(){
+    if (!rmsBulkGuard()) return;
+    if (!confirm(`Delete ${rmsSelected.size} requests? This is a soft delete — records remain in the database with is_deleted=1.`)) return;
+    rmsPostBulk('/raw-material-sample/api/bulk/delete', {});
+}
+
+/* ── WhatsApp share (always available) ── */
+function _rmsWhatsAppMessage(items){
+    /* Build a structured status update message. Uses *bold* and emoji
+       for readability — WhatsApp natively renders single-asterisk bold. */
+    const lines = [
+        '*Raw Material Sample — Status Update*',
+        '',
+    ];
+    items.forEach(it => {
+        lines.push(`📋 *${it.request_no}* · ${it.material_name || '—'}`);
+        lines.push(`   • Status: *${it.status_label || '—'}*`);
+        if (it.quantity){
+            lines.push(`   • Qty Requested: ${it.quantity}`);
+        }
+        const sup = it.actual_supplier || it.suggested_supplier;
+        if (sup){
+            lines.push(`   • Supplier: ${sup}`);
+        }
+        if (it.required_by_date){
+            lines.push(`   • Required by: ${it.required_by_date}`);
+        }
+        if (it.status === 'order_dispatched' || it.status === 'sample_received'){
+            if (it.courier_name)  lines.push(`   • Courier: ${it.courier_name}`);
+            if (it.tracking_no)   lines.push(`   • Tracking: ${it.tracking_no}`);
+            if (it.dispatch_date) lines.push(`   • Dispatched: ${it.dispatch_date}`);
+        }
+        if (it.status === 'sample_received' && it.received_date){
+            lines.push(`   • Received: ${it.received_date}`);
+        }
+        lines.push('');
+    });
+    lines.push(`— sent from HCP Wellness ERP`);
+    return lines.join('\n');
+}
+
+function rmsBulkWhatsApp(){
+    if (!rmsBulkGuard()) return;
+    const items = _rmsSelectedItems();
+    if (!items.length){
+        toast('No row data found — refresh and try again.', 'err');
+        return;
+    }
+    const msg = _rmsWhatsAppMessage(items);
+    rmsBuildActionModal(
+        `📱 Share via WhatsApp`,
+        `${items.length} request${items.length>1?'s':''} · phone & message are editable`,
+        [
+            {key:'phone', label:'Phone (with country code, digits only)',
+             placeholder:'e.g. 919876543210 (leave blank to pick contact in WhatsApp)'},
+            {key:'message', label:'Message', type:'textarea', required:true,
+             value: msg},
+        ],
+        d => {
+            const phone = (d.phone || '').replace(/\D/g, '');   // strip + spaces
+            const text  = encodeURIComponent(d.message || '');
+            const url   = phone
+                ? `https://wa.me/${phone}?text=${text}`
+                : `https://wa.me/?text=${text}`;
+            window.open(url, '_blank');
+            rmsClose('actMod');
+            toast('Opening WhatsApp…', 'ok');
+        }
+    );
+}
+
+/* ════════════════════════════════════════════════════════════
+   Export — single click, opens current filtered list as CSV
+   ════════════════════════════════════════════════════════════ */
+function rmsExport(){
+    const params = new URLSearchParams();
+    if (rmsState.status && rmsState.status !== 'all') params.set('status', rmsState.status);
+    const q = $('fQ').value.trim();   const f = $('fFrom').value;   const t = $('fTo').value;
+    if (q) params.set('q', q);
+    if (f) params.set('from', f);
+    if (t) params.set('to', t);
+    window.location.href = '/raw-material-sample/api/export?' + params.toString();
+}
+
+/* ════════════════════════════════════════════════════════════
+   Import CSV
+   ════════════════════════════════════════════════════════════ */
+function rmsOpenImport(){
+    $('impFile').value = '';
+    $('impResult').innerHTML = '';
+    rmsOpen('impMod');
+}
+
+async function rmsSubmitImport(){
+    const f = $('impFile').files[0];
+    if (!f){ toast('Choose a CSV file first', 'err'); return; }
+    const fd = new FormData();
+    fd.append('file', f);
+    $('impResult').innerHTML = '<div style="color:#64748b;">⏳ Uploading…</div>';
+    try{
+        const r = await fetch('/raw-material-sample/api/import', {method:'POST', body: fd});
+        const j = await r.json();
+        if (!r.ok){ throw new Error(j.error || 'Import failed'); }
+        let html = `<div style="color:#16a34a;font-weight:700;">✓ ${j.success} imported</div>`;
+        if (j.errors && j.errors.length){
+            html += `<div style="margin-top:6px;color:#dc2626;font-weight:600;">${j.errors.length} errors:</div>`;
+            html += '<div style="max-height:140px;overflow:auto;font-size:.74rem;color:#475569;background:#fef2f2;padding:6px 8px;border-radius:6px;margin-top:4px;">';
+            j.errors.slice(0, 30).forEach(e => {
+                html += `<div>Row ${e.row}: ${esc(e.msg)}</div>`;
+            });
+            if (j.errors.length > 30) html += `<div>… and ${j.errors.length-30} more</div>`;
+            html += '</div>';
+        }
+        $('impResult').innerHTML = html;
+        if (j.success > 0){
+            toast(`${j.success} requests imported ✅`);
+            rmsState.page = 1; rmsLoad();
+        }
+    }catch(e){
+        $('impResult').innerHTML = `<div style="color:#dc2626;">${esc(e.message)}</div>`;
+    }
+}
+
+/* ════════════════════════════════════════════════════════════
+   Columns chooser
+   ════════════════════════════════════════════════════════════ */
+function rmsOpenColumns(){
+    let html = '<div style="font-size:.78rem;color:#64748b;margin-bottom:10px;">'
+             + 'Tick the columns you want to see. Order is fixed left → right '
+             + 'based on the order shown below.</div>';
+    html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 14px;">';
+    RMS_ALL_COLS.forEach(([key, label]) => {
+        const checked = RMS_USER_COLS.includes(key) ? 'checked' : '';
+        html += `<label style="display:flex;align-items:center;gap:7px;padding:5px 4px;
+                   border-radius:5px;cursor:pointer;font-size:.84rem;">
+            <input type="checkbox" class="rms-col-chk" data-key="${key}" ${checked}>
+            <span>${esc(label)}</span>
+        </label>`;
+    });
+    html += '</div>';
+    $('colBody').innerHTML = html;
+    rmsOpen('colMod');
+}
+
+async function rmsSaveColumns(){
+    const cols = Array.from(document.querySelectorAll('.rms-col-chk:checked'))
+                      .map(c => c.dataset.key);
+    if (!cols.length){ toast('Select at least one column', 'err'); return; }
+    try{
+        const r = await fetch('/raw-material-sample/api/columns', {
+            method: 'POST',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({columns: cols}),
+        });
+        const j = await r.json();
+        if (!r.ok){ throw new Error(j.error || 'Save failed'); }
+        RMS_USER_COLS = j.columns || cols;
+        rmsClose('colMod');
+        toast('Columns saved ✓');
+        // Re-render with new columns from current items
+        rmsRender(rmsState.items || []);
+    }catch(e){ toast(e.message, 'err'); }
+}
+
+function rmsResetColumns(){
+    document.querySelectorAll('.rms-col-chk').forEach(c => {
+        c.checked = false;
+    });
+    // Default columns from server config
+    {{ ['request_no','created_at','material','quantity','required_by_date','supplier','status'] | tojson | safe }}
+        .forEach(k => {
+            const el = document.querySelector(`.rms-col-chk[data-key="${k}"]`);
+            if (el) el.checked = true;
+        });
+}
+
+/* ════════════════════════════════════════════════════════════
+   Daily Pending Reminder — fires once per day per user
+   ════════════════════════════════════════════════════════════ */
+async function rmsCheckDailyReminder(){
+    try{
+        const r = await fetch('/raw-material-sample/api/daily-reminder');
+        const j = await r.json();
+        if (!j.show) return;
+        // Populate
+        $('reminderCnt').textContent  = j.count;
+        $('reminderDate').textContent = j.earliest_pending_date || '—';
+        let body = '';
+        (j.items || []).forEach((it, i) => {
+            body += `<tr>
+                <td>${j.items.length - i}</td>
+                <td>${esc(it.material_name)}</td>
+                <td><span style="font-size:.7rem;color:#64748b;">${esc(it.status_label)}</span></td>
+            </tr>`;
+        });
+        $('reminderBody').innerHTML = body;
+        // Stash count for ack POST
+        $('reminderAck').dataset.count = j.count;
+        rmsOpen('reminderMod');
+    }catch(e){
+        // silent — this is an enhancement, not critical
+        console.warn('Daily reminder check failed:', e);
+    }
+}
+
+async function rmsAcknowledgeReminder(){
+    const cnt = parseInt($('reminderAck').dataset.count || '0', 10);
+    try{
+        await fetch('/raw-material-sample/api/daily-reminder/acknowledge', {
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({pending_count: cnt}),
+        });
+    }catch(e){ /* non-critical */ }
+    rmsClose('reminderMod');
+}
+
+/* ── Init ── */
+$('fQ').addEventListener('keyup', ev=>{
+    if (ev.key === 'Enter'){ rmsState.page = 1; rmsLoad(); }
+});
+
+document.addEventListener('DOMContentLoaded', () => {
+    rmsLoad();
+    // Show reminder shortly after the page settles
+    setTimeout(rmsCheckDailyReminder, 800);
+});
+
+/* Allow ESC to close any open modal */
+document.addEventListener('keydown', ev=>{
+    if (ev.key === 'Escape'){
+        ['actMod','detMod','newMod'].forEach(id=>rmsClose(id));
+    }
+});
+</script>
+{% endblock %}

@@ -84,7 +84,8 @@
                         'npd_status_master','milestone_status_master','npd_category_master',
                         'rd_dashboard','rd_projects','rd_executives','rd_performance',
                         'rd_discussion','rd_param_master',
-                        'rd_sample_ready','rd_sample_history','rd_sample_log') %}
+                        'rd_sample_ready','rd_sample_history','rd_sample_log',
+                        'raw_material_sample') %}
             {% set _mod = 'rd' %}
         {% elif _pg in ('cat_master','uom_master','hsn_master','masters') %}
             {% set _mod = 'masters' %}
@@ -163,6 +164,21 @@
             </button>
             <div class="sb-acc-body">
                 <a class="nav-a" href="/packing"><span class="nav-ic">📋</span><span class="nav-txt">Sample Receipt Log</span></a>
+            </div>
+        </div>
+        {% endif %}
+
+        {# ════ Raw Material Sample (top-level — same level as Packing) ════ #}
+        {% set _perm_rms = get_perm('raw_material_sample') %}
+        {% if role == 'admin' or (_perm_rms and _perm_rms.can_view) %}
+        <div class="sb-sec sb-accordion">
+            <button class="sb-acc-hdr" onclick="toggleAccordion(this)">
+                <span class="sb-acc-ic">🧴</span>
+                <span class="sb-acc-lbl">Raw Material Sample</span>
+                <span class="sb-acc-arrow">▶</span>
+            </button>
+            <div class="sb-acc-body">
+                <a class="nav-a {% if _pg == 'raw_material_sample' %}active{% endif %}" href="/raw-material-sample/"><span class="nav-ic">🧴</span><span class="nav-txt">Sample Requests</span></a>
             </div>
         </div>
         {% endif %}

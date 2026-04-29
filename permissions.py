@@ -165,6 +165,12 @@ MODULE_SUB_PERMS = {
         ('delete',                'Delete'),
         ('inline_edit',           'Inline Edit'),
     ],
+    'raw_material_sample': [
+        ('finalize_supplier',     'Finalise Supplier'),
+        ('mark_dispatched',       'Mark Dispatched'),
+        ('mark_received',         'Mark Received'),
+        ('cancel_request',        'Cancel Request'),
+    ],
 }
 
 
@@ -464,6 +470,7 @@ DEFAULT_MODULES = [
     {'name':'crm_leaderboard','label':'Leaderboard',  'icon':'🏆','url_prefix':'/crm/leaderboard','sort_order':7,'parent':'crm'},
     {'name':'crm_quot_products','label':'Quotation Products','icon':'📦','url_prefix':'/crm/quot-products','sort_order':8,'parent':'crm'},
     {'name':'rd',           'label':'R&D',          'icon':'🔬','url_prefix':'/rd',              'sort_order':13},
+    {'name':'raw_material_sample','label':'Raw Material Sample','icon':'🧴','url_prefix':'/raw-material-sample','sort_order':18},
     {'name':'npd',          'label':'NPD',          'icon':'🧪','url_prefix':'/npd',             'sort_order':14},
     {'name':'npd_projects', 'label':'NPD Projects', 'icon':'📋','url_prefix':'/npd/npd-projects','sort_order':15,'parent':'npd'},
     {'name':'npd_masters',  'label':'NPD Masters',  'icon':'⚙️','url_prefix':'/npd/masters',     'sort_order':16,'parent':'npd'},

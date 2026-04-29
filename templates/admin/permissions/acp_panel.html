@@ -614,6 +614,31 @@
     </div>
 
     {# ═══════════════════════════════════════
+       Raw Material Sample (top-level — same level as Packing)
+    ═══════════════════════════════════════ #}
+    {% set _rms = modules|selectattr('name','eq','raw_material_sample')|first %}
+    <div class="mg">
+      <div class="mg-hdr" onclick="tog(this,'g-rms')">
+        <span class="mg-arrow" id="a-g-rms">▶</span><span class="mg-ic">🧴</span>
+        <span class="mg-nm">Raw Material Sample</span>
+        {% if _rms %}<button class="ea" data-uid="{{ uid }}" data-mid="{{ _rms.id }}" onclick="mAll(event,this,true)">Enable All</button><button class="da" data-uid="{{ uid }}" data-mid="{{ _rms.id }}" onclick="mAll(event,this,false)">Disable All</button>{% endif %}
+      </div>
+      <div class="mg-body" id="g-rms">
+        {% if _rms %}
+        {{ prow('raw_material_sample','Raw Material Sample',uid,true) }}
+        {{ chips('raw_material_sample',[
+          ('finalize_supplier','Finalise Supplier'),
+          ('mark_dispatched','Mark Dispatched'),
+          ('mark_received','Mark Received'),
+          ('cancel_request','Cancel Request')
+        ], uid) }}
+        {% else %}
+        <p style="font-size:.75rem;color:var(--text3);padding:6px 0;">⚠️ Module DB mein nahi hai — add_raw_material_sample_module.py run karo.</p>
+        {% endif %}
+      </div>
+    </div>
+
+    {# ═══════════════════════════════════════
        Masters
     ═══════════════════════════════════════ #}
     {% set _m = modules|selectattr('name','eq','masters')|first %}

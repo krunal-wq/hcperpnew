@@ -15,6 +15,7 @@ from npd_routes  import npd
 from rd_routes   import rd
 from rd_sample_log_routes import rd_sample_log_bp   # ← NEW: R&D Sample Log menu
 from client_dispatch_routes import client_dispatch_bp   # ← NEW: Client Dispatch menu
+from raw_material_sample_routes import raw_material_sample_bp   # ← NEW: Raw Material Sample Request
 from attendance_routes import attendance_bp
 from hr_master_routes import hr_masters
 from late_rule_routes import late_rules_bp
@@ -83,6 +84,7 @@ app.register_blueprint(npd)
 app.register_blueprint(rd)
 app.register_blueprint(rd_sample_log_bp)   # ← NEW: R&D Sample Log menu
 app.register_blueprint(client_dispatch_bp)    # ← NEW: Client Dispatch menu
+app.register_blueprint(raw_material_sample_bp)   # ← NEW: Raw Material Sample Request
 app.register_blueprint(attendance_bp)
 app.register_blueprint(hr_masters)
 app.register_blueprint(late_rules_bp)
