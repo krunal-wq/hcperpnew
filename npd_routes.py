@@ -701,6 +701,31 @@ def project_view(pid):
     }
     can_close_project = npd_sub['close_project'] or (current_user.role == 'admin')
 
+    # ── Per-milestone visibility map ──────────────────────────────
+    # Sidebar pe sirf woh milestone items dikhenge jinka permission ON ho.
+    # Key: milestone_type (e.g. 'bom', 'packing_material') → bool
+    #
+    # Mapping rule: sub-perm key = 'ms_' + milestone_type
+    # Admin ko sab True (get_sub_perm khud handle karta hai).
+    # Agar koi milestone_type custom hai (registered key nahi),
+    # default True rakhte hain taaki naye types accidentally hide na ho —
+    # admin baadme master se permission key add kar lega.
+    KNOWN_MS_PERMS = {
+        'bom', 'ingredients', 'quotation', 'packing_material',
+        'artwork', 'artwork_qc', 'fda', 'barcode',
+    }
+    ms_perm_map = {}
+    for _m in selected_ms:
+        _mt = (_m.milestone_type or '').strip()
+        if not _mt:
+            ms_perm_map[_mt] = True
+            continue
+        if _mt in KNOWN_MS_PERMS:
+            ms_perm_map[_mt] = bool(_gsp('npd_projects', 'ms_' + _mt))
+        else:
+            # Unknown / future milestone types — let through by default
+            ms_perm_map[_mt] = True
+
     # ── can_start: SIRF assigned R&D member ──
     def _check_assigned(proj, cu):
         """Check if current user is assigned to this project"""
@@ -766,6 +791,7 @@ def project_view(pid):
         can_close_project=can_close_project,
         all_ms_done=all_ms_done,
         npd_sub=npd_sub,
+        ms_perm_map=ms_perm_map,
         can_start=can_start,
         my_sub=my_sub,
     )
@@ -1444,11 +1470,14 @@ def packing_list(pid):
     result = []
     for r in rows:
         result.append({
-            'id':          r.id,
-            'category':    r.pm_type or '',
-            'vendor_name': r.supplier or '',
-            'cost':        r.cost or '',
-            'image':       r.attachments or '',
+            'id':             r.id,
+            'category':       r.pm_type or '',
+            'vendor_name':    r.supplier or '',
+            'cost':           r.cost or '',
+            'image':          r.attachments or '',
+            'filling_image':  getattr(r, 'filling_image', '') or '',
+            'coa_file':       getattr(r, 'coa_file', '') or '',
+            'filling_status': getattr(r, 'filling_status', '') or 'pending',
         })
     return jsonify(rows=result)
 
@@ -1473,6 +1502,13 @@ def packing_row_add(pid):
         status      = 'pending',
         created_by  = current_user.id,
     )
+    # New fields — sirf tab set karenge jab columns DB me ho (safe migration)
+    try:
+        pm.filling_image  = ''
+        pm.coa_file       = ''
+        pm.filling_status = 'pending'
+    except Exception:
+        pass
     db.session.add(pm)
     log_npd(pid, f"Packing Material row added ({category})")
     db.session.commit()
@@ -1486,6 +1522,18 @@ def packing_row_update(pid, pmid):
     pm.pm_type  = request.form.get('category', pm.pm_type)
     pm.supplier = request.form.get('vendor_name', pm.supplier)
     pm.cost     = request.form.get('cost', pm.cost)
+
+    # ── Filling Status (dropdown) ────────────────────────────────
+    fs = request.form.get('filling_status')
+    if fs is not None:
+        # whitelist taaki koi galat value DB me na jaaye
+        allowed_fs = {'pending', 'in_process', 'hold', 'cancel', 'done'}
+        fs = (fs or '').strip().lower()
+        if fs in allowed_fs:
+            try:
+                pm.filling_status = fs
+            except Exception:
+                pass
 
     # ─────────────────────────────────────────────────────────────
     # Image upload — pehle silently skip kar deta tha agar extension
@@ -1511,8 +1559,53 @@ def packing_row_update(pid, pmid):
                     success=False,
                     error=f"Could not save file: {str(_ex)}"
                 ), 500
+
+    # ── Filling Image upload ─────────────────────────────────────
+    if 'filling_image' in request.files:
+        f = request.files['filling_image']
+        if f and f.filename:
+            if not allowed_file(f.filename):
+                allowed_str = ', '.join(sorted(ALLOWED))
+                return jsonify(
+                    success=False,
+                    error=f"File type not allowed. Allowed: {allowed_str}"
+                ), 400
+            try:
+                pm.filling_image = save_upload(f)
+            except Exception as _ex:
+                import traceback; traceback.print_exc()
+                return jsonify(
+                    success=False,
+                    error=f"Could not save filling image: {str(_ex)}"
+                ), 500
+
+    # ── COA file upload (PDF / image / doc) ──────────────────────
+    if 'coa_file' in request.files:
+        f = request.files['coa_file']
+        if f and f.filename:
+            if not allowed_file(f.filename):
+                allowed_str = ', '.join(sorted(ALLOWED))
+                return jsonify(
+                    success=False,
+                    error=f"File type not allowed. Allowed: {allowed_str}"
+                ), 400
+            try:
+                pm.coa_file = save_upload(f)
+            except Exception as _ex:
+                import traceback; traceback.print_exc()
+                return jsonify(
+                    success=False,
+                    error=f"Could not save COA file: {str(_ex)}"
+                ), 500
+
     db.session.commit()
-    return jsonify(success=True, image=pm.attachments or '')
+    return jsonify(
+        success        = True,
+        image          = pm.attachments or '',
+        filling_image  = getattr(pm, 'filling_image', '') or '',
+        coa_file       = getattr(pm, 'coa_file', '') or '',
+        filling_status = getattr(pm, 'filling_status', '') or 'pending',
+    )
 
 
 @npd.route('/<int:pid>/packing/row/<int:pmid>/delete', methods=['POST'])
@@ -4185,7 +4278,6 @@ def npd_create_quotation(pid):
     item_moqs     = request.form.getlist('item_moq[]')
     item_pm_specs = request.form.getlist('item_pm_spec[]')
     item_pm_costs = request.form.getlist('item_pm_cost[]')
-    item_fg_costs = request.form.getlist('item_fg_cost[]')
     item_cats     = request.form.getlist('item_category[]')
     item_finals   = request.form.getlist('item_final_cost[]')
 
@@ -4204,7 +4296,7 @@ def npd_create_quotation(pid):
             'name': name, 'size': _s(item_sizes,i), 'code': _s(item_codes,i),
             'uom': _s(item_uoms,i), 'cost': _f(item_costs,i), 'moq': moq,
             'pm_spec': _s(item_pm_specs,i), 'pm_cost': _f(item_pm_costs,i),
-            'fg_cost': _f(item_fg_costs,i), 'category': _s(item_cats,i),
+            'category': _s(item_cats,i),
             'final_cost': final_cost,
         })
 

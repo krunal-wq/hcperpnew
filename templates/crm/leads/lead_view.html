@@ -644,7 +644,15 @@
                             {# Footer with file-chips and Send button #}
                             <div style="display:flex;align-items:center;justify-content:space-between;padding:7px 12px;border-top:1px solid var(--border);background:#f8fafc;gap:.75rem;">
                                 <div id="filePreview" style="flex:1;min-width:0;display:flex;flex-wrap:wrap;gap:6px;font-size:.75rem;"></div>
-                                <button type="submit" id="postCommentBtn" class="btn-add-new" style="font-size:.83rem;padding:6px 20px;flex-shrink:0;">Send ➤</button>
+                                {# Single-click submit fix:
+                                   Pehle button type="submit" tha — click event aur form submit event
+                                   dono fire hote the, aur kabhi-kabhi browser focus-shift ke karan
+                                   pehla click miss ho jaata tha. Ab type="button" hai aur click pe
+                                   directly leadSendDiscussion() function chalti hai — sync + validate
+                                   + disable + form.submit() — sab ek hi click cycle me. #}
+                                <button type="button" id="postCommentBtn" class="btn-add-new"
+                                        onclick="leadSendDiscussion(); return false;"
+                                        style="font-size:.83rem;padding:6px 20px;flex-shrink:0;">Send ➤</button>
                             </div>
                         </div>
                     </div>
@@ -1348,7 +1356,6 @@ document.getElementById('convertModal').addEventListener('click', function(e) {
                                     <th style="padding:10px 8px;font-size:0.72rem;font-weight:700;color:#fff;text-align:center;letter-spacing:.05em;text-transform:uppercase;border-right:1px solid rgba(255,255,255,.15);width:75px;">MOQ</th>
                                     <th style="padding:10px 8px;font-size:0.72rem;font-weight:700;color:#fff;text-align:left;letter-spacing:.05em;text-transform:uppercase;border-right:1px solid rgba(255,255,255,.15);min-width:140px;">PM Spec.</th>
                                     <th style="padding:10px 8px;font-size:0.72rem;font-weight:700;color:#fff;text-align:right;letter-spacing:.05em;text-transform:uppercase;border-right:1px solid rgba(255,255,255,.15);width:80px;">PM Cost</th>
-                                    <th style="padding:10px 8px;font-size:0.72rem;font-weight:700;color:#fff;text-align:right;letter-spacing:.05em;text-transform:uppercase;border-right:1px solid rgba(255,255,255,.15);width:80px;">FG Cost</th>
 
                                     <th style="padding:10px 8px;font-size:0.72rem;font-weight:700;color:#fff;text-align:center;letter-spacing:.05em;text-transform:uppercase;border-right:1px solid rgba(255,255,255,.15);width:120px;">Category</th>
                                     <th style="padding:10px 8px;font-size:0.72rem;font-weight:700;color:#fff;text-align:right;letter-spacing:.05em;text-transform:uppercase;border-right:1px solid rgba(255,255,255,.15);width:95px;">Final Cost</th>
@@ -2361,8 +2368,7 @@ function qtAutoCalcFinal(input) {
     if (!card) return;
     var cost    = parseFloat(card.querySelector('input[name="item_cost[]"]')?.value)    || 0;
     var pmCost  = parseFloat(card.querySelector('input[name="item_pm_cost[]"]')?.value) || 0;
-    var fgCost  = parseFloat(card.querySelector('input[name="item_fg_cost[]"]')?.value) || 0;
-    var final   = cost + pmCost + fgCost;
+    var final   = cost + pmCost;
     var fcInput = card.querySelector('input[name="item_final_cost[]"]');
     if (fcInput) {
         fcInput.value = final.toFixed(2);
@@ -2507,7 +2513,7 @@ function qtAddRowBtn() {
     }
     qtAddRow();
 }
-function qtAddRow(name='', size='', code='', uom='', cost='', moq='', pmSpec='', pmCost='', fgCost='', cat='', finalCost='') {
+function qtAddRow(name='', size='', code='', uom='', cost='', moq='', pmSpec='', pmCost='', cat='', finalCost='') {
     
 	qtRowCount++;
 	
@@ -2557,7 +2563,6 @@ function qtAddRow(name='', size='', code='', uom='', cost='', moq='', pmSpec='',
                 <div class="qt-item-field"><label>MOQ / Qty</label><input type="number" name="item_moq[]" value="${moq}" placeholder="0" min="0" step="1" class="fi" oninput="qtCalcTotal()"></div>
                 <div class="qt-item-field"><label>Final Cost (₹) *</label><input type="number" name="item_final_cost[]" value="${finalCost}" placeholder="0.00" min="0" step="any" class="fi" style="background:#f0f6ff;border-color:#c7d7f5;font-weight:700;" oninput="qtCalcTotal()"></div>
                 <div class="qt-item-field"><label>PM Cost (₹)</label><input type="number" name="item_pm_cost[]" value="${pmCost}" placeholder="0.00" min="0" step="any" class="fi" oninput="qtAutoCalcFinal(this)"></div>
-                <div class="qt-item-field"><label>FG Cost (₹)</label><input type="number" name="item_fg_cost[]" value="${fgCost}" placeholder="0.00" min="0" step="any" class="fi" oninput="qtAutoCalcFinal(this)"></div>
 
             </div>
             <div style="margin-top:8px;"><label style="font-size:0.65rem;font-weight:700;color:#94a3b8;text-transform:uppercase;display:block;margin-bottom:3px;">PM Specification</label>
@@ -2591,7 +2596,6 @@ function qtAddRow(name='', size='', code='', uom='', cost='', moq='', pmSpec='',
             '<td style="padding:5px 7px;border-right:1px solid #f1f5f9;"><input type="number" name="item_moq[]" value="' + moq + '" placeholder="Qty" min="0" style="' + inp + 'text-align:center;" oninput="qtCalcTotal()"></td>' +
             '<td style="padding:5px 7px;border-right:1px solid #f1f5f9;"><textarea name="item_pm_spec[]" placeholder="PM spec..." rows="2" style="' + inp + 'resize:vertical;min-height:36px;">' + pmSpec + '</textarea></td>' +
             '<td style="padding:5px 7px;border-right:1px solid #f1f5f9;"><input type="number" name="item_pm_cost[]" value="' + pmCost + '" placeholder="0.00" min="0" step="any" style="' + inp + 'text-align:right;" oninput="qtAutoCalcFinal(this)"></td>' +
-            '<td style="padding:5px 7px;border-right:1px solid #f1f5f9;"><input type="number" name="item_fg_cost[]" value="' + fgCost + '" placeholder="0.00" min="0" step="any" style="' + inp + 'text-align:right;" oninput="qtAutoCalcFinal(this)"></td>' +
             '<td style="padding:5px 6px;border-right:1px solid #f1f5f9;"><select name="item_category[]" class="qt-cat-sel" style="width:100%;border:1.5px solid #e8edf5;border-radius:6px;padding:5px 4px;font-size:0.81rem;"><option value="">-- Category --</option></select></td>' +
             '<td style="padding:5px 7px;border-right:1px solid #f1f5f9;"><input type="number" name="item_final_cost[]" value="' + finalCost + '" placeholder="0.00" min="0" step="any" style="' + inp + 'text-align:right;font-weight:700;background:#f0f6ff;border-color:#c7d7f5;" oninput="qtCalcTotal()"></td>' +
             '<td style="padding:5px 6px;text-align:center;">' + delBtnD + '</td>';
@@ -2913,48 +2917,62 @@ function rteCmd(edId, cmd) {
 document.addEventListener("DOMContentLoaded", function() {
   // Init @mention on main editor
   mentionSetup("rte-main-ed");
-  // ── Form submit ──
-  // Same pattern NPD uses: sync the contenteditable's HTML into the
-  // hidden #commentBoxHidden input here, in the submit handler. This
-  // runs synchronously BEFORE the form actually navigates, so a single
-  // Send click is enough.
-  //
-  // Empty-submit and double-click guards are after the sync.
-  // No client-side file validation; the server decides what's valid.
-  var form = document.getElementById("discussionForm");
-  var postBtn = document.getElementById("postCommentBtn");
-  if (form) {
-    form.addEventListener("submit", function(e) {
-      // 1. Sync RTE → hidden input (always, unconditional)
-      var ed = document.getElementById("rte-main-ed");
-      var hidden = document.getElementById("commentBoxHidden");
-      if (ed && hidden) hidden.value = ed.innerHTML;
-
-      // 2. Empty-submit check — must have either text OR a file
-      var plain = (hidden ? hidden.value : '')
-                    .replace(/<[^>]*>/g, '')          // strip all tags
-                    .replace(/&nbsp;/g, ' ')          // contenteditable noise
-                    .trim();
-      var hasFile = (typeof selectedFiles !== 'undefined'
-                     && selectedFiles && selectedFiles.length > 0);
-      // Also count inline images embedded in the comment as "content"
-      var hasInlineImage = !!(hidden && hidden.value && /<img\b/i.test(hidden.value));
-      if (!plain && !hasFile && !hasInlineImage) {
-        e.preventDefault();
-        alert('Please write a message or attach a file.');
-        return;
-      }
-
-      // 3. Anti-double-submit
-      if (postBtn) {
-        if (postBtn.disabled) { e.preventDefault(); return; }
-        postBtn.disabled = true;
-        postBtn.style.opacity = '0.6';
-        postBtn.textContent = 'Sending…';
-      }
-    });
-  }
 });
+
+// ════════════════════════════════════════════════════════════════
+// leadSendDiscussion()
+// ─────────────────────────────────────────────────────────────────
+// Direct click handler for the Send button. Purane code me button
+// type="submit" tha aur form ke "submit" event pe handler tha. Us
+// approach me browser focus-shift / event-race ke karan kabhi pehla
+// click miss ho jaata tha aur user ko 2 baar click karna padta tha.
+//
+// Yeh function single click pe pura kaam karta hai:
+//   1. contenteditable ka HTML hidden input me sync
+//   2. empty-submit validation
+//   3. anti-double-submit guard (button disable)
+//   4. form.submit() programmatically — koi browser event race nahi
+//
+// Button ab type="button" hai, aur sirf inline onclick="leadSendDiscussion()"
+// trigger karta hai. Kahin se bhi yeh function call karne pe form submit
+// hota hai (e.g. agar future me Ctrl+Enter shortcut add karna ho).
+// ════════════════════════════════════════════════════════════════
+function leadSendDiscussion() {
+  var form    = document.getElementById('discussionForm');
+  var postBtn = document.getElementById('postCommentBtn');
+  var ed      = document.getElementById('rte-main-ed');
+  var hidden  = document.getElementById('commentBoxHidden');
+
+  if (!form || !postBtn) return;
+
+  // 1. Sync RTE → hidden input (covers the case where oninput missed
+  //    something — e.g. images inserted programmatically, paste, drop)
+  if (ed && hidden) hidden.value = ed.innerHTML;
+
+  // 2. Empty-submit check — must have either text OR a file OR an inline image
+  var plain = (hidden ? hidden.value : '')
+                .replace(/<[^>]*>/g, '')          // strip all tags
+                .replace(/&nbsp;/g, ' ')          // contenteditable noise
+                .trim();
+  var hasFile = (typeof selectedFiles !== 'undefined'
+                 && selectedFiles && selectedFiles.length > 0);
+  var hasInlineImage = !!(hidden && hidden.value && /<img\b/i.test(hidden.value));
+  if (!plain && !hasFile && !hasInlineImage) {
+    alert('Please write a message or attach a file.');
+    return;
+  }
+
+  // 3. Anti-double-submit — agar already submit ho raha hai, ignore
+  if (postBtn.disabled) return;
+  postBtn.disabled       = true;
+  postBtn.style.opacity  = '0.6';
+  postBtn.textContent    = 'Sending…';
+
+  // 4. Submit form programmatically. form.submit() does NOT fire
+  //    "submit" event listeners — that's intentional: hum sab kaam
+  //    upar already kar chuke hain, koi double-handling nahi chahiye.
+  form.submit();
+}
 
 
 // ═══ DISCUSSION EDIT/DELETE ══════════════════════════════

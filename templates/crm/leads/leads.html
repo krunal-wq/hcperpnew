@@ -136,7 +136,7 @@
     <a href="{{ url_for('crm.leads') }}" class="stat-item blue {{ 'active blue' if not status and not show_trash }}"
        style="border-left-color:#3b82f6;">
       <div style="width:40px;height:40px;border-radius:10px;background:#dbeafe;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:1.2rem;">📋</div>
-      <div><div class="stat-num">{{ counts.values()|sum }}</div><div class="stat-lbl">All</div></div>
+      <div><div class="stat-num">{{ total_count if total_count is defined else counts.values()|sum }}</div><div class="stat-lbl">All</div></div>
     </a>
     {% for ls in lead_statuses %}
     <a href="{{ url_for('crm.leads', status=ls.name) }}"
@@ -194,7 +194,7 @@
         <a href="{{ url_for('crm.leads') }}" class="status-dd-item {{ 'active' if not status and not show_trash }}"
            style="display:flex;align-items:center;gap:.5rem;padding:.55rem .9rem;font-size:.83rem;font-weight:600;color:var(--text);text-decoration:none;transition:background .1s;">
           <span style="width:18px;text-align:center;">📋</span> All Leads
-          <span style="margin-left:auto;font-size:.75rem;color:var(--text3);">{{ counts.values()|sum }}</span>
+          <span style="margin-left:auto;font-size:.75rem;color:var(--text3);">{{ total_count if total_count is defined else counts.values()|sum }}</span>
         </a>
         <div style="height:1px;background:var(--border);margin:2px 0;"></div>
         {% for ls in lead_statuses %}

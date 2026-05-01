@@ -49,9 +49,11 @@ class Attendance(db.Model):
     out_device      = db.Column(db.String(100))
     total_hours     = db.Column(db.Numeric(5, 2))
     status          = db.Column(
-                        db.Enum('Present', 'Absent', 'Half Day', 'Holiday', 'MIS-PUNCH'),
+                        db.Enum('Present', 'Absent', 'Half Day', 'Holiday', 'MIS-PUNCH', 'WOP'),
                         nullable=False, default='Present'
                       )
+    # WOP = Week Off Present — employee ne weekly off ke din punch kiya hai.
+    # Worker types ke liye Tuesday week off, HCP OFFICE ke liye Sunday.
     created_at      = db.Column(db.DateTime, default=datetime.now)
     updated_at      = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
 

@@ -1308,18 +1308,29 @@ function mySubEnd() {
     <div style="width:260px;flex-shrink:0;border-right:1px solid var(--border);background:#f8fafc;position:sticky;top:80px;max-height:calc(100vh - 100px);overflow-y:auto;align-self:flex-start;">
       <div style="padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
         <span style="font-size:.8rem;font-weight:800;color:var(--text);text-transform:uppercase;letter-spacing:.04em;">Milestones</span>
-        <span style="font-size:.75rem;color:var(--text3);font-weight:600;" id="ms-done-count-hdr">0 / {{ selected_ms|length }} done</span>
+        {# Sidebar count — visible milestones (jo permission allow karti hai) per show ho.
+           Total ke jagah filtered count dikhana zaroori hai warna user confused hoga
+           ki "8 hai but mujhe sirf 2 dikh rahe hain". #}
+        {% set _visible_ms = selected_ms|selectattr('milestone_type','in', ms_perm_map.keys() | list )|list %}
+        {% set _allowed_count = ms_perm_map.values()|list|select|list|length %}
+        <span style="font-size:.75rem;color:var(--text3);font-weight:600;" id="ms-done-count-hdr">0 / {{ _allowed_count }} done</span>
       </div>
       {% for ms in selected_ms %}
-      <div id="ms-item-{{ loop.index }}"
-           onclick="selectMilestone({{ loop.index }})"
-           style="padding:13px 16px;cursor:pointer;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;gap:10px;transition:background .12s;">
-        <span id="ms-icon-{{ loop.index }}" style="font-size:.9rem;flex-shrink:0;">⏳</span>
-        <div style="flex:1;min-width:0;">
-          <div style="font-size:.82rem;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ ms.title }}</div>
-          <div id="ms-sub-{{ loop.index }}" style="font-size:.72rem;color:var(--text3);margin-top:1px;">Pending</div>
+        {# Per-milestone gate. loop.index intact rakhna zaroori hai —
+           backend ms_1, ms_2, … keys positional hain. Hidden item ke liye
+           bhi index reserve hota hai taaki dikhne wale items ke indices
+           shift na ho. #}
+        {% if ms_perm_map.get(ms.milestone_type, True) %}
+        <div id="ms-item-{{ loop.index }}"
+             onclick="selectMilestone({{ loop.index }})"
+             style="padding:13px 16px;cursor:pointer;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;gap:10px;transition:background .12s;">
+          <span id="ms-icon-{{ loop.index }}" style="font-size:.9rem;flex-shrink:0;">⏳</span>
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:.82rem;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ ms.title }}</div>
+            <div id="ms-sub-{{ loop.index }}" style="font-size:.72rem;color:var(--text3);margin-top:1px;">Pending</div>
+          </div>
         </div>
-      </div>
+        {% endif %}
       {% endfor %}
     </div>
 
@@ -1366,6 +1377,10 @@ var MS_STATE = {};
 // Dynamic milestone list from project's selected milestones
 var MS_NAMES = [{% for ms in selected_ms %}'{{ ms.title|replace("'", "\'")|safe }}'{% if not loop.last %},{% endif %}{% endfor %}];
 var MS_TYPES = [{% for ms in selected_ms %}'{{ ms.milestone_type }}'{% if not loop.last %},{% endif %}{% endfor %}];  // milestone_type per slot
+// Per-slot permission map (parallel to MS_TYPES). Sirf jin slots pe true
+// hai unke sidebar items render hue hain. Auto-select aur next/prev jaisi
+// JS logic me yeh check zaroori hai.
+var MS_ALLOWED = [{% for ms in selected_ms %}{{ 'true' if ms_perm_map.get(ms.milestone_type, True) else 'false' }}{% if not loop.last %},{% endif %}{% endfor %}];
 var FDA_DOC_TYPES = ['Free Sale Certificate', 'Product Permission', 'MSDS', 'Dossier'];
 var MS_SELECTED = null;
 var PROJ_ID = {{ proj.id }};
@@ -1376,41 +1391,59 @@ var PROJ_ID = {{ proj.id }};
     .then(function(data) {
       MS_STATE = data.milestones || {};
       updateAllSidebarItems();
-      // Auto-select first milestone on load
-      if (!MS_SELECTED) selectMilestone(1);
+      // Auto-select first milestone — but skip ones the user can't see.
+      // Without this guard, a user with limited perms would land on
+      // an empty/hidden slot and the right panel would stay blank.
+      if (!MS_SELECTED) {
+        var firstAllowed = -1;
+        for (var i = 0; i < MS_ALLOWED.length; i++) {
+          if (MS_ALLOWED[i]) { firstAllowed = i + 1; break; }
+        }
+        if (firstAllowed > 0) selectMilestone(firstAllowed);
+      }
     })
     .catch(function(){});
 })();
 
 function updateAllSidebarItems() {
-  var done  = 0;
-  var total = MS_NAMES.length;
-  for (var i = 1; i <= total; i++) {
+  var done            = 0;       // visible done count
+  var totalVisible    = 0;       // visible total (denominator)
+  var doneAllSlots    = 0;       // all-slots done count (close-banner check)
+  var totalSlots      = MS_NAMES.length;
+  for (var i = 1; i <= totalSlots; i++) {
     var key  = 'ms_' + i;
     var st   = (MS_STATE[key] || {}).status || 'pending';
     var dt   = (MS_STATE[key] || {}).date   || '';
     var icon = document.getElementById('ms-icon-' + i);
     var sub  = document.getElementById('ms-sub-'  + i);
+    var slotAllowed = !!MS_ALLOWED[i - 1];
+
     if (st === 'done') {
-      done++;
+      doneAllSlots++;
+      if (slotAllowed) done++;
       if (icon) icon.textContent = '✅';
       if (sub)  sub.textContent  = 'Done' + (dt ? ' · ' + dt : '');
     } else {
       if (icon) icon.textContent = '⏳';
       if (sub)  sub.textContent  = 'Pending';
     }
+    if (slotAllowed) totalVisible++;
   }
   var hdr = document.getElementById('ms-done-count-hdr');
-  if (hdr) hdr.textContent = done + ' / ' + total + ' done';
-  // Show/hide close project banner dynamically
+  if (hdr) hdr.textContent = done + ' / ' + totalVisible + ' done';
+  // Close-project banner uses ALL slots (not just visible) — actual project
+  // state matter karta hai, kisi user ka view-filter nahi.
   var banner = document.getElementById('close-project-banner');
-  if (banner && total > 0) {
-    banner.style.display = (done === total) ? 'flex' : 'none';
+  if (banner && totalSlots > 0) {
+    banner.style.display = (doneAllSlots === totalSlots) ? 'flex' : 'none';
   }
   if (MS_SELECTED) renderDetail(MS_SELECTED);
 }
 
 function selectMilestone(idx) {
+  // Permission guard — agar slot allowed nahi hai, ignore.
+  // (Defensive: sidebar already hide karta hai, but JS direct call ho sake.)
+  if (typeof MS_ALLOWED !== 'undefined' && MS_ALLOWED[idx - 1] === false) return;
   MS_SELECTED = idx;
   // Highlight selected item
   for (var i = 1; i <= MS_NAMES.length; i++) {
@@ -1535,16 +1568,19 @@ function renderDetail(idx) {
             '<button onclick="pmAddRow()" style="padding:6px 14px;background:#f59e0b;color:#fff;border:none;border-radius:7px;font-size:.78rem;font-weight:700;cursor:pointer;">＋ Add Row</button>' +
           '</div>' +
           '<div style="overflow-x:auto;">' +
-            '<table style="width:100%;border-collapse:collapse;font-size:.82rem;">' +
+            '<table style="width:100%;border-collapse:collapse;font-size:.82rem;min-width:1100px;">' +
               '<thead><tr style="background:#e8f0fe;">' +
                 '<th style="padding:9px 10px;border:1px solid #c7d7f4;text-align:center;width:40px;font-weight:800;">#</th>' +
-                '<th style="padding:9px 10px;border:1px solid #c7d7f4;text-align:left;font-weight:800;min-width:140px;">Category</th>' +
-                '<th style="padding:9px 10px;border:1px solid #c7d7f4;text-align:left;font-weight:800;min-width:160px;">Vendor Name</th>' +
-                '<th style="padding:9px 10px;border:1px solid #c7d7f4;text-align:left;font-weight:800;min-width:110px;">Cost</th>' +
-                '<th style="padding:9px 10px;border:1px solid #c7d7f4;text-align:center;font-weight:800;min-width:130px;">Image</th>' +
+                '<th style="padding:9px 10px;border:1px solid #c7d7f4;text-align:left;font-weight:800;min-width:120px;">Category</th>' +
+                '<th style="padding:9px 10px;border:1px solid #c7d7f4;text-align:left;font-weight:800;min-width:140px;">Vendor Name</th>' +
+                '<th style="padding:9px 10px;border:1px solid #c7d7f4;text-align:left;font-weight:800;min-width:90px;">Cost</th>' +
+                '<th style="padding:9px 10px;border:1px solid #c7d7f4;text-align:center;font-weight:800;min-width:120px;">Image</th>' +
+                '<th style="padding:9px 10px;border:1px solid #c7d7f4;text-align:center;font-weight:800;min-width:120px;">Filling Image</th>' +
+                '<th style="padding:9px 10px;border:1px solid #c7d7f4;text-align:center;font-weight:800;min-width:120px;">COA</th>' +
+                '<th style="padding:9px 10px;border:1px solid #c7d7f4;text-align:center;font-weight:800;min-width:140px;">Filling Status</th>' +
                 '<th style="padding:9px 10px;border:1px solid #c7d7f4;text-align:center;width:50px;font-weight:800;"></th>' +
               '</tr></thead>' +
-              '<tbody id="pm-tbody"><tr><td colspan="6" style="text-align:center;padding:30px;color:var(--text3);">Loading...</td></tr></tbody>' +
+              '<tbody id="pm-tbody"><tr><td colspan="9" style="text-align:center;padding:30px;color:var(--text3);">Loading...</td></tr></tbody>' +
             '</table>' +
           '</div>' +
         '</div>' +
@@ -1814,7 +1850,7 @@ function loadPmRows() {
       if (!tbody) return;
       var rows = d.rows || [];
       if (!rows.length) {
-        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:30px;color:var(--text3);font-size:.85rem;">No rows yet. Click <strong>＋ Add Row</strong> to begin.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:30px;color:var(--text3);font-size:.85rem;">No rows yet. Click <strong>＋ Add Row</strong> to begin.</td></tr>';
         return;
       }
       tbody.innerHTML = rows.map(function(r, i) {
@@ -1823,7 +1859,7 @@ function loadPmRows() {
     })
     .catch(function(){ 
       var tbody = document.getElementById('pm-tbody');
-      if (tbody) tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;color:#ef4444;">Failed to load rows.</td></tr>';
+      if (tbody) tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:20px;color:#ef4444;">Failed to load rows.</td></tr>';
     });
 }
 
@@ -1848,6 +1884,70 @@ function pmRowHtml(r, srno) {
         '<input type="file" accept="image/*" style="display:none;" onchange="pmUploadImage(this,' + r.id + ')">' +
       '</label>';
 
+  // ── Filling Image cell ──
+  var fillUrl = r.filling_image ? ('/static/uploads/npd/' + encodeURIComponent(r.filling_image) + '?t=' + r.id) : '';
+  var fillHtml = r.filling_image
+    ? '<div style="display:flex;align-items:center;gap:6px;justify-content:center;">' +
+        '<a href="' + fillUrl + '" target="_blank">' +
+          '<img src="' + fillUrl + '" style="width:40px;height:40px;object-fit:cover;border-radius:5px;border:1px solid #e2e8f0;" ' +
+          'onerror="this.outerHTML=\'<span style=&quot;font-size:.7rem;color:#dc2626;&quot;>⚠️ Missing</span>\'">' +
+        '</a>' +
+        '<label style="font-size:.7rem;color:#6366f1;cursor:pointer;font-weight:700;">' +
+          '📷 Change' +
+          '<input type="file" accept="image/*" style="display:none;" onchange="pmUploadFilling(this,' + r.id + ')">' +
+        '</label>' +
+      '</div>'
+    : '<label style="font-size:.75rem;color:#6366f1;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:4px;justify-content:center;">' +
+        '📤 Upload' +
+        '<input type="file" accept="image/*" style="display:none;" onchange="pmUploadFilling(this,' + r.id + ')">' +
+      '</label>';
+
+  // ── COA cell (PDF / image / doc allowed) ──
+  var coaUrl = r.coa_file ? ('/static/uploads/npd/' + encodeURIComponent(r.coa_file) + '?t=' + r.id) : '';
+  var coaHtml = r.coa_file
+    ? '<div style="display:flex;align-items:center;gap:6px;justify-content:center;flex-wrap:wrap;">' +
+        '<a href="' + coaUrl + '" target="_blank" title="' + (r.coa_file || '') + '" ' +
+          'style="font-size:.72rem;color:#0f766e;font-weight:700;text-decoration:none;background:#ccfbf1;padding:3px 8px;border-radius:5px;border:1px solid #5eead4;">' +
+          '📄 View' +
+        '</a>' +
+        '<label style="font-size:.7rem;color:#6366f1;cursor:pointer;font-weight:700;">' +
+          '🔁 Change' +
+          '<input type="file" accept=".pdf,.png,.jpg,.jpeg,.doc,.docx,image/*" style="display:none;" onchange="pmUploadCOA(this,' + r.id + ')">' +
+        '</label>' +
+      '</div>'
+    : '<label style="font-size:.75rem;color:#6366f1;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:4px;justify-content:center;">' +
+        '📤 Upload' +
+        '<input type="file" accept=".pdf,.png,.jpg,.jpeg,.doc,.docx,image/*" style="display:none;" onchange="pmUploadCOA(this,' + r.id + ')">' +
+      '</label>';
+
+  // ── Filling Status dropdown ──
+  // values stored as: pending / in_process / hold / cancel / done
+  var fStatus = (r.filling_status || 'pending').toLowerCase();
+  var FS_OPTS = [
+    { v: 'pending',    label: 'Pending'    },
+    { v: 'in_process', label: 'In Process' },
+    { v: 'hold',       label: 'Hold'       },
+    { v: 'cancel',     label: 'Cancel'     },
+    { v: 'done',       label: 'Done'       }
+  ];
+  var FS_COLORS = {
+    pending:    { bg:'#fef3c7', fg:'#92400e', br:'#fcd34d' },
+    in_process: { bg:'#dbeafe', fg:'#1e40af', br:'#93c5fd' },
+    hold:       { bg:'#e5e7eb', fg:'#374151', br:'#9ca3af' },
+    cancel:     { bg:'#fee2e2', fg:'#991b1b', br:'#fca5a5' },
+    done:       { bg:'#d1fae5', fg:'#065f46', br:'#6ee7b7' }
+  };
+  var fc = FS_COLORS[fStatus] || FS_COLORS.pending;
+  var fsOptions = FS_OPTS.map(function(o) {
+    return '<option value="' + o.v + '"' + (fStatus === o.v ? ' selected' : '') + '>' + o.label + '</option>';
+  }).join('');
+  var fsHtml =
+    '<select onchange="pmSaveField(' + r.id + ',\'filling_status\',this.value);pmUpdateStatusColor(this);" ' +
+      'style="border:1.5px solid ' + fc.br + ';background:' + fc.bg + ';color:' + fc.fg + ';' +
+      'border-radius:6px;padding:5px 8px;font-size:.78rem;font-weight:700;font-family:inherit;width:100%;outline:none;cursor:pointer;">' +
+      fsOptions +
+    '</select>';
+
   var catOptions = PM_CATEGORIES.map(function(c) {
     return '<option value="' + c + '"' + (r.category === c ? ' selected' : '') + '>' + c + '</option>';
   }).join('');
@@ -1865,11 +1965,30 @@ function pmRowHtml(r, srno) {
     '<td style="padding:6px 8px;border:1px solid #e8effc;">' +
       '<input type="text" value="' + (r.cost||'') + '" placeholder="₹ Cost..." onblur="pmSaveField(' + r.id + ',\'cost\',this.value)" style="border:1px solid #d1d5db;border-radius:5px;padding:5px 8px;font-size:.8rem;font-family:inherit;width:100%;box-sizing:border-box;outline:none;">' +
     '</td>' +
-    '<td style="padding:6px 8px;border:1px solid #e8effc;text-align:center;">' + imgHtml + '</td>' +
+    '<td style="padding:6px 8px;border:1px solid #e8effc;text-align:center;">' + imgHtml  + '</td>' +
+    '<td style="padding:6px 8px;border:1px solid #e8effc;text-align:center;">' + fillHtml + '</td>' +
+    '<td style="padding:6px 8px;border:1px solid #e8effc;text-align:center;">' + coaHtml  + '</td>' +
+    '<td style="padding:6px 8px;border:1px solid #e8effc;text-align:center;">' + fsHtml   + '</td>' +
     '<td style="padding:6px 8px;border:1px solid #e8effc;text-align:center;">' +
       '<button onclick="pmDeleteRow(' + r.id + ')" title="Delete row" style="background:#fee2e2;border:none;border-radius:5px;padding:4px 8px;cursor:pointer;color:#dc2626;font-weight:800;font-size:.75rem;">✕</button>' +
     '</td>' +
   '</tr>';
+}
+
+// Recolor the Filling Status select after change so the chip
+// reflects the chosen state immediately (no full reload needed).
+function pmUpdateStatusColor(sel) {
+  var FS_COLORS = {
+    pending:    { bg:'#fef3c7', fg:'#92400e', br:'#fcd34d' },
+    in_process: { bg:'#dbeafe', fg:'#1e40af', br:'#93c5fd' },
+    hold:       { bg:'#e5e7eb', fg:'#374151', br:'#9ca3af' },
+    cancel:     { bg:'#fee2e2', fg:'#991b1b', br:'#fca5a5' },
+    done:       { bg:'#d1fae5', fg:'#065f46', br:'#6ee7b7' }
+  };
+  var c = FS_COLORS[(sel.value || 'pending').toLowerCase()] || FS_COLORS.pending;
+  sel.style.background   = c.bg;
+  sel.style.color        = c.fg;
+  sel.style.borderColor  = c.br;
 }
 
 function pmAddRow() {
@@ -1966,6 +2085,86 @@ function pmUploadImage(input, pmid) {
     if (imgCell) imgCell.innerHTML = prevHtml;
     pmShowToast('❌ Upload failed: ' + (err.message || 'Network error'), 'error');
   });
+}
+
+// ════════════════════════════════════════════════════════════════
+// Generic uploader for the two extra columns:
+//   - Filling Image  → field name on backend: 'filling_image', cell index 5
+//   - COA file       → field name on backend: 'coa_file',      cell index 6
+// Backend accepts ALL ALLOWED extensions (pdf/png/jpg/doc/etc),
+// so we only do basic size + emptiness validation client-side.
+// ════════════════════════════════════════════════════════════════
+function pmUploadExtra(input, pmid, fieldName, cellIdx, label, imageOnly) {
+  if (window._msLocked) { alert('Milestone is marked as Done. Mark as Pending to make changes.'); return; }
+  if (!input.files || !input.files[0]) return;
+
+  var file = input.files[0];
+
+  if (imageOnly && !file.type.match(/^image\//)) {
+    alert('❌ Please select an image file (jpg, png, webp, gif).');
+    input.value = '';
+    return;
+  }
+  // Match server ALLOWED list
+  var allowedExt = ['pdf','png','jpg','jpeg','gif','webp','svg','heic','bmp','doc','docx','xls','xlsx','txt','zip'];
+  var ext = (file.name.split('.').pop() || '').toLowerCase();
+  if (allowedExt.indexOf(ext) === -1) {
+    alert('❌ File extension ".' + ext + '" not allowed.\n\nAllowed: ' + allowedExt.join(', '));
+    input.value = '';
+    return;
+  }
+  if (file.size > 10 * 1024 * 1024) {
+    alert('❌ File too large. Maximum size is 10 MB.\n\nYour file: ' + (file.size / 1024 / 1024).toFixed(2) + ' MB');
+    input.value = '';
+    return;
+  }
+
+  var row  = document.getElementById('pm-row-' + pmid);
+  var cell = row ? row.children[cellIdx] : null;
+  var prev = cell ? cell.innerHTML : '';
+  if (cell) {
+    cell.innerHTML =
+      '<div style="display:flex;align-items:center;justify-content:center;gap:6px;color:#6366f1;font-size:.75rem;font-weight:700;">' +
+        '<span style="display:inline-block;width:14px;height:14px;border:2px solid #c7d2fe;border-top-color:#6366f1;border-radius:50%;animation:pmspin .7s linear infinite;"></span>' +
+        '<span>Uploading ' + (file.size / 1024).toFixed(0) + ' KB...</span>' +
+      '</div>';
+  }
+  if (!document.getElementById('pm-spinner-style')) {
+    var st = document.createElement('style');
+    st.id = 'pm-spinner-style';
+    st.textContent = '@keyframes pmspin{to{transform:rotate(360deg);}}';
+    document.head.appendChild(st);
+  }
+
+  var fd = new FormData();
+  fd.append(fieldName, file);
+
+  fetch('/npd/' + PROJ_ID + '/packing/row/' + pmid + '/update', { method: 'POST', body: fd })
+    .then(function(r){ if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+    .then(function(d) {
+      if (d && d.success && d[fieldName]) {
+        pmShowToast('✅ ' + label + ' uploaded successfully', 'success');
+        loadPmRows();
+      } else if (d && d.success && !d[fieldName]) {
+        if (cell) cell.innerHTML = prev;
+        pmShowToast('⚠️ File was rejected by server. Check file type/size.', 'error');
+      } else {
+        throw new Error((d && d.error) || 'Upload failed');
+      }
+    })
+    .catch(function(err) {
+      console.error('PM ' + label + ' upload error:', err);
+      if (cell) cell.innerHTML = prev;
+      pmShowToast('❌ ' + label + ' upload failed: ' + (err.message || 'Network error'), 'error');
+    });
+}
+
+function pmUploadFilling(input, pmid) {
+  pmUploadExtra(input, pmid, 'filling_image', 5, 'Filling Image', true);
+}
+
+function pmUploadCOA(input, pmid) {
+  pmUploadExtra(input, pmid, 'coa_file', 6, 'COA', false);
 }
 
 // ── Toast helper for Packing Material upload feedback ──

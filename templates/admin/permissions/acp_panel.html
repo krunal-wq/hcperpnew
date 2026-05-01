@@ -424,6 +424,14 @@
                   ('discussion_board','Discussion Board'),('internal_discussion','Internal Discussion'),
                   ('activity_log','Activity Log'),('attachments','Attachments'),
                   ('notes','Notes'),('milestone','Milestone'),
+                  ('ms_bom','🏆 BOM'),
+                  ('ms_ingredients','🏆 Ingredients List & Marketing'),
+                  ('ms_quotation','🏆 Quotation'),
+                  ('ms_packing_material','🏆 Packing Material'),
+                  ('ms_artwork','🏆 Artwork / Design'),
+                  ('ms_artwork_qc','🏆 Artwork QC Approval'),
+                  ('ms_fda','🏆 FDA'),
+                  ('ms_barcode','🏆 Barcode'),
                   ('close_project','Close Project'),
                   ('restore','Restore'),('permanent_delete','Permanent Delete'),
                   ('view_deleted','View Deleted Tab')
@@ -526,7 +534,10 @@
           <div class="sm-body" id="s-att">
             {{ prow('hr','Attendance',uid) }}
             {{ chips('hr',[
-              ('manual_entry','Manual Entry'),('late_absent','Late & Absent List'),('holiday','Holiday')
+              ('manual_entry','Manual Entry'),('late_absent','Late & Absent List'),('holiday','Holiday'),
+              ('att_sync',    '🗄️ Sync Data'),
+              ('att_daily',   '📅 Daily View'),
+              ('att_monthly', '📊 Monthly View')
             ], uid) }}
           </div>
         </div>

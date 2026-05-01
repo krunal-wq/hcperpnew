@@ -231,7 +231,9 @@ input[type="checkbox"] { width:14px; height:14px; cursor:pointer; accent-color:v
     Clear
   </button>
   <div style="margin-left:auto;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+    {% if pk_perms and pk_perms.new_entry %}
     <span class="kbd-hint"><kbd>Alt+N</kbd> New Entry</span>
+    {% endif %}
     <span class="kbd-hint"><kbd>Esc</kbd> Close</span>
     <span class="kbd-hint"><kbd>Dbl-click</kbd> Edit</span>
   </div>
@@ -884,7 +886,9 @@ async function pkDoImport(){
 
 /* ── Keyboard ── */
 document.addEventListener('keydown',e=>{
+  {% if pk_perms and pk_perms.new_entry %}
   if(e.altKey&&e.key.toLowerCase()==='n'){e.preventDefault();pkOpenModal();}
+  {% endif %}
   if(e.key==='Escape'){pkCloseModal();pkCloseImport();}
 });
 
@@ -903,8 +907,10 @@ document.addEventListener('DOMContentLoaded',()=>{
     console.error('[PACKING] Pagination init failed:', err);
   }
 });
+{% if pk_perms and pk_perms.new_entry %}
 document.addEventListener('keydown',e=>{
   if(e.altKey&&e.key.toLowerCase()==='n'){e.preventDefault();pkOpenModal();}
 });
+{% endif %}
 </script>
 {% endblock %}

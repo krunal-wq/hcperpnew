@@ -113,6 +113,10 @@ MODULE_SUB_PERMS = {
         ('manual_entry',      'Manual Entry'),
         ('late_absent',       'Late & Absent'),
         ('holiday',           'Holiday'),
+        # ── Attendance Log views (added) ─────────────────────────────
+        ('att_sync',          'Attendance: Sync Data'),
+        ('att_daily',         'Attendance: Daily View'),
+        ('att_monthly',       'Attendance: Monthly View'),
     ],
     'hr_contractors': [
         ('filter',            'Filter'),
@@ -134,6 +138,19 @@ MODULE_SUB_PERMS = {
         ('attachments',           'Attachments'),
         ('notes',                 'Notes'),
         ('milestone',             'Milestone'),
+        # ── Per-milestone visibility (sidebar items in Milestones tab) ──
+        # Milestone tab khud `milestone` perm se gate hoti hai. Yeh
+        # granular keys decide karte hain ki sidebar me kaunsa milestone
+        # item dikhe. Backend data structure (ms_1, ms_2, …) untouched
+        # rehta hai — sirf display level pe filter hota hai.
+        ('ms_bom',                'Milestone: BOM'),
+        ('ms_ingredients',        'Milestone: Ingredients List & Marketing Sheet'),
+        ('ms_quotation',          'Milestone: Quotation'),
+        ('ms_packing_material',   'Milestone: Packing Material'),
+        ('ms_artwork',            'Milestone: Artwork / Design'),
+        ('ms_artwork_qc',         'Milestone: Artwork QC Approval'),
+        ('ms_fda',                'Milestone: FDA'),
+        ('ms_barcode',            'Milestone: Barcode'),
         ('close_project',         'Close Project'),
         ('restore',               'Restore'),
         ('permanent_delete',      'Permanent Delete'),

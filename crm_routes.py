@@ -829,14 +829,34 @@ def leads():
             )
         )
 
+    # ── Total non-deleted leads (single source of truth for "All") ──
+    # Pehle direct count nikalte hain — taaki ALL kabhi bhi sum-of-statuses
+    # se mismatch na ho (case-sensitive duplicates, orphan statuses, custom
+    # statuses, NULL status, etc. ki wajah se mismatch ho sakta tha).
+    total_count = _apply_visibility(
+        Lead.query.filter_by(is_deleted=False)
+    ).count()
+
     # Dynamic counts — all statuses from DB (filtered by visibility)
     _all_statuses = LeadStatus.query.filter_by(is_active=True).order_by(LeadStatus.sort_order).all()
-    counts = {st.name: _apply_visibility(
-                  Lead.query.filter_by(status=st.name, is_deleted=False)
-              ).count()
-              for st in _all_statuses}
+    # Dedupe statuses case-insensitively to avoid double-counting on
+    # case-insensitive DB collations (e.g. MySQL default).
+    _seen_status_keys = set()
+    counts = {}
+    for st in _all_statuses:
+        _key = (st.name or '').strip().lower()
+        if not _key or _key in _seen_status_keys:
+            continue
+        _seen_status_keys.add(_key)
+        counts[st.name] = _apply_visibility(
+            Lead.query.filter_by(status=st.name, is_deleted=False)
+        ).count()
     # Always include core statuses for backward compat
     for _s in ('open','in_process','close','cancel'):
+        if _s in _seen_status_keys:
+            counts.setdefault(_s, 0)
+            continue
+        _seen_status_keys.add(_s)
         counts.setdefault(_s, _apply_visibility(
             Lead.query.filter_by(status=_s, is_deleted=False)
         ).count())
@@ -864,7 +884,7 @@ def leads():
     can_permanent_delete = get_sub_perm('crm_leads', 'permanent_delete')
     can_view_deleted     = get_sub_perm('crm_leads', 'view_deleted')
     return render_template('crm/leads/leads.html',
-        leads=all_leads, counts=counts, deleted_count=deleted_count,
+        leads=all_leads, counts=counts, total_count=total_count, deleted_count=deleted_count,
         show_trash=show_trash, all_users=all_users,
         status=status, search=search,
         source=source, category=category, p_range=p_range,
@@ -4319,7 +4339,6 @@ def lead_create_quotation(id):
     item_moqs     = request.form.getlist('item_moq[]')
     item_pm_specs = request.form.getlist('item_pm_spec[]')
     item_pm_costs = request.form.getlist('item_pm_cost[]')
-    item_fg_costs = request.form.getlist('item_fg_cost[]')
     item_cats     = request.form.getlist('item_category[]')
     item_finals   = request.form.getlist('item_final_cost[]')
 
@@ -4343,7 +4362,6 @@ def lead_create_quotation(id):
             'moq':      moq,
             'pm_spec':  _s(item_pm_specs, i),
             'pm_cost':  _f(item_pm_costs, i),
-            'fg_cost':  _f(item_fg_costs, i),
             'category': _s(item_cats, i),
             'final_cost': final_cost,
         })
@@ -4550,7 +4568,6 @@ def quotation_products_ajax():
                 'moq':         item.get('moq',        0),
                 'pm_spec':     item.get('pm_spec',    '') or '—',
                 'pm_cost':     item.get('pm_cost',    0),
-                'fg_cost':     item.get('fg_cost',    0),
                 'category':    category or '—',
                 'final_cost':  item.get('final_cost', 0),
             })
@@ -4615,7 +4632,6 @@ def quotation_products_list():
                 'moq':          item.get('moq', '—'),
                 'pm_spec':      item.get('pm_spec', '—'),
                 'pm_cost':      item.get('pm_cost', 0),
-                'fg_cost':      item.get('fg_cost', 0),
                 'category':     item.get('category', '—'),
                 'final_cost':   item.get('final_cost', 0),
                 'status':       quot.status,

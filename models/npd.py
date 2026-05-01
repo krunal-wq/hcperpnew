@@ -373,8 +373,14 @@ class NPDPackingMaterial(db.Model):
     reject_reason       = db.Column(db.Text)
 
     notes       = db.Column(db.Text)
-    attachments = db.Column(db.Text)
+    attachments = db.Column(db.Text)        # Packing Material image
     cost        = db.Column(db.String(100), default='')
+
+    # ── Filling related fields (added) ───────────────────────────
+    filling_image  = db.Column(db.String(300), default='')           # Filling image upload
+    coa_file       = db.Column(db.String(300), default='')           # COA file upload
+    filling_status = db.Column(db.String(30), default='pending')     # pending/in_process/hold/cancel/done
+
     is_deleted  = db.Column(db.Boolean, default=False)
 
     created_by  = db.Column(db.Integer, db.ForeignKey('users.id'))

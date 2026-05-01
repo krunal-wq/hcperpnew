@@ -1,0 +1,260 @@
+{% extends "base.html" %}
+{% block title %}Monthly Attendance{% endblock %}
+{% block page_title %}Monthly Attendance — {{ month_name }} {{ year }}{% endblock %}
+{% block bread %}HR / Attendance / Monthly{% endblock %}
+
+{% block extra_css %}
+<style>
+.mon-filter {
+  background:#fff; border:1px solid var(--border); border-radius:12px;
+  padding:.95rem 1.1rem; box-shadow:0 1px 4px rgba(0,0,0,.04);
+  margin-bottom:1rem;
+}
+.mon-filter form {
+  display:grid; gap:.75rem;
+  grid-template-columns:160px 160px 200px 1fr auto auto auto;
+  align-items:end;
+}
+@media (max-width:1100px) { .mon-filter form { grid-template-columns:1fr 1fr; } }
+
+.mon-fld label {
+  display:block; font-size:.72rem; font-weight:700;
+  color:var(--text); margin-bottom:.3rem;
+}
+.mon-fld input, .mon-fld select {
+  width:100%; padding:8px 11px; border:1.5px solid var(--border);
+  border-radius:8px; font-size:.85rem; font-family:inherit; outline:none;
+  background:#fff;
+}
+.mon-fld input:focus, .mon-fld select:focus {
+  border-color:var(--blue); box-shadow:0 0 0 3px rgba(37,99,235,.12);
+}
+.btn-search {
+  padding:8px 14px; background:#2563eb; color:#fff; border:none;
+  border-radius:8px; font-size:.83rem; font-weight:600; cursor:pointer;
+  display:inline-flex; align-items:center; gap:.35rem;
+}
+.btn-search:hover { background:#1d4ed8; }
+.btn-nav {
+  padding:7px 11px; background:#fff; border:1.5px solid var(--border);
+  border-radius:8px; font-size:.83rem; font-weight:600; cursor:pointer;
+  color:var(--text); text-decoration:none;
+}
+.btn-nav:hover { background:#f1f5f9; border-color:#94a3b8; }
+.btn-excel {
+  padding:8px 14px; background:#16a34a; color:#fff; border:none;
+  border-radius:8px; font-size:.83rem; font-weight:600; cursor:pointer;
+  text-decoration:none; display:inline-flex; align-items:center; gap:.35rem;
+}
+.btn-excel:hover { background:#15803d; }
+
+/* ── Stats row ── */
+.mon-stat-row {
+  display:flex; gap:.5rem; flex-wrap:wrap;
+  align-items:center; margin-bottom:.85rem;
+}
+.chip { padding:6px 14px; border-radius:7px; font-size:.85rem;
+        font-weight:700; color:#fff; }
+.chip-total   { background:#64748b; }
+.chip-working { background:#2563eb; }
+.mon-stat-row .spacer { flex:1; }
+.mon-stat-row .month-label { font-size:.85rem; font-weight:700; color:var(--text2); }
+
+/* ── Status legend ── */
+.legend-row { display:flex; gap:.4rem; flex-wrap:wrap; align-items:center;
+              margin-bottom:1rem; }
+.lg { padding:3px 10px; border-radius:5px; font-size:.7rem; font-weight:700;
+      display:inline-flex; align-items:center; gap:.35rem; }
+.lg-P    { background:#dcfce7; color:#16a34a; }
+.lg-HD   { background:#dbeafe; color:#2563eb; }
+.lg-AB   { background:#fee2e2; color:#dc2626; }
+.lg-MP   { background:#fef9c3; color:#ca8a04; }
+.lg-WO   { background:#e2e8f0; color:#475569; }
+.lg-WOP  { background:#ede9fe; color:#7c3aed; }
+.legend-text { font-size:.78rem; color:var(--text2); margin-left:.3rem; }
+
+/* ── Per-employee section ── */
+.emp-section {
+  background:#fff; border:1px solid var(--border); border-radius:12px;
+  margin-bottom:1.1rem; overflow:hidden;
+  box-shadow:0 1px 4px rgba(0,0,0,.04);
+}
+.emp-hdr {
+  padding:.85rem 1.1rem; background:#fff;
+  border-bottom:1px solid var(--border);
+  display:flex; align-items:center; flex-wrap:wrap; gap:.75rem;
+}
+.emp-hdr .left { font-size:.92rem; font-weight:700; color:var(--text); }
+.emp-hdr .left .code { font-weight:800; }
+.emp-hdr .left .sep { color:var(--text3); margin:0 .35rem; }
+.emp-hdr .left .dept { font-size:.78rem; color:var(--text2); margin-left:.35rem; }
+.emp-hdr .left .badge {
+  display:inline-block; padding:2px 8px; border-radius:4px; font-size:.65rem;
+  background:#cffafe; color:#0e7490; font-weight:700;
+  text-transform:uppercase; letter-spacing:.04em; margin-left:.35rem;
+}
+.emp-hdr .summary { margin-left:auto; display:flex; gap:.4rem; flex-wrap:wrap; }
+.sm-chip {
+  padding:3px 9px; border-radius:14px; font-size:.7rem; font-weight:700;
+}
+.sm-P    { background:#dcfce7; color:#16a34a; }
+.sm-HD   { background:#dbeafe; color:#2563eb; }
+.sm-AB   { background:#fee2e2; color:#dc2626; }
+.sm-MP   { background:#fef9c3; color:#ca8a04; }
+.sm-WO   { background:#e2e8f0; color:#475569; }
+.sm-WOP  { background:#ede9fe; color:#7c3aed; }
+
+.day-tbl { width:100%; border-collapse:collapse; font-size:.82rem; }
+.day-tbl thead th {
+  background:#0f172a; color:#fff; padding:9px 14px; text-align:left;
+  font-size:.74rem; font-weight:700; letter-spacing:.03em;
+}
+.day-tbl tbody td {
+  padding:.55rem .9rem; border-bottom:1px solid #f1f5f9;
+  vertical-align:middle;
+}
+.day-tbl tbody tr:last-child td { border-bottom:none; }
+/* Row tinting based on status code */
+.row-P   { background:#f0fdf4; }
+.row-HD  { background:#eff6ff; }
+.row-AB  { background:#fef2f2; }
+.row-MP  { background:#fefce8; }
+.row-WO  { background:#f8fafc; color:var(--text3); }
+.row-WOP { background:#f5f3ff; }
+
+.day-date {
+  font-size:.82rem; font-weight:600; color:var(--text);
+}
+.day-date .wd { color:var(--text3); font-weight:500; font-size:.74rem; margin-left:.2rem; }
+
+.cell-status {
+  text-align:center; font-size:.7rem; font-weight:800;
+  color:#fff; border-radius:5px; padding:4px 0;
+  display:inline-block; min-width:34px;
+}
+.cs-P   { background:#16a34a; }
+.cs-HD  { background:#2563eb; }
+.cs-AB  { background:#dc2626; }
+.cs-MP  { background:#ca8a04; }
+.cs-WO  { background:#64748b; }
+.cs-WOP { background:#7c3aed; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="mon-filter">
+  <form method="GET">
+    <div class="mon-fld">
+      <label>Year</label>
+      <select name="year">
+        {% for y in range(2024, 2030) %}
+        <option value="{{ y }}" {% if y == year %}selected{% endif %}>{{ y }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="mon-fld">
+      <label>Month</label>
+      <select name="month">
+        {% set months = ['January','February','March','April','May','June','July','August','September','October','November','December'] %}
+        {% for i in range(1, 13) %}
+        <option value="{{ i }}" {% if i == month %}selected{% endif %}>{{ months[i-1] }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="mon-fld">
+      <label>Employee Type</label>
+      <select name="emp_type">
+        <option value="">All Types</option>
+        {% for t in emp_types %}
+        <option value="{{ t }}" {% if t == emp_type %}selected{% endif %}>{{ t }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="mon-fld">
+      <label>Search</label>
+      <input type="text" name="q" value="{{ search_q }}" placeholder="Name / Code / Dept">
+    </div>
+    <div><button type="submit" class="btn-search">🔍 Search</button></div>
+    <div style="display:flex;gap:.4rem;">
+      <a class="btn-nav" href="?year={{ prev_year }}&month={{ prev_month }}{% if emp_type %}&emp_type={{ emp_type }}{% endif %}{% if search_q %}&q={{ search_q }}{% endif %}" title="Previous month">‹</a>
+      <a class="btn-nav" href="{{ url_for('attendance.attendance_monthly') }}">This Month</a>
+      <a class="btn-nav" href="?year={{ next_year }}&month={{ next_month }}{% if emp_type %}&emp_type={{ emp_type }}{% endif %}{% if search_q %}&q={{ search_q }}{% endif %}" title="Next month">›</a>
+    </div>
+    <div>
+      <a class="btn-excel" href="#" onclick="alert('Excel export — TODO');return false;">📥 Excel</a>
+    </div>
+  </form>
+</div>
+
+<div class="mon-stat-row">
+  <span class="chip chip-total">Total: {{ total_emps }}</span>
+  <span class="chip chip-working">Working Days: {{ working_days }}</span>
+  <span class="spacer"></span>
+  <span class="month-label">{{ month_name }} {{ year }}</span>
+</div>
+
+<div class="legend-row">
+  <span class="lg lg-P">P <span class="legend-text">— Present</span></span>
+  <span class="lg lg-HD">HD <span class="legend-text">— Half Day</span></span>
+  <span class="lg lg-AB">AB <span class="legend-text">— Absent</span></span>
+  <span class="lg lg-MP">MP <span class="legend-text">— MIS-PUNCH</span></span>
+  <span class="lg lg-WO">WO <span class="legend-text">— Week Off</span></span>
+  <span class="lg lg-WOP">WOP <span class="legend-text">— Working on Off Day</span></span>
+</div>
+
+{% if emp_rows %}
+  {% for er in emp_rows %}
+  <div class="emp-section">
+    <div class="emp-hdr">
+      <div class="left">
+        <span class="code">{{ er.emp.employee_code or '—' }}</span>
+        <span class="sep">[ {{ er.emp.employee_id or er.emp.employee_code or '—' }} ]</span>
+        <span>— {{ er.emp.first_name or '' }}{% if er.emp.last_name %}_{{ er.emp.last_name }}{% endif %}</span>
+        <span class="dept">| {{ er.emp.department or '—' }}</span>
+        {% if er.emp.employee_type %}<span class="badge">{{ er.emp.employee_type }}</span>{% endif %}
+      </div>
+      <div class="summary">
+        <span class="sm-chip sm-P">P: {{ er.cnt.P }}</span>
+        <span class="sm-chip sm-HD">HD: {{ er.cnt.HD }}</span>
+        <span class="sm-chip sm-AB">AB: {{ er.cnt.AB }}</span>
+        <span class="sm-chip sm-MP">MP: {{ er.cnt.MP }}</span>
+        <span class="sm-chip sm-WO">WO: {{ er.cnt.WO }}</span>
+        <span class="sm-chip sm-WOP">WOP: {{ er.cnt.WOP }}</span>
+      </div>
+    </div>
+    <div style="overflow-x:auto;">
+      <table class="day-tbl">
+        <thead>
+          <tr>
+            <th style="width:18%;">Date</th>
+            <th style="width:22%;">In-Time</th>
+            <th style="width:22%;">Out-Time</th>
+            <th style="width:18%;">Total</th>
+            <th style="width:20%;text-align:right;padding-right:1.5rem;">Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for d in er.days %}
+          {% set wd = d.date.strftime('%a') %}
+          <tr class="row-{{ d.code }}">
+            <td><span class="day-date">{{ d.date.strftime('%d-%b-%Y') }} <span class="wd">({{ wd }})</span></span></td>
+            <td>{{ d.in_t or '' }}</td>
+            <td>{{ d.out_t or '' }}</td>
+            <td>{{ '%.2f'|format(d.tot) }}</td>
+            <td style="text-align:right;padding-right:1.5rem;">
+              <span class="cell-status cs-{{ d.code }}">{{ d.code }}</span>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endfor %}
+{% else %}
+  <div style="text-align:center;padding:3rem;color:var(--text3);background:#fff;
+              border:1px solid var(--border);border-radius:12px;">
+    No employees found.
+  </div>
+{% endif %}
+{% endblock %}

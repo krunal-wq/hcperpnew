@@ -1,0 +1,230 @@
+{% extends "base.html" %}
+{% block title %}Sync Data — Attendance{% endblock %}
+{% block page_title %}Sync Data{% endblock %}
+{% block bread %}HR / Attendance / Sync{% endblock %}
+
+{% block extra_css %}
+<style>
+.sync-wrap { max-width:980px; margin:0 auto; }
+
+.sync-card {
+  background:#fff; border:1px solid var(--border); border-radius:14px;
+  box-shadow:0 1px 6px rgba(0,0,0,.05); overflow:hidden; margin-bottom:1.2rem;
+}
+.sync-hdr {
+  padding:14px 20px; border-bottom:1px solid var(--border);
+  background:#fff; display:flex; align-items:center; gap:.6rem;
+  font-size:.95rem; font-weight:700; color:var(--text);
+}
+.sync-hdr .ico {
+  display:inline-flex; align-items:center; justify-content:center;
+  width:30px; height:30px; border-radius:8px;
+  background:#dcfce7; color:#16a34a; font-size:1rem;
+}
+.sync-body { padding:1.1rem 1.4rem; }
+
+.sync-info {
+  background:#f0fdf4; border:1px solid #bbf7d0; border-radius:10px;
+  padding:.85rem 1rem; font-size:.84rem; color:#166534; line-height:1.55;
+  display:flex; gap:.6rem; align-items:flex-start; margin-bottom:1.4rem;
+}
+.sync-info .info-ico {
+  flex-shrink:0; width:18px; height:18px; border-radius:50%;
+  background:#16a34a; color:#fff; font-size:.7rem; font-weight:800;
+  display:inline-flex; align-items:center; justify-content:center;
+  margin-top:1px;
+}
+
+.sync-grid {
+  display:grid; grid-template-columns:1fr 1fr; gap:.95rem;
+  margin-bottom:.6rem;
+}
+@media (max-width:640px) { .sync-grid { grid-template-columns:1fr; } }
+
+.sync-fld label {
+  display:block; font-size:.78rem; font-weight:700;
+  color:var(--text); margin-bottom:.35rem;
+}
+.sync-fld input[type=date] {
+  width:100%; padding:9px 12px; border:1.5px solid var(--border);
+  border-radius:9px; font-size:.92rem; font-family:inherit;
+  outline:none; background:#fff; transition:border-color .15s, box-shadow .15s;
+}
+.sync-fld input[type=date]:focus {
+  border-color:var(--blue);
+  box-shadow:0 0 0 3px rgba(37,99,235,.12);
+}
+
+.quick-chips {
+  display:flex; flex-wrap:wrap; gap:.4rem; margin:.7rem 0 1.2rem;
+}
+.qc {
+  padding:5px 13px; border:1px solid var(--border); border-radius:18px;
+  background:#fff; font-size:.74rem; font-weight:600; color:var(--text2);
+  cursor:pointer; font-family:inherit; transition:.15s;
+}
+.qc:hover { background:#eff6ff; color:var(--blue); border-color:#bfdbfe; }
+.qc:active { transform:scale(.97); }
+
+.btn-run {
+  width:100%; padding:13px 18px; background:#16a34a; color:#fff;
+  border:none; border-radius:10px; font-size:.95rem; font-weight:700;
+  cursor:pointer; font-family:inherit; display:inline-flex;
+  align-items:center; justify-content:center; gap:.55rem;
+  transition:background .15s;
+}
+.btn-run:hover:not(:disabled)  { background:#15803d; }
+.btn-run:disabled { opacity:.65; cursor:not-allowed; }
+
+.console-box {
+  background:#0f172a; color:#7dd3fc; border-radius:10px;
+  padding:14px 16px; font-family:'Courier New', monospace;
+  font-size:.78rem; line-height:1.7; min-height:140px;
+  max-height:360px; overflow-y:auto; margin-top:1rem;
+  white-space:pre-wrap; word-break:break-word;
+}
+.console-box .ok    { color:#4ade80; }
+.console-box .warn  { color:#fde047; }
+.console-box .err   { color:#fda4af; }
+.console-box .meta  { color:#94a3b8; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="sync-wrap">
+  <div class="sync-card">
+    <div class="sync-hdr">
+      <span class="ico">🗄</span>
+      <span>Sync Summary &nbsp;&rarr;&nbsp; Attendance</span>
+    </div>
+    <div class="sync-body">
+      <div class="sync-info">
+        <span class="info-ico">i</span>
+        <div>
+          <strong>Raw Punch Logs</strong> ka processed data <strong>attendance</strong>
+          table mein push karta hai — INSERT, UPDATE (punch fix),
+          recalculate hours/status, aur 9001/9002 default records.
+        </div>
+      </div>
+
+      <div class="sync-grid">
+        <div class="sync-fld">
+          <label for="syncFrom">From Date</label>
+          <input type="date" id="syncFrom" value="{{ today_str }}">
+        </div>
+        <div class="sync-fld">
+          <label for="syncTo">To Date</label>
+          <input type="date" id="syncTo" value="{{ today_str }}">
+        </div>
+      </div>
+
+      <div class="quick-chips">
+        <button type="button" class="qc" onclick="syncQuick('today')">Today</button>
+        <button type="button" class="qc" onclick="syncQuick('yesterday')">Yesterday</button>
+        <button type="button" class="qc" onclick="syncQuick('week')">This Week</button>
+        <button type="button" class="qc" onclick="syncQuick('month')">This Month</button>
+      </div>
+
+      <button type="button" class="btn-run" id="runSyncBtn" onclick="runSync()">
+        <span style="font-size:1.05rem;">🗄</span>
+        <span id="runSyncLabel">Run Summary Sync</span>
+      </button>
+
+      <div class="console-box" id="syncConsole">
+        <span class="meta">Sync karne ke liye button press karo...</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Quick date setters ──
+function _ymd(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const da = String(d.getDate()).padStart(2, '0');
+  return y + '-' + m + '-' + da;
+}
+function syncQuick(kind) {
+  const today = new Date();
+  let from, to;
+  if (kind === 'today') {
+    from = to = _ymd(today);
+  } else if (kind === 'yesterday') {
+    const y = new Date(today); y.setDate(y.getDate() - 1);
+    from = to = _ymd(y);
+  } else if (kind === 'week') {
+    const day = today.getDay();                  // 0=Sun..6=Sat
+    const diffToMon = (day === 0 ? 6 : day - 1); // start = Monday
+    const mon = new Date(today); mon.setDate(today.getDate() - diffToMon);
+    from = _ymd(mon);  to = _ymd(today);
+  } else if (kind === 'month') {
+    const first = new Date(today.getFullYear(), today.getMonth(), 1);
+    from = _ymd(first); to = _ymd(today);
+  }
+  document.getElementById('syncFrom').value = from;
+  document.getElementById('syncTo').value   = to;
+}
+
+// ── Console helper ──
+function consoleAppend(line, cls) {
+  const box = document.getElementById('syncConsole');
+  if (box.querySelector('.meta')) box.innerHTML = '';   // clear placeholder
+  const span = document.createElement('span');
+  if (cls) span.className = cls;
+  span.textContent = line;
+  box.appendChild(span);
+  box.appendChild(document.createTextNode('\n'));
+  box.scrollTop = box.scrollHeight;
+}
+function consoleClear() {
+  document.getElementById('syncConsole').innerHTML = '';
+}
+
+// ── Run sync ──
+function runSync() {
+  const from = document.getElementById('syncFrom').value;
+  const to   = document.getElementById('syncTo').value;
+  if (!from || !to) { alert('Dono dates select karo.'); return; }
+
+  const btn   = document.getElementById('runSyncBtn');
+  const lbl   = document.getElementById('runSyncLabel');
+  btn.disabled = true;
+  lbl.textContent = 'Syncing...';
+
+  consoleClear();
+  consoleAppend('▶ Starting sync from ' + from + ' to ' + to + '...', 'meta');
+
+  const fd = new FormData();
+  fd.append('from_date', from);
+  fd.append('to_date',   to);
+
+  fetch('{{ url_for("attendance.attendance_log_sync_run") }}', {
+    method: 'POST',
+    body:   fd,
+  })
+  .then(r => r.json())
+  .then(d => {
+    if (d.success) {
+      (d.log || []).forEach(line => {
+        const cls = line.includes('❌') ? 'err'
+                  : line.includes('✅') ? 'ok'
+                  : line.includes('weekoff_skipped') ? 'meta'
+                  : '';
+        consoleAppend(line, cls);
+      });
+    } else {
+      consoleAppend('❌ ' + (d.error || 'Sync failed'), 'err');
+      (d.log || []).forEach(line => consoleAppend(line, 'err'));
+    }
+  })
+  .catch(err => {
+    consoleAppend('❌ Network error: ' + err.message, 'err');
+  })
+  .finally(() => {
+    btn.disabled = false;
+    lbl.textContent = 'Run Summary Sync';
+  });
+}
+</script>
+{% endblock %}

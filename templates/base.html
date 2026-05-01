@@ -89,7 +89,7 @@
             {% set _mod = 'rd' %}
         {% elif _pg in ('cat_master','uom_master','hsn_master','masters') %}
             {% set _mod = 'masters' %}
-        {% elif _pg in ('hr_emp_dashboard','hr_employees','hr_contractors','hierarchy','salary_config','hr_attendance','att_manual','att_late','att_holidays','my_attendance','hr_masters','late_rules','hr_shifts','hr_locations_master','hr_late_rules','hr_early_rules','hr_ot_rules','hr_leave_policy','hr_lop_rules','hr_absent_rules','hr_compoff_rules','hr_dept_master','hr_desig_master','hr_shift_master','hr_emptype_master','hr_loc_master') %}
+        {% elif _pg in ('hr_emp_dashboard','hr_employees','hr_contractors','hierarchy','salary_config','hr_attendance','att_sync','att_daily','att_monthly','att_manual','att_late','att_holidays','my_attendance','hr_masters','late_rules','hr_shifts','hr_locations_master','hr_late_rules','hr_early_rules','hr_ot_rules','hr_leave_policy','hr_lop_rules','hr_absent_rules','hr_compoff_rules','hr_dept_master','hr_desig_master','hr_shift_master','hr_emptype_master','hr_loc_master') %}
             {% set _mod = 'hr' %}
         {% elif _pg in ('approvals','permissions','audit_logs','users','admin_profile') %}
             {% set _mod = 'admin' %}
@@ -545,6 +545,21 @@
             <a class="nav-a {% if _pg == 'hr_attendance' %}active{% endif %}" href="/hr/attendance">
                 <span class="nav-ic">🕐</span><span class="nav-txt">Attendance</span>
             </a>
+            {% if get_sub_perm('hr', 'att_sync') %}
+            <a class="nav-a nav-sub {% if _pg == 'att_sync' %}active{% endif %}" href="/attendance_log/sync">
+                <span class="nav-ic">🗄️</span><span class="nav-txt">Sync Data</span>
+            </a>
+            {% endif %}
+            {% if get_sub_perm('hr', 'att_daily') %}
+            <a class="nav-a nav-sub {% if _pg == 'att_daily' %}active{% endif %}" href="/hr/attendance/daily">
+                <span class="nav-ic">📅</span><span class="nav-txt">Daily Attendance</span>
+            </a>
+            {% endif %}
+            {% if get_sub_perm('hr', 'att_monthly') %}
+            <a class="nav-a nav-sub {% if _pg == 'att_monthly' %}active{% endif %}" href="/hr/attendance/monthly">
+                <span class="nav-ic">📊</span><span class="nav-txt">Monthly Attendance</span>
+            </a>
+            {% endif %}
             <a class="nav-a nav-sub {% if _pg == 'att_manual' %}active{% endif %}" href="/hr/attendance/manual">
                 <span class="nav-ic">✏️</span><span class="nav-txt">Manual Entry</span>
             </a>
