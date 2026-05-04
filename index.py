@@ -17,6 +17,7 @@ from rd_sample_log_routes import rd_sample_log_bp   # ← NEW: R&D Sample Log me
 from client_dispatch_routes import client_dispatch_bp   # ← NEW: Client Dispatch menu
 from raw_material_sample_routes import raw_material_sample_bp   # ← NEW: Raw Material Sample Request
 from attendance_routes import attendance_bp
+from qr_scan_routes import qr_scan_bp   # ← NEW: QR Scanner kiosk page
 from hr_master_routes import hr_masters
 from late_rule_routes import late_rules_bp
 from hr_rules_routes import hr_rules_bp
@@ -86,6 +87,7 @@ app.register_blueprint(rd_sample_log_bp)   # ← NEW: R&D Sample Log menu
 app.register_blueprint(client_dispatch_bp)    # ← NEW: Client Dispatch menu
 app.register_blueprint(raw_material_sample_bp)   # ← NEW: Raw Material Sample Request
 app.register_blueprint(attendance_bp)
+app.register_blueprint(qr_scan_bp)        # ← NEW: QR Scanner kiosk page
 app.register_blueprint(hr_masters)
 app.register_blueprint(late_rules_bp)
 app.register_blueprint(hr_rules_bp)

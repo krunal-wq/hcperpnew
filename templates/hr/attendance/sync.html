@@ -110,11 +110,11 @@
       <div class="sync-grid">
         <div class="sync-fld">
           <label for="syncFrom">From Date</label>
-          <input type="date" id="syncFrom" value="{{ today_str }}">
+          <input type="date" id="syncFrom" value="{{ today_str }}" autocomplete="off">
         </div>
         <div class="sync-fld">
           <label for="syncTo">To Date</label>
-          <input type="date" id="syncTo" value="{{ today_str }}">
+          <input type="date" id="syncTo" value="{{ today_str }}" autocomplete="off">
         </div>
       </div>
 
@@ -145,6 +145,44 @@ function _ymd(d) {
   const da = String(d.getDate()).padStart(2, '0');
   return y + '-' + m + '-' + da;
 }
+
+// ── Force today's date — continuous watcher (browser autofill ko beat karta hai) ──
+function _watchAndForceToday(inputEl) {
+  if (!inputEl) return;
+  const today = _ymd(new Date());
+  let userTouched = false;
+
+  // Initial set
+  inputEl.value = today;
+
+  // 5 seconds tak watch karo aur reset karte raho agar autofill kick kare
+  const watcher = setInterval(() => {
+    if (userTouched) { clearInterval(watcher); return; }
+    if (inputEl.value !== today) {
+      inputEl.value = today;
+    }
+  }, 50);
+
+  // User ke first interaction ke baad watcher stop kar do
+  const stopWatching = () => {
+    setTimeout(() => { userTouched = true; }, 300);
+  };
+  inputEl.addEventListener('focus', stopWatching);
+  inputEl.addEventListener('input', () => { userTouched = true; });
+  inputEl.addEventListener('change', () => { userTouched = true; });
+
+  // Hard timeout — 5 sec ke baad guaranteed stop
+  setTimeout(() => { userTouched = true; }, 5000);
+}
+
+function _initDateDefaults() {
+  _watchAndForceToday(document.getElementById('syncFrom'));
+  _watchAndForceToday(document.getElementById('syncTo'));
+}
+document.addEventListener('DOMContentLoaded', _initDateDefaults);
+window.addEventListener('load', _initDateDefaults);
+setTimeout(_initDateDefaults, 50);
+
 function syncQuick(kind) {
   const today = new Date();
   let from, to;

@@ -1,0 +1,1074 @@
+{% extends "base.html" %}
+{% block title %}QR Scanner — Attendance{% endblock %}
+{% block page_title %}Attendance Kiosk{% endblock %}
+{% block bread %}HR / Attendance / Kiosk{% endblock %}
+
+{# ─────────────────────────────────────────────────────────────────
+   Customize karne ke liye — banner ka company name (ID-card jaisa)
+───────────────────────────────────────────────────────────────── #}
+{% set COMPANY_TAGLINE = "HCP WELLNESS PVT. LTD." %}
+
+{% block extra_css %}
+<style>
+/* ════════════════════════════════════════════════════════════════
+   TOPBAR OVERRIDES — only on this kiosk page
+   Left: DD-MM-YYYY ATTENDANCE   |   Right: HH:MM:SS
+   ════════════════════════════════════════════════════════════════ */
+.topbar { position: relative; }
+.topbar .hbg,
+.topbar .tb-sep,
+.topbar #themeBtn,
+.topbar #themePanel,
+.topbar #bellBtn,
+.topbar .tb-bread,
+.topbar #gsWrap { display: none !important; }
+
+/* Title CENTERED in topbar (DD-MM-YYYY ATTENDANCE) */
+.topbar .tb-page-title {
+  display: block !important;
+  position: absolute !important;
+  left: 50% !important;
+  top: 50% !important;
+  transform: translate(-50%, -50%) !important;
+  font-size: 1.6rem !important;
+  font-weight: 700 !important;
+  letter-spacing: 1.5px !important;
+  color: #1e293b !important;
+  font-family: 'Inter', system-ui, sans-serif;
+  white-space: nowrap !important;
+}
+@media (max-width: 700px) {
+  .topbar .tb-page-title { font-size: 1rem !important; }
+}
+
+/* Right: live time (HH:MM:SS) — sirf time, no date */
+.topbar #tdate {
+  position: static !important;
+  transform: none !important;
+  margin-left: auto !important;
+  font-size: 1.6rem !important;
+  font-weight: 700 !important;
+  font-family: 'JetBrains Mono', 'Inter', system-ui, monospace !important;
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  color: #1e293b !important;
+  letter-spacing: 1.5px !important;
+  white-space: nowrap !important;
+}
+@media (max-width: 700px) {
+  .topbar #tdate { font-size: 1rem !important; }
+}
+
+/* ── NO PAGE SCROLL — content auto-fits viewport ── */
+html, body { overflow: hidden !important; height: 100vh !important; }
+.main-content, main {
+  height: 100vh !important;
+  overflow: hidden !important;
+  display: flex; flex-direction: column;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   HCP KIOSK — ID-card-style professional design
+   Brand: solid HCP blue + white logo + orange accent
+   ─────────────────────────────────────────────────────────────── */
+:root {
+  --hcp-blue:        #1e88e5;
+  --hcp-blue-deep:   #1565c0;
+  --hcp-blue-darker: #0d47a1;
+  --hcp-orange:      #ff7a00;
+  --hcp-cyan:        #80d8ff;
+  --kiosk-ok:        #16a34a;
+  --kiosk-out:       #2563eb;
+  --kiosk-warn:      #f59e0b;
+  --kiosk-err:       #dc2626;
+}
+
+.kio-shell {
+  max-width: 1440px; margin: 0 auto;
+  display: flex; flex-direction: column;
+  flex: 1; min-height: 0;
+  height: 100%;
+}
+
+/* ── 2-column layout: hero (scanning area) + dashboard right ── */
+.kio-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);  /* 60% : 40% */
+  gap: 1rem;
+  align-items: stretch;
+  flex: 1; min-height: 0;     /* fill remaining viewport */
+  overflow: hidden;
+}
+@media (max-width: 1100px) {
+  .kio-layout {
+    grid-template-columns: 1fr;
+    min-height: auto;
+  }
+}
+.kio-side {
+  display: flex; flex-direction: column; gap: 1rem;
+  min-height: 0;
+}
+
+/* ── Dashboard inside right side — fills full height ── */
+.kio-dashboard {
+  display: flex; flex-direction: column; gap: 1rem;
+  flex: 1; min-height: 0;
+}
+
+/* Lists: auto-fit. Wide enough → side-by-side, narrow → stack */
+.kio-side .kio-lists-row {
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  flex: 1; min-height: 0;
+}
+.kio-side .kio-list-panel {
+  display: flex; flex-direction: column;
+  min-height: 280px;
+}
+.kio-side .kio-list-body {
+  flex: 1; max-height: none; min-height: 0;
+}
+
+/* ── Dashboard section (after hero card) ── */
+.kio-dashboard {
+  margin-top: 1rem;
+  display: flex; flex-direction: column; gap: 1rem;
+}
+
+/* Header with date on right */
+.kio-dashboard-hdr {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 0 .25rem;
+}
+.kio-dashboard-title {
+  font-size: .8rem; font-weight: 800;
+  text-transform: uppercase; letter-spacing: .07em; color: #475569;
+}
+.kio-dashboard-date {
+  font-size: .72rem; font-weight: 700; color: #94a3b8;
+  font-family: 'JetBrains Mono', monospace;
+  background: #fff; border: 1px solid #e2e8f0;
+  padding: 4px 10px; border-radius: 8px;
+}
+
+/* ── 3 separate stat cards row ── */
+.kio-stats-row {
+  display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem;
+}
+.kio-stat-solo {
+  background: #fff; border: 1px solid #e2e8f0; border-radius: 14px;
+  padding: 1.4rem 1rem; text-align: center;
+  box-shadow: 0 1px 6px rgba(0,0,0,.04);
+  border-top: 3px solid;
+  transition: transform .15s;
+}
+.kio-stat-solo.in     { border-top-color: #16a34a; }
+.kio-stat-solo.inside { border-top-color: #f59e0b; }
+.kio-stat-solo.out    { border-top-color: #2563eb; }
+.kio-stat-solo.bumped { transform: scale(1.04); }
+.kio-stat-num {
+  font-size: 2.4rem; font-weight: 800; line-height: 1;
+  font-family: 'JetBrains Mono', monospace;
+}
+.kio-stat-solo.in     .kio-stat-num { color: #15803d; }
+.kio-stat-solo.inside .kio-stat-num { color: #a16207; }
+.kio-stat-solo.out    .kio-stat-num { color: #1d4ed8; }
+.kio-stat-label {
+  font-size: .72rem; font-weight: 800; text-transform: uppercase;
+  letter-spacing: .1em; color: #64748b; margin-top: .5rem;
+}
+
+/* ── 2 lists side-by-side ── */
+.kio-lists-row {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;
+}
+
+@media (max-width: 800px) {
+  .kio-stats-row { grid-template-columns: 1fr 1fr 1fr; }
+}
+
+/* ── IN/OUT list panels ── */
+.kio-list-panel {
+  background: #fff; border: 1px solid #e2e8f0; border-radius: 14px;
+  box-shadow: 0 1px 6px rgba(0,0,0,.04); overflow: hidden;
+}
+.kio-list-hdr {
+  padding: .65rem 1rem;
+  font-size: .72rem; font-weight: 800; text-transform: uppercase;
+  letter-spacing: .07em;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.kio-list-hdr.in  { background: #f0fdf4; color: #15803d; border-bottom: 1px solid #bbf7d0; }
+.kio-list-hdr.out { background: #eff6ff; color: #1d4ed8; border-bottom: 1px solid #bfdbfe; }
+.kio-list-count {
+  font-weight: 700; letter-spacing: 0; font-size: .7rem;
+  font-family: 'JetBrains Mono', monospace; opacity: .85;
+}
+.kio-list-body { padding: .55rem; max-height: 280px; overflow-y: auto; }
+.kio-list-empty {
+  font-size: .74rem; color: #94a3b8; padding: 1rem .25rem;
+  text-align: center; font-style: italic;
+}
+
+.kio-li-item {
+  display: flex; gap: .6rem; padding: .5rem .65rem; border-radius: 10px;
+  background: #f8fafc; border: 1px solid #f1f5f9;
+  align-items: center; margin-bottom: .35rem;
+  transition: background .12s;
+}
+.kio-li-item:last-child { margin-bottom: 0; }
+.kio-li-item:hover { background: #eff6ff; }
+
+.kio-li-photo {
+  width: 36px; height: 36px; border-radius: 50%; object-fit: cover; flex-shrink: 0;
+  border: 2px solid #e2e8f0;
+}
+.kio-li-photo.placeholder {
+  display: flex; align-items: center; justify-content: center;
+  background: var(--hcp-blue); color: #fff; font-size: .7rem; font-weight: 800;
+}
+.kio-li-info { flex: 1; min-width: 0; }
+.kio-li-name {
+  font-size: .78rem; font-weight: 700; color: #0f172a;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.kio-li-code {
+  font-size: .65rem; color: #64748b; margin-top: 1px;
+  font-family: 'JetBrains Mono', monospace;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.kio-li-time {
+  font-size: .78rem; font-weight: 800;
+  font-family: 'JetBrains Mono', monospace; white-space: nowrap;
+  padding: 3px 9px; border-radius: 8px;
+}
+.kio-list-hdr.in ~ .kio-list-body .kio-li-time,
+.kio-list-panel:has(.kio-list-hdr.in) .kio-li-time { background: #dcfce7; color: #15803d; }
+.kio-list-hdr.out ~ .kio-list-body .kio-li-time,
+.kio-list-panel:has(.kio-list-hdr.out) .kio-li-time { background: #dbeafe; color: #1d4ed8; }
+
+/* ── Listening badge (replaces old toolbar) ── */
+.kio-tools {
+  display: flex; align-items: center; flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+.kio-listen-badge {
+  display: inline-flex; align-items: center; gap: .5rem;
+  padding: .45rem 1rem; border-radius: 24px;
+  font-size: .74rem; font-weight: 700; letter-spacing: .03em;
+  background: var(--hcp-blue); color: #fff;
+  box-shadow: 0 2px 10px rgba(30,136,229,.30);
+}
+.kio-listen-dot {
+  width: 8px; height: 8px; border-radius: 50%; background: #fff; display: inline-block;
+  animation: kio-blink 1.4s ease-in-out infinite;
+}
+@keyframes kio-blink { 0%,100% { opacity: 1; } 50% { opacity: .35; } }
+
+/* ── Main kiosk card — solid HCP blue (ID-card style) ── */
+.kio-card {
+  background: var(--hcp-blue);
+  background-image:
+    radial-gradient(circle at 20% 12%, rgba(255,255,255,.06) 0%, transparent 35%),
+    radial-gradient(circle at 80% 90%, rgba(255,255,255,.04) 0%, transparent 35%),
+    linear-gradient(135deg, var(--hcp-blue) 0%, var(--hcp-blue-deep) 100%);
+  border-radius: 22px;
+  padding: 2rem 2rem 1.6rem;
+  position: relative; overflow: hidden;
+  color: #fff;
+  box-shadow: 0 12px 40px rgba(13,71,161,.25);
+  display: flex; flex-direction: column;     /* fill available height */
+}
+
+/* Subtle brand-pattern overlay (dot grid) */
+.kio-card::before {
+  content: '';
+  position: absolute; inset: 0;
+  background-image: radial-gradient(rgba(255,255,255,.08) 1px, transparent 1px);
+  background-size: 28px 28px;
+  pointer-events: none;
+  opacity: .55;
+}
+.kio-card > * { position: relative; z-index: 1; }
+
+/* ── Header: HCP logo + company name (top of card) ── */
+.kio-header {
+  text-align: center;
+  padding-bottom: 1.2rem;
+  border-bottom: 1px solid rgba(255,255,255,.18);
+  margin-bottom: 1.5rem;
+}
+.kio-header img {
+  height: 56px; width: auto;
+  filter: brightness(0) invert(1);   /* logo white kar do (agar coloured ho)*/
+  display: block; margin: 0 auto .35rem;
+}
+.kio-header .tagline {
+  font-size: .72rem; font-weight: 700; letter-spacing: .25em;
+  color: rgba(255,255,255,.85); text-transform: uppercase;
+}
+
+/* ── Stage area ── */
+.kio-stage {
+  flex: 1; min-height: 380px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  text-align: center; padding: .5rem;
+}
+
+/* ── IDLE state ── */
+/* ── QR Scanner animation (replaces old camera icon) ── */
+.kio-qr-scanner {
+  width: 220px; height: 220px;
+  position: relative; margin: 0 auto 1.6rem;
+  background: rgba(0, 0, 0, .15);
+  border-radius: 22px;
+  overflow: hidden;
+  box-shadow: inset 0 0 30px rgba(0, 0, 0, .15);
+}
+/* Subtle grid pattern background to look like camera viewport */
+.kio-qr-scanner::before {
+  content: '';
+  position: absolute; inset: 0;
+  background-image:
+    repeating-linear-gradient(0deg,  transparent 0, transparent 11px, rgba(255,255,255,.03) 11px, rgba(255,255,255,.03) 12px),
+    repeating-linear-gradient(90deg, transparent 0, transparent 11px, rgba(255,255,255,.03) 11px, rgba(255,255,255,.03) 12px);
+  pointer-events: none;
+}
+/* Corner brackets */
+.kio-qr-scanner .qrs-corner {
+  position: absolute; width: 38px; height: 38px;
+  border: 4px solid #fff;
+  filter: drop-shadow(0 0 4px rgba(255,255,255,.4));
+}
+.kio-qr-scanner .qrs-corner.tl { top: 14px;    left: 14px;    border-right:0; border-bottom:0; border-top-left-radius: 10px; }
+.kio-qr-scanner .qrs-corner.tr { top: 14px;    right: 14px;   border-left:0;  border-bottom:0; border-top-right-radius: 10px; }
+.kio-qr-scanner .qrs-corner.bl { bottom: 14px; left: 14px;    border-right:0; border-top:0;    border-bottom-left-radius: 10px; }
+.kio-qr-scanner .qrs-corner.br { bottom: 14px; right: 14px;   border-left:0;  border-top:0;    border-bottom-right-radius: 10px; }
+/* Animated scanning line (green laser) */
+.kio-qr-scanner .qrs-line {
+  position: absolute;
+  left: 10%; right: 10%;
+  height: 3px;
+  background: linear-gradient(90deg, transparent 0%, #00ff88 30%, #6dffb3 50%, #00ff88 70%, transparent 100%);
+  box-shadow: 0 0 18px 4px rgba(0, 255, 136, .6), 0 0 6px 2px rgba(0, 255, 136, .9);
+  border-radius: 2px;
+  animation: qrs-scan 2.4s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
+}
+@keyframes qrs-scan {
+  0%   { top: 14%; opacity: .7; }
+  50%  { top: 80%; opacity: 1; }
+  100% { top: 14%; opacity: .7; }
+}
+
+/* OLD .kio-idle-icon (kept hidden as fallback) */
+.kio-idle-icon { display: none; }
+.kio-idle-title {
+  font-size: 2.4rem; font-weight: 800; color: #fff;
+  margin-bottom: .4rem; letter-spacing: .04em;
+}
+.kio-idle-sub  {
+  font-size: .95rem; color: rgba(255,255,255,.75);
+  max-width: 480px; line-height: 1.55;
+}
+
+/* ── FOUND state — BIG photo + name + status ── */
+.kio-found { width: 100%; max-width: 620px; }
+
+.kio-status-text {
+  font-size: 1rem; font-weight: 700; letter-spacing: .15em;
+  margin-bottom: 1rem; text-transform: uppercase;
+  color: #d1fae5;
+}
+.kio-status-text.out  { color: #bfdbfe; }
+.kio-status-text.warn { color: #fde68a; }
+
+.kio-photo-wrap {
+  width: 260px; height: 260px; border-radius: 50%;
+  margin: 0 auto 1.4rem;
+  background: #fff;
+  padding: 6px;
+  box-shadow: 0 14px 40px rgba(0,0,0,.30), 0 0 0 6px rgba(255,255,255,.10);
+}
+.kio-photo {
+  width: 100%; height: 100%; border-radius: 50%; object-fit: cover;
+  background: #f1f5f9;
+  display: block;
+}
+.kio-photo.placeholder {
+  display: flex; align-items: center; justify-content: center;
+  font-size: 4.5rem; font-weight: 800;
+  background: #f1f5f9; color: var(--hcp-blue-deep);
+}
+
+.kio-name {
+  font-size: 2.4rem; font-weight: 800; color: #fff;
+  letter-spacing: .12em; line-height: 1.15; margin-bottom: .25rem;
+  text-transform: uppercase;
+  text-shadow: 0 1px 2px rgba(0,0,0,.15);
+}
+.kio-meta {
+  font-size: .8rem; font-weight: 700;
+  letter-spacing: .25em; text-transform: uppercase;
+  color: var(--hcp-cyan); margin-bottom: 1.2rem;
+}
+
+/* ── Time IN/OUT cards (glass style) ── */
+.kio-times {
+  display: grid; grid-template-columns: 1fr 1fr; gap: .9rem;
+  max-width: 460px; margin: 0 auto 1.4rem;
+}
+.kio-time-card {
+  background: rgba(255,255,255,.10);
+  border: 1px solid rgba(255,255,255,.20);
+  border-radius: 14px;
+  padding: .9rem 1rem;
+  text-align: center;
+}
+.kio-time-card .lbl {
+  font-size: .65rem; font-weight: 700; letter-spacing: .15em;
+  text-transform: uppercase; color: rgba(255,255,255,.75);
+  display: block; margin-bottom: .35rem;
+}
+.kio-time-card .val {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 1.5rem; font-weight: 800; line-height: 1;
+}
+.kio-time-card.in  .val { color: #6ee7b7; }
+.kio-time-card.out .val { color: #93c5fd; }
+.kio-time-card.empty .val {
+  font-family: 'Inter', sans-serif;
+  font-size: .9rem; color: rgba(255,255,255,.55);
+  font-weight: 600; letter-spacing: .04em;
+}
+
+/* ── Status ribbon (You Can Enter / Have a Great Day) ── */
+.kio-ribbon {
+  display: inline-flex; align-items: center; justify-content: center; gap: .7rem;
+  padding: .9rem 2.4rem;
+  border-radius: 50px;
+  font-size: 1.1rem; font-weight: 800;
+  letter-spacing: .15em; text-transform: uppercase;
+  background: var(--kiosk-ok);
+  color: #fff;
+  box-shadow: 0 8px 20px rgba(22,163,74,.30);
+  text-shadow: 0 1px 2px rgba(0,0,0,.20);
+}
+.kio-ribbon .check {
+  width: 28px; height: 28px; border-radius: 50%;
+  background: rgba(255,255,255,.25);
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 1rem;
+}
+.kio-ribbon.out  { background: var(--kiosk-out); box-shadow: 0 8px 20px rgba(37,99,235,.30); }
+.kio-ribbon.warn { background: var(--kiosk-warn); box-shadow: 0 8px 20px rgba(245,158,11,.30); }
+.kio-ribbon.err  { background: var(--kiosk-err); box-shadow: 0 8px 20px rgba(220,38,38,.30); }
+
+/* ── ERROR state ── */
+.kio-err-icon {
+  width: 130px; height: 130px; border-radius: 28px;
+  background: rgba(220,38,38,.18); border: 2.5px solid rgba(254,202,202,.55);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 4.2rem; margin-bottom: 1.4rem;
+}
+
+/* ── Hidden HID scanner input ── */
+.kio-hid {
+  position: absolute; left: -9999px; opacity: 0; pointer-events: none;
+}
+
+/* ── Responsive: tablet (stack columns) ── */
+@media (max-width: 1100px) {
+  .kio-stats-row { gap: .7rem; }
+  .kio-side .kio-list-panel { min-height: 260px; }
+}
+
+/* ── Tablet: stats stay 3-col, lists go side-by-side ── */
+@media (max-width: 900px) and (min-width: 700px) {
+  .kio-side .kio-lists-row { grid-template-columns: 1fr 1fr; }
+}
+
+/* ── Mobile: Android-app jaisa look ── */
+@media (max-width: 700px) {
+  .kio-shell { max-width: 100%; }
+  .kio-tools { margin-bottom: .6rem; }
+  .kio-listen-badge {
+    width: 100%; justify-content: center;
+    padding: .6rem 1rem; font-size: .8rem;
+  }
+
+  /* Hero: app-card feel */
+  .kio-card {
+    padding: 1.5rem 1.2rem 1.2rem;
+    border-radius: 18px;
+    min-height: 60vh;
+  }
+  .kio-header img { height: 44px; }
+  .kio-header .tagline { font-size: .65rem; letter-spacing: .18em; }
+
+  /* Bigger touch-friendly elements */
+  .kio-photo-wrap { width: 180px; height: 180px; }
+  .kio-name { font-size: 1.5rem; letter-spacing: .08em; }
+  .kio-meta { font-size: .75rem; letter-spacing: .15em; }
+
+  .kio-times { grid-template-columns: 1fr; gap: .55rem; }
+  .kio-time-card { padding: .85rem 1rem; }
+  .kio-time-card .val { font-size: 1.4rem; }
+
+  .kio-ribbon { font-size: 1rem; padding: .9rem 1.6rem; letter-spacing: .1em; }
+  .kio-idle-title { font-size: 1.6rem; }
+  .kio-idle-icon { width: 110px; height: 110px; font-size: 3.4rem; }
+
+  /* Dashboard touches */
+  .kio-stat-solo { padding: 1.1rem .6rem; }
+  .kio-stat-num { font-size: 2rem; }
+  .kio-stat-label { font-size: .68rem; }
+
+  /* Lists: bigger touch targets, Material card feel */
+  .kio-list-panel {
+    border-radius: 14px;
+    box-shadow: 0 2px 8px rgba(15,23,42,.06);
+  }
+  .kio-list-hdr { padding: .85rem 1.1rem; font-size: .78rem; }
+  .kio-li-item { padding: .75rem .9rem; gap: .8rem; }
+  .kio-li-photo { width: 42px; height: 42px; }
+  .kio-li-name { font-size: .9rem; }
+  .kio-li-code { font-size: .72rem; }
+  .kio-li-time { font-size: .85rem; padding: 5px 11px; }
+
+  /* Native app touches */
+  body { -webkit-tap-highlight-color: transparent; }
+  .kio-list-body { -webkit-overflow-scrolling: touch; }
+}
+
+/* ── Small phones (≤ 380px) ── */
+@media (max-width: 380px) {
+  .kio-card { padding: 1.2rem .9rem 1rem; }
+  .kio-photo-wrap { width: 150px; height: 150px; }
+  .kio-name { font-size: 1.3rem; }
+  .kio-stat-num { font-size: 1.7rem; }
+}
+</style>
+{% endblock %}
+
+
+{% block content %}
+<div class="kio-shell">
+
+  <!-- ═════════════ MAIN 2-COLUMN LAYOUT ═════════════ -->
+  <div class="kio-layout">
+
+  <!-- ═════════════ MAIN KIOSK CARD (left) ═════════════ -->
+  <div class="kio-card" id="qrsHero">
+
+    <!-- Header: HCP logo + company tagline -->
+    <div class="kio-header">
+      <img src="{{ url_for('static', filename='images/icons/hcp-logo.png') }}" alt="HCP">
+      <div class="tagline">{{ COMPANY_TAGLINE }}</div>
+    </div>
+
+    <!-- IDLE / FOUND / ERROR stage -->
+    <div class="kio-stage" id="qrsStage">
+      <div class="kio-qr-scanner">
+        <div class="qrs-corner tl"></div>
+        <div class="qrs-corner tr"></div>
+        <div class="qrs-corner bl"></div>
+        <div class="qrs-corner br"></div>
+        <div class="qrs-line"></div>
+      </div>
+      <div class="kio-idle-title">Scan Your QR Code</div>
+    </div>
+
+    <!-- Hidden input for HID scanner -->
+    <input type="text" class="kio-hid" id="hidInput"
+           autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+  </div>
+
+  <!-- ═════════════ RIGHT SIDEBAR: dashboard ═════════════ -->
+  <aside class="kio-side">
+    <div class="kio-dashboard">
+
+    <!-- Header with date -->
+    <div class="kio-dashboard-hdr">
+      <span class="kio-dashboard-title">📊 Today's Activity</span>
+      <span class="kio-dashboard-date" id="statsDate">—</span>
+    </div>
+
+    <!-- 3 separate stat cards -->
+    <div class="kio-stats-row">
+      <div class="kio-stat-solo in" id="cardIn">
+        <div class="kio-stat-num" id="countIn">0</div>
+        <div class="kio-stat-label">🟢 IN</div>
+      </div>
+      <div class="kio-stat-solo inside" id="cardInside">
+        <div class="kio-stat-num" id="countInside">0</div>
+        <div class="kio-stat-label">🟡 Inside</div>
+      </div>
+      <div class="kio-stat-solo out" id="cardOut">
+        <div class="kio-stat-num" id="countOut">0</div>
+        <div class="kio-stat-label">🔵 OUT</div>
+      </div>
+    </div>
+
+    <!-- 2 lists stacked in sidebar -->
+    <div class="kio-lists-row">
+      <div class="kio-list-panel" id="inListPanel">
+        <div class="kio-list-hdr in">
+          <span>🟢 Today's IN <span class="kio-list-count" id="inListCount">(0)</span></span>
+        </div>
+        <div class="kio-list-body" id="inListBody">
+          <div class="kio-list-empty">Aaj koi entry nahi hui</div>
+        </div>
+      </div>
+
+      <div class="kio-list-panel" id="outListPanel">
+        <div class="kio-list-hdr out">
+          <span>🔵 Today's OUT <span class="kio-list-count" id="outListCount">(0)</span></span>
+        </div>
+        <div class="kio-list-body" id="outListBody">
+          <div class="kio-list-empty">Aaj koi exit nahi hua</div>
+        </div>
+      </div>
+    </div>
+
+    </div>
+  </aside>
+
+  </div>  <!-- /.kio-layout -->
+
+</div>
+
+
+<script>
+(function(){
+  'use strict';
+
+  // ── DOM refs ──
+  const stage         = document.getElementById('qrsStage');
+  const hidInput      = document.getElementById('hidInput');
+  const inListBody    = document.getElementById('inListBody');
+  const outListBody   = document.getElementById('outListBody');
+  const inListCount   = document.getElementById('inListCount');
+  const outListCount  = document.getElementById('outListCount');
+  const countInEl     = document.getElementById('countIn');
+  const countInsideEl = document.getElementById('countInside');
+  const countOutEl    = document.getElementById('countOut');
+  const cardInEl      = document.getElementById('cardIn');
+  const cardInsideEl  = document.getElementById('cardInside');
+  const cardOutEl     = document.getElementById('cardOut');
+  const statsDateEl   = document.getElementById('statsDate');
+
+  let resetTimer = null;
+
+  // ── Topbar live updater — overrides base.html's full-format update ──
+  function _kioskTopbarFormat() {
+    const now = new Date();
+    const dd = String(now.getDate()).padStart(2,'0');
+    const mm = String(now.getMonth()+1).padStart(2,'0');
+    const yyyy = now.getFullYear();
+    const hh = String(now.getHours()).padStart(2,'0');
+    const mn = String(now.getMinutes()).padStart(2,'0');
+    const ss = String(now.getSeconds()).padStart(2,'0');
+    return {
+      title: `${dd}-${mm}-${yyyy} ATTENDANCE`,
+      time:  `${hh}:${mn}:${ss}`,
+    };
+  }
+
+  function _applyKioskTopbar() {
+    const f = _kioskTopbarFormat();
+    const titleEl = document.querySelector('.topbar .tb-page-title');
+    const tdateEl = document.getElementById('tdate');
+    // Sirf jab change ho tab set karo (warna observer infinite loop)
+    if (titleEl && titleEl.textContent !== f.title) titleEl.textContent = f.title;
+    if (tdateEl && tdateEl.textContent !== f.time)  tdateEl.textContent = f.time;
+  }
+
+  // Initial set
+  _applyKioskTopbar();
+  // Apna interval (independent of base.html ka)
+  setInterval(_applyKioskTopbar, 1000);
+
+  // Observer: jab bhi base.html ka JS tdate ya title overwrite kare, hum turant fix karenge
+  const _tdateEl = document.getElementById('tdate');
+  if (_tdateEl) {
+    new MutationObserver(_applyKioskTopbar).observe(_tdateEl, {
+      childList: true, characterData: true, subtree: true
+    });
+  }
+  const _titleEl = document.querySelector('.topbar .tb-page-title');
+  if (_titleEl) {
+    new MutationObserver(_applyKioskTopbar).observe(_titleEl, {
+      childList: true, characterData: true, subtree: true
+    });
+  }
+
+  // ── Stats refresh — DB se aaj ke unique IN/OUT counts ──
+  function refreshStats() {
+    fetch("{{ url_for('qr_scan.qr_stats') }}", { credentials: 'same-origin' })
+      .then(r => r.json())
+      .then(data => {
+        const oldIn  = parseInt(countInEl.textContent) || 0;
+        const oldOut = parseInt(countOutEl.textContent) || 0;
+
+        countInEl.textContent     = data.total_in || 0;
+        countInsideEl.textContent = data.inside_now || 0;
+        countOutEl.textContent    = data.total_out || 0;
+        statsDateEl.textContent   = data.date || '—';
+
+        if ((data.total_in  || 0) > oldIn)  bumpCard(cardInEl);
+        if ((data.total_out || 0) > oldOut) bumpCard(cardOutEl);
+      })
+      .catch(() => {});
+  }
+  function bumpCard(el) {
+    el.classList.add('bumped');
+    setTimeout(() => el.classList.remove('bumped'), 350);
+  }
+
+  // ── IN/OUT lists refresh — DB se deduplicated lists ──
+  function refreshTodayLists() {
+    fetch("{{ url_for('qr_scan.qr_today_list') }}", { credentials: 'same-origin' })
+      .then(r => r.json())
+      .then(data => {
+        renderList(inListBody,  inListCount,  data.in_list  || [], 'Aaj koi entry nahi hui');
+        renderList(outListBody, outListCount, data.out_list || [], 'Aaj koi exit nahi hua');
+
+        // Auto-scroll start if more than 5 items (overflow ho raha ho)
+        setupAutoScroll(inListBody);
+        setupAutoScroll(outListBody);
+      })
+      .catch(() => {});
+  }
+
+  // ── Auto-scroll (jQuery-style ticker) — only when content overflows ──
+  function setupAutoScroll(container) {
+    if (!container) return;
+
+    // Pichla timer cancel karo
+    if (container._scrollTimer) {
+      clearInterval(container._scrollTimer);
+      container._scrollTimer = null;
+    }
+    container.scrollTop = 0;
+
+    // Render hone do, phir overflow check karo
+    setTimeout(() => {
+      if (container.scrollHeight <= container.clientHeight + 5) {
+        return;  // Sab fit ho gaya, scroll nahi chahiye
+      }
+
+      // Phase-based smooth scroll loop:
+      //   pause-top → scrolling-down → pause-bottom → smooth-back-to-top → repeat
+      let phase = 'pause-top';
+      let ticks = 0;
+      const PAUSE_TICKS = 40;   // 40 * 50ms = 2 sec pause
+      const SCROLL_PX   = 1;    // 1px/tick = ~20px/sec (slow, readable)
+
+      container._scrollTimer = setInterval(() => {
+        if (phase === 'pause-top') {
+          if (++ticks >= PAUSE_TICKS) { phase = 'scrolling'; ticks = 0; }
+        }
+        else if (phase === 'scrolling') {
+          const maxScroll = container.scrollHeight - container.clientHeight;
+          if (container.scrollTop >= maxScroll - 1) {
+            phase = 'pause-bottom'; ticks = 0;
+          } else {
+            container.scrollTop += SCROLL_PX;
+          }
+        }
+        else if (phase === 'pause-bottom') {
+          if (++ticks >= PAUSE_TICKS) {
+            container.scrollTo({ top: 0, behavior: 'smooth' });
+            phase = 'pause-top'; ticks = 0;
+          }
+        }
+      }, 50);
+    }, 100);
+  }
+  function renderList(container, countEl, items, emptyMsg) {
+    countEl.textContent = '(' + items.length + ')';
+    if (!items.length) {
+      container.innerHTML = `<div class="kio-list-empty">${escapeHtml(emptyMsg)}</div>`;
+      return;
+    }
+    container.innerHTML = items.map(renderListItem).join('');
+  }
+  function renderListItem(item) {
+    const initials = (item.name || '?').split(/\s+/)
+                         .map(s => s[0]).filter(Boolean).slice(0, 2).join('').toUpperCase();
+    const photoHtml = item.photo
+      ? `<img class="kio-li-photo" src="${escapeHtml(item.photo)}" onerror="this.outerHTML='<div class=\\'kio-li-photo placeholder\\'>${escapeHtml(initials)}</div>'">`
+      : `<div class="kio-li-photo placeholder">${escapeHtml(initials || '?')}</div>`;
+    return `
+      <div class="kio-li-item">
+        ${photoHtml}
+        <div class="kio-li-info">
+          <div class="kio-li-name">${escapeHtml(item.name || '—')}</div>
+          <div class="kio-li-code">${escapeHtml(item.code || '—')}</div>
+        </div>
+        <div class="kio-li-time">${escapeHtml(item.time || '')}</div>
+      </div>
+    `;
+  }
+
+  // Initial load + every 30 sec auto-refresh
+  refreshStats();
+  refreshTodayLists();
+  setInterval(() => { refreshStats(); refreshTodayLists(); }, 30000);
+
+  // ── Hidden input ko hamesha focused rakhne ka logic ──
+  function refocusHidden() {
+    const ae = document.activeElement;
+    if (ae && (ae.tagName === 'BUTTON' || ae.tagName === 'A' ||
+               ae.tagName === 'INPUT' || ae.tagName === 'SELECT')) {
+      if (ae !== hidInput) return;
+    }
+    try { hidInput.focus(); } catch(e){}
+  }
+  setInterval(refocusHidden, 700);
+  document.addEventListener('click', () => setTimeout(refocusHidden, 50));
+
+  // ── HID scanner = Enter key ke baad lookup ──
+  hidInput.addEventListener('keydown', function(e){
+    if (e.key === 'Enter' || e.keyCode === 13) {
+      e.preventDefault();
+      const code = (hidInput.value || '').trim();
+      hidInput.value = '';
+      if (code) handleScan(code);
+    }
+  });
+
+  // ══════════════════════════════════════════════════════════════
+  // CORE: scan → backend lookup
+  // ══════════════════════════════════════════════════════════════
+  function handleScan(code) {
+    if (!code) return;
+    if (resetTimer) { clearTimeout(resetTimer); resetTimer = null; }
+
+    // Loading state
+    stage.innerHTML = `
+      <div class="kio-idle-icon" style="border-color:rgba(252,211,77,.55);background:rgba(252,211,77,.10);">⏳</div>
+      <div class="kio-idle-title" style="color:#fde68a;">Looking up…</div>
+      <div class="kio-idle-sub">Code: <strong style="font-family:monospace;color:#fff;">${escapeHtml(code)}</strong></div>
+    `;
+
+    const fd = new FormData();
+    fd.append('code', code);
+
+    fetch("{{ url_for('qr_scan.qr_lookup') }}", {
+      method: 'POST', body: fd, credentials: 'same-origin'
+    })
+    .then(r => r.json().then(j => ({ status: r.status, body: j })))
+    .then(({ status, body }) => {
+      if (status === 200 && body.success) {
+        renderEmployee(body);
+        refreshStats();         // counts update karo
+        refreshTodayLists();    // IN/OUT lists update karo
+        // 🔊 Voice announcement
+        announceScan(body.action, (body.employee && body.employee.name) || '');
+      } else {
+        renderError(body.error || 'Lookup failed', body.scanned || code);
+        // 🔊 Voice: invalid QR
+        speak('Invalid QR code');
+      }
+    })
+    .catch(err => {
+      renderError('Network error: ' + (err.message || err), code);
+      speak('Network error');
+    });
+  }
+
+  // ══════════════════════════════════════════════════════════════
+  // SPEECH (Text-to-Speech) — kiosk announcements
+  // ══════════════════════════════════════════════════════════════
+  let _preferredVoice = null;
+
+  function _pickVoice() {
+    try {
+      const voices = window.speechSynthesis.getVoices() || [];
+      if (!voices.length) return null;
+      // Priority: en-IN female → en-IN any → en-US female → any en-*
+      let v = voices.find(v => v.lang === 'en-IN' && /female|woman/i.test(v.name));
+      if (!v) v = voices.find(v => v.lang === 'en-IN');
+      if (!v) v = voices.find(v => v.lang === 'en-US' && /female|woman/i.test(v.name));
+      if (!v) v = voices.find(v => v.lang && v.lang.startsWith('en'));
+      return v || voices[0];
+    } catch(e){ return null; }
+  }
+
+  function speak(text) {
+    if (!text) return;
+    if (!('speechSynthesis' in window)) return;
+    try {
+      const u = new SpeechSynthesisUtterance(String(text));
+      u.rate = 1.0;
+      u.pitch = 1.05;
+      u.volume = 1.0;
+      u.lang = 'en-US';
+      if (!_preferredVoice) _preferredVoice = _pickVoice();
+      if (_preferredVoice) u.voice = _preferredVoice;
+      window.speechSynthesis.cancel();
+      window.speechSynthesis.speak(u);
+    } catch(e){ /* silent fallback */ }
+  }
+
+  // Voices load asynchronously — listen for them
+  if ('speechSynthesis' in window) {
+    window.speechSynthesis.onvoiceschanged = () => {
+      _preferredVoice = _pickVoice();
+    };
+    setTimeout(() => { _preferredVoice = _pickVoice(); }, 200);
+  }
+
+  // Warm up speech on first user interaction (browser autoplay policy)
+  let _speechWarmed = false;
+  function _warmUpSpeech() {
+    if (_speechWarmed || !('speechSynthesis' in window)) return;
+    _speechWarmed = true;
+    try {
+      const u = new SpeechSynthesisUtterance(' ');
+      u.volume = 0; u.rate = 2;
+      window.speechSynthesis.speak(u);
+    } catch(e){}
+  }
+  document.addEventListener('click',  _warmUpSpeech, { once: true });
+  document.addEventListener('keydown', _warmUpSpeech, { once: true });
+
+  // First-name extractor — "ARJUNSINH RAJENDRASINH VANAR" → "Arjunsinh"
+  function _firstName(fullName) {
+    if (!fullName) return '';
+    const first = String(fullName).trim().split(/\s+/)[0];
+    return first.charAt(0).toUpperCase() + first.slice(1).toLowerCase();
+  }
+
+  // Action-based announcement
+  function announceScan(action, fullName) {
+    const fn = _firstName(fullName);
+    let msg = '';
+    if (action === 'in') {
+      msg = fn ? `Thank you, ${fn}` : 'Thank you';
+    } else if (action === 'out' || action === 'updated') {
+      msg = fn ? `Goodbye, ${fn}` : 'Goodbye';
+    } else if (action === 'cooldown') {
+      return; // skip — too noisy
+    }
+    if (msg) speak(msg);
+  }
+
+  // ══════════════════════════════════════════════════════════════
+  // RENDER: Employee found
+  // ══════════════════════════════════════════════════════════════
+  function renderEmployee(data) {
+    const e = data.employee, a = data.attendance;
+    const action = data.action, at = data.action_at || '';
+
+    const initials = (e.name || '?').split(/\s+/).map(s=>s[0]).filter(Boolean).slice(0,2).join('').toUpperCase();
+    const photoHtml = e.photo
+        ? `<img class="kio-photo" src="${escapeHtml(e.photo)}" alt="${escapeHtml(e.name)}" onerror="this.outerHTML='<div class=\\'kio-photo placeholder\\'>${escapeHtml(initials)}</div>'">`
+        : `<div class="kio-photo placeholder">${escapeHtml(initials || '?')}</div>`;
+
+    const meta = [e.designation, e.department].filter(Boolean).join(' · ');
+
+    // Status text + ribbon based on action
+    let statusText = 'Attendance Saved';
+    let ribbonText = 'You Can Enter';
+    let ribbonIcon = '✓';
+    let theme = '';
+
+    if (action === 'in') {
+      statusText = `Time In Marked at ${at}`;
+      ribbonText = 'You Can Enter';
+      theme = '';
+    } else if (action === 'out') {
+      statusText = `Time Out Marked at ${at}`;
+      ribbonText = 'Have a Great Day';
+      theme = 'out';
+    } else if (action === 'updated') {
+      statusText = `Time Out Updated to ${at}`;
+      ribbonText = 'See You Tomorrow';
+      theme = 'out';
+    } else if (action === 'cooldown') {
+      statusText = 'Just Scanned — Please Wait';
+      ribbonText = 'Cooldown Active';
+      ribbonIcon = '⏱';
+      theme = 'warn';
+    } else {
+      statusText = `Status as on ${a.date}`;
+      ribbonText = a.status || 'Today';
+      theme = '';
+    }
+
+    stage.innerHTML = `
+      <div class="kio-found">
+        <div class="kio-status-text ${theme}">${escapeHtml(statusText)}</div>
+
+        <div class="kio-photo-wrap">${photoHtml}</div>
+
+        <div class="kio-name">${escapeHtml(e.name || '—')}</div>
+        ${meta ? `<div class="kio-meta">${escapeHtml(meta)}</div>` : '<div class="kio-meta">' + escapeHtml(e.code || e.employee_id || '—') + '</div>'}
+
+        <div class="kio-times">
+          <div class="kio-time-card ${a.time_in ? 'in' : 'empty'}">
+            <span class="lbl">Time In</span>
+            <span class="val">${a.time_in ? escapeHtml(a.time_in) : '— Not Yet —'}</span>
+          </div>
+          <div class="kio-time-card ${a.time_out ? 'out' : 'empty'}">
+            <span class="lbl">Time Out</span>
+            <span class="val">${a.time_out ? escapeHtml(a.time_out) : '— Not Yet —'}</span>
+          </div>
+        </div>
+
+        <div class="kio-ribbon ${theme}">
+          <span class="check">${ribbonIcon}</span>
+          <span>${escapeHtml(ribbonText)}</span>
+        </div>
+      </div>
+    `;
+
+    resetTimer = setTimeout(resetStage, 8000);
+  }
+
+  // ══════════════════════════════════════════════════════════════
+  // RENDER: not found / error
+  // ══════════════════════════════════════════════════════════════
+  function renderError(msg, code) {
+    stage.innerHTML = `
+      <div class="kio-err-icon">❌</div>
+      <div class="kio-idle-title" style="color:#fecaca;">Not Found</div>
+      <div class="kio-idle-sub" style="color:rgba(255,255,255,.75);">
+        ${escapeHtml(msg)}<br>
+        <span style="font-family:monospace;color:rgba(255,255,255,.55);">Code: ${escapeHtml(code || '?')}</span>
+      </div>
+      <div class="kio-ribbon err" style="margin-top:1.4rem;">
+        <span class="check">!</span><span>Access Denied</span>
+      </div>
+    `;
+    resetTimer = setTimeout(resetStage, 5000);
+  }
+
+  function resetStage() {
+    stage.innerHTML = `
+      <div class="kio-qr-scanner">
+        <div class="qrs-corner tl"></div>
+        <div class="qrs-corner tr"></div>
+        <div class="qrs-corner bl"></div>
+        <div class="qrs-corner br"></div>
+        <div class="qrs-line"></div>
+      </div>
+      <div class="kio-idle-title">Scan Your QR Code</div>
+    `;
+    refocusHidden();
+  }
+
+  // ── XSS safety ──
+  function escapeHtml(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+      .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+  }
+
+  setTimeout(refocusHidden, 200);
+})();
+</script>
+{% endblock %}
