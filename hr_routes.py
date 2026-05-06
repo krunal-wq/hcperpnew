@@ -1351,6 +1351,189 @@ def emp_restore(id):
     return redirect(url_for('hr.employees', trash=1))
 
 
+# ════════════════════════════════════════════════════════════════════════
+# BULK ACTIONS — multi-select delete & restore
+# ════════════════════════════════════════════════════════════════════════
+@hr.route('/employees/bulk-delete', methods=['POST'])
+@login_required
+def emp_bulk_delete():
+    """Move multiple employees to trash in a single request."""
+    perm = get_perm('hr_employees')
+    if not perm or not perm.can_delete:
+        flash('Access denied.', 'error')
+        return redirect(url_for('hr.employees'))
+
+    # Accept either repeated fields (ids=1&ids=2) or comma-separated (ids=1,2,3)
+    raw_value = ','.join(request.form.getlist('ids')) or request.form.get('ids', '')
+    raw_ids = [s.strip() for s in raw_value.split(',') if s.strip()]
+    try:
+        ids = [int(i) for i in raw_ids]
+    except (ValueError, TypeError):
+        flash('Invalid selection.', 'error')
+        return redirect(url_for('hr.employees'))
+
+    if not ids:
+        flash('No employees selected.', 'warning')
+        return redirect(url_for('hr.employees'))
+
+    emps = Employee.query.filter(
+        Employee.id.in_(ids),
+        Employee.is_deleted == False
+    ).all()
+
+    count = 0
+    now = datetime.utcnow()
+    for e in emps:
+        e.is_deleted = True
+        e.deleted_at = now
+        count += 1
+
+    db.session.commit()
+    if count:
+        flash(f'{count} employee{"s" if count != 1 else ""} moved to trash.', 'warning')
+    else:
+        flash('No matching active employees found to delete.', 'info')
+    return redirect(url_for('hr.employees'))
+
+
+@hr.route('/employees/bulk-restore', methods=['POST'])
+@login_required
+def emp_bulk_restore():
+    """Restore multiple employees from trash in a single request."""
+    perm = get_perm('hr_employees')
+    if not perm or not perm.can_delete:
+        flash('Access denied.', 'error')
+        return redirect(url_for('hr.employees', trash=1))
+
+    # Accept either repeated fields (ids=1&ids=2) or comma-separated (ids=1,2,3)
+    raw_value = ','.join(request.form.getlist('ids')) or request.form.get('ids', '')
+    raw_ids = [s.strip() for s in raw_value.split(',') if s.strip()]
+    try:
+        ids = [int(i) for i in raw_ids]
+    except (ValueError, TypeError):
+        flash('Invalid selection.', 'error')
+        return redirect(url_for('hr.employees', trash=1))
+
+    if not ids:
+        flash('No employees selected.', 'warning')
+        return redirect(url_for('hr.employees', trash=1))
+
+    emps = Employee.query.filter(
+        Employee.id.in_(ids),
+        Employee.is_deleted == True
+    ).all()
+
+    count = 0
+    for e in emps:
+        e.is_deleted = False
+        e.deleted_at = None
+        count += 1
+
+    db.session.commit()
+    if count:
+        flash(f'{count} employee{"s" if count != 1 else ""} restored.', 'success')
+    else:
+        flash('No matching deleted employees found to restore.', 'info')
+    return redirect(url_for('hr.employees', trash=1))
+
+
+# ════════════════════════════════════════════════════════════════════════
+# PERMANENT DELETE — hard-delete employees from trash (irreversible)
+# Only works on records that are already soft-deleted (is_deleted=True).
+# ════════════════════════════════════════════════════════════════════════
+def _hard_delete_employee(e):
+    """Helper: permanently remove an Employee row, cleaning up references.
+    Caller is responsible for db.session.commit() and permission checks."""
+    # 1. Null out subordinates' reports_to FK pointing at this employee
+    Employee.query.filter_by(reports_to=e.id).update(
+        {'reports_to': None}, synchronize_session=False
+    )
+    # 2. Remove WishLog entries targeting this employee (avoid FK violation)
+    WishLog.query.filter_by(target_emp_id=e.id).delete(synchronize_session=False)
+    # 3. Finally delete the employee row itself
+    db.session.delete(e)
+
+
+@hr.route('/employees/<int:id>/permanent-delete', methods=['POST'])
+@login_required
+def emp_permanent_delete(id):
+    """Permanently delete a single employee (must already be in trash)."""
+    perm = get_perm('hr_employees')
+    if not perm or not perm.can_delete:
+        flash('Access denied.', 'error')
+        return redirect(url_for('hr.employees', trash=1))
+
+    e = Employee.query.get_or_404(id)
+    if not e.is_deleted:
+        flash('Employee must be in trash before permanent deletion. Move to trash first.', 'error')
+        return redirect(url_for('hr.employees'))
+
+    name = e.full_name
+    try:
+        _hard_delete_employee(e)
+        db.session.commit()
+        flash(f'Employee "{name}" permanently deleted.', 'success')
+    except Exception as ex:
+        db.session.rollback()
+        flash(f'Could not permanently delete "{name}": {ex}', 'error')
+    return redirect(url_for('hr.employees', trash=1))
+
+
+@hr.route('/employees/bulk-permanent-delete', methods=['POST'])
+@login_required
+def emp_bulk_permanent_delete():
+    """Permanently delete multiple employees from trash."""
+    perm = get_perm('hr_employees')
+    if not perm or not perm.can_delete:
+        flash('Access denied.', 'error')
+        return redirect(url_for('hr.employees', trash=1))
+
+    raw_value = ','.join(request.form.getlist('ids')) or request.form.get('ids', '')
+    raw_ids = [s.strip() for s in raw_value.split(',') if s.strip()]
+    try:
+        ids = [int(i) for i in raw_ids]
+    except (ValueError, TypeError):
+        flash('Invalid selection.', 'error')
+        return redirect(url_for('hr.employees', trash=1))
+
+    if not ids:
+        flash('No employees selected.', 'warning')
+        return redirect(url_for('hr.employees', trash=1))
+
+    # Only delete records that are in trash already — refuse to hard-delete
+    # active employees through this route.
+    emps = Employee.query.filter(
+        Employee.id.in_(ids),
+        Employee.is_deleted == True
+    ).all()
+
+    count = 0
+    failed = 0
+    for e in emps:
+        try:
+            _hard_delete_employee(e)
+            count += 1
+        except Exception:
+            db.session.rollback()
+            failed += 1
+
+    try:
+        db.session.commit()
+    except Exception as ex:
+        db.session.rollback()
+        flash(f'Bulk permanent delete failed: {ex}', 'error')
+        return redirect(url_for('hr.employees', trash=1))
+
+    if count:
+        msg = f'{count} employee{"s" if count != 1 else ""} permanently deleted.'
+        if failed:
+            msg += f' ({failed} could not be deleted.)'
+        flash(msg, 'success')
+    else:
+        flash('No matching trashed employees found to permanently delete.', 'info')
+    return redirect(url_for('hr.employees', trash=1))
+
+
 @hr.route('/employees/<int:id>/regenerate-qr', methods=['POST'])
 @login_required
 def regen_qr(id):

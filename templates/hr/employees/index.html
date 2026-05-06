@@ -47,6 +47,46 @@
 .trash-banner { background:#fef3c7; border-bottom:1px solid #fcd34d; padding:8px 14px; font-size:.8rem; color:#92400e; display:flex; align-items:center; gap:8px; }
 .ra-btn.restore-btn { color:#059669; border-color:#a7f3d0; background:#ecfdf5; display:flex; align-items:center; gap:4px; padding:3px 9px; border-radius:6px; border:1px solid; font-size:.73rem; font-weight:700; cursor:pointer; white-space:nowrap; }
 .ra-btn.restore-btn:hover { background:#d1fae5; }
+.ra-btn.perm-del-btn { color:#b91c1c; border-color:#fecaca; background:#fef2f2; display:flex; align-items:center; gap:4px; padding:3px 9px; border-radius:6px; border:1px solid; font-size:.73rem; font-weight:700; cursor:pointer; white-space:nowrap; }
+.ra-btn.perm-del-btn:hover { background:#fee2e2; color:#991b1b; }
+
+/* ── Bulk select column & action bar ── */
+.bulk-cb-cell { width:38px; text-align:center; padding-left:.6rem !important; padding-right:.2rem !important; }
+.bulk-cb { width:16px; height:16px; cursor:pointer; accent-color:#2563eb; vertical-align:middle; }
+.emp-grid tr.bulk-selected td { background:#eff6ff !important; }
+.emp-card.bulk-selected { border-color:#2563eb !important; background:#eff6ff !important; box-shadow:0 0 0 2px rgba(37,99,235,.15) !important; }
+.emp-card-cb-wrap { display:flex; align-items:center; }
+
+#bulkActionBar {
+  position:fixed; left:50%; bottom:24px; transform:translateX(-50%) translateY(20px);
+  background:#1e293b; color:#fff; border-radius:14px; padding:.65rem 1rem;
+  box-shadow:0 12px 40px rgba(0,0,0,.35), 0 2px 6px rgba(0,0,0,.15);
+  display:flex; align-items:center; gap:.85rem; z-index:9000;
+  font-size:.85rem; font-weight:600;
+  max-width:calc(100vw - 24px);
+  /* Hidden by default — fully invisible & non-interactive */
+  visibility:hidden; opacity:0; pointer-events:none;
+  transition:transform .25s ease, opacity .2s ease, visibility 0s linear .25s;
+}
+#bulkActionBar.show {
+  visibility:visible; opacity:1; pointer-events:auto;
+  transform:translateX(-50%) translateY(0);
+  transition:transform .25s ease, opacity .2s ease, visibility 0s linear 0s;
+}
+#bulkActionBar .bulk-count {
+  background:#2563eb; color:#fff; padding:3px 10px; border-radius:20px;
+  font-size:.78rem; font-weight:800;
+}
+#bulkActionBar .bulk-btn {
+  display:inline-flex; align-items:center; gap:5px;
+  padding:6px 13px; border-radius:8px; border:none; cursor:pointer;
+  font-size:.78rem; font-weight:700; transition:filter .15s;
+}
+#bulkActionBar .bulk-btn:hover { filter:brightness(1.15); }
+#bulkActionBar .bulk-btn.danger  { background:#dc2626; color:#fff; }
+#bulkActionBar .bulk-btn.success { background:#10b981; color:#fff; }
+#bulkActionBar .bulk-btn.ghost   { background:transparent; color:#cbd5e1; padding:4px 8px; }
+#bulkActionBar .bulk-btn.ghost:hover { color:#fff; background:rgba(255,255,255,.08); }
 
 /* ── MOBILE ONLY (≤768px) — desktop untouched ── */
 .emp-mobile-list { display:none; }
@@ -319,6 +359,11 @@
     <table class="emp-grid" id="empTable">
       <thead>
         <tr>
+          {% if perm.can_delete %}
+          <th class="bulk-cb-cell" title="Select all on this page">
+            <input type="checkbox" id="bulkSelectAll" class="bulk-cb" onclick="bulkToggleAll(this)">
+          </th>
+          {% endif %}
           <th style="width:40px;color:#94a3b8;">#</th>
           {% for col in grid_cols %}
           <th class="sortable" onclick="colSort(this,'{{ col }}')">{{ all_cols.get(col, col) }} <span class="sort-ic"></span></th>
@@ -328,7 +373,12 @@
       </thead>
       <tbody>
         {% for e in employees %}
-        <tr class="u-row" data-search="{{ [e.full_name, e.employee_code or '', e.mobile or '', e.email or '', e.department or '', e.designation or '']|join(' ')|lower }}">
+        <tr class="u-row" data-id="{{ e.id }}" data-search="{{ [e.full_name, e.employee_code or '', e.mobile or '', e.email or '', e.department or '', e.designation or '']|join(' ')|lower }}">
+          {% if perm.can_delete %}
+          <td class="bulk-cb-cell">
+            <input type="checkbox" class="bulk-cb row-cb" value="{{ e.id }}" onclick="bulkRowToggle(this)">
+          </td>
+          {% endif %}
           <td style="color:var(--text3);font-size:.75rem;">{{ loop.index }}</td>
           {% for col in grid_cols %}
           <td>
@@ -470,6 +520,14 @@
                     Restore
                   </button>
                 </form>
+                {% if perm.can_delete %}
+                <form method="POST" action="{{ url_for('hr.emp_permanent_delete', id=e.id) }}" style="display:inline;" data-no-review onsubmit="return confirmPermDelete('{{ e.full_name|e }}');">
+                  <button type="submit" class="ra-btn perm-del-btn" title="Delete Permanently">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
+                    Delete
+                  </button>
+                </form>
+                {% endif %}
               {% else %}
                 <a href="{{ url_for('hr.emp_view', id=e.id) }}" class="ra-btn" title="View"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></a>
                 {% if perm.can_edit %}<a href="{{ url_for('hr.emp_edit', id=e.id) }}" class="ra-btn" title="Edit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></a>{% endif %}
@@ -483,7 +541,7 @@
           </td>
         </tr>
         {% else %}
-        <tr><td colspan="{{ grid_cols|length + 2 }}" style="text-align:center;padding:2rem;color:var(--text3);">No employees found.</td></tr>
+        <tr><td colspan="{{ grid_cols|length + 2 + (1 if perm.can_delete else 0) }}" style="text-align:center;padding:2rem;color:var(--text3);">No employees found.</td></tr>
         {% endfor %}
       </tbody>
     </table>
@@ -492,8 +550,13 @@
   <!-- ── Mobile Card List (hidden on desktop) ── -->
   <div class="emp-mobile-list" id="empMobileList">
     {% for e in employees %}
-    <div class="emp-card u-row" data-search="{{ [e.full_name, e.employee_code or '', e.mobile or '', e.email or '', e.department or '', e.designation or '']|join(' ')|lower }}">
+    <div class="emp-card u-row" data-id="{{ e.id }}" data-search="{{ [e.full_name, e.employee_code or '', e.mobile or '', e.email or '', e.department or '', e.designation or '']|join(' ')|lower }}">
       <div class="emp-card-top">
+        {% if perm.can_delete %}
+        <div class="emp-card-cb-wrap">
+          <input type="checkbox" class="bulk-cb row-cb" value="{{ e.id }}" onclick="bulkRowToggle(this)">
+        </div>
+        {% endif %}
         {% if e.profile_photo %}
           <img src="{{ e.profile_photo }}" class="emp-av" style="width:42px;height:42px;" alt="">
         {% else %}
@@ -525,6 +588,13 @@
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.63"/></svg>Restore
             </button>
           </form>
+          {% if perm.can_delete %}
+          <form method="POST" action="{{ url_for('hr.emp_permanent_delete', id=e.id) }}" style="display:inline;" data-no-review onsubmit="return confirmPermDelete('{{ e.full_name|e }}');">
+            <button type="submit" class="ra-btn perm-del-btn">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>Delete
+            </button>
+          </form>
+          {% endif %}
         {% else %}
           <a href="{{ url_for('hr.emp_view', id=e.id) }}" class="ra-btn" title="View" style="padding:7px 14px;border-radius:8px;">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg> View
@@ -558,6 +628,35 @@
   </div>
 </div>
 
+{% if perm.can_delete %}
+<!-- ── Floating Bulk Action Bar ── -->
+<div id="bulkActionBar">
+  <span class="bulk-count" id="bulkCount">0</span>
+  <span style="opacity:.85;">selected</span>
+  {% if show_trash %}
+    <button type="button" class="bulk-btn success" onclick="bulkSubmit('restore')">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.63"/></svg>
+      Restore Selected
+    </button>
+    <button type="button" class="bulk-btn danger" onclick="bulkSubmit('permanent_delete')">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
+      Delete Permanently
+    </button>
+  {% else %}
+    <button type="button" class="bulk-btn danger" onclick="bulkSubmit('delete')">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
+      Move to Trash
+    </button>
+  {% endif %}
+  <button type="button" class="bulk-btn ghost" onclick="bulkClear()" title="Clear selection">✕ Clear</button>
+</div>
+
+<!-- Hidden form used to submit bulk action -->
+<form id="bulkActionForm" method="POST" style="display:none;">
+  <input type="hidden" name="ids" id="bulkActionIds">
+</form>
+{% endif %}
+
 <!-- QR Modal -->
 <div class="qr-modal-overlay" id="qrModal" onclick="if(event.target===this)this.classList.remove('show')">
   <div class="qr-modal">
@@ -575,6 +674,133 @@ var qrLibLoaded=false;
 function processQRQueue(){if(!pendingQR.length)return;var item=pendingQR.shift();genQRForEmp(item.id,item.code,function(){setTimeout(processQRQueue,100);});}
 function showQR(src,code){document.getElementById('qrModalImg').src=src;document.getElementById('qrModalCode').textContent=code;document.getElementById('qrModal').classList.add('show');}
 function genQRForEmp(empId,empCode,callback){var cell=document.getElementById('qrCell_'+empId);var target=document.getElementById('qrRenderTarget');target.innerHTML='';try{new QRCode(target,{text:empCode,width:200,height:200,colorDark:'#000000',colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.M});}catch(e){if(cell)cell.textContent='❌';if(callback)callback();return;}var attempts=0;var poll=setInterval(function(){attempts++;var canvas=target.querySelector('canvas');var img=target.querySelector('img');var dataUrl=null;if(canvas&&canvas.width>0)dataUrl=canvas.toDataURL('image/png');else if(img&&img.src&&img.src.indexOf('data:')===0)dataUrl=img.src;if(dataUrl){clearInterval(poll);fetch('{{ url_for("hr.emp_save_qr") }}',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({emp_id:empId,qr_base64:dataUrl})}).then(function(r){return r.json();}).then(function(data){if(data.success&&cell){cell.outerHTML='<img src="'+dataUrl+'" class="qr-thumb" onclick="showQR(this.src,\''+empCode+'\')" title="Click to enlarge" id="qrImg_'+empId+'">';}if(callback)callback();}).catch(function(){if(callback)callback();});}if(attempts>30){clearInterval(poll);if(cell)cell.textContent='—';if(callback)callback();}},80);}
+
+{% if perm.can_delete %}
+// ── Bulk Selection & Delete/Restore ──────────────────────
+var _bulkIsTrash = {{ 'true' if show_trash else 'false' }};
+var _bulkUrls = {
+  'delete':            '{{ url_for("hr.emp_bulk_delete") }}',
+  'restore':           '{{ url_for("hr.emp_bulk_restore") }}',
+  'permanent_delete':  '{{ url_for("hr.emp_bulk_permanent_delete") }}'
+};
+
+// Confirmation for single-row permanent delete (called from form onsubmit)
+function confirmPermDelete(name) {
+  return confirm(
+    '⚠️ PERMANENT DELETE\n\n' +
+    'This will completely remove "' + name + '" and cannot be undone.\n\n' +
+    'Are you absolutely sure?'
+  );
+}
+
+function bulkGetSelected() {
+  return Array.from(document.querySelectorAll('.row-cb:checked')).map(function(cb){ return cb.value; });
+}
+
+function bulkUpdateBar() {
+  var ids = bulkGetSelected();
+  var bar = document.getElementById('bulkActionBar');
+  var cnt = document.getElementById('bulkCount');
+  if (!bar) return;
+  if (ids.length > 0) {
+    cnt.textContent = ids.length;
+    bar.classList.add('show');
+  } else {
+    bar.classList.remove('show');
+  }
+  // Sync select-all header checkbox state
+  var selAll = document.getElementById('bulkSelectAll');
+  if (selAll) {
+    var visibleRowCbs = Array.from(document.querySelectorAll('#empTable tbody tr.u-row:not(.search-hidden) .row-cb'));
+    var visibleChecked = visibleRowCbs.filter(function(cb){ return cb.checked; });
+    if (visibleRowCbs.length === 0) {
+      selAll.checked = false; selAll.indeterminate = false;
+    } else if (visibleChecked.length === 0) {
+      selAll.checked = false; selAll.indeterminate = false;
+    } else if (visibleChecked.length === visibleRowCbs.length) {
+      selAll.checked = true; selAll.indeterminate = false;
+    } else {
+      selAll.checked = false; selAll.indeterminate = true;
+    }
+  }
+}
+
+function bulkRowToggle(cb) {
+  // Toggle visual highlight (works for both <tr> and .emp-card)
+  var container = cb.closest('tr') || cb.closest('.emp-card');
+  if (container) container.classList.toggle('bulk-selected', cb.checked);
+
+  // Mirror selection between desktop row and mobile card with the same id
+  var id = cb.value;
+  var twins = document.querySelectorAll('.row-cb[value="'+id+'"]');
+  twins.forEach(function(other){
+    if (other !== cb) {
+      other.checked = cb.checked;
+      var host = other.closest('tr') || other.closest('.emp-card');
+      if (host) host.classList.toggle('bulk-selected', cb.checked);
+    }
+  });
+  bulkUpdateBar();
+}
+
+function bulkToggleAll(master) {
+  // Only toggle visible (search-filtered) rows on the desktop table
+  var visibleRows = Array.from(document.querySelectorAll('#empTable tbody tr.u-row:not(.search-hidden)'));
+  visibleRows.forEach(function(tr){
+    var cb = tr.querySelector('.row-cb');
+    if (!cb) return;
+    cb.checked = master.checked;
+    tr.classList.toggle('bulk-selected', master.checked);
+    // Mirror to mobile card twin
+    var twins = document.querySelectorAll('.emp-mobile-list .row-cb[value="'+cb.value+'"]');
+    twins.forEach(function(t){
+      t.checked = master.checked;
+      var card = t.closest('.emp-card');
+      if (card) card.classList.toggle('bulk-selected', master.checked);
+    });
+  });
+  bulkUpdateBar();
+}
+
+function bulkClear() {
+  document.querySelectorAll('.row-cb:checked').forEach(function(cb){
+    cb.checked = false;
+    var host = cb.closest('tr') || cb.closest('.emp-card');
+    if (host) host.classList.remove('bulk-selected');
+  });
+  var selAll = document.getElementById('bulkSelectAll');
+  if (selAll) { selAll.checked = false; selAll.indeterminate = false; }
+  bulkUpdateBar();
+}
+
+function bulkSubmit(action) {
+  var ids = bulkGetSelected();
+  // Deduplicate (desktop + mobile twins)
+  ids = ids.filter(function(v,i,a){ return a.indexOf(v) === i; });
+  if (!ids.length) {
+    alert('Please select at least one employee.');
+    return;
+  }
+  var msg;
+  if (action === 'permanent_delete') {
+    msg = '⚠️ PERMANENT DELETE\n\n' +
+          'You are about to PERMANENTLY delete ' + ids.length +
+          ' employee' + (ids.length !== 1 ? 's' : '') + '.\n\n' +
+          'This cannot be undone. Are you absolutely sure?';
+  } else if (action === 'restore') {
+    msg = 'Restore ' + ids.length + ' employee' + (ids.length !== 1 ? 's' : '') + '?';
+  } else {
+    msg = 'Move ' + ids.length + ' employee' + (ids.length !== 1 ? 's' : '') + ' to trash?';
+  }
+  if (!confirm(msg)) {
+    return;
+  }
+  var form = document.getElementById('bulkActionForm');
+  form.action = _bulkUrls[action];
+  document.getElementById('bulkActionIds').value = ids.join(',');
+  form.submit();
+}
+{% endif %}
 
 // ── Pagination ───────────────────────────────────
 var _allRows, _page=1, _pageSize=25;

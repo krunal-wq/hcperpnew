@@ -60,11 +60,10 @@
   .topbar #tdate { font-size: 1rem !important; }
 }
 
-/* ── NO PAGE SCROLL — content auto-fits viewport ── */
-html, body { overflow: hidden !important; height: 100vh !important; }
+/* ── ALLOW PAGE SCROLL — content can grow beyond viewport ── */
+html, body { overflow: auto !important; min-height: 100vh !important; }
 .main-content, main {
-  height: 100vh !important;
-  overflow: hidden !important;
+  min-height: 100vh !important;
   display: flex; flex-direction: column;
 }
 
@@ -87,8 +86,7 @@ html, body { overflow: hidden !important; height: 100vh !important; }
 .kio-shell {
   max-width: 1440px; margin: 0 auto;
   display: flex; flex-direction: column;
-  flex: 1; min-height: 0;
-  height: 100%;
+  min-height: calc(100vh - 5rem);
 }
 
 /* ── 2-column layout: hero (scanning area) + dashboard right ── */
@@ -97,8 +95,7 @@ html, body { overflow: hidden !important; height: 100vh !important; }
   grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);  /* 60% : 40% */
   gap: 1rem;
   align-items: stretch;
-  flex: 1; min-height: 0;     /* fill remaining viewport */
-  overflow: hidden;
+  flex: 1; min-height: 0;
 }
 @media (max-width: 1100px) {
   .kio-layout {
@@ -125,9 +122,11 @@ html, body { overflow: hidden !important; height: 100vh !important; }
 .kio-side .kio-list-panel {
   display: flex; flex-direction: column;
   min-height: 280px;
+  max-height: 480px;       /* limit height so list scrolls internally */
 }
 .kio-side .kio-list-body {
   flex: 1; max-height: none; min-height: 0;
+  overflow-y: auto;
 }
 
 /* ── Dashboard section (after hero card) ── */

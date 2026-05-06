@@ -1869,9 +1869,9 @@ document.addEventListener('click', function(e) {
 // ══ GLOBAL FLATPICKR — All date inputs auto-initialized ══════════
 (function() {
   var FP_CONFIG = {
-    dateFormat: 'd-m-Y',        // Display: DD-MM-YYYY
+    dateFormat: 'Y-m-d',        // Hidden original input: YYYY-MM-DD (matches server-rendered value & backend parser)
     altInput: true,
-    altFormat: 'd-m-Y',
+    altFormat: 'd-m-Y',         // Visible altInput display: DD-MM-YYYY
     allowInput: true,
     disableMobile: false,
     locale: {
@@ -1908,7 +1908,8 @@ document.addEventListener('click', function(e) {
       var cfg  = Object.assign({}, FP_CONFIG);
 
       if (name === 'date_of_birth') cfg.maxDate = 'today';
-      if (val && val.split('-')[0].length === 4) cfg.defaultDate = val;
+      // Note: Original input value is YYYY-MM-DD (from server), which now matches dateFormat='Y-m-d'.
+      // Flatpickr will parse it correctly without needing defaultDate workaround.
 
       cfg.onChange = function(selectedDates, dateStr, fp) {
         if (selectedDates[0]) fp.element.value = toYMD(selectedDates[0]);
@@ -1931,9 +1932,9 @@ document.addEventListener('click', function(e) {
       var val = el.value;
       var cfg = {
         enableTime:   true,
-        dateFormat:   'd-m-Y H:i',
+        dateFormat:   'Y-m-d H:i',   // Hidden input format (matches server / datetime-local standard)
         altInput:     true,
-        altFormat:    'd-m-Y h:i K',
+        altFormat:    'd-m-Y h:i K', // Visible display: DD-MM-YYYY hh:mm AM/PM
         allowInput:   true,
         time_24hr:    false,
         minuteIncrement: 5,
