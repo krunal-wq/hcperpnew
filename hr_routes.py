@@ -53,15 +53,10 @@ EMP_COLS_ALL = {
     'permanent_state':   'Perm. State',
     # ── Phase-1: Professional extras ─────────────────────────
     'pay_grade':              'Pay Grade',
-    'grade_level':            'Grade / Level',
     'shift':                  'Shift',
     'weekly_off':             'Weekly Off',
     'notice_period_days':     'Notice (Days)',
     'probation_period_months':'Probation (Mo)',
-    'probation_end_date':     'Probation End',
-    'confirmation_date':      'Confirmation',
-    'resignation_date':       'Resignation',
-    'last_working_date':      'Last Working',
     # ── Phase-1: KYC identifiers ─────────────────────────────
     'aadhar_number':     'Aadhaar',
     'pan_number':        'PAN',
@@ -87,12 +82,10 @@ EMP_COLS_ALL = {
     'gratuity_eligible':           'Gratuity',
     'bonus_eligible':              'Bonus Eligible',
     # ── Phase-1: Attendance / Leave ──────────────────────────
-    'attendance_code':      'Att. Code',
     'overtime_eligible':    'OT Eligible',
     'casual_leave_balance': 'CL Balance',
     'sick_leave_balance':   'SL Balance',
     'paid_leave_balance':   'PL Balance',
-    'leave_policy':         'Leave Policy',
     # ── Phase-1: Salary extras ───────────────────────────────
     'salary_ctc':       'CTC',
     'salary_gross':     'Gross',
@@ -103,21 +96,12 @@ EMP_COLS_ALL = {
     'salary_bonus':     'Bonus',
     'salary_incentive': 'Incentive',
     'salary_mode':      'Salary Mode',
-    # ── Phase-1: System Access ───────────────────────────────
-    'official_email':  'Official Email',
-    'role_access':     'Role Access',
-    # ── Phase-1: Exit extras ─────────────────────────────────
-    'exit_interview_done':  'Exit Interview',
-    'ff_settlement_status': 'F&F Status',
-    'ff_settlement_amount': 'F&F Amount',
-    'ff_settlement_date':   'F&F Date',
     # ── Previously hidden but common ─────────────────────────
     'date_of_birth':  'Date of Birth',
     'gender':         'Gender',
     'city':           'City',
     'state':          'State',
     'nationality':    'Nationality',
-    'reports_to':     'Reports To',
 }
 
 CTR_COLS_DEFAULT = ['contract_id','company_name','supply','contact_person','contact_no','email_address','pancard','gstno','status']
@@ -137,6 +121,8 @@ CTR_COLS_ALL = {
 
 # ══════════════════════════════════════
 # EMPLOYEE
+# ══════════════════════════════════════
+# EMPLOYEES — main list page
 # ══════════════════════════════════════
 
 @hr.route('/employees')
@@ -533,10 +519,44 @@ def emp_add():
             flash(f'Employee code "{emp_code}" already exists.', 'error')
             return redirect(url_for('hr.emp_add'))
 
+        # ── Mandatory field validation (Basic Info) ─────────────────
+        # Note: mobile and email are mandatory but NO unique check
+        _required = [
+            ('employee_id',         'Employee ID'),
+            ('employee_type',       'Employee Type'),
+            ('status',              'Status'),
+            ('first_name',          'First Name'),
+            ('last_name',           'Last Name'),
+            ('mobile',              'Mobile'),
+            ('email',               'Email Address'),
+            ('gender',              'Gender'),
+            ('marital_status',      'Marital Status'),
+            ('date_of_birth',       'Date of Birth'),
+            ('father_name',         "Father's Name"),
+            ('mother_name',         "Mother's Name"),
+            ('address',             'Current Address'),
+            ('city',                'City'),
+            ('state',               'State'),
+            ('country',             'Country'),
+            ('zip_code',            'ZIP / Pin Code'),
+            ('permanent_address',   'Permanent Address'),
+            ('permanent_city',      'Permanent City'),
+            ('permanent_state',     'Permanent State'),
+            ('permanent_country',   'Permanent Country'),
+            ('permanent_zip',       'Permanent ZIP / Pin Code'),
+        ]
+        for _f, _lbl in _required:
+            if not (request.form.get(_f) or '').strip():
+                flash(f'{_lbl} is required.', 'error')
+                return redirect(url_for('hr.emp_add'))
+        # Marriage Anniversary required when Married
+        if request.form.get('marital_status', '').strip() == 'Married' \
+                and not (request.form.get('marriage_anniversary') or '').strip():
+            flash('Marriage Anniversary is required when Marital Status is Married.', 'error')
+            return redirect(url_for('hr.emp_add'))
+
         photo   = request.form.get('photo_base64', '').strip() or None
         qr_b64  = request.form.get('qr_base64', '').strip() or None
-
-        rto = request.form.get('reports_to', '').strip()
 
         def _dec_add(v):
             try: return float(v) if v else None
@@ -553,8 +573,6 @@ def emp_add():
             gender          = request.form.get('gender', ''),
             profile_photo   = photo,
             qr_code_base64  = qr_b64,
-            linkedin        = request.form.get('linkedin', '').strip(),
-            facebook        = request.form.get('facebook', '').strip(),
             department      = request.form.get('department', '').strip(),
             designation     = request.form.get('designation', '').strip(),
             employee_type   = request.form.get('employee_type', ''),
@@ -565,12 +583,7 @@ def emp_add():
             date_of_birth   = _parse_date(request.form.get('date_of_birth')),
             blood_group     = request.form.get('blood_group', '').strip(),
             marital_status  = request.form.get('marital_status', ''),
-            is_block        = request.form.get('is_block') == 'yes',
-            is_late         = request.form.get('is_late') == 'yes',
-            is_probation    = request.form.get('is_probation') == 'yes',
             status          = request.form.get('status', 'active'),
-            remark          = request.form.get('remark', '').strip(),
-            reports_to      = int(rto) if rto else None,
             # KYC
             nationality     = request.form.get('nationality','Indian').strip(),
             aadhar_number   = request.form.get('aadhar_number','').strip(),
@@ -611,10 +624,10 @@ def emp_add():
             permanent_country    = request.form.get('permanent_country','India').strip() or None,
             permanent_zip        = request.form.get('permanent_zip','').strip() or None,
             same_as_current_addr = request.form.get('same_as_current_addr') == 'yes',
-            # ── Phase-1: Grade / Probation ──────────────────────────
-            grade_level             = request.form.get('grade_level','').strip() or None,
+            # ── Phase-1: Probation ──────────────────────────────────
             probation_period_months = int(request.form.get('probation_period_months') or 6),
-            probation_end_date      = _parse_date(request.form.get('probation_end_date')),
+            notice_period_days      = int(request.form.get('notice_period_days') or 30),
+            work_hours_per_day      = _dec_add(request.form.get('work_hours_per_day')) or 8,
             # ── Phase-1: Salary extras ──────────────────────────────
             salary_conveyance = _dec_add(request.form.get('salary_conveyance')),
             salary_bonus      = _dec_add(request.form.get('salary_bonus')),
@@ -645,21 +658,10 @@ def emp_add():
             gratuity_eligible           = request.form.get('gratuity_eligible') == 'yes',
             bonus_eligible              = request.form.get('bonus_eligible','yes') == 'yes',
             # ── Phase-1: Attendance / Leave ─────────────────────────
-            attendance_code       = request.form.get('attendance_code','').strip() or None,
             overtime_eligible     = request.form.get('overtime_eligible') == 'yes',
             casual_leave_balance  = _dec_add(request.form.get('casual_leave_balance')) or 0,
             sick_leave_balance    = _dec_add(request.form.get('sick_leave_balance')) or 0,
             paid_leave_balance    = _dec_add(request.form.get('paid_leave_balance')) or 0,
-            leave_policy          = request.form.get('leave_policy','').strip() or None,
-            # ── Phase-1: System Access ──────────────────────────────
-            official_email = request.form.get('official_email','').strip() or None,
-            role_access    = request.form.get('role_access','').strip() or None,
-            # ── Phase-1: Exit extras ────────────────────────────────
-            exit_interview_done  = request.form.get('exit_interview_done') == 'yes',
-            exit_interview_notes = request.form.get('exit_interview_notes','').strip() or None,
-            ff_settlement_status = request.form.get('ff_settlement_status','Pending').strip() or 'Pending',
-            ff_settlement_amount = _dec_add(request.form.get('ff_settlement_amount')),
-            ff_settlement_date   = _parse_date(request.form.get('ff_settlement_date')),
             created_by      = current_user.id,
         )
         db.session.add(e)
@@ -706,6 +708,42 @@ def emp_edit(id):
     contractors = Contractor.query.filter_by(status=1, is_deleted=0).order_by(Contractor.company_name).all()
 
     if request.method == 'POST':
+        # ── Mandatory field validation (Basic Info) ─────────────────
+        # Note: mobile and email are mandatory but NO unique check
+        _required = [
+            ('employee_id',         'Employee ID'),
+            ('employee_type',       'Employee Type'),
+            ('status',              'Status'),
+            ('first_name',          'First Name'),
+            ('last_name',           'Last Name'),
+            ('mobile',              'Mobile'),
+            ('email',               'Email Address'),
+            ('gender',              'Gender'),
+            ('marital_status',      'Marital Status'),
+            ('date_of_birth',       'Date of Birth'),
+            ('father_name',         "Father's Name"),
+            ('mother_name',         "Mother's Name"),
+            ('address',             'Current Address'),
+            ('city',                'City'),
+            ('state',               'State'),
+            ('country',             'Country'),
+            ('zip_code',            'ZIP / Pin Code'),
+            ('permanent_address',   'Permanent Address'),
+            ('permanent_city',      'Permanent City'),
+            ('permanent_state',     'Permanent State'),
+            ('permanent_country',   'Permanent Country'),
+            ('permanent_zip',       'Permanent ZIP / Pin Code'),
+        ]
+        for _f, _lbl in _required:
+            if not (request.form.get(_f) or '').strip():
+                flash(f'{_lbl} is required.', 'error')
+                return redirect(url_for('hr.emp_edit', id=id))
+        # Marriage Anniversary required when Married
+        if request.form.get('marital_status', '').strip() == 'Married' \
+                and not (request.form.get('marriage_anniversary') or '').strip():
+            flash('Marriage Anniversary is required when Marital Status is Married.', 'error')
+            return redirect(url_for('hr.emp_edit', id=id))
+
         photo  = request.form.get('photo_base64', '').strip()
         if photo: e.profile_photo = photo
 
@@ -727,8 +765,6 @@ def emp_edit(id):
         e.mobile         = request.form.get('mobile', e.mobile).strip()
         e.email          = request.form.get('email', '').strip()
         e.gender         = request.form.get('gender', '')
-        e.linkedin       = request.form.get('linkedin', '').strip()
-        e.facebook       = request.form.get('facebook', '').strip()
         e.department     = request.form.get('department', '').strip()
         e.designation    = request.form.get('designation', '').strip()
         e.employee_type  = request.form.get('employee_type', '')
@@ -740,16 +776,7 @@ def emp_edit(id):
         e.date_of_birth  = _parse_date(request.form.get('date_of_birth'))
         e.blood_group    = request.form.get('blood_group', '').strip()
         e.marital_status = request.form.get('marital_status', '')
-        e.is_block       = request.form.get('is_block') == 'yes'
-        e.is_late        = request.form.get('is_late') == 'yes'
-        e.is_probation   = request.form.get('is_probation') == 'yes'
         e.status         = request.form.get('status', 'active')
-        e.remark         = request.form.get('remark', '').strip()
-        rto = request.form.get('reports_to', '').strip()
-        try:
-            e.reports_to = int(rto) if rto else None
-        except (ValueError, TypeError):
-            e.reports_to = None
 
         # Professional
         e.pay_grade      = request.form.get('pay_grade','').strip()
@@ -757,10 +784,6 @@ def emp_edit(id):
         e.weekly_off     = request.form.get('weekly_off','').strip()
         e.notice_period_days = int(request.form.get('notice_period_days') or 30)
         e.work_hours_per_day = float(request.form.get('work_hours_per_day') or 8)
-        e.rehire_eligible = request.form.get('rehire_eligible') == 'yes'
-        e.confirmation_date  = _parse_date(request.form.get('confirmation_date'))
-        e.resignation_date   = _parse_date(request.form.get('resignation_date'))
-        e.last_working_date  = _parse_date(request.form.get('last_working_date'))
 
         # KYC
         e.nationality        = request.form.get('nationality','Indian').strip()
@@ -844,13 +867,11 @@ def emp_edit(id):
         e.permanent_country    = request.form.get('permanent_country','India').strip() or None
         e.permanent_zip        = request.form.get('permanent_zip','').strip() or None
         e.same_as_current_addr = request.form.get('same_as_current_addr') == 'yes'
-        # ── Phase-1: Grade / Probation ──────────────────────────
-        e.grade_level             = request.form.get('grade_level','').strip() or None
+        # ── Phase-1: Probation ──────────────────────────────────
         try:
             e.probation_period_months = int(request.form.get('probation_period_months') or 6)
         except (ValueError, TypeError):
             e.probation_period_months = 6
-        e.probation_end_date      = _parse_date(request.form.get('probation_end_date'))
         # ── Phase-1: Salary extras ──────────────────────────────
         e.salary_conveyance = _dec(request.form.get('salary_conveyance'))
         e.salary_bonus      = _dec(request.form.get('salary_bonus'))
@@ -881,21 +902,10 @@ def emp_edit(id):
         e.gratuity_eligible           = request.form.get('gratuity_eligible') == 'yes'
         e.bonus_eligible              = request.form.get('bonus_eligible','yes') == 'yes'
         # ── Phase-1: Attendance / Leave ─────────────────────────
-        e.attendance_code       = request.form.get('attendance_code','').strip() or None
         e.overtime_eligible     = request.form.get('overtime_eligible') == 'yes'
         e.casual_leave_balance  = _dec(request.form.get('casual_leave_balance')) or 0
         e.sick_leave_balance    = _dec(request.form.get('sick_leave_balance')) or 0
         e.paid_leave_balance    = _dec(request.form.get('paid_leave_balance')) or 0
-        e.leave_policy          = request.form.get('leave_policy','').strip() or None
-        # ── Phase-1: System Access ──────────────────────────────
-        e.official_email = request.form.get('official_email','').strip() or None
-        e.role_access    = request.form.get('role_access','').strip() or None
-        # ── Phase-1: Exit extras ────────────────────────────────
-        e.exit_interview_done  = request.form.get('exit_interview_done') == 'yes'
-        e.exit_interview_notes = request.form.get('exit_interview_notes','').strip() or None
-        e.ff_settlement_status = request.form.get('ff_settlement_status','Pending').strip() or 'Pending'
-        e.ff_settlement_amount = _dec(request.form.get('ff_settlement_amount'))
-        e.ff_settlement_date   = _parse_date(request.form.get('ff_settlement_date'))
 
         e.updated_at     = datetime.utcnow()
         db.session.commit()
@@ -936,10 +946,41 @@ def emp_ajax_init():
     if Employee.query.filter(Employee.employee_code.ilike(emp_code)).first():
         return {'ok': False, 'error': f'Employee code "{emp_code}" already exists'}, 400
 
-    # Check email duplicate
+    # ── Mandatory field validation (Basic Info) ─────────────────────
+    # Note: mobile and email are mandatory but NO unique check
+    _required = [
+        ('employee_id',         'Employee ID'),
+        ('employee_type',       'Employee Type'),
+        ('first_name',          'First Name'),
+        ('last_name',           'Last Name'),
+        ('mobile',              'Mobile'),
+        ('email',               'Email Address'),
+        ('gender',              'Gender'),
+        ('marital_status',      'Marital Status'),
+        ('date_of_birth',       'Date of Birth'),
+        ('father_name',         "Father's Name"),
+        ('mother_name',         "Mother's Name"),
+        ('address',             'Current Address'),
+        ('city',                'City'),
+        ('state',               'State'),
+        ('country',             'Country'),
+        ('zip_code',            'ZIP / Pin Code'),
+        ('permanent_address',   'Permanent Address'),
+        ('permanent_city',      'Permanent City'),
+        ('permanent_state',     'Permanent State'),
+        ('permanent_country',   'Permanent Country'),
+        ('permanent_zip',       'Permanent ZIP / Pin Code'),
+    ]
+    for _f, _lbl in _required:
+        if not (str(data.get(_f) or '')).strip():
+            return {'ok': False, 'error': f'{_lbl} is required'}, 400
+    # Marriage Anniversary required when Married
+    if (data.get('marital_status') or '').strip() == 'Married' \
+            and not (str(data.get('marriage_anniversary') or '')).strip():
+        return {'ok': False, 'error': 'Marriage Anniversary is required when Marital Status is Married'}, 400
+
+    # Email is mandatory but NO unique check on mobile/email
     email = (data.get('email') or '').strip()
-    if email and Employee.query.filter_by(email=email).first():
-        return {'ok': False, 'error': f'Email "{email}" already in use'}, 400
 
     rto = data.get('reports_to', '')
     try:
@@ -966,21 +1007,28 @@ def emp_ajax_init():
         state          = (data.get('state') or '').strip(),
         country        = (data.get('country') or '').strip(),
         zip_code       = (data.get('zip_code') or '').strip(),
-        linkedin       = (data.get('linkedin') or '').strip(),
-        facebook       = (data.get('facebook') or '').strip(),
         reports_to     = rto_id,
         department     = (data.get('department') or '').strip(),
         designation    = (data.get('designation') or '').strip(),
         employee_type  = data.get('employee_type', ''),
         date_of_joining      = _parse_date(data.get('date_of_joining')),
-        confirmation_date    = _parse_date(data.get('confirmation_date')),
-        resignation_date     = _parse_date(data.get('resignation_date')),
-        last_working_date    = _parse_date(data.get('last_working_date')),
         location       = (data.get('location') or '').strip(),
         pay_grade      = (data.get('pay_grade') or '').strip(),
         shift          = (data.get('shift') or '').strip(),
         weekly_off     = (data.get('weekly_off') or '').strip(),
-        status         = 'active',
+        status         = (data.get('status') or 'active').strip() or 'active',
+        # ── Phase-1: Family / Contact ───────────────────────
+        father_name      = (data.get('father_name') or '').strip() or None,
+        mother_name      = (data.get('mother_name') or '').strip() or None,
+        alternate_mobile = (data.get('alternate_mobile') or '').strip() or None,
+        personal_email   = (data.get('personal_email') or '').strip() or None,
+        # ── Phase-1: Permanent Address ──────────────────────
+        permanent_address = (data.get('permanent_address') or '').strip() or None,
+        permanent_city    = (data.get('permanent_city') or '').strip() or None,
+        permanent_state   = (data.get('permanent_state') or '').strip() or None,
+        permanent_country = (data.get('permanent_country') or 'India').strip() or None,
+        permanent_zip     = (data.get('permanent_zip') or '').strip() or None,
+        same_as_current_addr = data.get('same_as_current_addr') == 'yes',
         created_by     = current_user.id,
         documents_json = data.get('documents_json', '[]'),
     )
@@ -1023,6 +1071,38 @@ def emp_ajax_save_tab(id):
         except: return None
 
     if tab == 'basic':
+        # ── Mandatory field validation (Basic Info) ─────────────────
+        # Note: mobile and email are mandatory but NO unique check
+        _required = [
+            ('employee_id',         'Employee ID'),
+            ('first_name',          'First Name'),
+            ('last_name',           'Last Name'),
+            ('mobile',              'Mobile'),
+            ('email',               'Email Address'),
+            ('gender',              'Gender'),
+            ('marital_status',      'Marital Status'),
+            ('date_of_birth',       'Date of Birth'),
+            ('father_name',         "Father's Name"),
+            ('mother_name',         "Mother's Name"),
+            ('address',             'Current Address'),
+            ('city',                'City'),
+            ('state',               'State'),
+            ('country',             'Country'),
+            ('zip_code',            'ZIP / Pin Code'),
+            ('permanent_address',   'Permanent Address'),
+            ('permanent_city',      'Permanent City'),
+            ('permanent_state',     'Permanent State'),
+            ('permanent_country',   'Permanent Country'),
+            ('permanent_zip',       'Permanent ZIP / Pin Code'),
+        ]
+        for _f, _lbl in _required:
+            if not (str(data.get(_f) or '')).strip():
+                return {'ok': False, 'error': f'{_lbl} is required'}, 400
+        # Marriage Anniversary required when Married
+        if (data.get('marital_status') or '').strip() == 'Married' \
+                and not (str(data.get('marriage_anniversary') or '')).strip():
+            return {'ok': False, 'error': 'Marriage Anniversary is required when Marital Status is Married'}, 400
+
         photo = (data.get('photo_base64') or '').strip()
         if photo: e.profile_photo = photo
         qr = (data.get('qr_base64') or '').strip()
@@ -1032,12 +1112,8 @@ def emp_ajax_save_tab(id):
         e.middle_name    = (data.get('middle_name') or '').strip()
         e.last_name      = (data.get('last_name') or '').strip()
         e.mobile         = (data.get('mobile') or '').strip()
-        new_email        = (data.get('email') or '').strip()
-        if new_email and new_email != e.email:
-            dup = Employee.query.filter(Employee.email == new_email, Employee.id != id).first()
-            if dup:
-                return {'ok': False, 'error': f'Email "{new_email}" already in use by {dup.employee_code}'}, 400
-        e.email          = new_email
+        # Email is mandatory but NO unique check
+        e.email          = (data.get('email') or '').strip()
         e.gender         = data.get('gender', '')
         e.date_of_birth  = _parse_date(data.get('date_of_birth'))
         e.blood_group    = (data.get('blood_group') or '').strip()
@@ -1060,6 +1136,9 @@ def emp_ajax_save_tab(id):
         e.permanent_country    = (data.get('permanent_country') or 'India').strip() or None
         e.permanent_zip        = (data.get('permanent_zip') or '').strip() or None
         e.same_as_current_addr = data.get('same_as_current_addr') == 'yes'
+        # Status (visually in Basic Info card)
+        _st = (data.get('status') or '').strip()
+        if _st: e.status = _st
         
 
     elif tab == 'professional':
@@ -1076,46 +1155,18 @@ def emp_ajax_save_tab(id):
         e.is_contractor  = data.get('is_contractor') == 'yes'
         cid = data.get('contractor_id') or None
         e.contractor_id  = int(cid) if cid and e.is_contractor else None
-        e.is_block       = data.get('is_block') == 'yes'
-        e.is_late        = data.get('is_late') == 'yes'
-        e.is_probation   = data.get('is_probation') == 'yes'
         e.status         = data.get('status', 'active')
-        e.remark         = (data.get('remark') or '').strip()
-        e.confirmation_date  = _parse_date(data.get('confirmation_date'))
-        e.resignation_date   = _parse_date(data.get('resignation_date'))
-        e.last_working_date  = _parse_date(data.get('last_working_date'))
-        e.rehire_eligible    = data.get('rehire_eligible') == 'yes'
-        e.linkedin       = (data.get('linkedin') or '').strip()
-        e.facebook       = (data.get('facebook') or '').strip()
-        rto = data.get('reports_to', '')
-        try:
-            e.reports_to = int(rto) if rto and str(rto).strip() else None
-        except (ValueError, TypeError):
-            e.reports_to = None
-        # ── Phase-1: Grade / Probation ─────────────────────────
-        e.grade_level = (data.get('grade_level') or '').strip() or None
+        # ── Phase-1: Probation ─────────────────────────────────
         try:
             e.probation_period_months = int(data.get('probation_period_months') or 6)
         except (ValueError, TypeError):
             e.probation_period_months = 6
-        e.probation_end_date = _parse_date(data.get('probation_end_date'))
         # ── Phase-1: Attendance ────────────────────────────────
-        e.attendance_code    = (data.get('attendance_code') or '').strip() or None
         e.overtime_eligible  = data.get('overtime_eligible') == 'yes'
         # ── Phase-1: Leave balances ────────────────────────────
         e.casual_leave_balance = _dec(data.get('casual_leave_balance')) or 0
         e.sick_leave_balance   = _dec(data.get('sick_leave_balance')) or 0
         e.paid_leave_balance   = _dec(data.get('paid_leave_balance')) or 0
-        e.leave_policy         = (data.get('leave_policy') or '').strip() or None
-        # ── Phase-1: System Access ─────────────────────────────
-        e.official_email = (data.get('official_email') or '').strip() or None
-        e.role_access    = (data.get('role_access') or '').strip() or None
-        # ── Phase-1: Exit extras ───────────────────────────────
-        e.exit_interview_done  = data.get('exit_interview_done') == 'yes'
-        e.exit_interview_notes = (data.get('exit_interview_notes') or '').strip() or None
-        e.ff_settlement_status = (data.get('ff_settlement_status') or 'Pending').strip() or 'Pending'
-        e.ff_settlement_amount = _dec(data.get('ff_settlement_amount'))
-        e.ff_settlement_date   = _parse_date(data.get('ff_settlement_date'))
 
     elif tab == 'kyc':
         e.nationality        = (data.get('nationality') or 'Indian').strip()
@@ -1822,13 +1873,49 @@ def emp_import():
                     sl = sal_idx.get(emp_code.upper(), {})
                     ed = edu_idx.get(emp_code.upper(), {})
 
+                    # Email is mandatory but NO unique check — accept whatever the file has
                     email = _gv(row,'Email','email')
-                    if email:
-                        email_owner = Employee.query.filter_by(email=email).first()
-                        if email_owner and (not existing or email_owner.id != existing.id):
-                            email = ''
 
-                    marital = _gv(row,'Marital Status','marital_status') or 'Single'
+                    marital = _gv(row,'Marital Status','marital_status') or ''
+
+                    # ── Mandatory field validation (Basic Info) ─────
+                    # Note: mobile and email are mandatory but NO unique check
+                    _req_basic = [
+                        ('Employee ID',          _gv(row,'Employee ID','employee_id')),
+                        ('First Name',           _gv(row,'First Name','first_name')),
+                        ('Last Name',            _gv(row,'Last Name','last_name')),
+                        ('Mobile',               _gv(row,'Mobile','mobile')),
+                        ('Email',                email),
+                        ('Gender',               _gv(row,'Gender','gender')),
+                        ('Marital Status',       marital),
+                        ('Date of Birth',        _gv(row,'DOB','Date of Birth','date_of_birth')),
+                        ('Status',               _gv(row,'Status','status')),
+                        ("Father's Name",        _gv(row,'Father Name','father_name')),
+                        ("Mother's Name",        _gv(row,'Mother Name','mother_name')),
+                        ('Address',              _gv(row,'Address','address')),
+                        ('City',                 _gv(row,'City','city')),
+                        ('State',                _gv(row,'State','state')),
+                        ('Country',              _gv(row,'Country','country')),
+                        ('ZIP',                  _gv(row,'ZIP','Zip Code','zip_code')),
+                        ('Permanent Address',    _gv(row,'Permanent Address','permanent_address')),
+                        ('Permanent City',       _gv(row,'Permanent City','permanent_city')),
+                        ('Permanent State',      _gv(row,'Permanent State','permanent_state')),
+                        ('Permanent Country',    _gv(row,'Permanent Country','permanent_country')),
+                        ('Permanent ZIP',        _gv(row,'Permanent ZIP','Permanent Zip','permanent_zip')),
+                    ]
+                    # Employee Type lives in Sheet 2 (Professional) — fall back to Sheet 1 if present
+                    _emp_type_val = _gv(p,'Employee Type','employee_type') or _gv(row,'Employee Type','employee_type')
+                    _req_basic.append(('Employee Type', _emp_type_val))
+
+                    _missing = [lbl for lbl, val in _req_basic if not (val or '').strip()]
+                    if _missing:
+                        errors.append(f'Row {i} ({emp_code}): missing required field(s) — {", ".join(_missing)} — skipped')
+                        continue
+
+                    # Marriage Anniversary required when Married
+                    if marital == 'Married' and not _gv(row,'Marriage Anniversary','marriage_anniversary'):
+                        errors.append(f'Row {i} ({emp_code}): Marriage Anniversary required when Married — skipped')
+                        continue
 
                     if existing:
                         # ── UPDATE existing employee ──
@@ -1874,12 +1961,6 @@ def emp_import():
                         if loc: e.location    = loc
                         doj = _pd(_gv(p,'DOJ','Date of Joining','date_of_joining') or _gv(row,'DOJ','Date of Joining'))
                         if doj: e.date_of_joining = doj
-                        conf = _pd(_gv(p,'Confirmation','Confirmation Date'))
-                        if conf: e.confirmation_date = conf
-                        resign = _pd(_gv(p,'Resignation Date','resignation_date'))
-                        if resign: e.resignation_date = resign
-                        lwd = _pd(_gv(p,'Last Working Date','last_working_date'))
-                        if lwd: e.last_working_date = lwd
                         # KYC
                         pe = _pd(_gv(k,'Passport Expiry','passport_expiry'))
                         if pe: e.passport_expiry = pe
@@ -1927,17 +2008,11 @@ def emp_import():
                         sac = _gv(row,'Same as Current','same_as_current_addr')
                         if sac: e.same_as_current_addr = sac.lower() == 'yes'
 
-                        # ── Phase-1: Professional — Grade / Probation / Attendance / Leave / System / Exit extras
-                        gl = _gv(p,'Grade Level','grade_level')
-                        if gl: e.grade_level = gl
+                        # ── Phase-1: Professional — Probation / Attendance / Leave
                         pm = _gv(p,'Probation Months','probation_period_months')
                         if pm:
                             try: e.probation_period_months = int(pm)
                             except: pass
-                        ped = _pd(_gv(p,'Probation End','probation_end_date'))
-                        if ped: e.probation_end_date = ped
-                        ac = _gv(p,'Attendance Code','attendance_code')
-                        if ac: e.attendance_code = ac
                         ot = _gv(p,'Overtime Eligible','overtime_eligible')
                         if ot: e.overtime_eligible = ot.lower() == 'yes'
                         clv = _dec(_gv(p,'CL Balance','casual_leave_balance'))
@@ -1946,22 +2021,6 @@ def emp_import():
                         if slv is not None: e.sick_leave_balance = slv
                         plv = _dec(_gv(p,'PL Balance','paid_leave_balance'))
                         if plv is not None: e.paid_leave_balance = plv
-                        lp = _gv(p,'Leave Policy','leave_policy')
-                        if lp: e.leave_policy = lp
-                        oe = _gv(p,'Official Email','official_email')
-                        if oe: e.official_email = oe
-                        ra = _gv(p,'Role Access','role_access')
-                        if ra: e.role_access = ra
-                        eid_ = _gv(p,'Exit Interview','exit_interview_done')
-                        if eid_: e.exit_interview_done = eid_.lower() == 'yes'
-                        ein = _gv(p,'Exit Notes','exit_interview_notes')
-                        if ein: e.exit_interview_notes = ein
-                        ffs = _gv(p,'FF Status','ff_settlement_status')
-                        if ffs: e.ff_settlement_status = ffs
-                        ffa = _dec(_gv(p,'FF Amount','ff_settlement_amount'))
-                        if ffa is not None: e.ff_settlement_amount = ffa
-                        ffd = _pd(_gv(p,'FF Date','ff_settlement_date'))
-                        if ffd: e.ff_settlement_date = ffd
 
                         # ── Phase-1: KYC — PF / ESIC / TDS / Statutory
                         pfa = _gv(k,'PF Applicable','pf_applicable')
@@ -2038,8 +2097,6 @@ def emp_import():
                         state           = _gv(row,'State','state'),
                         country         = _gv(row,'Country','country') or 'India',
                         zip_code        = _gv(row,'ZIP','Zip Code','zip_code'),
-                        linkedin        = _gv(row,'LinkedIn','linkedin'),
-                        facebook        = _gv(row,'Facebook','facebook'),
                         status          = (_gv(row,'Status','status') or 'active').lower().replace(' ','_'),
                         # Professional
                         department      = _gv(p,'Department','department') or _gv(row,'Department'),
@@ -2048,17 +2105,11 @@ def emp_import():
                         location        = _gv(p,'Location','location') or _gv(row,'Location'),
                         pay_grade       = _gv(p,'Pay Grade','pay_grade'),
                         date_of_joining = _pd(_gv(p,'DOJ','Date of Joining','date_of_joining') or _gv(row,'DOJ','Date of Joining')),
-                        confirmation_date = _pd(_gv(p,'Confirmation','Confirmation Date')),
                         shift           = _gv(p,'Shift','shift'),
                         work_hours_per_day = _dec(_gv(p,'Work Hrs','Work Hours Per Day')) or 8,
                         weekly_off      = _gv(p,'Weekly Off','weekly_off'),
                         notice_period_days = int(_gv(p,'Notice Days','Notice Period (Days)') or 30),
                         is_contractor   = _gv(p,'Contractor','Is Contractor','is_contractor').lower() == 'yes',
-                        is_probation    = _gv(p,'Probation','Is Probation','is_probation').lower() == 'yes',
-                        is_block        = _gv(p,'Block','Is Block','is_block').lower() == 'yes',
-                        is_late         = _gv(p,'Late Mark','Is Late','is_late').lower() == 'yes',
-                        rehire_eligible = _gv(p,'Rehire Eligible','rehire_eligible').lower() == 'yes',
-                        remark          = _gv(p,'Remark','remark'),
                         # KYC
                         nationality     = _gv(k,'Nationality','nationality') or 'Indian',
                         religion        = _gv(k,'Religion','religion'),
@@ -2122,22 +2173,11 @@ def emp_import():
                         permanent_zip     = _gv(row,'Permanent ZIP','Permanent Zip','permanent_zip') or None,
                         same_as_current_addr = _gv(row,'Same as Current','same_as_current_addr').lower() == 'yes',
                         # ── Phase-1: Professional ───────────────────
-                        grade_level             = _gv(p,'Grade Level','grade_level') or None,
                         probation_period_months = int(_gv(p,'Probation Months','probation_period_months') or 6),
-                        probation_end_date      = _pd(_gv(p,'Probation End','probation_end_date')),
-                        attendance_code         = _gv(p,'Attendance Code','attendance_code') or None,
                         overtime_eligible       = _gv(p,'Overtime Eligible','overtime_eligible').lower() == 'yes',
                         casual_leave_balance    = _dec(_gv(p,'CL Balance','casual_leave_balance')) or 0,
                         sick_leave_balance      = _dec(_gv(p,'SL Balance','sick_leave_balance')) or 0,
                         paid_leave_balance      = _dec(_gv(p,'PL Balance','paid_leave_balance')) or 0,
-                        leave_policy            = _gv(p,'Leave Policy','leave_policy') or None,
-                        official_email          = _gv(p,'Official Email','official_email') or None,
-                        role_access             = _gv(p,'Role Access','role_access') or None,
-                        exit_interview_done     = _gv(p,'Exit Interview','exit_interview_done').lower() == 'yes',
-                        exit_interview_notes    = _gv(p,'Exit Notes','exit_interview_notes') or None,
-                        ff_settlement_status    = _gv(p,'FF Status','ff_settlement_status') or 'Pending',
-                        ff_settlement_amount    = _dec(_gv(p,'FF Amount','ff_settlement_amount')),
-                        ff_settlement_date      = _pd(_gv(p,'FF Date','ff_settlement_date')),
                         # ── Phase-1: KYC — PF / ESIC / TDS / Statutory
                         pf_applicable        = _gv(k,'PF Applicable','pf_applicable').lower() == 'yes',
                         pf_number            = _gv(k,'PF Number','pf_number') or None,
@@ -2269,17 +2309,17 @@ def emp_import_template():
     # ── Sheet 1: Basic Info ──
     ws1 = wb.active; ws1.title = "1 - Basic Info"
     build_tpl(ws1, "1E3A5F",
-        ["Employee Code","Employee ID","First Name","Middle Name","Last Name","Mobile","Email","Gender","Date of Birth","Blood Group","Marital Status","Marriage Anniversary","Father Name","Mother Name","Alternate Mobile","Personal Email","Address","City","State","Country","ZIP","Permanent Address","Permanent City","Permanent State","Permanent Country","Permanent ZIP","Same as Current","LinkedIn","Facebook","Status"],
-        ["Required. Unique code","Biometric/Device ID","Required","Optional","Optional","10 digits","Valid email","Male/Female/Other","DD-MM-YYYY","A+/B+/O+...","Single/Married/Divorced","DD-MM-YYYY if Married","Father's name","Mother's name","Optional","Personal Gmail/Yahoo","Street address","City","State","Default: India","Pincode","Permanent street","City","State","India","Pincode","Yes/No","URL optional","URL optional","active/inactive"],
-        ["EMP0001","1001","Krunal","Naresh","Chandi","9876543210","krunal@hcp.com","Male","15-06-1990","A+","Married","20-02-2015","Naresh Chandi","Suman Chandi","9876512345","krunal.p@gmail.com","123 MG Road","Ahmedabad","Gujarat","India","380001","123 MG Road","Ahmedabad","Gujarat","India","380001","Yes","","","active"]
+        ["Employee Code","Employee ID","First Name","Middle Name","Last Name","Mobile","Email","Gender","Date of Birth","Blood Group","Marital Status","Marriage Anniversary","Father Name","Mother Name","Alternate Mobile","Personal Email","Address","City","State","Country","ZIP","Permanent Address","Permanent City","Permanent State","Permanent Country","Permanent ZIP","Same as Current","Status"],
+        ["REQUIRED. Unique code","REQUIRED. Biometric/Device ID","REQUIRED","Optional","REQUIRED","REQUIRED. 10 digits (NOT unique)","REQUIRED. Valid email (NOT unique)","REQUIRED. Male/Female/Other","REQUIRED. DD-MM-YYYY","A+/B+/O+...","REQUIRED. Single/Married/Divorced/Widowed","REQUIRED if Marital Status = Married. DD-MM-YYYY","REQUIRED. Father's name","REQUIRED. Mother's name","Optional","Personal Gmail/Yahoo","REQUIRED. Street address","REQUIRED. City","REQUIRED. State","REQUIRED. Country","REQUIRED. Pincode","REQUIRED. Permanent street","REQUIRED. City","REQUIRED. State","REQUIRED. Country","REQUIRED. Pincode","Yes/No","REQUIRED. active/inactive/on_leave/terminated"],
+        ["EMP0001","1001","Krunal","Naresh","Chandi","9876543210","krunal@hcp.com","Male","15-06-1990","A+","Married","20-02-2015","Naresh Chandi","Suman Chandi","9876512345","krunal.p@gmail.com","123 MG Road","Ahmedabad","Gujarat","India","380001","123 MG Road","Ahmedabad","Gujarat","India","380001","Yes","active"]
     )
 
     # ── Sheet 2: Professional ──
     ws2 = wb.create_sheet("2 - Professional")
     build_tpl(ws2, "1D4ED8",
-        ["Code","Full Name","Department","Designation","Employee Type","Location","Pay Grade","Grade Level","DOJ","Confirmation","Shift","Work Hrs","Weekly Off","Notice Days","Probation Months","Probation End","Contractor","Probation","Block","Status","Reports To","Attendance Code","Overtime Eligible","CL Balance","SL Balance","PL Balance","Leave Policy","Official Email","Role Access","Exit Interview","Exit Notes","FF Status","FF Amount","FF Date"],
-        ["Match Sheet1 Code","For reference","e.g. Sales","e.g. Manager","Full Time/Part Time/Contract/Intern","City/Branch","G1/G2/G3","L1/L2/Senior","DD-MM-YYYY","DD-MM-YYYY","General/Night","8","Sunday","30","6","DD-MM-YYYY","Yes/No","Yes/No","Yes/No","active","Manager full name","ATT1001","Yes/No","0","0","0","Standard","name@co.com","Staff/Manager/HR Admin","Yes/No","Feedback text","Pending/Processed/Paid","Amount ₹","DD-MM-YYYY"],
-        ["EMP0001","Krunal Chandi","Sales","Sales Manager","Full Time","Ahmedabad","G2","L2","01-01-2022","01-07-2022","General (9-6)","8","Sunday","30","6","01-07-2022","No","No","No","active","Rajesh Shah","ATT0001","Yes","10","8","12","Standard","krunal@hcp.com","Manager","No","","Pending","","",""]
+        ["Code","Full Name","Department","Designation","Employee Type","Location","Pay Grade","DOJ","Shift","Work Hrs","Weekly Off","Notice Days","Probation Months","Contractor","Overtime Eligible","CL Balance","SL Balance","PL Balance","Status"],
+        ["Match Sheet1 Code","For reference","e.g. Sales","e.g. Manager","REQUIRED. Full Time/Part Time/Contract/Intern","City/Branch","G1/G2/G3","DD-MM-YYYY","General/Night","8","Sunday","30","6","Yes/No","Yes/No","0","0","0","active"],
+        ["EMP0001","Krunal Chandi","Sales","Sales Manager","Full Time","Ahmedabad","G2","01-01-2022","General (9-6)","8","Sunday","30","6","No","Yes","10","8","12","active"]
     )
 
     # ── Sheet 3: KYC ──
@@ -2439,8 +2479,6 @@ def emp_export_single(id):
         ("State", e.state),
         ("Country", e.country),
         ("ZIP / Pin Code", e.zip_code),
-        ("LinkedIn", e.linkedin),
-        ("Facebook", e.facebook),
     ])
 
     # ── Sheet 2: Professional ──
@@ -2452,21 +2490,17 @@ def emp_export_single(id):
         ("Location", e.location),
         ("Pay Grade", e.pay_grade),
         ("Date of Joining", fmt_date(e.date_of_joining)),
-        ("Confirmation Date", fmt_date(e.confirmation_date)),
         ("Shift", e.shift),
         ("Work Hours Per Day", str(e.work_hours_per_day) if e.work_hours_per_day else None),
         ("Weekly Off", e.weekly_off),
-        ("Notice Period (Days)", str(e.notice_period_days) if e.notice_period_days else None),
+        ("Notice Period (Days)", str(e.notice_period_days) if e.notice_period_days is not None else None),
+        ("Probation Period (Months)", str(e.probation_period_months) if e.probation_period_months is not None else None),
         ("Is Contractor", "Yes" if e.is_contractor else "No"),
+        ("Overtime Eligible", "Yes" if e.overtime_eligible else "No"),
+        ("Casual Leave (CL)", str(e.casual_leave_balance) if e.casual_leave_balance is not None else "0"),
+        ("Sick Leave (SL)",   str(e.sick_leave_balance)   if e.sick_leave_balance   is not None else "0"),
+        ("Paid Leave (PL)",   str(e.paid_leave_balance)   if e.paid_leave_balance   is not None else "0"),
         ("Status", (e.status or "").title()),
-        ("Is Probation", "Yes" if e.is_probation else "No"),
-        ("Is Block", "Yes" if e.is_block else "No"),
-        ("Is Late", "Yes" if e.is_late else "No"),
-        ("Rehire Eligible", "Yes" if e.rehire_eligible else "No"),
-        ("Resignation Date", fmt_date(e.resignation_date)),
-        ("Last Working Date", fmt_date(e.last_working_date)),
-        ("Remark", e.remark),
-        ("Reports To", e.manager_emp.full_name if e.manager_emp else None),
     ])
 
     # ── Sheet 3: KYC ──
@@ -2622,14 +2656,12 @@ def emp_export():
     headers = ["Employee Code","First Name","Middle Name","Last Name","Full Name","Mobile","Email","Gender",
                "Department","Designation","Employee Type","Date of Joining","Location",
                "Date of Birth","Blood Group","Marital Status","Status",
-               "Is Contractor","Is Block","Is Late","Is Probation",
-               "LinkedIn","Facebook","Remark","Created At","Updated At"]
+               "Is Contractor","Overtime Eligible","Created At","Updated At"]
 
     rows = []
     for e in emps:
         full = (e.first_name or '') + ' ' + (e.middle_name or '') + ' ' + (e.last_name or '')
         rows.append([
-            e.employee_code or '', e.first_name or '', e.middle_name or '', e.last_name or '', full.strip(),
             e.employee_code or '', e.first_name or '', e.middle_name or '', e.last_name or '', full.strip(),
             e.mobile or '', e.email or '', e.gender or '',
             e.department or '', e.designation or '', e.employee_type or '',
@@ -2639,10 +2671,7 @@ def emp_export():
             e.blood_group or '', e.marital_status or '',
             (e.status or '').title(),
             'Yes' if e.is_contractor else 'No',
-            'Yes' if e.is_block else 'No',
-            'Yes' if e.is_late else 'No',
-            'Yes' if e.is_probation else 'No',
-            e.linkedin or '', e.facebook or '', e.remark or '',
+            'Yes' if e.overtime_eligible else 'No',
             e.created_at.strftime('%d-%m-%Y %H:%M') if e.created_at else '',
             e.updated_at.strftime('%d-%m-%Y %H:%M') if e.updated_at else '',
         ])
@@ -2687,7 +2716,7 @@ def emp_export():
 
     # Sheet 1: Basic Info
     ws1 = wb.active; ws1.title = "1 - Basic Info"
-    h1 = ["Code","First Name","Last Name","Full Name","Mobile","Email","Gender","DOB","Blood Group","Marital Status","Father Name","Mother Name","Alternate Mobile","Personal Email","Address","City","State","Country","ZIP","Permanent Address","Permanent City","Permanent State","Permanent Country","Permanent ZIP","Same as Current","LinkedIn","Facebook","Status","Created At"]
+    h1 = ["Code","First Name","Last Name","Full Name","Mobile","Email","Gender","DOB","Blood Group","Marital Status","Father Name","Mother Name","Alternate Mobile","Personal Email","Address","City","State","Country","ZIP","Permanent Address","Permanent City","Permanent State","Permanent Country","Permanent ZIP","Same as Current","Status","Created At"]
     r1 = []
     for e in emps:
         r1.append([e.employee_code or '',e.first_name or '',e.last_name or '',e.full_name,
@@ -2698,29 +2727,27 @@ def emp_export():
             e.permanent_address or '', e.permanent_city or '', e.permanent_state or '',
             e.permanent_country or '', e.permanent_zip or '',
             'Yes' if e.same_as_current_addr else 'No',
-            e.linkedin or '',e.facebook or'',(e.status or '').title(),
+            (e.status or '').title(),
             e.created_at.strftime('%d-%m-%Y') if e.created_at else ''])
     build_sheet(ws1,"1E3A5F",h1,r1)
 
     # Sheet 2: Professional
     ws2 = wb.create_sheet("2 - Professional")
-    h2 = ["Code","Full Name","Department","Designation","Employee Type","Location","Pay Grade","Grade Level","DOJ","Confirmation","Shift","Work Hrs","Weekly Off","Notice Days","Probation Months","Probation End","Contractor","Probation","Block","Status","Reports To","Attendance Code","Overtime Eligible","CL Balance","SL Balance","PL Balance","Leave Policy","Official Email","Role Access","Exit Interview","Exit Notes","FF Status","FF Amount","FF Date"]
+    h2 = ["Code","Full Name","Department","Designation","Employee Type","Location","Pay Grade","DOJ","Shift","Work Hrs","Weekly Off","Notice Days","Probation Months","Contractor","Overtime Eligible","CL Balance","SL Balance","PL Balance","Status"]
     r2 = []
     for e in emps:
         r2.append([e.employee_code or '',e.full_name,e.department or '',e.designation or '',
-            e.employee_type or '',e.location or '',e.pay_grade or '', e.grade_level or '',
+            e.employee_type or '',e.location or '',e.pay_grade or '',
             fd(e.date_of_joining),
-            fd(e.confirmation_date),e.shift or '',str(e.work_hours_per_day or ''),e.weekly_off or '',
-            str(e.notice_period_days or ''),
-            str(e.probation_period_months or ''), fd(e.probation_end_date),
+            e.shift or '',str(e.work_hours_per_day or ''),e.weekly_off or '',
+            str(e.notice_period_days if e.notice_period_days is not None else ''),
+            str(e.probation_period_months if e.probation_period_months is not None else ''),
             'Yes' if e.is_contractor else 'No',
-            'Yes' if e.is_probation else 'No','Yes' if e.is_block else 'No',
-            (e.status or '').title(),e.manager_emp.full_name if e.manager_emp else '',
-            e.attendance_code or '', 'Yes' if e.overtime_eligible else 'No',
-            str(e.casual_leave_balance or 0), str(e.sick_leave_balance or 0), str(e.paid_leave_balance or 0),
-            e.leave_policy or '', e.official_email or '', e.role_access or '',
-            'Yes' if e.exit_interview_done else 'No', e.exit_interview_notes or '',
-            e.ff_settlement_status or '', fc(e.ff_settlement_amount), fd(e.ff_settlement_date)])
+            'Yes' if e.overtime_eligible else 'No',
+            str(e.casual_leave_balance if e.casual_leave_balance is not None else 0),
+            str(e.sick_leave_balance   if e.sick_leave_balance   is not None else 0),
+            str(e.paid_leave_balance   if e.paid_leave_balance   is not None else 0),
+            (e.status or '').title()])
     build_sheet(ws2,"1D4ED8",h2,r2)
 
     # Sheet 3: KYC

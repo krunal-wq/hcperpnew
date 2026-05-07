@@ -138,13 +138,14 @@
                     <div class="field-err-msg" id="err_emp_code">Employee Code is required.</div>
                 </div>
                 <div class="fg">
-                    <label class="fl">Employee ID <span style="font-size:.68rem;color:var(--text3);font-weight:400;">(Biometric / Device)</span></label>
+                    <label class="fl">Employee ID<span class="req-star">*</span> <span style="font-size:.68rem;color:var(--text3);font-weight:400;">(Biometric / Device)</span></label>
                     {% if employee and employee.employee_id %}
                     <input type="text" name="employee_id" id="empIdInput" class="fi" value="{{ employee.employee_id }}" readonly style="background:#f8fafc;color:var(--text2);font-weight:700;">
                     {% else %}
                     <input type="text" name="employee_id" id="empIdInput" class="fi" value="" placeholder="e.g. 1001">
                     {% endif %}
-                    <span style="font-size:.7rem;color:var(--text3);margin-top:2px;display:block;">Optional biometric device ID</span>
+                    <span style="font-size:.7rem;color:var(--text3);margin-top:2px;display:block;">Biometric device ID</span>
+                    <div class="field-err-msg" id="err_emp_id">Employee ID is required.</div>
                 </div>
                 <div class="fg">
                     <label class="fl">Employee Type<span class="req-star">*</span></label>
@@ -157,13 +158,15 @@
                     <div class="field-err-msg" id="err_emp_type">Employee Type is required.</div>
                 </div>
                 <div class="fg">
-                    <label class="fl">Status *</label>
-                    <select name="status" class="fi sd">
+                    <label class="fl">Status<span class="req-star">*</span></label>
+                    <select name="status" id="empStatus" class="fi sd">
+                        <option value="">Select Status</option>
                         <option value="active" {{ 'selected' if not employee or employee.status=='active' }}>✅ Active</option>
                         <option value="inactive" {{ 'selected' if employee and employee.status=='inactive' }}>⛔ Inactive</option>
                         <option value="terminated" {{ 'selected' if employee and employee.status=='terminated' }}>🔴 Terminated</option>
                         <option value="on_leave" {{ 'selected' if employee and employee.status=='on_leave' }}>🟡 On Leave</option>
                     </select>
+                    <div class="field-err-msg" id="err_status">Status is required.</div>
                 </div>
             </div>
             <div class="fgrid-2">
@@ -171,29 +174,33 @@
                 <div class="fg"><label class="fl">Middle Name</label><input type="text" name="middle_name" id="empMiddleName" class="fi" value="{{ employee.middle_name if employee else '' }}" placeholder="Middle name (optional)"></div>
                 <div class="fg"><label class="fl">Last Name<span class="req-star">*</span></label><input type="text" name="last_name" id="empLastName" class="fi" value="{{ employee.last_name if employee else '' }}" placeholder="Last name"><div class="field-err-msg" id="err_last_name">Last name is required.</div></div>
                 <div class="fg"><label class="fl">Mobile<span class="req-star">*</span></label><input type="text" name="mobile" id="empMobile" class="fi" value="{{ employee.mobile if employee else '' }}" placeholder="9999999999"><div class="field-err-msg" id="err_mobile">Mobile number is required.</div></div>
-                <div class="fg"><label class="fl">Email Address</label><input type="email" name="email" class="fi" value="{{ employee.email if employee else '' }}" placeholder="email@company.com"></div>
+                <div class="fg"><label class="fl">Email Address<span class="req-star">*</span></label><input type="email" name="email" id="empEmail" class="fi" value="{{ employee.email if employee else '' }}" placeholder="email@company.com"><div class="field-err-msg" id="err_email">Email Address is required.</div></div>
                 <div class="fg">
-                    <label class="fl">Gender</label>
-                    <select name="gender" class="fi sd">
+                    <label class="fl">Gender<span class="req-star">*</span></label>
+                    <select name="gender" id="empGender" class="fi sd">
                         <option value="">Select Gender</option>
                         {% for g in ['Male','Female','Other'] %}<option value="{{ g }}" {{ 'selected' if employee and employee.gender==g }}>{{ g }}</option>{% endfor %}
                     </select>
+                    <div class="field-err-msg" id="err_gender">Gender is required.</div>
                 </div>
                 <div class="fg">
-                    <label class="fl">Marital Status</label>
+                    <label class="fl">Marital Status<span class="req-star">*</span></label>
                     <select name="marital_status" class="fi sd" id="maritalSel" onchange="toggleMarriageDate(this.value)">
+                        <option value="">Select Marital Status</option>
                         {% for m in ['Single','Married','Divorced','Widowed'] %}
-                        <option value="{{ m }}" {{ 'selected' if employee and employee.marital_status==m else ('selected' if not employee and m=='Single' else '') }}>{{ m }}</option>
+                        <option value="{{ m }}" {{ 'selected' if employee and employee.marital_status==m }}>{{ m }}</option>
                         {% endfor %}
                     </select>
+                    <div class="field-err-msg" id="err_marital">Marital Status is required.</div>
                 </div>
                 <div class="fg" id="marriageDateRow" style="{{ '' if employee and employee.marital_status=='Married' else 'display:none;' }}">
-                    <label class="fl">💍 Marriage Anniversary</label>
-                    <input type="date" name="marriage_anniversary" class="fi"
+                    <label class="fl">💍 Marriage Anniversary<span class="req-star">*</span></label>
+                    <input type="date" name="marriage_anniversary" id="empMarriageAnniv" class="fi"
                         value="{{ employee.marriage_anniversary.strftime('%Y-%m-%d') if employee and employee.marriage_anniversary else '' }}">
-                    <span style="font-size:.68rem;color:var(--text3);margin-top:2px;display:block;">Used for anniversary wishes</span>
+                    <span style="font-size:.68rem;color:var(--text3);margin-top:2px;display:block;">Required when Marital Status is Married</span>
+                    <div class="field-err-msg" id="err_marriage_anniv">Marriage Anniversary is required when Married.</div>
                 </div>
-                <div class="fg"><label class="fl">Date of Birth</label><input type="date" name="date_of_birth" class="fi" value="{{ employee.date_of_birth.strftime('%Y-%m-%d') if employee and employee.date_of_birth else '' }}"></div>
+                <div class="fg"><label class="fl">Date of Birth<span class="req-star">*</span></label><input type="date" name="date_of_birth" id="empDob" class="fi" value="{{ employee.date_of_birth.strftime('%Y-%m-%d') if employee and employee.date_of_birth else '' }}"><div class="field-err-msg" id="err_dob">Date of Birth is required.</div></div>
                 <div class="fg">
                     <label class="fl">Blood Group</label>
                     <select name="blood_group" class="fi sd">
@@ -205,19 +212,31 @@
 
             <div class="sec-hdr">👨‍👩‍👧 Family & Contact</div>
             <div class="fgrid-2">
-                <div class="fg"><label class="fl">Father's Name</label><input type="text" name="father_name" class="fi" value="{{ employee.father_name if employee else '' }}" placeholder="Father's full name"></div>
-                <div class="fg"><label class="fl">Mother's Name</label><input type="text" name="mother_name" class="fi" value="{{ employee.mother_name if employee else '' }}" placeholder="Mother's full name"></div>
+                <div class="fg"><label class="fl">Father's Name<span class="req-star">*</span></label><input type="text" name="father_name" id="empFatherName" class="fi" value="{{ employee.father_name if employee else '' }}" placeholder="Father's full name"><div class="field-err-msg" id="err_father_name">Father's Name is required.</div></div>
+                <div class="fg"><label class="fl">Mother's Name<span class="req-star">*</span></label><input type="text" name="mother_name" id="empMotherName" class="fi" value="{{ employee.mother_name if employee else '' }}" placeholder="Mother's full name"><div class="field-err-msg" id="err_mother_name">Mother's Name is required.</div></div>
                 <div class="fg"><label class="fl">Alternate Mobile</label><input type="text" name="alternate_mobile" class="fi" value="{{ employee.alternate_mobile if employee else '' }}" placeholder="Alternate contact number"></div>
                 <div class="fg"><label class="fl">Personal Email</label><input type="email" name="personal_email" class="fi" value="{{ employee.personal_email if employee else '' }}" placeholder="personal@email.com"></div>
             </div>
 
             <div class="sec-hdr">📍 Current Address</div>
             <div class="fgrid-2">
-                <div class="fg" style="grid-column:1/-1;"><label class="fl">Address</label><textarea name="address" class="fi" rows="2" placeholder="Street address...">{{ employee.address if employee else '' }}</textarea></div>
-                <div class="fg"><label class="fl">City</label><input type="text" name="city" class="fi" value="{{ employee.city if employee else '' }}" placeholder="City"></div>
-                <div class="fg"><label class="fl">State</label><input type="text" name="state" class="fi" value="{{ employee.state if employee else '' }}" placeholder="State"></div>
-                <div class="fg"><label class="fl">Country</label><input type="text" name="country" class="fi" value="{{ employee.country if employee else 'India' }}"></div>
-                <div class="fg"><label class="fl">ZIP / Pin Code</label><input type="text" name="zip_code" class="fi" value="{{ employee.zip_code if employee else '' }}" placeholder="PIN Code"></div>
+                <div class="fg" style="grid-column:1/-1;"><label class="fl">Address<span class="req-star">*</span></label><textarea name="address" id="empAddress" class="fi" rows="2" placeholder="Street address...">{{ employee.address if employee else '' }}</textarea><div class="field-err-msg" id="err_address">Current Address is required.</div></div>
+                <div class="fg"><label class="fl">City<span class="req-star">*</span></label><input type="text" name="city" id="empCity" class="fi" value="{{ employee.city if employee else '' }}" placeholder="City"><div class="field-err-msg" id="err_city">City is required.</div></div>
+                <div class="fg">
+                    <label class="fl">State<span class="req-star">*</span></label>
+                    <select name="state" id="empState" class="fi sd" data-current="{{ employee.state if employee else '' }}">
+                        <option value="">Select State</option>
+                    </select>
+                    <div class="field-err-msg" id="err_state">State is required.</div>
+                </div>
+                <div class="fg">
+                    <label class="fl">Country<span class="req-star">*</span></label>
+                    <select name="country" id="empCountry" class="fi sd" data-current="{{ employee.country if employee else 'India' }}" onchange="hcpOnCountryChange('empCountry','empState')">
+                        <option value="">Select Country</option>
+                    </select>
+                    <div class="field-err-msg" id="err_country">Country is required.</div>
+                </div>
+                <div class="fg"><label class="fl">ZIP / Pin Code<span class="req-star">*</span></label><input type="text" name="zip_code" id="empZip" class="fi" value="{{ employee.zip_code if employee else '' }}" placeholder="PIN Code"><div class="field-err-msg" id="err_zip">ZIP / Pin Code is required.</div></div>
             </div>
 
             <div class="sec-hdr" style="display:flex;align-items:center;justify-content:space-between;">
@@ -228,11 +247,23 @@
                 </label>
             </div>
             <div class="fgrid-2">
-                <div class="fg" style="grid-column:1/-1;"><label class="fl">Permanent Address</label><textarea name="permanent_address" id="permAddr" class="fi" rows="2" placeholder="Permanent street address...">{{ employee.permanent_address if employee else '' }}</textarea></div>
-                <div class="fg"><label class="fl">City</label><input type="text" name="permanent_city" id="permCity" class="fi" value="{{ employee.permanent_city if employee else '' }}" placeholder="City"></div>
-                <div class="fg"><label class="fl">State</label><input type="text" name="permanent_state" id="permState" class="fi" value="{{ employee.permanent_state if employee else '' }}" placeholder="State"></div>
-                <div class="fg"><label class="fl">Country</label><input type="text" name="permanent_country" id="permCountry" class="fi" value="{{ employee.permanent_country if employee else 'India' }}"></div>
-                <div class="fg"><label class="fl">ZIP / Pin Code</label><input type="text" name="permanent_zip" id="permZip" class="fi" value="{{ employee.permanent_zip if employee else '' }}" placeholder="PIN Code"></div>
+                <div class="fg" style="grid-column:1/-1;"><label class="fl">Permanent Address<span class="req-star">*</span></label><textarea name="permanent_address" id="permAddr" class="fi" rows="2" placeholder="Permanent street address...">{{ employee.permanent_address if employee else '' }}</textarea><div class="field-err-msg" id="err_perm_address">Permanent Address is required.</div></div>
+                <div class="fg"><label class="fl">City<span class="req-star">*</span></label><input type="text" name="permanent_city" id="permCity" class="fi" value="{{ employee.permanent_city if employee else '' }}" placeholder="City"><div class="field-err-msg" id="err_perm_city">Permanent City is required.</div></div>
+                <div class="fg">
+                    <label class="fl">State<span class="req-star">*</span></label>
+                    <select name="permanent_state" id="permState" class="fi sd" data-current="{{ employee.permanent_state if employee else '' }}">
+                        <option value="">Select State</option>
+                    </select>
+                    <div class="field-err-msg" id="err_perm_state">Permanent State is required.</div>
+                </div>
+                <div class="fg">
+                    <label class="fl">Country<span class="req-star">*</span></label>
+                    <select name="permanent_country" id="permCountry" class="fi sd" data-current="{{ employee.permanent_country if employee else 'India' }}" onchange="hcpOnCountryChange('permCountry','permState')">
+                        <option value="">Select Country</option>
+                    </select>
+                    <div class="field-err-msg" id="err_perm_country">Permanent Country is required.</div>
+                </div>
+                <div class="fg"><label class="fl">ZIP / Pin Code<span class="req-star">*</span></label><input type="text" name="permanent_zip" id="permZip" class="fi" value="{{ employee.permanent_zip if employee else '' }}" placeholder="PIN Code"><div class="field-err-msg" id="err_perm_zip">Permanent ZIP / Pin Code is required.</div></div>
             </div>
             {% if not employee %}
             <div style="margin-top:.75rem;background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:8px;padding:.5rem .75rem;">
@@ -252,146 +283,130 @@
 <div class="card" style="margin-bottom:1rem;">
     <div class="card-hdr-sm"><span class="card-title">🏢 Professional Details</span></div>
     <div class="card-body-sm">
+
         <div class="sec-hdr">🗂️ Job Information</div>
         <div class="fgrid-3">
             <div class="fg">
-                <label class="fl">Department</label>
-                <select name="department" class="fi">
+                <label class="fl">Department<span class="req-star">*</span></label>
+                <select name="department" id="proDept" class="fi">
                   <option value="">-- Select Department --</option>
                   {% for d in departments %}
                   <option value="{{ d.name }}" {{ 'selected' if employee and employee.department==d.name }}>{{ d.name }}</option>
                   {% endfor %}
                 </select>
+                <div class="field-err-msg" id="err_pro_dept">Department is required.</div>
             </div>
-            <div class="fg"><label class="fl">Designation</label>
-                <select name="designation" class="fi">
+            <div class="fg">
+                <label class="fl">Designation<span class="req-star">*</span></label>
+                <select name="designation" id="proDesig" class="fi">
                   <option value="">-- Select Designation --</option>
                   {% for d in designations %}
                   <option value="{{ d.name }}" {{ 'selected' if employee and employee.designation==d.name }}>{{ d.name }}</option>
                   {% endfor %}
                 </select>
-              </div>
+                <div class="field-err-msg" id="err_pro_desig">Designation is required.</div>
+            </div>
             <div class="fg">
-                <label class="fl">Pay Grade</label>
-                <select name="pay_grade" class="fi sd">
+                <label class="fl">Pay Grade<span class="req-star">*</span></label>
+                <select name="pay_grade" id="proPayGrade" class="fi sd">
                     <option value="">Select</option>
                     {% for g in ['G1','G2','G3','G4','G5','G6','M1','M2','M3','E1','E2','E3'] %}<option value="{{ g }}" {{ 'selected' if employee and employee.pay_grade==g }}>{{ g }}</option>{% endfor %}
                 </select>
+                <div class="field-err-msg" id="err_pro_paygrade">Pay Grade is required.</div>
             </div>
-            <div class="fg"><label class="fl">Grade / Level</label><input type="text" name="grade_level" class="fi" value="{{ employee.grade_level if employee else '' }}" placeholder="e.g. L1, L2, Senior"></div>
-            <div class="fg"><label class="fl">Date of Joining</label><input type="date" name="date_of_joining" class="fi" value="{{ employee.date_of_joining.strftime('%Y-%m-%d') if employee and employee.date_of_joining else '' }}"></div>
-            <div class="fg"><label class="fl">Confirmation Date</label><input type="date" name="confirmation_date" class="fi" value="{{ employee.confirmation_date.strftime('%Y-%m-%d') if employee and employee.confirmation_date else '' }}"></div>
             <div class="fg">
-                <label class="fl">Location / Branch</label>
-                <select name="location" class="fi sd">
+                <label class="fl">Date of Joining<span class="req-star">*</span></label>
+                <input type="date" name="date_of_joining" id="proDoj" class="fi" value="{{ employee.date_of_joining.strftime('%Y-%m-%d') if employee and employee.date_of_joining else '' }}">
+                <div class="field-err-msg" id="err_pro_doj">Date of Joining is required.</div>
+            </div>
+            <div class="fg">
+                <label class="fl">Location / Branch<span class="req-star">*</span></label>
+                <select name="location" id="proLoc" class="fi sd">
                     <option value="">Select</option>
                     {% for l in locations %}
                     <option value="{{ l.name }}" {{ 'selected' if employee and employee.location==l.name }}>{{ l.name }}</option>
                     {% endfor %}
                 </select>
+                <div class="field-err-msg" id="err_pro_loc">Location / Branch is required.</div>
             </div>
             <div class="fg">
-                <label class="fl">Shift</label>
-                <select name="shift" class="fi sd">
+                <label class="fl">Shift<span class="req-star">*</span></label>
+                <select name="shift" id="proShift" class="fi sd">
                     <option value="">Select</option>
                     {% for s in ['General (9–6)','Morning (6–2)','Afternoon (2–10)','Night (10–6)','Flexible'] %}<option value="{{ s }}" {{ 'selected' if employee and employee.shift==s }}>{{ s }}</option>{% endfor %}
                 </select>
+                <div class="field-err-msg" id="err_pro_shift">Shift is required.</div>
             </div>
-            <div class="fg"><label class="fl">Work Hours / Day</label><input type="number" name="work_hours_per_day" class="fi" step="0.5" min="1" max="24" value="{{ employee.work_hours_per_day if employee and employee.work_hours_per_day else '8' }}"></div>
             <div class="fg">
-                <label class="fl">Weekly Off</label>
-                <select name="weekly_off" class="fi sd">
+                <label class="fl">Work Hours / Day<span class="req-star">*</span></label>
+                <input type="number" name="work_hours_per_day" id="proWorkHrs" class="fi" step="0.5" min="1" max="24" value="{{ employee.work_hours_per_day if employee and employee.work_hours_per_day else '8' }}">
+                <div class="field-err-msg" id="err_pro_workhrs">Work Hours / Day is required (min 1).</div>
+            </div>
+            <div class="fg">
+                <label class="fl">Weekly Off<span class="req-star">*</span></label>
+                <select name="weekly_off" id="proWeeklyOff" class="fi sd">
                     <option value="">Select</option>
                     {% for w in ['Sunday','Saturday+Sunday','No Weekly Off','Rotational'] %}<option value="{{ w }}" {{ 'selected' if employee and employee.weekly_off==w }}>{{ w }}</option>{% endfor %}
                 </select>
-            </div>
-            <div class="fg"><label class="fl">Notice Period (Days)</label><input type="number" name="notice_period_days" class="fi" min="0" max="365" value="{{ employee.notice_period_days if employee and employee.notice_period_days else '30' }}"></div>
-            <div class="fg"><label class="fl">Probation Period (Months)</label><input type="number" name="probation_period_months" class="fi" min="0" max="36" value="{{ employee.probation_period_months if employee and employee.probation_period_months is not none else '6' }}"></div>
-            <div class="fg"><label class="fl">Probation End Date</label><input type="date" name="probation_end_date" class="fi" value="{{ employee.probation_end_date.strftime('%Y-%m-%d') if employee and employee.probation_end_date else '' }}"></div>
-            <div class="fg">
-                <label class="fl">Reports To (Manager)</label>
-                <select name="reports_to" class="fi sd">
-                    <option value="">— No Manager —</option>
-                    {% for e in all_employees %}{% if not employee or e.id != employee.id %}
-                    <option value="{{ e.id }}" {{ 'selected' if employee and employee.reports_to == e.id }}>{{ e.employee_code }} — {{ e.full_name }}{% if e.designation %} ({{ e.designation }}){% endif %}</option>
-                    {% endif %}{% endfor %}
-                </select>
+                <div class="field-err-msg" id="err_pro_weeklyoff">Weekly Off is required.</div>
             </div>
             <div class="fg">
-                <label class="fl">Rehire Eligible?</label>
-                <select name="rehire_eligible" class="fi">
-                    <option value="yes" {{ 'selected' if not employee or employee.rehire_eligible }}>Yes</option>
-                    <option value="no" {{ 'selected' if employee and not employee.rehire_eligible }}>No</option>
-                </select>
+                <label class="fl">Notice Period (Days)<span class="req-star">*</span></label>
+                <input type="number" name="notice_period_days" id="proNotice" class="fi" min="0" max="365" value="{{ employee.notice_period_days if employee and employee.notice_period_days is not none else '30' }}">
+                <div class="field-err-msg" id="err_pro_notice">Notice Period is required (0–365).</div>
             </div>
-        </div>
-
-        <div class="sec-hdr">⚙️ Flags</div>
-        <div class="fgrid-3">
-            <div class="fg"><label class="fl">Is Block?</label><select name="is_block" class="fi"><option value="no" {{ 'selected' if not employee or not employee.is_block }}>No</option><option value="yes" {{ 'selected' if employee and employee.is_block }}>Yes</option></select></div>
-            <div class="fg"><label class="fl">Is Late?</label><select name="is_late" class="fi"><option value="no" {{ 'selected' if not employee or not employee.is_late }}>No</option><option value="yes" {{ 'selected' if employee and employee.is_late }}>Yes</option></select></div>
-            <div class="fg"><label class="fl">Is Probation?</label><select name="is_probation" class="fi"><option value="no" {{ 'selected' if employee and not employee.is_probation }}>No</option><option value="yes" {{ 'selected' if not employee or employee.is_probation }}>Yes</option></select></div>
+            <div class="fg">
+                <label class="fl">Probation Period (Months)<span class="req-star">*</span></label>
+                <input type="number" name="probation_period_months" id="proProbation" class="fi" min="0" max="36" value="{{ employee.probation_period_months if employee and employee.probation_period_months is not none else '6' }}">
+                <div class="field-err-msg" id="err_pro_probation">Probation Period is required (0–36).</div>
+            </div>
         </div>
 
         <div class="sec-hdr">🔗 Contractor</div>
         <div class="fgrid-3">
-            <div class="fg"><label class="fl">Is Contractor?</label><select name="is_contractor" class="fi" id="isContractorSel" onchange="toggleContractor(this.value)"><option value="no" {{ 'selected' if not employee or not employee.is_contractor }}>No</option><option value="yes" {{ 'selected' if employee and employee.is_contractor }}>Yes</option></select></div>
-            <div class="fg" id="contractorRow" style="{{ '' if employee and employee.is_contractor else 'display:none;' }}">
-                <label class="fl">Select Contractor</label>
-                <select name="contractor_id" class="fi sd"><option value="">— Select —</option>{% for c in contractors %}<option value="{{ c.id }}" {{ 'selected' if employee and employee.contractor_id==c.id }}>{{ c.contract_id }} — {{ c.company_name }}</option>{% endfor %}</select>
+            <div class="fg">
+                <label class="fl">Is Contractor?<span class="req-star">*</span></label>
+                <select name="is_contractor" class="fi" id="isContractorSel" onchange="toggleContractor(this.value)">
+                    <option value="no"  {{ 'selected' if not employee or not employee.is_contractor }}>No</option>
+                    <option value="yes" {{ 'selected' if employee and employee.is_contractor }}>Yes</option>
+                </select>
             </div>
-        </div>
-
-        <div class="sec-hdr">🕐 Attendance</div>
-        <div class="fgrid-3">
-            <div class="fg"><label class="fl">Attendance Code</label><input type="text" name="attendance_code" class="fi" value="{{ employee.attendance_code if employee else '' }}" placeholder="e.g. ATT1001"></div>
-            <div class="fg"><label class="fl">Overtime Eligible?</label><select name="overtime_eligible" class="fi"><option value="no" {{ 'selected' if not employee or not employee.overtime_eligible }}>No</option><option value="yes" {{ 'selected' if employee and employee.overtime_eligible }}>Yes</option></select></div>
+            <div class="fg" id="contractorRow" style="{{ '' if employee and employee.is_contractor else 'display:none;' }}">
+                <label class="fl">Select Contractor <span class="req-star" id="contractorReqStar">*</span></label>
+                <select name="contractor_id" id="contractorIdSel" class="fi sd">
+                    <option value="">— Select Contractor —</option>
+                    {% for c in contractors %}<option value="{{ c.id }}" {{ 'selected' if employee and employee.contractor_id==c.id }}>{{ c.contract_id }} — {{ c.company_name }}</option>{% endfor %}
+                </select>
+                <div class="field-err-msg" id="err_pro_contractor">Contractor selection is required when "Is Contractor" is Yes.</div>
+            </div>
+            <div class="fg">
+                <label class="fl">Overtime Eligible?</label>
+                <select name="overtime_eligible" class="fi">
+                    <option value="no"  {{ 'selected' if not employee or not employee.overtime_eligible }}>No</option>
+                    <option value="yes" {{ 'selected' if employee and employee.overtime_eligible }}>Yes</option>
+                </select>
+            </div>
         </div>
 
         <div class="sec-hdr">🌴 Leave Balances</div>
         <div class="fgrid-3">
-            <div class="fg"><label class="fl">Casual Leave (CL)</label><input type="number" step="0.5" min="0" name="casual_leave_balance" class="fi" value="{{ employee.casual_leave_balance if employee and employee.casual_leave_balance is not none else '0' }}" placeholder="0"></div>
-            <div class="fg"><label class="fl">Sick Leave (SL)</label><input type="number" step="0.5" min="0" name="sick_leave_balance" class="fi" value="{{ employee.sick_leave_balance if employee and employee.sick_leave_balance is not none else '0' }}" placeholder="0"></div>
-            <div class="fg"><label class="fl">Paid Leave (PL)</label><input type="number" step="0.5" min="0" name="paid_leave_balance" class="fi" value="{{ employee.paid_leave_balance if employee and employee.paid_leave_balance is not none else '0' }}" placeholder="0"></div>
-            <div class="fg"><label class="fl">Leave Policy</label><input type="text" name="leave_policy" class="fi" value="{{ employee.leave_policy if employee else '' }}" placeholder="e.g. Standard, Sr. Mgmt"></div>
-        </div>
-
-        <div class="sec-hdr">🔐 System Access</div>
-        <div class="fgrid-3">
-            <div class="fg"><label class="fl">Official Email</label><input type="email" name="official_email" class="fi" value="{{ employee.official_email if employee else '' }}" placeholder="name@company.com"></div>
             <div class="fg">
-                <label class="fl">Role Access</label>
-                <select name="role_access" class="fi sd">
-                    <option value="">Select</option>
-                    {% for r in ['Staff','Manager','HR Admin','Finance','Super Admin','Read Only'] %}<option value="{{ r }}" {{ 'selected' if employee and employee.role_access==r }}>{{ r }}</option>{% endfor %}
-                </select>
+                <label class="fl">Casual Leave (CL)<span class="req-star">*</span></label>
+                <input type="number" step="0.5" min="0" name="casual_leave_balance" id="proCl" class="fi" value="{{ employee.casual_leave_balance if employee and employee.casual_leave_balance is not none else '0' }}" placeholder="0">
+                <div class="field-err-msg" id="err_pro_cl">Casual Leave is required (0 allowed).</div>
+            </div>
+            <div class="fg">
+                <label class="fl">Sick Leave (SL)<span class="req-star">*</span></label>
+                <input type="number" step="0.5" min="0" name="sick_leave_balance" id="proSl" class="fi" value="{{ employee.sick_leave_balance if employee and employee.sick_leave_balance is not none else '0' }}" placeholder="0">
+                <div class="field-err-msg" id="err_pro_sl">Sick Leave is required (0 allowed).</div>
+            </div>
+            <div class="fg">
+                <label class="fl">Paid Leave (PL)<span class="req-star">*</span></label>
+                <input type="number" step="0.5" min="0" name="paid_leave_balance" id="proPl" class="fi" value="{{ employee.paid_leave_balance if employee and employee.paid_leave_balance is not none else '0' }}" placeholder="0">
+                <div class="field-err-msg" id="err_pro_pl">Paid Leave is required (0 allowed).</div>
             </div>
         </div>
 
-        <div class="sec-hdr">🔚 Exit Details</div>
-        <div class="fgrid-3">
-            <div class="fg"><label class="fl">Resignation Date</label><input type="date" name="resignation_date" class="fi" value="{{ employee.resignation_date.strftime('%Y-%m-%d') if employee and employee.resignation_date else '' }}"></div>
-            <div class="fg"><label class="fl">Last Working Date</label><input type="date" name="last_working_date" class="fi" value="{{ employee.last_working_date.strftime('%Y-%m-%d') if employee and employee.last_working_date else '' }}"></div>
-            <div class="fg"><label class="fl">Exit Interview Done?</label><select name="exit_interview_done" class="fi"><option value="no" {{ 'selected' if not employee or not employee.exit_interview_done }}>No</option><option value="yes" {{ 'selected' if employee and employee.exit_interview_done }}>Yes</option></select></div>
-            <div class="fg">
-                <label class="fl">F&F Settlement Status</label>
-                <select name="ff_settlement_status" class="fi sd">
-                    {% for s in ['Pending','Processed','Paid','On Hold'] %}<option value="{{ s }}" {{ 'selected' if employee and employee.ff_settlement_status==s else ('selected' if not employee and s=='Pending' else '') }}>{{ s }}</option>{% endfor %}
-                </select>
-            </div>
-            <div class="fg"><label class="fl">F&F Amount ₹</label><input type="number" step="1" min="0" name="ff_settlement_amount" class="fi" value="{{ employee.ff_settlement_amount|int if employee and employee.ff_settlement_amount else '' }}" placeholder="0"></div>
-            <div class="fg"><label class="fl">F&F Payment Date</label><input type="date" name="ff_settlement_date" class="fi" value="{{ employee.ff_settlement_date.strftime('%Y-%m-%d') if employee and employee.ff_settlement_date else '' }}"></div>
-            <div class="fg" style="grid-column:1/-1;"><label class="fl">Exit Interview Notes</label><textarea name="exit_interview_notes" class="fi" rows="2" placeholder="Exit interview feedback / notes...">{{ employee.exit_interview_notes if employee else '' }}</textarea></div>
-        </div>
-
-        <div class="sec-hdr">🌐 Social Profiles</div>
-        <div class="fgrid-2">
-            <div class="fg"><label class="fl">LinkedIn</label><input type="text" name="linkedin" class="fi" value="{{ employee.linkedin if employee else '' }}" placeholder="linkedin.com/in/..."></div>
-            <div class="fg"><label class="fl">Facebook</label><input type="text" name="facebook" class="fi" value="{{ employee.facebook if employee else '' }}" placeholder="facebook.com/..."></div>
-        </div>
-
-        <div class="sec-hdr">📝 Remark</div>
-        <div class="fg"><textarea name="remark" class="fi" rows="3" placeholder="Additional notes...">{{ employee.remark if employee else '' }}</textarea></div>
     </div>
 </div>
 </div>
@@ -671,10 +686,20 @@ function validateBasicTab() {
         if (!ecInput.value.trim()) { _setEmpErr('empCodeInput','err_emp_code','Employee Code is required.'); ok=false; }
         else _clearEmpErr('empCodeInput','err_emp_code');
     }
+    // Employee ID (Biometric / Device) — mandatory
+    var eiInput = document.getElementById('empIdInput');
+    if (eiInput && !eiInput.readOnly) {
+        if (!eiInput.value.trim()) { _setEmpErr('empIdInput','err_emp_id','Employee ID is required.'); ok=false; }
+        else _clearEmpErr('empIdInput','err_emp_id');
+    }
     // Employee Type
     var etSel = document.getElementById('empTypeSelect');
     if (etSel && !etSel.value) { _setEmpErr('empTypeSelect','err_emp_type','Employee Type is required.'); ok=false; }
     else if(etSel) _clearEmpErr('empTypeSelect','err_emp_type');
+    // Status
+    var stSel = document.getElementById('empStatus');
+    if (stSel && !stSel.value) { _setEmpErr('empStatus','err_status','Status is required.'); ok=false; }
+    else if(stSel) _clearEmpErr('empStatus','err_status');
     // First Name
     var fn = document.getElementById('empFirstName');
     if (!fn || !fn.value.trim()) { _setEmpErr('empFirstName','err_first_name','First name is required.'); ok=false; }
@@ -687,6 +712,70 @@ function validateBasicTab() {
     var mob = document.getElementById('empMobile');
     if (!mob || !mob.value.trim()) { _setEmpErr('empMobile','err_mobile','Mobile number is required.'); ok=false; }
     else _clearEmpErr('empMobile','err_mobile');
+    // Email — mandatory (no unique check)
+    var em = document.getElementById('empEmail');
+    if (!em || !em.value.trim()) { _setEmpErr('empEmail','err_email','Email Address is required.'); ok=false; }
+    else _clearEmpErr('empEmail','err_email');
+    // Gender
+    var gn = document.getElementById('empGender');
+    if (!gn || !gn.value) { _setEmpErr('empGender','err_gender','Gender is required.'); ok=false; }
+    else _clearEmpErr('empGender','err_gender');
+    // Marital Status
+    var ms = document.getElementById('maritalSel');
+    if (!ms || !ms.value) { _setEmpErr('maritalSel','err_marital','Marital Status is required.'); ok=false; }
+    else _clearEmpErr('maritalSel','err_marital');
+    // Marriage Anniversary — required only when Marital Status is Married
+    var ma = document.getElementById('empMarriageAnniv');
+    if (ms && ms.value === 'Married') {
+        if (!ma || !ma.value.trim()) { _setEmpErr('empMarriageAnniv','err_marriage_anniv','Marriage Anniversary is required when Married.'); ok=false; }
+        else _clearEmpErr('empMarriageAnniv','err_marriage_anniv');
+    } else {
+        _clearEmpErr('empMarriageAnniv','err_marriage_anniv');
+    }
+    // Date of Birth
+    var dob = document.getElementById('empDob');
+    if (!dob || !dob.value.trim()) { _setEmpErr('empDob','err_dob','Date of Birth is required.'); ok=false; }
+    else _clearEmpErr('empDob','err_dob');
+    // Father's Name
+    var ftn = document.getElementById('empFatherName');
+    if (!ftn || !ftn.value.trim()) { _setEmpErr('empFatherName','err_father_name',"Father's Name is required."); ok=false; }
+    else _clearEmpErr('empFatherName','err_father_name');
+    // Mother's Name
+    var mtn = document.getElementById('empMotherName');
+    if (!mtn || !mtn.value.trim()) { _setEmpErr('empMotherName','err_mother_name',"Mother's Name is required."); ok=false; }
+    else _clearEmpErr('empMotherName','err_mother_name');
+    // Current Address
+    var ad = document.getElementById('empAddress');
+    if (!ad || !ad.value.trim()) { _setEmpErr('empAddress','err_address','Current Address is required.'); ok=false; }
+    else _clearEmpErr('empAddress','err_address');
+    var ct = document.getElementById('empCity');
+    if (!ct || !ct.value.trim()) { _setEmpErr('empCity','err_city','City is required.'); ok=false; }
+    else _clearEmpErr('empCity','err_city');
+    var stt = document.getElementById('empState');
+    if (!stt || !stt.value.trim()) { _setEmpErr('empState','err_state','State is required.'); ok=false; }
+    else _clearEmpErr('empState','err_state');
+    var cy = document.getElementById('empCountry');
+    if (!cy || !cy.value.trim()) { _setEmpErr('empCountry','err_country','Country is required.'); ok=false; }
+    else _clearEmpErr('empCountry','err_country');
+    var zp = document.getElementById('empZip');
+    if (!zp || !zp.value.trim()) { _setEmpErr('empZip','err_zip','ZIP / Pin Code is required.'); ok=false; }
+    else _clearEmpErr('empZip','err_zip');
+    // Permanent Address
+    var pa = document.getElementById('permAddr');
+    if (!pa || !pa.value.trim()) { _setEmpErr('permAddr','err_perm_address','Permanent Address is required.'); ok=false; }
+    else _clearEmpErr('permAddr','err_perm_address');
+    var pct = document.getElementById('permCity');
+    if (!pct || !pct.value.trim()) { _setEmpErr('permCity','err_perm_city','Permanent City is required.'); ok=false; }
+    else _clearEmpErr('permCity','err_perm_city');
+    var pst = document.getElementById('permState');
+    if (!pst || !pst.value.trim()) { _setEmpErr('permState','err_perm_state','Permanent State is required.'); ok=false; }
+    else _clearEmpErr('permState','err_perm_state');
+    var pcy = document.getElementById('permCountry');
+    if (!pcy || !pcy.value.trim()) { _setEmpErr('permCountry','err_perm_country','Permanent Country is required.'); ok=false; }
+    else _clearEmpErr('permCountry','err_perm_country');
+    var pzp = document.getElementById('permZip');
+    if (!pzp || !pzp.value.trim()) { _setEmpErr('permZip','err_perm_zip','Permanent ZIP / Pin Code is required.'); ok=false; }
+    else _clearEmpErr('permZip','err_perm_zip');
     // Scroll to first error
     if (!ok) {
         var fe = document.querySelector('#t1 .field-error');
@@ -705,8 +794,18 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     var liveFields = [
-        ['empCodeInput','err_emp_code'],['empTypeSelect','err_emp_type'],
-        ['empFirstName','err_first_name'],['empLastName','err_last_name'],['empMobile','err_mobile']
+        ['empCodeInput','err_emp_code'],['empIdInput','err_emp_id'],
+        ['empTypeSelect','err_emp_type'],['empStatus','err_status'],
+        ['empFirstName','err_first_name'],['empLastName','err_last_name'],
+        ['empMobile','err_mobile'],['empEmail','err_email'],
+        ['empGender','err_gender'],
+        ['maritalSel','err_marital'],['empMarriageAnniv','err_marriage_anniv'],
+        ['empDob','err_dob'],
+        ['empFatherName','err_father_name'],['empMotherName','err_mother_name'],
+        ['empAddress','err_address'],['empCity','err_city'],
+        ['empState','err_state'],['empCountry','err_country'],['empZip','err_zip'],
+        ['permAddr','err_perm_address'],['permCity','err_perm_city'],
+        ['permState','err_perm_state'],['permCountry','err_perm_country'],['permZip','err_perm_zip']
     ];
     liveFields.forEach(function(pair) {
         var el = document.getElementById(pair[0]);
@@ -755,30 +854,197 @@ if(codeInput){
     }
   }
 }
-function toggleContractor(val){document.getElementById('contractorRow').style.display=val==='yes'?'':'none';}
+function toggleContractor(val){
+  var row = document.getElementById('contractorRow');
+  var sel = document.getElementById('contractorIdSel');
+  var em  = document.getElementById('err_pro_contractor');
+  if (!row) return;
+  if (val === 'yes') {
+    row.style.display = '';
+    if (sel) sel.required = true;
+  } else {
+    row.style.display = 'none';
+    if (sel) { sel.required = false; sel.value = ''; sel.classList.remove('field-error'); }
+    if (em)  em.classList.remove('show');
+  }
+}
 
-function copyCurrentToPermanent(checked){
+// ── Professional Tab Validation ─────────────────────────────────────
+function validateProfessionalTab() {
+  var ok = true;
+  // Helper that re-uses the same _setEmpErr / _clearEmpErr defined for Basic tab
+  function chk(id, errId, msg, isNumber) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    var v = (el.value == null) ? '' : String(el.value).trim();
+    var bad = !v;
+    if (isNumber && !bad) {
+      var n = parseFloat(v);
+      if (isNaN(n)) bad = true;
+      else if (el.min !== '' && n < parseFloat(el.min)) bad = true;
+      else if (el.max !== '' && n > parseFloat(el.max)) bad = true;
+    }
+    if (bad) { _setEmpErr(id, errId, msg); ok = false; }
+    else     { _clearEmpErr(id, errId); }
+  }
+  chk('proDept',       'err_pro_dept',       'Department is required.');
+  chk('proDesig',      'err_pro_desig',      'Designation is required.');
+  chk('proPayGrade',   'err_pro_paygrade',   'Pay Grade is required.');
+  chk('proDoj',        'err_pro_doj',        'Date of Joining is required.');
+  chk('proLoc',        'err_pro_loc',        'Location / Branch is required.');
+  chk('proShift',      'err_pro_shift',      'Shift is required.');
+  chk('proWorkHrs',    'err_pro_workhrs',    'Work Hours / Day is required (1–24).', true);
+  chk('proWeeklyOff',  'err_pro_weeklyoff',  'Weekly Off is required.');
+  chk('proNotice',     'err_pro_notice',     'Notice Period is required (0–365).', true);
+  chk('proProbation',  'err_pro_probation',  'Probation Period is required (0–36).', true);
+  // Leave balances — 0 IS allowed, but field cannot be blank
+  chk('proCl', 'err_pro_cl', 'Casual Leave is required (0 allowed).', true);
+  chk('proSl', 'err_pro_sl', 'Sick Leave is required (0 allowed).',   true);
+  chk('proPl', 'err_pro_pl', 'Paid Leave is required (0 allowed).',   true);
+  // Contractor — required only when Is Contractor = Yes
+  var isC = document.getElementById('isContractorSel');
+  var cSel = document.getElementById('contractorIdSel');
+  if (isC && isC.value === 'yes') {
+    if (!cSel || !cSel.value) {
+      _setEmpErr('contractorIdSel', 'err_pro_contractor', 'Contractor selection is required when "Is Contractor" is Yes.');
+      ok = false;
+    } else {
+      _clearEmpErr('contractorIdSel', 'err_pro_contractor');
+    }
+  } else {
+    _clearEmpErr('contractorIdSel', 'err_pro_contractor');
+  }
+  // Scroll to first error in Professional tab
+  if (!ok) {
+    var fe = document.querySelector('#t2 .field-error');
+    if (fe) fe.scrollIntoView({behavior:'smooth', block:'center'});
+  }
+  return ok;
+}
+// Live clear errors as user fixes Professional fields
+document.addEventListener('DOMContentLoaded', function(){
+  var pairs = [
+    ['proDept','err_pro_dept'],['proDesig','err_pro_desig'],['proPayGrade','err_pro_paygrade'],
+    ['proDoj','err_pro_doj'],['proLoc','err_pro_loc'],['proShift','err_pro_shift'],
+    ['proWorkHrs','err_pro_workhrs'],['proWeeklyOff','err_pro_weeklyoff'],
+    ['proNotice','err_pro_notice'],['proProbation','err_pro_probation'],
+    ['proCl','err_pro_cl'],['proSl','err_pro_sl'],['proPl','err_pro_pl'],
+    ['contractorIdSel','err_pro_contractor'],['isContractorSel','err_pro_contractor']
+  ];
+  pairs.forEach(function(p){
+    var el = document.getElementById(p[0]);
+    if (!el) return;
+    var ev = el.tagName === 'SELECT' ? 'change' : 'input';
+    el.addEventListener(ev, function(){
+      el.classList.remove('field-error');
+      var em = document.getElementById(p[1]);
+      if (em) em.classList.remove('show');
+    });
+  });
+});
+
+// Plug Professional validation into the AJAX-save flow.
+// Wraps the existing ajaxSaveCurrentTab so non-professional saves are unaffected.
+(function(){
+  if (typeof ajaxSaveCurrentTab !== 'function') return;
+  var _origAjaxSave = ajaxSaveCurrentTab;
+  ajaxSaveCurrentTab = function(){
+    if (typeof _currentTab !== 'undefined' && _currentTab === 'professional') {
+      if (!validateProfessionalTab()) {
+        if (typeof _showSaveMsg === 'function') _showSaveMsg('⚠️ Required fields bharo!', false);
+        var btn = document.getElementById('btnSaveTab');
+        if (btn) { btn.disabled = false; if (typeof _updateSaveBtn === 'function') _updateSaveBtn(); }
+        return;
+      }
+    }
+    return _origAjaxSave.apply(this, arguments);
+  };
+})();
+
+// Final-submit guard (full-form POST path): if user clicks the main submit button
+// while is_contractor=Yes but contractor not picked, block submission.
+document.addEventListener('DOMContentLoaded', function(){
+  var form = document.querySelector('form');
+  if (!form) return;
+  form.addEventListener('submit', function(ev){
+    var isC = document.getElementById('isContractorSel');
+    var sel = document.getElementById('contractorIdSel');
+    if (isC && sel && isC.value === 'yes' && !sel.value) {
+      ev.preventDefault();
+      _setEmpErr('contractorIdSel', 'err_pro_contractor', 'Contractor selection is required when "Is Contractor" is Yes.');
+      var t2btn = document.querySelector('[data-tabid="t2"]');
+      if (t2btn && !t2btn.classList.contains('tab-locked')) t2btn.click();
+      sel.focus();
+      return false;
+    }
+  }, true);
+});
+
+async function copyCurrentToPermanent(checked){
     var map = {'address':'permAddr','city':'permCity','state':'permState','country':'permCountry','zip_code':'permZip'};
+    var srcCountrySel = document.querySelector('[name="country"]');
+    var dstCountrySel = document.getElementById('permCountry');
+
+    if (checked) {
+        // 1. Country first (dropdown copy)
+        if (srcCountrySel && dstCountrySel) {
+            dstCountrySel.dataset.prevVal = dstCountrySel.value || '';
+            dstCountrySel.value = srcCountrySel.value || '';
+            // Repopulate states for the new country, then copy state value
+            await hcpFillStateSelect('permCountry','permState');
+            var srcSt = document.querySelector('[name="state"]');
+            var dstSt = document.getElementById('permState');
+            if (srcSt && dstSt) {
+                dstSt.dataset.prevVal = dstSt.value || '';
+                dstSt.value = srcSt.value || '';
+            }
+        }
+    }
+
     Object.keys(map).forEach(function(srcName){
         var src = document.querySelector('[name="'+srcName+'"]');
         var dst = document.getElementById(map[srcName]);
         if(!src||!dst) return;
+        var isSelect = (dst.tagName === 'SELECT');
         if(checked){
-            dst.dataset.prevVal = dst.value || '';
-            dst.value = src.value || '';
-            dst.readOnly = true;
-            dst.style.background = '#f1f5f9';
+            // Country & State already handled above for selects; copy others
+            if (!isSelect) {
+                dst.dataset.prevVal = dst.value || '';
+                dst.value = src.value || '';
+            }
+            // Lock UI
+            if (isSelect) {
+                dst.disabled = true;
+                dst.style.background = '#f1f5f9';
+            } else {
+                dst.readOnly = true;
+                dst.style.background = '#f1f5f9';
+            }
         }else{
-            dst.readOnly = false;
+            if (isSelect) {
+                dst.disabled = false;
+            } else {
+                dst.readOnly = false;
+            }
             dst.style.background = '';
-            if(dst.dataset.prevVal !== undefined){ dst.value = dst.dataset.prevVal; delete dst.dataset.prevVal; }
+            if(dst.dataset.prevVal !== undefined){
+                dst.value = dst.dataset.prevVal;
+                delete dst.dataset.prevVal;
+                // Re-populate state options if country was restored
+                if (dst.id === 'permCountry') {
+                    hcpFillStateSelect('permCountry','permState');
+                }
+            }
         }
     });
 }
 // On load, if "same as current" is checked, grey out permanent fields
 document.addEventListener('DOMContentLoaded', function(){
     var chk = document.getElementById('sameAsCurrentChk');
-    if(chk && chk.checked) copyCurrentToPermanent(true);
+    if(chk && chk.checked) {
+        // Wait for country/state dropdowns to populate first, then copy
+        setTimeout(function(){ copyCurrentToPermanent(true); }, 300);
+    }
 });
 toggleContractor(document.getElementById('isContractorSel').value);
 function toggleMarriageDate(val){
@@ -1219,6 +1485,94 @@ function _inp(name){
 }
 function _sel(name){var e=document.querySelector('select[name="'+name+'"]');return e?e.value:'';}
 
+// ── Country / State cascading dropdown ────────────────────────────
+window._hcpCountriesCache = null;
+
+async function hcpLoadCountries() {
+    if (window._hcpCountriesCache) return window._hcpCountriesCache;
+    try {
+        var resp = await fetch('/hr/masters/api/countries', {credentials:'same-origin'});
+        if (!resp.ok) throw new Error('countries fetch failed');
+        var data = await resp.json();
+        window._hcpCountriesCache = data || [];
+    } catch(e) {
+        console.warn('Country API failed:', e);
+        window._hcpCountriesCache = [];
+    }
+    return window._hcpCountriesCache;
+}
+
+async function hcpFillCountrySelect(selectId) {
+    var sel = document.getElementById(selectId);
+    if (!sel) return;
+    var current = sel.getAttribute('data-current') || '';
+    var countries = await hcpLoadCountries();
+    // Reset
+    sel.innerHTML = '<option value="">Select Country</option>';
+    countries.forEach(function(c){
+        var opt = document.createElement('option');
+        opt.value = c.name;
+        opt.textContent = c.name;
+        opt.setAttribute('data-id', c.id);
+        if (current && c.name.toLowerCase() === current.toLowerCase()) opt.selected = true;
+        sel.appendChild(opt);
+    });
+}
+
+async function hcpFillStateSelect(countrySelectId, stateSelectId) {
+    var cSel = document.getElementById(countrySelectId);
+    var sSel = document.getElementById(stateSelectId);
+    if (!cSel || !sSel) return;
+
+    var countryName = cSel.value;
+    var stateCurrent = sSel.getAttribute('data-current') || '';
+
+    sSel.innerHTML = '<option value="">Select State</option>';
+    if (!countryName) return;
+
+    try {
+        var url = '/hr/masters/api/states/by-country-name?country=' + encodeURIComponent(countryName);
+        var resp = await fetch(url, {credentials:'same-origin'});
+        if (!resp.ok) throw new Error('states fetch failed');
+        var states = await resp.json();
+        states.forEach(function(s){
+            var opt = document.createElement('option');
+            opt.value = s.name;
+            // Show short_name + state_code if available
+            var lbl = s.name;
+            if (s.short_name || s.state_code) {
+                var meta = [];
+                if (s.short_name) meta.push(s.short_name);
+                if (s.state_code) meta.push(s.state_code);
+                lbl = s.name + ' (' + meta.join(' / ') + ')';
+            }
+            opt.textContent = lbl;
+            opt.setAttribute('data-id', s.id);
+            opt.setAttribute('data-short', s.short_name || '');
+            opt.setAttribute('data-code', s.state_code || '');
+            if (stateCurrent && s.name.toLowerCase() === stateCurrent.toLowerCase()) opt.selected = true;
+            sSel.appendChild(opt);
+        });
+    } catch(e) {
+        console.warn('State API failed:', e);
+    }
+}
+
+async function hcpOnCountryChange(countrySelectId, stateSelectId) {
+    var sSel = document.getElementById(stateSelectId);
+    if (sSel) sSel.setAttribute('data-current', '');  // user changed country → reset state preselect
+    await hcpFillStateSelect(countrySelectId, stateSelectId);
+}
+
+// On DOM ready: populate Country/State dropdowns for both addresses
+document.addEventListener('DOMContentLoaded', async function(){
+    if (!document.getElementById('empCountry')) return;
+    await hcpFillCountrySelect('empCountry');
+    await hcpFillCountrySelect('permCountry');
+    await hcpFillStateSelect('empCountry',  'empState');
+    await hcpFillStateSelect('permCountry', 'permState');
+});
+
 function _collectTab(tab) {
     var d={tab:tab};
     if(tab==='basic'){
@@ -1227,12 +1581,21 @@ function _collectTab(tab) {
         d.employee_code=_inp('employee_code'); d.employee_id=_inp('employee_id');
         d.first_name=_inp('first_name'); d.middle_name=_inp('middle_name'); d.last_name=_inp('last_name');
         d.mobile=_inp('mobile'); d.email=_inp('email'); d.gender=_sel('gender');
-        d.employee_type=_sel('employee_type');
+        d.employee_type=_sel('employee_type'); d.status=_sel('status');
         d.date_of_birth=_inp('date_of_birth'); d.blood_group=_sel('blood_group');
         d.marital_status=_sel('marital_status'); d.marriage_anniversary=_inp('marriage_anniversary');
+        // Family / Contact
+        d.father_name=_inp('father_name'); d.mother_name=_inp('mother_name');
+        d.alternate_mobile=_inp('alternate_mobile'); d.personal_email=_inp('personal_email');
+        // Current Address
         d.address=_inp('address'); d.city=_inp('city'); d.state=_inp('state');
         d.country=_inp('country'); d.zip_code=_inp('zip_code');
-       
+        // Permanent Address
+        d.permanent_address=_inp('permanent_address'); d.permanent_city=_inp('permanent_city');
+        d.permanent_state=_inp('permanent_state'); d.permanent_country=_inp('permanent_country');
+        d.permanent_zip=_inp('permanent_zip');
+        var sac = document.getElementById('sameAsCurrentChk');
+        d.same_as_current_addr = (sac && sac.checked) ? 'yes' : '';
     } else if(tab==='professional'){
         d.department=_inp('department'); d.designation=_inp('designation'); d.employee_type=_sel('employee_type');
         d.date_of_joining=_inp('date_of_joining'); d.location=_sel('location');

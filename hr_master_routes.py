@@ -5,7 +5,7 @@ Blueprint: hr_masters at /hr/masters
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import login_required, current_user
 from models import db
-from models.employee import EmployeeTypeMaster, EmployeeLocationMaster, DepartmentMaster, DesignationMaster
+from models.employee import EmployeeTypeMaster, EmployeeLocationMaster, DepartmentMaster, DesignationMaster, CountryMaster, StateMaster
 from datetime import datetime
 
 hr_masters = Blueprint('hr_masters', __name__, url_prefix='/hr/masters')
@@ -48,10 +48,27 @@ def index():
     departments  = DepartmentMaster.query.order_by(DepartmentMaster.sort_order, DepartmentMaster.name).all()
     designations = DesignationMaster.query.order_by(DesignationMaster.sort_order, DesignationMaster.name).all()
 
+    countries = CountryMaster.query.order_by(CountryMaster.sort_order, CountryMaster.name).all()
+    states    = StateMaster.query.order_by(StateMaster.country_id, StateMaster.sort_order, StateMaster.name).all()
+
+    # Map ?tab= → sidebar active_page slug so the right submenu item highlights
+    _tab_to_page = {
+        'emp_type':    'hr_emptype_master',
+        'location':    'hr_loc_master',
+        'department':  'hr_dept_master',
+        'designation': 'hr_desig_master',
+        'country':     'hr_country_master',
+        'state':       'hr_state_master',
+        'shift':       'hr_shift_master',
+    }
+    _tab = (request.args.get('tab') or 'emp_type').strip()
+    _ap  = _tab_to_page.get(_tab, 'hr_masters')
+
     return render_template('hr/masters/index.html',
         emp_types=emp_types, locations=locations,
         departments=departments, designations=designations,
-        active_page='hr_masters'
+        countries=countries, states=states,
+        active_page=_ap
     )
 
 
@@ -328,6 +345,206 @@ def api_departments():
 def api_designations():
     desigs = DesignationMaster.query.filter_by(is_active=True).order_by(DesignationMaster.sort_order).all()
     return jsonify([{'id': d.id, 'name': d.name} for d in desigs])
+
+
+# ══════════════════════════════════════════════════════════════
+# COUNTRY MASTER — Add / Edit / Delete / Toggle / List JSON
+# ══════════════════════════════════════════════════════════════
+@hr_masters.route('/api/countries', methods=['GET'])
+@login_required
+def countries_list_json():
+    """Active countries list — used by Employee form Country dropdown."""
+    rows = CountryMaster.query.filter_by(is_active=True)\
+        .order_by(CountryMaster.sort_order, CountryMaster.name).all()
+    return jsonify([
+        {'id': c.id, 'name': c.name, 'iso2': c.iso2, 'iso3': c.iso3, 'phone_code': c.phone_code}
+        for c in rows
+    ])
+
+
+@hr_masters.route('/api/states/<int:country_id>', methods=['GET'])
+@login_required
+def states_list_json(country_id):
+    """Active states for a given country — cascading dropdown ke liye."""
+    rows = StateMaster.query.filter_by(country_id=country_id, is_active=True)\
+        .order_by(StateMaster.sort_order, StateMaster.name).all()
+    return jsonify([
+        {'id': s.id, 'name': s.name, 'short_name': s.short_name, 'state_code': s.state_code}
+        for s in rows
+    ])
+
+
+@hr_masters.route('/api/states/by-country-name', methods=['GET'])
+@login_required
+def states_by_country_name_json():
+    """Lookup states by country *name* (used when employee record stores name, not id)."""
+    cname = (request.args.get('country') or '').strip()
+    if not cname:
+        return jsonify([])
+    c = CountryMaster.query.filter(db.func.lower(CountryMaster.name) == cname.lower()).first()
+    if not c:
+        return jsonify([])
+    rows = StateMaster.query.filter_by(country_id=c.id, is_active=True)\
+        .order_by(StateMaster.sort_order, StateMaster.name).all()
+    return jsonify([
+        {'id': s.id, 'name': s.name, 'short_name': s.short_name, 'state_code': s.state_code}
+        for s in rows
+    ])
+
+
+@hr_masters.route('/country/add', methods=['POST'])
+@login_required
+def country_add():
+    _admin_only()
+    name = request.form.get('name', '').strip()
+    if not name:
+        flash('Country name required.', 'error')
+        return redirect(url_for('hr_masters.index'))
+    if CountryMaster.query.filter_by(name=name).first():
+        flash(f'"{name}" already exists.', 'error')
+        return redirect(url_for('hr_masters.index'))
+
+    sort = CountryMaster.query.count()
+    db.session.add(CountryMaster(
+        name       = name,
+        iso2       = (request.form.get('iso2') or '').strip().upper() or None,
+        iso3       = (request.form.get('iso3') or '').strip().upper() or None,
+        phone_code = (request.form.get('phone_code') or '').strip() or None,
+        sort_order = sort,
+        created_by = current_user.id,
+    ))
+    db.session.commit()
+    flash(f'Country "{name}" added!', 'success')
+    return redirect(url_for('hr_masters.index'))
+
+
+@hr_masters.route('/country/<int:id>/edit', methods=['POST'])
+@login_required
+def country_edit(id):
+    _admin_only()
+    rec  = CountryMaster.query.get_or_404(id)
+    name = request.form.get('name', '').strip()
+    if name:
+        dup = CountryMaster.query.filter(
+            CountryMaster.name == name,
+            CountryMaster.id   != id
+        ).first()
+        if dup:
+            flash(f'"{name}" already exists.', 'error')
+            return redirect(url_for('hr_masters.index'))
+        rec.name = name
+    rec.iso2       = (request.form.get('iso2') or '').strip().upper() or None
+    rec.iso3       = (request.form.get('iso3') or '').strip().upper() or None
+    rec.phone_code = (request.form.get('phone_code') or '').strip() or None
+    rec.sort_order = request.form.get('sort_order', rec.sort_order, type=int)
+    db.session.commit()
+    flash('Country updated.', 'success')
+    return redirect(url_for('hr_masters.index'))
+
+
+@hr_masters.route('/country/<int:id>/delete', methods=['POST'])
+@login_required
+def country_delete(id):
+    _admin_only()
+    rec = CountryMaster.query.get_or_404(id)
+    n = rec.name
+    db.session.delete(rec)
+    db.session.commit()
+    flash(f'Country "{n}" deleted.', 'success')
+    return redirect(url_for('hr_masters.index'))
+
+
+@hr_masters.route('/country/<int:id>/toggle', methods=['POST'])
+@login_required
+def country_toggle(id):
+    _admin_only()
+    rec = CountryMaster.query.get_or_404(id)
+    rec.is_active = not rec.is_active
+    db.session.commit()
+    return jsonify(success=True, is_active=rec.is_active)
+
+
+# ══════════════════════════════════════════════════════════════
+# STATE MASTER — Add / Edit / Delete / Toggle
+# ══════════════════════════════════════════════════════════════
+@hr_masters.route('/state/add', methods=['POST'])
+@login_required
+def state_add():
+    _admin_only()
+    country_id = request.form.get('country_id', type=int)
+    name       = request.form.get('name', '').strip()
+    if not country_id or not name:
+        flash('Country and State name required.', 'error')
+        return redirect(url_for('hr_masters.index'))
+
+    if not CountryMaster.query.get(country_id):
+        flash('Invalid country.', 'error')
+        return redirect(url_for('hr_masters.index'))
+
+    if StateMaster.query.filter_by(country_id=country_id, name=name).first():
+        flash(f'State "{name}" already exists for this country.', 'error')
+        return redirect(url_for('hr_masters.index'))
+
+    sort = StateMaster.query.filter_by(country_id=country_id).count()
+    db.session.add(StateMaster(
+        country_id = country_id,
+        name       = name,
+        short_name = (request.form.get('short_name') or '').strip().upper() or None,
+        state_code = (request.form.get('state_code') or '').strip() or None,
+        sort_order = sort,
+        created_by = current_user.id,
+    ))
+    db.session.commit()
+    flash(f'State "{name}" added!', 'success')
+    return redirect(url_for('hr_masters.index'))
+
+
+@hr_masters.route('/state/<int:id>/edit', methods=['POST'])
+@login_required
+def state_edit(id):
+    _admin_only()
+    rec        = StateMaster.query.get_or_404(id)
+    country_id = request.form.get('country_id', type=int) or rec.country_id
+    name       = request.form.get('name', '').strip()
+    if name:
+        dup = StateMaster.query.filter(
+            StateMaster.country_id == country_id,
+            StateMaster.name == name,
+            StateMaster.id != id
+        ).first()
+        if dup:
+            flash(f'"{name}" already exists for this country.', 'error')
+            return redirect(url_for('hr_masters.index'))
+        rec.name = name
+    rec.country_id = country_id
+    rec.short_name = (request.form.get('short_name') or '').strip().upper() or None
+    rec.state_code = (request.form.get('state_code') or '').strip() or None
+    rec.sort_order = request.form.get('sort_order', rec.sort_order, type=int)
+    db.session.commit()
+    flash('State updated.', 'success')
+    return redirect(url_for('hr_masters.index'))
+
+
+@hr_masters.route('/state/<int:id>/delete', methods=['POST'])
+@login_required
+def state_delete(id):
+    _admin_only()
+    rec = StateMaster.query.get_or_404(id)
+    n = rec.name
+    db.session.delete(rec)
+    db.session.commit()
+    flash(f'State "{n}" deleted.', 'success')
+    return redirect(url_for('hr_masters.index'))
+
+
+@hr_masters.route('/state/<int:id>/toggle', methods=['POST'])
+@login_required
+def state_toggle(id):
+    _admin_only()
+    rec = StateMaster.query.get_or_404(id)
+    rec.is_active = not rec.is_active
+    db.session.commit()
+    return jsonify(success=True, is_active=rec.is_active)
 
 
 # ══════════════════════════════════════════════════════════════

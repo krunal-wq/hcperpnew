@@ -37,7 +37,6 @@
                 {% elif employee.status == 'terminated' %}<span style="background:#fee2e2;color:#991b1b;padding:2px 9px;border-radius:99px;font-size:.68rem;font-weight:800;vertical-align:middle;margin-left:.4rem;">Terminated</span>
                 {% else %}<span style="background:#f1f5f9;color:#64748b;padding:2px 9px;border-radius:99px;font-size:.68rem;font-weight:800;vertical-align:middle;margin-left:.4rem;">{{ employee.status|title }}</span>{% endif %}
                 {% if employee.is_probation %}<span style="background:#fef3c7;color:#d97706;padding:2px 9px;border-radius:99px;font-size:.68rem;font-weight:800;vertical-align:middle;margin-left:.3rem;">🕐 Probation</span>{% endif %}
-                {% if employee.is_block %}<span style="background:#fee2e2;color:#dc2626;padding:2px 9px;border-radius:99px;font-size:.68rem;font-weight:800;vertical-align:middle;margin-left:.3rem;">🔴 Blocked</span>{% endif %}
             </h1>
             <p style="font-size:.78rem;color:var(--text3);margin:.2rem 0 0;">{{ employee.employee_code }} &nbsp;·&nbsp; {{ employee.designation or '—' }} &nbsp;·&nbsp; {{ employee.department or '—' }}</p>
         </div>
@@ -84,13 +83,6 @@
             <div class="vf"><span class="vl">{{ l }}</span><span class="vv">{{ v or '—' }}</span></div>
             {% endfor %}
         </div>
-        {% if employee.linkedin or employee.facebook %}
-        <div class="vcard">
-            <div class="vcard-hdr">🔗 Social Links</div>
-            {% if employee.linkedin %}<div class="vf"><span class="vl">LinkedIn</span><span class="vv"><a href="{{ employee.linkedin }}" target="_blank" style="color:var(--blue);word-break:break-all;">{{ employee.linkedin }}</a></span></div>{% endif %}
-            {% if employee.facebook %}<div class="vf"><span class="vl">Facebook</span><span class="vv"><a href="{{ employee.facebook }}" target="_blank" style="color:var(--blue);word-break:break-all;">{{ employee.facebook }}</a></span></div>{% endif %}
-        </div>
-        {% endif %}
     </div>
     <div style="display:flex;flex-direction:column;gap:1rem;">
         {% if employee.profile_photo %}
@@ -120,8 +112,6 @@
                 ('Department',employee.department),('Designation',employee.designation),('Employee Type',employee.employee_type),
                 ('Location',employee.location),('Pay Grade',employee.pay_grade),
                 ('Date of Joining',employee.date_of_joining.strftime('%d %b %Y') if employee.date_of_joining else None),
-                ('Confirmation Date',employee.confirmation_date.strftime('%d %b %Y') if employee.confirmation_date else None),
-                ('Reports To',employee.manager_emp.full_name if employee.manager_emp else None),
             ] %}
             <div class="vf"><span class="vl">{{ l }}</span><span class="vv">{{ v or '—' }}</span></div>
             {% endfor %}
@@ -134,37 +124,24 @@
                 ('Shift',employee.shift),
                 ('Work Hours/Day',(employee.work_hours_per_day|string+' hrs') if employee.work_hours_per_day else None),
                 ('Weekly Off',employee.weekly_off),
-                ('Notice Period',(employee.notice_period_days|string+' days') if employee.notice_period_days else None),
+                ('Notice Period',(employee.notice_period_days|string+' days') if employee.notice_period_days is not none else None),
+                ('Probation Period',(employee.probation_period_months|string+' months') if employee.probation_period_months is not none else None),
                 ('Is Contractor','Yes' if employee.is_contractor else 'No'),
+                ('Overtime Eligible','Yes' if employee.overtime_eligible else 'No'),
             ] %}
             <div class="vf"><span class="vl">{{ l }}</span><span class="vv">{{ v or '—' }}</span></div>
             {% endfor %}
         </div>
         <div class="vcard">
-            <div class="vcard-hdr">🚦 Status Flags</div>
+            <div class="vcard-hdr">🌴 Leave Balances</div>
             {% for l,v in [
-                ('Status',employee.status|replace('_',' ')|capitalize),
-                ('Probation','Yes' if employee.is_probation else 'No'),
-                ('Blocked','Yes' if employee.is_block else 'No'),
-                ('Late Mark','Yes' if employee.is_late else 'No'),
-                ('Rehire Eligible','Yes' if employee.rehire_eligible else 'No'),
+                ('Casual Leave (CL)', employee.casual_leave_balance if employee.casual_leave_balance is not none else 0),
+                ('Sick Leave (SL)',   employee.sick_leave_balance   if employee.sick_leave_balance   is not none else 0),
+                ('Paid Leave (PL)',   employee.paid_leave_balance   if employee.paid_leave_balance   is not none else 0),
             ] %}
-            <div class="vf"><span class="vl">{{ l }}</span><span class="vv">{{ v or '—' }}</span></div>
+            <div class="vf"><span class="vl">{{ l }}</span><span class="vv">{{ v }}</span></div>
             {% endfor %}
         </div>
-        {% if employee.resignation_date or employee.last_working_date %}
-        <div class="vcard">
-            <div class="vcard-hdr">🚪 Exit Details</div>
-            {% if employee.resignation_date %}<div class="vf"><span class="vl">Resignation Date</span><span class="vv">{{ employee.resignation_date.strftime('%d %b %Y') }}</span></div>{% endif %}
-            {% if employee.last_working_date %}<div class="vf"><span class="vl">Last Working Date</span><span class="vv">{{ employee.last_working_date.strftime('%d %b %Y') }}</span></div>{% endif %}
-        </div>
-        {% endif %}
-        {% if employee.remark %}
-        <div class="vcard">
-            <div class="vcard-hdr">📝 Remark</div>
-            <p style="font-size:.83rem;line-height:1.5;margin:0;">{{ employee.remark }}</p>
-        </div>
-        {% endif %}
     </div>
 </div>
 </div>

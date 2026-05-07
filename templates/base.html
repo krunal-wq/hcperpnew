@@ -629,12 +629,12 @@
             <div class="sb-sec-lbl">Masters</div>
 
             {# ── HR Masters Accordion ── #}
-            <button class="sb-acc-hdr {% if _pg in ('hr_masters','hr_dept_master','hr_desig_master','hr_shift_master','hr_emptype_master','hr_loc_master') %}open{% endif %}" onclick="toggleAccordion(this)">
+            <button class="sb-acc-hdr {% if _pg in ('hr_masters','hr_dept_master','hr_desig_master','hr_shift_master','hr_emptype_master','hr_loc_master','hr_country_master','hr_state_master') %}open{% endif %}" onclick="toggleAccordion(this)">
                 <span class="sb-acc-ic">🗂️</span>
                 <span class="sb-acc-lbl">HR Masters</span>
                 <span class="sb-acc-arrow">›</span>
             </button>
-            <div class="sb-acc-body {% if _pg in ('hr_masters','hr_dept_master','hr_desig_master','hr_shift_master','hr_emptype_master','hr_loc_master') %}open{% endif %}">
+            <div class="sb-acc-body {% if _pg in ('hr_masters','hr_dept_master','hr_desig_master','hr_shift_master','hr_emptype_master','hr_loc_master','hr_country_master','hr_state_master') %}open{% endif %}">
                 <a class="nav-a nav-sub {% if _pg == 'hr_emptype_master' %}active{% endif %}" href="/hr/masters/?tab=emp_type">
                     <span class="nav-ic">👔</span><span class="nav-txt">Employee Type</span>
                 </a>
@@ -646,6 +646,12 @@
                 </a>
                 <a class="nav-a nav-sub {% if _pg == 'hr_desig_master' %}active{% endif %}" href="/hr/masters/?tab=designation">
                     <span class="nav-ic">👤</span><span class="nav-txt">Designation</span>
+                </a>
+                <a class="nav-a nav-sub {% if _pg == 'hr_country_master' %}active{% endif %}" href="/hr/masters/?tab=country">
+                    <span class="nav-ic">🌍</span><span class="nav-txt">Country</span>
+                </a>
+                <a class="nav-a nav-sub {% if _pg == 'hr_state_master' %}active{% endif %}" href="/hr/masters/?tab=state">
+                    <span class="nav-ic">🗺️</span><span class="nav-txt">State</span>
                 </a>
                 <a class="nav-a nav-sub {% if _pg == 'hr_shift_master' %}active{% endif %}" href="/hr/rules/shifts">
                     <span class="nav-ic">🔄</span><span class="nav-txt">Shift Master</span>

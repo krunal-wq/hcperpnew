@@ -473,3 +473,47 @@ class DesignationMaster(db.Model):
     created_by = db.Column(db.Integer, nullable=True)
 
     def __repr__(self): return f'<DesignationMaster {self.name}>'
+
+
+class CountryMaster(db.Model):
+    """Country Master — India, USA, UK, etc."""
+    __tablename__ = 'country_master'
+
+    id          = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    name        = db.Column(db.String(100), nullable=False, unique=True)
+    iso2        = db.Column(db.String(2),   nullable=True)   # e.g. IN
+    iso3        = db.Column(db.String(3),   nullable=True)   # e.g. IND
+    phone_code  = db.Column(db.String(10),  nullable=True)   # e.g. +91
+    sort_order  = db.Column(db.Integer, default=0)
+    is_active   = db.Column(db.Boolean, default=True)
+    created_at  = db.Column(db.DateTime, default=datetime.now)
+    created_by  = db.Column(db.Integer, nullable=True)
+
+    states = db.relationship('StateMaster', backref='country',
+                             cascade='all, delete-orphan',
+                             lazy='dynamic',
+                             order_by='StateMaster.sort_order, StateMaster.name')
+
+    def __repr__(self): return f'<CountryMaster {self.name}>'
+
+
+class StateMaster(db.Model):
+    """State / Province Master — Gujarat (GJ, 24), Maharashtra (MH, 27), etc."""
+    __tablename__ = 'state_master'
+
+    id          = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    country_id  = db.Column(db.Integer, db.ForeignKey('country_master.id', ondelete='CASCADE'),
+                            nullable=False, index=True)
+    name        = db.Column(db.String(100), nullable=False)
+    short_name  = db.Column(db.String(10),  nullable=True)   # e.g. GJ, MH
+    state_code  = db.Column(db.String(10),  nullable=True)   # e.g. GST: 24, 27
+    sort_order  = db.Column(db.Integer, default=0)
+    is_active   = db.Column(db.Boolean, default=True)
+    created_at  = db.Column(db.DateTime, default=datetime.now)
+    created_by  = db.Column(db.Integer, nullable=True)
+
+    __table_args__ = (
+        db.UniqueConstraint('country_id', 'name', name='uq_state_country_name'),
+    )
+
+    def __repr__(self): return f'<StateMaster {self.name} ({self.short_name})>'
