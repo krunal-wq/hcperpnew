@@ -66,11 +66,26 @@
         <div class="vcard">
             <div class="vcard-hdr">👤 Basic Information</div>
             {% for l,v in [
-                ('Employee Code', employee.employee_code),('First Name', employee.first_name),('Middle Name', employee.middle_name),('Last Name', employee.last_name),
+                ('Employee Code', employee.employee_code),
+                ('Employee ID (Biometric)', employee.employee_id),
+                ('First Name', employee.first_name),('Middle Name', employee.middle_name),('Last Name', employee.last_name),
                 ('Mobile', employee.mobile),('Email', employee.email),('Gender', employee.gender),
                 ('Date of Birth', employee.date_of_birth.strftime('%d %b %Y') if employee.date_of_birth else None),
                 ('Blood Group', employee.blood_group),('Marital Status', employee.marital_status),
                 ('Marriage Anniversary', employee.marriage_anniversary.strftime('%d %b %Y') if employee.marriage_anniversary else None),
+                ('Spouse Name', employee.spouse_name if employee.marital_status == 'Married' else None),
+                ('No. of Children', employee.number_of_children if employee.marital_status and employee.marital_status != 'Single' else None),
+            ] %}
+            <div class="vf"><span class="vl">{{ l }}</span><span class="vv">{{ v or '—' }}</span></div>
+            {% endfor %}
+        </div>
+        <div class="vcard">
+            <div class="vcard-hdr">👨‍👩‍👧 Family &amp; Contact</div>
+            {% for l,v in [
+                ("Father's Name", employee.father_name),
+                ("Mother's Name", employee.mother_name),
+                ('Alternate Mobile', employee.alternate_mobile),
+                ('Personal Email', employee.personal_email),
             ] %}
             <div class="vf"><span class="vl">{{ l }}</span><span class="vv">{{ v or '—' }}</span></div>
             {% endfor %}
@@ -78,8 +93,22 @@
     </div>
     <div>
         <div class="vcard">
-            <div class="vcard-hdr">📍 Address</div>
+            <div class="vcard-hdr">📍 Current Address</div>
             {% for l,v in [('Address',employee.address),('City',employee.city),('State',employee.state),('Country',employee.country),('ZIP / Pin Code',employee.zip_code)] %}
+            <div class="vf"><span class="vl">{{ l }}</span><span class="vv">{{ v or '—' }}</span></div>
+            {% endfor %}
+        </div>
+        <div class="vcard">
+            <div class="vcard-hdr">🏡 Permanent Address
+                {% if employee.same_as_current_addr %}<span style="font-size:.62rem;color:#16a34a;font-weight:700;background:#dcfce7;padding:1px 7px;border-radius:99px;margin-left:.4rem;">Same as Current</span>{% endif %}
+            </div>
+            {% for l,v in [
+                ('Address', employee.permanent_address),
+                ('City', employee.permanent_city),
+                ('State', employee.permanent_state),
+                ('Country', employee.permanent_country),
+                ('ZIP / Pin Code', employee.permanent_zip),
+            ] %}
             <div class="vf"><span class="vl">{{ l }}</span><span class="vv">{{ v or '—' }}</span></div>
             {% endfor %}
         </div>
@@ -110,10 +139,29 @@
             <div class="vcard-hdr">🏢 Employment Details</div>
             {% for l,v in [
                 ('Department',employee.department),('Designation',employee.designation),('Employee Type',employee.employee_type),
-                ('Location',employee.location),('Pay Grade',employee.pay_grade),
+                ('Location',employee.location),('Pay Grade',employee.pay_grade),('Grade Level',employee.grade_level),
                 ('Date of Joining',employee.date_of_joining.strftime('%d %b %Y') if employee.date_of_joining else None),
+                ('Confirmation Date',employee.confirmation_date.strftime('%d %b %Y') if employee.confirmation_date else None),
+                ('Probation End Date',employee.probation_end_date.strftime('%d %b %Y') if employee.probation_end_date else None),
+                ('Reports To (Manager)', employee.manager_emp.full_name if employee.manager_emp else None),
+                ('Rehire Eligible', 'Yes' if employee.rehire_eligible else 'No'),
+                ('Attendance Code', employee.attendance_code),
+                ('Leave Policy', employee.leave_policy),
+                ('Is Contractor','Yes' if employee.is_contractor else 'No'),
+                ('Contractor', employee.contractor_rel.company_name if employee.is_contractor and employee.contractor_rel else None),
             ] %}
             <div class="vf"><span class="vl">{{ l }}</span><span class="vv">{{ v or '—' }}</span></div>
+            {% endfor %}
+        </div>
+        <div class="vcard">
+            <div class="vcard-hdr">🚩 Flags</div>
+            {% for l,v in [
+                ('Is Block', 'Yes' if employee.is_block else 'No'),
+                ('Is Late',  'Yes' if employee.is_late  else 'No'),
+                ('Is Probation', 'Yes' if employee.is_probation else 'No'),
+                ('Overtime Eligible','Yes' if employee.overtime_eligible else 'No'),
+            ] %}
+            <div class="vf"><span class="vl">{{ l }}</span><span class="vv">{{ v }}</span></div>
             {% endfor %}
         </div>
     </div>
@@ -126,8 +174,6 @@
                 ('Weekly Off',employee.weekly_off),
                 ('Notice Period',(employee.notice_period_days|string+' days') if employee.notice_period_days is not none else None),
                 ('Probation Period',(employee.probation_period_months|string+' months') if employee.probation_period_months is not none else None),
-                ('Is Contractor','Yes' if employee.is_contractor else 'No'),
-                ('Overtime Eligible','Yes' if employee.overtime_eligible else 'No'),
             ] %}
             <div class="vf"><span class="vl">{{ l }}</span><span class="vv">{{ v or '—' }}</span></div>
             {% endfor %}
@@ -144,6 +190,45 @@
         </div>
     </div>
 </div>
+
+{# ── System Access + Exit Details (full-width row, two cols) ──────────── #}
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-top:1rem;">
+    <div class="vcard">
+        <div class="vcard-hdr">🔓 System Access</div>
+        <div class="vf"><span class="vl">Official Email</span><span class="vv">{{ employee.official_email or '—' }}</span></div>
+    </div>
+    <div class="vcard">
+        <div class="vcard-hdr">🚪 Exit Details</div>
+        {% for l,v in [
+            ('Resignation Date', employee.resignation_date.strftime('%d %b %Y') if employee.resignation_date else None),
+            ('Last Working Date', employee.last_working_date.strftime('%d %b %Y') if employee.last_working_date else None),
+            ('Exit Interview Done', 'Yes' if employee.exit_interview_done else 'No'),
+            ('F&F Settlement Status', employee.ff_settlement_status),
+            ('F&F Amount', ('₹ '+'{:,.0f}'.format(employee.ff_settlement_amount)) if employee.ff_settlement_amount else None),
+            ('F&F Payment Date', employee.ff_settlement_date.strftime('%d %b %Y') if employee.ff_settlement_date else None),
+            ('Exit Interview Notes', employee.exit_interview_notes),
+        ] %}
+        <div class="vf"><span class="vl">{{ l }}</span><span class="vv">{{ v or '—' }}</span></div>
+        {% endfor %}
+    </div>
+</div>
+
+{# ── Social Profiles + Remark (full-width row) ───────────────────────── #}
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-top:1rem;">
+    <div class="vcard">
+        <div class="vcard-hdr">🌐 Social Profiles</div>
+        <div class="vf"><span class="vl">LinkedIn</span><span class="vv">
+            {% if employee.linkedin %}<a href="{{ employee.linkedin }}" target="_blank" rel="noopener" style="color:var(--blue);text-decoration:none;">{{ employee.linkedin }}</a>{% else %}—{% endif %}
+        </span></div>
+        <div class="vf"><span class="vl">Facebook</span><span class="vv">
+            {% if employee.facebook %}<a href="{{ employee.facebook }}" target="_blank" rel="noopener" style="color:var(--blue);text-decoration:none;">{{ employee.facebook }}</a>{% else %}—{% endif %}
+        </span></div>
+    </div>
+    <div class="vcard">
+        <div class="vcard-hdr">📝 Remark</div>
+        <div style="font-size:.83rem;color:var(--text);line-height:1.5;white-space:pre-wrap;">{{ employee.remark or '—' }}</div>
+    </div>
+</div>
 </div>
 
 <!-- TAB 3: KYC -->
@@ -155,7 +240,9 @@
             {% for l,v in [
                 ('Nationality',employee.nationality),('Religion',employee.religion),('Caste',employee.caste),
                 ('Physically Handicapped','Yes' if employee.physically_handicapped else 'No'),
+                ('Handicap Details', employee.handicap_details if employee.physically_handicapped else None),
                 ('Aadhaar Number',employee.aadhar_number),('PAN Number',employee.pan_number),
+                ('Election Card No.',employee.election_card_no),
                 ('UAN Number',employee.uan_number),('ESIC Number',employee.esic_number),
             ] %}
             <div class="vf"><span class="vl">{{ l }}</span><span class="vv">{{ v or '—' }}</span></div>
@@ -180,6 +267,101 @@
         {% endfor %}
     </div>
 </div>
+{# ── Family Details (full-width below the two-column grid) ─────────── #}
+{% set _fam = employee.family_details_json|from_json if employee.family_details_json else [] %}
+<div class="vcard" style="margin-top:1rem;">
+    <div class="vcard-hdr">👨‍👩‍👧‍👦 Family Details</div>
+    {% if _fam and _fam|length > 0 %}
+    <div style="overflow-x:auto;">
+        <table style="width:100%;border-collapse:collapse;font-size:.78rem;min-width:780px;">
+            <thead style="background:#f8fafc;">
+                <tr>
+                    <th style="text-align:left;padding:.55rem .6rem;font-weight:700;color:var(--text2);border-bottom:1.5px solid #e2e8f0;width:32px;">#</th>
+                    <th style="text-align:left;padding:.55rem .6rem;font-weight:700;color:var(--text2);border-bottom:1.5px solid #e2e8f0;">Name</th>
+                    <th style="text-align:left;padding:.55rem .6rem;font-weight:700;color:var(--text2);border-bottom:1.5px solid #e2e8f0;">Relationship</th>
+                    <th style="text-align:left;padding:.55rem .6rem;font-weight:700;color:var(--text2);border-bottom:1.5px solid #e2e8f0;">Date of Birth</th>
+                    <th style="text-align:left;padding:.55rem .6rem;font-weight:700;color:var(--text2);border-bottom:1.5px solid #e2e8f0;">Occupation</th>
+                    <th style="text-align:left;padding:.55rem .6rem;font-weight:700;color:var(--text2);border-bottom:1.5px solid #e2e8f0;">Mobile</th>
+                    <th style="text-align:center;padding:.55rem .6rem;font-weight:700;color:var(--text2);border-bottom:1.5px solid #e2e8f0;">Dependent?</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for m in _fam %}
+                <tr>
+                    <td style="padding:.45rem .6rem;border-bottom:1px solid #f1f5f9;color:var(--text3);font-weight:700;">{{ loop.index }}</td>
+                    <td style="padding:.45rem .6rem;border-bottom:1px solid #f1f5f9;">{{ m.name or '—' }}</td>
+                    <td style="padding:.45rem .6rem;border-bottom:1px solid #f1f5f9;">{{ m.relation or '—' }}</td>
+                    <td style="padding:.45rem .6rem;border-bottom:1px solid #f1f5f9;">{{ m.dob or '—' }}</td>
+                    <td style="padding:.45rem .6rem;border-bottom:1px solid #f1f5f9;">{{ m.occupation or '—' }}</td>
+                    <td style="padding:.45rem .6rem;border-bottom:1px solid #f1f5f9;">{{ m.mobile or '—' }}</td>
+                    <td style="padding:.45rem .6rem;border-bottom:1px solid #f1f5f9;text-align:center;">{{ m.dependent or 'No' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div style="text-align:center;padding:1rem;color:var(--text3);font-size:.78rem;">No family members on record.</div>
+    {% endif %}
+</div>
+
+{# ── PF & ESIC cards ──────────────────────────────────────────────────── #}
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-top:1rem;">
+    <div class="vcard">
+        <div class="vcard-hdr">🏦 PF (Provident Fund)</div>
+        {% for l,v in [
+            ('PF Applicable', 'Yes' if employee.pf_applicable else 'No'),
+            ('UAN Number', employee.uan_number),
+            ('PF Number', employee.pf_number),
+            ('EPS Applicable', 'Yes' if employee.eps_applicable else 'No'),
+            ('Previous PF Transfer', 'Yes' if employee.previous_pf_transfer else 'No'),
+            ('Previous PF Number', employee.previous_pf_number),
+        ] %}
+        <div class="vf"><span class="vl">{{ l }}</span><span class="vv">{{ v or '—' }}</span></div>
+        {% endfor %}
+    </div>
+    <div class="vcard">
+        <div class="vcard-hdr">🏥 ESIC Details</div>
+        {% for l,v in [
+            ('ESIC Applicable', 'Yes' if employee.esic_applicable else 'No'),
+            ('ESIC Number', employee.esic_number),
+            ('Nominee Name', employee.esic_nominee_name),
+            ('Nominee Relation', employee.esic_nominee_relation),
+            ('Dispensary', employee.esic_dispensary),
+        ] %}
+        <div class="vf"><span class="vl">{{ l }}</span><span class="vv">{{ v or '—' }}</span></div>
+        {% endfor %}
+    </div>
+</div>
+
+{# ── TDS/Tax & Statutory Compliance cards ─────────────────────────────── #}
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-top:1rem;">
+    <div class="vcard">
+        <div class="vcard-hdr">💸 TDS / Income Tax</div>
+        {% for l,v in [
+            ('Aadhaar linked to PAN', 'Yes' if employee.aadhaar_pan_linked else 'No'),
+            ('Tax Regime', (employee.tax_regime + ' Regime') if employee.tax_regime else None),
+            ('Previous Employer Income', ('₹ '+'{:,.0f}'.format(employee.prev_employer_income)) if employee.prev_employer_income else None),
+            ('Monthly TDS', ('₹ '+'{:,.0f}'.format(employee.monthly_tds)) if employee.monthly_tds else None),
+            ('Investment Declaration', employee.investment_declaration),
+            ('Proof Submission Status', employee.proof_submission_status),
+        ] %}
+        <div class="vf"><span class="vl">{{ l }}</span><span class="vv">{{ v or '—' }}</span></div>
+        {% endfor %}
+    </div>
+    <div class="vcard">
+        <div class="vcard-hdr">⚖️ Statutory Compliance</div>
+        {% for l,v in [
+            ('Professional Tax Applicable', 'Yes' if employee.professional_tax_applicable else 'No'),
+            ('Labour Welfare Fund', 'Yes' if employee.labour_welfare_fund else 'No'),
+            ('Gratuity Eligible', 'Yes' if employee.gratuity_eligible else 'No'),
+            ('Bonus Eligible', 'Yes' if employee.bonus_eligible else 'No'),
+        ] %}
+        <div class="vf"><span class="vl">{{ l }}</span><span class="vv">{{ v }}</span></div>
+        {% endfor %}
+    </div>
+</div>
+
 </div>
 
 <!-- TAB 4: BANK -->
@@ -196,6 +378,26 @@
             <span class="vv">{% if l=='Account Number' and v %}{{ v[:4] }}****{{ v[-4:] if v|length > 8 else v }}{% else %}{{ v or '—' }}{% endif %}</span>
         </div>
         {% endfor %}
+    </div>
+    <div class="vcard">
+        <div class="vcard-hdr">📎 Bank Proof</div>
+        {% if employee.bank_proof_base64 %}
+        <div style="display:flex;align-items:center;gap:.85rem;flex-wrap:wrap;padding:.4rem 0;">
+            {% set _is_pdf = employee.bank_proof_filename and employee.bank_proof_filename.lower().endswith('.pdf') %}
+            {% if _is_pdf %}
+            <span style="font-size:2rem;">📄</span>
+            {% else %}
+            <img src="{{ employee.bank_proof_base64 }}" style="width:80px;height:80px;object-fit:cover;border-radius:8px;border:1px solid var(--border);background:#fff;">
+            {% endif %}
+            <div style="flex:1;min-width:160px;">
+                <div style="font-size:.82rem;font-weight:700;color:var(--text1);">{{ employee.bank_proof_filename or 'Bank Proof' }}</div>
+                <div style="font-size:.7rem;color:var(--text3);margin-top:2px;">✅ Uploaded</div>
+            </div>
+            <a href="{{ employee.bank_proof_base64 }}" download="{{ employee.bank_proof_filename or 'bank-proof' }}" style="background:#dbeafe;color:#1e40af;border:1.5px solid #93c5fd;border-radius:7px;padding:5px 12px;font-size:.72rem;text-decoration:none;font-weight:700;">⬇️ Download</a>
+        </div>
+        {% else %}
+        <div style="text-align:center;padding:.6rem;color:var(--text3);font-size:.78rem;">No bank proof uploaded.</div>
+        {% endif %}
     </div>
     <div style="background:#fffbeb;border:1.5px solid #fcd34d;border-radius:10px;padding:.75rem 1rem;font-size:.78rem;color:#92400e;">
         🔒 Bank details are confidential. Visible only to authorized HR personnel.
@@ -268,6 +470,7 @@
             ('To Date',employee.prev_to_date.strftime('%d %b %Y') if employee.prev_to_date else None),
             ('Leaving Reason',employee.prev_leaving_reason),
             ('Total Experience',(employee.total_experience_yrs|string+' yrs') if employee.total_experience_yrs else None),
+            ('Previous Salary (₹/month)',('₹ '+employee.prev_salary_per_month|string) if employee.prev_salary_per_month else None),
         ] %}
         <div class="vf"><span class="vl">{{ l }}</span><span class="vv">{{ v or '—' }}</span></div>
         {% endfor %}

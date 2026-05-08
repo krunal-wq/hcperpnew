@@ -127,6 +127,7 @@ class Employee(db.Model):
     # Identity / KYC
     aadhar_number   = db.Column(db.String(20))
     pan_number      = db.Column(db.String(20))
+    election_card_no= db.Column(db.String(30))    # Voter ID / Election Card
     passport_number = db.Column(db.String(30))
     passport_expiry = db.Column(db.Date)
     driving_license = db.Column(db.String(30))
@@ -137,12 +138,16 @@ class Employee(db.Model):
     religion        = db.Column(db.String(50))
     caste           = db.Column(db.String(50))
     physically_handicapped = db.Column(db.Boolean, default=False)
+    handicap_details       = db.Column(db.Text)   # Description / nature of disability when handicapped=True
 
     # Emergency Contact
     emergency_name      = db.Column(db.String(150))
     emergency_relation  = db.Column(db.String(50))
     emergency_phone     = db.Column(db.String(20))
     emergency_address   = db.Column(db.Text)
+
+    # Family Details (JSON list of {name, relation, dob, occupation, mobile, dependent})
+    family_details_json = db.Column(db.Text)
 
     # Bank Details
     bank_name           = db.Column(db.String(150))
@@ -151,6 +156,8 @@ class Employee(db.Model):
     bank_branch         = db.Column(db.String(150))
     bank_account_type   = db.Column(db.String(30))  # Savings/Current
     bank_account_holder = db.Column(db.String(150))
+    bank_proof_base64   = db.Column(db.Text(16777215))   # MEDIUMTEXT — base64 of cancelled-cheque/passbook copy
+    bank_proof_filename = db.Column(db.String(200))
 
     # Salary Structure
     salary_ctc          = db.Column(db.Numeric(12, 2))
@@ -194,6 +201,7 @@ class Employee(db.Model):
     prev_to_date        = db.Column(db.Date)
     prev_leaving_reason = db.Column(db.Text)
     total_experience_yrs= db.Column(db.Numeric(4,1))
+    prev_salary_per_month = db.Column(db.Numeric(12, 2))   # ₹ / month at previous company
 
     # Documents (JSON list of {name, type, filename, base64, uploaded_at})
     documents_json      = db.Column(db.Text(16777215))   # MEDIUMTEXT — base64 docs
@@ -201,6 +209,8 @@ class Employee(db.Model):
     # ─── Phase-1: Family / Contact ────────────────────────────────────────
     father_name         = db.Column(db.String(150))
     mother_name         = db.Column(db.String(150))
+    spouse_name         = db.Column(db.String(150))
+    number_of_children  = db.Column(db.Integer, default=0)
     alternate_mobile    = db.Column(db.String(20))
     personal_email      = db.Column(db.String(150))
 
@@ -429,6 +439,34 @@ class EmployeeTypeMaster(db.Model):
     created_by = db.Column(db.Integer, nullable=True)
 
     def __repr__(self): return f'<EmployeeTypeMaster {self.name}>'
+
+
+class NationalityMaster(db.Model):
+    """Nationality Master — Indian, American, British, etc."""
+    __tablename__ = 'nationality_master'
+
+    id         = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    name       = db.Column(db.String(100), nullable=False, unique=True)
+    sort_order = db.Column(db.Integer, default=0)
+    is_active  = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.now)
+    created_by = db.Column(db.Integer, nullable=True)
+
+    def __repr__(self): return f'<NationalityMaster {self.name}>'
+
+
+class QualificationMaster(db.Model):
+    """Qualification Master — 10th, 12th, B.E/B.Tech, MBA, B.Pharm, etc."""
+    __tablename__ = 'qualification_master'
+
+    id         = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    name       = db.Column(db.String(100), nullable=False, unique=True)
+    sort_order = db.Column(db.Integer, default=0)
+    is_active  = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.now)
+    created_by = db.Column(db.Integer, nullable=True)
+
+    def __repr__(self): return f'<QualificationMaster {self.name}>'
 
 
 class EmployeeLocationMaster(db.Model):

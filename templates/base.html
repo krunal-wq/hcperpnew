@@ -26,9 +26,14 @@
     .flatpickr-weekday { color:#2563eb !important; font-weight:700 !important; font-size:.72rem !important; }
     .flatpickr-day { border-radius:8px !important; font-size:.82rem !important; color:var(--text) !important; }
     .flatpickr-day:hover { background:#dbeafe !important; border-color:#dbeafe !important; color:#1d4ed8 !important; }
-    .flatpickr-day.selected, .flatpickr-day.selected:hover { background:#2563eb !important; border-color:#2563eb !important; color:#fff !important; font-weight:700 !important; }
+    /* "today" is just a hint when NOT selected — order matters: place it BEFORE .selected */
     .flatpickr-day.today { border-color:#2563eb !important; color:#2563eb !important; font-weight:700 !important; }
     .flatpickr-day.today:hover { background:#2563eb !important; color:#fff !important; }
+    /* Selected ALWAYS wins (white text on solid blue) — must come AFTER .today and explicitly cover the today.selected combo */
+    .flatpickr-day.selected,
+    .flatpickr-day.selected:hover,
+    .flatpickr-day.today.selected,
+    .flatpickr-day.today.selected:hover { background:#2563eb !important; border-color:#2563eb !important; color:#fff !important; font-weight:700 !important; }
     .flatpickr-day.disabled, .flatpickr-day.flatpickr-disabled { color:#cbd5e1 !important; }
     .flatpickr-time { border-top:1px solid var(--border) !important; }
     .flatpickr-time input { color:var(--text) !important; font-weight:600 !important; }
@@ -89,7 +94,7 @@
             {% set _mod = 'rd' %}
         {% elif _pg in ('cat_master','uom_master','hsn_master','masters') %}
             {% set _mod = 'masters' %}
-        {% elif _pg in ('hr_emp_dashboard','hr_employees','hr_contractors','hierarchy','salary_config','hr_attendance','att_sync','att_daily','att_monthly','att_manual','att_late','att_holidays','my_attendance','hr_masters','late_rules','hr_shifts','hr_locations_master','hr_late_rules','hr_early_rules','hr_ot_rules','hr_leave_policy','hr_lop_rules','hr_absent_rules','hr_compoff_rules','hr_dept_master','hr_desig_master','hr_shift_master','hr_emptype_master','hr_loc_master') %}
+        {% elif _pg in ('hr_emp_dashboard','hr_employees','hr_contractors','hierarchy','salary_config','hr_attendance','att_sync','att_daily','att_monthly','att_manual','att_late','att_holidays','my_attendance','hr_masters','late_rules','hr_shifts','hr_locations_master','hr_late_rules','hr_early_rules','hr_ot_rules','hr_leave_policy','hr_lop_rules','hr_absent_rules','hr_compoff_rules','hr_dept_master','hr_desig_master','hr_shift_master','hr_emptype_master','hr_loc_master','hr_nationality_master') %}
             {% set _mod = 'hr' %}
         {% elif _pg in ('approvals','permissions','audit_logs','users','admin_profile') %}
             {% set _mod = 'admin' %}
@@ -629,12 +634,12 @@
             <div class="sb-sec-lbl">Masters</div>
 
             {# ── HR Masters Accordion ── #}
-            <button class="sb-acc-hdr {% if _pg in ('hr_masters','hr_dept_master','hr_desig_master','hr_shift_master','hr_emptype_master','hr_loc_master','hr_country_master','hr_state_master') %}open{% endif %}" onclick="toggleAccordion(this)">
+            <button class="sb-acc-hdr {% if _pg in ('hr_masters','hr_dept_master','hr_desig_master','hr_shift_master','hr_emptype_master','hr_loc_master','hr_country_master','hr_state_master','hr_nationality_master') %}open{% endif %}" onclick="toggleAccordion(this)">
                 <span class="sb-acc-ic">🗂️</span>
                 <span class="sb-acc-lbl">HR Masters</span>
                 <span class="sb-acc-arrow">›</span>
             </button>
-            <div class="sb-acc-body {% if _pg in ('hr_masters','hr_dept_master','hr_desig_master','hr_shift_master','hr_emptype_master','hr_loc_master','hr_country_master','hr_state_master') %}open{% endif %}">
+            <div class="sb-acc-body {% if _pg in ('hr_masters','hr_dept_master','hr_desig_master','hr_shift_master','hr_emptype_master','hr_loc_master','hr_country_master','hr_state_master','hr_nationality_master') %}open{% endif %}">
                 <a class="nav-a nav-sub {% if _pg == 'hr_emptype_master' %}active{% endif %}" href="/hr/masters/?tab=emp_type">
                     <span class="nav-ic">👔</span><span class="nav-txt">Employee Type</span>
                 </a>
@@ -647,8 +652,11 @@
                 <a class="nav-a nav-sub {% if _pg == 'hr_desig_master' %}active{% endif %}" href="/hr/masters/?tab=designation">
                     <span class="nav-ic">👤</span><span class="nav-txt">Designation</span>
                 </a>
+                <a class="nav-a nav-sub {% if _pg == 'hr_nationality_master' %}active{% endif %}" href="/hr/masters/?tab=nationality">
+                    <span class="nav-ic">🌍</span><span class="nav-txt">Nationality</span>
+                </a>
                 <a class="nav-a nav-sub {% if _pg == 'hr_country_master' %}active{% endif %}" href="/hr/masters/?tab=country">
-                    <span class="nav-ic">🌍</span><span class="nav-txt">Country</span>
+                    <span class="nav-ic">🗺️</span><span class="nav-txt">Country</span>
                 </a>
                 <a class="nav-a nav-sub {% if _pg == 'hr_state_master' %}active{% endif %}" href="/hr/masters/?tab=state">
                     <span class="nav-ic">🗺️</span><span class="nav-txt">State</span>
@@ -1914,6 +1922,10 @@ document.addEventListener('click', function(e) {
       var cfg  = Object.assign({}, FP_CONFIG);
 
       if (name === 'date_of_birth') cfg.maxDate = 'today';
+      if (name === 'passport_expiry' || name === 'dl_expiry') cfg.minDate = 'today';
+      // Generic opt-in via attributes (any input can use these)
+      if (el.dataset.pastOnly === 'true' || el.hasAttribute('data-past-only')) cfg.maxDate = 'today';
+      if (el.dataset.futureOnly === 'true' || el.hasAttribute('data-future-only')) cfg.minDate = 'today';
       // Note: Original input value is YYYY-MM-DD (from server), which now matches dateFormat='Y-m-d'.
       // Flatpickr will parse it correctly without needing defaultDate workaround.
 

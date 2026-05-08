@@ -288,7 +288,13 @@ def profile():
             if qr_b64: emp.qr_code_base64 = qr_b64
 
             # Emp code is read-only on profile
-            emp.employee_id   = request.form.get('employee_id', '').strip() or None
+            # Employee ID (Biometric / Device) — uniqueness check
+            _new_bio_id = request.form.get('employee_id', '').strip() or None
+            if _new_bio_id and _new_bio_id != (emp.employee_id or ''):
+                if Employee.query.filter(Employee.employee_id.ilike(_new_bio_id), Employee.id != emp.id).first():
+                    flash(f'Employee ID "{_new_bio_id}" already in use.', 'error')
+                    return redirect(request.url)
+            emp.employee_id   = _new_bio_id
             emp.first_name    = request.form.get('first_name', emp.first_name).strip() or emp.first_name
             emp.middle_name   = request.form.get('middle_name', emp.middle_name or '').strip()
             emp.last_name     = request.form.get('last_name', emp.last_name).strip() or emp.last_name
@@ -462,7 +468,6 @@ def profile():
 
             # ── Phase-1: System Access ──────────────────────────
             emp.official_email = request.form.get('official_email', '').strip() or None
-            emp.role_access    = request.form.get('role_access', '').strip() or None
 
             # ── Phase-1: Exit extras ────────────────────────────
             emp.exit_interview_done  = request.form.get('exit_interview_done') == 'yes'

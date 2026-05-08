@@ -6,7 +6,7 @@ from flask import Blueprint, render_template, redirect, url_for, request, flash,
 from flask_login import login_required, current_user
 from audit_helper import audit, snapshot
 from datetime import datetime
-from models import db, User, Employee, Contractor, WishLog, SalaryConfig, SalaryComponent, EmployeeTypeMaster, EmployeeLocationMaster, DepartmentMaster, DesignationMaster
+from models import db, User, Employee, Contractor, WishLog, SalaryConfig, SalaryComponent, EmployeeTypeMaster, EmployeeLocationMaster, DepartmentMaster, DesignationMaster, NationalityMaster, QualificationMaster
 from permissions import get_perm, get_grid_columns, save_grid_columns
 
 hr = Blueprint('hr', __name__, url_prefix='/hr')
@@ -23,6 +23,23 @@ def _parse_date(val):
         except ValueError:
             continue
     return None
+
+
+def _children_count(raw, marital_status):
+    """Normalize 'No. of Children' value.
+    Returns 0 when marital_status is 'Single' (or empty).
+    Otherwise returns parsed integer clamped to [0, 20]. Bad/blank input → 0."""
+    if not marital_status or str(marital_status).strip() == 'Single':
+        return 0
+    try:
+        n = int(str(raw).strip())
+    except (ValueError, TypeError):
+        return 0
+    if n < 0:
+        return 0
+    if n > 20:
+        return 20
+    return n
 
 
 # Default grid columns
@@ -60,13 +77,13 @@ EMP_COLS_ALL = {
     # ── Phase-1: KYC identifiers ─────────────────────────────
     'aadhar_number':     'Aadhaar',
     'pan_number':        'PAN',
+    'election_card_no':  'Election Card',
     'uan_number':        'UAN',
     'esic_number':       'ESIC No',
     # ── Phase-1: PF ──────────────────────────────────────────
     'pf_applicable':        'PF Applicable',
     'pf_number':            'PF Number',
     'eps_applicable':       'EPS Applicable',
-    'previous_pf_transfer': 'Prev PF Transfer',
     # ── Phase-1: ESIC ────────────────────────────────────────
     'esic_applicable':       'ESIC Applicable',
     'esic_nominee_name':     'ESIC Nominee',
@@ -75,7 +92,6 @@ EMP_COLS_ALL = {
     'aadhaar_pan_linked':      'Aadhaar-PAN Linked',
     'tax_regime':              'Tax Regime',
     'monthly_tds':             'Monthly TDS',
-    'proof_submission_status': 'Proof Status',
     # ── Phase-1: Statutory flags ─────────────────────────────
     'professional_tax_applicable': 'PT Applicable',
     'labour_welfare_fund':         'LWF',
@@ -469,6 +485,38 @@ def api_send_wish():
         return jsonify(success=False, error=str(ex))
 
 
+@hr.route('/employees/check-unique', methods=['POST'])
+@login_required
+def emp_check_unique():
+    """
+    Live uniqueness check for Employee Code / Employee ID (Biometric).
+    Called via AJAX from the form on input blur.
+
+    Body (JSON): { field: 'employee_code'|'employee_id', value: '...', exclude_id: <int|null> }
+    Response   : { ok: true, available: true|false }   (always 200 unless bad request)
+    """
+    data = request.get_json(force=True) or {}
+    field = (data.get('field') or '').strip()
+    value = (data.get('value') or '').strip()
+    try:
+        exclude_id = int(data.get('exclude_id')) if data.get('exclude_id') else None
+    except (ValueError, TypeError):
+        exclude_id = None
+
+    if field not in ('employee_code', 'employee_id'):
+        return {'ok': False, 'error': 'Invalid field'}, 400
+    if not value:
+        # Empty value — treat as available (let the required-field check handle it)
+        return {'ok': True, 'available': True}
+
+    col = getattr(Employee, field)
+    q = Employee.query.filter(col.ilike(value))
+    if exclude_id:
+        q = q.filter(Employee.id != exclude_id)
+
+    return {'ok': True, 'available': (q.first() is None)}
+
+
 @hr.route('/employees/grid-config', methods=['POST'])
 @login_required
 def emp_grid_config():
@@ -519,6 +567,12 @@ def emp_add():
             flash(f'Employee code "{emp_code}" already exists.', 'error')
             return redirect(url_for('hr.emp_add'))
 
+        # Employee ID (Biometric / Device) — must also be unique
+        emp_bio_id = request.form.get('employee_id', '').strip()
+        if emp_bio_id and Employee.query.filter(Employee.employee_id.ilike(emp_bio_id)).first():
+            flash(f'Employee ID "{emp_bio_id}" already exists.', 'error')
+            return redirect(url_for('hr.emp_add'))
+
         # ── Mandatory field validation (Basic Info) ─────────────────
         # Note: mobile and email are mandatory but NO unique check
         _required = [
@@ -554,6 +608,11 @@ def emp_add():
                 and not (request.form.get('marriage_anniversary') or '').strip():
             flash('Marriage Anniversary is required when Marital Status is Married.', 'error')
             return redirect(url_for('hr.emp_add'))
+        # Spouse Name required when Married
+        if request.form.get('marital_status', '').strip() == 'Married' \
+                and not (request.form.get('spouse_name') or '').strip():
+            flash('Spouse Name is required when Marital Status is Married.', 'error')
+            return redirect(url_for('hr.emp_add'))
 
         photo   = request.form.get('photo_base64', '').strip() or None
         qr_b64  = request.form.get('qr_base64', '').strip() or None
@@ -588,6 +647,7 @@ def emp_add():
             nationality     = request.form.get('nationality','Indian').strip(),
             aadhar_number   = request.form.get('aadhar_number','').strip(),
             pan_number      = request.form.get('pan_number','').strip().upper(),
+            election_card_no= request.form.get('election_card_no','').strip().upper() or None,
             uan_number      = request.form.get('uan_number','').strip(),
             esic_number     = request.form.get('esic_number','').strip(),
             emergency_name  = request.form.get('emergency_name','').strip(),
@@ -599,6 +659,8 @@ def emp_add():
             bank_ifsc       = request.form.get('bank_ifsc','').strip().upper(),
             bank_account_type = request.form.get('bank_account_type','').strip(),
             bank_account_holder = request.form.get('bank_account_holder','').strip(),
+            bank_proof_base64   = request.form.get('bank_proof_base64','').strip() or None,
+            bank_proof_filename = request.form.get('bank_proof_filename','').strip() or None,
             # Salary
             salary_ctc      = float(request.form.get('salary_ctc') or 0) or None,
             salary_net      = float(request.form.get('salary_net') or 0) or None,
@@ -611,10 +673,14 @@ def emp_add():
             highest_qualification = request.form.get('highest_qualification','').strip(),
             # Documents
             documents_json  = request.form.get('documents_json','[]'),
+            # Family Details
+            family_details_json = request.form.get('family_details_json','[]') or '[]',
             marriage_anniversary = _parse_date(request.form.get('marriage_anniversary')) if request.form.get('marital_status')=='Married' else None,
             # ── Phase-1 additions: Family / Contact ─────────────────
             father_name       = request.form.get('father_name','').strip() or None,
             mother_name       = request.form.get('mother_name','').strip() or None,
+            spouse_name       = request.form.get('spouse_name','').strip() or None,
+            number_of_children = _children_count(request.form.get('number_of_children'), request.form.get('marital_status','')),
             alternate_mobile  = request.form.get('alternate_mobile','').strip() or None,
             personal_email    = request.form.get('personal_email','').strip() or None,
             # ── Phase-1: Permanent Address ──────────────────────────
@@ -637,21 +703,16 @@ def emp_add():
             pf_applicable        = request.form.get('pf_applicable') == 'yes',
             pf_number            = request.form.get('pf_number','').strip() or None,
             eps_applicable       = request.form.get('eps_applicable') == 'yes',
-            previous_pf_transfer = request.form.get('previous_pf_transfer') == 'yes',
-            previous_pf_number   = request.form.get('previous_pf_number','').strip() or None,
             # ── Phase-1: ESIC ───────────────────────────────────────
             esic_applicable       = request.form.get('esic_applicable') == 'yes',
             esic_nominee_name     = request.form.get('esic_nominee_name','').strip() or None,
             esic_nominee_relation = request.form.get('esic_nominee_relation','').strip() or None,
-            esic_family_details   = request.form.get('esic_family_details','').strip() or None,
             esic_dispensary       = request.form.get('esic_dispensary','').strip() or None,
             # ── Phase-1: TDS / Tax ──────────────────────────────────
             aadhaar_pan_linked      = request.form.get('aadhaar_pan_linked') == 'yes',
             tax_regime              = request.form.get('tax_regime','New').strip() or 'New',
             prev_employer_income    = _dec_add(request.form.get('prev_employer_income')),
             monthly_tds             = _dec_add(request.form.get('monthly_tds')),
-            investment_declaration  = request.form.get('investment_declaration','').strip() or None,
-            proof_submission_status = request.form.get('proof_submission_status','Pending').strip() or 'Pending',
             # ── Phase-1: Statutory ──────────────────────────────────
             professional_tax_applicable = request.form.get('professional_tax_applicable','yes') == 'yes',
             labour_welfare_fund         = request.form.get('labour_welfare_fund') == 'yes',
@@ -691,10 +752,13 @@ def emp_add():
     departments   = DepartmentMaster.query.order_by(DepartmentMaster.name).all()
     designations  = DesignationMaster.query.order_by(DesignationMaster.name).all()
     locations     = EmployeeLocationMaster.query.order_by(EmployeeLocationMaster.name).all()
+    nationalities = NationalityMaster.query.filter_by(is_active=True).order_by(NationalityMaster.sort_order, NationalityMaster.name).all()
+    qualifications= QualificationMaster.query.filter_by(is_active=True).order_by(QualificationMaster.sort_order, QualificationMaster.name).all()
     return render_template('hr/employees/form.html',
         employee=None, contractors=contractors, perm=perm, active_page='hr_employees',
         all_employees=all_employees, emp_types=emp_types,
-        departments=departments, designations=designations, locations=locations)
+        departments=departments, designations=designations, locations=locations,
+        nationalities=nationalities, qualifications=qualifications)
 
 
 @hr.route('/employees/<int:id>/edit', methods=['GET', 'POST'])
@@ -758,7 +822,13 @@ def emp_edit(id):
                 return redirect(url_for('hr.emp_edit', id=id))
             e.employee_code = new_code
 
-        e.employee_id    = request.form.get('employee_id', '').strip() or None
+        # Employee ID (Biometric / Device) — uniqueness check (skip if unchanged)
+        new_bio_id = request.form.get('employee_id', '').strip() or None
+        if new_bio_id and new_bio_id != (e.employee_id or ''):
+            if Employee.query.filter(Employee.employee_id.ilike(new_bio_id), Employee.id != e.id).first():
+                flash(f'Employee ID "{new_bio_id}" already in use.', 'error')
+                return redirect(url_for('hr.emp_edit', id=id))
+        e.employee_id    = new_bio_id
         e.first_name     = request.form.get('first_name', e.first_name).strip()
         e.middle_name    = request.form.get('middle_name', e.middle_name or '').strip()
         e.last_name      = request.form.get('last_name', e.last_name).strip()
@@ -790,6 +860,7 @@ def emp_edit(id):
         e.religion           = request.form.get('religion','').strip()
         e.caste              = request.form.get('caste','').strip()
         e.physically_handicapped = request.form.get('physically_handicapped') == 'yes'
+        e.handicap_details = (request.form.get('handicap_details','').strip() or None) if e.physically_handicapped else None
         ma_raw = request.form.get('marriage_anniversary','').strip()
         if e.marital_status == 'Married' and ma_raw:
             e.marriage_anniversary = _parse_date(ma_raw)
@@ -797,6 +868,7 @@ def emp_edit(id):
             e.marriage_anniversary = None
         e.aadhar_number      = request.form.get('aadhar_number','').strip()
         e.pan_number         = request.form.get('pan_number','').strip().upper()
+        e.election_card_no   = request.form.get('election_card_no','').strip().upper() or None
         e.uan_number         = request.form.get('uan_number','').strip()
         e.esic_number        = request.form.get('esic_number','').strip()
         e.passport_number    = request.form.get('passport_number','').strip()
@@ -817,6 +889,10 @@ def emp_edit(id):
         e.bank_ifsc          = request.form.get('bank_ifsc','').strip().upper()
         e.bank_branch        = request.form.get('bank_branch','').strip()
         e.bank_account_type  = request.form.get('bank_account_type','').strip()
+        # Bank proof — only overwrite when a new value is posted (preserves existing on partial form re-submits)
+        if 'bank_proof_base64' in request.form:
+            e.bank_proof_base64   = request.form.get('bank_proof_base64','').strip() or None
+            e.bank_proof_filename = request.form.get('bank_proof_filename','').strip() or None
 
         # Salary
         def _dec(v): 
@@ -848,16 +924,21 @@ def emp_edit(id):
         e.prev_company         = request.form.get('prev_company','').strip()
         e.prev_designation     = request.form.get('prev_designation','').strip()
         e.total_experience_yrs = _dec(request.form.get('total_experience_yrs'))
+        e.prev_salary_per_month= _dec(request.form.get('prev_salary_per_month'))
         e.prev_from_date       = _parse_date(request.form.get('prev_from_date'))
         e.prev_to_date         = _parse_date(request.form.get('prev_to_date'))
         e.prev_leaving_reason  = request.form.get('prev_leaving_reason','').strip()
 
         # Documents
         e.documents_json       = request.form.get('documents_json','[]')
+        # Family Details
+        e.family_details_json  = request.form.get('family_details_json','[]') or '[]'
 
         # ── Phase-1 additions: Family / Contact ─────────────────
         e.father_name       = request.form.get('father_name','').strip() or None
         e.mother_name       = request.form.get('mother_name','').strip() or None
+        e.spouse_name       = request.form.get('spouse_name','').strip() or None
+        e.number_of_children = _children_count(request.form.get('number_of_children'), request.form.get('marital_status',''))
         e.alternate_mobile  = request.form.get('alternate_mobile','').strip() or None
         e.personal_email    = request.form.get('personal_email','').strip() or None
         # ── Phase-1: Permanent Address ──────────────────────────
@@ -881,21 +962,16 @@ def emp_edit(id):
         e.pf_applicable        = request.form.get('pf_applicable') == 'yes'
         e.pf_number            = request.form.get('pf_number','').strip() or None
         e.eps_applicable       = request.form.get('eps_applicable') == 'yes'
-        e.previous_pf_transfer = request.form.get('previous_pf_transfer') == 'yes'
-        e.previous_pf_number   = request.form.get('previous_pf_number','').strip() or None
         # ── Phase-1: ESIC ───────────────────────────────────────
         e.esic_applicable       = request.form.get('esic_applicable') == 'yes'
         e.esic_nominee_name     = request.form.get('esic_nominee_name','').strip() or None
         e.esic_nominee_relation = request.form.get('esic_nominee_relation','').strip() or None
-        e.esic_family_details   = request.form.get('esic_family_details','').strip() or None
         e.esic_dispensary       = request.form.get('esic_dispensary','').strip() or None
         # ── Phase-1: TDS / Tax ──────────────────────────────────
         e.aadhaar_pan_linked      = request.form.get('aadhaar_pan_linked') == 'yes'
         e.tax_regime              = request.form.get('tax_regime','New').strip() or 'New'
         e.prev_employer_income    = _dec(request.form.get('prev_employer_income'))
         e.monthly_tds             = _dec(request.form.get('monthly_tds'))
-        e.investment_declaration  = request.form.get('investment_declaration','').strip() or None
-        e.proof_submission_status = request.form.get('proof_submission_status','Pending').strip() or 'Pending'
         # ── Phase-1: Statutory ──────────────────────────────────
         e.professional_tax_applicable = request.form.get('professional_tax_applicable','yes') == 'yes'
         e.labour_welfare_fund         = request.form.get('labour_welfare_fund') == 'yes'
@@ -917,10 +993,13 @@ def emp_edit(id):
     departments   = DepartmentMaster.query.order_by(DepartmentMaster.name).all()
     designations  = DesignationMaster.query.order_by(DesignationMaster.name).all()
     locations     = EmployeeLocationMaster.query.order_by(EmployeeLocationMaster.name).all()
+    nationalities = NationalityMaster.query.filter_by(is_active=True).order_by(NationalityMaster.sort_order, NationalityMaster.name).all()
+    qualifications= QualificationMaster.query.filter_by(is_active=True).order_by(QualificationMaster.sort_order, QualificationMaster.name).all()
     return render_template('hr/employees/form.html',
         employee=e, contractors=contractors, perm=perm, active_page='hr_employees',
         all_employees=all_employees, emp_types=emp_types,
-        departments=departments, designations=designations, locations=locations)
+        departments=departments, designations=designations, locations=locations,
+        nationalities=nationalities, qualifications=qualifications)
 
 
 
@@ -945,6 +1024,11 @@ def emp_ajax_init():
 
     if Employee.query.filter(Employee.employee_code.ilike(emp_code)).first():
         return {'ok': False, 'error': f'Employee code "{emp_code}" already exists'}, 400
+
+    # Employee ID (Biometric / Device) — must also be unique
+    emp_bio_id = (data.get('employee_id') or '').strip()
+    if emp_bio_id and Employee.query.filter(Employee.employee_id.ilike(emp_bio_id)).first():
+        return {'ok': False, 'error': f'Employee ID "{emp_bio_id}" already exists'}, 400
 
     # ── Mandatory field validation (Basic Info) ─────────────────────
     # Note: mobile and email are mandatory but NO unique check
@@ -978,6 +1062,10 @@ def emp_ajax_init():
     if (data.get('marital_status') or '').strip() == 'Married' \
             and not (str(data.get('marriage_anniversary') or '')).strip():
         return {'ok': False, 'error': 'Marriage Anniversary is required when Marital Status is Married'}, 400
+    # Spouse Name required when Married
+    if (data.get('marital_status') or '').strip() == 'Married' \
+            and not (str(data.get('spouse_name') or '')).strip():
+        return {'ok': False, 'error': 'Spouse Name is required when Marital Status is Married'}, 400
 
     # Email is mandatory but NO unique check on mobile/email
     email = (data.get('email') or '').strip()
@@ -1020,6 +1108,8 @@ def emp_ajax_init():
         # ── Phase-1: Family / Contact ───────────────────────
         father_name      = (data.get('father_name') or '').strip() or None,
         mother_name      = (data.get('mother_name') or '').strip() or None,
+        spouse_name      = (data.get('spouse_name') or '').strip() or None,
+        number_of_children = _children_count(data.get('number_of_children'), data.get('marital_status','')),
         alternate_mobile = (data.get('alternate_mobile') or '').strip() or None,
         personal_email   = (data.get('personal_email') or '').strip() or None,
         # ── Phase-1: Permanent Address ──────────────────────
@@ -1102,12 +1192,22 @@ def emp_ajax_save_tab(id):
         if (data.get('marital_status') or '').strip() == 'Married' \
                 and not (str(data.get('marriage_anniversary') or '')).strip():
             return {'ok': False, 'error': 'Marriage Anniversary is required when Marital Status is Married'}, 400
+        # Spouse Name required when Married
+        if (data.get('marital_status') or '').strip() == 'Married' \
+                and not (str(data.get('spouse_name') or '')).strip():
+            return {'ok': False, 'error': 'Spouse Name is required when Marital Status is Married'}, 400
 
         photo = (data.get('photo_base64') or '').strip()
         if photo: e.profile_photo = photo
         qr = (data.get('qr_base64') or '').strip()
         if qr: e.qr_code_base64 = qr
-        e.employee_id    = (data.get('employee_id') or '').strip() or None
+
+        # Employee ID (Biometric / Device) — uniqueness check (skip if unchanged)
+        _new_bio_id = (data.get('employee_id') or '').strip() or None
+        if _new_bio_id and _new_bio_id != (e.employee_id or ''):
+            if Employee.query.filter(Employee.employee_id.ilike(_new_bio_id), Employee.id != e.id).first():
+                return {'ok': False, 'error': f'Employee ID "{_new_bio_id}" already exists'}, 400
+        e.employee_id    = _new_bio_id
         e.first_name     = (data.get('first_name') or '').strip()
         e.middle_name    = (data.get('middle_name') or '').strip()
         e.last_name      = (data.get('last_name') or '').strip()
@@ -1127,6 +1227,8 @@ def emp_ajax_save_tab(id):
         # ── Phase-1: Family / Contact ──────────────────────────
         e.father_name       = (data.get('father_name') or '').strip() or None
         e.mother_name       = (data.get('mother_name') or '').strip() or None
+        e.spouse_name       = (data.get('spouse_name') or '').strip() or None
+        e.number_of_children = _children_count(data.get('number_of_children'), data.get('marital_status',''))
         e.alternate_mobile  = (data.get('alternate_mobile') or '').strip() or None
         e.personal_email    = (data.get('personal_email') or '').strip() or None
         # ── Phase-1: Permanent Address ─────────────────────────
@@ -1142,6 +1244,19 @@ def emp_ajax_save_tab(id):
         
 
     elif tab == 'professional':
+        # ── Validate: Confirmation & Probation End must be AFTER Date of Joining ──
+        _doj_chk     = _parse_date(data.get('date_of_joining'))
+        _conf_chk    = _parse_date(data.get('confirmation_date'))
+        _probend_chk = _parse_date(data.get('probation_end_date'))
+        _resign_chk  = _parse_date(data.get('resignation_date'))
+        if _doj_chk:
+            if _conf_chk and _conf_chk <= _doj_chk:
+                return {'ok': False, 'error': 'Confirmation Date must be after Date of Joining.'}, 400
+            if _probend_chk and _probend_chk <= _doj_chk:
+                return {'ok': False, 'error': 'Probation End Date must be after Date of Joining.'}, 400
+            if _resign_chk and _resign_chk <= _doj_chk:
+                return {'ok': False, 'error': 'Resignation Date must be after Date of Joining.'}, 400
+
         e.department     = (data.get('department') or '').strip()
         e.designation    = (data.get('designation') or '').strip()
         e.employee_type  = data.get('employee_type', '')
@@ -1161,20 +1276,56 @@ def emp_ajax_save_tab(id):
             e.probation_period_months = int(data.get('probation_period_months') or 6)
         except (ValueError, TypeError):
             e.probation_period_months = 6
+        e.confirmation_date  = _parse_date(data.get('confirmation_date'))
+        e.probation_end_date = _parse_date(data.get('probation_end_date'))
+        # Reports To
+        _rto = data.get('reports_to') or ''
+        try:
+            e.reports_to = int(_rto) if str(_rto).strip() else None
+        except (ValueError, TypeError):
+            e.reports_to = None
+        e.rehire_eligible = data.get('rehire_eligible', 'yes') == 'yes'
+        # Flags
+        e.is_block     = data.get('is_block')     == 'yes'
+        e.is_late      = data.get('is_late')      == 'yes'
+        e.is_probation = data.get('is_probation', 'yes') == 'yes'
         # ── Phase-1: Attendance ────────────────────────────────
         e.overtime_eligible  = data.get('overtime_eligible') == 'yes'
         # ── Phase-1: Leave balances ────────────────────────────
         e.casual_leave_balance = _dec(data.get('casual_leave_balance')) or 0
         e.sick_leave_balance   = _dec(data.get('sick_leave_balance')) or 0
         e.paid_leave_balance   = _dec(data.get('paid_leave_balance')) or 0
+        # ── System Access ──────────────────────────────────────
+        e.official_email = (data.get('official_email') or '').strip() or None
+        # ── Exit Details ───────────────────────────────────────
+        e.resignation_date    = _parse_date(data.get('resignation_date'))
+        e.last_working_date   = _parse_date(data.get('last_working_date'))
+        e.exit_interview_done = data.get('exit_interview_done') == 'yes'
+        e.ff_settlement_status= (data.get('ff_settlement_status') or 'Pending').strip() or 'Pending'
+        e.ff_settlement_amount= _dec(data.get('ff_settlement_amount'))
+        e.ff_settlement_date  = _parse_date(data.get('ff_settlement_date'))
+        e.exit_interview_notes= (data.get('exit_interview_notes') or '').strip() or None
+        # ── Social Profiles ────────────────────────────────────
+        e.linkedin = (data.get('linkedin') or '').strip() or None
+        e.facebook = (data.get('facebook') or '').strip() or None
+        # ── Remark ─────────────────────────────────────────────
+        e.remark   = (data.get('remark') or '').strip() or None
 
     elif tab == 'kyc':
         e.nationality        = (data.get('nationality') or 'Indian').strip()
         e.religion           = (data.get('religion') or '').strip()
         e.caste              = (data.get('caste') or '').strip()
         e.physically_handicapped = data.get('physically_handicapped') == 'yes'
+        if e.physically_handicapped:
+            _hd = (data.get('handicap_details') or '').strip()
+            if not _hd:
+                return {'ok': False, 'error': 'Handicap Details is required when Physically Handicapped is Yes'}, 400
+            e.handicap_details = _hd
+        else:
+            e.handicap_details = None
         e.aadhar_number      = (data.get('aadhar_number') or '').strip()
         e.pan_number         = (data.get('pan_number') or '').strip().upper()
+        e.election_card_no   = (data.get('election_card_no') or '').strip().upper() or None
         e.uan_number         = (data.get('uan_number') or '').strip()
         e.esic_number        = (data.get('esic_number') or '').strip()
         e.passport_number    = (data.get('passport_number') or '').strip()
@@ -1187,36 +1338,66 @@ def emp_ajax_save_tab(id):
         e.emergency_address  = (data.get('emergency_address') or '').strip()
         # ── Phase-1: PF ────────────────────────────────────────
         e.pf_applicable        = data.get('pf_applicable') == 'yes'
-        e.pf_number            = (data.get('pf_number') or '').strip() or None
         e.eps_applicable       = data.get('eps_applicable') == 'yes'
-        e.previous_pf_transfer = data.get('previous_pf_transfer') == 'yes'
-        e.previous_pf_number   = (data.get('previous_pf_number') or '').strip() or None
         # ── Phase-1: ESIC ──────────────────────────────────────
         e.esic_applicable       = data.get('esic_applicable') == 'yes'
         e.esic_nominee_name     = (data.get('esic_nominee_name') or '').strip() or None
         e.esic_nominee_relation = (data.get('esic_nominee_relation') or '').strip() or None
-        e.esic_family_details   = (data.get('esic_family_details') or '').strip() or None
         e.esic_dispensary       = (data.get('esic_dispensary') or '').strip() or None
         # ── Phase-1: TDS / Tax ─────────────────────────────────
         e.aadhaar_pan_linked      = data.get('aadhaar_pan_linked') == 'yes'
         e.tax_regime              = (data.get('tax_regime') or 'New').strip() or 'New'
         e.prev_employer_income    = _dec(data.get('prev_employer_income'))
         e.monthly_tds             = _dec(data.get('monthly_tds'))
-        e.investment_declaration  = (data.get('investment_declaration') or '').strip() or None
-        e.proof_submission_status = (data.get('proof_submission_status') or 'Pending').strip() or 'Pending'
         # ── Phase-1: Statutory ─────────────────────────────────
         e.professional_tax_applicable = data.get('professional_tax_applicable', 'yes') == 'yes'
         e.labour_welfare_fund         = data.get('labour_welfare_fund') == 'yes'
         e.gratuity_eligible           = data.get('gratuity_eligible') == 'yes'
         e.bonus_eligible              = data.get('bonus_eligible', 'yes') == 'yes'
+        # ── Family Details (dynamic table) ─────────────────────
+        e.family_details_json         = (data.get('family_details_json') or '[]') or '[]'
 
     elif tab == 'bank':
+        # ── Mandatory field validation (Bank Details) ─────────────────
+        _bank_required = [
+            ('bank_account_holder', 'Account Holder Name'),
+            ('bank_name',           'Bank Name'),
+            ('bank_account_number', 'Account Number'),
+            ('bank_ifsc',           'IFSC Code'),
+            ('bank_branch',         'Branch Name'),
+            ('bank_account_type',   'Account Type'),
+        ]
+        for _f, _lbl in _bank_required:
+            if not (str(data.get(_f) or '')).strip():
+                return {'ok': False, 'error': f'{_lbl} is required'}, 400
+
+        # IFSC format check (4 letters + 0 + 6 alphanumeric)
+        import re as _re
+        _ifsc_val = (data.get('bank_ifsc') or '').strip().upper()
+        if not _re.match(r'^[A-Z]{4}0[A-Z0-9]{6}$', _ifsc_val):
+            return {'ok': False, 'error': 'IFSC Code format invalid (e.g. SBIN0001234)'}, 400
+
+        # Bank Proof — required: either a new upload in this payload OR an existing one on the record
+        _new_proof = (data.get('bank_proof_base64') or '').strip()
+        if 'bank_proof_base64' in data:
+            # client sent a value (possibly empty if removed)
+            if not _new_proof and not (e.bank_proof_base64 or '').strip():
+                return {'ok': False, 'error': 'Bank Proof is required — please upload a cancelled cheque, passbook copy, or bank statement'}, 400
+        else:
+            # client did not send the field — fall back to existing
+            if not (e.bank_proof_base64 or '').strip():
+                return {'ok': False, 'error': 'Bank Proof is required — please upload a cancelled cheque, passbook copy, or bank statement'}, 400
+
         e.bank_account_holder= (data.get('bank_account_holder') or '').strip()
         e.bank_name          = (data.get('bank_name') or '').strip()
         e.bank_account_number= (data.get('bank_account_number') or '').strip()
-        e.bank_ifsc          = (data.get('bank_ifsc') or '').strip().upper()
+        e.bank_ifsc          = _ifsc_val
         e.bank_branch        = (data.get('bank_branch') or '').strip()
         e.bank_account_type  = (data.get('bank_account_type') or '').strip()
+        # Bank Proof (cancelled cheque / passbook copy / bank statement)
+        if 'bank_proof_base64' in data:
+            e.bank_proof_base64   = _new_proof or None
+            e.bank_proof_filename = (data.get('bank_proof_filename') or '').strip() or None
 
     elif tab == 'salary':
         e.salary_ctc           = _dec(data.get('salary_ctc'))
@@ -1242,15 +1423,46 @@ def emp_ajax_save_tab(id):
         e.salary_gross      = _dec(data.get('salary_gross'))
 
     elif tab == 'education':
-        e.highest_qualification= (data.get('highest_qualification') or '').strip()
-        e.university           = (data.get('university') or '').strip()
-        e.passing_year         = int(data.get('passing_year') or 0) or None
+        # ── Mandatory: Highest Qualification, University, Passing Year ─
+        _hq   = (data.get('highest_qualification') or '').strip()
+        _univ = (data.get('university') or '').strip()
+        _yr_raw = (str(data.get('passing_year') or '')).strip()
+        if not _hq:
+            return {'ok': False, 'error': 'Highest Qualification is required'}, 400
+        if not _univ:
+            return {'ok': False, 'error': 'University / Board is required'}, 400
+        if not _yr_raw:
+            return {'ok': False, 'error': 'Passing Year is required'}, 400
+        try:
+            _yr = int(_yr_raw)
+        except (ValueError, TypeError):
+            return {'ok': False, 'error': 'Passing Year must be a valid 4-digit year'}, 400
+        if _yr < 1980 or _yr > 2030:
+            return {'ok': False, 'error': 'Passing Year must be between 1980 and 2030'}, 400
+
+        e.highest_qualification= _hq
+        e.university           = _univ
+        e.passing_year         = _yr
         e.specialization       = (data.get('specialization') or '').strip()
         e.prev_company         = (data.get('prev_company') or '').strip()
         e.prev_designation     = (data.get('prev_designation') or '').strip()
         e.total_experience_yrs = _dec(data.get('total_experience_yrs'))
-        e.prev_from_date       = _parse_date(data.get('prev_from_date'))
-        e.prev_to_date         = _parse_date(data.get('prev_to_date'))
+        e.prev_salary_per_month= _dec(data.get('prev_salary_per_month'))
+
+        # ── Validate Previous Employment From/To dates ────────────────
+        from datetime import date as _date_today
+        _pfd = _parse_date(data.get('prev_from_date'))
+        _ptd = _parse_date(data.get('prev_to_date'))
+        _today = _date_today.today()
+        if _pfd and _pfd > _today:
+            return {'ok': False, 'error': 'Previous Employment From Date cannot be in the future.'}, 400
+        if _ptd and _ptd > _today:
+            return {'ok': False, 'error': 'Previous Employment To Date cannot be in the future.'}, 400
+        if _pfd and _ptd and _ptd < _pfd:
+            return {'ok': False, 'error': 'Previous Employment To Date must be on or after From Date.'}, 400
+
+        e.prev_from_date       = _pfd
+        e.prev_to_date         = _ptd
         e.prev_leaving_reason  = (data.get('prev_leaving_reason') or '').strip()
 
     elif tab == 'documents':
@@ -1917,6 +2129,16 @@ def emp_import():
                         errors.append(f'Row {i} ({emp_code}): Marriage Anniversary required when Married — skipped')
                         continue
 
+                    # ── Employee ID (Biometric / Device) uniqueness check ─────
+                    _row_bio_id = (_gv(row,'Employee ID','employee_id') or '').strip()
+                    if _row_bio_id:
+                        _q_bio = Employee.query.filter(Employee.employee_id.ilike(_row_bio_id))
+                        if existing:
+                            _q_bio = _q_bio.filter(Employee.id != existing.id)
+                        if _q_bio.first():
+                            errors.append(f'Row {i} ({emp_code}): Employee ID "{_row_bio_id}" already used by another employee — skipped')
+                            continue
+
                     if existing:
                         # ── UPDATE existing employee ──
                         e = existing
@@ -1985,6 +2207,8 @@ def emp_import():
                         if pfd: e.prev_from_date = pfd
                         ptd = _pd(_gv(ed,'Prev To','prev_to_date'))
                         if ptd: e.prev_to_date = ptd
+                        psm = _dec(_gv(ed,'Prev Salary','prev_salary_per_month'))
+                        if psm is not None: e.prev_salary_per_month = psm
 
                         # ── Phase-1: Basic — Family / Contact / Permanent Addr ────────
                         fth = _gv(row,'Father Name','father_name')
@@ -2160,6 +2384,7 @@ def emp_import():
                         prev_to_date    = _pd(_gv(ed,'Prev To','prev_to_date')),
                         prev_leaving_reason = _gv(ed,'Leaving Reason','prev_leaving_reason'),
                         total_experience_yrs = _dec(_gv(ed,'Experience (Yrs)','total_experience_yrs')),
+                        prev_salary_per_month = _dec(_gv(ed,'Prev Salary','prev_salary_per_month')),
                         documents_json  = '[]',
                         # ── Phase-1: Basic — Family / Contact / Permanent Addr ──
                         father_name       = _gv(row,'Father Name','father_name') or None,
@@ -2349,9 +2574,9 @@ def emp_import_template():
     # ── Sheet 6: Education ──
     ws6 = wb.create_sheet("6 - Education")
     build_tpl(ws6, "0F766E",
-        ["Code","Full Name","Qualification","University / Board","Year","Specialization","Prev Company","Prev Designation","Prev From","Prev To","Leaving Reason","Experience (Yrs)"],
-        ["Match Sheet1 Code","For reference","12th/Diploma/BCA/MBA..","University name","Passing year","Branch/Subject","Previous employer","Designation there","DD-MM-YYYY","DD-MM-YYYY","Reason","Total yrs"],
-        ["EMP0001","Krunal Chandi","MBA","Gujarat University","2015","Marketing","ABC Pvt Ltd","Sales Executive","01-06-2015","31-12-2021","Better opportunity","6.5"]
+        ["Code","Full Name","Qualification","University / Board","Year","Specialization","Prev Company","Prev Designation","Prev From","Prev To","Leaving Reason","Experience (Yrs)","Prev Salary"],
+        ["Match Sheet1 Code","For reference","12th/Diploma/BCA/MBA..","University name","Passing year","Branch/Subject","Previous employer","Designation there","DD-MM-YYYY","DD-MM-YYYY","Reason","Total yrs","₹ per month"],
+        ["EMP0001","Krunal Chandi","MBA","Gujarat University","2015","Marketing","ABC Pvt Ltd","Sales Executive","01-06-2015","31-12-2021","Better opportunity","6.5","35000"]
     )
 
     # ── Instructions sheet ──
@@ -2464,7 +2689,9 @@ def emp_export_single(id):
     ws1 = wb.active; ws1.title = "1 - Basic Info"
     write_sheet(ws1, "1E3A5F", [
         ("Employee Code", e.employee_code),
+        ("Employee ID (Biometric)", e.employee_id),
         ("First Name", e.first_name),
+        ("Middle Name", e.middle_name),
         ("Last Name", e.last_name),
         ("Full Name", e.full_name),
         ("Mobile", e.mobile),
@@ -2474,11 +2701,23 @@ def emp_export_single(id):
         ("Blood Group", e.blood_group),
         ("Marital Status", e.marital_status),
         ("Marriage Anniversary", fmt_date(e.marriage_anniversary)),
-        ("Address", e.address),
+        ("Spouse Name", e.spouse_name),
+        ("No. of Children", str(e.number_of_children) if e.number_of_children is not None else None),
+        ("Father's Name", e.father_name),
+        ("Mother's Name", e.mother_name),
+        ("Alternate Mobile", e.alternate_mobile),
+        ("Personal Email", e.personal_email),
+        ("Current Address", e.address),
         ("City", e.city),
         ("State", e.state),
         ("Country", e.country),
         ("ZIP / Pin Code", e.zip_code),
+        ("Permanent Address", e.permanent_address),
+        ("Permanent City", e.permanent_city),
+        ("Permanent State", e.permanent_state),
+        ("Permanent Country", e.permanent_country),
+        ("Permanent ZIP", e.permanent_zip),
+        ("Same as Current Address", "Yes" if e.same_as_current_addr else "No"),
     ])
 
     # ── Sheet 2: Professional ──
@@ -2489,18 +2728,44 @@ def emp_export_single(id):
         ("Employee Type", e.employee_type),
         ("Location", e.location),
         ("Pay Grade", e.pay_grade),
+        ("Grade Level", e.grade_level),
         ("Date of Joining", fmt_date(e.date_of_joining)),
+        ("Confirmation Date", fmt_date(e.confirmation_date)),
+        ("Probation End Date", fmt_date(e.probation_end_date)),
+        ("Reports To (Manager)", e.manager_emp.full_name if e.manager_emp else None),
+        ("Rehire Eligible", "Yes" if e.rehire_eligible else "No"),
+        ("Attendance Code", e.attendance_code),
+        ("Leave Policy", e.leave_policy),
         ("Shift", e.shift),
         ("Work Hours Per Day", str(e.work_hours_per_day) if e.work_hours_per_day else None),
         ("Weekly Off", e.weekly_off),
         ("Notice Period (Days)", str(e.notice_period_days) if e.notice_period_days is not None else None),
         ("Probation Period (Months)", str(e.probation_period_months) if e.probation_period_months is not None else None),
         ("Is Contractor", "Yes" if e.is_contractor else "No"),
+        ("Contractor Name", e.contractor_rel.company_name if e.is_contractor and e.contractor_rel else None),
         ("Overtime Eligible", "Yes" if e.overtime_eligible else "No"),
+        ("Is Block", "Yes" if e.is_block else "No"),
+        ("Is Late", "Yes" if e.is_late else "No"),
+        ("Is Probation", "Yes" if e.is_probation else "No"),
         ("Casual Leave (CL)", str(e.casual_leave_balance) if e.casual_leave_balance is not None else "0"),
         ("Sick Leave (SL)",   str(e.sick_leave_balance)   if e.sick_leave_balance   is not None else "0"),
         ("Paid Leave (PL)",   str(e.paid_leave_balance)   if e.paid_leave_balance   is not None else "0"),
         ("Status", (e.status or "").title()),
+        # ── System Access ──
+        ("Official Email", e.official_email),
+        # ── Exit Details ──
+        ("Resignation Date", fmt_date(e.resignation_date)),
+        ("Last Working Date", fmt_date(e.last_working_date)),
+        ("Exit Interview Done", "Yes" if e.exit_interview_done else "No"),
+        ("F&F Settlement Status", e.ff_settlement_status),
+        ("F&F Amount", fmt_cur(e.ff_settlement_amount)),
+        ("F&F Payment Date", fmt_date(e.ff_settlement_date)),
+        ("Exit Interview Notes", e.exit_interview_notes),
+        # ── Social ──
+        ("LinkedIn", e.linkedin),
+        ("Facebook", e.facebook),
+        # ── Remark ──
+        ("Remark", e.remark),
     ])
 
     # ── Sheet 3: KYC ──
@@ -2510,8 +2775,10 @@ def emp_export_single(id):
         ("Religion", e.religion),
         ("Caste", e.caste),
         ("Physically Handicapped", "Yes" if e.physically_handicapped else "No"),
+        ("Handicap Details", e.handicap_details if e.physically_handicapped else None),
         ("Aadhaar Number", e.aadhar_number),
         ("PAN Number", e.pan_number),
+        ("Election Card No.", e.election_card_no),
         ("UAN Number", e.uan_number),
         ("ESIC Number", e.esic_number),
         ("Passport Number", e.passport_number),
@@ -2522,6 +2789,29 @@ def emp_export_single(id):
         ("Emergency Relation", e.emergency_relation),
         ("Emergency Phone", e.emergency_phone),
         ("Emergency Address", e.emergency_address),
+        # ── PF (Provident Fund) ──
+        ("PF Applicable", "Yes" if e.pf_applicable else "No"),
+        ("PF Number", e.pf_number),
+        ("EPS Applicable", "Yes" if e.eps_applicable else "No"),
+        ("Previous PF Transfer", "Yes" if e.previous_pf_transfer else "No"),
+        ("Previous PF Number", e.previous_pf_number),
+        # ── ESIC Details ──
+        ("ESIC Applicable", "Yes" if e.esic_applicable else "No"),
+        ("ESIC Nominee Name", e.esic_nominee_name),
+        ("ESIC Nominee Relation", e.esic_nominee_relation),
+        ("Dispensary", e.esic_dispensary),
+        # ── TDS / Income Tax ──
+        ("Aadhaar linked to PAN", "Yes" if e.aadhaar_pan_linked else "No"),
+        ("Tax Regime", e.tax_regime),
+        ("Previous Employer Income", fmt_cur(e.prev_employer_income)),
+        ("Monthly TDS", fmt_cur(e.monthly_tds)),
+        ("Investment Declaration", e.investment_declaration),
+        ("Proof Submission Status", e.proof_submission_status),
+        # ── Statutory Compliance ──
+        ("Professional Tax Applicable", "Yes" if e.professional_tax_applicable else "No"),
+        ("Labour Welfare Fund", "Yes" if e.labour_welfare_fund else "No"),
+        ("Gratuity Eligible", "Yes" if e.gratuity_eligible else "No"),
+        ("Bonus Eligible", "Yes" if e.bonus_eligible else "No"),
     ])
 
     # ── Sheet 4: Bank ──
@@ -2569,6 +2859,7 @@ def emp_export_single(id):
         ("Prev To Date", fmt_date(e.prev_to_date)),
         ("Leaving Reason", e.prev_leaving_reason),
         ("Total Experience (Yrs)", str(e.total_experience_yrs) if e.total_experience_yrs else None),
+        ("Previous Salary (₹/month)", str(e.prev_salary_per_month) if e.prev_salary_per_month else None),
     ])
 
     # ── Sheet 7: Documents ──
@@ -2716,12 +3007,14 @@ def emp_export():
 
     # Sheet 1: Basic Info
     ws1 = wb.active; ws1.title = "1 - Basic Info"
-    h1 = ["Code","First Name","Last Name","Full Name","Mobile","Email","Gender","DOB","Blood Group","Marital Status","Father Name","Mother Name","Alternate Mobile","Personal Email","Address","City","State","Country","ZIP","Permanent Address","Permanent City","Permanent State","Permanent Country","Permanent ZIP","Same as Current","Status","Created At"]
+    h1 = ["Code","Employee ID (Biometric)","First Name","Middle Name","Last Name","Full Name","Mobile","Email","Gender","DOB","Blood Group","Marital Status","Marriage Anniversary","Spouse Name","No. of Children","Father Name","Mother Name","Alternate Mobile","Personal Email","Address","City","State","Country","ZIP","Permanent Address","Permanent City","Permanent State","Permanent Country","Permanent ZIP","Same as Current","Status","Created At"]
     r1 = []
     for e in emps:
-        r1.append([e.employee_code or '',e.first_name or '',e.last_name or '',e.full_name,
+        r1.append([e.employee_code or '', e.employee_id or '',
+            e.first_name or '', e.middle_name or '', e.last_name or '', e.full_name,
             e.mobile or '',e.email or '',e.gender or '',fd(e.date_of_birth),e.blood_group or '',
-            e.marital_status or '',
+            e.marital_status or '', fd(e.marriage_anniversary),
+            e.spouse_name or '', str(e.number_of_children if e.number_of_children is not None else ''),
             e.father_name or '', e.mother_name or '', e.alternate_mobile or '', e.personal_email or '',
             e.address or '',e.city or '',e.state or '',e.country or '',e.zip_code or '',
             e.permanent_address or '', e.permanent_city or '', e.permanent_state or '',
@@ -2733,32 +3026,51 @@ def emp_export():
 
     # Sheet 2: Professional
     ws2 = wb.create_sheet("2 - Professional")
-    h2 = ["Code","Full Name","Department","Designation","Employee Type","Location","Pay Grade","DOJ","Shift","Work Hrs","Weekly Off","Notice Days","Probation Months","Contractor","Overtime Eligible","CL Balance","SL Balance","PL Balance","Status"]
+    h2 = ["Code","Full Name","Department","Designation","Employee Type","Location","Pay Grade","Grade Level","DOJ","Confirmation Date","Probation End Date","Reports To","Rehire Eligible","Attendance Code","Leave Policy","Shift","Work Hrs","Weekly Off","Notice Days","Probation Months","Contractor","Contractor Name","Overtime Eligible","Is Block","Is Late","Is Probation","CL Balance","SL Balance","PL Balance","Status","Official Email","Resignation Date","Last Working Date","Exit Interview Done","F&F Status","F&F Amount","F&F Date","Exit Notes","LinkedIn","Facebook","Remark"]
     r2 = []
     for e in emps:
         r2.append([e.employee_code or '',e.full_name,e.department or '',e.designation or '',
-            e.employee_type or '',e.location or '',e.pay_grade or '',
+            e.employee_type or '',e.location or '',e.pay_grade or '', e.grade_level or '',
             fd(e.date_of_joining),
+            fd(e.confirmation_date), fd(e.probation_end_date),
+            (e.manager_emp.full_name if e.manager_emp else ''),
+            'Yes' if e.rehire_eligible else 'No',
+            e.attendance_code or '', e.leave_policy or '',
             e.shift or '',str(e.work_hours_per_day or ''),e.weekly_off or '',
             str(e.notice_period_days if e.notice_period_days is not None else ''),
             str(e.probation_period_months if e.probation_period_months is not None else ''),
             'Yes' if e.is_contractor else 'No',
+            (e.contractor_rel.company_name if e.is_contractor and e.contractor_rel else ''),
             'Yes' if e.overtime_eligible else 'No',
+            'Yes' if e.is_block else 'No',
+            'Yes' if e.is_late else 'No',
+            'Yes' if e.is_probation else 'No',
             str(e.casual_leave_balance if e.casual_leave_balance is not None else 0),
             str(e.sick_leave_balance   if e.sick_leave_balance   is not None else 0),
             str(e.paid_leave_balance   if e.paid_leave_balance   is not None else 0),
-            (e.status or '').title()])
+            (e.status or '').title(),
+            e.official_email or '',
+            fd(e.resignation_date), fd(e.last_working_date),
+            'Yes' if e.exit_interview_done else 'No',
+            e.ff_settlement_status or '', fc(e.ff_settlement_amount), fd(e.ff_settlement_date),
+            e.exit_interview_notes or '',
+            e.linkedin or '', e.facebook or '', e.remark or ''])
     build_sheet(ws2,"1D4ED8",h2,r2)
 
     # Sheet 3: KYC
     ws3 = wb.create_sheet("3 - KYC")
-    h3 = ["Code","Full Name","Nationality","Religion","Aadhaar","PAN","UAN","ESIC","Passport No","Passport Expiry","DL No","DL Expiry","Emergency Name","Emergency Phone","PF Applicable","PF Number","EPS Applicable","Previous PF Transfer","Previous PF Number","ESIC Applicable","ESIC Nominee","Nominee Relation","ESIC Family","Dispensary","Aadhaar PAN Linked","Tax Regime","Prev Employer Income","Monthly TDS","Investment Declaration","Proof Status","PT Applicable","LWF","Gratuity Eligible","Bonus Eligible"]
+    h3 = ["Code","Full Name","Nationality","Religion","Caste","Physically Handicapped","Handicap Details","Aadhaar","PAN","Election Card No","UAN","ESIC","Passport No","Passport Expiry","DL No","DL Expiry","Emergency Name","Emergency Relation","Emergency Phone","Emergency Address","PF Applicable","PF Number","EPS Applicable","Previous PF Transfer","Previous PF Number","ESIC Applicable","ESIC Nominee","Nominee Relation","ESIC Family","Dispensary","Aadhaar PAN Linked","Tax Regime","Prev Employer Income","Monthly TDS","Investment Declaration","Proof Status","PT Applicable","LWF","Gratuity Eligible","Bonus Eligible"]
     r3 = []
     for e in emps:
         r3.append([e.employee_code or '',e.full_name,e.nationality or '',e.religion or '',
-            e.aadhar_number or '',e.pan_number or '',e.uan_number or '',e.esic_number or '',
+            e.caste or '',
+            'Yes' if e.physically_handicapped else 'No',
+            (e.handicap_details or '') if e.physically_handicapped else '',
+            e.aadhar_number or '',e.pan_number or '', e.election_card_no or '',
+            e.uan_number or '',e.esic_number or '',
             e.passport_number or '',fd(e.passport_expiry),e.driving_license or '',fd(e.dl_expiry),
-            e.emergency_name or '',e.emergency_phone or '',
+            e.emergency_name or '', e.emergency_relation or '',
+            e.emergency_phone or '', e.emergency_address or '',
             'Yes' if e.pf_applicable else 'No', e.pf_number or '',
             'Yes' if e.eps_applicable else 'No',
             'Yes' if e.previous_pf_transfer else 'No', e.previous_pf_number or '',
@@ -2799,13 +3111,14 @@ def emp_export():
 
     # Sheet 6: Education
     ws6 = wb.create_sheet("6 - Education")
-    h6 = ["Code","Full Name","Qualification","University","Year","Specialization","Prev Company","Prev Designation","Prev From","Prev To","Experience (Yrs)"]
+    h6 = ["Code","Full Name","Qualification","University","Year","Specialization","Prev Company","Prev Designation","Prev From","Prev To","Experience (Yrs)","Prev Salary (₹/m)"]
     r6 = []
     for e in emps:
         r6.append([e.employee_code or '',e.full_name,e.highest_qualification or '',
             e.university or '',str(e.passing_year or ''),e.specialization or '',
             e.prev_company or '',e.prev_designation or '',fd(e.prev_from_date),
-            fd(e.prev_to_date),str(e.total_experience_yrs or '')])
+            fd(e.prev_to_date),str(e.total_experience_yrs or ''),
+            str(e.prev_salary_per_month or '')])
     build_sheet(ws6,"0F766E",h6,r6)
 
     # Sheet 7: Documents summary

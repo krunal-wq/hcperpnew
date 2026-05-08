@@ -5,7 +5,7 @@ Blueprint: hr_masters at /hr/masters
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import login_required, current_user
 from models import db
-from models.employee import EmployeeTypeMaster, EmployeeLocationMaster, DepartmentMaster, DesignationMaster, CountryMaster, StateMaster
+from models.employee import EmployeeTypeMaster, EmployeeLocationMaster, DepartmentMaster, DesignationMaster, CountryMaster, StateMaster, NationalityMaster, QualificationMaster
 from datetime import datetime
 
 hr_masters = Blueprint('hr_masters', __name__, url_prefix='/hr/masters')
@@ -50,6 +50,8 @@ def index():
 
     countries = CountryMaster.query.order_by(CountryMaster.sort_order, CountryMaster.name).all()
     states    = StateMaster.query.order_by(StateMaster.country_id, StateMaster.sort_order, StateMaster.name).all()
+    nationalities = NationalityMaster.query.order_by(NationalityMaster.sort_order, NationalityMaster.name).all()
+    qualifications= QualificationMaster.query.order_by(QualificationMaster.sort_order, QualificationMaster.name).all()
 
     # Map ?tab= → sidebar active_page slug so the right submenu item highlights
     _tab_to_page = {
@@ -60,6 +62,8 @@ def index():
         'country':     'hr_country_master',
         'state':       'hr_state_master',
         'shift':       'hr_shift_master',
+        'nationality': 'hr_nationality_master',
+        'qualification':'hr_qualification_master',
     }
     _tab = (request.args.get('tab') or 'emp_type').strip()
     _ap  = _tab_to_page.get(_tab, 'hr_masters')
@@ -68,6 +72,8 @@ def index():
         emp_types=emp_types, locations=locations,
         departments=departments, designations=designations,
         countries=countries, states=states,
+        nationalities=nationalities,
+        qualifications=qualifications,
         active_page=_ap
     )
 
@@ -548,8 +554,183 @@ def state_toggle(id):
 
 
 # ══════════════════════════════════════════════════════════════
+# NATIONALITY — Add / Edit / Delete / Toggle
+# ══════════════════════════════════════════════════════════════
+@hr_masters.route('/nationality/add', methods=['POST'])
+@login_required
+def nationality_add():
+    _admin_only()
+    name = request.form.get('name', '').strip()
+    if not name:
+        flash('Name required.', 'error')
+        return redirect(url_for('hr_masters.index', tab='nationality'))
+
+    # Title-case the input to keep list visually consistent (Indian, American)
+    name = name[:1].upper() + name[1:] if name else name
+
+    if NationalityMaster.query.filter(NationalityMaster.name.ilike(name)).first():
+        flash(f'"{name}" already exists.', 'error')
+        return redirect(url_for('hr_masters.index', tab='nationality'))
+
+    sort = NationalityMaster.query.count()
+    db.session.add(NationalityMaster(name=name, sort_order=sort, created_by=current_user.id))
+    db.session.commit()
+    flash(f'Nationality "{name}" added!', 'success')
+    return redirect(url_for('hr_masters.index', tab='nationality'))
+
+
+@hr_masters.route('/nationality/<int:id>/edit', methods=['POST'])
+@login_required
+def nationality_edit(id):
+    _admin_only()
+    rec  = NationalityMaster.query.get_or_404(id)
+    name = request.form.get('name', '').strip()
+    if name:
+        name = name[:1].upper() + name[1:] if name else name
+        dup = NationalityMaster.query.filter(
+            NationalityMaster.name.ilike(name),
+            NationalityMaster.id != id
+        ).first()
+        if dup:
+            flash(f'"{name}" already exists.', 'error')
+            return redirect(url_for('hr_masters.index', tab='nationality'))
+        rec.name = name
+    rec.sort_order = request.form.get('sort_order', rec.sort_order, type=int)
+    db.session.commit()
+    flash('Updated!', 'success')
+    return redirect(url_for('hr_masters.index', tab='nationality'))
+
+
+@hr_masters.route('/nationality/<int:id>/delete', methods=['POST'])
+@login_required
+def nationality_delete(id):
+    _admin_only()
+    rec = NationalityMaster.query.get_or_404(id)
+    db.session.delete(rec)
+    db.session.commit()
+    flash(f'"{rec.name}" deleted.', 'success')
+    return redirect(url_for('hr_masters.index', tab='nationality'))
+
+
+@hr_masters.route('/nationality/<int:id>/toggle', methods=['POST'])
+@login_required
+def nationality_toggle(id):
+    _admin_only()
+    rec = NationalityMaster.query.get_or_404(id)
+    rec.is_active = not rec.is_active
+    db.session.commit()
+    return jsonify(success=True, is_active=rec.is_active)
+
+
+# ══════════════════════════════════════════════════════════════
+# QUALIFICATION CRUD
+# ══════════════════════════════════════════════════════════════
+@hr_masters.route('/qualification/add', methods=['POST'])
+@login_required
+def qualification_add():
+    _admin_only()
+    name = request.form.get('name', '').strip()
+    if not name:
+        flash('Name required.', 'error')
+        return redirect(url_for('hr_masters.index', tab='qualification'))
+
+    if QualificationMaster.query.filter(QualificationMaster.name.ilike(name)).first():
+        flash(f'"{name}" already exists.', 'error')
+        return redirect(url_for('hr_masters.index', tab='qualification'))
+
+    sort = QualificationMaster.query.count()
+    db.session.add(QualificationMaster(name=name, sort_order=sort, created_by=current_user.id))
+    db.session.commit()
+    flash(f'Qualification "{name}" added!', 'success')
+    return redirect(url_for('hr_masters.index', tab='qualification'))
+
+
+@hr_masters.route('/qualification/<int:id>/edit', methods=['POST'])
+@login_required
+def qualification_edit(id):
+    _admin_only()
+    rec  = QualificationMaster.query.get_or_404(id)
+    name = request.form.get('name', '').strip()
+    if name:
+        dup = QualificationMaster.query.filter(
+            QualificationMaster.name.ilike(name),
+            QualificationMaster.id != id
+        ).first()
+        if dup:
+            flash(f'"{name}" already exists.', 'error')
+            return redirect(url_for('hr_masters.index', tab='qualification'))
+        rec.name = name
+    rec.sort_order = request.form.get('sort_order', rec.sort_order, type=int)
+    db.session.commit()
+    flash('Updated!', 'success')
+    return redirect(url_for('hr_masters.index', tab='qualification'))
+
+
+@hr_masters.route('/qualification/<int:id>/delete', methods=['POST'])
+@login_required
+def qualification_delete(id):
+    _admin_only()
+    rec = QualificationMaster.query.get_or_404(id)
+    db.session.delete(rec)
+    db.session.commit()
+    flash(f'"{rec.name}" deleted.', 'success')
+    return redirect(url_for('hr_masters.index', tab='qualification'))
+
+
+@hr_masters.route('/qualification/<int:id>/toggle', methods=['POST'])
+@login_required
+def qualification_toggle(id):
+    _admin_only()
+    rec = QualificationMaster.query.get_or_404(id)
+    rec.is_active = not rec.is_active
+    db.session.commit()
+    return jsonify(success=True, is_active=rec.is_active)
+
+
+# ══════════════════════════════════════════════════════════════
 # SEED — Default data insert karo
 # ══════════════════════════════════════════════════════════════
+DEFAULT_NATIONALITIES = [
+    'Indian', 'Afghan', 'American', 'Argentine', 'Australian', 'Austrian',
+    'Bahraini', 'Bangladeshi', 'Belgian', 'Bhutanese', 'Brazilian', 'British', 'Bulgarian', 'Burmese (Myanmar)',
+    'Cambodian', 'Canadian', 'Chilean', 'Chinese', 'Colombian', 'Czech',
+    'Danish', 'Dutch', 'Egyptian', 'Emirati (UAE)', 'Ethiopian',
+    'Filipino', 'Finnish', 'French',
+    'German', 'Ghanaian', 'Greek',
+    'Hong Konger', 'Hungarian',
+    'Icelandic', 'Indonesian', 'Iranian', 'Iraqi', 'Irish', 'Israeli', 'Italian',
+    'Japanese', 'Jordanian',
+    'Kazakh', 'Kenyan', 'Korean (South)', 'Kuwaiti',
+    'Lebanese', 'Libyan',
+    'Malaysian', 'Maldivian', 'Maltese', 'Mauritian', 'Mexican', 'Mongolian', 'Moroccan',
+    'Nepalese', 'New Zealander', 'Nigerian', 'Norwegian',
+    'Omani',
+    'Pakistani', 'Palestinian', 'Peruvian', 'Polish', 'Portuguese',
+    'Qatari',
+    'Romanian', 'Russian',
+    'Saudi Arabian', 'Singaporean', 'Slovak', 'South African', 'Spanish', 'Sri Lankan', 'Swedish', 'Swiss', 'Syrian',
+    'Taiwanese', 'Tanzanian', 'Thai', 'Tunisian', 'Turkish',
+    'Ugandan', 'Ukrainian', 'Uzbek',
+    'Venezuelan', 'Vietnamese',
+    'Yemeni',
+    'Zambian', 'Zimbabwean',
+    'Other',
+]
+
+
+DEFAULT_QUALIFICATIONS = [
+    '10th (SSC)', '12th (HSC)',
+    'Diploma', 'ITI', 'Diploma / ITI',
+    'B.Sc', 'B.Com', 'B.A',
+    'B.E / B.Tech', 'BBA', 'BCA',
+    'B.Pharm',
+    'M.Sc', 'M.Com', 'M.A',
+    'M.E / M.Tech', 'MBA', 'MCA',
+    'M.Pharm',
+    'PhD', 'Other',
+]
+
+
 def seed_defaults():
     """Default data seed karo."""
     for i, name in enumerate(DEFAULT_EMP_TYPES):
@@ -567,5 +748,13 @@ def seed_defaults():
     for i, name in enumerate(DEFAULT_DESIGNATIONS):
         if not DesignationMaster.query.filter_by(name=name).first():
             db.session.add(DesignationMaster(name=name, sort_order=i, is_active=True))
+
+    for i, name in enumerate(DEFAULT_NATIONALITIES):
+        if not NationalityMaster.query.filter(NationalityMaster.name.ilike(name)).first():
+            db.session.add(NationalityMaster(name=name, sort_order=i, is_active=True))
+
+    for i, name in enumerate(DEFAULT_QUALIFICATIONS):
+        if not QualificationMaster.query.filter(QualificationMaster.name.ilike(name)).first():
+            db.session.add(QualificationMaster(name=name, sort_order=i, is_active=True))
 
     db.session.commit()
