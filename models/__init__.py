@@ -1,4 +1,5 @@
 from .base       import db
+from .supplier   import Supplier
 from .audit      import AuditLog
 from .user       import User, LoginLog
 from .client     import ClientMaster, ClientBrand, ClientAddress
@@ -57,6 +58,7 @@ __all__ = [
     # Packing Department
     'PackingEntry',
     'MaterialType', 'MaterialGroup', 'Material', 'ItemCategory',
+    'Supplier',
     # Raw Material Sample Request module
     'RawMaterialSampleRequest', 'RMSActivityLog', 'RMSNotification', 'RMSDailyAck',
 ]

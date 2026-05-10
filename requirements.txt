@@ -6,3 +6,5 @@ flask-migrate
 werkzeug
 pymysql
 email-validator
+rembg
+Pillow

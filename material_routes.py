@@ -58,6 +58,17 @@ def index():
     types  = _allowed_types(MaterialType.query.order_by(MaterialType.sort_order, MaterialType.type_name).all())
     groups = MaterialGroup.query.order_by(MaterialGroup.group_name).all()
     categories = ItemCategory.query.filter_by(is_active=True).order_by(ItemCategory.category_name).all()
+
+    # ── Auto Item Type: URL se item_type=RM/PM/FG ─────────────────────────
+    # Jab /material?item_type=RM se aaye to auto-filter + type selector hide
+    auto_type_abbr = request.args.get('item_type', '').strip().upper()
+    auto_type = None
+    if auto_type_abbr:
+        auto_type = next(
+            (t for t in types if (t.abbreviation or '').upper() == auto_type_abbr),
+            None
+        )
+
     return render_template('material/index.html',
         active_page='material', role=_role(),
         types=types, groups=groups, categories=categories,
@@ -65,6 +76,195 @@ def index():
         can_edit   = _can('edit'),
         can_delete = _can('delete'),
         user_name=getattr(current_user,'full_name','') or _cu(),
+        auto_type      = auto_type,        # MaterialType object ya None
+        auto_type_abbr = auto_type_abbr,   # 'RM', 'PM', 'FG' ya ''
+    )
+
+
+@material_bp.route('/api/upload-image', methods=['POST'])
+@login_required
+def api_upload_image():
+    """Store image as base64 data URL — no file system, returns data URL directly."""
+    if not _can('edit'): return jsonify({'status':'error','message':'Access denied'}), 403
+    d = request.get_json() or {}
+    img_b64 = d.get('image_base64', '')
+    if not img_b64:
+        return jsonify({'status':'error','message':'No image data'}), 400
+    try:
+        import base64, io
+        from PIL import Image
+        # Ensure it's a valid image and compress to reasonable size
+        if ',' in img_b64:
+            header, data = img_b64.split(',', 1)
+        else:
+            header, data = 'data:image/png;base64', img_b64
+        img_bytes = base64.b64decode(data)
+        img = Image.open(io.BytesIO(img_bytes)).convert('RGB')
+        # Resize to max 600px
+        max_sz = 600
+        if max(img.size) > max_sz:
+            img.thumbnail((max_sz, max_sz), Image.LANCZOS)
+        buf = io.BytesIO()
+        img.save(buf, format='JPEG', quality=85, optimize=True)
+        compressed_b64 = base64.b64encode(buf.getvalue()).decode()
+        data_url = f'data:image/jpeg;base64,{compressed_b64}'
+        return jsonify({'status':'ok', 'url': data_url})
+    except Exception as e:
+        # Fallback: return original as-is
+        if not img_b64.startswith('data:'):
+            img_b64 = 'data:image/png;base64,' + img_b64
+        return jsonify({'status':'ok', 'url': img_b64})
+
+
+@material_bp.route('/api/process-image', methods=['POST'])
+@login_required
+def api_process_image():
+    """
+    Background removal using OpenCV GrabCut — no model download.
+    Product center mein detect hota hai, background hata deta hai.
+    Auto-crop to product + white background.
+    """
+    import base64, io
+    import cv2
+    import numpy as np
+    from PIL import Image
+
+    d = request.get_json() or {}
+    img_b64 = d.get('image_base64', '')
+    if not img_b64:
+        return jsonify({'status': 'error', 'message': 'No image data'}), 400
+    try:
+        if ',' in img_b64:
+            img_b64 = img_b64.split(',', 1)[1]
+        img_bytes = base64.b64decode(img_b64)
+
+        # Decode image
+        nparr = np.frombuffer(img_bytes, np.uint8)
+        img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        if img is None:
+            return jsonify({'status': 'error', 'message': 'Image decode failed'}), 400
+
+        h, w = img.shape[:2]
+
+        # Resize to max 600px for faster processing
+        max_dim = 600
+        scale = 1.0
+        if max(h, w) > max_dim:
+            scale = max_dim / max(h, w)
+            img = cv2.resize(img, (int(w*scale), int(h*scale)))
+            h, w = img.shape[:2]
+
+        # ── GrabCut background removal ────────────────────────────
+        # Rect: 5% margin to assume product is mostly in center
+        margin_x = max(5, int(w * 0.05))
+        margin_y = max(5, int(h * 0.05))
+        rect = (margin_x, margin_y, w - 2*margin_x, h - 2*margin_y)
+
+        mask = np.zeros((h, w), np.uint8)
+        bgd_model = np.zeros((1, 65), np.float64)
+        fgd_model = np.zeros((1, 65), np.float64)
+
+        cv2.grabCut(img, mask, rect, bgd_model, fgd_model, 8, cv2.GC_INIT_WITH_RECT)
+
+        # 2nd pass: refine using edge info
+        # Mark center region as probable foreground
+        cx, cy = w//2, h//2
+        inner_x = max(1, int(w * 0.2))
+        inner_y = max(1, int(h * 0.2))
+        mask[cy-inner_y:cy+inner_y, cx-inner_x:cx+inner_x] = cv2.GC_PR_FGD
+        cv2.grabCut(img, mask, None, bgd_model, fgd_model, 3, cv2.GC_EVAL)
+
+        # Build binary mask (foreground + probable foreground)
+        fg_mask = np.where((mask == cv2.GC_FGD) | (mask == cv2.GC_PR_FGD), 255, 0).astype(np.uint8)
+
+        # Morphological cleanup
+        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
+        fg_mask = cv2.morphologyEx(fg_mask, cv2.MORPH_CLOSE, kernel, iterations=3)
+        fg_mask = cv2.morphologyEx(fg_mask, cv2.MORPH_OPEN,  kernel, iterations=1)
+
+        # ── Find largest contour (main product) ──────────────────
+        contours, _ = cv2.findContours(fg_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        if contours:
+            largest = max(contours, key=cv2.contourArea)
+            clean_mask = np.zeros_like(fg_mask)
+            cv2.drawContours(clean_mask, [largest], -1, 255, -1)
+            # Smooth edges
+            clean_mask = cv2.GaussianBlur(clean_mask, (7, 7), 0)
+            fg_mask = clean_mask
+
+        # ── Place on white background ─────────────────────────────
+        img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        result  = np.ones_like(img_rgb, dtype=np.uint8) * 255  # white
+        alpha   = fg_mask.astype(np.float32) / 255.0
+        for c in range(3):
+            result[:, :, c] = (img_rgb[:, :, c] * alpha + 255 * (1 - alpha)).astype(np.uint8)
+
+        # ── Auto-crop to subject ───────────────────────────────────
+        _, thresh = cv2.threshold(fg_mask, 30, 255, cv2.THRESH_BINARY)
+        ys, xs = np.where(thresh > 0)
+        if len(xs) > 0 and len(ys) > 0:
+            x1, x2 = xs.min(), xs.max()
+            y1, y2 = ys.min(), ys.max()
+            pad = max(15, int(max(x2-x1, y2-y1) * 0.05))
+            x1 = max(0, x1-pad); y1 = max(0, y1-pad)
+            x2 = min(w, x2+pad); y2 = min(h, y2+pad)
+            result = result[y1:y2, x1:x2]
+
+        # ── Encode and return ────────────────────────────────────
+        pil_img = Image.fromarray(result)
+        # Upscale back if was downsized
+        if scale < 1.0:
+            new_w = int(pil_img.width / scale)
+            new_h = int(pil_img.height / scale)
+            pil_img = pil_img.resize((new_w, new_h), Image.LANCZOS)
+
+        buf = io.BytesIO()
+        pil_img.save(buf, format='PNG', optimize=True)
+        result_b64 = base64.b64encode(buf.getvalue()).decode()
+
+        return jsonify({'status': 'ok', 'processed': 'data:image/png;base64,' + result_b64})
+
+    except Exception as e:
+        import traceback
+        return jsonify({'status': 'error', 'message': str(e), 'trace': traceback.format_exc()}), 500
+
+
+
+@material_bp.route('/api/debug-image/<int:item_id>')
+@login_required
+def api_debug_image(item_id):
+    from sqlalchemy import text
+    row = db.session.execute(
+        text('SELECT id, material_name, image_data FROM materials WHERE id=:id'),
+        {'id': item_id}
+    ).fetchone()
+    if not row: return jsonify({'status':'error','message':'Not found'})
+    return jsonify({'id':row[0],'name':row[1],'has_image':bool(row[2]),'data_url_preview':((row[2] or '')[:50]+'...' if row[2] else None)})
+
+
+@material_bp.route('/masters')
+@login_required
+def masters():
+    if not _can('view'): abort(403)
+    return render_template('material/masters.html',
+        active_page='material', role=_role(),
+        user_name=getattr(current_user, 'full_name', '') or _cu(),
+    )
+
+
+@material_bp.route('/import-template')
+@login_required
+def import_template():
+    """Download a sample CSV template for importing items."""
+    abbr = request.args.get('item_type', 'RM').strip().upper()
+    csv_content = 'item_name,code,uom,hsn_code,gst_rate,msl,last_purchase_rate,opening_balance,description\n'
+    csv_content += f'Sample Item 1,{abbr}-001,KG,12345678,18,10,100.00,0,Optional description\n'
+    csv_content += f'Sample Item 2,{abbr}-002,L,87654321,12,5,50.00,0,'
+    from flask import Response
+    return Response(
+        '\uFEFF' + csv_content,
+        mimetype='text/csv',
+        headers={'Content-Disposition': f'attachment; filename={abbr}_import_template.csv'}
     )
 
 
@@ -77,11 +277,23 @@ def add_item():
     groups = MaterialGroup.query.order_by(MaterialGroup.group_name).all()
     brands     = ClientBrand.query.filter_by(is_active=True).order_by(ClientBrand.brand_name).all()
     categories = ItemCategory.query.filter_by(is_active=True).order_by(ItemCategory.category_name).all()
+
+    # ── Auto Item Type from URL param ─────────────────────────────────────
+    auto_type_abbr = request.args.get('item_type', '').strip().upper()
+    auto_type = None
+    if auto_type_abbr:
+        auto_type = next(
+            (t for t in types if (t.abbreviation or '').upper() == auto_type_abbr),
+            None
+        )
+
     return render_template('material/add_item.html',
         active_page='material', role=_role(),
         types=types, groups=groups, item=None,
         brands=brands, categories=categories,
         user_name=getattr(current_user, 'full_name', '') or _cu(),
+        auto_type      = auto_type,
+        auto_type_abbr = auto_type_abbr,
     )
 
 # ── Edit Item Page ─────────────────────────────────────────────────────────────
@@ -94,12 +306,84 @@ def edit_item(item_id):
     groups = MaterialGroup.query.order_by(MaterialGroup.group_name).all()
     brands     = ClientBrand.query.filter_by(is_active=True).order_by(ClientBrand.brand_name).all()
     categories = ItemCategory.query.filter_by(is_active=True).order_by(ItemCategory.category_name).all()
+    # Pass item_type from URL or from item's type
+    auto_type_abbr = request.args.get('item_type', '').strip().upper()
+    if not auto_type_abbr and item.material_type:
+        auto_type_abbr = (item.material_type.abbreviation or '').upper()
+    auto_type = next((t for t in types if (t.abbreviation or '').upper() == auto_type_abbr), None)
     return render_template('material/add_item.html',
         active_page='material', role=_role(),
         types=types, groups=groups, item=item,
         brands=brands, categories=categories,
         user_name=getattr(current_user, 'full_name', '') or _cu(),
+        auto_type=auto_type,
+        auto_type_abbr=auto_type_abbr,
     )
+
+
+@material_bp.route('/api/next-code')
+@login_required
+def api_next_code():
+    """Auto-generate next available code. e.g. RM → RM-001
+    Logic:
+      1. Get all existing codes with this prefix (PM-001, PM-002...)
+      2. If none found → count total items of this type → start from count+1
+      3. Find next gap-free number
+    """
+    abbr = request.args.get('type_abbr', '').strip().upper()
+    if not abbr:
+        return jsonify({'status': 'error', 'message': 'type_abbr required'}), 400
+    try:
+        from sqlalchemy import text
+        prefix = f'{abbr}-'
+
+        # Get all existing codes
+        rows = db.session.execute(
+            text("SELECT code FROM materials WHERE (is_deleted IS NULL OR is_deleted = 0)")
+        ).fetchall()
+
+        existing_codes = set()
+        max_num = 0
+        coded_count = 0  # how many items have this prefix code
+
+        for row in rows:
+            code = (row[0] or '').upper().strip()
+            if code:
+                existing_codes.add(code)
+            if code.startswith(prefix):
+                coded_count += 1
+                try:
+                    num = int(code[len(prefix):])
+                    max_num = max(max_num, num)
+                except (ValueError, IndexError):
+                    pass
+
+        # If no coded items found, count total items of this type from DB
+        if max_num == 0:
+            try:
+                # Find MaterialType by abbreviation
+                type_rows = db.session.execute(
+                    text("SELECT id FROM material_types WHERE UPPER(abbreviation) = :abbr AND (is_deleted IS NULL OR is_deleted = 0)"),
+                    {'abbr': abbr}
+                ).fetchone()
+                if type_rows:
+                    count_row = db.session.execute(
+                        text("SELECT COUNT(*) FROM materials WHERE material_type_id = :tid AND (is_deleted IS NULL OR is_deleted = 0)"),
+                        {'tid': type_rows[0]}
+                    ).fetchone()
+                    total_items = count_row[0] if count_row else 0
+                    max_num = total_items  # next = total + 1
+            except Exception:
+                pass
+
+        # Find next available slot (concurrent-safe)
+        next_num = max_num + 1
+        while f'{prefix}{next_num:03d}' in existing_codes:
+            next_num += 1
+
+        return jsonify({'status': 'ok', 'code': f'{abbr}-{next_num:03d}'})
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
 
 
 # ── API: Materials ─────────────────────────────────────────────────────────────
@@ -130,7 +414,6 @@ def api_list():
         q = q.filter(db.or_(
             Material.material_name.ilike(like),
             Material.aliases.ilike(like),
-            Material.supplier_name.ilike(like),
         ))
     rows = q.order_by(Material.material_name).all()
     return jsonify({'status':'ok','rows':[r.to_dict() for r in rows]})
@@ -142,8 +425,36 @@ def api_save():
     d = request.get_json() or {}
     if not (d.get('material_name','').strip()):
         return jsonify({'status':'error','message':'Material Name is required'})
+
+    from sqlalchemy import text
+
+    def _get_all_codes():
+        rows = db.session.execute(
+            text("SELECT id, code FROM materials WHERE (is_deleted IS NULL OR is_deleted = 0)")
+        ).fetchall()
+        return {(str(r[0])): (r[1] or '').upper().strip() for r in rows}
+
+    def _next_available_code(abbr, current_id=None):
+        """Find next available code for given abbreviation, skipping conflicts."""
+        prefix = f'{abbr}-'
+        all_codes = _get_all_codes()
+        existing = set(v for k, v in all_codes.items() if current_id is None or k != str(current_id))
+        max_num = 0
+        for code in existing:
+            if code.startswith(prefix):
+                try:
+                    max_num = max(max_num, int(code[len(prefix):]))
+                except (ValueError, IndexError):
+                    pass
+        next_num = max_num + 1
+        while f'{prefix}{next_num:03d}' in existing:
+            next_num += 1
+        return f'{abbr}-{next_num:03d}'
+
     try:
         eid = d.get('id')
+        is_new = not bool(eid)
+
         if eid:
             m = Material.query.get(eid)
             if not m: return jsonify({'status':'error','message':'Not found'}),404
@@ -153,20 +464,42 @@ def api_save():
             m.created_by = _cu()
             db.session.add(m)
 
+        # ── Code: auto-resolve concurrent conflicts ─────────────────
+        requested_code = d.get('code', '').strip()
+        if requested_code:
+            # Check if this code is already taken by a DIFFERENT item
+            all_codes = _get_all_codes()
+            code_taken = any(
+                v == requested_code.upper() and k != str(eid or '')
+                for k, v in all_codes.items()
+            )
+            if code_taken and is_new:
+                # Auto-assign next available — extract prefix (everything before last '-NNN')
+                import re
+                match = re.match(r'^([A-Z]+-)', requested_code.upper())
+                abbr = match.group(1).rstrip('-') if match else None
+                if abbr:
+                    requested_code = _next_available_code(abbr, eid)
+                # else keep requested_code (unusual manual code)
+        m.code = requested_code
+
         m.material_name      = d.get('material_name','').strip()
         m.aliases            = d.get('aliases','').strip()
         m.description        = d.get('description','').strip()
         m.uom                = d.get('uom','KG').strip()
-        m.code               = d.get('code', '').strip()
         m.inci_name          = d.get('inci_name', '').strip()
         m.brand              = d.get('brand', '').strip()
         m.category           = d.get('category', '').strip()
         m.per_box_qty        = int(d.get('per_box_qty') or 0)
+        m.pm_material_type   = d.get('pm_material_type', '').strip()
+        m.pm_attribute       = d.get('pm_attribute', '').strip()
+        m.corrugation_ply    = d.get('corrugation_ply','').strip()
+        m.dim_length         = d.get('dim_length') or None
+        m.dim_width          = d.get('dim_width') or None
+        m.dim_height         = d.get('dim_height') or None
         m.material_type_id   = d.get('material_type_id') or None
         m.group_id           = d.get('group_id') or None
         m.sku_sizes          = d.get('sku_sizes','').strip()
-        m.supplier_name      = d.get('supplier_name','').strip()
-        m.supplier_code      = d.get('supplier_code','').strip()
         m.opening_balance    = float(d.get('opening_balance') or 0)
         m.msl                = float(d.get('msl') or 0)
         m.lead_time_days     = int(d.get('lead_time_days') or 0)
@@ -177,8 +510,30 @@ def api_save():
         m.taxability         = d.get('taxability','Taxable')
         m.type_of_supply     = d.get('type_of_supply','Goods')
         m.is_active          = bool(d.get('is_active', True))
+        # Image path (PM/FG)
+        # Image data (base64) — compress and store directly in DB
+        img_data = d.get('image_path')  # frontend sends as image_path key
+        if img_data is not None:
+            if img_data and img_data.startswith('data:image'):
+                # Compress: resize to max 600px, JPEG 85%
+                try:
+                    import base64 as b64mod, io
+                    from PIL import Image as PILImage
+                    header, raw = img_data.split(',', 1)
+                    img_bytes = b64mod.b64decode(raw)
+                    pil_img = PILImage.open(io.BytesIO(img_bytes)).convert('RGB')
+                    if max(pil_img.size) > 600:
+                        pil_img.thumbnail((600, 600), PILImage.LANCZOS)
+                    buf = io.BytesIO()
+                    pil_img.save(buf, format='JPEG', quality=85, optimize=True)
+                    compressed = b64mod.b64encode(buf.getvalue()).decode()
+                    m.image_data = f'data:image/jpeg;base64,{compressed}'
+                except Exception:
+                    m.image_data = img_data  # fallback: store as-is
+            else:
+                m.image_data = img_data if img_data else None
         db.session.commit()
-        return jsonify({'status':'ok','id':m.id})
+        return jsonify({'status':'ok','id':m.id,'code':m.code})
     except Exception as e:
         db.session.rollback()
         return jsonify({'status':'error','message':str(e)}),500

@@ -23,6 +23,7 @@ from late_rule_routes import late_rules_bp
 from hr_rules_routes import hr_rules_bp
 from packing_routes  import packing
 from material_routes import material_bp
+from supplier_routes import supplier_bp
 from routes.module_settings_routes import module_settings  # ← Module enable/disable
 from daily_report_share import daily_report_bp   # ← Daily Report Share
 from error_handlers import register_error_handlers          # ← 403/404/500 pages
@@ -94,6 +95,7 @@ app.register_blueprint(late_rules_bp)
 app.register_blueprint(hr_rules_bp)
 app.register_blueprint(packing)        # Packing Department
 app.register_blueprint(material_bp)    # Item Master
+app.register_blueprint(supplier_bp)    # Supplier Master
 app.register_blueprint(module_settings)   # Module enable/disable settings
 app.register_blueprint(daily_report_bp)   # ← Daily Report Share
 
@@ -118,6 +120,36 @@ with app.app_context():
     try:
         from permissions import seed_permissions
         seed_permissions()
+    except Exception:
+        pass
+    # ── Auto-migrate material columns if missing ──────────────────
+    try:
+        from sqlalchemy import text, inspect
+        inspector = inspect(db.engine)
+        existing_cols = [c['name'] for c in inspector.get_columns('materials')]
+        missing = {
+            'code':        "VARCHAR(100)  DEFAULT ''",
+            'inci_name':   "VARCHAR(300)  DEFAULT ''",
+            'brand':       "VARCHAR(200)  DEFAULT ''",
+            'category':    "VARCHAR(200)  DEFAULT ''",
+            'per_box_qty': "INT           DEFAULT 0",
+            'image_path':  "VARCHAR(500)  NULL",
+        }
+        for col, col_def in missing.items():
+            if col not in existing_cols:
+                try:
+                    db.session.execute(text(f"ALTER TABLE materials ADD COLUMN {col} {col_def}"))
+                    db.session.commit()
+                except Exception:
+                    db.session.rollback()
+        # Migrate old image_path (VARCHAR) to image_data (LONGTEXT) if needed
+        if 'image_path' in existing_cols and 'image_data' not in existing_cols:
+            try:
+                db.session.execute(text("ALTER TABLE materials ADD COLUMN image_data LONGTEXT NULL"))
+                db.session.execute(text("UPDATE materials SET image_data = image_path WHERE image_path IS NOT NULL AND image_path != ''"))
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
     except Exception:
         pass
 
@@ -270,6 +302,88 @@ def seed_modules():
         return '✅ Modules seeded successfully! New modules added to DB.'
     except Exception as e:
         return f'❌ Error: {e}', 500
+
+
+@app.route('/setup-procurement')
+def setup_procurement():
+    """Procurement hierarchy DB mein setup — browser se visit karo ek baar."""
+    from models.permission import Module
+    msgs = []
+    try:
+        proc = Module.query.filter_by(name='procurement').first()
+        if not proc:
+            proc = Module(name='procurement', label='Procurement', icon='🛒',
+                          url_prefix='', sort_order=19, is_active=True, parent_id=None)
+            db.session.add(proc); db.session.flush()
+            msgs.append('✅ procurement created')
+        else:
+            proc.is_active=True; proc.parent_id=None; proc.label='Procurement'
+            proc.icon='🛒'; proc.sort_order=19
+            msgs.append(f'✔️ procurement updated (id={proc.id})')
+
+        purchase = Module.query.filter_by(name='purchase').first()
+        if not purchase:
+            purchase = Module(name='purchase', label='Purchase', icon='🛍️',
+                              url_prefix='', sort_order=20, is_active=True, parent_id=proc.id)
+            db.session.add(purchase); db.session.flush()
+            msgs.append('✅ purchase created')
+        else:
+            purchase.parent_id=proc.id; purchase.is_active=True
+            purchase.label='Purchase'; purchase.icon='🛍️'; purchase.sort_order=20
+            msgs.append('✔️ purchase updated')
+
+        def upsert(name, label, icon, url, order):
+            m = Module.query.filter_by(name=name).first()
+            if not m:
+                db.session.add(Module(name=name, label=label, icon=icon,
+                    url_prefix=url, sort_order=order, is_active=True, parent_id=purchase.id))
+                msgs.append(f'✅ {label} created')
+            else:
+                m.parent_id=purchase.id; m.is_active=True; m.url_prefix=url
+                msgs.append(f'✔️ {label} updated')
+
+        upsert('purchase_rm', 'Raw Material',     '🧪', '/material?item_type=RM', 21)
+        upsert('purchase_pm', 'Packing Material', '📦', '/material?item_type=PM', 22)
+        upsert('purchase_fg', 'Finish Goods',     '✅', '/material?item_type=FG', 23)
+
+        # Deactivate ALL old standalone material / item_master modules
+        safe_names = {'procurement','purchase','purchase_rm','purchase_pm','purchase_fg'}
+        all_mods = Module.query.filter_by(is_active=True).all()
+        for m in all_mods:
+            if m.name not in safe_names and (
+                'material' in m.name.lower() or
+                (m.label or '').lower() in ('item master','item_master') or
+                m.name == 'material'
+            ):
+                m.is_active = False
+                msgs.append(f'🔕 Deactivated: [{m.name}] {m.label}')
+
+        db.session.commit()
+
+        # Show full DB state for verification
+        all_proc = Module.query.filter(Module.name.in_(list(safe_names))).all()
+        debug_rows = ''.join(
+            f'<tr><td>{m.id}</td><td>{m.name}</td><td>{m.label}</td>'
+            f'<td>{m.parent_id}</td><td style="color:{"green" if m.is_active else "red"}">{"✅" if m.is_active else "❌"}</td></tr>'
+            for m in all_proc
+        )
+
+        html = '<div style="font-family:sans-serif;padding:2rem;max-width:700px;">'
+        html += '<h2 style="color:green;">🎉 Procurement Setup Complete!</h2>'
+        html += '<ul style="line-height:2;">' + ''.join(f'<li>{m}</li>' for m in msgs) + '</ul>'
+        html += '<h3>DB State:</h3><table border="1" cellpadding="6" style="border-collapse:collapse;font-size:13px;">'
+        html += '<tr style="background:#f1f5f9;"><th>ID</th><th>name</th><th>label</th><th>parent_id</th><th>active</th></tr>'
+        html += debug_rows + '</table>'
+        html += '<br><p style="background:#f0fdf4;padding:1rem;border-radius:8px;border:1px solid #86efac;">'
+        html += '<b>Sidebar mein ab dikhega:</b><br>🛒 PROCUREMENT<br>&nbsp;&nbsp;🛍️ Purchase<br>'
+        html += '&nbsp;&nbsp;&nbsp;&nbsp;🧪 Raw Material → /material?item_type=RM<br>'
+        html += '&nbsp;&nbsp;&nbsp;&nbsp;📦 Packing Material → /material?item_type=PM<br>'
+        html += '&nbsp;&nbsp;&nbsp;&nbsp;✅ Finish Goods → /material?item_type=FG</p>'
+        html += '<br><a href="/" style="color:#2563eb;font-weight:bold;font-size:16px;">→ Dashboard par jaao</a></div>'
+        return html
+    except Exception as e:
+        db.session.rollback()
+        return f'<h2 style="color:red;font-family:sans-serif;padding:2rem;">❌ Error: {e}</h2>', 500
 
 
 @app.route('/fix-admin-perms')

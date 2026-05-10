@@ -212,6 +212,7 @@
 @media print { .ai-footer, .ai-steps { display: none !important; } }
 </style>
 <link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.1.0-rc.0/css/select2.min.css" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css">
 <style>
 /* ── Select2 Custom Theme — match our design system ── */
 .select2-container { width: 100% !important; }
@@ -329,7 +330,7 @@
   </div>
 
   <!-- ① Item Type Selector -->
-  <div class="ai-card" style="margin-bottom:16px;">
+  <div class="ai-card" style="margin-bottom:16px;{% if auto_type or item %}display:none;{% endif %}">
     <div class="ai-card-hdr">
       <span style="font-size:16px;">🏷️</span>
       <h2>Select Item Type <span style="color:#ef4444;">*</span></h2>
@@ -363,10 +364,18 @@
 
   <!-- ② Main Form (hidden until type selected) -->
   <form id="itemForm" onsubmit="submitForm(event)" novalidate
-        style="display:{% if item %}block{% else %}none{% endif %};">
+        style="display:{% if item or auto_type %}block{% else %}none{% endif %};">
+    {% if item and item.material_type %}
+    <div style="margin-bottom:12px;display:flex;align-items:center;gap:8px;">
+      <span style="background:{{ item.material_type.color or '#6366f1' }}18;color:{{ item.material_type.color or '#6366f1' }};padding:4px 14px;border-radius:20px;font-size:12px;font-weight:800;border:1.5px solid {{ item.material_type.color or '#6366f1' }}33;">
+        {{ item.material_type.abbreviation }} — {{ item.material_type.type_name }}
+      </span>
+      <span style="font-size:11.5px;color:#94a3b8;">🔒 Type change not allowed in edit mode</span>
+    </div>
+    {% endif %}
     <input type="hidden" id="fItemId"     value="{{ item.id if item else '' }}">
-    <input type="hidden" id="fTypeId"     name="material_type_id" value="{{ item.material_type_id if item else '' }}">
-    <input type="hidden" id="fTypeAbbr"   value="{{ item.material_type.abbreviation if item and item.material_type else '' }}">
+    <input type="hidden" id="fTypeId"     name="material_type_id" value="{{ item.material_type_id if item else (auto_type.id if auto_type else '') }}">
+    <input type="hidden" id="fTypeAbbr"   value="{{ item.material_type.abbreviation if item and item.material_type else (auto_type.abbreviation if auto_type else '') }}">
 
     <!-- ─── BASIC INFORMATION ─── -->
     <div class="ai-card" style="margin-bottom:16px;">
@@ -386,10 +395,30 @@
             <span class="ai-err">Item name required</span>
           </div>
           <div class="ai-fld">
-            <label class="ai-label">Code <span class="req">*</span></label>
-            <input class="ai-input" id="fCode" name="code" type="text"
-                   placeholder="e.g. RM-001"
-                   value="{{ item.code if item else '' }}" autocomplete="off">
+            <label class="ai-label">Code <span class="req">*</span>
+              {% if auto_type_abbr and not item %}
+              <span style="font-size:10px;font-weight:600;color:#94a3b8;margin-left:6px;">Auto-generated</span>
+              {% elif item %}
+              <span style="font-size:10px;font-weight:600;color:#94a3b8;margin-left:6px;">🔒 Fixed</span>
+              {% endif %}
+            </label>
+            <div style="display:flex;gap:6px;align-items:center;">
+              <input class="ai-input" id="fCode" name="code" type="text"
+                     placeholder="e.g. {{ auto_type_abbr or 'RM' }}-001"
+                     value="{{ item.code if item else '' }}" autocomplete="off"
+                     style="flex:1;{% if item %}background:#f8fafc;color:#64748b;cursor:not-allowed;{% endif %}"
+                     {% if item %}readonly{% endif %}>
+              {% if not item %}
+              <button type="button" id="btnAutoCode"
+                      onclick="autoGenCode()"
+                      title="Generate next code"
+                      style="flex-shrink:0;padding:8px 12px;border:1.5px solid #e2e8f0;border-radius:8px;background:#f8fafc;color:#475569;font-size:12px;font-weight:700;cursor:pointer;transition:all .15s;white-space:nowrap;"
+                      onmouseover="this.style.borderColor='#2563eb';this.style.color='#2563eb'"
+                      onmouseout="this.style.borderColor='#e2e8f0';this.style.color='#475569'">
+                🔄 Auto
+              </button>
+              {% endif %}
+            </div>
             <span class="ai-err">Code required</span>
           </div>
           <!-- Per Box Qty — FG only, hidden by default -->
@@ -420,52 +449,138 @@
         </div>
 
         <!-- Brand + Category / Group — same row -->
-        <div class="ai-grid-2" style="margin-top:16px;">
+        <div style="margin-top:16px;">
 
-          <!-- Brand (PM + FG only) -->
-          <div class="ai-fld ai-field-pm-fg" id="rowBrand" data-hide>
-            <label class="ai-label">Brand <span class="req">*</span></label>
-            <select class="ai-select" id="fBrand" name="brand">
-              <option value="">-- Select Brand --</option>
-              {% for b in brands %}
-              <option value="{{ b.brand_name }}"
-                {% if item and item.brand == b.brand_name %}selected{% endif %}>
-                {{ b.brand_name }}{% if b.client %} — {{ b.client.company_name or b.client.contact_name }}{% endif %}
-              </option>
-              {% endfor %}
-            </select>
-            <span class="ai-err">Brand required</span>
-            <span class="ai-hint">CRM → Client Master</span>
+          <!-- Row 1: PM Type | Brand | Category (3-col) -->
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;" id="rowPmBrandCat">
+
+            <!-- PM Type (PM only) -->
+            {% if (auto_type and auto_type.abbreviation|upper == 'PM') or (item and item.material_type and item.material_type.abbreviation|upper == 'PM') %}<div class="ai-fld ai-field-pm" id="rowPmType">{% else %}<div class="ai-fld ai-field-pm" id="rowPmType" data-hide>{% endif %}
+              <label class="ai-label">PM Type <span class="req">*</span></label>
+              <select class="ai-select" id="fPmType" name="pm_material_type" style="width:100%;">
+                <option value="">-- Select Type --</option>
+                <option value="PM" {% if item and item.pm_material_type == 'PM' %}selected{% endif %}>PM — Packing Material</option>
+                <option value="Corrugation" {% if item and item.pm_material_type == 'Corrugation' %}selected{% endif %}>Corrugation</option>
+                <option value="Sleeves" {% if item and item.pm_material_type == 'Sleeves' %}selected{% endif %}>Sleeves</option>
+              </select>
+              <span class="ai-err" id="pmTypeErr">PM Type required</span>
+            </div>
+
+            <!-- Brand (PM + FG) -->
+            {% if (auto_type and auto_type.abbreviation|upper in ['PM','FG']) or (item and item.material_type and item.material_type.abbreviation|upper in ['PM','FG']) %}<div class="ai-fld ai-field-pm-fg" id="rowBrand">{% else %}<div class="ai-fld ai-field-pm-fg" id="rowBrand" data-hide>{% endif %}
+              <label class="ai-label">Brand <span class="req">*</span></label>
+              <select class="ai-select" id="fBrand" name="brand" style="width:100%;">
+                <option value="">-- Select Brand --</option>
+                {% for b in brands %}
+                <option value="{{ b.brand_name }}"
+                  {% if item and item.brand == b.brand_name %}selected{% endif %}>
+                  {{ b.brand_name }}{% if b.client %} — {{ b.client.company_name or b.client.contact_name }}{% endif %}
+                </option>
+                {% endfor %}
+              </select>
+              <span class="ai-err">Brand required</span>
+              <span class="ai-hint">CRM → Client Master</span>
+            </div>
+
+            <!-- Category (PM/FG only) -->
+            {% if (auto_type and auto_type.abbreviation|upper in ['PM','FG']) or (item and item.material_type and item.material_type.abbreviation|upper in ['PM','FG']) %}<div class="ai-fld" id="rowCatPmFg">{% else %}<div class="ai-fld" id="rowCatPmFg" data-hide>{% endif %}
+              <label class="ai-label">Category <span class="req">*</span></label>
+              <select class="ai-select" id="fCategory" name="category" style="width:100%;">
+                <option value="">-- Select Category --</option>
+                {% for cat in categories %}
+                <option value="{{ cat.category_name }}"
+                  {% if item and item.category == cat.category_name %}selected{% endif %}>
+                  {{ cat.category_name }}
+                </option>
+                {% endfor %}
+              </select>
+              <span class="ai-err">Category required</span>
+            </div>
+
+          </div><!-- /rowPmBrandCat 3-col -->
+
+          <!-- Row 2: Attribute (PM only, full width) -->
+          {% if (auto_type and auto_type.abbreviation|upper == 'PM') or (item and item.material_type and item.material_type.abbreviation|upper == 'PM') %}<div class="ai-fld ai-field-pm" id="rowPmAttr" style="margin-top:14px;">{% else %}<div class="ai-fld ai-field-pm" id="rowPmAttr" data-hide style="margin-top:14px;">{% endif %}
+            <label class="ai-label">Attribute <span class="ai-hint" style="text-transform:none;font-weight:400;">(Bottle, Tube, Box…)</span></label>
+            <div class="tag-wrap" id="pmAttrWrap" onclick="document.getElementById('pmAttrInput').focus()"
+                 style="min-height:40px;display:flex;flex-wrap:wrap;align-items:center;gap:4px;padding:5px 10px;border:1.5px solid #e2e8f0;border-radius:8px;cursor:text;background:#fff;">
+              <input type="text" id="pmAttrInput" placeholder="Type attribute, press Enter…"
+                     style="border:none;outline:none;font-size:13px;font-family:inherit;flex:1;min-width:120px;background:transparent;">
+            </div>
+            <input type="hidden" id="fPmAttr" name="pm_attribute" value="{{ item.pm_attribute if item else '' }}">
           </div>
 
-          <!-- Category (all types) -->
-          <div class="ai-fld">
-            <label class="ai-label">Category <span class="req">*</span></label>
-            <select class="ai-select" id="fCategory" name="category">
-              <option value="">-- Select Category --</option>
-              {% for cat in categories %}
-              <option value="{{ cat.category_name }}"
-                {% if item and item.category == cat.category_name %}selected{% endif %}>
-                {{ cat.category_name }}
-              </option>
-              {% endfor %}
-            </select>
-            <span class="ai-err">Category required</span>
+          <!-- Row 3: Corrugation Details (shown when PM Type = Corrugation) -->
+          {% if item and item.pm_material_type == 'Corrugation' %}<div id="rowCorrugation" style="display:block;{% else %}<div id="rowCorrugation" style="display:none;{% endif %}margin-top:14px;background:#eff6ff22;border:1.5px solid #bfdbfe;border-radius:10px;padding:14px;">
+            <div style="font-size:10.5px;font-weight:800;color:#2563eb;text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px;">📦 Corrugation Details</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:14px;">
+              <div class="ai-fld">
+                <label class="ai-label">Ply <span class="req">*</span></label>
+                <select class="ai-select" id="fCorrPly" name="corrugation_ply">
+                  <option value="">-- Select Ply --</option>
+                  <option value="3 Ply" {% if item and item.corrugation_ply == '3 Ply' %}selected{% endif %}>3 Ply</option>
+                  <option value="5 Ply" {% if item and item.corrugation_ply == '5 Ply' %}selected{% endif %}>5 Ply</option>
+                  <option value="7 Ply" {% if item and item.corrugation_ply == '7 Ply' %}selected{% endif %}>7 Ply</option>
+                </select>
+              </div>
+              <div class="ai-fld">
+                <label class="ai-label">Length (mm)</label>
+                <input class="ai-input" id="fDimL" type="number" min="0" step="0.1" placeholder="0" value="{{ item.dim_length if item else '' }}">
+              </div>
+              <div class="ai-fld">
+                <label class="ai-label">Width (mm)</label>
+                <input class="ai-input" id="fDimW" type="number" min="0" step="0.1" placeholder="0" value="{{ item.dim_width if item else '' }}">
+              </div>
+              <div class="ai-fld">
+                <label class="ai-label">Height (mm)</label>
+                <input class="ai-input" id="fDimH" type="number" min="0" step="0.1" placeholder="0" value="{{ item.dim_height if item else '' }}">
+              </div>
+            </div>
           </div>
 
-          <!-- Group (RM only) -->
-          <div class="ai-fld ai-field-rm" id="rowGroup" data-hide>
-            <label class="ai-label">Group <span class="req">*</span></label>
-            <select class="ai-select" id="fGroup" name="group_id">
-              <option value="">-- Select Group --</option>
-              {% for g in groups %}
-              <option value="{{ g.id }}"
-                {% if item and item.group_id == g.id %}selected{% endif %}>
-                {{ g.group_name }}
-              </option>
-              {% endfor %}
-            </select>
-            <span class="ai-err">Group required</span>
+          <!-- Row 4: Sleeves Dimension (shown when PM Type = Sleeves) -->
+          {% if item and item.pm_material_type == 'Sleeves' %}<div id="rowSleeves" style="display:block;{% else %}<div id="rowSleeves" style="display:none;{% endif %}margin-top:14px;background:#faf5ff22;border:1.5px solid #ddd6fe;border-radius:10px;padding:14px;">
+            <div style="font-size:10.5px;font-weight:800;color:#7c3aed;text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px;">🎭 Sleeves Dimension</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+              <div class="ai-fld">
+                <label class="ai-label">Length (mm)</label>
+                <input class="ai-input" id="fSleeveL" type="number" min="0" step="0.1" placeholder="0" value="{{ item.dim_length if item else '' }}">
+              </div>
+              <div class="ai-fld">
+                <label class="ai-label">Width (mm)</label>
+                <input class="ai-input" id="fSleeveW" type="number" min="0" step="0.1" placeholder="0" value="{{ item.dim_width if item else '' }}">
+              </div>
+            </div>
+          </div>
+
+          <!-- Category + Group — RM one line (2 col) -->
+          {% if (auto_type and auto_type.abbreviation|upper == 'RM') or (item and item.material_type and item.material_type.abbreviation|upper == 'RM') %}<div class="ai-field-rm" id="rowRmCatGroup" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:0;">{% else %}<div class="ai-field-rm" id="rowRmCatGroup" data-hide style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:0;">{% endif %}
+            <div class="ai-fld">
+              <label class="ai-label">Category <span class="req">*</span></label>
+              <select class="ai-select" id="fCategoryRm" name="category_rm" style="width:100%;">
+                <option value="">-- Select Category --</option>
+                {% for cat in categories %}
+                <option value="{{ cat.category_name }}"
+                  {% if item and item.category == cat.category_name %}selected{% endif %}>
+                  {{ cat.category_name }}
+                </option>
+                {% endfor %}
+              </select>
+              <span class="ai-err">Category required</span>
+            </div>
+            <div class="ai-fld" id="rowGroup">
+              <label class="ai-label">Group <span class="req">*</span></label>
+              <select class="ai-select" id="fGroup" name="group_id" style="width:100%;">
+                <option value="">-- Select Group --</option>
+                {% for g in groups %}
+                <option value="{{ g.id }}"
+                  {% if item and item.group_id == g.id %}selected{% endif %}>
+                  {{ g.group_name }}
+                </option>
+                {% endfor %}
+              </select>
+              <span class="ai-err">Group required</span>
+            </div>
           </div>
 
         </div>
@@ -474,7 +589,7 @@
         <div class="ai-grid-2" style="margin-top:16px;">
 
           <!-- Slot 1: INCI for RM  -->
-          <div class="ai-fld ai-field-rm" id="rowInci" data-hide>
+          {% if (auto_type and auto_type.abbreviation|upper == 'RM') or (item and item.material_type and item.material_type.abbreviation|upper == 'RM') %}<div class="ai-fld ai-field-rm" id="rowInci">{% else %}<div class="ai-fld ai-field-rm" id="rowInci" data-hide>{% endif %}
             <label class="ai-label">INCI Name</label>
             <input class="ai-input" id="fInci" name="inci_name" type="text"
                    placeholder="e.g. Sodium Chloride (INCI)"
@@ -483,14 +598,25 @@
           </div>
 
           <!-- Slot 1: SKU Size for PM + FG -->
-          <div class="ai-fld ai-field-pm-fg" id="rowSkuSize" data-hide>
+          {% set _abbr = auto_type.abbreviation|upper if auto_type else (item.material_type.abbreviation|upper if item and item.material_type else '') %}
+          {% set _pmtype = item.pm_material_type if item else '' %}
+          {% set _showSku = (_abbr in ['PM','FG']) and (_pmtype not in ['Corrugation','Sleeves']) %}
+          {% if _showSku %}<div class="ai-fld ai-field-pm-fg" id="rowSkuSize">{% else %}<div class="ai-fld ai-field-pm-fg" id="rowSkuSize" data-hide>{% endif %}
             <label class="ai-label">SKU Size <span class="req">*</span></label>
-            <div class="tag-wrap" id="skuTagWrap" onclick="document.getElementById('skuTagInput').focus()">
-              <input class="tag-bare" id="skuTagInput" placeholder="50GM, 100ML — press Enter…" autocomplete="off">
+            <div style="display:flex;align-items:center;gap:8px;">
+              <input class="ai-input" id="fSkuSizes" name="sku_sizes" type="number"
+                     min="0" step="0.01"
+                     placeholder="e.g. 500"
+                     value="{{ item.sku_sizes if item else '' }}"
+                     style="flex:1;"
+                     oninput="this.value=this.value.replace(/[^0-9.]/g,'')">
+              <span style="font-size:13px;color:#94a3b8;font-weight:600;white-space:nowrap;">
+                {{ 'gm / ml / pcs' }}
+              </span>
             </div>
-            <input type="hidden" id="fSkuSizes" name="sku_sizes" value="{{ item.sku_sizes if item else '' }}">
-            <span class="ai-err" id="skuErr">At least one SKU size required</span>
-            <span class="ai-hint">Press Enter to add each size</span>
+            <span class="ai-err" id="skuErr">SKU Size required</span>
+            <span class="ai-hint">Numeric value only (e.g. 500, 250.5)</span>
+
           </div>
 
           <!-- Slot 2: UOM — always visible -->
@@ -518,6 +644,75 @@
 
       </div><!-- /card-body -->
     </div><!-- /card -->
+
+    <!-- ─── PRODUCT IMAGE (PM / FG only) ─── -->
+    {% if (auto_type and auto_type.abbreviation|upper in ['PM','FG']) or (item and item.material_type and item.material_type.abbreviation|upper in ['PM','FG']) %}<div class="ai-card ai-field-pm-fg" id="rowProductImage" style="margin-bottom:16px;">{% else %}<div class="ai-card ai-field-pm-fg" id="rowProductImage" data-hide style="margin-bottom:16px;">{% endif %}
+      <div class="ai-card-hdr">
+        <span style="font-size:16px;">🖼️</span>
+        <h2>Product Image</h2>
+        <span style="font-size:11px;color:#94a3b8;margin-left:8px;">Upload → Crop to product → White background</span>
+      </div>
+      <div class="ai-card-body">
+        <input type="hidden" id="fImagePath" value="{{ item.image_data if item and item.image_data else '' }}">
+
+        <!-- Already saved image -->
+        {% if item %}
+          {% set img_path = item.image_data if item.image_data else '' %}
+          {% if img_path %}
+          <div id="imgExistingArea" style="margin-bottom:14px;display:flex;align-items:center;gap:12px;background:#f8fafc;border-radius:10px;padding:10px;">
+            <img src="{{ img_path }}" style="height:80px;width:80px;object-fit:contain;border-radius:8px;background:#fff;border:1px solid #e2e8f0;">
+            <div>
+              <div style="font-size:12px;font-weight:700;color:#16a34a;">✅ Image saved</div>
+              <button type="button" onclick="imgClearExisting()" style="margin-top:4px;font-size:12px;color:#dc2626;background:none;border:none;cursor:pointer;font-weight:600;padding:0;">🗑️ Remove & Replace</button>
+            </div>
+          </div>
+          {% endif %}
+        {% endif %}
+
+        <!-- Step 1: Upload Zone -->
+        <div id="imgUploadZone"
+             style="border:2px dashed #e2e8f0;border-radius:12px;padding:24px;text-align:center;cursor:pointer;transition:all .2s;"
+             ondragover="event.preventDefault();this.style.borderColor='#2563eb';this.style.background='#eff6ff'"
+             ondragleave="this.style.borderColor='#e2e8f0';this.style.background=''"
+             ondrop="handleImgDrop(event)"
+             onclick="document.getElementById('imgFileInput').click()">
+          <div style="font-size:28px;margin-bottom:6px;">📷</div>
+          <div style="font-size:13px;font-weight:600;color:#475569;">Click ya Drag &amp; Drop</div>
+          <div style="font-size:11.5px;color:#94a3b8;margin-top:3px;">JPG, PNG, WEBP</div>
+          <input type="file" id="imgFileInput" accept="image/*" style="display:none;" onchange="handleImgFile(this.files[0])">
+        </div>
+
+        <!-- Step 2: Crop Modal Overlay -->
+        <div id="imgCropModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:600;display:none;align-items:center;justify-content:center;">
+          <div style="background:#fff;border-radius:16px;padding:20px;max-width:90vw;max-height:90vh;display:flex;flex-direction:column;gap:12px;min-width:320px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <div style="font-size:15px;font-weight:700;">✂️ Sirf product select karo</div>
+              <div style="font-size:11.5px;color:#94a3b8;">Tube/product ke around crop karo</div>
+            </div>
+            <div style="overflow:hidden;border-radius:8px;max-height:60vh;">
+              <img id="imgCropperSrc" src="" style="max-width:100%;display:block;">
+            </div>
+            <div style="display:flex;gap:8px;">
+              <button type="button" class="btn-add-new" onclick="imgApplyCrop()" style="flex:1;">✅ Apply Crop</button>
+              <button type="button" class="btn-grid-action" onclick="imgSkipCrop()" style="flex:1;">Skip (Use Full)</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 3: Final Preview -->
+        <div id="imgPreviewArea" style="display:none;margin-top:12px;">
+          <div style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;margin-bottom:6px;">Preview (White BG)</div>
+          <div style="background:#fff;border:1.5px solid #e2e8f0;border-radius:10px;padding:12px;text-align:center;">
+            <img id="imgResultPreview" src="" style="max-height:180px;max-width:100%;object-fit:contain;">
+          </div>
+          <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;align-items:center;">
+            <span id="imgSavedBadge" style="display:none;font-size:12px;font-weight:700;color:#16a34a;">✅ Image ready</span>
+            <button type="button" class="btn-grid-action" onclick="imgReCrop()" style="font-size:12px;">✂️ Re-crop</button>
+            <button type="button" class="btn-grid-action" onclick="imgReset()" style="font-size:12px;color:#dc2626;border-color:#fca5a5;">🗑️ Remove</button>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <!-- ─── STOCK & PRICING ─── -->
     <div class="ai-card" style="margin-bottom:16px;">
@@ -626,7 +821,7 @@
         <span id="footerTypeBadge" style="font-size:12px;font-weight:700;padding:4px 10px;border-radius:20px;background:#eff6ff;color:#1d4ed8;"></span>
       </div>
       <div class="ai-footer-right">
-        <a href="/material" class="btn-cancel">✕ Cancel</a>
+        <a href="/material{% if auto_type_abbr %}?item_type={{ auto_type_abbr }}{% endif %}" class="btn-cancel">✕ Cancel</a>
         <button type="submit" class="btn-save" id="btnSave">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 20 4 14"/></svg>
           <span id="btnSaveLabel">{% if item %}Update Item{% else %}Save Item{% endif %}</span>
@@ -642,36 +837,55 @@
 {% block extra_js %}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.1.0-rc.0/js/select2.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
 <script>
 /* ═══════════════════════════════════════════════
    ADD ITEM PAGE — JAVASCRIPT
 ═══════════════════════════════════════════════ */
 
 // ── State ──────────────────────────────────────
-let _selectedTypeId   = {{ item.material_type_id if item else 'null' }};
-let _selectedTypeAbbr = '{{ item.material_type.abbreviation if item and item.material_type else "" }}';
-let _selectedTypeName = '{{ item.material_type.type_name if item and item.material_type else "" }}';
-let _selectedColor    = '{{ item.material_type.color if item and item.material_type else "#6366f1" }}';
+// Global type flags — updated by applyTypeFields, used by validateForm
+let _isPM = false, _isRM = false, _isFG = false, _isPMFG = false;
+
+let _selectedTypeId   = {{ item.material_type_id if item else (auto_type.id if auto_type else 'null') }};
+let _selectedTypeAbbr = '{{ item.material_type.abbreviation if item and item.material_type else (auto_type.abbreviation if auto_type else "") }}';
+let _selectedTypeName = '{{ item.material_type.type_name if item and item.material_type else (auto_type.type_name if auto_type else "") }}';
+let _selectedColor    = '{{ item.material_type.color if item and item.material_type else (auto_type.color if auto_type else "#6366f1") }}';
 let _aliasList        = [];
-let _skuList          = [];
+
+// ── Auto Code Generation ──────────────────────────────
+async function autoGenCode() {
+  const abbr = '{{ auto_type_abbr }}' || document.getElementById('fTypeAbbr')?.value;
+  if (!abbr) { showToast('Item type select karo pehle', 'warning'); return; }
+  const btn = document.getElementById('btnAutoCode');
+  if (btn) { btn.textContent = '⏳'; btn.disabled = true; }
+  try {
+    const res  = await fetch('/material/api/next-code?type_abbr=' + abbr);
+    const data = await res.json();
+    if (data.status === 'ok') {
+      document.getElementById('fCode').value = data.code;
+      document.getElementById('fCode').style.borderColor = '#16a34a';
+      setTimeout(() => { document.getElementById('fCode').style.borderColor = ''; }, 1500);
+    }
+  } catch(e) { showToast('Code generate nahi ho saka', 'danger'); }
+  finally { if (btn) { btn.textContent = '🔄 Auto'; btn.disabled = false; } }
+}
 
 // ── Init ────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', function () {
-  // Load saved aliases
+  // Auto-generate code for new items
+  const AUTO_TYPE_ABBR = '{{ auto_type_abbr }}';
+  if (AUTO_TYPE_ABBR && !document.getElementById('fCode').value) {
+    fetch('/material/api/next-code?type_abbr=' + AUTO_TYPE_ABBR)
+      .then(r => r.json())
+      .then(d => { if (d.status === 'ok') document.getElementById('fCode').value = d.code; })
+      .catch(() => {});
+  }
   const saved = document.getElementById('fAliases').value;
   if (saved) {
     saved.split(',').map(a => a.trim()).filter(Boolean).forEach(addTag);
   }
-  // Load saved SKU sizes
-  const savedSku = document.getElementById('fSkuSizes').value;
-  if (savedSku) {
-    savedSku.split(',').map(s => s.trim()).filter(Boolean).forEach(addSkuTag);
-  }
-  // If editing, apply field visibility
-  if (_selectedTypeId) {
-    applyTypeFields(_selectedTypeAbbr, _selectedColor, _selectedTypeName);
-    updateStepIndicator(3);
-  }
+  // SKU Size is now a single numeric field — no tag loading needed
 
   // ── Select2 init ────────────────────────────────
   function initSelect2(id, placeholder) {
@@ -687,35 +901,32 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }
 
-  // Init all selects
+  // Init all selects FIRST
   initSelect2('fBrand',    '-- Select Brand --');
   initSelect2('fCategory', '-- Select Category --');
+  initSelect2('fPmType',   '-- Select Type --');
+  initSelect2('fCategoryRm','-- Select Category --');
   initSelect2('fGroup',    '-- Select Group --');
   initSelect2('fUom',      'Select UOM');
   initSelect2('fGst',      'Select GST Rate');
   initSelect2('fTax',      'Select Taxability');
+
+  initPmAttrTags();
+  $('#fPmType').on('change select2:select select2:clear', function(){ updatePmTypeFields($(this).val() || ''); });
 
   // UOM suffix sync
   document.getElementById('fUom').addEventListener('change', syncUomSuffix);
   $('#fUom').on('change', syncUomSuffix);
   syncUomSuffix();
 
-  // SKU tag input events
-  const skuInput = document.getElementById('skuTagInput');
-  skuInput.addEventListener('keydown', function(e) {
-    if (e.key === 'Enter' || e.key === ',') {
-      e.preventDefault();
-      const v = this.value.trim().replace(/,$/, '').toUpperCase();
-      if (v) addSkuTag(v);
-      this.value = '';
-    } else if (e.key === 'Backspace' && !this.value && _skuList.length) {
-      removeSkuTag(_skuList[_skuList.length - 1]);
-    }
-  });
-  skuInput.addEventListener('blur', function() {
-    const v = this.value.trim().replace(/,$/, '').toUpperCase();
-    if (v) { addSkuTag(v); this.value = ''; }
-  });
+  // Apply field visibility AFTER Select2 (so hidden fields become visible properly)
+  if (_selectedTypeId) {
+    applyTypeFields(_selectedTypeAbbr, _selectedColor, _selectedTypeName);
+    updateStepIndicator(3);
+    // If PM type was pre-selected, init conditional fields
+    if(document.getElementById('fPmType')?.value) updatePmTypeFields(document.getElementById('fPmType').value);
+  }
+
 });
 
 // ── Type Selection ──────────────────────────────
@@ -746,18 +957,26 @@ function selectType(id, abbr, name, color) {
 }
 
 function applyTypeFields(abbr, color, name) {
+  abbr = (abbr || '').toUpperCase().trim();  // normalize
   const isRM = abbr === 'RM';
   const isPM = abbr === 'PM';
   const isFG = abbr === 'FG';
   const isPMFG = isPM || isFG;
+  // Update globals so validateForm can access them
+  _isRM = isRM; _isPM = isPM; _isFG = isFG; _isPMFG = isPMFG;
 
   // RM-only fields
   toggleField('rowInci',  isRM);
   toggleField('rowGroup', isRM);
 
   // PM+FG fields
-  toggleField('rowBrand',   isPMFG);
-  toggleField('rowSkuSize', isPMFG);
+  toggleField('rowBrand',         isPMFG);
+  toggleField('rowSkuSize',       isPMFG);
+  toggleField('rowProductImage',  isPMFG);
+  toggleField('rowPmType',        isPM);   // PM only
+  toggleField('rowPmAttr',        isPM);   // PM attribute
+  toggleField('rowRmCatGroup',     isRM);   // RM: Category + Group row
+  toggleField('rowCatPmFg',        isPMFG); // PM/FG: Category in 3-col row
 
   // FG-only fields
   toggleField('rowPerBox', isFG);
@@ -780,10 +999,7 @@ function applyTypeFields(abbr, color, name) {
   setRequired('fPerBoxQty', isFG);
 
   // SKU tag validation hint text reset
-  if (!isPMFG) {
-    _skuList = [];
-    renderSkuTags();
-  }
+  // SKU is single numeric — no tag reset needed
 }
 
 function toggleField(id, show) {
@@ -868,34 +1084,6 @@ function escH(s) {
   return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
-// ── SKU Tag Input ────────────────────────────────
-function addSkuTag(val) {
-  val = val.trim().toUpperCase();
-  if (!val || _skuList.includes(val)) return;
-  _skuList.push(val);
-  renderSkuTags();
-}
-
-function removeSkuTag(val) {
-  _skuList = _skuList.filter(s => s !== val);
-  renderSkuTags();
-}
-
-function renderSkuTags() {
-  const wrap = document.getElementById('skuTagWrap');
-  if (!wrap) return;
-  wrap.querySelectorAll('.tag-pill').forEach(p => p.remove());
-  _skuList.forEach(s => {
-    const pill = document.createElement('span');
-    pill.className = 'tag-pill';
-    pill.style.background = '#f0fdf4';
-    pill.style.borderColor = '#86efac';
-    pill.style.color = '#15803d';
-    pill.innerHTML = `${escH(s)}<button type="button" onclick="removeSkuTag('${escH(s).replace(/'/g,"\\'")}')">×</button>`;
-    wrap.insertBefore(pill, document.getElementById('skuTagInput'));
-  });
-  document.getElementById('fSkuSizes').value = _skuList.join(',');
-}
 
 // ── Active Toggle ────────────────────────────────
 function toggleActive(btn) {
@@ -932,20 +1120,37 @@ function validateForm() {
   ok = validateReq('fCategory') && ok;
 
   const abbr = _selectedTypeAbbr;
-  const isPMFG = (abbr === 'PM' || abbr === 'FG');
-  const isRM   = abbr === 'RM';
+  const isPMFG = _isPMFG;
+  const isRM   = _isRM;
+  const isPM   = _isPM;
+  const isFG   = _isFG;
 
   if (isPMFG) ok = validateReq('fBrand') && ok;
   if (isRM)   ok = validateReq('fGroup') && ok;
+  if (isRM)   ok = validateReq('fCategoryRm') && ok;
 
-  // SKU Size validation (PM + FG)
+  // PM Material Type validation
+  if (isPM) {
+    const pmTypeVal = document.getElementById('fPmType').value;
+    if (!pmTypeVal) {
+      document.getElementById('fPmType').style.borderColor = '#ef4444';
+      document.getElementById('pmTypeErr').style.display = 'block';
+      ok = false;
+    } else {
+      document.getElementById('fPmType').style.borderColor = '';
+      document.getElementById('pmTypeErr').style.display = 'none';
+    }
+  }
+
+  // SKU Size validation (PM + FG) — single numeric
   if (isPMFG) {
-    if (_skuList.length === 0) {
-      document.getElementById('skuTagWrap').style.borderColor = '#ef4444';
+    const skuVal = document.getElementById('fSkuSizes').value.trim();
+    if (!skuVal || isNaN(parseFloat(skuVal)) || parseFloat(skuVal) <= 0) {
+      document.getElementById('fSkuSizes').style.borderColor = '#ef4444';
       document.getElementById('skuErr').style.display = 'block';
       ok = false;
     } else {
-      document.getElementById('skuTagWrap').style.borderColor = '';
+      document.getElementById('fSkuSizes').style.borderColor = '';
       document.getElementById('skuErr').style.display = 'none';
     }
   }
@@ -1037,7 +1242,7 @@ async function submitForm(e) {
     aliases:             document.getElementById('fAliases').value.trim(),
     sku_sizes:           document.getElementById('fSkuSizes').value.trim(),
     per_box_qty:         parseInt(document.getElementById('fPerBoxQty').value) || 0,
-    category:            document.getElementById('fCategory').value.trim(),
+    category:            (_isRM ? (document.getElementById('fCategoryRm')?.value||'') : document.getElementById('fCategory').value).trim(),
     group_id:            document.getElementById('fGroup').value || null,
     uom:                 document.getElementById('fUom').value,
     description:         document.getElementById('fDesc').value.trim(),
@@ -1049,6 +1254,13 @@ async function submitForm(e) {
     taxability:          document.getElementById('fTax').value,
     is_active:           document.getElementById('fActive').value === '1',
     material_type_id:    _selectedTypeId,
+    image_path:          document.getElementById('fImagePath')?.value || _imgResultDataUrl || null,
+    pm_material_type:    document.getElementById('fPmType') ? document.getElementById('fPmType').value : '',
+    pm_attribute:        document.getElementById('fPmAttr')?.value || '',
+    corrugation_ply:     document.getElementById('fCorrPly')?.value || '',
+    dim_length:          parseFloat(document.getElementById('fDimL')?.value || document.getElementById('fSleeveL')?.value || 0) || null,
+    dim_width:           parseFloat(document.getElementById('fDimW')?.value || document.getElementById('fSleeveW')?.value || 0) || null,
+    dim_height:          parseFloat(document.getElementById('fDimH')?.value || 0) || null,
   };
 
   try {
@@ -1060,8 +1272,12 @@ async function submitForm(e) {
     const data = await res.json();
 
     if (data.status === 'ok') {
-      showToast('✅ Item saved successfully!', 'success');
-      setTimeout(() => { window.location.href = '/material'; }, 900);
+      const assignedCode = data.code || '';
+      showToast(`✅ Item saved! Code: ${assignedCode}`, 'success');
+      // Redirect back to filtered list
+      const itemTypeParam = '{{ auto_type_abbr }}';
+      const backUrl = itemTypeParam ? `/material?item_type=${itemTypeParam}` : '/material';
+      setTimeout(() => { window.location.href = backUrl; }, 1200);
     } else {
       showToast('❌ ' + (data.message || 'Save failed'), 'error');
       btn.disabled = false;
@@ -1072,6 +1288,221 @@ async function submitForm(e) {
     btn.disabled = false;
     lbl.textContent = payload.id ? 'Update Item' : 'Save Item';
   }
+}
+
+// ── Product Image Upload ───────────────────────────────────
+let _imgCropper = null;
+let _imgOrigDataUrl = null;
+let _imgResultDataUrl = null;
+
+function handleImgDrop(e){
+  e.preventDefault();
+  e.currentTarget.style.borderColor='#e2e8f0'; e.currentTarget.style.background='';
+  const f=e.dataTransfer.files[0];
+  if(f && f.type.startsWith('image/')) handleImgFile(f);
+}
+function handleImgFile(file){
+  if(!file) return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    _imgOrigDataUrl = e.target.result;
+    openCropModal(_imgOrigDataUrl);
+  };
+  reader.readAsDataURL(file);
+}
+
+function openCropModal(dataUrl){
+  const modal = document.getElementById('imgCropModal');
+  const src   = document.getElementById('imgCropperSrc');
+  src.src = dataUrl;
+  modal.style.display = 'flex';
+  document.body.style.overflow = 'hidden';  // prevent double scroll
+  if(_imgCropper){ _imgCropper.destroy(); _imgCropper=null; }
+  // Wait for image load then init cropper
+  src.onload = () => {
+    _imgCropper = new Cropper(src, {
+      viewMode: 2,
+      background: true,
+      autoCropArea: 0.7,
+      responsive: true,
+    });
+  };
+}
+
+function imgApplyCrop(){
+  if(!_imgCropper) return;
+  // Get cropped canvas with white background
+  const canvas = _imgCropper.getCroppedCanvas({ fillColor:'#ffffff', maxWidth:800, maxHeight:800 });
+  _imgResultDataUrl = canvas.toDataURL('image/png', 0.9);
+  closeCropModal();
+  showImgPreview(_imgResultDataUrl);
+  // Auto-save immediately — no need for "Use This Image" click
+  imgAutoSave();
+}
+
+function imgSkipCrop(){
+  // Use full original image as-is on white bg
+  if(!_imgOrigDataUrl) return;
+  const img = new Image();
+  img.onload = () => {
+    const canvas = document.createElement('canvas');
+    const max = 800;
+    let w=img.width, h=img.height;
+    if(Math.max(w,h) > max){ const s=max/Math.max(w,h); w=Math.round(w*s); h=Math.round(h*s); }
+    canvas.width=w; canvas.height=h;
+    const ctx=canvas.getContext('2d');
+    ctx.fillStyle='#ffffff'; ctx.fillRect(0,0,w,h);
+    ctx.drawImage(img,0,0,w,h);
+    _imgResultDataUrl = canvas.toDataURL('image/png',0.9);
+    closeCropModal();
+    showImgPreview(_imgResultDataUrl);
+    imgAutoSave();
+  };
+  img.src = _imgOrigDataUrl;
+}
+
+function closeCropModal(){
+  document.getElementById('imgCropModal').style.display='none';
+  document.body.style.overflow = '';  // restore scroll
+  if(_imgCropper){ _imgCropper.destroy(); _imgCropper=null; }
+}
+
+function showImgPreview(dataUrl){
+  document.getElementById('imgUploadZone').style.display='none';
+  document.getElementById('imgPreviewArea').style.display='block';
+  document.getElementById('imgResultPreview').src=dataUrl;
+  document.getElementById('imgSavedBadge').style.display='none';
+  const btn=document.getElementById('btnImgSave');
+  btn.textContent='✅ Use This Image'; btn.disabled=false; btn.style.background='';
+}
+
+function imgReCrop(){
+  if(_imgOrigDataUrl) openCropModal(_imgOrigDataUrl);
+}
+
+async function imgAutoSave(){
+  // Compress image client-side and store in fImagePath directly — no separate API call needed
+  if(!_imgResultDataUrl) return;
+  try{
+    // Compress using canvas: resize to max 600px, JPEG 85%
+    const img = new Image();
+    img.onload = () => {
+      const MAX = 600;
+      let w = img.width, h = img.height;
+      if(Math.max(w,h) > MAX){ const s = MAX/Math.max(w,h); w=Math.round(w*s); h=Math.round(h*s); }
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#ffffff'; ctx.fillRect(0,0,w,h);
+      ctx.drawImage(img, 0, 0, w, h);
+      const compressed = canvas.toDataURL('image/jpeg', 0.85);
+      _imgResultDataUrl = compressed;  // update with compressed version
+      document.getElementById('fImagePath').value = compressed;
+      document.getElementById('imgSavedBadge').style.display='block';
+      document.getElementById('imgSavedBadge').textContent='✅ Image ready';
+    };
+    img.src = _imgResultDataUrl;
+  } catch(e){
+    // Fallback: store as-is
+    document.getElementById('fImagePath').value = _imgResultDataUrl;
+    document.getElementById('imgSavedBadge').style.display='block';
+    document.getElementById('imgSavedBadge').textContent='✅ Image ready';
+  }
+}
+
+async function imgSaveToServer(){
+  if(!_imgResultDataUrl){ showToast('Pehle crop karo','danger'); return; }
+  const btn=document.getElementById('btnImgSave');
+  btn.textContent='⏳ Saving…'; btn.disabled=true;
+  try{
+    const res=await fetch('/material/api/upload-image',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({image_base64:_imgResultDataUrl})});
+    const d=await res.json();
+    if(d.status==='ok'){
+      document.getElementById('fImagePath').value=d.url;
+      document.getElementById('imgSavedBadge').style.display='block';
+      btn.textContent='✅ Saved'; btn.style.background='#16a34a';
+      showToast('Image saved ✓','success');
+    } else { showToast(d.message||'Save failed','danger'); btn.textContent='✅ Use This Image'; btn.disabled=false; }
+  } catch(e){ showToast('Network error','danger'); btn.textContent='✅ Use This Image'; btn.disabled=false; }
+}
+
+function imgReset(){
+  _imgOrigDataUrl=null; _imgResultDataUrl=null;
+  closeCropModal();
+  document.getElementById('imgPreviewArea').style.display='none';
+  document.getElementById('imgUploadZone').style.display='block';
+  document.getElementById('fImagePath').value='';
+  document.getElementById('imgSavedBadge').style.display='none';
+  document.getElementById('imgFileInput').value='';
+}
+function imgClearExisting(){
+  document.getElementById('fImagePath').value='';
+  const a=document.getElementById('imgExistingArea');
+  if(a) a.style.display='none';
+}
+
+// ── PM Type Conditional Fields ──────────────────────────────
+function updatePmTypeFields(type){
+  const showCorr   = type === 'Corrugation';
+  const showSleeve = type === 'Sleeves';
+  const showSkuAttr = (type !== 'Corrugation' && type !== 'Sleeves');  // Only for regular PM
+
+  document.getElementById('rowCorrugation').style.display = showCorr   ? 'block' : 'none';
+  document.getElementById('rowSleeves').style.display     = showSleeve ? 'block' : 'none';
+
+  // SKU Size: hide for Corrugation & Sleeves
+  const skuEl = document.getElementById('rowSkuSize');
+  if(skuEl){
+    if(showSkuAttr){ skuEl.removeAttribute('data-hide'); skuEl.style.display=''; }
+    else           { skuEl.setAttribute('data-hide',''); skuEl.style.display='none'; }
+  }
+  // Attribute: hide for Corrugation & Sleeves
+  const attrEl = document.getElementById('rowPmAttr');
+  if(attrEl){
+    if(showSkuAttr){ attrEl.removeAttribute('data-hide'); attrEl.style.display=''; }
+    else           { attrEl.setAttribute('data-hide',''); attrEl.style.display='none'; }
+  }
+}
+
+// ── PM Attribute Tags ──────────────────────────────────────
+let _pmAttrList = [];
+function initPmAttrTags(){
+  const saved = document.getElementById('fPmAttr')?.value || '';
+  _pmAttrList = saved.split(',').map(s=>s.trim()).filter(Boolean);
+  renderPmAttrTags();
+  const inp = document.getElementById('pmAttrInput');
+  if(!inp) return;
+  inp.addEventListener('keydown', e=>{
+    if(e.key==='Enter'||e.key===','){ e.preventDefault(); const v=inp.value.trim(); if(v){addPmAttr(v);inp.value='';} }
+    else if(e.key==='Backspace'&&!inp.value&&_pmAttrList.length) removePmAttr(_pmAttrList[_pmAttrList.length-1]);
+  });
+  inp.addEventListener('blur', ()=>{ const v=inp.value.trim(); if(v){addPmAttr(v);inp.value='';} });
+}
+function addPmAttr(val){
+  if(!val||_pmAttrList.includes(val)) return;
+  _pmAttrList.push(val); renderPmAttrTags();
+}
+function removePmAttr(val){ _pmAttrList=_pmAttrList.filter(s=>s!==val); renderPmAttrTags(); }
+function renderPmAttrTags(){
+  const wrap=document.getElementById('pmAttrWrap');
+  const inp=document.getElementById('pmAttrInput');
+  if(!wrap||!inp) return;
+  wrap.querySelectorAll('.pm-attr-tag').forEach(t=>t.remove());
+  _pmAttrList.forEach(v=>{
+    const tag=document.createElement('span');
+    tag.className='pm-attr-tag';
+    tag.style.cssText='display:inline-flex;align-items:center;gap:4px;background:#fdf4ff;color:#7c3aed;border:1px solid #ddd6fe;border-radius:6px;padding:2px 8px;font-size:12px;font-weight:600;white-space:nowrap;';
+    const txt=document.createTextNode(v+' ');
+    const btn=document.createElement('button');
+    btn.type='button';
+    btn.textContent='×';
+    btn.style.cssText='border:none;background:none;cursor:pointer;color:#a78bfa;font-size:14px;line-height:1;padding:0;';
+    btn.addEventListener('click', function(e){ e.stopPropagation(); removePmAttr(v); });
+    tag.appendChild(txt);
+    tag.appendChild(btn);
+    wrap.insertBefore(tag,inp);
+  });
+  document.getElementById('fPmAttr').value=_pmAttrList.join(',');
 }
 
 // ── Toast ─────────────────────────────────────────

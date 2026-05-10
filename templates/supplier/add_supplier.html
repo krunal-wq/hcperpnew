@@ -1,0 +1,442 @@
+{% extends 'base.html' %}
+{% block title %}{% if supplier %}Edit Supplier{% else %}Add Supplier{% endif %} — HCP ERP{% endblock %}
+{% block page_title %}{% if supplier %}Edit Supplier{% else %}Add Supplier{% endif %}{% endblock %}
+{% block bread %}Procurement / Purchase / {% if sup_type %}{{ sup_type }} Supplier{% else %}Supplier{% endif %} / {% if supplier %}Edit{% else %}Add New{% endif %}{% endblock %}
+
+{% block extra_css %}
+<style>
+.sf-card { background:#fff;border:1.5px solid #e2e8f0;border-radius:12px;margin-bottom:18px;overflow:hidden; }
+.sf-hdr { display:flex;align-items:center;gap:10px;padding:14px 20px;background:#f8fafc;border-bottom:1px solid #f1f5f9; }
+.sf-hdr h2 { font-size:13.5px;font-weight:700;color:#1e293b;margin:0; }
+.sf-body { padding:22px; }
+.sf-grid-2 { display:grid;grid-template-columns:1fr 1fr;gap:16px; }
+.sf-grid-3 { display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px; }
+.sf-fld { display:flex;flex-direction:column;gap:5px; }
+.sf-label { font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em; }
+.sf-label .req { color:#ef4444; }
+.sf-input, .sf-select, .sf-textarea {
+  width:100%;padding:9px 12px;border:1.5px solid #e2e8f0;border-radius:8px;
+  font-size:13px;font-family:inherit;color:#1e293b;background:#fff;
+  transition:border-color .15s;outline:none;box-sizing:border-box;
+}
+.sf-input:focus, .sf-select:focus, .sf-textarea:focus { border-color:#2563eb;box-shadow:0 0 0 3px rgba(37,99,235,.1); }
+.sf-input.invalid, .sf-select.invalid { border-color:#ef4444; }
+.sf-textarea { resize:vertical;min-height:72px; }
+.sf-err { font-size:11px;color:#ef4444;font-weight:600;display:none; }
+.sf-hint { font-size:10.5px;color:#94a3b8; }
+.sf-divider { height:1px;background:#f1f5f9;margin:12px 0; }
+.sup-type-badge { display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:8px;font-size:12px;font-weight:800; }
+.sup-type-badge.rm { background:#dbeafe;color:#1d4ed8; }
+.sup-type-badge.pm { background:#fae8ff;color:#7e22ce; }
+.footer-bar { position:sticky;bottom:0;background:#fff;border-top:1.5px solid #e2e8f0;padding:14px 22px;display:flex;align-items:center;justify-content:space-between;z-index:10; }
+@media (max-width:768px){ .sf-grid-2,.sf-grid-3 { grid-template-columns:1fr; } }
+</style>
+{% endblock %}
+
+{% block content %}
+<div style="max-width:900px;margin:0 auto;padding:0 16px 80px;">
+
+  <!-- Type badge -->
+  <div style="margin-bottom:16px;display:flex;align-items:center;gap:10px;">
+    <span class="sup-type-badge {{ 'rm' if sup_type == 'RM' else 'pm' }}">
+      {{ '🧪' if sup_type == 'RM' else '📦' }} {{ sup_type }} Supplier
+    </span>
+    <input type="hidden" id="fSupplierType" value="{{ sup_type }}">
+    {% if supplier %}
+    <span style="font-size:12px;color:#94a3b8;font-family:monospace;">{{ supplier.supplier_code }}</span>
+    {% endif %}
+  </div>
+
+  <!-- BASIC INFO -->
+  <div class="sf-card">
+    <div class="sf-hdr"><span style="font-size:16px;">🏢</span><h2>Basic Information</h2></div>
+    <div class="sf-body">
+      <div class="sf-grid-2" style="margin-bottom:16px;">
+        <div class="sf-fld">
+          <label class="sf-label">Supplier Name <span class="req">*</span></label>
+          <input class="sf-input" id="fName" placeholder="e.g. J B Fragrances" value="{{ supplier.supplier_name if supplier else '' }}">
+          <span class="sf-err" id="errName">Supplier name required</span>
+        </div>
+        <div class="sf-fld">
+          <label class="sf-label">Company Name</label>
+          <input class="sf-input" id="fCompany" placeholder="e.g. JB Fragrances Pvt. Ltd." value="{{ supplier.company_name if supplier else '' }}">
+        </div>
+      </div>
+      <div class="sf-grid-2" style="margin-bottom:16px;">
+        <div class="sf-fld">
+          <label class="sf-label">Contact Person</label>
+          <input class="sf-input" id="fContact" placeholder="e.g. Rajesh Kumar" value="{{ supplier.contact_person if supplier else '' }}">
+        </div>
+        <div class="sf-fld">
+          <label class="sf-label">Phone</label>
+          <input class="sf-input" id="fPhone" placeholder="+91 98765 43210" value="{{ supplier.phone if supplier else '' }}">
+        </div>
+      </div>
+      <div class="sf-grid-2" style="margin-bottom:16px;">
+        <div class="sf-fld">
+          <label class="sf-label">Primary Email</label>
+          <input class="sf-input" id="fEmail" type="email" placeholder="primary@email.com" value="{{ supplier.email if supplier else '' }}">
+        </div>
+        <div class="sf-fld">
+          <label class="sf-label">Additional Emails</label>
+          <div class="tag-wrap" id="emailTagWrap" onclick="document.getElementById('emailTagInput').focus()"
+               style="min-height:40px;display:flex;flex-wrap:wrap;align-items:center;gap:4px;padding:6px 10px;border:1.5px solid #e2e8f0;border-radius:8px;cursor:text;background:#fff;transition:border-color .15s;">
+            <input type="text" id="emailTagInput" placeholder="Type email, press Enter…"
+                   style="border:none;outline:none;font-size:13px;font-family:inherit;color:#1e293b;background:transparent;flex:1;min-width:120px;"
+                   autocomplete="off">
+          </div>
+          <input type="hidden" id="fEmailList" value="{{ supplier.email_list if supplier and supplier.email_list else '' }}">
+          <span class="sf-hint">Press Enter to add each email</span>
+        </div>
+      </div>
+      <div class="sf-fld">
+        <label class="sf-label">Status</label>
+        <select class="sf-select" id="fStatus" style="max-width:200px;">
+          <option value="1" {% if not supplier or supplier.is_active %}selected{% endif %}>Active</option>
+          <option value="0" {% if supplier and not supplier.is_active %}selected{% endif %}>Inactive</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- ADDRESS — Dynamic Multiple -->
+  <div class="sf-card">
+    <div class="sf-hdr" style="justify-content:space-between;">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span style="font-size:16px;">📍</span><h2>Addresses</h2>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button type="button" onclick="addAddress('Billing')" style="display:inline-flex;align-items:center;gap:4px;padding:5px 12px;border:1.5px solid #2563eb;border-radius:7px;background:#eff6ff;color:#2563eb;font-size:12px;font-weight:700;cursor:pointer;">
+          + Billing
+        </button>
+        <button type="button" onclick="addAddress('Shipping')" style="display:inline-flex;align-items:center;gap:4px;padding:5px 12px;border:1.5px solid #7c3aed;border-radius:7px;background:#faf5ff;color:#7c3aed;font-size:12px;font-weight:700;cursor:pointer;">
+          + Shipping
+        </button>
+      </div>
+    </div>
+    <div class="sf-body" style="padding:12px 20px;">
+      <div id="addrContainer" style="display:flex;flex-direction:column;gap:12px;">
+        <!-- Address cards rendered by JS -->
+      </div>
+      <div id="addrEmpty" style="text-align:center;padding:20px;color:#94a3b8;font-size:13px;">
+        No addresses added. Use "+ Billing" or "+ Shipping" to add.
+      </div>
+    </div>
+  </div>
+
+  <!-- BUSINESS -->
+  <div class="sf-card">
+    <div class="sf-hdr"><span style="font-size:16px;">📍</span><h2>Address</h2></div>
+  <!-- BUSINESS -->
+  <div class="sf-card">
+    <div class="sf-hdr"><span style="font-size:16px;">📋</span><h2>Business Details</h2></div>
+    <div class="sf-body">
+      <div class="sf-grid-2">
+        <div class="sf-fld">
+          <label class="sf-label">GST Number</label>
+          <input class="sf-input" id="fGst" placeholder="24AABCU9603R1ZX" style="text-transform:uppercase;" value="{{ supplier.gst_number if supplier else '' }}" oninput="this.value=this.value.toUpperCase()">
+        </div>
+        <div class="sf-fld">
+          <label class="sf-label">PAN Number</label>
+          <input class="sf-input" id="fPan" placeholder="AABCU9603R" style="text-transform:uppercase;" value="{{ supplier.pan_number if supplier else '' }}" oninput="this.value=this.value.toUpperCase()">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PAYMENT -->
+  <div class="sf-card">
+    <div class="sf-hdr"><span style="font-size:16px;">💳</span><h2>Payment & Terms</h2></div>
+    <div class="sf-body">
+      <div class="sf-grid-3" style="margin-bottom:16px;">
+        <div class="sf-fld">
+          <label class="sf-label">Payment Type</label>
+          <select class="sf-select" id="fPayType">
+            <option value="">— Select —</option>
+            {% for pt in ['Advance Cheque','Advance NEFT','100% Advance','50% Advance','On Delivery','Credit','LC'] %}
+            <option value="{{ pt }}" {% if supplier and supplier.payment_type == pt %}selected{% endif %}>{{ pt }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="sf-fld">
+          <label class="sf-label">Credit Days</label>
+          <input class="sf-input" id="fCreditDays" type="number" min="0" value="{{ supplier.credit_days if supplier else 30 }}">
+        </div>
+        <div class="sf-fld">
+          <label class="sf-label">Credit Limit (₹)</label>
+          <input class="sf-input" id="fCreditLimit" type="number" min="0" placeholder="0" value="{{ supplier.credit_limit if supplier else 0 }}">
+        </div>
+      </div>
+      <div class="sf-grid-3" style="margin-bottom:16px;">
+        <div class="sf-fld">
+          <label class="sf-label">Lead Time (Days)</label>
+          <input class="sf-input" id="fLeadTime" type="number" min="0" value="{{ supplier.lead_time_days if supplier else 7 }}">
+        </div>
+        <div class="sf-fld">
+          <label class="sf-label">Currency</label>
+          <select class="sf-select" id="fCurrency">
+            {% for c in ['INR','USD','EUR','GBP','AED'] %}
+            <option value="{{ c }}" {% if supplier and supplier.currency == c %}selected{% elif not supplier and c == 'INR' %}selected{% endif %}>{{ c }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="sf-fld">
+          <label class="sf-label">Rating</label>
+          <select class="sf-select" id="fRating">
+            <option value="">— Not rated —</option>
+            {% for r,label in [('Excellent','⭐⭐⭐⭐⭐ Excellent'),('Good','⭐⭐⭐⭐ Good'),('Average','⭐⭐⭐ Average'),('Below Avg','⭐⭐ Below Avg'),('Poor','⭐ Poor')] %}
+            <option value="{{ r }}" {% if supplier and supplier.rating == r %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+      <div class="sf-fld">
+        <label class="sf-label">Payment Terms / Notes</label>
+        <textarea class="sf-textarea" id="fPayTerms" placeholder="e.g. Payment within 30 days of invoice">{{ supplier.payment_terms if supplier else '' }}</textarea>
+      </div>
+    </div>
+  </div>
+
+  <!-- BANKING -->
+  <div class="sf-card">
+    <div class="sf-hdr"><span style="font-size:16px;">🏦</span><h2>Banking Details</h2></div>
+    <div class="sf-body">
+      <div class="sf-grid-2" style="margin-bottom:16px;">
+        <div class="sf-fld">
+          <label class="sf-label">Bank Name</label>
+          <input class="sf-input" id="fBank" placeholder="e.g. HDFC Bank" value="{{ supplier.bank_name if supplier else '' }}">
+        </div>
+        <div class="sf-fld">
+          <label class="sf-label">Account Number</label>
+          <input class="sf-input" id="fAccNo" placeholder="Account number" value="{{ supplier.account_number if supplier else '' }}">
+        </div>
+      </div>
+      <div class="sf-grid-2">
+        <div class="sf-fld">
+          <label class="sf-label">IFSC Code</label>
+          <input class="sf-input" id="fIfsc" placeholder="HDFC0001234" style="text-transform:uppercase;" value="{{ supplier.ifsc_code if supplier else '' }}" oninput="this.value=this.value.toUpperCase()">
+        </div>
+        <div class="sf-fld">
+          <label class="sf-label">Branch Address</label>
+          <input class="sf-input" id="fBranch" placeholder="Branch address" value="{{ supplier.branch_address if supplier else '' }}">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- REMARKS -->
+  <div class="sf-card">
+    <div class="sf-hdr"><span style="font-size:16px;">📝</span><h2>Remarks</h2></div>
+    <div class="sf-body">
+      <div class="sf-fld">
+        <label class="sf-label">Additional Notes</label>
+        <textarea class="sf-textarea" id="fRemarks" placeholder="Any additional remarks about this supplier" style="min-height:80px;">{{ supplier.remarks if supplier else '' }}</textarea>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Footer -->
+<div class="footer-bar">
+  <span class="sup-type-badge {{ 'rm' if sup_type == 'RM' else 'pm' }}" style="font-size:12px;">{{ sup_type }} Supplier</span>
+  <div style="display:flex;gap:10px;">
+    <a href="/supplier/?supplier_type={{ sup_type }}" class="btn-grid-action" style="text-decoration:none;display:inline-flex;align-items:center;gap:5px;">✕ Cancel</a>
+    <button class="btn-add-new" onclick="saveSupplier()" id="btnSave" style="display:inline-flex;align-items:center;gap:6px;">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+      {% if supplier %}Update Supplier{% else %}Save Supplier{% endif %}
+    </button>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.ckeditor.com/ckeditor5/41.4.2/classic/ckeditor.js"></script>
+<script>
+let _ckEditor = null;
+const SUP_ID = {{ supplier.id if supplier else 'null' }};
+const SUP_TYPE = '{{ sup_type }}';
+
+function updateSupType(){
+  const rm = document.getElementById('chkRM').checked;
+  const pm = document.getElementById('chkPM').checked;
+  const types = [rm?'RM':'', pm?'PM':''].filter(Boolean).join(',');
+  document.getElementById('fSupplierType').value = types;
+  document.getElementById('typeValidErr').style.display = (!rm&&!pm)?'inline':'none';
+  // Update footer badge
+  const badge=document.getElementById('footerTypeBadge');
+  if(badge){
+    if(rm&&pm) badge.textContent='🧪 RM + 📦 PM Supplier';
+    else if(rm) badge.textContent='🧪 RM Supplier';
+    else if(pm) badge.textContent='📦 PM Supplier';
+  }
+}
+
+// ── Email Tags ─────────────────────────────────────────────────────────────
+let _emailList = '{{ supplier.email_list if supplier and supplier.email_list else '' }}'.split(',').map(e=>e.trim()).filter(Boolean);
+
+function renderEmailTags(){
+  const wrap = document.getElementById('emailTagWrap');
+  const input = document.getElementById('emailTagInput');
+  wrap.querySelectorAll('.email-tag').forEach(t=>t.remove());
+  _emailList.forEach(email=>{
+    const tag=document.createElement('span');
+    tag.className='email-tag';
+    tag.style.cssText='display:inline-flex;align-items:center;gap:4px;background:#eff6ff;color:#2563eb;border:1px solid #bfdbfe;border-radius:6px;padding:2px 8px;font-size:12px;font-weight:600;white-space:nowrap;';
+    tag.innerHTML=`${email} <button type="button" onclick="removeEmailTag('${email}')" style="border:none;background:none;cursor:pointer;color:#94a3b8;font-size:14px;line-height:1;padding:0;">×</button>`;
+    wrap.insertBefore(tag, input);
+  });
+  document.getElementById('fEmailList').value = _emailList.join(',');
+}
+function addEmailTag(val){
+  val = val.trim().toLowerCase();
+  if(!val||_emailList.includes(val)) return;
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)){ return; } // basic email validation
+  _emailList.push(val);
+  renderEmailTags();
+}
+function removeEmailTag(val){ _emailList=_emailList.filter(e=>e!==val); renderEmailTags(); }
+
+document.addEventListener('DOMContentLoaded', ()=>{
+  renderEmailTags();
+  // Init CKEditor on Payment Terms
+  // CKEditor height style
+  document.head.insertAdjacentHTML('beforeend','<style>.ck-editor__editable{min-height:200px !important;}</style>');
+  ClassicEditor.create(document.getElementById('fPayTerms'), {
+    toolbar: ['bold','italic','underline','|','bulletedList','numberedList','|','link','|','undo','redo'],
+  }).then(editor=>{
+    _ckEditor = editor;
+  }).catch(console.error);
+  const inp = document.getElementById('emailTagInput');
+  inp.addEventListener('keydown', e=>{
+    if(e.key==='Enter'||e.key===','){ e.preventDefault(); addEmailTag(inp.value); inp.value=''; }
+    else if(e.key==='Backspace'&&!inp.value&&_emailList.length){ removeEmailTag(_emailList[_emailList.length-1]); }
+  });
+  inp.addEventListener('blur', ()=>{ if(inp.value.trim()) { addEmailTag(inp.value); inp.value=''; } });
+  document.getElementById('emailTagWrap').addEventListener('focus', ()=>{ document.getElementById('emailTagWrap').style.borderColor='#2563eb'; }, true);
+  document.getElementById('emailTagWrap').addEventListener('blur', ()=>{ document.getElementById('emailTagWrap').style.borderColor='#e2e8f0'; }, true);
+  renderAddresses();
+});
+
+let _addresses = {{ supplier.addresses | safe if supplier and supplier.addresses else '[]' }};
+let _addrCounter = 0;
+
+function renderAddresses(){
+  const container = document.getElementById('addrContainer');
+  const empty     = document.getElementById('addrEmpty');
+  if(!_addresses.length){ container.innerHTML=''; empty.style.display='block'; return; }
+  empty.style.display='none';
+  container.innerHTML = _addresses.map((a,i)=>{
+    const isBilling = a.type==='Billing';
+    return `<div style="border:1.5px solid ${isBilling?'#bfdbfe':'#ddd6fe'};border-radius:10px;padding:14px;position:relative;background:${isBilling?'#f0f9ff':'#faf5ff'};">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+        <span style="font-size:11px;font-weight:800;color:${isBilling?'#1d4ed8':'#7c3aed'};text-transform:uppercase;letter-spacing:.08em;">
+          ${isBilling?'🏢':'🚚'} ${a.type} Address ${i===0?'':'#'+(i+1)}
+        </span>
+        <div style="display:flex;gap:6px;">
+          ${isBilling?`<button type="button" onclick="copyToShipping(${i})" style="font-size:11px;color:#7c3aed;background:none;border:none;cursor:pointer;font-weight:600;padding:0;">📋 Copy as Shipping</button>`:''}
+          <button type="button" onclick="removeAddress(${i})" style="font-size:18px;color:#94a3b8;background:none;border:none;cursor:pointer;line-height:1;padding:0 4px;">×</button>
+        </div>
+      </div>
+      <div class="sf-grid-2" style="margin-bottom:10px;">
+        <div class="sf-fld" style="grid-column:1/-1;">
+          <label class="sf-label">Address Line</label>
+          <textarea class="sf-textarea" style="min-height:52px;" onchange="_addresses[${i}].address=this.value" placeholder="Full address">${a.address||''}</textarea>
+        </div>
+      </div>
+      <div class="sf-grid-3">
+        <div class="sf-fld">
+          <label class="sf-label">City</label>
+          <input class="sf-input" value="${a.city||''}" placeholder="City" oninput="_addresses[${i}].city=this.value">
+        </div>
+        <div class="sf-fld">
+          <label class="sf-label">State</label>
+          <input class="sf-input" value="${a.state||''}" placeholder="State" oninput="_addresses[${i}].state=this.value">
+        </div>
+        <div class="sf-fld">
+          <label class="sf-label">Pin Code</label>
+          <input class="sf-input" value="${a.pincode||''}" placeholder="400001" oninput="_addresses[${i}].pincode=this.value">
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function addAddress(type){
+  _addresses.push({type, address:'', city:'', state:'', pincode:'', country:'India'});
+  renderAddresses();
+}
+function removeAddress(i){ _addresses.splice(i,1); renderAddresses(); }
+function copyToShipping(i){
+  const src=_addresses[i];
+  _addresses.push({type:'Shipping', address:src.address, city:src.city, state:src.state, pincode:src.pincode, country:src.country});
+  renderAddresses();
+}
+
+
+
+function showToast(msg, type){
+  const t=document.createElement('div');
+  t.style.cssText=`position:fixed;bottom:24px;right:24px;padding:12px 20px;border-radius:10px;font-size:13px;font-weight:700;color:#fff;z-index:9999;background:${type==='success'?'#16a34a':'#dc2626'};box-shadow:0 4px 16px rgba(0,0,0,.15);`;
+  t.textContent=msg; document.body.appendChild(t);
+  setTimeout(()=>t.remove(),3000);
+}
+
+async function saveSupplier(){
+  const name = document.getElementById('fName').value.trim();
+  if(!name){
+    document.getElementById('fName').classList.add('invalid');
+    document.getElementById('errName').style.display='block';
+    document.getElementById('fName').focus();
+    return;
+  }
+  document.getElementById('fName').classList.remove('invalid');
+  document.getElementById('errName').style.display='none';
+
+  const btn = document.getElementById('btnSave');
+  btn.disabled=true; btn.textContent='⏳ Saving…';
+
+  const payload = {
+    id:               SUP_ID,
+    supplier_name:    name,
+    supplier_type:    SUP_TYPE,
+    company_name:     document.getElementById('fCompany').value.trim(),
+    contact_person:   document.getElementById('fContact').value.trim(),
+    phone:            document.getElementById('fPhone').value.trim(),
+    email:            document.getElementById('fEmail').value.trim(),
+    email_list:       document.getElementById('fEmailList').value,
+
+    gst_number:       document.getElementById('fGst').value.trim(),
+    pan_number:       document.getElementById('fPan').value.trim(),
+    payment_type:     document.getElementById('fPayType').value,
+    credit_days:      parseInt(document.getElementById('fCreditDays').value)||30,
+    credit_limit:     parseFloat(document.getElementById('fCreditLimit').value)||0,
+    lead_time_days:   parseInt(document.getElementById('fLeadTime').value)||7,
+    currency:         document.getElementById('fCurrency').value,
+    rating:           document.getElementById('fRating').value,
+    payment_terms:    _ckEditor ? _ckEditor.getData() : document.getElementById('fPayTerms').value.trim(),
+    addresses:        _addresses,
+    bank_name:        document.getElementById('fBank').value.trim(),
+    account_number:   document.getElementById('fAccNo').value.trim(),
+    ifsc_code:        document.getElementById('fIfsc').value.trim(),
+    remarks:          document.getElementById('fRemarks').value.trim(),
+    is_active:        document.getElementById('fStatus').value === '1',
+  };
+
+  try {
+    const res = await fetch('/supplier/api/save', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)});
+    const d = await res.json();
+    if(d.status === 'ok'){
+      showToast(SUP_ID ? 'Updated ✓' : 'Supplier saved ✓', 'success');
+      setTimeout(()=>{ window.location.href=`/supplier/?supplier_type=${SUP_TYPE}`; }, 800);
+    } else {
+      showToast(d.message||'Save failed','danger');
+      btn.disabled=false; btn.textContent=SUP_ID?'Update Supplier':'Save Supplier';
+    }
+  } catch(e){
+    showToast('Network error','danger');
+    btn.disabled=false; btn.textContent=SUP_ID?'Update Supplier':'Save Supplier';
+  }
+}
+</script>
+{% endblock %}

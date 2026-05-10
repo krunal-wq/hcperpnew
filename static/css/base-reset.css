@@ -44,8 +44,11 @@
             --sh-lg: 0 10px 40px rgba(0,0,0,.1), 0 4px 12px rgba(0,0,0,.06);
         }
 
-        html, body {
-            height: 100%;
+        html {
+            overflow-x: hidden;
+        }
+        body {
+            min-height: 100vh;
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
             background: var(--bg);
             color: var(--text);
@@ -53,3 +56,13 @@
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
         }
+
+/* ── Thin page scrollbar ── */
+html {
+    scrollbar-width: thin;
+    scrollbar-color: #e2e8f0 transparent;
+}
+html::-webkit-scrollbar { width: 5px; }
+html::-webkit-scrollbar-track { background: transparent; }
+html::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
+html::-webkit-scrollbar-thumb:hover { background: #cbd5e1; }

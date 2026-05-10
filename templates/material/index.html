@@ -1,7 +1,7 @@
 {% extends "base.html" %}
-{% block title %}Item Master — HCP ERP{% endblock %}
-{% block page_title %}Item Master{% endblock %}
-{% block bread %}Procurement / Item Master{% endblock %}
+{% block title %}{% if auto_type %}{{ auto_type.type_name }} — Item Master{% else %}Item Master{% endif %} — HCP ERP{% endblock %}
+{% block page_title %}{% if auto_type %}{{ auto_type.type_name }}{% else %}Item Master{% endif %}{% endblock %}
+{% block bread %}Procurement / Purchase / {% if auto_type %}{{ auto_type.type_name }}{% else %}Item Master{% endif %}{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -65,62 +65,171 @@
 .im-mclose:hover { background:#ef4444; color:#fff; border-color:#ef4444; }
 
 @media print { .grid-toolbar,.im-overlay { display:none !important; } }
+
+/* ── Toolbar Styles ── */
+.tb-btn { display:inline-flex;align-items:center;gap:5px;padding:6px 11px;border:1.5px solid #e2e8f0;border-radius:7px;background:#fff;color:#475569;font-size:12.5px;font-weight:600;cursor:pointer;transition:all .15s;font-family:inherit;white-space:nowrap; }
+.tb-btn:hover { border-color:#2563eb;color:#2563eb;background:#eff6ff; }
+.tb-btn-wrap { position:relative; }
+.tb-panel { position:absolute;top:calc(100% + 6px);z-index:400;background:#fff;border:1.5px solid #e2e8f0;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.12);padding:10px;min-width:160px; }
+.tb-panel-title { font-size:10px;font-weight:800;color:#94a3b8;text-transform:uppercase;letter-spacing:.08em;padding:0 4px 8px;border-bottom:1px solid #f1f5f9;margin-bottom:6px; }
+.tb-opt { display:flex;align-items:center;gap:7px;padding:5px 6px;font-size:12.5px;color:#475569;cursor:pointer;border-radius:5px;transition:background .12s; }
+.tb-opt:hover { background:#f8fafc; }
+.tb-opt input { cursor:pointer;accent-color:#2563eb; }
+.tb-fld { margin-bottom:9px; }
+.tb-fld label { display:block;font-size:10.5px;font-weight:700;color:#94a3b8;text-transform:uppercase;margin-bottom:3px; }
+.tb-action-btn { display:block;width:100%;padding:7px 10px;text-align:left;border:none;background:none;font-size:12.5px;font-weight:600;color:#475569;cursor:pointer;border-radius:6px;transition:background .12s;font-family:inherit; }
+.tb-action-btn:hover { background:#eff6ff;color:#2563eb; }
 </style>
 {% endblock %}
 
 {% block content %}
-<!-- Tabs -->
-<div class="im-tabs">
-  <button class="im-tab active" onclick="imTab('materials',this)">📦 Items</button>
-  {% if get_sub_perm('material', 'tab_types') %}
-  <button class="im-tab" onclick="imTab('types',this)">🏷️ Item Types</button>
-  {% endif %}
-  {% if get_sub_perm('material', 'tab_groups') %}
-  <button class="im-tab" onclick="imTab('groups',this)">📂 Item Groups</button>
-  {% endif %}
-  {% if get_sub_perm('material', 'tab_categories') %}
-  <button class="im-tab" onclick="imTab('categories',this)">🗂️ Categories</button>
-  {% endif %}
+<!-- No tabs needed — Items only (Types/Groups/Categories moved to Masters page) -->
 
-</div>
 
 <!-- ═══════════════ MATERIALS TAB ═══════════════ -->
 <div id="tab-materials">
 <div class="grid-card">
-  <div class="grid-toolbar">
-    {% if can_add %}
-    <a class="btn-add-new" href="/material/add" style="text-decoration:none;display:inline-flex;align-items:center;gap:6px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> New Item</a>
-    {% endif %}
-    {% if can_delete %}
-    <button class="btn-grid-action" id="matBulkDelBtn" onclick="matBulkDelete()" style="display:none;background:#fee2e2;color:#dc2626;border-color:#fca5a5;font-weight:700;">
-      🗑 Delete Selected
-    </button>
-    {% endif %}
-    <div class="grid-search-wrap" style="flex:1;min-width:160px;max-width:300px;">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-      <input type="text" class="grid-search-input" id="matSearch" placeholder="Search material, alias, supplier…" oninput="imSearch(this.value)">
-    </div>
-    <div class="grid-toolbar-right">
-      <span class="im-chip">Total: <span class="val" id="matTotal">0</span></span>
-      {% if get_sub_perm('material','trash_items') %}
-      <button class="btn-grid-action" id="matTrashBtn" onclick="matToggleTrash()" style="color:#dc2626;border-color:#fca5a5;">🗑️ Trash (<span id="matTrashCount">0</span>)</button>
+
+  <!-- Hidden filters (still used by JS) -->
+  {% if auto_type %}
+    <input type="hidden" id="matTypeFilter" value="{{ auto_type.id }}">
+  {% else %}
+    <input type="hidden" id="matTypeFilter" value="">
+  {% endif %}
+  <input type="hidden" id="matGroupFilter" value="">
+  <input type="hidden" id="matActiveFilter" value="1">
+
+  <!-- ── Main Toolbar ── -->
+  <div class="grid-toolbar" style="flex-wrap:wrap;gap:8px;padding:12px 16px;border-bottom:1px solid #f1f5f9;">
+    <!-- Left: Add + Search + Bulk Delete -->
+    <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:200px;">
+      {% if can_add %}
+      <a class="btn-add-new" href="/material/add{% if auto_type_abbr %}?item_type={{ auto_type_abbr }}{% endif %}" style="text-decoration:none;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;flex-shrink:0;">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Add New
+      </a>
       {% endif %}
-      <select class="btn-grid-action" id="matTypeFilter" onchange="imLoad()" style="padding:7px 10px;font-size:12.5px;cursor:pointer;">
-        <option value="">All Types</option>
-        {% for t in types %}
-        <option value="{{ t.id }}">{{ t.type_name }}</option>
-        {% endfor %}
-      </select>
-      <select class="btn-grid-action" id="matGroupFilter" onchange="imLoad()" style="padding:7px 10px;font-size:12.5px;cursor:pointer;">
-        <option value="">All Groups</option>
-        {% for g in groups %}
-        <option value="{{ g.id }}">{{ g.group_name }}</option>
-        {% endfor %}
-      </select>
-      <select class="btn-grid-action" id="matActiveFilter" onchange="imLoad()" style="padding:7px 10px;font-size:12.5px;cursor:pointer;">
-        <option value="1">Active Only</option>
-        <option value="0">All</option>
-      </select>
+      <div class="grid-search-wrap" style="flex:1;min-width:140px;max-width:280px;">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" class="grid-search-input" id="matSearch" placeholder="Search…" oninput="imSearch(this.value)">
+      </div>
+      <button class="btn-grid-action" id="matBulkDelBtn" onclick="matBulkDelete()" style="display:none;background:#fee2e2;color:#dc2626;border-color:#fca5a5;font-weight:700;flex-shrink:0;">🗑 Delete</button>
+    </div>
+
+    <!-- Right: Action buttons -->
+    <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+      <span style="font-size:12px;color:#94a3b8;font-weight:600;padding:0 2px;">Total: <strong id="matTotal" style="color:#2563eb;">0</strong></span>
+
+      <!-- Status -->
+      <div class="tb-btn-wrap" style="position:relative;">
+        <button class="tb-btn" onclick="tbToggle('statusPanel')" id="btnStatus">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> Status
+        </button>
+        <div id="statusPanel" class="tb-panel" style="display:none;min-width:160px;">
+          <div class="tb-panel-title">Status Filter</div>
+          <label class="tb-opt"><input type="radio" name="statusOpt" value="1" checked onchange="setStatusFilter('1')"> Active Only</label>
+          <label class="tb-opt"><input type="radio" name="statusOpt" value="0" onchange="setStatusFilter('0')"> All Items</label>
+          <label class="tb-opt"><input type="radio" name="statusOpt" value="inactive" onchange="setStatusFilter('inactive')"> Inactive Only</label>
+        </div>
+      </div>
+
+      <!-- Deleted -->
+      {% if get_sub_perm('material','trash_items') %}
+      <button class="tb-btn" id="matTrashBtn" onclick="matToggleTrash()" style="color:#dc2626;">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg> Deleted (<span id="matTrashCount">0</span>)
+      </button>
+      {% endif %}
+
+      <div style="width:1px;height:22px;background:#e2e8f0;margin:0 2px;"></div>
+
+      <!-- Filter -->
+      <div class="tb-btn-wrap" style="position:relative;">
+        <button class="tb-btn" onclick="tbToggle('filterPanel')" id="btnFilter">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg> Filter
+        </button>
+        <div id="filterPanel" class="tb-panel" style="display:none;min-width:220px;right:0;">
+          <div class="tb-panel-title">Advanced Filter</div>
+          {% if not auto_type %}
+          <div class="tb-fld">
+            <label>Item Type</label>
+            <select id="fp_type" onchange="applyFilterPanel()" style="width:100%;padding:5px 8px;border:1px solid #e2e8f0;border-radius:6px;font-size:12px;">
+              <option value="">All Types</option>
+              {% for t in types %}<option value="{{ t.id }}">{{ t.type_name }}</option>{% endfor %}
+            </select>
+          </div>
+          {% endif %}
+          <div class="tb-fld">
+            <label>Group</label>
+            <select id="fp_group" onchange="applyFilterPanel()" style="width:100%;padding:5px 8px;border:1px solid #e2e8f0;border-radius:6px;font-size:12px;">
+              <option value="">All Groups</option>
+              {% for g in groups %}<option value="{{ g.id }}">{{ g.group_name }}</option>{% endfor %}
+            </select>
+          </div>
+          <div class="tb-fld">
+            <label>Category</label>
+            <select id="fp_cat" onchange="applyFilterPanel()" style="width:100%;padding:5px 8px;border:1px solid #e2e8f0;border-radius:6px;font-size:12px;">
+              <option value="">All Categories</option>
+              {% for c in categories %}<option value="{{ c.category_name }}">{{ c.category_name }}</option>{% endfor %}
+            </select>
+          </div>
+          <button onclick="clearFilterPanel()" style="margin-top:8px;width:100%;padding:6px;border:1px solid #e2e8f0;border-radius:6px;background:#f8fafc;font-size:12px;cursor:pointer;font-weight:600;">Clear Filters</button>
+        </div>
+      </div>
+
+      <!-- Sort -->
+      <div class="tb-btn-wrap" style="position:relative;">
+        <button class="tb-btn" onclick="tbToggle('sortPanel')" id="btnSort">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="6" y1="12" x2="18" y2="12"/><line x1="9" y1="18" x2="15" y2="18"/></svg> Sort
+        </button>
+        <div id="sortPanel" class="tb-panel" style="display:none;min-width:200px;right:0;">
+          <div class="tb-panel-title">Sort By</div>
+          <label class="tb-opt"><input type="radio" name="sortOpt" value="material_name" checked onchange="setSortField('material_name')"> Name (A→Z)</label>
+          <label class="tb-opt"><input type="radio" name="sortOpt" value="material_name_desc" onchange="setSortField('material_name_desc')"> Name (Z→A)</label>
+          <label class="tb-opt"><input type="radio" name="sortOpt" value="last_purchase_rate" onchange="setSortField('last_purchase_rate')"> Rate (Low→High)</label>
+          <label class="tb-opt"><input type="radio" name="sortOpt" value="last_purchase_rate_desc" onchange="setSortField('last_purchase_rate_desc')"> Rate (High→Low)</label>
+          <label class="tb-opt"><input type="radio" name="sortOpt" value="code" onchange="setSortField('code')"> Code</label>
+        </div>
+      </div>
+
+      <!-- Columns -->
+      <div class="tb-btn-wrap" style="position:relative;">
+        <button class="tb-btn" onclick="tbToggle('colPanel')" id="btnCols">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="18"/><rect x="14" y="3" width="7" height="18"/></svg> Columns
+        </button>
+        <div id="colPanel" class="tb-panel" style="display:none;min-width:180px;right:0;">
+          <div class="tb-panel-title">Show / Hide Columns</div>
+          <label class="tb-opt"><input type="checkbox" checked onchange="toggleCol('colType',this.checked)"> Type</label>
+          <label class="tb-opt"><input type="checkbox" checked onchange="toggleCol('colGroup',this.checked)"> {% if auto_type_abbr in ['PM','FG'] %}Brand{% elif auto_type_abbr == 'RM' %}Group{% else %}Brand / Group{% endif %}</label>
+          <label class="tb-opt"><input type="checkbox" checked onchange="toggleCol('colUom',this.checked)"> UOM</label>
+          <label class="tb-opt"><input type="checkbox" checked onchange="toggleCol('colMsl',this.checked)"> MSL</label>
+          <label class="tb-opt"><input type="checkbox" checked onchange="toggleCol('colRate',this.checked)"> Last Rate</label>
+          <label class="tb-opt"><input type="checkbox" checked onchange="toggleCol('colHsn',this.checked)"> HSN</label>
+          <label class="tb-opt"><input type="checkbox" checked onchange="toggleCol('colGst',this.checked)"> GST %</label>
+        </div>
+      </div>
+
+      <div style="width:1px;height:22px;background:#e2e8f0;margin:0 2px;"></div>
+
+      <!-- List / Kanban -->
+      <button class="tb-btn" style="background:#eff6ff;color:#2563eb;border-color:#bfdbfe;" title="List View">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg> List
+      </button>
+
+      <!-- Export -->
+      <div class="tb-btn-wrap" style="position:relative;">
+        <button class="tb-btn" onclick="tbToggle('exportPanel')">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Export
+        </button>
+        <div id="exportPanel" class="tb-panel" style="display:none;min-width:160px;right:0;">
+          <div class="tb-panel-title">Export As</div>
+          <button class="tb-action-btn" onclick="exportCSV()">📄 Export CSV</button>
+          <button class="tb-action-btn" onclick="exportExcel()">📊 Export Excel</button>
+        </div>
+      </div>
+
+      <!-- Import -->
+      <button class="tb-btn" onclick="openImportModal()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> Import
+      </button>
     </div>
   </div>
   <div class="tbl-wrap">
@@ -132,14 +241,13 @@
           </th>
           <th style="width:46px;color:#94a3b8;">#</th>
           <th>Item Name</th>
-          <th>Type</th>
-          <th>Group</th>
-          <th>UOM</th>
-          
-          <th>MSL</th>
-          <th>Last Rate (₹)</th>
-          <th>HSN</th>
-          <th>GST %</th>
+          <th class="colType">Type</th>
+          <th class="colGroup">{% if auto_type_abbr in ['PM','FG'] %}Brand{% elif auto_type_abbr == 'RM' %}Group{% else %}Brand / Group{% endif %}</th>
+          <th class="colUom">UOM</th>
+          <th class="colMsl">MSL</th>
+          <th class="colRate">Last Rate (₹)</th>
+          <th class="colHsn">HSN</th>
+          <th class="colGst">GST %</th>
           <th style="width:80px;text-align:right;">Actions</th>
         </tr>
       </thead>
@@ -432,6 +540,25 @@
 
 
 
+<!-- ═══════════════ VIEW MODAL ═══════════════ -->
+<div class="im-overlay" id="viewOverlay" onclick="if(event.target===this)imCloseView()">
+  <div class="im-modal" style="width:760px;">
+    <div class="im-mhdr" id="viewMhdr">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span id="viewTypeBadge" style="display:inline-block;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:800;"></span>
+        <h3 id="viewTitle" style="margin:0;font-size:16px;"></h3>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <button id="viewEditBtn" class="btn-grid-action" style="font-size:12px;padding:5px 14px;font-weight:700;" onclick="imEditFromView()">✏️ Edit</button>
+        <button class="im-mclose" onclick="imCloseView()">✕</button>
+      </div>
+    </div>
+    <div class="im-mbody" style="padding:0;" id="viewBody">
+      <div style="padding:24px;">Loading…</div>
+    </div>
+  </div>
+</div>
+
 <!-- ═══════════════ CONFIRM DELETE MODAL ═══════════════ -->
 <div class="im-overlay" id="confirmOverlay">
   <div class="im-modal" style="width:420px;max-width:96vw;">
@@ -451,6 +578,42 @@
       <button id="confirmOkBtn" style="background:#dc2626;color:#fff;border:none;border-radius:8px;padding:9px 22px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;">
         🗑️ Delete
       </button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══ IMPORT MODAL ═══ -->
+<div class="im-overlay" id="importOverlay" onclick="if(event.target===this)closeImportModal()">
+  <div class="im-modal" style="width:520px;">
+    <div class="im-mhdr">
+      <h3>📥 Import Items</h3>
+      <button class="im-mclose" onclick="closeImportModal()">✕</button>
+    </div>
+    <div class="im-mbody">
+      <p style="font-size:13px;color:#475569;margin-bottom:12px;">CSV file upload karein. Required columns: <code style="background:#f1f5f9;padding:1px 6px;border-radius:4px;font-size:12px;">item_name, code, uom, hsn_code, gst_rate, msl, last_purchase_rate</code></p>
+      <a href="/material/import-template{% if auto_type_abbr %}?item_type={{ auto_type_abbr }}{% endif %}" style="font-size:12px;color:#2563eb;font-weight:600;">⬇️ Download Template CSV</a>
+      <div id="importDropZone" style="border:2px dashed #e2e8f0;border-radius:10px;padding:28px;text-align:center;cursor:pointer;margin-top:12px;transition:all .2s;"
+           onclick="document.getElementById('importFile').click()"
+           ondragover="event.preventDefault();this.style.borderColor='#2563eb';this.style.background='#eff6ff'"
+           ondragleave="this.style.borderColor='#e2e8f0';this.style.background=''"
+           ondrop="handleImportDrop(event)">
+        <div style="font-size:26px;margin-bottom:6px;">📄</div>
+        <div style="font-size:13px;font-weight:600;color:#475569;">Click ya Drag &amp; Drop CSV file</div>
+        <div style="font-size:11px;color:#94a3b8;margin-top:3px;">.csv format only</div>
+        <input type="file" id="importFile" accept=".csv" style="display:none;" onchange="handleImportFile(this.files[0])">
+      </div>
+      <div id="importPreview" style="display:none;margin-top:14px;"></div>
+      <div id="importProgress" style="display:none;margin-top:12px;">
+        <div style="font-size:12px;font-weight:600;color:#475569;margin-bottom:6px;">Importing… <span id="importProgressText"></span></div>
+        <div style="background:#f1f5f9;border-radius:10px;height:8px;overflow:hidden;">
+          <div id="importProgressBar" style="height:100%;background:#2563eb;width:0%;transition:width .3s;border-radius:10px;"></div>
+        </div>
+      </div>
+    </div>
+    <div class="im-mfoot">
+      <button class="btn-grid-action" onclick="closeImportModal()">Cancel</button>
+      <button class="btn-add-new" id="btnDoImport" onclick="doImport()" style="display:none;">📥 Import All</button>
     </div>
   </div>
 </div>
@@ -587,45 +750,75 @@ async function imLoad(){
   const data = await res.json();
   imRows = data.rows||[];
   imPage = 1; imRender();
+  imRefreshTrashCount(); // always refresh count after load
 }
 
 function imSearch(q){ imSearchQ=q; imLoad(); }
 
+// Always-fresh trash count
+async function imRefreshTrashCount(){
+  try{
+    const res = await fetch(IM+'/deleted-list');
+    const data = await res.json();
+    const count = (data.rows||[]).length;
+    document.getElementById('matTrashCount').textContent = count;
+    // If trash view is open, re-render it too
+    if(matTrashMode) matToggleTrash();
+  } catch(e){}
+}
+
 function imRender(){
   const tbody = document.getElementById('matTbody');
-  const total = imRows.length;
-  document.getElementById('matTotal').textContent = total;
+  const sorted = (typeof sortRows === 'function') ? sortRows(imRows) : imRows;
+  const total = sorted.length;
+  document.getElementById('matTotal').textContent = imRows.length;
   const s=(imPage-1)*imPgSz, e=Math.min(s+imPgSz,total);
   document.getElementById('matPgInfo').textContent = total?`Showing ${s+1}–${e} of ${total}`:'No records';
   if(!total){ tbody.innerHTML=`<tr><td colspan="11"><div class="grid-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg><p>No materials found</p></div></td></tr>`; imBuildPgn(0); return; }
-  tbody.innerHTML = imRows.slice(s,e).map((r,i)=>`
-    <tr ${MAT_CAN_EDIT ? `ondblclick="location.href='/material/edit/'+r.id"` : ''} style="cursor:pointer">
+  tbody.innerHTML = sorted.slice(s,e).map((r,i)=>{
+  const autoAbbr = '{{ auto_type_abbr }}';
+  const editUrl = '/material/edit/'+r.id+(autoAbbr?'?item_type='+autoAbbr:'');
+  return `
+    <tr ondblclick="imViewItem(${r.id})" style="cursor:pointer">
       <td onclick="event.stopPropagation()" style="padding:0 8px;">
         <input type="checkbox" class="mat-chk" value="${r.id}" onclick="matUpdateDeleteBtn()" style="width:15px;height:15px;cursor:pointer;accent-color:#2563eb;">
       </td>
       <td style="color:#94a3b8;font-size:11px;font-weight:600;">${s+i+1}</td>
-      <td><div style="font-weight:700;">${esc(r.material_name)}</div>
-          ${r.aliases?`<div style="font-size:11px;color:var(--text3)">${esc(r.aliases)}</div>`:''}
-          ${r.description?`<div style="font-size:11px;color:var(--text2);font-style:italic">${esc(r.description)}</div>`:''}
+      <td>
+        <div style="display:flex;align-items:center;gap:10px;">
+          ${(r.material_type_abbr==='PM'||r.material_type_abbr==='FG')?`<div style="width:38px;height:38px;flex-shrink:0;border-radius:7px;border:1px solid #e2e8f0;background:#f8fafc;display:flex;align-items:center;justify-content:center;overflow:hidden;">${r.image_data?`<img src="${r.image_data}" style="width:100%;height:100%;object-fit:contain;">`:`<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>`}</div>`:''}
+          <div>
+            <div style="font-weight:700;">
+              ${r.pm_material_type?`<span style="color:#2563eb;font-weight:800;">${esc(r.pm_material_type)}</span> — `:''}
+              ${esc(r.material_name)}
+            </div>
+            ${r.aliases?`<div style="font-size:11px;color:var(--text3)">${esc(r.aliases)}</div>`:''}
+            ${r.description?`<div style="font-size:11px;color:var(--text2);font-style:italic">${esc(r.description)}</div>`:''}
+          </div>
+        </div>
       </td>
-      <td>${r.material_type?`<span class="type-badge" style="background:${r.material_type_color}18;color:${r.material_type_color}">${esc(r.material_type_abbr||r.material_type)}</span>`:''}</td>
-      <td style="font-size:12px">${esc(r.group_name)}</td>
-      <td><span style="background:var(--bg);border:1px solid var(--border);padding:2px 7px;border-radius:5px;font-size:11px;font-weight:700">${esc(r.uom)}</span></td>
-      <td style="font-weight:700;color:var(--blue,#2563eb)">${r.msl||0}</td>
-      <td style="font-weight:700">₹${r.last_purchase_rate?parseFloat(r.last_purchase_rate).toFixed(2):'0.00'}</td>
-      <td style="font-size:12px;font-family:monospace">${esc(r.hsn_code)}</td>
-      <td style="font-size:12px">${r.gst_rate||0}%</td>
+      <td class=\"colType\">${r.material_type?`<span class="type-badge" style="background:${r.material_type_color}18;color:${r.material_type_color}">${esc(r.material_type_abbr||r.material_type)}</span>`:''}</td>
+      <td class=\"colGroup\" style="font-size:12px">${r.brand?`<span style="background:#fdf4ff;color:#7c3aed;padding:2px 8px;border-radius:8px;font-weight:600;font-size:11.5px;">${esc(r.brand)}</span>`:esc(r.group_name||'')}</td>
+      <td class=\"colUom\"><span style="background:var(--bg);border:1px solid var(--border);padding:2px 7px;border-radius:5px;font-size:11px;font-weight:700">${esc(r.uom)}</span></td>
+      <td class=\"colMsl\" style="font-weight:700;color:var(--blue,#2563eb)">${r.msl||0}</td>
+      <td class=\"colRate\" style="font-weight:700">\u20b9${r.last_purchase_rate?parseFloat(r.last_purchase_rate).toFixed(2):'0.00'}</td>
+      <td class=\"colHsn\" style="font-size:12px;font-family:monospace">${esc(r.hsn_code)}</td>
+      <td class=\"colGst\" style="font-size:12px">${r.gst_rate||0}%</td>
       <td onclick="event.stopPropagation()">
         <div class="row-actions" style="justify-content:flex-end">
-          ${MAT_CAN_EDIT ? `<button class="ra-btn" onclick="location.href='/material/edit/'+r.id" title="Edit">
+          <button class="ra-btn" onclick="imViewItem(${r.id})" title="View">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+          ${MAT_CAN_EDIT ? `<a class="ra-btn" href="${editUrl}" title="Edit">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4z"/></svg>
-          </button>` : ''}
+          </a>` : ''}
           ${MAT_CAN_DELETE ? `<button class="ra-btn danger" onclick="imDelMaterial(${r.id})" title="Delete">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
           </button>` : ''}
         </div>
       </td>
-    </tr>`).join('');
+    </tr>`;
+}).join('');
   imBuildPgn(total);
   matUpdateDeleteBtn();
   if(document.getElementById('matChkAll')) document.getElementById('matChkAll').checked=false;
@@ -857,6 +1050,81 @@ document.addEventListener('keydown', e=>{
   if(e.key==='Escape'){ imCloseType(); imCloseGroup(); imCloseCategory(); confirmCancel(); }
 });
 
+/* ══ VIEW ITEM MODAL ══════════════════════════════════ */
+let _viewItemId = null;
+function imCloseView(){ document.getElementById('viewOverlay').classList.remove('open'); _viewItemId=null; }
+function imEditFromView(){
+  if(!_viewItemId) return;
+  const autoAbbr = '{{ auto_type_abbr }}';
+  location.href = '/material/edit/'+_viewItemId+(autoAbbr?'?item_type='+autoAbbr:'');
+}
+function imViewItem(id){
+  _viewItemId = id;
+  const r = imRows.find(x=>x.id===id);
+  if(!r){ return; }
+  const abbr  = (r.material_type_abbr||'').toUpperCase();
+  const isRM  = abbr === 'RM';
+  const isPM  = abbr === 'PM';
+  const isFG  = abbr === 'FG';
+  const isPMFG = isPM || isFG;
+  document.getElementById('viewTitle').textContent = r.material_name;
+  const badge = document.getElementById('viewTypeBadge');
+  badge.textContent = abbr || r.material_type || '';
+  badge.style.background = (r.material_type_color||'#6366f1')+'22';
+  badge.style.color = r.material_type_color||'#6366f1';
+  badge.style.display = r.material_type ? 'inline-block' : 'none';
+  const row = (label, val, always=false) => {
+    if(!val && !always) return '';
+    return `<div style="display:flex;gap:12px;padding:10px 0;border-bottom:1px solid #f1f5f9;"><span style="width:155px;flex-shrink:0;font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.06em;padding-top:2px;">${label}</span><span style="font-size:13.5px;color:#1e293b;font-weight:500;flex:1;">${val||'—'}</span></div>`;
+  };
+  const sec = (icon, title) => `<div style="font-size:10.5px;font-weight:800;color:#2563eb;text-transform:uppercase;letter-spacing:.08em;padding:16px 0 6px;border-top:2px solid #eff6ff;display:flex;align-items:center;gap:6px;margin-top:4px;">${icon} ${title}</div>`;
+  const pill = (txt, bg, col) => txt?`<span style="background:${bg||'#f1f5f9'};color:${col||'#475569'};padding:2px 9px;border-radius:12px;font-size:12px;font-weight:700;margin-right:3px;">${esc(txt)}</span>`:'';
+  const mono = (txt) => txt?`<span style="font-family:monospace;font-weight:700;background:#f8fafc;padding:2px 8px;border-radius:5px;">${esc(txt)}</span>`:'';
+  let html = `<div style="padding:6px 24px 20px;">`;
+  html += sec('📦', 'Basic Information');
+  html += row('Code', r.code ? mono(r.code) : pill('Not assigned','#fef9c3','#854d0e'), true);
+  html += row('Item Name', `<strong style="font-size:14px;">${r.pm_material_type?`<span style="color:#2563eb;">${esc(r.pm_material_type)}</span> — `:''}  ${esc(r.material_name)}</strong>`, true);
+  if(r.aliases) html += row('Aliases', r.aliases.split(',').filter(Boolean).map(a=>pill(a.trim())).join(''));
+  if(r.description) html += row('Description', `<em style="color:#475569;">${esc(r.description)}</em>`);
+  if(isRM && r.inci_name) html += row('INCI Name', esc(r.inci_name));
+  if(isRM) html += row('Group', r.group_name ? pill(r.group_name,'#eff6ff','#2563eb') : '—', true);
+  if(isPMFG && r.brand) html += row('Brand', pill(r.brand,'#fdf4ff','#7c3aed'));
+  if(isPMFG && r.sku_sizes) html += row('SKU Sizes', r.sku_sizes.split(',').filter(Boolean).map(s=>pill(s.trim(),'#f0fdf4','#15803d')).join(''));
+  if(isPM && r.pm_material_type){ html += row('PM Type',`<span style="background:#eff6ff;color:#2563eb;padding:2px 10px;border-radius:8px;font-weight:700;font-size:12px;">${esc(r.pm_material_type)}</span>`); }
+  if(isPM && r.pm_attribute){ html += row('Attributes',r.pm_attribute.split(',').filter(Boolean).map(a=>`<span style="background:#fdf4ff;color:#7c3aed;padding:2px 8px;border-radius:6px;font-size:11.5px;font-weight:600;margin-right:4px;">${esc(a.trim())}</span>`).join('')); }
+  if(isPM && r.corrugation_ply) html += row('Ply',`<span style="background:#eff6ff;color:#2563eb;padding:2px 10px;border-radius:8px;font-weight:700;">${esc(r.corrugation_ply)}</span>`);
+  if(isPM && (r.dim_length||r.dim_width)){ const dimParts=[r.dim_length&&`L:${r.dim_length}mm`,r.dim_width&&`W:${r.dim_width}mm`,r.dim_height&&`H:${r.dim_height}mm`].filter(Boolean); html += row('Dimension',`<span style="font-weight:700;">${dimParts.join(' × ')}</span>`); }
+  if(isFG && r.per_box_qty) html += row('Per Box Qty', r.per_box_qty+' units');
+  if(r.category) html += row('Category', pill(r.category,'#fff7ed','#c2410c'));
+  html += row('Type', r.material_type ? `<span style="background:${r.material_type_color||'#6366f1'}22;color:${r.material_type_color||'#6366f1'};padding:3px 10px;border-radius:12px;font-size:12px;font-weight:800;">${esc(r.material_type)}</span>` : null);
+  html += row('UOM', `<span style="background:#f1f5f9;border:1px solid #e2e8f0;padding:2px 10px;border-radius:5px;font-size:12px;font-weight:700;">${esc(r.uom)}</span>`, true);
+  html += sec('📊', 'Stock & Pricing');
+  html += row('Last Purchase Rate', `<strong style="color:#2563eb;font-size:15px;">\u20b9${parseFloat(r.last_purchase_rate||0).toFixed(2)}</strong>`, true);
+  html += row('Min Stock Level', `${r.msl||0} <span style="font-size:11px;color:#94a3b8;">${esc(r.uom)}</span>`, true);
+  if(r.opening_balance) html += row('Opening Balance', `${r.opening_balance} ${esc(r.uom)}`);
+  if(r.std_pack_size) html += row('Std Pack Size', `${r.std_pack_size} ${esc(r.uom)}`);
+  if(r.lead_time_days) html += row('Lead Time', `${r.lead_time_days} days`);
+  html += sec('🏦', 'GST & Statutory');
+  if(r.hsn_code) html += row('HSN / SAC Code', mono(r.hsn_code));
+  html += row('GST Rate', r.gst_rate ? `<strong>${r.gst_rate}%</strong>` : '0%', true);
+  html += row('Taxability', esc(r.taxability||'Taxable'), true);
+  html += row('Type of Supply', esc(r.type_of_supply||'Goods'), true);
+
+  html += row('Status', r.is_active ? `<span style="color:#16a34a;font-weight:700;font-size:13px;">\u25cf Active</span>` : `<span style="color:#94a3b8;font-weight:700;font-size:13px;">\u25cf Inactive</span>`, true);
+
+  // Product Image (PM/FG)
+  if(r.image_data){
+    html += sec('🖼️', 'Product Image');
+    html += `<div style="background:#f8fafc;border-radius:10px;padding:16px;text-align:center;margin-top:4px;">
+      <img src="${esc(r.image_data)}" style="max-height:200px;max-width:100%;object-fit:contain;border-radius:8px;background:#fff;border:1px solid #e2e8f0;padding:8px;">
+    </div>`;
+  }
+
+  html += `</div>`;
+  document.getElementById('viewBody').innerHTML = html;
+  document.getElementById('viewOverlay').classList.add('open');
+}
+
 /* ══ CUSTOM CONFIRM MODAL ════════════════════════════ */
 let _confirmCallback = null;
 function showConfirm(msg, title, onOk){
@@ -879,6 +1147,29 @@ function matUpdateDeleteBtn(){
   const btn=document.getElementById('matBulkDelBtn');
   if(btn){btn.style.display=n>0?'':'none';btn.textContent='🗑 Delete ('+n+')';}
 }
+function imDelMaterial(id){
+  const item = imRows.find(r => r.id === id);
+  const name = item ? item.material_name : 'this item';
+  showConfirm(`"${name}" delete hoga (restore kar sakte ho Trash se).`, 'Delete Item', async () => {
+    try {
+      const res = await fetch(IM+'/delete', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({id: id})
+      });
+      const d = await res.json();
+      if(d.status === 'ok'){
+        showToast('Item deleted ✓', 'success');
+        imLoad();
+      } else {
+        showToast(d.message || 'Delete failed', 'danger');
+      }
+    } catch(e) {
+      showToast('Network error', 'danger');
+    }
+  });
+}
+
 function matBulkDelete(){
   const ids=[...document.querySelectorAll('.mat-chk:checked')].map(c=>+c.value);
   if(!ids.length)return;
@@ -979,7 +1270,7 @@ async function matToggleTrash(){
           <div style="font-weight:700;color:#94a3b8;text-decoration:line-through;">${esc(r.material_name)}</div>
           ${r.aliases?`<div style="font-size:11px;color:#cbd5e1">${esc(r.aliases)}</div>`:''}
         </td>
-        <td>${r.material_type?`<span class="type-badge" style="background:${r.material_type_color}18;color:${r.material_type_color};opacity:.7">${esc(r.material_type_abbr)}</span>`:''}</td>
+        <td class=\"colType\">${r.material_type?`<span class="type-badge" style="background:${r.material_type_color}18;color:${r.material_type_color};opacity:.7">${esc(r.material_type_abbr)}</span>`:''}</td>
         <td style="font-size:12px;color:#94a3b8;">${r.deleted_at ? new Date(r.deleted_at).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}) : '—'}</td>
         <td onclick="event.stopPropagation()">
           <div class="row-actions" style="justify-content:flex-end;gap:6px;">
@@ -1005,12 +1296,14 @@ function matDelUpdateBtns(){
 }
 async function matRestoreOne(id){
   await fetch(IM+'/restore',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id})});
+  showToast('Item restored ✓','success');
   matTrashMode=false; matToggleTrash(); imLoad();
 }
 function matPermOne(id){
   showConfirm('Item permanently delete hoga. Undo nahi hoga.','Permanent Delete', async()=>{
     await fetch(IM+'/permanent-delete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id})});
-    matTrashMode=false; matToggleTrash();
+    showToast('Permanently deleted','success');
+    matTrashMode=false; matToggleTrash(); imRefreshTrashCount();
   });
 }
 function matDelBulkRestore(){
@@ -1018,6 +1311,7 @@ function matDelBulkRestore(){
   if(!ids.length)return;
   showConfirm(ids.length+' item(s) restore honge.','Restore Items', async()=>{
     for(const id of ids) await fetch(IM+'/restore',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id})});
+    showToast(ids.length+' items restored ✓','success');
     matTrashMode=false; matToggleTrash(); imLoad();
   });
 }
@@ -1026,7 +1320,8 @@ function matDelBulkPerm(){
   if(!ids.length)return;
   showConfirm(ids.length+' item(s) permanently delete honge!','Permanent Delete', async()=>{
     for(const id of ids) await fetch(IM+'/permanent-delete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id})});
-    matTrashMode=false; matToggleTrash();
+    showToast(ids.length+' permanently deleted','success');
+    matTrashMode=false; matToggleTrash(); imRefreshTrashCount();
   });
 }
 
@@ -1129,5 +1424,224 @@ async function catRestoreOne(id){await fetch(IM+'/categories/restore',{method:'P
 function catPermOne(id){showConfirm('Category permanently delete hogi.','Permanent Delete',async()=>{await fetch(IM+'/categories/permanent-delete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id})});catToggleTrash();catToggleTrash();});}
 function catDelBulkRestore(){const ids=[...document.querySelectorAll('.cat-del-chk:checked')].map(c=>+c.value);if(!ids.length)return;showConfirm(ids.length+' categories restore hongi.','Restore',async()=>{for(const id of ids)await fetch(IM+'/categories/restore',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id})});catToggleTrash();catToggleTrash();await imLoadCategories();});}
 function catDelBulkPerm(){const ids=[...document.querySelectorAll('.cat-del-chk:checked')].map(c=>+c.value);if(!ids.length)return;showConfirm(ids.length+' categories permanently delete hongi!','Permanent Delete',async()=>{for(const id of ids)await fetch(IM+'/categories/permanent-delete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id})});catToggleTrash();catToggleTrash();});}
+
+/* ══ TOOLBAR FUNCTIONS ════════════════════════════════════════ */
+
+// Panel toggle — close others when opening one
+function tbToggle(id){
+  document.querySelectorAll('.tb-panel').forEach(p=>{ if(p.id!==id) p.style.display='none'; });
+  const el=document.getElementById(id);
+  if(el) el.style.display = el.style.display==='none'?'block':'none';
+}
+document.addEventListener('click', e=>{
+  if(!e.target.closest('.tb-btn-wrap')) document.querySelectorAll('.tb-panel').forEach(p=>p.style.display='none');
+});
+
+// Status filter
+function setStatusFilter(val){
+  document.getElementById('matActiveFilter').value = val;
+  imLoad();
+}
+
+// Advanced filter panel
+function applyFilterPanel(){
+  const fpType  = document.getElementById('fp_type');
+  const fpGroup = document.getElementById('fp_group');
+  if(fpType)  document.getElementById('matTypeFilter').value = fpType.value;
+  if(fpGroup) document.getElementById('matGroupFilter').value = fpGroup.value;
+  imLoad();
+}
+function clearFilterPanel(){
+  const fpType  = document.getElementById('fp_type');
+  const fpGroup = document.getElementById('fp_group');
+  const fpCat   = document.getElementById('fp_cat');
+  if(fpType)  { fpType.value=''; }
+  if(fpGroup) { fpGroup.value=''; document.getElementById('matGroupFilter').value=''; }
+  if(fpCat)   { fpCat.value=''; }
+  const origType='{{ auto_type.id if auto_type else "" }}';
+  document.getElementById('matTypeFilter').value = origType;
+  imLoad();
+  tbToggle('filterPanel');
+}
+
+// Sort
+let _sortField = 'material_name';
+function setSortField(f){ _sortField=f; imRender(); tbToggle('sortPanel'); }
+function sortRows(rows){
+  const desc=_sortField.endsWith('_desc');
+  const key=desc?_sortField.replace('_desc',''):_sortField;
+  return [...rows].sort((a,b)=>{
+    let va=a[key]||'', vb=b[key]||'';
+    if(typeof va==='string'){ va=va.toLowerCase(); vb=vb.toLowerCase(); }
+    if(va<vb) return desc?1:-1;
+    if(va>vb) return desc?-1:1;
+    return 0;
+  });
+}
+
+// Columns toggle
+function toggleCol(cls, show){
+  // Hide/show both th headers AND td cells
+  document.querySelectorAll('th.'+cls+', td.'+cls).forEach(el=>{
+    el.style.display = show ? '' : 'none';
+  });
+}
+
+// Export CSV
+function exportCSV(){
+  const rows = sortRows(imRows);
+  const hdrs = ['#','Item Name','Code','Type','Group','Category','UOM','MSL','Rate (Rs)','HSN','GST%','Taxability','Opening Balance','Status'];
+  const esc2 = v => `"${String(v||'').replace(/"/g,'""')}"`;
+  const csv  = [hdrs.join(','), ...rows.map((r,i)=>[
+    i+1, esc2(r.material_name), r.code||'', r.material_type||'',
+    r.group_name||'', r.category||'', r.uom||'', r.msl||0,
+    r.last_purchase_rate||0, r.hsn_code||'', r.gst_rate||'',
+    r.taxability||'',
+    r.opening_balance||0, r.is_active?'Active':'Inactive'
+  ].join(','))].join('\n');
+  const a = document.createElement('a');
+  a.href = 'data:text/csv;charset=utf-8,\uFEFF' + encodeURIComponent(csv);
+  const abbr = '{{ auto_type_abbr }}';
+  a.download = (abbr||'items') + '_' + new Date().toISOString().slice(0,10) + '.csv';
+  a.click();
+  document.getElementById('exportPanel').style.display='none';
+  showToast('CSV exported ✓','success');
+}
+
+// Export Excel (CSV with xls header - opens in Excel)
+function exportExcel(){
+  const rows = sortRows(imRows);
+  const hdrs = ['Item Name','Code','Type','Group','Category','UOM','MSL','Rate','HSN','GST%','Taxability','Opening Balance','Status'];
+  const esc2 = v => `"${String(v||'').replace(/"/g,'""')}"`;
+  const csv  = [hdrs.join('\t'), ...rows.map(r=>[
+    esc2(r.material_name), r.code||'', r.material_type||'',
+    r.group_name||'', r.category||'', r.uom||'', r.msl||0,
+    r.last_purchase_rate||0, r.hsn_code||'', r.gst_rate||'',
+    r.taxability||'',
+    r.opening_balance||0, r.is_active?'Active':'Inactive'
+  ].join('\t'))].join('\n');
+  const a = document.createElement('a');
+  a.href = 'data:application/vnd.ms-excel;charset=utf-8,\uFEFF' + encodeURIComponent(csv);
+  const abbr = '{{ auto_type_abbr }}';
+  a.download = (abbr||'items') + '_' + new Date().toISOString().slice(0,10) + '.xls';
+  a.click();
+  document.getElementById('exportPanel').style.display='none';
+  showToast('Excel exported ✓','success');
+}
+
+// Import
+let _importData = [];
+function openImportModal(){
+  document.getElementById('importOverlay').classList.add('open');
+  document.getElementById('importPreview').style.display='none';
+  document.getElementById('btnDoImport').style.display='none';
+  document.getElementById('importProgress').style.display='none';
+  document.getElementById('importFile').value='';
+  _importData=[];
+}
+function closeImportModal(){
+  document.getElementById('importOverlay').classList.remove('open');
+  _importData=[];
+}
+function handleImportDrop(e){
+  e.preventDefault();
+  e.currentTarget.style.borderColor='#e2e8f0'; e.currentTarget.style.background='';
+  const f=e.dataTransfer.files[0];
+  if(f) handleImportFile(f);
+}
+function handleImportFile(file){
+  if(!file){ return; }
+  if(!file.name.toLowerCase().endsWith('.csv')){ showToast('Sirf .csv file allowed hai','danger'); return; }
+  const reader=new FileReader();
+  reader.onload=e=>{
+    const lines=e.target.result.split('\n').map(l=>l.trim()).filter(Boolean);
+    if(lines.length<2){ showToast('File empty ya invalid','danger'); return; }
+    const headers=lines[0].split(',').map(h=>h.trim().toLowerCase().replace(/[\s\-]/g,'_').replace(/[^a-z_]/g,''));
+    _importData = lines.slice(1).map(line=>{
+      const vals=[]; let cur='', inQ=false;
+      for(const ch of line){ if(ch==='"') inQ=!inQ; else if(ch===','&&!inQ){vals.push(cur);cur='';}else cur+=ch; }
+      vals.push(cur);
+      const obj={};
+      headers.forEach((h,i)=>obj[h]=(vals[i]||'').trim().replace(/^"|"$/g,''));
+      return obj;
+    }).filter(r=>(r.item_name||r.material_name||'').trim());
+
+    const preview=document.getElementById('importPreview');
+    preview.style.display='block';
+    preview.innerHTML=`<div style="font-size:12.5px;font-weight:700;color:#16a34a;margin-bottom:8px;">✅ ${_importData.length} items ready to import</div>
+    <div style="max-height:180px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:8px;font-size:11.5px;">
+      <table style="width:100%;border-collapse:collapse;">
+        <thead><tr style="background:#f8fafc;position:sticky;top:0;">
+          ${['#','Item Name','Code','UOM','Rate'].map(h=>`<th style="padding:6px 10px;text-align:left;font-weight:700;color:#64748b;">${h}</th>`).join('')}
+        </tr></thead>
+        <tbody>
+          ${_importData.slice(0,8).map((r,i)=>`<tr style="border-top:1px solid #f1f5f9;">
+            <td style="padding:5px 10px;color:#94a3b8;">${i+1}</td>
+            <td style="padding:5px 10px;font-weight:600;">${esc(r.item_name||r.material_name||'')}</td>
+            <td style="padding:5px 10px;font-family:monospace;">${esc(r.code||'—')}</td>
+            <td style="padding:5px 10px;">${esc(r.uom||'KG')}</td>
+            <td style="padding:5px 10px;">₹${r.last_purchase_rate||r.rate||0}</td>
+          </tr>`).join('')}
+          ${_importData.length>8?`<tr><td colspan="5" style="padding:6px 10px;color:#94a3b8;font-style:italic;">... aur ${_importData.length-8} items</td></tr>`:''}
+        </tbody>
+      </table>
+    </div>`;
+    document.getElementById('btnDoImport').style.display='inline-flex';
+  };
+  reader.readAsText(file,'UTF-8');
+}
+async function doImport(){
+  if(!_importData.length) return;
+  const btn=document.getElementById('btnDoImport');
+  btn.disabled=true; btn.textContent='⏳ Importing…';
+  document.getElementById('importProgress').style.display='block';
+  const autoTypeId='{{ auto_type.id if auto_type else "" }}';
+  let ok=0, updated=0, fail=0;
+
+  // Build code → id map from already-loaded rows for quick lookup
+  const codeMap={};
+  imRows.forEach(row=>{ if(row.code) codeMap[row.code.toUpperCase().trim()]=row.id; });
+
+  for(let i=0; i<_importData.length; i++){
+    const r=_importData[i];
+    const name=(r.item_name||r.material_name||'').trim();
+    if(!name) continue;
+    document.getElementById('importProgressText').textContent=`${i+1}/${_importData.length}`;
+    document.getElementById('importProgressBar').style.width=`${Math.round((i+1)/_importData.length*100)}%`;
+
+    const code=(r.code||'').trim();
+    // Check: same code already exists → update (pass id), else create new
+    const existingId = code ? (codeMap[code.toUpperCase()] || null) : null;
+    const isUpdate = !!existingId;
+
+    try{
+      const res=await fetch(IM+'/save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+        id: existingId || undefined,
+        material_name:name, code:code, uom:(r.uom||'KG').trim(),
+        hsn_code:(r.hsn_code||'').trim(), gst_rate:parseFloat(r.gst_rate||18),
+        msl:parseFloat(r.msl||0), last_purchase_rate:parseFloat(r.last_purchase_rate||r.rate||0),
+        opening_balance:parseFloat(r.opening_balance||0),
+        taxability:r.taxability||'Taxable', type_of_supply:r.type_of_supply||'Goods',
+        material_type_id:autoTypeId||null, is_active:true,
+      })});
+      const d=await res.json();
+      if(d.status==='ok'){
+        if(isUpdate) updated++; else ok++;
+        // Update codeMap with new item
+        if(d.code) codeMap[d.code.toUpperCase()]=(d.id||existingId);
+      } else fail++;
+    } catch(e){ fail++; }
+  }
+  document.getElementById('importProgressBar').style.width='100%';
+  setTimeout(()=>{
+    closeImportModal();
+    imLoad();
+    const parts=[];
+    if(ok) parts.push(`✅ ${ok} new`);
+    if(updated) parts.push(`🔄 ${updated} updated`);
+    if(fail) parts.push(`❌ ${fail} failed`);
+    showToast(parts.join(', ') || 'No items processed', ok||updated?'success':'danger');
+  }, 600);
+}
 </script>
 {% endblock %}

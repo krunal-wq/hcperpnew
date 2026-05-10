@@ -12,6 +12,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <title>{% block title %}Manufacturing ERP{% endblock %}</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.css">
     <style>
     /* Flatpickr Global Theme */
@@ -98,7 +99,7 @@
             {% set _mod = 'hr' %}
         {% elif _pg in ('approvals','permissions','audit_logs','users','admin_profile') %}
             {% set _mod = 'admin' %}
-        {% elif _pg in ('material',) %}
+        {% elif _pg in ('material',) or (request.path.startswith('/material')) %}
             {% set _mod = 'procurement' %}
         {% elif _pg in ('packing',) %}
             {% set _mod = 'packing' %}
@@ -110,7 +111,7 @@
         {% if _mod == 'dashboard' %}
         <div class="sb-sec">
             <a class="nav-a {% if _pg == 'dashboard' %}active{% endif %}" href="{{ url_for('dashboard') }}">
-                <span class="nav-ic">🏠</span><span class="nav-txt">Dashboard</span>
+                <span class="nav-ic"><i class="bi bi-house-door"></i></span><span class="nav-txt">Dashboard</span>
             </a>
         </div>
 
@@ -118,43 +119,43 @@
         {% if _perm_crm and _perm_crm.can_view and get_module_active('crm') %}
         <div class="sb-sec sb-accordion">
             <button class="sb-acc-hdr" onclick="toggleAccordion(this)">
-                <span class="sb-acc-ic">📋</span>
+                <span class="sb-acc-ic"><i class="bi bi-graph-up-arrow"></i></span>
                 <span class="sb-acc-lbl">CRM</span>
                 <span class="sb-acc-arrow">▶</span>
             </button>
             <div class="sb-acc-body">
-                <a class="nav-a" href="/crm/dashboard"><span class="nav-ic">📊</span><span class="nav-txt">CRM Dashboard</span></a>
+                <a class="nav-a" href="/crm/dashboard"><span class="nav-ic"><i class="bi bi-speedometer2"></i></span><span class="nav-txt">CRM Dashboard</span></a>
                 {% if get_module_active('crm_leads') %}
-                <a class="nav-a" href="/crm/leads"><span class="nav-ic">📋</span><span class="nav-txt">Leads</span></a>
+                <a class="nav-a" href="/crm/leads"><span class="nav-ic"><i class="bi bi-people-fill"></i></span><span class="nav-txt">Leads</span></a>
                 {% endif %}
                 {% if get_module_active('crm_clients') %}
                 {% set _perm_clients = get_perm('crm_clients') %}
                 {% if _perm_clients and _perm_clients.can_view %}
-                <a class="nav-a" href="/crm/clients"><span class="nav-ic">👥</span><span class="nav-txt">Client Master</span></a>
+                <a class="nav-a" href="/crm/clients"><span class="nav-ic"><i class="bi bi-building"></i></span><span class="nav-txt">Client Master</span></a>
                 {% endif %}
                 {% endif %}
                 {% if get_module_active('crm_sample_orders') %}
                 {% set _perm_so = get_perm('crm_sample_orders') %}
                 {% if _perm_so and _perm_so.can_view %}
-                <a class="nav-a" href="/crm/sample-orders"><span class="nav-ic">🧾</span><span class="nav-txt">Sample Orders</span></a>
+                <a class="nav-a" href="/crm/sample-orders"><span class="nav-ic"><i class="bi bi-receipt"></i></span><span class="nav-txt">Sample Orders</span></a>
                 {% endif %}
                 {% endif %}
                 {% if get_module_active('crm_quotations') %}
                 {% set _perm_qt = get_perm('crm_quotations') %}
                 {% if _perm_qt and _perm_qt.can_view %}
-                <a class="nav-a" href="/crm/quotations"><span class="nav-ic">📄</span><span class="nav-txt">Quotations</span></a>
+                <a class="nav-a" href="/crm/quotations"><span class="nav-ic"><i class="bi bi-file-text"></i></span><span class="nav-txt">Quotations</span></a>
                 {% endif %}
                 {% endif %}
                 {% if get_module_active('crm_quot_products') %}
                 {% set _perm_qp = get_perm('crm_quot_products') %}
                 {% if _perm_qp and _perm_qp.can_view %}
-                <a class="nav-a" href="/crm/quotations/products"><span class="nav-ic">📋</span><span class="nav-txt">Quot. Product List</span></a>
+                <a class="nav-a" href="/crm/quotations/products"><span class="nav-ic"><i class="bi bi-list-ul"></i></span><span class="nav-txt">Quot. Product List</span></a>
                 {% endif %}
                 {% endif %}
                 {% if get_module_active('crm_leaderboard') %}
                 {% set _perm_lb = get_perm('crm_leaderboard') %}
                 {% if _perm_lb and _perm_lb.can_view %}
-                <a class="nav-a" href="/crm/leaderboard"><span class="nav-ic">🏆</span><span class="nav-txt">Leaderboard</span></a>
+                <a class="nav-a" href="/crm/leaderboard"><span class="nav-ic"><i class="bi bi-trophy"></i></span><span class="nav-txt">Leaderboard</span></a>
                 {% endif %}
                 {% endif %}
             </div>
@@ -165,26 +166,69 @@
         {% if _perm_packing and _perm_packing.can_view and get_module_active('packing') %}
         <div class="sb-sec sb-accordion">
             <button class="sb-acc-hdr" onclick="toggleAccordion(this)">
-                <span class="sb-acc-ic">📋</span>
+                <span class="sb-acc-ic"><i class="bi bi-box-seam"></i></span>
                 <span class="sb-acc-lbl">Packing</span>
                 <span class="sb-acc-arrow">▶</span>
             </button>
             <div class="sb-acc-body">
-                <a class="nav-a" href="/packing"><span class="nav-ic">📋</span><span class="nav-txt">Sample Receipt Log</span></a>
+                <a class="nav-a" href="/packing"><span class="nav-ic"><i class="bi bi-journal-text"></i></span><span class="nav-txt">Sample Receipt Log</span></a>
             </div>
         </div>
         {% endif %}
 
         {% set _perm_material = get_perm('material') %}
-        {% if role == 'admin' or (_perm_material and _perm_material.can_view) %}
+        {% set _perm_procurement = get_perm('procurement') %}
+        {% if role == 'admin' or (_perm_material and _perm_material.can_view) or (_perm_procurement and _perm_procurement.can_view) %}
         <div class="sb-sec sb-accordion">
             <button class="sb-acc-hdr" onclick="toggleAccordion(this)">
-                <span class="sb-acc-ic">📦</span>
-                <span class="sb-acc-lbl">Procurement</span>
+                <span class="sb-acc-ic"><i class="bi bi-bag-check"></i></span>
+                <span class="sb-acc-lbl">Purchase</span>
                 <span class="sb-acc-arrow">▶</span>
             </button>
             <div class="sb-acc-body">
-                <a class="nav-a" href="/material"><span class="nav-ic">🗂️</span><span class="nav-txt">Item Master</span></a>
+
+                <!-- Raw Material -->
+                <button class="nav-group-toggle" onclick="toggleNavGroup(this)">
+                    <span class="nav-ic"><i class="bi bi-droplet-half"></i></span>
+                    <span class="nav-txt">Raw Material</span>
+                    <span class="nav-group-arrow">▶</span>
+                </button>
+                <div class="nav-submenu">
+                    <a class="nav-a {% if request.args.get('item_type','').upper() == 'RM' %}active{% endif %}" href="/material?item_type=RM">
+                        <span class="nav-ic"><i class="bi bi-card-list"></i></span><span class="nav-txt">Item Master</span>
+                    </a>
+                </div>
+
+                <!-- Packing Material -->
+                <button class="nav-group-toggle" onclick="toggleNavGroup(this)">
+                    <span class="nav-ic"><i class="bi bi-archive"></i></span>
+                    <span class="nav-txt">Packing Material</span>
+                    <span class="nav-group-arrow">▶</span>
+                </button>
+                <div class="nav-submenu">
+                    <a class="nav-a {% if request.args.get('item_type','').upper() == 'PM' %}active{% endif %}" href="/material?item_type=PM">
+                        <span class="nav-ic"><i class="bi bi-card-list"></i></span><span class="nav-txt">Item Master</span>
+                    </a>
+                </div>
+
+                <!-- Finish Goods -->
+                <button class="nav-group-toggle" onclick="toggleNavGroup(this)">
+                    <span class="nav-ic"><i class="bi bi-check2-square"></i></span>
+                    <span class="nav-txt">Finish Goods</span>
+                    <span class="nav-group-arrow">▶</span>
+                </button>
+                <div class="nav-submenu">
+                    <a class="nav-a {% if request.args.get('item_type','').upper() == 'FG' %}active{% endif %}" href="/material?item_type=FG">
+                        <span class="nav-ic"><i class="bi bi-card-list"></i></span><span class="nav-txt">Item Master</span>
+                    </a>
+                </div>
+
+                <!-- Masters & Settings -->
+                <a class="nav-a {% if request.path == '/material/masters' %}active{% endif %}" href="/material/masters">
+                    <span class="nav-ic"><i class="bi bi-gear"></i></span>
+                    <span class="nav-txt">Masters & Settings</span>
+                </a>
+
             </div>
         </div>
         {% endif %}
@@ -194,12 +238,12 @@
         {% if role == 'admin' or (_perm_rms and _perm_rms.can_view) %}
         <div class="sb-sec sb-accordion">
             <button class="sb-acc-hdr" onclick="toggleAccordion(this)">
-                <span class="sb-acc-ic">🧴</span>
+                <span class="sb-acc-ic"><i class="bi bi-eyedropper"></i></span>
                 <span class="sb-acc-lbl">Raw Material Sample</span>
                 <span class="sb-acc-arrow">▶</span>
             </button>
             <div class="sb-acc-body">
-                <a class="nav-a {% if _pg == 'raw_material_sample' %}active{% endif %}" href="/raw-material-sample/"><span class="nav-ic">🧴</span><span class="nav-txt">Sample Requests</span></a>
+                <a class="nav-a {% if _pg == 'raw_material_sample' %}active{% endif %}" href="/raw-material-sample/"><span class="nav-ic"><i class="bi bi-clipboard2-check"></i></span><span class="nav-txt">Sample Requests</span></a>
             </div>
         </div>
         {% endif %}
@@ -208,19 +252,19 @@
         {% if _perm_rd and _perm_rd.can_view %}
         <div class="sb-sec sb-accordion">
             <button class="sb-acc-hdr" onclick="toggleAccordion(this)">
-                <span class="sb-acc-ic">🔬</span>
+                <span class="sb-acc-ic"><i class="bi bi-search-heart"></i></span>
                 <span class="sb-acc-lbl">R&amp;D</span>
                 <span class="sb-acc-arrow">▶</span>
             </button>
             <div class="sb-acc-body">
 
                 {# ── R&D Dashboard ── #}
-                <a class="nav-a" href="/rd/dashboard"><span class="nav-ic">◈</span><span class="nav-txt">R&amp;D Dashboard</span></a>
-                <a class="nav-a" href="/rd/projects"><span class="nav-ic">⬡</span><span class="nav-txt">R&amp;D Projects</span></a>
-                <a class="nav-a" href="/rd/trials"><span class="nav-ic">⚗</span><span class="nav-txt">R&amp;D Trials</span></a>
-                <a class="nav-a {% if _pg == 'rd_sample_ready' %}active{% endif %}" href="/rd/sample-ready"><span class="nav-ic">📦</span><span class="nav-txt">Sample Ready</span></a>
-                <a class="nav-a {% if _pg == 'rd_sample_history' %}active{% endif %}" href="/rd/sample-history"><span class="nav-ic">📋</span><span class="nav-txt">Sample History</span></a>
-                <a class="nav-a {% if _pg == 'rd_sample_log' %}active{% endif %}" href="/rd/sample-log"><span class="nav-ic">🧪</span><span class="nav-txt">R&amp;D Sample Log</span></a>
+                <a class="nav-a" href="/rd/dashboard"><span class="nav-ic"><i class="bi bi-speedometer2"></i></span><span class="nav-txt">R&amp;D Dashboard</span></a>
+                <a class="nav-a" href="/rd/projects"><span class="nav-ic"><i class="bi bi-kanban"></i></span><span class="nav-txt">R&amp;D Projects</span></a>
+                <a class="nav-a" href="/rd/trials"><span class="nav-ic"><i class="bi bi-beaker"></i></span><span class="nav-txt">R&amp;D Trials</span></a>
+                <a class="nav-a {% if _pg == 'rd_sample_ready' %}active{% endif %}" href="/rd/sample-ready"><span class="nav-ic"><i class="bi bi-check-circle"></i></span><span class="nav-txt">Sample Ready</span></a>
+                <a class="nav-a {% if _pg == 'rd_sample_history' %}active{% endif %}" href="/rd/sample-history"><span class="nav-ic"><i class="bi bi-clock-history"></i></span><span class="nav-txt">Sample History</span></a>
+                <a class="nav-a {% if _pg == 'rd_sample_log' %}active{% endif %}" href="/rd/sample-log"><span class="nav-ic"><i class="bi bi-journal-bookmark"></i></span><span class="nav-txt">R&amp;D Sample Log</span></a>
 
             </div>
         </div>
@@ -231,32 +275,32 @@
         {% if (_perm_npd and _perm_npd.can_view) or role == 'admin' %}
         <div class="sb-sec sb-accordion">
             <button class="sb-acc-hdr" onclick="toggleAccordion(this)">
-                <span class="sb-acc-ic">🧪</span>
+                <span class="sb-acc-ic"><i class="bi bi-lightbulb"></i></span>
                 <span class="sb-acc-lbl">NPD</span>
                 <span class="sb-acc-arrow">▶</span>
             </button>
             <div class="sb-acc-body">
-                <a class="nav-a" href="/npd/npd-dashboard"><span class="nav-ic">📊</span><span class="nav-txt">NPD Dashboard</span></a>
-                <a class="nav-a" href="/npd/npd-projects"><span class="nav-ic">📋</span><span class="nav-txt">NPD Projects</span></a>
-                <a class="nav-a {% if _pg == 'npd_sample_ready' %}active{% endif %}" href="/npd/sample-ready"><span class="nav-ic">🧪</span><span class="nav-txt">Sample Ready</span></a>
-                <a class="nav-a {% if _pg == 'npd_sample_history' %}active{% endif %}" href="/npd/sample-history"><span class="nav-ic">📋</span><span class="nav-txt">Sample History</span></a>
-                <a class="nav-a {% if _pg == 'client_dispatch' %}active{% endif %}" href="/client-dispatch/"><span class="nav-ic">📤</span><span class="nav-txt">Client Dispatch</span></a>
+                <a class="nav-a" href="/npd/npd-dashboard"><span class="nav-ic"><i class="bi bi-speedometer2"></i></span><span class="nav-txt">NPD Dashboard</span></a>
+                <a class="nav-a" href="/npd/npd-projects"><span class="nav-ic"><i class="bi bi-kanban"></i></span><span class="nav-txt">NPD Projects</span></a>
+                <a class="nav-a {% if _pg == 'npd_sample_ready' %}active{% endif %}" href="/npd/sample-ready"><span class="nav-ic"><i class="bi bi-check-circle"></i></span><span class="nav-txt">Sample Ready</span></a>
+                <a class="nav-a {% if _pg == 'npd_sample_history' %}active{% endif %}" href="/npd/sample-history"><span class="nav-ic"><i class="bi bi-clock-history"></i></span><span class="nav-txt">Sample History</span></a>
+                <a class="nav-a {% if _pg == 'client_dispatch' %}active{% endif %}" href="/client-dispatch/"><span class="nav-ic"><i class="bi bi-truck"></i></span><span class="nav-txt">Client Dispatch</span></a>
 
                 {# ── EPD Sub-section ── #}
                 <div class="sb-acc-sub-lbl">📦 EPD</div>
-                <a class="nav-a" href="/npd/epd-dashboard"><span class="nav-ic">📊</span><span class="nav-txt">EPD Dashboard</span></a>
-                <a class="nav-a" href="/npd/epd-projects"><span class="nav-ic">📋</span><span class="nav-txt">EPD Projects</span></a>
+                <a class="nav-a" href="/npd/epd-dashboard"><span class="nav-ic"><i class="bi bi-speedometer2"></i></span><span class="nav-txt">EPD Dashboard</span></a>
+                <a class="nav-a" href="/npd/epd-projects"><span class="nav-ic"><i class="bi bi-kanban"></i></span><span class="nav-txt">EPD Projects</span></a>
 
                 {# ── NPD Masters (permission-based) ── #}
                 {% set _npd_masters_perm3 = get_perm('npd_masters') %}
                 {% if role == 'admin' or (_npd_masters_perm3 and _npd_masters_perm3.can_view) %}
                 <div class="sb-acc-sub-lbl">⚙️ NPD Masters</div>
-                <a class="nav-a" href="/npd/milestone-master"><span class="nav-ic">🎯</span><span class="nav-txt">Milestone Master</span></a>
-                <a class="nav-a {% if _pg == 'npd_status_master' %}active{% endif %}" href="/masters/npd-status"><span class="nav-ic">⚙️</span><span class="nav-txt">NPD Status Master</span></a>
-                <a class="nav-a {% if _pg == 'npd_category_master' %}active{% endif %}" href="/masters/npd-category"><span class="nav-ic">🗂️</span><span class="nav-txt">NPD Category Master</span></a>
-                <a class="nav-a {% if _pg == 'milestone_status_master' %}active{% endif %}" href="/masters/milestone-status"><span class="nav-ic">🎖️</span><span class="nav-txt">Milestone Status</span></a>
-                <a class="nav-a" href="/rd/param-master"><span class="nav-ic">🔧</span><span class="nav-txt">Parameter Master</span></a>
-                <a class="nav-a" href="/npd/reports"><span class="nav-ic">📈</span><span class="nav-txt">Reports</span></a>
+                <a class="nav-a" href="/npd/milestone-master"><span class="nav-ic"><i class="bi bi-diagram-3"></i></span><span class="nav-txt">Milestone Master</span></a>
+                <a class="nav-a {% if _pg == 'npd_status_master' %}active{% endif %}" href="/masters/npd-status"><span class="nav-ic"><i class="bi bi-toggles"></i></span><span class="nav-txt">NPD Status Master</span></a>
+                <a class="nav-a {% if _pg == 'npd_category_master' %}active{% endif %}" href="/masters/npd-category"><span class="nav-ic"><i class="bi bi-tags"></i></span><span class="nav-txt">NPD Category Master</span></a>
+                <a class="nav-a {% if _pg == 'milestone_status_master' %}active{% endif %}" href="/masters/milestone-status"><span class="nav-ic"><i class="bi bi-flag"></i></span><span class="nav-txt">Milestone Status</span></a>
+                <a class="nav-a" href="/rd/param-master"><span class="nav-ic"><i class="bi bi-sliders"></i></span><span class="nav-txt">Parameter Master</span></a>
+                <a class="nav-a" href="/npd/reports"><span class="nav-ic"><i class="bi bi-bar-chart-line"></i></span><span class="nav-txt">Reports</span></a>
                 {% endif %}
             </div>
         </div>
@@ -266,25 +310,25 @@
         {# (legacy block below kept temporarily — emptied to avoid duplicates) #}
         {% if false %}
                 <div class="sb-acc-sub-lbl">🧪 NPD</div>
-                <a class="nav-a" href="/npd/npd-dashboard"><span class="nav-ic">📊</span><span class="nav-txt">NPD Dashboard</span></a>
-                <a class="nav-a" href="/npd/npd-projects"><span class="nav-ic">📋</span><span class="nav-txt">NPD Projects</span></a>
-                <a class="nav-a {% if _pg == 'npd_sample_ready' %}active{% endif %}" href="/npd/sample-ready"><span class="nav-ic">🧪</span><span class="nav-txt">Sample Ready</span></a>
-                <a class="nav-a {% if _pg == 'npd_sample_history' %}active{% endif %}" href="/npd/sample-history"><span class="nav-ic">📋</span><span class="nav-txt">Sample History</span></a>
-                <a class="nav-a {% if _pg == 'client_dispatch' %}active{% endif %}" href="/client-dispatch/"><span class="nav-ic">📤</span><span class="nav-txt">Client Dispatch</span></a>
+                <a class="nav-a" href="/npd/npd-dashboard"><span class="nav-ic"><i class="bi bi-speedometer2"></i></span><span class="nav-txt">NPD Dashboard</span></a>
+                <a class="nav-a" href="/npd/npd-projects"><span class="nav-ic"><i class="bi bi-kanban"></i></span><span class="nav-txt">NPD Projects</span></a>
+                <a class="nav-a {% if _pg == 'npd_sample_ready' %}active{% endif %}" href="/npd/sample-ready"><span class="nav-ic"><i class="bi bi-check-circle"></i></span><span class="nav-txt">Sample Ready</span></a>
+                <a class="nav-a {% if _pg == 'npd_sample_history' %}active{% endif %}" href="/npd/sample-history"><span class="nav-ic"><i class="bi bi-clock-history"></i></span><span class="nav-txt">Sample History</span></a>
+                <a class="nav-a {% if _pg == 'client_dispatch' %}active{% endif %}" href="/client-dispatch/"><span class="nav-ic"><i class="bi bi-truck"></i></span><span class="nav-txt">Client Dispatch</span></a>
 
                 <div class="sb-acc-sub-lbl">📦 EPD</div>
-                <a class="nav-a" href="/npd/epd-dashboard"><span class="nav-ic">📊</span><span class="nav-txt">EPD Dashboard</span></a>
-                <a class="nav-a" href="/npd/epd-projects"><span class="nav-ic">📋</span><span class="nav-txt">EPD Projects</span></a>
+                <a class="nav-a" href="/npd/epd-dashboard"><span class="nav-ic"><i class="bi bi-speedometer2"></i></span><span class="nav-txt">EPD Dashboard</span></a>
+                <a class="nav-a" href="/npd/epd-projects"><span class="nav-ic"><i class="bi bi-kanban"></i></span><span class="nav-txt">EPD Projects</span></a>
 
                 {% set _npd_masters_perm2 = get_perm('npd_masters') %}
                 {% if role == 'admin' or (_npd_masters_perm2 and _npd_masters_perm2.can_view) %}
                 <div class="sb-acc-sub-lbl">⚙️ NPD Masters</div>
-                <a class="nav-a" href="/npd/milestone-master"><span class="nav-ic">🎯</span><span class="nav-txt">Milestone Master</span></a>
-                <a class="nav-a {% if _pg == 'npd_status_master' %}active{% endif %}" href="/masters/npd-status"><span class="nav-ic">⚙️</span><span class="nav-txt">NPD Status Master</span></a>
-                <a class="nav-a {% if _pg == 'npd_category_master' %}active{% endif %}" href="/masters/npd-category"><span class="nav-ic">🗂️</span><span class="nav-txt">NPD Category Master</span></a>
-                <a class="nav-a {% if _pg == 'milestone_status_master' %}active{% endif %}" href="/masters/milestone-status"><span class="nav-ic">🎖️</span><span class="nav-txt">Milestone Status</span></a>
-                <a class="nav-a" href="/rd/param-master"><span class="nav-ic">🔧</span><span class="nav-txt">Parameter Master</span></a>
-                <a class="nav-a" href="/npd/reports"><span class="nav-ic">📈</span><span class="nav-txt">Reports</span></a>
+                <a class="nav-a" href="/npd/milestone-master"><span class="nav-ic"><i class="bi bi-diagram-3"></i></span><span class="nav-txt">Milestone Master</span></a>
+                <a class="nav-a {% if _pg == 'npd_status_master' %}active{% endif %}" href="/masters/npd-status"><span class="nav-ic"><i class="bi bi-toggles"></i></span><span class="nav-txt">NPD Status Master</span></a>
+                <a class="nav-a {% if _pg == 'npd_category_master' %}active{% endif %}" href="/masters/npd-category"><span class="nav-ic"><i class="bi bi-tags"></i></span><span class="nav-txt">NPD Category Master</span></a>
+                <a class="nav-a {% if _pg == 'milestone_status_master' %}active{% endif %}" href="/masters/milestone-status"><span class="nav-ic"><i class="bi bi-flag"></i></span><span class="nav-txt">Milestone Status</span></a>
+                <a class="nav-a" href="/rd/param-master"><span class="nav-ic"><i class="bi bi-sliders"></i></span><span class="nav-txt">Parameter Master</span></a>
+                <a class="nav-a" href="/npd/reports"><span class="nav-ic"><i class="bi bi-bar-chart-line"></i></span><span class="nav-txt">Reports</span></a>
                 {% endif %}
         {% endif %}{# end legacy #}
 
@@ -299,17 +343,17 @@
         {% if _perm_hr and _perm_hr.can_view %}
         <div class="sb-sec sb-accordion">
             <button class="sb-acc-hdr" onclick="toggleAccordion(this)">
-                <span class="sb-acc-ic">👥</span>
+                <span class="sb-acc-ic"><i class="bi bi-people"></i></span>
                 <span class="sb-acc-lbl">HR</span>
                 <span class="sb-acc-arrow">▶</span>
             </button>
             <div class="sb-acc-body">
-                <a class="nav-a" href="/hr/employees/dashboard"><span class="nav-ic">📊</span><span class="nav-txt">Dashboard</span></a>
+                <a class="nav-a" href="/hr/employees/dashboard"><span class="nav-ic"><i class="bi bi-speedometer2"></i></span><span class="nav-txt">Dashboard</span></a>
                 {% set _perm_emp = get_perm('hr_employees') %}
                 {% if _perm_emp and _perm_emp.can_view %}
-                <a class="nav-a" href="/hr/employees"><span class="nav-ic">🪪</span><span class="nav-txt">Employees</span></a>
+                <a class="nav-a" href="/hr/employees"><span class="nav-ic"><i class="bi bi-person-badge"></i></span><span class="nav-txt">Employees</span></a>
                 {% endif %}
-                <a class="nav-a" href="/hr/contractors"><span class="nav-ic">🤝</span><span class="nav-txt">Contractors</span></a>
+                <a class="nav-a" href="/hr/contractors"><span class="nav-ic"><i class="bi bi-person-gear"></i></span><span class="nav-txt">Contractors</span></a>
             </div>
         </div>
         {% endif %}
@@ -318,27 +362,27 @@
         {% if _perm_masters and _perm_masters.can_view %}
         <div class="sb-sec sb-accordion">
             <button class="sb-acc-hdr" onclick="toggleAccordion(this)">
-                <span class="sb-acc-ic">🗂️</span>
+                <span class="sb-acc-ic"><i class="bi bi-sliders2"></i></span>
                 <span class="sb-acc-lbl">Masters</span>
                 <span class="sb-acc-arrow">▶</span>
             </button>
             <div class="sb-acc-body">
-                <a class="nav-a" href="/masters/category-master"><span class="nav-ic">🗂️</span><span class="nav-txt">Category Master</span></a>
-                <a class="nav-a" href="/masters/uom-master"><span class="nav-ic">📐</span><span class="nav-txt">UOM Master</span></a>
-                <a class="nav-a" href="/masters/hsn-master"><span class="nav-ic">🔢</span><span class="nav-txt">HSN Code Master</span></a>
+                <a class="nav-a" href="/masters/category-master"><span class="nav-ic"><i class="bi bi-tags"></i></span><span class="nav-txt">Category Master</span></a>
+                <a class="nav-a" href="/masters/uom-master"><span class="nav-ic"><i class="bi bi-rulers"></i></span><span class="nav-txt">UOM Master</span></a>
+                <a class="nav-a" href="/masters/hsn-master"><span class="nav-ic"><i class="bi bi-hash"></i></span><span class="nav-txt">HSN Code Master</span></a>
             </div>
         </div>
 
         <div class="sb-sec sb-accordion">
             <button class="sb-acc-hdr" onclick="toggleAccordion(this)">
-                <span class="sb-acc-ic">🔐</span>
+                <span class="sb-acc-ic"><i class="bi bi-shield-lock"></i></span>
                 <span class="sb-acc-lbl">Administration</span>
                 <span class="sb-acc-arrow">▶</span>
             </button>
             <div class="sb-acc-body">
-                <a class="nav-a" href="/approvals"><span class="nav-ic">✅</span><span class="nav-txt">Approvals</span></a>
-                <a class="nav-a {% if active_page == 'user_permissions' %}active{% endif %}" href="/admin/user-permissions"><span class="nav-ic">👤</span><span class="nav-txt">User Permissions</span></a>
-                <a class="nav-a" href="/admin/audit-logs"><span class="nav-ic">🔍</span><span class="nav-txt">Audit Logs</span></a>
+                <a class="nav-a" href="/approvals"><span class="nav-ic"><i class="bi bi-check2-all"></i></span><span class="nav-txt">Approvals</span></a>
+                <a class="nav-a {% if active_page == 'user_permissions' %}active{% endif %}" href="/admin/user-permissions"><span class="nav-ic"><i class="bi bi-person-lock"></i></span><span class="nav-txt">User Permissions</span></a>
+                <a class="nav-a" href="/admin/audit-logs"><span class="nav-ic"><i class="bi bi-search"></i></span><span class="nav-txt">Audit Logs</span></a>
                 {# Settings group — visible if user has CRM Settings access.
                    The CRM Settings tile in ACP panel maps to the `crm`
                    module's top-level can_view. Same pattern as Leads /
@@ -351,9 +395,9 @@
                 {% set _crm_perm = get_perm('crm') %}
                 {% if _crm_perm and _crm_perm.can_view %}
                 <div class="sb-acc-sub-lbl">⚙️ Settings</div>
-                <a class="nav-a {% if _pg == 'mail_master' %}active{% endif %}" href="/mail/master"><span class="nav-ic">✉️</span><span class="nav-txt">Mail Master</span></a>
-                <a class="nav-a {% if _pg == 'contribution_config' %}active{% endif %}" href="/crm/contribution-config"><span class="nav-ic">⭐</span><span class="nav-txt">Points Config</span></a>
-                <a class="nav-a {% if _pg == 'masters' %}active{% endif %}" href="/masters/"><span class="nav-ic">🏷️</span><span class="nav-txt">Lead Masters</span></a>
+                <a class="nav-a {% if _pg == 'mail_master' %}active{% endif %}" href="/mail/master"><span class="nav-ic"><i class="bi bi-envelope"></i></span><span class="nav-txt">Mail Master</span></a>
+                <a class="nav-a {% if _pg == 'contribution_config' %}active{% endif %}" href="/crm/contribution-config"><span class="nav-ic"><i class="bi bi-star"></i></span><span class="nav-txt">Points Config</span></a>
+                <a class="nav-a {% if _pg == 'masters' %}active{% endif %}" href="/masters/"><span class="nav-ic"><i class="bi bi-tags"></i></span><span class="nav-txt">Lead Masters</span></a>
                 {% endif %}
             </div>
         </div>
@@ -363,30 +407,30 @@
         {% elif _mod == 'crm' %}
         <div class="sb-sec">
             <a class="nav-a nav-back" href="{{ url_for('dashboard') }}">
-                <span class="nav-ic">←</span><span class="nav-txt">Main Dashboard</span>
+                <span class="nav-ic"><i class="bi bi-arrow-left"></i></span><span class="nav-txt">Main Dashboard</span>
             </a>
         </div>
         {% if get_module_active('crm') %}
         <div class="sb-sec">
             <div class="sb-sec-lbl">CRM</div>
             <a class="nav-a {% if _pg == 'crm_dashboard' %}active{% endif %}" href="/crm/dashboard">
-                <span class="nav-ic">📊</span><span class="nav-txt">CRM Dashboard</span>
+                <span class="nav-ic"><i class="bi bi-speedometer2"></i></span><span class="nav-txt">CRM Dashboard</span>
             </a>
             {% if get_module_active('crm_leads') %}
             <a class="nav-a {% if _pg == 'leads' %}active{% endif %}" href="/crm/leads">
-                <span class="nav-ic">📋</span><span class="nav-txt">Leads</span>
+                <span class="nav-ic"><i class="bi bi-people-fill"></i></span><span class="nav-txt">Leads</span>
             </a>
             {% endif %}
             {% if get_module_active('crm_clients') %}
             <a class="nav-a {% if _pg == 'clients' %}active{% endif %}" href="/crm/clients">
-                <span class="nav-ic">👥</span><span class="nav-txt">Client Master</span>
+                <span class="nav-ic"><i class="bi bi-building"></i></span><span class="nav-txt">Client Master</span>
             </a>
             {% endif %}
             {% if get_module_active('crm_sample_orders') %}
             {% set _perm_so = get_perm('crm_sample_orders') %}
             {% if _perm_so and _perm_so.can_view %}
             <a class="nav-a {% if _pg == 'sample_orders' %}active{% endif %}" href="/crm/sample-orders">
-                <span class="nav-ic">🧾</span><span class="nav-txt">Sample Orders</span>
+                <span class="nav-ic"><i class="bi bi-receipt"></i></span><span class="nav-txt">Sample Orders</span>
             </a>
             {% endif %}
             {% endif %}
@@ -394,7 +438,7 @@
             {% set _perm_qt = get_perm('crm_quotations') %}
             {% if _perm_qt and _perm_qt.can_view %}
             <a class="nav-a {% if _pg == 'quotations' %}active{% endif %}" href="/crm/quotations">
-                <span class="nav-ic">📄</span><span class="nav-txt">Quotations</span>
+                <span class="nav-ic"><i class="bi bi-file-text"></i></span><span class="nav-txt">Quotations</span>
             </a>
             {% endif %}
             {% endif %}
@@ -402,7 +446,7 @@
             {% set _perm_qp = get_perm('crm_quot_products') %}
             {% if _perm_qp and _perm_qp.can_view %}
             <a class="nav-a {% if _pg == 'quotation_products' %}active{% endif %}" href="/crm/quotations/products">
-                <span class="nav-ic">📋</span><span class="nav-txt">Quot. Product List</span>
+                <span class="nav-ic"><i class="bi bi-list-ul"></i></span><span class="nav-txt">Quot. Product List</span>
             </a>
             {% endif %}
             {% endif %}
@@ -412,7 +456,7 @@
             {% set _perm_lb = get_perm('crm_leaderboard') %}
             {% if _perm_lb and _perm_lb.can_view %}
             <a class="nav-a {% if _pg == 'leaderboard' %}active{% endif %}" href="/crm/leaderboard">
-                <span class="nav-ic">🏆</span><span class="nav-txt">Leaderboard</span>
+                <span class="nav-ic"><i class="bi bi-trophy"></i></span><span class="nav-txt">Leaderboard</span>
             </a>
             {% endif %}
             {% endif %}
@@ -423,16 +467,16 @@
             {% if (_perm_leads_imp and _perm_leads_imp.can_import) or (_perm_clients_imp and _perm_clients_imp.can_import) %}
             {% set _in_import = _pg in ('lead_import','client_import') %}
             <button class="nav-group-toggle {% if _in_import %}open{% endif %}" onclick="toggleNavGroup(this)">
-                <span class="nav-ic">📥</span>
+                <span class="nav-ic"><i class="bi bi-download"></i></span>
                 <span class="nav-txt">Import</span>
                 <span class="nav-group-arrow">▶</span>
             </button>
             <div class="nav-submenu {% if _in_import %}open{% endif %}">
                 <a class="nav-a {% if _pg == 'lead_import' %}active{% endif %}" href="/crm/leads/import">
-                    <span class="nav-ic">📋</span><span class="nav-txt">Import Leads</span>
+                    <span class="nav-ic"><i class="bi bi-list-ul"></i></span><span class="nav-txt">Import Leads</span>
                 </a>
                 <a class="nav-a {% if _pg == 'client_import' %}active{% endif %}" href="/crm/clients/import">
-                    <span class="nav-ic">👥</span><span class="nav-txt">Import Clients</span>
+                    <span class="nav-ic"><i class="bi bi-people"></i></span><span class="nav-txt">Import Clients</span>
                 </a>
             </div>
             {% endif %}
@@ -444,19 +488,19 @@
             {% if _crm_perm and _crm_perm.can_view %}
             {% set _in_settings = _pg in ('mail_master','contribution_config','masters') %}
             <button class="nav-group-toggle {% if _in_settings %}open{% endif %}" onclick="toggleNavGroup(this)">
-                <span class="nav-ic">⚙️</span>
+                <span class="nav-ic"><i class="bi bi-gear"></i></span>
                 <span class="nav-txt">Settings</span>
                 <span class="nav-group-arrow">▶</span>
             </button>
             <div class="nav-submenu {% if _in_settings %}open{% endif %}">
                 <a class="nav-a {% if _pg == 'mail_master' %}active{% endif %}" href="/mail/master">
-                    <span class="nav-ic">✉️</span><span class="nav-txt">Mail Master</span>
+                    <span class="nav-ic"><i class="bi bi-envelope"></i></span><span class="nav-txt">Mail Master</span>
                 </a>
                 <a class="nav-a {% if _pg == 'contribution_config' %}active{% endif %}" href="/crm/contribution-config">
-                    <span class="nav-ic">⭐</span><span class="nav-txt">Points Config</span>
+                    <span class="nav-ic"><i class="bi bi-star"></i></span><span class="nav-txt">Points Config</span>
                 </a>
                 <a class="nav-a {% if _pg == 'masters' %}active{% endif %}" href="/masters/">
-                    <span class="nav-ic">🏷️</span><span class="nav-txt">Lead Masters</span>
+                    <span class="nav-ic"><i class="bi bi-tags"></i></span><span class="nav-txt">Lead Masters</span>
                 </a>
             </div>
             {% endif %}
@@ -467,18 +511,18 @@
         {% elif _mod == 'rd' %}
         <div class="sb-sec">
             <a class="nav-a nav-back" href="{{ url_for('dashboard') }}">
-                <span class="nav-ic">←</span><span class="nav-txt">Main Dashboard</span>
+                <span class="nav-ic"><i class="bi bi-arrow-left"></i></span><span class="nav-txt">Main Dashboard</span>
             </a>
         </div>
 
         {# ── R&D Dashboard ── #}
         <div class="sb-sec">
             <div class="sb-sec-lbl">R&amp;D</div>
-            <a class="nav-a {% if _pg == 'rd_dashboard' %}active{% endif %}" href="/rd/dashboard"><span class="nav-ic">◈</span><span class="nav-txt">R&amp;D Dashboard</span></a>
-            <a class="nav-a {% if _pg == 'rd_projects' %}active{% endif %}" href="/rd/projects"><span class="nav-ic">⬡</span><span class="nav-txt">R&amp;D Projects</span></a>
-            <a class="nav-a {% if _pg == 'rd_sample_ready' %}active{% endif %}" href="/rd/sample-ready"><span class="nav-ic">📦</span><span class="nav-txt">Sample Ready</span></a>
-            <a class="nav-a {% if _pg == 'rd_sample_history' %}active{% endif %}" href="/rd/sample-history"><span class="nav-ic">📋</span><span class="nav-txt">Sample History</span></a>
-            <a class="nav-a {% if _pg == 'rd_sample_log' %}active{% endif %}" href="/rd/sample-log"><span class="nav-ic">🧪</span><span class="nav-txt">R&amp;D Sample Log</span></a>
+            <a class="nav-a {% if _pg == 'rd_dashboard' %}active{% endif %}" href="/rd/dashboard"><span class="nav-ic"><i class="bi bi-speedometer2"></i></span><span class="nav-txt">R&amp;D Dashboard</span></a>
+            <a class="nav-a {% if _pg == 'rd_projects' %}active{% endif %}" href="/rd/projects"><span class="nav-ic"><i class="bi bi-kanban"></i></span><span class="nav-txt">R&amp;D Projects</span></a>
+            <a class="nav-a {% if _pg == 'rd_sample_ready' %}active{% endif %}" href="/rd/sample-ready"><span class="nav-ic"><i class="bi bi-check-circle"></i></span><span class="nav-txt">Sample Ready</span></a>
+            <a class="nav-a {% if _pg == 'rd_sample_history' %}active{% endif %}" href="/rd/sample-history"><span class="nav-ic"><i class="bi bi-clock-history"></i></span><span class="nav-txt">Sample History</span></a>
+            <a class="nav-a {% if _pg == 'rd_sample_log' %}active{% endif %}" href="/rd/sample-log"><span class="nav-ic"><i class="bi bi-journal-bookmark"></i></span><span class="nav-txt">R&amp;D Sample Log</span></a>
         </div>
 
         {# ── NPD Section ── #}
@@ -486,19 +530,19 @@
         <div class="sb-sec">
             <div class="sb-sec-lbl" style="color:#7c3aed;">🧪 NPD</div>
             <a class="nav-a {% if _pg == 'npd_npd_dashboard' %}active{% endif %}" href="/npd/npd-dashboard">
-                <span class="nav-ic">📊</span><span class="nav-txt">NPD Dashboard</span>
+                <span class="nav-ic"><i class="bi bi-speedometer2"></i></span><span class="nav-txt">NPD Dashboard</span>
             </a>
             <a class="nav-a {% if _pg == 'npd_npd_projects' %}active{% endif %}" href="/npd/npd-projects">
-                <span class="nav-ic">📋</span><span class="nav-txt">NPD Projects</span>
+                <span class="nav-ic"><i class="bi bi-kanban"></i></span><span class="nav-txt">NPD Projects</span>
             </a>
             <a class="nav-a {% if _pg == 'npd_sample_ready' %}active{% endif %}" href="/npd/sample-ready">
-                <span class="nav-ic">🧪</span><span class="nav-txt">Sample Ready</span>
+                <span class="nav-ic"><i class="bi bi-check-circle"></i></span><span class="nav-txt">Sample Ready</span>
             </a>
             <a class="nav-a {% if _pg == 'npd_sample_history' %}active{% endif %}" href="/npd/sample-history">
-                <span class="nav-ic">📋</span><span class="nav-txt">Sample History</span>
+                <span class="nav-ic"><i class="bi bi-clock-history"></i></span><span class="nav-txt">Sample History</span>
             </a>
             <a class="nav-a {% if _pg == 'client_dispatch' %}active{% endif %}" href="/client-dispatch/">
-                <span class="nav-ic">📤</span><span class="nav-txt">Client Dispatch</span>
+                <span class="nav-ic"><i class="bi bi-truck"></i></span><span class="nav-txt">Client Dispatch</span>
             </a>
         </div>
         {% endif %}
@@ -508,10 +552,10 @@
         <div class="sb-sec">
             <div class="sb-sec-lbl" style="color:#059669;">📦 EPD</div>
             <a class="nav-a {% if _pg == 'npd_epd_dashboard' %}active{% endif %}" href="/npd/epd-dashboard">
-                <span class="nav-ic">📊</span><span class="nav-txt">EPD Dashboard</span>
+                <span class="nav-ic"><i class="bi bi-speedometer2"></i></span><span class="nav-txt">EPD Dashboard</span>
             </a>
             <a class="nav-a {% if _pg == 'npd_epd_projects' %}active{% endif %}" href="/npd/epd-projects">
-                <span class="nav-ic">📋</span><span class="nav-txt">EPD Projects</span>
+                <span class="nav-ic"><i class="bi bi-kanban"></i></span><span class="nav-txt">EPD Projects</span>
             </a>
         </div>
         {% endif %}
@@ -522,22 +566,22 @@
         <div class="sb-sec">
             <div class="sb-sec-lbl">⚙️ NPD Masters</div>
             <a class="nav-a {% if _pg == 'npd_milestone_master' %}active{% endif %}" href="/npd/milestone-master">
-                <span class="nav-ic">🎯</span><span class="nav-txt">Milestone Master</span>
+                <span class="nav-ic"><i class="bi bi-diagram-3"></i></span><span class="nav-txt">Milestone Master</span>
             </a>
             <a class="nav-a {% if _pg == 'npd_status_master' %}active{% endif %}" href="/masters/npd-status">
-                <span class="nav-ic">⚙️</span><span class="nav-txt">NPD Status Master</span>
+                <span class="nav-ic"><i class="bi bi-toggles"></i></span><span class="nav-txt">NPD Status Master</span>
             </a>
             <a class="nav-a {% if _pg == 'npd_category_master' %}active{% endif %}" href="/masters/npd-category">
-                <span class="nav-ic">🗂️</span><span class="nav-txt">NPD Category Master</span>
+                <span class="nav-ic"><i class="bi bi-tags"></i></span><span class="nav-txt">NPD Category Master</span>
             </a>
             <a class="nav-a {% if _pg == 'milestone_status_master' %}active{% endif %}" href="/masters/milestone-status">
-                <span class="nav-ic">🎖️</span><span class="nav-txt">Milestone Status</span>
+                <span class="nav-ic"><i class="bi bi-flag"></i></span><span class="nav-txt">Milestone Status</span>
             </a>
             <a class="nav-a {% if _pg == 'rd_param_master' %}active{% endif %}" href="/rd/param-master">
-                <span class="nav-ic">🔧</span><span class="nav-txt">Parameter Master</span>
+                <span class="nav-ic"><i class="bi bi-sliders"></i></span><span class="nav-txt">Parameter Master</span>
             </a>
             <a class="nav-a {% if _pg == 'npd_reports' %}active{% endif %}" href="/npd/reports">
-                <span class="nav-ic">📈</span><span class="nav-txt">Reports</span>
+                <span class="nav-ic"><i class="bi bi-bar-chart-line"></i></span><span class="nav-txt">Reports</span>
             </a>
         </div>
         {% endif %}
@@ -546,53 +590,53 @@
         {% elif _mod == 'hr' %}
         <div class="sb-sec">
             <a class="nav-a nav-back" href="{{ url_for('dashboard') }}">
-                <span class="nav-ic">←</span><span class="nav-txt">Main Dashboard</span>
+                <span class="nav-ic"><i class="bi bi-arrow-left"></i></span><span class="nav-txt">Main Dashboard</span>
             </a>
         </div>
         <div class="sb-sec">
             <div class="sb-sec-lbl">HR & Payroll</div>
             <a class="nav-a {% if _pg == 'hr_emp_dashboard' %}active{% endif %}" href="/hr/employees/dashboard">
-                <span class="nav-ic">📊</span><span class="nav-txt">Dashboard</span>
+                <span class="nav-ic"><i class="bi bi-speedometer2"></i></span><span class="nav-txt">Dashboard</span>
             </a>
             <a class="nav-a {% if _pg == 'hr_employees' %}active{% endif %}" href="/hr/employees">
-                <span class="nav-ic">🪪</span><span class="nav-txt">Employees</span>
+                <span class="nav-ic"><i class="bi bi-person-badge"></i></span><span class="nav-txt">Employees</span>
             </a>
             <a class="nav-a {% if _pg == 'hr_contractors' %}active{% endif %}" href="/hr/contractors">
-                <span class="nav-ic">🤝</span><span class="nav-txt">Contractors</span>
+                <span class="nav-ic"><i class="bi bi-person-gear"></i></span><span class="nav-txt">Contractors</span>
             </a>
             <a class="nav-a {% if _pg == 'hierarchy' %}active{% endif %}" href="/hierarchy">
-                <span class="nav-ic">🏢</span><span class="nav-txt">Org Chart</span>
+                <span class="nav-ic"><i class="bi bi-building"></i></span><span class="nav-txt">Org Chart</span>
             </a>
             <a class="nav-a {% if _pg == 'hr_attendance' %}active{% endif %}" href="/hr/attendance">
-                <span class="nav-ic">🕐</span><span class="nav-txt">Attendance</span>
+                <span class="nav-ic"><i class="bi bi-clock"></i></span><span class="nav-txt">Attendance</span>
             </a>
             {% if get_sub_perm('hr', 'att_sync') %}
             <a class="nav-a nav-sub {% if _pg == 'att_sync' %}active{% endif %}" href="/attendance_log/sync">
-                <span class="nav-ic">🗄️</span><span class="nav-txt">Sync Data</span>
+                <span class="nav-ic"><i class="bi bi-server"></i></span><span class="nav-txt">Sync Data</span>
             </a>
             {% endif %}
             {% if get_sub_perm('hr', 'att_daily') %}
             <a class="nav-a nav-sub {% if _pg == 'att_daily' %}active{% endif %}" href="/hr/attendance/daily">
-                <span class="nav-ic">📅</span><span class="nav-txt">Daily Attendance</span>
+                <span class="nav-ic"><i class="bi bi-calendar2"></i></span><span class="nav-txt">Daily Attendance</span>
             </a>
             {% endif %}
             {% if get_sub_perm('hr', 'att_monthly') %}
             <a class="nav-a nav-sub {% if _pg == 'att_monthly' %}active{% endif %}" href="/hr/attendance/monthly">
-                <span class="nav-ic">📊</span><span class="nav-txt">Monthly Attendance</span>
+                <span class="nav-ic"><i class="bi bi-bar-chart"></i></span><span class="nav-txt">Monthly Attendance</span>
             </a>
             {% endif %}
             <a class="nav-a nav-sub {% if _pg == 'att_manual' %}active{% endif %}" href="/hr/attendance/manual">
-                <span class="nav-ic">✏️</span><span class="nav-txt">Manual Entry</span>
+                <span class="nav-ic"><i class="bi bi-pencil"></i></span><span class="nav-txt">Manual Entry</span>
             </a>
             <a class="nav-a nav-sub {% if _pg == 'att_late' %}active{% endif %}" href="/hr/attendance/late-absent">
-                <span class="nav-ic">⏰</span><span class="nav-txt">Late & Absent</span>
+                <span class="nav-ic"><i class="bi bi-alarm"></i></span><span class="nav-txt">Late & Absent</span>
             </a>
             <a class="nav-a nav-sub {% if _pg == 'att_holidays' %}active{% endif %}" href="/hr/attendance/holidays">
-                <span class="nav-ic">🎉</span><span class="nav-txt">Holidays</span>
+                <span class="nav-ic"><i class="bi bi-stars"></i></span><span class="nav-txt">Holidays</span>
             </a>
 
             <a class="nav-a nav-sub {% if _pg == 'my_attendance' %}active{% endif %}" href="/hr/attendance/my">
-                <span class="nav-ic">👤</span><span class="nav-txt">My Attendance</span>
+                <span class="nav-ic"><i class="bi bi-person"></i></span><span class="nav-txt">My Attendance</span>
             </a>
         </div>
         {% set _perm_hr_rules = get_perm('hr') %}
@@ -602,46 +646,46 @@
 
             {# ── Attendance Rules ── #}
             <button class="sb-acc-hdr {% if _pg in ('hr_shifts','hr_locations_master','hr_late_rules','hr_early_rules','hr_ot_rules','late_rules') %}open{% endif %}" onclick="toggleAccordion(this)">
-                <span class="sb-acc-ic">⏱️</span>
+                <span class="sb-acc-ic"><i class="bi bi-clock"></i></span>
                 <span class="sb-acc-lbl">Attendance Rules</span>
                 <span class="sb-acc-arrow">›</span>
             </button>
             <div class="sb-acc-body {% if _pg in ('hr_shifts','hr_locations_master','hr_late_rules','hr_early_rules','hr_ot_rules','late_rules') %}open{% endif %}">
                 <a class="nav-a nav-sub {% if _pg == 'hr_shifts' %}active{% endif %}" href="/hr/rules/shifts">
-                    <span class="nav-ic">🔄</span><span class="nav-txt">Shift Master</span>
+                    <span class="nav-ic"><i class="bi bi-arrow-repeat"></i></span><span class="nav-txt">Shift Master</span>
                 </a>
                 <a class="nav-a nav-sub {% if _pg == 'hr_locations_master' %}active{% endif %}" href="/hr/rules/locations">
-                    <span class="nav-ic">📍</span><span class="nav-txt">Location Master</span>
+                    <span class="nav-ic"><i class="bi bi-geo-alt"></i></span><span class="nav-txt">Location Master</span>
                 </a>
                 <a class="nav-a nav-sub {% if _pg == 'late_rules' or _pg == 'hr_late_rules' %}active{% endif %}" href="/hr/late-rules/">
-                    <span class="nav-ic">⏰</span><span class="nav-txt">Late Coming Rules</span>
+                    <span class="nav-ic"><i class="bi bi-alarm"></i></span><span class="nav-txt">Late Coming Rules</span>
                 </a>
                 <a class="nav-a nav-sub {% if _pg == 'hr_early_rules' %}active{% endif %}" href="/hr/rules/early-going">
-                    <span class="nav-ic">🚪</span><span class="nav-txt">Early Going Rules</span>
+                    <span class="nav-ic"><i class="bi bi-box-arrow-left"></i></span><span class="nav-txt">Early Going Rules</span>
                 </a>
                 <a class="nav-a nav-sub {% if _pg == 'hr_ot_rules' %}active{% endif %}" href="/hr/rules/overtime">
-                    <span class="nav-ic">🌙</span><span class="nav-txt">Overtime Rules</span>
+                    <span class="nav-ic"><i class="bi bi-moon"></i></span><span class="nav-txt">Overtime Rules</span>
                 </a>
             </div>
 
             {# ── Leave & LOP Rules ── #}
             <button class="sb-acc-hdr {% if _pg in ('hr_leave_policy','hr_lop_rules','hr_absent_rules','hr_compoff_rules') %}open{% endif %}" onclick="toggleAccordion(this)">
-                <span class="sb-acc-ic">📅</span>
+                <span class="sb-acc-ic"><i class="bi bi-calendar2-check"></i></span>
                 <span class="sb-acc-lbl">Leave & LOP Rules</span>
                 <span class="sb-acc-arrow">›</span>
             </button>
             <div class="sb-acc-body {% if _pg in ('hr_leave_policy','hr_lop_rules','hr_absent_rules','hr_compoff_rules') %}open{% endif %}">
                 <a class="nav-a nav-sub {% if _pg == 'hr_leave_policy' %}active{% endif %}" href="/hr/rules/leave-policy">
-                    <span class="nav-ic">🏖️</span><span class="nav-txt">Leave Policy</span>
+                    <span class="nav-ic"><i class="bi bi-umbrella"></i></span><span class="nav-txt">Leave Policy</span>
                 </a>
                 <a class="nav-a nav-sub {% if _pg == 'hr_lop_rules' %}active{% endif %}" href="/hr/rules/lop">
-                    <span class="nav-ic">💸</span><span class="nav-txt">LOP Rules</span>
+                    <span class="nav-ic"><i class="bi bi-cash-coin"></i></span><span class="nav-txt">LOP Rules</span>
                 </a>
                 <a class="nav-a nav-sub {% if _pg == 'hr_absent_rules' %}active{% endif %}" href="/hr/rules/absent">
-                    <span class="nav-ic">🚫</span><span class="nav-txt">Absent Rules</span>
+                    <span class="nav-ic"><i class="bi bi-person-x"></i></span><span class="nav-txt">Absent Rules</span>
                 </a>
                 <a class="nav-a nav-sub {% if _pg == 'hr_compoff_rules' %}active{% endif %}" href="/hr/rules/comp-off">
-                    <span class="nav-ic">🔄</span><span class="nav-txt">Comp Off Rules</span>
+                    <span class="nav-ic"><i class="bi bi-arrow-repeat"></i></span><span class="nav-txt">Comp Off Rules</span>
                 </a>
             </div>
 
@@ -651,34 +695,34 @@
 
             {# ── HR Masters Accordion ── #}
             <button class="sb-acc-hdr {% if _pg in ('hr_masters','hr_dept_master','hr_desig_master','hr_shift_master','hr_emptype_master','hr_loc_master','hr_country_master','hr_state_master','hr_nationality_master') %}open{% endif %}" onclick="toggleAccordion(this)">
-                <span class="sb-acc-ic">🗂️</span>
+                <span class="sb-acc-ic"><i class="bi bi-folder2-open"></i></span>
                 <span class="sb-acc-lbl">HR Masters</span>
                 <span class="sb-acc-arrow">›</span>
             </button>
             <div class="sb-acc-body {% if _pg in ('hr_masters','hr_dept_master','hr_desig_master','hr_shift_master','hr_emptype_master','hr_loc_master','hr_country_master','hr_state_master','hr_nationality_master') %}open{% endif %}">
                 <a class="nav-a nav-sub {% if _pg == 'hr_emptype_master' %}active{% endif %}" href="/hr/masters/?tab=emp_type">
-                    <span class="nav-ic">👔</span><span class="nav-txt">Employee Type</span>
+                    <span class="nav-ic"><i class="bi bi-briefcase"></i></span><span class="nav-txt">Employee Type</span>
                 </a>
                 <a class="nav-a nav-sub {% if _pg == 'hr_loc_master' %}active{% endif %}" href="/hr/masters/?tab=location">
-                    <span class="nav-ic">📍</span><span class="nav-txt">Location</span>
+                    <span class="nav-ic"><i class="bi bi-geo-alt"></i></span><span class="nav-txt">Location</span>
                 </a>
                 <a class="nav-a nav-sub {% if _pg == 'hr_dept_master' %}active{% endif %}" href="/hr/masters/?tab=department">
-                    <span class="nav-ic">🏢</span><span class="nav-txt">Department</span>
+                    <span class="nav-ic"><i class="bi bi-building"></i></span><span class="nav-txt">Department</span>
                 </a>
                 <a class="nav-a nav-sub {% if _pg == 'hr_desig_master' %}active{% endif %}" href="/hr/masters/?tab=designation">
-                    <span class="nav-ic">👤</span><span class="nav-txt">Designation</span>
+                    <span class="nav-ic"><i class="bi bi-person"></i></span><span class="nav-txt">Designation</span>
                 </a>
                 <a class="nav-a nav-sub {% if _pg == 'hr_nationality_master' %}active{% endif %}" href="/hr/masters/?tab=nationality">
-                    <span class="nav-ic">🌍</span><span class="nav-txt">Nationality</span>
+                    <span class="nav-ic"><i class="bi bi-globe2"></i></span><span class="nav-txt">Nationality</span>
                 </a>
                 <a class="nav-a nav-sub {% if _pg == 'hr_country_master' %}active{% endif %}" href="/hr/masters/?tab=country">
-                    <span class="nav-ic">🗺️</span><span class="nav-txt">Country</span>
+                    <span class="nav-ic"><i class="bi bi-map"></i></span><span class="nav-txt">Country</span>
                 </a>
                 <a class="nav-a nav-sub {% if _pg == 'hr_state_master' %}active{% endif %}" href="/hr/masters/?tab=state">
-                    <span class="nav-ic">🗺️</span><span class="nav-txt">State</span>
+                    <span class="nav-ic"><i class="bi bi-map"></i></span><span class="nav-txt">State</span>
                 </a>
                 <a class="nav-a nav-sub {% if _pg == 'hr_shift_master' %}active{% endif %}" href="/hr/rules/shifts">
-                    <span class="nav-ic">🔄</span><span class="nav-txt">Shift Master</span>
+                    <span class="nav-ic"><i class="bi bi-arrow-repeat"></i></span><span class="nav-txt">Shift Master</span>
                 </a>
             </div>
 
@@ -686,7 +730,7 @@
         <div class="sb-sec">
             <div class="sb-sec-lbl">Configuration</div>
             <a class="nav-a {% if _pg == 'salary_config' %}active{% endif %}" href="/hr/salary-config/page">
-                <span class="nav-ic">⚙️</span><span class="nav-txt">Salary Config</span>
+                <span class="nav-ic"><i class="bi bi-gear"></i></span><span class="nav-txt">Salary Config</span>
             </a>
         </div>
         {% endif %}
@@ -696,74 +740,119 @@
         {% elif _mod == 'masters' %}
         <div class="sb-sec">
             <a class="nav-a nav-back" href="{{ url_for('dashboard') }}">
-                <span class="nav-ic">←</span><span class="nav-txt">Main Dashboard</span>
+                <span class="nav-ic"><i class="bi bi-arrow-left"></i></span><span class="nav-txt">Main Dashboard</span>
             </a>
         </div>
         <div class="sb-sec">
             <div class="sb-sec-lbl">Masters</div>
             <a class="nav-a {% if _pg == 'cat_master' %}active{% endif %}" href="/masters/category-master">
-                <span class="nav-ic">🗂️</span><span class="nav-txt">Category Master</span>
+                <span class="nav-ic"><i class="bi bi-tags"></i></span><span class="nav-txt">Category Master</span>
             </a>
             <a class="nav-a {% if _pg == 'uom_master' %}active{% endif %}" href="/masters/uom-master">
-                <span class="nav-ic">📐</span><span class="nav-txt">UOM Master</span>
+                <span class="nav-ic"><i class="bi bi-rulers"></i></span><span class="nav-txt">UOM Master</span>
             </a>
             <a class="nav-a {% if _pg == 'hsn_master' %}active{% endif %}" href="/masters/hsn-master">
-                <span class="nav-ic">🔢</span><span class="nav-txt">HSN Code Master</span>
+                <span class="nav-ic"><i class="bi bi-hash"></i></span><span class="nav-txt">HSN Code Master</span>
             </a>
             <a class="nav-a {% if _pg == 'masters' %}active{% endif %}" href="/masters/">
-                <span class="nav-ic">🏷️</span><span class="nav-txt">Lead Masters</span>
+                <span class="nav-ic"><i class="bi bi-tags"></i></span><span class="nav-txt">Lead Masters</span>
             </a>
         </div>
 
         {% elif _mod == 'packing' %}
         <div class="sb-sec">
             <a class="nav-a nav-back" href="{{ url_for('dashboard') }}">
-                <span class="nav-ic">←</span><span class="nav-txt">Main Dashboard</span>
+                <span class="nav-ic"><i class="bi bi-arrow-left"></i></span><span class="nav-txt">Main Dashboard</span>
             </a>
         </div>
         <div class="sb-sec">
             <div class="sb-sec-lbl">Packing</div>
             <a class="nav-a {% if _pg == 'packing' %}active{% endif %}" href="/packing">
-                <span class="nav-ic">📋</span><span class="nav-txt">Sample Receipt Log</span>
+                <span class="nav-ic"><i class="bi bi-journal-text"></i></span><span class="nav-txt">Sample Receipt Log</span>
             </a>
         </div>
 
         {% elif _mod == 'procurement' %}
         <div class="sb-sec">
             <a class="nav-a nav-back" href="{{ url_for('dashboard') }}">
-                <span class="nav-ic">←</span><span class="nav-txt">Main Dashboard</span>
+                <span class="nav-ic"><i class="bi bi-arrow-left"></i></span><span class="nav-txt">Main Dashboard</span>
             </a>
         </div>
         <div class="sb-sec">
-            <div class="sb-sec-lbl">Procurement</div>
-            <a class="nav-a {% if _pg == 'material' %}active{% endif %}" href="/material">
-                <span class="nav-ic">🗂️</span><span class="nav-txt">Item Master</span>
+            <div class="sb-sec-lbl">🛍️ Purchase</div>
+
+            <!-- Raw Material -->
+            <button class="nav-group-toggle {% if request.args.get('item_type','').upper() == 'RM' %}open{% endif %}" onclick="toggleNavGroup(this)">
+                <span class="nav-ic"><i class="bi bi-droplet-half"></i></span>
+                <span class="nav-txt">Raw Material</span>
+                <span class="nav-group-arrow">▶</span>
+            </button>
+            <div class="nav-submenu {% if request.args.get('item_type','').upper() == 'RM' %}open{% endif %}">
+                <a class="nav-a {% if request.args.get('item_type','').upper() == 'RM' %}active{% endif %}" href="/material?item_type=RM">
+                    <span class="nav-ic"><i class="bi bi-card-list"></i></span><span class="nav-txt">Item Master</span>
+                </a>
+                <a class="nav-a {% if request.path.startswith('/supplier') and request.args.get('supplier_type','').upper() == 'RM' %}active{% endif %}" href="/supplier/?supplier_type=RM">
+                    <span class="nav-ic"><i class="bi bi-people"></i></span><span class="nav-txt">Supplier</span>
+                </a>
+            </div>
+
+            <!-- Packing Material -->
+            <button class="nav-group-toggle {% if request.args.get('item_type','').upper() == 'PM' %}open{% endif %}" onclick="toggleNavGroup(this)">
+                <span class="nav-ic"><i class="bi bi-archive"></i></span>
+                <span class="nav-txt">Packing Material</span>
+                <span class="nav-group-arrow">▶</span>
+            </button>
+            <div class="nav-submenu {% if request.args.get('item_type','').upper() == 'PM' %}open{% endif %}">
+                <a class="nav-a {% if request.args.get('item_type','').upper() == 'PM' %}active{% endif %}" href="/material?item_type=PM">
+                    <span class="nav-ic"><i class="bi bi-card-list"></i></span><span class="nav-txt">Item Master</span>
+                </a>
+                <a class="nav-a {% if request.path.startswith('/supplier') and request.args.get('supplier_type','').upper() == 'PM' %}active{% endif %}" href="/supplier/?supplier_type=PM">
+                    <span class="nav-ic"><i class="bi bi-people"></i></span><span class="nav-txt">Supplier</span>
+                </a>
+            </div>
+
+            <!-- Finish Goods -->
+            <button class="nav-group-toggle {% if request.args.get('item_type','').upper() == 'FG' %}open{% endif %}" onclick="toggleNavGroup(this)">
+                <span class="nav-ic"><i class="bi bi-check2-square"></i></span>
+                <span class="nav-txt">Finish Goods</span>
+                <span class="nav-group-arrow">▶</span>
+            </button>
+            <div class="nav-submenu {% if request.args.get('item_type','').upper() == 'FG' %}open{% endif %}">
+                <a class="nav-a {% if request.args.get('item_type','').upper() == 'FG' %}active{% endif %}" href="/material?item_type=FG">
+                    <span class="nav-ic"><i class="bi bi-card-list"></i></span><span class="nav-txt">Item Master</span>
+                </a>
+            </div>
+
+            <!-- Masters & Settings -->
+            <a class="nav-a {% if request.path == '/material/masters' %}active{% endif %}" href="/material/masters">
+                <span class="nav-ic"><i class="bi bi-gear"></i></span>
+                <span class="nav-txt">Masters & Settings</span>
             </a>
         </div>
 
         {% elif _mod == 'admin' %}
         <div class="sb-sec">
             <a class="nav-a nav-back" href="{{ url_for('dashboard') }}">
-                <span class="nav-ic">←</span><span class="nav-txt">Main Dashboard</span>
+                <span class="nav-ic"><i class="bi bi-arrow-left"></i></span><span class="nav-txt">Main Dashboard</span>
             </a>
         </div>
         <div class="sb-sec">
             <div class="sb-sec-lbl">Administration</div>
             <a class="nav-a {% if _pg == 'approvals' %}active{% endif %}" href="/approvals">
-                <span class="nav-ic">✅</span><span class="nav-txt">Approvals</span>
+                <span class="nav-ic"><i class="bi bi-check2-all"></i></span><span class="nav-txt">Approvals</span>
             </a>
             <a class="nav-a {% if _pg == 'permissions' %}active{% endif %}" href="/admin/permissions">
-                <span class="nav-ic">🔐</span><span class="nav-txt">Role Perms</span></a>
+                <span class="nav-ic"><i class="bi bi-shield-lock"></i></span><span class="nav-txt">Role Perms</span></a>
             <a class="nav-a {% if _pg == 'user_permissions' %}active{% endif %}" href="/admin/user-permissions">
-                <span class="nav-ic">👤</span><span class="nav-txt">User Perms</span></a>
-                <span class="nav-ic">🔐</span><span class="nav-txt">Permissions</span>
+                <span class="nav-ic"><i class="bi bi-person"></i></span><span class="nav-txt">User Perms</span></a>
+                <span class="nav-ic"><i class="bi bi-shield-lock"></i></span><span class="nav-txt">Permissions</span>
             </a>
             <a class="nav-a {% if _pg == 'audit_logs' %}active{% endif %}" href="/admin/audit-logs">
-                <span class="nav-ic">🔍</span><span class="nav-txt">Audit Logs</span>
+                <span class="nav-ic"><i class="bi bi-search"></i></span><span class="nav-txt">Audit Logs</span>
             </a>
             {% if role == 'admin' %}
             <a class="nav-a {% if _pg == 'users' %}active{% endif %}" href="/admin/users">
-                <span class="nav-ic">👤</span><span class="nav-txt">Users</span>
+                <span class="nav-ic"><i class="bi bi-person"></i></span><span class="nav-txt">Users</span>
             </a>
             {% endif %}
         </div>
@@ -1825,30 +1914,42 @@ function toggleNavGroup(btn) {
 function toggleAccordion(btn) {
     const body = btn.nextElementSibling;
     const isOpen = btn.classList.contains('open');
-    // Close all others in same sidebar
+    // Close ALL other accordions first (only one open at a time)
     document.querySelectorAll('.sb-acc-hdr.open').forEach(b => {
         if (b !== btn) {
             b.classList.remove('open');
-            b.nextElementSibling.classList.remove('open');
+            const bd = b.nextElementSibling;
+            if (bd) bd.classList.remove('open');
         }
     });
+    // Toggle this one
     btn.classList.toggle('open', !isOpen);
     body.classList.toggle('open', !isOpen);
-    // Save state
-    try { localStorage.setItem('acc_' + btn.querySelector('.sb-acc-lbl').textContent.trim(), !isOpen ? '1' : '0'); } catch(e){}
 }
 
-// Restore accordion state on page load
+// Page load: ALL accordions closed by default — no localStorage restore
 document.addEventListener('DOMContentLoaded', function() {
+    // Clear old saved accordion states from localStorage
+    Object.keys(localStorage).forEach(k => { if (k.startsWith('acc_') || k.startsWith('sg_')) localStorage.removeItem(k); });
     document.querySelectorAll('.sb-acc-hdr').forEach(btn => {
-        const lbl = btn.querySelector('.sb-acc-lbl')?.textContent.trim();
-        const saved = localStorage.getItem('acc_' + lbl);
-        // Auto-open if current page is inside this accordion
+        btn.classList.remove('open');
         const body = btn.nextElementSibling;
-        const hasActive = body && body.querySelector('.nav-a.active');
-        if (hasActive || saved === '1') {
-            btn.classList.add('open');
-            body.classList.add('open');
+        if (body) body.classList.remove('open');
+    });
+    // Only auto-open nav-submenu if active link inside (for procurement sub-menus)
+    document.querySelectorAll('.nav-submenu').forEach(sub => {
+        if (sub.querySelector('.nav-a.active')) {
+            sub.classList.add('open');
+            const toggle = sub.previousElementSibling;
+            if (toggle && toggle.classList.contains('nav-group-toggle')) {
+                toggle.classList.add('open');
+            }
+            const accBody = sub.closest('.sb-acc-body');
+            if (accBody) {
+                accBody.classList.add('open');
+                const accHdr = accBody.previousElementSibling;
+                if (accHdr) accHdr.classList.add('open');
+            }
         }
     });
 });

@@ -75,6 +75,27 @@ class Material(db.Model):
     description         = db.Column(db.Text,          nullable=True)
     uom                 = db.Column(db.String(30),    default='KG')
 
+    # Item code (RM-001, PM-001 etc.)
+    code                = db.Column(db.String(100),   default='', nullable=True)
+
+    # INCI Name (RM only)
+    inci_name           = db.Column(db.String(300),   default='', nullable=True)
+
+    # Brand & Category (PM/FG)
+    brand               = db.Column(db.String(200),   default='', nullable=True)
+    category            = db.Column(db.String(200),   default='', nullable=True)
+
+    # Per box qty (FG only)
+    per_box_qty         = db.Column(db.Integer,       default=0)
+
+    # PM Material Type (PM only: HM = Hard Material, CM = Carton Material)
+    pm_material_type    = db.Column(db.String(20),    default='', nullable=True)
+    pm_attribute        = db.Column(db.String(300),   default='', nullable=True)  # comma-sep: Bottle,Tube,Box
+    corrugation_ply     = db.Column(db.String(20),    default='', nullable=True)  # 3 Ply/5 Ply/7 Ply
+    dim_length          = db.Column(db.Numeric(10,2), nullable=True)  # mm
+    dim_width           = db.Column(db.Numeric(10,2), nullable=True)  # mm
+    dim_height          = db.Column(db.Numeric(10,2), nullable=True)  # mm (Corrugation only)
+
     # Classification
     material_type_id    = db.Column(db.Integer, db.ForeignKey('material_types.id'), nullable=True)
     group_id            = db.Column(db.Integer, db.ForeignKey('material_groups.id'), nullable=True)
@@ -83,8 +104,6 @@ class Material(db.Model):
     sku_sizes           = db.Column(db.Text,  default='')   # comma-separated e.g. "50GM,100GM,200ML"
 
     # Supplier
-    supplier_name       = db.Column(db.String(300),   default='')
-    supplier_code       = db.Column(db.String(100),   default='')
 
     # Stock / Procurement
     opening_balance     = db.Column(db.Numeric(14,3), default=0)
@@ -104,6 +123,9 @@ class Material(db.Model):
     # Soft Delete
     is_deleted          = db.Column(db.Boolean,       default=False)
     deleted_at          = db.Column(db.DateTime,      nullable=True)
+
+    # Product Image (PM/FG)
+    image_data          = db.Column(db.Text,          nullable=True)  # base64 data URL
 
     # Meta
     is_active           = db.Column(db.Boolean,       default=True)
@@ -125,11 +147,17 @@ class Material(db.Model):
             'aliases': self.aliases or '',
             'description': self.description or '',
             'uom': self.uom or 'KG',
-            'code': getattr(self, 'code', '') or '',
-            'inci_name': getattr(self, 'inci_name', '') or '',
-            'brand': getattr(self, 'brand', '') or '',
-            'category': getattr(self, 'category', '') or '',
-            'per_box_qty': getattr(self, 'per_box_qty', 0) or 0,
+            'code': self.code or '',
+            'inci_name': self.inci_name or '',
+            'brand': self.brand or '',
+            'category': self.category or '',
+            'per_box_qty': self.per_box_qty or 0,
+            'pm_material_type': self.pm_material_type or '',
+            'pm_attribute':     self.pm_attribute or '',
+            'corrugation_ply':  self.corrugation_ply or '',
+            'dim_length':       float(self.dim_length) if self.dim_length else None,
+            'dim_width':        float(self.dim_width) if self.dim_width else None,
+            'dim_height':       float(self.dim_height) if self.dim_height else None,
             'material_type_id': self.material_type_id,
             'material_type': self.material_type.type_name if self.material_type else '',
             'material_type_abbr': self.material_type.abbreviation if self.material_type else '',
@@ -138,8 +166,6 @@ class Material(db.Model):
             'group_id': self.group_id,
             'group_name': self.group.group_name if self.group else '',
             'sku_sizes': self.sku_sizes or '',
-            'supplier_name': self.supplier_name or '',
-            'supplier_code': self.supplier_code or '',
             'opening_balance': float(self.opening_balance or 0),
             'msl': float(self.msl or 0),
             'lead_time_days': self.lead_time_days or 0,
@@ -153,6 +179,7 @@ class Material(db.Model):
             'type_of_supply': self.type_of_supply or 'Goods',
             'is_active': self.is_active,
             'is_deleted': getattr(self, 'is_deleted', False) or False,
+            'image_data': self.image_data or '',
             'created_by': self.created_by or '',
             'updated_by': self.updated_by or '',
             'updated_at': self.updated_at.isoformat() if self.updated_at else '',

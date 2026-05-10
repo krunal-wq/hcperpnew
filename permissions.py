@@ -522,7 +522,12 @@ DEFAULT_MODULES = [
     {'name':'npd_projects', 'label':'NPD Projects', 'icon':'📋','url_prefix':'/npd/npd-projects','sort_order':15,'parent':'npd'},
     {'name':'npd_masters',  'label':'NPD Masters',  'icon':'⚙️','url_prefix':'/npd/masters',     'sort_order':16,'parent':'npd'},
     {'name':'packing',      'label':'Packing',        'icon':'📦', 'url_prefix':'/packing',   'sort_order':17},
-    {'name':'material',    'label':'Item Master',    'icon':'🗂️', 'url_prefix':'/material',  'sort_order':19},
+    # ── Procurement module hierarchy ──────────────────────────────────────────
+    {'name':'procurement',  'label':'Procurement',    'icon':'🛒', 'url_prefix':'',           'sort_order':19},
+    {'name':'purchase',     'label':'Purchase',       'icon':'🛍️', 'url_prefix':'',           'sort_order':20, 'parent':'procurement'},
+    {'name':'purchase_rm',  'label':'Raw Material',   'icon':'🧪', 'url_prefix':'/material?item_type=RM', 'sort_order':21, 'parent':'purchase'},
+    {'name':'purchase_pm',  'label':'Packing Material','icon':'📦','url_prefix':'/material?item_type=PM', 'sort_order':22, 'parent':'purchase'},
+    {'name':'purchase_fg',  'label':'Finish Goods',   'icon':'✅', 'url_prefix':'/material?item_type=FG', 'sort_order':23, 'parent':'purchase'},
     {'name':'hr',           'label':'HR',             'icon':'👔', 'url_prefix':'/hr',        'sort_order':5},
     {'name':'hr_employees', 'label':'Employees',      'icon':'🪪', 'url_prefix':'/hr/employees','sort_order':6,'parent':'hr'},
     {'name':'hr_contractors','label':'Contractors',   'icon':'🤝', 'url_prefix':'/hr/contractors','sort_order':7,'parent':'hr'},

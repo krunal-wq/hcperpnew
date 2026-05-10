@@ -1,18 +1,8 @@
 {#
-  partials/sidebar.html
-  =====================
-  Left sidebar menu — sirf active modules show hote hain.
-  
-  Usage (base.html mein):
-    {% from 'partials/sidebar.html' import render_sidebar %}
-    {{ render_sidebar(nav_modules) }}
-  
-  Ya direct include:
-    {% include 'partials/sidebar.html' %}
-  
-  Context mein chahiye:
-    nav_modules — active Module objects (is_active=True only)
-                   Flask context processor se aata hai.
+  partials/sidebar.html — 3-level hierarchy support
+  Level 1: Top-level (Group Header)
+  Level 2: Child — agar grandchildren hain to collapsible sub-section, warna direct link
+  Level 3: Grandchild — indented links
 #}
 
 <nav class="sidebar" id="mainSidebar">
@@ -39,36 +29,81 @@
     </a>
   </div>
 
-  <!-- Dynamic Modules — sirf is_active=True wale show honge -->
-  {% set ns = namespace(current_group='') %}
-  
+  <!-- Dynamic Modules -->
   {% for mod in nav_modules %}
     {% if mod.parent_id is none %}
-      {# ── Top-level module = Group Header ── #}
+
       <div class="sidebar-group" id="sidegroup-{{ mod.name }}">
         <div class="sidebar-group-title">
           <span>{{ (mod.label or mod.name) | upper }}</span>
         </div>
 
-        {# Module ka apna dashboard link (agar url_prefix hai) #}
         {% if mod.url_prefix %}
         <a href="{{ mod.url_prefix }}" 
-           class="sidebar-item {% if request.path.startswith(mod.url_prefix) and request.path == mod.url_prefix %}active{% endif %}">
+           class="sidebar-item {% if request.path == mod.url_prefix %}active{% endif %}">
           <span class="sidebar-icon">{{ mod.icon or '📊' }}</span>
           <span class="sidebar-label">{{ mod.label or mod.name }} Dashboard</span>
         </a>
         {% endif %}
 
-        {# Children (sub-modules) — sirf active wale #}
+        {# ── Level 2 children ── #}
         {% for child in nav_modules if child.parent_id == mod.id %}
-        <a href="{{ child.url_prefix or '#' }}"
-           class="sidebar-item sidebar-child {% if request.path.startswith(child.url_prefix or '___') %}active{% endif %}">
-          <span class="sidebar-icon">{{ child.icon or '📄' }}</span>
-          <span class="sidebar-label">{{ child.label or child.name }}</span>
-        </a>
-        {% endfor %}
 
+          {# Count grandchildren using simple loop — selectattr integer bug avoid #}
+          {% set gc_list = [] %}
+          {% for maybe_gc in nav_modules %}
+            {% if maybe_gc.parent_id == child.id %}
+              {% if gc_list.append(maybe_gc) %}{% endif %}
+            {% endif %}
+          {% endfor %}
+
+          {% if gc_list %}
+            {# ── Level 2 as collapsible sub-group (e.g. Purchase) ── #}
+            {# Check if any grandchild is currently active #}
+            {% set gc_active = [] %}
+            {% for gc in gc_list %}
+              {% if gc.url_prefix and (request.full_path.startswith(gc.url_prefix) or request.path + '?' + request.query_string.decode() == gc.url_prefix) %}
+                {% if gc_active.append(1) %}{% endif %}
+              {% endif %}
+            {% endfor %}
+
+            <div class="sidebar-subgroup" id="sidesubgroup-{{ child.name }}">
+              <div class="sidebar-subgroup-title {% if gc_active %}has-active{% endif %}"
+                   onclick="toggleSubgroup('{{ child.name }}')">
+                <span class="sidebar-icon">{{ child.icon or '📁' }}</span>
+                <span class="sidebar-label">{{ child.label or child.name }}</span>
+                <span class="sidebar-subarrow" id="arrow-{{ child.name }}">▾</span>
+              </div>
+              <div class="sidebar-subgroup-items" id="subitems-{{ child.name }}"
+                   data-auto-open="{{ 'yes' if gc_active else 'no' }}">
+                {% for gc in gc_list %}
+                  {% set gc_is_active = false %}
+                  {% if gc.url_prefix %}
+                    {% if request.full_path.startswith(gc.url_prefix) or request.path + '?' + request.query_string.decode() == gc.url_prefix %}
+                      {% set gc_is_active = true %}
+                    {% endif %}
+                  {% endif %}
+                  <a href="{{ gc.url_prefix or '#' }}"
+                     class="sidebar-item sidebar-grandchild {% if gc_is_active %}active{% endif %}">
+                    <span class="sidebar-icon">{{ gc.icon or '📄' }}</span>
+                    <span class="sidebar-label">{{ gc.label or gc.name }}</span>
+                  </a>
+                {% endfor %}
+              </div>
+            </div>
+
+          {% else %}
+            {# ── Level 2 as regular link ── #}
+            <a href="{{ child.url_prefix or '#' }}"
+               class="sidebar-item sidebar-child {% if child.url_prefix and request.path.startswith(child.url_prefix) %}active{% endif %}">
+              <span class="sidebar-icon">{{ child.icon or '📄' }}</span>
+              <span class="sidebar-label">{{ child.label or child.name }}</span>
+            </a>
+          {% endif %}
+
+        {% endfor %}
       </div>
+
     {% endif %}
   {% endfor %}
 
@@ -80,9 +115,105 @@
        class="sidebar-item {% if 'module_settings' in request.endpoint %}active{% endif %}">
       <span class="sidebar-icon">⚙️</span>
       <span class="sidebar-label">Module Settings</span>
-      <span class="sidebar-arrow">►</span>
     </a>
   </div>
   {% endif %}
 
 </nav>
+
+<style>
+.sidebar-subgroup { margin: 1px 0; }
+
+.sidebar-subgroup-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text2, #64748b);
+  cursor: pointer;
+  border-radius: 8px;
+  transition: background .15s, color .15s;
+  user-select: none;
+}
+.sidebar-subgroup-title:hover,
+.sidebar-subgroup-title.has-active {
+  background: var(--bg, #f8fafc);
+  color: var(--blue, #2563eb);
+}
+.sidebar-subarrow {
+  margin-left: auto;
+  font-size: 11px;
+  transition: transform .2s;
+  opacity: .6;
+}
+.sidebar-subgroup-items {
+  overflow: hidden;
+  max-height: 0;
+  transition: max-height .3s ease;
+}
+.sidebar-subgroup-items.open {
+  max-height: 400px;
+}
+.sidebar-grandchild {
+  padding-left: 38px !important;
+  font-size: 12.5px !important;
+  position: relative;
+}
+.sidebar-grandchild::before {
+  content: '';
+  position: absolute;
+  left: 26px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--text2, #94a3b8);
+}
+.sidebar-grandchild.active::before {
+  background: var(--blue, #2563eb);
+}
+.arrow-open { transform: rotate(0deg); }
+.arrow-closed { transform: rotate(-90deg); }
+</style>
+
+<script>
+function toggleSubgroup(name) {
+  var items = document.getElementById('subitems-' + name);
+  var arrow = document.getElementById('arrow-' + name);
+  if (!items) return;
+  var isOpen = items.classList.contains('open');
+  if (isOpen) {
+    items.classList.remove('open');
+    if (arrow) arrow.style.transform = 'rotate(-90deg)';
+    localStorage.setItem('sg_' + name, '0');
+  } else {
+    items.classList.add('open');
+    if (arrow) arrow.style.transform = 'rotate(0deg)';
+    localStorage.setItem('sg_' + name, '1');
+  }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  document.querySelectorAll('.sidebar-subgroup').forEach(function(sg) {
+    var name = sg.id.replace('sidesubgroup-', '');
+    var items = document.getElementById('subitems-' + name);
+    var arrow = document.getElementById('arrow-' + name);
+    if (!items) return;
+
+    var autoOpen = items.getAttribute('data-auto-open') === 'yes';
+    var saved    = localStorage.getItem('sg_' + name);
+
+    // Auto-open if active child OR previously opened
+    if (autoOpen || saved === '1') {
+      items.classList.add('open');
+      if (arrow) arrow.style.transform = 'rotate(0deg)';
+    } else {
+      items.classList.remove('open');
+      if (arrow) arrow.style.transform = 'rotate(-90deg)';
+    }
+  });
+});
+</script>
