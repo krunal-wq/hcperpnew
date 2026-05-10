@@ -1,0 +1,399 @@
+{% extends "base.html" %}
+{% block title %}Daily Work Report — Share{% endblock %}
+{% block page_title %}Daily Work Report{% endblock %}
+{% block bread %}Reports / Daily Work Report{% endblock %}
+
+{% block extra_css %}
+<style>
+:root{ --wa:#25d366; --wa-dk:#128c7e; --wa-lt:#e8fde8; --card-r:14px; }
+
+.page-wrap { max-width:900px; margin:0 auto; }
+
+/* ── Gradient Header ── */
+.rpt-hdr {
+  background:linear-gradient(135deg,#1e2d5e 0%,#7c3aed 60%,#25d366 100%);
+  border-radius:16px; padding:1.3rem 1.5rem;
+  display:flex; align-items:center; justify-content:space-between;
+  flex-wrap:wrap; gap:.75rem; margin-bottom:1.1rem; color:#fff;
+}
+.rpt-hdr h2 { font-size:1.15rem; font-weight:800; margin:0 0 3px; }
+.rpt-hdr p  { font-size:.75rem; opacity:.85; margin:0; }
+.hdr-btns   { display:flex; gap:.5rem; flex-wrap:wrap; align-items:center; }
+
+/* ── Filter Bar ── */
+.filter-bar {
+  background:#fff; border:1px solid #e2e8f0; border-radius:11px;
+  padding:.6rem .9rem; display:flex; align-items:center; gap:.75rem;
+  flex-wrap:wrap; margin-bottom:1rem;
+}
+.filter-bar label { font-size:.73rem; font-weight:700; color:var(--text2); white-space:nowrap; }
+.filter-bar input[type=date],
+.filter-bar select {
+  font-size:.79rem; border:1px solid #e2e8f0; border-radius:7px;
+  padding:.3rem .6rem; color:var(--text); background:#f8fafc; outline:none; cursor:pointer;
+}
+.filter-bar input[type=date]:focus,
+.filter-bar select:focus { border-color:var(--wa); background:#fff; }
+.filter-bar .sep { flex:1; }
+
+/* ── Stats chips ── */
+.stats-grid {
+  display:grid; grid-template-columns:repeat(4,1fr); gap:.65rem; margin-bottom:1rem;
+}
+@media(max-width:640px){ .stats-grid{ grid-template-columns:repeat(2,1fr); } }
+.stat-chip { background:#fff; border:1px solid #e2e8f0; border-radius:11px;
+             padding:.75rem .9rem; text-align:center; }
+.stat-num  { font-size:1.6rem; font-weight:900; color:var(--text); line-height:1; }
+.stat-lbl  { font-size:.67rem; color:var(--text3); margin-top:3px; }
+
+/* ── Module pills ── */
+.mod-pills { display:flex; flex-wrap:wrap; gap:.4rem; margin-bottom:1rem; }
+.mod-pill  {
+  display:inline-flex; align-items:center; gap:.3rem;
+  padding:.28rem .75rem; border-radius:20px; font-size:.71rem; font-weight:600;
+  background:#f1f5f9; color:var(--text2); border:1px solid #e2e8f0;
+}
+
+/* ── Main message card ── */
+.msg-card {
+  background:#fff; border:1px solid #e2e8f0; border-radius:var(--card-r);
+  overflow:hidden; margin-bottom:1rem;
+  box-shadow:0 1px 3px rgba(0,0,0,.06);
+}
+.msg-card-hdr {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:.65rem 1rem; border-bottom:1px solid #f1f5f9; background:#fafafa;
+  flex-wrap:wrap; gap:.5rem;
+}
+.msg-card-ttl { font-size:.84rem; font-weight:700; color:var(--text);
+                display:flex; align-items:center; gap:.4rem; }
+.char-info    { font-size:.7rem; color:var(--text3); }
+
+/* WhatsApp bubble preview */
+.wa-bg {
+  background: #eae6df url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='182'%3E%3Cdefs%3E%3Cpattern id='p' patternUnits='userSpaceOnUse' width='20' height='20'%3E%3Ccircle cx='10' cy='10' r='.5' fill='%23c8bebc'/%3E%3C/pattern%3E%3C/defs%3E%3Crect width='200' height='182' fill='url(%23p)'/%3E%3C/svg%3E");
+  padding:.9rem .75rem; max-height:500px; overflow-y:auto;
+}
+.wa-bubble {
+  background:#fff; border-radius:0 12px 12px 12px;
+  box-shadow:0 1px 3px rgba(0,0,0,.13);
+  padding:.85rem 1rem; max-width:92%; position:relative;
+  font-family:'Segoe UI','Helvetica Neue',sans-serif;
+}
+.wa-bubble::before {
+  content:''; position:absolute; top:0; left:-8px;
+  width:0; height:0;
+  border-top:8px solid #fff;
+  border-left:8px solid transparent;
+}
+/* ── WhatsApp rendered text ── */
+.wa-rendered { font-size:.79rem; line-height:1.65; color:#111; white-space:pre-wrap; word-break:break-word; }
+.wa-rendered .u-hdr { font-weight:700; font-size:.84rem; color:#1a1a1a; margin:.6rem 0 .1rem; }
+.wa-rendered .u-div { border-top:1px dashed #d1d5db; margin:.3rem 0; }
+.wa-rendered .m-hdr { font-size:.76rem; font-weight:700; color:#4b5563; margin:.3rem 0 .1rem; }
+.wa-rendered .rec   { font-size:.76rem; color:#374151; padding-left:.5rem; }
+.wa-rendered .act   { font-size:.71rem; color:#6b7280; padding-left:1rem; }
+.wa-rendered .divider { border-top:1px solid #d1d5db; margin:.4rem 0; }
+.wa-rendered .footer  { font-size:.76rem; font-weight:600; color:#374151; margin:.1rem 0; }
+
+/* ── Action buttons ── */
+.action-bar {
+  display:flex; gap:.6rem; padding:.85rem 1rem;
+  border-top:1px solid #f1f5f9; flex-wrap:wrap; align-items:center;
+}
+.btn-wa-main {
+  flex:1; display:inline-flex; align-items:center; justify-content:center; gap:.5rem;
+  background:var(--wa); color:#fff; border:none; border-radius:9px;
+  padding:.6rem 1.2rem; font-size:.85rem; font-weight:700;
+  cursor:pointer; text-decoration:none; transition:background .15s;
+}
+.btn-wa-main:hover { background:var(--wa-dk); color:#fff; }
+.btn-copy {
+  display:inline-flex; align-items:center; gap:.4rem;
+  background:#f1f5f9; color:var(--text2); border:1px solid #e2e8f0;
+  border-radius:9px; padding:.55rem 1rem; font-size:.8rem; font-weight:600;
+  cursor:pointer; transition:all .15s;
+}
+.btn-copy:hover { border-color:var(--wa); color:var(--wa); }
+.btn-copy.ok { background:#dcfce7; color:#16a34a; border-color:#86efac; }
+
+/* ── Steps guide ── */
+.steps { display:grid; grid-template-columns:repeat(4,1fr); gap:.6rem; margin-bottom:.5rem; }
+@media(max-width:560px){ .steps{ grid-template-columns:repeat(2,1fr); } }
+.step { background:#fff; border:1px solid #e2e8f0; border-radius:11px;
+        padding:.75rem .65rem; text-align:center; }
+.step-num { font-size:1.4rem; margin-bottom:.25rem; }
+.step-ttl { font-size:.75rem; font-weight:700; color:var(--text); }
+.step-sub { font-size:.67rem; color:var(--text3); margin-top:2px; }
+
+/* ── Skeleton ── */
+.skel { background:linear-gradient(90deg,#f1f5f9 25%,#e2e8f0 50%,#f1f5f9 75%);
+        background-size:200% 100%; animation:sk 1.2s infinite; border-radius:6px; display:block; }
+@keyframes sk{ 0%{background-position:200% 0}100%{background-position:-200% 0} }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-wrap">
+
+<!-- ── Header ── -->
+<div class="rpt-hdr">
+  <div>
+    <h2>📋 Universal Daily Work Report</h2>
+    <p>Koi bhi module, koi bhi team — sab activity ek report mein</p>
+  </div>
+  <div class="hdr-btns">
+    <a href="/npd/daily-report"
+       style="background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.3);
+              border-radius:8px;padding:.4rem .85rem;font-size:.77rem;font-weight:600;
+              text-decoration:none;">
+      ← Dashboard
+    </a>
+  </div>
+</div>
+
+<!-- ── Filter Bar ── -->
+<div class="filter-bar">
+  <label>📅 Date:</label>
+  <input type="date" id="filterDate" onchange="load()">
+
+  <label>👤 Employee:</label>
+  <select id="filterUser" onchange="load()">
+    <option value="">All Members</option>
+  </select>
+
+  <div class="sep"></div>
+  <span id="dateLabel" style="font-size:.77rem;font-weight:700;color:#7c3aed;"></span>
+</div>
+
+<!-- ── Stats ── -->
+<div class="stats-grid" id="statsGrid">
+  <div class="stat-chip"><span class="skel" style="width:40px;height:24px;margin:.1rem auto .3rem;"></span><div class="stat-lbl">Loading…</div></div>
+  <div class="stat-chip"><span class="skel" style="width:40px;height:24px;margin:.1rem auto .3rem;"></span><div class="stat-lbl">Loading…</div></div>
+  <div class="stat-chip"><span class="skel" style="width:60px;height:24px;margin:.1rem auto .3rem;"></span><div class="stat-lbl">Loading…</div></div>
+  <div class="stat-chip"><span class="skel" style="width:40px;height:24px;margin:.1rem auto .3rem;"></span><div class="stat-lbl">Loading…</div></div>
+</div>
+
+<!-- ── Module Pills ── -->
+<div class="mod-pills" id="modPills">
+  <span class="skel" style="width:90px;height:26px;border-radius:20px;"></span>
+  <span class="skel" style="width:110px;height:26px;border-radius:20px;"></span>
+  <span class="skel" style="width:80px;height:26px;border-radius:20px;"></span>
+</div>
+
+<!-- ── Message Card ── -->
+<div class="msg-card">
+  <div class="msg-card-hdr">
+    <div class="msg-card-ttl">
+      💬 Message Preview
+      <span style="font-size:.68rem;background:#dcfce7;color:#16a34a;
+                   padding:2px 9px;border-radius:20px;font-weight:600;">WhatsApp Ready</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:.5rem;">
+      <span class="char-info" id="charInfo">—</span>
+    </div>
+  </div>
+
+  <div class="wa-bg">
+    <div class="wa-bubble">
+      <div class="wa-rendered" id="msgPreview">
+        <div style="display:flex;flex-direction:column;gap:7px;">
+          {% for i in range(10) %}
+          <span class="skel" style="width:{{ [50,80,65,90,70,55,85,60,75,40][loop.index0] }}%;height:12px;"></span>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="action-bar">
+    <a class="btn-wa-main" id="btnWa" href="#" target="_blank" rel="noopener">
+      <svg viewBox="0 0 24 24" style="width:18px;height:18px;fill:currentColor;">
+        <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
+      </svg>
+      Open WhatsApp Web
+    </a>
+    <button class="btn-copy" id="btnCopy" onclick="copyMsg()">
+      📋 Copy Message
+    </button>
+  </div>
+</div>
+
+<!-- ── Steps ── -->
+<div class="steps">
+  <div class="step"><div class="step-num">1️⃣</div><div class="step-ttl">Date Select Karo</div><div class="step-sub">Oopar se date choose karo</div></div>
+  <div class="step"><div class="step-num">2️⃣</div><div class="step-ttl">Preview Dekho</div><div class="step-sub">Message preview mein dikhega</div></div>
+  <div class="step"><div class="step-num">3️⃣</div><div class="step-ttl">WhatsApp Kholo</div><div class="step-sub">"Open WhatsApp Web" click karo</div></div>
+  <div class="step"><div class="step-num">4️⃣</div><div class="step-ttl">Contact & Send ✅</div><div class="step-sub">Group ya contact choose karo</div></div>
+</div>
+
+</div><!-- /.page-wrap -->
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let _msg = '';
+let _waUrl = '';
+
+const MOD_COLORS = {
+  'leads':'#dbeafe', 'clients':'#e0e7ff', 'quotations':'#fef3c7',
+  'sample_orders':'#fce7f3', 'raw_material_sample':'#ccfbf1',
+  'approvals':'#d1fae5', 'employees':'#ede9fe', 'npd':'#fae8ff',
+  'npd_project':'#fae8ff', 'npd_milestone':'#ede9fe',
+};
+const MOD_TC = {
+  'leads':'#1d4ed8','clients':'#4338ca','quotations':'#92400e',
+  'sample_orders':'#9d174d','raw_material_sample':'#065f46',
+  'approvals':'#065f46','employees':'#5b21b6','npd':'#86198f',
+  'npd_project':'#86198f','npd_milestone':'#5b21b6',
+};
+
+document.addEventListener('DOMContentLoaded', () => {
+  const today = new Date().toISOString().split('T')[0];
+  document.getElementById('filterDate').value = today;
+  load();
+});
+
+function load() {
+  const d   = document.getElementById('filterDate').value;
+  const uid = document.getElementById('filterUser').value;
+  if (!d) return;
+
+  // Skeleton
+  document.getElementById('msgPreview').innerHTML = skeletonLines(12);
+  document.getElementById('charInfo').textContent = '—';
+  document.getElementById('dateLabel').textContent = '⏳ Loading…';
+
+  // Load users for dropdown
+  fetch(`/npd/api/universal-users?date=${d}`)
+    .then(r => r.json())
+    .then(data => {
+      if (!data.ok) return;
+      const sel = document.getElementById('filterUser');
+      const cur = sel.value;
+      sel.innerHTML = '<option value="">All Members</option>' +
+        data.users.map(u =>
+          `<option value="${u.id}" ${String(u.id) === cur ? 'selected' : ''}>${esc(u.name)}</option>`
+        ).join('');
+    });
+
+  // Load report
+  const url = `/npd/api/universal-report?date=${d}${uid ? '&user_id=' + uid : ''}`;
+  fetch(url)
+    .then(r => r.json())
+    .then(data => {
+      if (!data.ok) {
+        document.getElementById('msgPreview').innerHTML =
+          '<div style="color:#dc2626;font-size:.8rem;">Error loading report</div>';
+        return;
+      }
+
+      _msg   = data.message;
+      _waUrl = data.wa_url;
+
+      document.getElementById('msgPreview').innerHTML  = renderMsg(data.message);
+      document.getElementById('btnWa').href            = data.wa_url;
+      document.getElementById('charInfo').textContent  = `${data.char_count.toLocaleString()} characters`;
+      document.getElementById('dateLabel').textContent  = data.date;
+
+      renderStats(data.stats);
+    })
+    .catch(() => {
+      document.getElementById('msgPreview').innerHTML =
+        '<div style="color:#dc2626;">Network error — try again</div>';
+    });
+}
+
+// ── Stats chips ─────────────────────────────────────────────
+function renderStats(s) {
+  if (!s) return;
+  document.getElementById('statsGrid').innerHTML = `
+    <div class="stat-chip">
+      <div class="stat-num">${s.total_actions ?? 0}</div>
+      <div class="stat-lbl">Total Actions</div>
+    </div>
+    <div class="stat-chip">
+      <div class="stat-num">${s.active_users ?? 0}</div>
+      <div class="stat-lbl">Members Active</div>
+    </div>
+    <div class="stat-chip">
+      <div class="stat-num">${(s.modules_active || []).length}</div>
+      <div class="stat-lbl">Modules Used</div>
+    </div>
+    <div class="stat-chip">
+      <div class="stat-num">
+        ${new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'})}
+      </div>
+      <div class="stat-lbl">Last Updated</div>
+    </div>`;
+
+  // Module pills
+  const pills = (s.module_breakdown || []).map(m => {
+    const bg = MOD_COLORS[m.module] || '#f1f5f9';
+    const tc = MOD_TC[m.module]     || '#374151';
+    return `<span class="mod-pill" style="background:${bg};color:${tc};border-color:${tc}22;">
+      ${m.icon} ${m.label} <strong>${m.count}</strong>
+    </span>`;
+  }).join('');
+  document.getElementById('modPills').innerHTML = pills ||
+    '<span style="font-size:.75rem;color:var(--text3);">No module data</span>';
+}
+
+// ── Message renderer (WhatsApp markdown → HTML) ──────────────
+function renderMsg(text) {
+  if (!text) return '<em style="color:#999;">No activity data</em>';
+  const lines = text.split('\n');
+  return lines.map(line => {
+    // Bold *text*
+    line = line.replace(/\*([^*\n]+)\*/g, '<strong>$1</strong>');
+    // Italic _text_
+    line = line.replace(/_([^_\n]+)_/g, '<em style="color:#555;">$1</em>');
+
+    const t = line.trim();
+
+    if (/^━+$/.test(t))
+      return '<div class="divider"></div>';
+    if (/^━/.test(t) && t.includes('━'))
+      return '<div class="divider"></div>';
+    if (/^👤/.test(t))
+      return `<div class="u-hdr">${t}</div>`;
+    if (/^┄+$/.test(t))
+      return '<div class="u-div"></div>';
+    if (/^[📋🏢💼📦🧫✅👥🔑📧🧪🎯💬⚗️🎨🏭📌]/.test(t) && t.includes('_'))
+      return `<div class="m-hdr">${t}</div>`;
+    if (t.startsWith('   •'))
+      return `<div class="rec">${t}</div>`;
+    if (t.startsWith('     ↳'))
+      return `<div class="act">${t}</div>`;
+    if (/^[📊👥🏆]/.test(t))
+      return `<div class="footer">${t}</div>`;
+    if (!t)
+      return '<div style="height:.2rem;"></div>';
+    return `<div style="font-size:.79rem;color:#374151;">${t}</div>`;
+  }).join('');
+}
+
+function skeletonLines(n) {
+  const ws = [55,80,65,90,70,45,85,60,75,40,68,55];
+  return `<div style="display:flex;flex-direction:column;gap:7px;">` +
+    Array.from({length:n}, (_,i) =>
+      `<span class="skel" style="width:${ws[i%ws.length]}%;height:12px;"></span>`
+    ).join('') + '</div>';
+}
+
+function copyMsg() {
+  if (!_msg) return;
+  const btn = document.getElementById('btnCopy');
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(_msg).then(() => {
+      btn.classList.add('ok'); btn.innerHTML = '✅ Copied!';
+      setTimeout(() => { btn.classList.remove('ok'); btn.innerHTML = '📋 Copy Message'; }, 2500);
+    });
+  }
+}
+
+function esc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+</script>
+{% endblock %}

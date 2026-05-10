@@ -1,0 +1,413 @@
+{% extends "base.html" %}
+{% block title %}NPD WhatsApp Detail Share{% endblock %}
+{% block page_title %}NPD Daily Report — WhatsApp Share{% endblock %}
+{% block bread %}NPD / Daily Report / WhatsApp Share{% endblock %}
+
+{% block extra_css %}
+<style>
+:root{ --wa:#25d366; --wa-dk:#128c7e; --wa-lt:#e8fde8; }
+
+/* ── Page ── */
+.wa-page { max-width:780px; margin:0 auto; }
+
+/* ── Header card ── */
+.wa-hdr {
+  background:linear-gradient(135deg,#25d366,#128c7e);
+  border-radius:16px; padding:1.4rem 1.6rem;
+  display:flex; align-items:center; justify-content:space-between;
+  flex-wrap:wrap; gap:.8rem; margin-bottom:1.1rem; color:#fff;
+}
+.wa-hdr-left h2 { font-size:1.15rem; font-weight:800; margin:0 0 3px; }
+.wa-hdr-left p  { font-size:.76rem; opacity:.85; margin:0; }
+.wa-hdr-right   { display:flex; gap:.6rem; flex-wrap:wrap; align-items:center; }
+
+/* ── Date filter ── */
+.filter-row {
+  background:#fff; border:1px solid #e2e8f0; border-radius:10px;
+  padding:.6rem .9rem; display:flex; align-items:center; gap:.75rem;
+  flex-wrap:wrap; margin-bottom:1rem;
+}
+.filter-row label { font-size:.74rem; font-weight:700; color:var(--text2); }
+.filter-row input { font-size:.79rem; border:1px solid #e2e8f0; border-radius:7px;
+                    padding:.3rem .6rem; outline:none; }
+.filter-row input:focus { border-color:var(--wa); }
+
+/* ── Message preview card ── */
+.msg-card {
+  background:#fff; border:1px solid #e2e8f0; border-radius:14px;
+  overflow:hidden; margin-bottom:1rem;
+}
+.msg-card-hdr {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:.7rem 1rem; border-bottom:1px solid #f1f5f9;
+  background:#fafafa;
+}
+.msg-card-ttl { font-size:.84rem; font-weight:700; color:var(--text);
+                display:flex; align-items:center; gap:.4rem; }
+.char-count   { font-size:.7rem; color:var(--text3); }
+
+.msg-box {
+  padding:1rem 1.1rem;
+  font-family:'Segoe UI','Noto Sans',monospace;
+  font-size:.79rem; line-height:1.7; color:#111;
+  white-space:pre-wrap; word-break:break-word;
+  max-height:480px; overflow-y:auto;
+  background:var(--wa-lt);
+  border-bottom:3px solid var(--wa);
+}
+
+/* WhatsApp bubble look */
+.msg-bubble-wrap {
+  background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='4' height='4'%3E%3Cpath d='M0 2h4M2 0v4' stroke='%23e5e5e5' stroke-width='.3'/%3E%3C/svg%3E") #f0f0f0;
+  padding:.75rem;
+}
+.msg-bubble {
+  background:#fff; border-radius:12px 12px 12px 0;
+  box-shadow:0 1px 2px rgba(0,0,0,.12);
+  padding:.85rem 1rem;
+  font-family:'Segoe UI','Noto Sans',sans-serif;
+  font-size:.79rem; line-height:1.65; color:#111;
+  white-space:pre-wrap; word-break:break-word;
+  max-height:450px; overflow-y:auto;
+  border-left:3px solid var(--wa);
+}
+
+/* Bold markers (*text*) displayed as bold */
+.msg-bubble b { font-weight:700; }
+
+/* ── Action buttons ── */
+.action-row {
+  display:flex; gap:.65rem; flex-wrap:wrap; padding:.9rem 1rem;
+  border-top:1px solid #f1f5f9; align-items:center;
+}
+
+.btn-wa-open {
+  display:inline-flex; align-items:center; gap:.5rem;
+  background:var(--wa); color:#fff; border:none; border-radius:9px;
+  padding:.55rem 1.2rem; font-size:.84rem; font-weight:700;
+  cursor:pointer; text-decoration:none; transition:background .15s;
+  flex:1; justify-content:center;
+}
+.btn-wa-open:hover { background:var(--wa-dk); }
+
+.btn-copy {
+  display:inline-flex; align-items:center; gap:.45rem;
+  background:#f1f5f9; color:var(--text2); border:1px solid #e2e8f0;
+  border-radius:9px; padding:.52rem 1rem; font-size:.8rem;
+  font-weight:600; cursor:pointer; transition:all .15s;
+}
+.btn-copy:hover { border-color:var(--wa); color:var(--wa); }
+.btn-copy.copied { background:#dcfce7; color:#16a34a; border-color:#86efac; }
+
+.btn-regen {
+  display:inline-flex; align-items:center; gap:.4rem;
+  background:#fff; color:var(--text2); border:1px solid #e2e8f0;
+  border-radius:9px; padding:.5rem .9rem; font-size:.78rem;
+  font-weight:600; cursor:pointer;
+}
+.btn-regen:hover { border-color:#7c3aed; color:#7c3aed; }
+
+/* ── Stats row ── */
+.stats-row {
+  display:grid; grid-template-columns:repeat(4,1fr); gap:.6rem;
+  margin-bottom:1rem;
+}
+@media(max-width:600px){ .stats-row{ grid-template-columns:repeat(2,1fr); } }
+
+.stat-chip {
+  background:#fff; border:1px solid #e2e8f0; border-radius:10px;
+  padding:.65rem .85rem; text-align:center;
+}
+.stat-num { font-size:1.5rem; font-weight:900; color:var(--text); line-height:1; }
+.stat-lbl { font-size:.68rem; color:var(--text3); margin-top:2px; }
+
+/* ── Skeleton ── */
+.skel { background:linear-gradient(90deg,#f1f5f9 25%,#e2e8f0 50%,#f1f5f9 75%);
+        background-size:200% 100%; animation:shimmer 1.2s infinite;
+        border-radius:6px; height:16px; }
+@keyframes shimmer{ 0%{background-position:200% 0}100%{background-position:-200% 0} }
+
+/* ── Tip ── */
+.tip {
+  background:#fffbeb; border:1px solid #fde68a; border-radius:10px;
+  padding:.7rem 1rem; font-size:.76rem; color:#92400e; margin-bottom:1rem;
+  display:flex; align-items:flex-start; gap:.5rem;
+}
+.tip-icon { font-size:1rem; flex-shrink:0; margin-top:1px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="wa-page">
+
+<!-- ── Header ── -->
+<div class="wa-hdr">
+  <div class="wa-hdr-left">
+    <h2>
+      <svg viewBox="0 0 24 24" style="width:20px;height:20px;fill:#fff;vertical-align:middle;margin-right:6px;">
+        <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
+      </svg>
+      NPD Daily Report — WhatsApp Share
+    </h2>
+    <p>Koi app nahi, koi API nahi — seedha WhatsApp Web pe message bhejo</p>
+  </div>
+  <div class="wa-hdr-right">
+    <a href="/npd/daily-report"
+       style="background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.4);
+              border-radius:8px;padding:.4rem .85rem;font-size:.78rem;font-weight:600;
+              text-decoration:none;">
+      ← Dashboard
+    </a>
+  </div>
+</div>
+
+<!-- ── Tip ── -->
+<div class="tip">
+  <div class="tip-icon">💡</div>
+  <div>
+    <strong>Kaise kaam karta hai:</strong> Niche report message ready hoga — 
+    <em>"Open WhatsApp Web"</em> click karo → WhatsApp Web khulega with message already typed →
+    Sirf recipient choose karo aur Send karo. <strong>Ek minute ka kaam!</strong>
+  </div>
+</div>
+
+<!-- ── Date Filter ── -->
+<div class="filter-row">
+  <label>📅 Report Date:</label>
+  <input type="date" id="reportDate" onchange="loadReport()">
+  <button class="btn-regen" onclick="loadReport()">🔄 Load Report</button>
+  <span style="font-size:.75rem;color:var(--text3);margin-left:auto;" id="reportLabel">—</span>
+</div>
+
+<!-- ── Stats chips ── -->
+<div class="stats-row" id="statsRow">
+  <div class="stat-chip"><div class="skel" style="width:40px;margin:4px auto;"></div><div class="stat-lbl">Loading…</div></div>
+  <div class="stat-chip"><div class="skel" style="width:40px;margin:4px auto;"></div><div class="stat-lbl">Loading…</div></div>
+  <div class="stat-chip"><div class="skel" style="width:40px;margin:4px auto;"></div><div class="stat-lbl">Loading…</div></div>
+  <div class="stat-chip"><div class="skel" style="width:40px;margin:4px auto;"></div><div class="stat-lbl">Loading…</div></div>
+</div>
+
+<!-- ── Message Preview ── -->
+<div class="msg-card">
+  <div class="msg-card-hdr">
+    <div class="msg-card-ttl">
+      📋 Message Preview
+      <span style="font-size:.68rem;background:#dcfce7;color:#16a34a;padding:2px 8px;border-radius:10px;font-weight:600;">
+        Ready to Send
+      </span>
+    </div>
+    <div class="char-count" id="charCount">— characters</div>
+  </div>
+
+  <!-- WhatsApp-style bubble -->
+  <div class="msg-bubble-wrap">
+    <div class="msg-bubble" id="msgBubble">
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <div class="skel" style="width:60%;height:14px;"></div>
+        <div class="skel" style="width:90%;height:12px;"></div>
+        <div class="skel" style="width:80%;height:12px;"></div>
+        <div class="skel" style="width:70%;height:12px;"></div>
+        <div class="skel" style="width:85%;height:12px;"></div>
+        <div class="skel" style="width:55%;height:12px;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Actions -->
+  <div class="action-row">
+    <a class="btn-wa-open" id="btnOpenWa" href="#" target="_blank" rel="noopener">
+      <svg viewBox="0 0 24 24" style="width:18px;height:18px;fill:currentColor;">
+        <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
+      </svg>
+      Open WhatsApp Web
+    </a>
+
+    <button class="btn-copy" id="btnCopy" onclick="copyMsg()">
+      📋 Copy Message
+    </button>
+  </div>
+</div>
+
+<!-- ── How to send steps ── -->
+<div style="background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:1rem 1.2rem;">
+  <div style="font-size:.84rem;font-weight:700;color:var(--text);margin-bottom:.75rem;">
+    📱 WhatsApp pe bhejne ke steps:
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:.75rem;">
+    <div style="text-align:center;padding:.75rem;background:#f8fafc;border-radius:10px;">
+      <div style="font-size:1.5rem;margin-bottom:.3rem;">1️⃣</div>
+      <div style="font-size:.77rem;font-weight:600;color:var(--text);">Report Load Karo</div>
+      <div style="font-size:.68rem;color:var(--text3);">Date select karo ऊपर</div>
+    </div>
+    <div style="text-align:center;padding:.75rem;background:#f8fafc;border-radius:10px;">
+      <div style="font-size:1.5rem;margin-bottom:.3rem;">2️⃣</div>
+      <div style="font-size:.77rem;font-weight:600;color:var(--text);">WhatsApp Web Kholo</div>
+      <div style="font-size:.68rem;color:var(--text3);">"Open WhatsApp Web" button</div>
+    </div>
+    <div style="text-align:center;padding:.75rem;background:#f8fafc;border-radius:10px;">
+      <div style="font-size:1.5rem;margin-bottom:.3rem;">3️⃣</div>
+      <div style="font-size:.77rem;font-weight:600;color:var(--text);">Contact Choose Karo</div>
+      <div style="font-size:.68rem;color:var(--text3);">Group ya manager ka naam</div>
+    </div>
+    <div style="text-align:center;padding:.75rem;background:#f8fafc;border-radius:10px;">
+      <div style="font-size:1.5rem;margin-bottom:.3rem;">4️⃣</div>
+      <div style="font-size:.77rem;font-weight:600;color:var(--text);">Send! ✅</div>
+      <div style="font-size:.68rem;color:var(--text3);">Message already typed rahega</div>
+    </div>
+  </div>
+</div>
+
+</div><!-- /.wa-page -->
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let currentMessage = '';
+let currentWaUrl   = '';
+
+document.addEventListener('DOMContentLoaded', () => {
+  const today = new Date().toISOString().split('T')[0];
+  document.getElementById('reportDate').value = today;
+  loadReport();
+});
+
+function loadReport() {
+  const d = document.getElementById('reportDate').value;
+  if (!d) return;
+
+  // Skeleton state
+  document.getElementById('msgBubble').innerHTML = `
+    <div style="display:flex;flex-direction:column;gap:8px;">
+      ${Array(8).fill('<div class="skel" style="width:'+(55+Math.random()*40|0)+'%;height:13px;"></div>').join('')}
+    </div>`;
+  document.getElementById('charCount').textContent = '— characters';
+  document.getElementById('btnOpenWa').href = '#';
+
+  fetch(`/npd/api/wa-detail-report?date=${d}`)
+    .then(r => r.json())
+    .then(data => {
+      if (!data.ok) {
+        document.getElementById('msgBubble').textContent = 'Error: ' + data.error;
+        return;
+      }
+
+      currentMessage = data.message;
+      currentWaUrl   = data.wa_url;
+
+      // Render bubble with basic WhatsApp markdown rendering
+      document.getElementById('msgBubble').innerHTML = renderWaMarkdown(data.message);
+      document.getElementById('charCount').textContent = `${data.char_count.toLocaleString()} characters`;
+      document.getElementById('btnOpenWa').href = data.wa_url;
+      document.getElementById('reportLabel').textContent = data.date;
+
+      // Update stats
+      loadStats(d);
+    })
+    .catch(e => {
+      document.getElementById('msgBubble').textContent = 'Network error — please try again.';
+      console.error(e);
+    });
+}
+
+function loadStats(d) {
+  fetch(`/npd/api/daily-dashboard?date=${d}`)
+    .then(r => r.json())
+    .then(data => {
+      if (!data.ok) return;
+      const r = data.report;
+      document.getElementById('statsRow').innerHTML = `
+        <div class="stat-chip">
+          <div class="stat-num">${r.total_tasks_worked ?? 0}</div>
+          <div class="stat-lbl">Projects Active</div>
+        </div>
+        <div class="stat-chip">
+          <div class="stat-num">${r.completed_tasks ?? 0}</div>
+          <div class="stat-lbl">Completed</div>
+        </div>
+        <div class="stat-chip">
+          <div class="stat-num">${r.active_employees ?? 0}</div>
+          <div class="stat-lbl">Team Members</div>
+        </div>
+        <div class="stat-chip">
+          <div class="stat-num">${r.late_tasks ?? 0}</div>
+          <div class="stat-lbl" style="color:${r.late_tasks > 0 ? '#dc2626' : ''};">Late Tasks</div>
+        </div>`;
+    });
+}
+
+// Simple WhatsApp markdown → HTML renderer
+function renderWaMarkdown(text) {
+  if (!text) return '';
+  const lines = text.split('\n');
+  const html = lines.map(line => {
+    // Bold: *text*
+    line = line.replace(/\*([^*]+)\*/g, '<strong>$1</strong>');
+    // Italic: _text_
+    line = line.replace(/_([^_]+)_/g, '<em style="color:#555;">$1</em>');
+    // Dividers
+    if (/^━+$/.test(line.trim())) {
+      return '<div style="border-top:1px solid #d1d5db;margin:.35rem 0;"></div>';
+    }
+    // Employee headers (👤 lines)
+    if (line.startsWith('👤')) {
+      return `<div style="font-weight:700;font-size:.84rem;margin:.6rem 0 .2rem;color:#111;">${esc(line)}</div>`;
+    }
+    // Divider-like lines (┄)
+    if (/^┄+$/.test(line.trim())) {
+      return '<div style="border-top:1px dashed #d1d5db;margin:.2rem 0 .3rem;"></div>';
+    }
+    // Module headers (icon + _module_)
+    if (/^[🎯💬🧪🎨📦🔀🆕✅🔄🧫📤🗑️]/.test(line) && line.includes('_')) {
+      return `<div style="font-size:.77rem;font-weight:700;color:#4b5563;margin:.35rem 0 .1rem;">${esc(line)}</div>`;
+    }
+    // Bullet items
+    if (line.startsWith('   •')) {
+      return `<div style="font-size:.76rem;color:#374151;padding:.05rem 0 .05rem .5rem;">${esc(line)}</div>`;
+    }
+    if (line.startsWith('     ↳')) {
+      return `<div style="font-size:.71rem;color:#6b7280;padding:.02rem 0 .02rem 1rem;">${esc(line)}</div>`;
+    }
+    // Footer stats
+    if (/^[📊👥🏆]/.test(line)) {
+      return `<div style="font-size:.78rem;font-weight:600;color:#374151;margin:.1rem 0;">${esc(line)}</div>`;
+    }
+    // Empty lines
+    if (!line.trim()) return '<div style="height:.25rem;"></div>';
+    // Default
+    return `<div style="font-size:.78rem;color:#374151;">${esc(line)}</div>`;
+  }).join('');
+  return html;
+}
+
+function copyMsg() {
+  if (!currentMessage) { alert('Pehle report load karo'); return; }
+  const btn = document.getElementById('btnCopy');
+
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(currentMessage).then(() => {
+      btn.classList.add('copied');
+      btn.innerHTML = '✅ Copied!';
+      setTimeout(() => {
+        btn.classList.remove('copied');
+        btn.innerHTML = '📋 Copy Message';
+      }, 2500);
+    });
+  } else {
+    // Fallback for older browsers
+    const ta = document.createElement('textarea');
+    ta.value = currentMessage;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    btn.innerHTML = '✅ Copied!';
+    setTimeout(() => { btn.innerHTML = '📋 Copy Message'; }, 2000);
+  }
+}
+
+function esc(s) {
+  return String(s || '')
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+</script>
+{% endblock %}

@@ -1,0 +1,1053 @@
+{% extends "base.html" %}
+{% block title %}NPD Daily Work Report{% endblock %}
+{% block page_title %}NPD Daily Work Report{% endblock %}
+{% block bread %}NPD / Daily Work Report{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ══════════════════════════════════════════════════════
+   NPD Daily Report Dashboard — Styles
+   ══════════════════════════════════════════════════════ */
+
+:root {
+  --dr-purple: #7c3aed;
+  --dr-purple-lt: #ede9fe;
+  --dr-green:  #059669;
+  --dr-green-lt: #d1fae5;
+  --dr-amber:  #d97706;
+  --dr-amber-lt: #fef3c7;
+  --dr-red:    #dc2626;
+  --dr-red-lt: #fee2e2;
+  --dr-blue:   #2563eb;
+  --dr-blue-lt:#dbeafe;
+  --dr-teal:   #0d9488;
+  --dr-teal-lt:#ccfbf1;
+  --card-r:    14px;
+  --card-sh:   0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
+  --card-sh-hv:0 6px 20px rgba(0,0,0,.1);
+}
+
+/* ── Page Header ── */
+.dr-hdr {
+  display:flex; align-items:flex-start; justify-content:space-between;
+  flex-wrap:wrap; gap:.75rem; margin-bottom:1.25rem;
+}
+.dr-hdr-left h2 { font-size:1.2rem; font-weight:800; color:var(--text); margin:0 0 2px; }
+.dr-hdr-left .sub { font-size:.76rem; color:var(--text3); }
+.dr-hdr-right { display:flex; gap:.5rem; align-items:center; flex-wrap:wrap; }
+
+/* ── Toolbar ── */
+.dr-toolbar {
+  display:flex; align-items:center; gap:.65rem; flex-wrap:wrap;
+  background:#fff; border:1px solid #e2e8f0; border-radius:10px;
+  padding:.55rem .85rem; margin-bottom:1.2rem;
+}
+.dr-toolbar label { font-size:.75rem; font-weight:600; color:var(--text2); white-space:nowrap; }
+.dr-toolbar input[type=date],
+.dr-toolbar select {
+  font-size:.78rem; border:1px solid #e2e8f0; border-radius:6px;
+  padding:.28rem .55rem; color:var(--text); background:#f8fafc;
+  outline:none; cursor:pointer;
+}
+.dr-toolbar input[type=date]:focus,
+.dr-toolbar select:focus { border-color:var(--dr-purple); background:#fff; }
+.dr-toolbar .sep { flex:1; }
+
+/* ── Live badge ── */
+.live-badge {
+  display:inline-flex; align-items:center; gap:5px;
+  background:#dcfce7; color:#16a34a; border-radius:20px;
+  font-size:.68rem; font-weight:700; padding:3px 10px;
+  border:1px solid #bbf7d0;
+}
+.live-dot { width:7px; height:7px; border-radius:50%; background:#16a34a;
+            animation:pulse 1.4s ease-in-out infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+/* ── Last updated ── */
+.last-upd { font-size:.68rem; color:var(--text3); }
+
+/* ── KPI Cards grid ── */
+.kpi-grid {
+  display:grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap:.85rem;
+  margin-bottom:1.2rem;
+}
+@media(max-width:900px){ .kpi-grid{ grid-template-columns:repeat(2,1fr); } }
+@media(max-width:500px){ .kpi-grid{ grid-template-columns:1fr 1fr; } }
+
+.kpi-card {
+  background:#fff; border:1px solid #e2e8f0; border-radius:var(--card-r);
+  padding:1.1rem 1.2rem 1rem; box-shadow:var(--card-sh);
+  border-top:3px solid transparent;
+  transition:transform .15s,box-shadow .15s;
+  cursor:default;
+}
+.kpi-card:hover { transform:translateY(-2px); box-shadow:var(--card-sh-hv); }
+.kpi-card.c-purple { border-top-color:var(--dr-purple); }
+.kpi-card.c-green  { border-top-color:var(--dr-green);  }
+.kpi-card.c-amber  { border-top-color:var(--dr-amber);  }
+.kpi-card.c-red    { border-top-color:var(--dr-red);    }
+.kpi-card.c-blue   { border-top-color:var(--dr-blue);   }
+.kpi-card.c-teal   { border-top-color:var(--dr-teal);   }
+
+.kpi-top { display:flex; align-items:center; justify-content:space-between; margin-bottom:.6rem; }
+.kpi-ic  { width:38px; height:38px; border-radius:9px; display:flex; align-items:center;
+           justify-content:center; font-size:1.15rem; flex-shrink:0; }
+.kpi-ic.c-purple { background:var(--dr-purple-lt); }
+.kpi-ic.c-green  { background:var(--dr-green-lt);  }
+.kpi-ic.c-amber  { background:var(--dr-amber-lt);  }
+.kpi-ic.c-red    { background:var(--dr-red-lt);    }
+.kpi-ic.c-blue   { background:var(--dr-blue-lt);   }
+.kpi-ic.c-teal   { background:var(--dr-teal-lt);   }
+.kpi-lbl { font-size:.68rem; font-weight:700; text-transform:uppercase;
+           letter-spacing:.08em; color:var(--text3); }
+.kpi-num { font-size:2.15rem; font-weight:900; letter-spacing:-.03em;
+           color:var(--text); line-height:1; }
+.kpi-sub { font-size:.7rem; color:var(--text3); margin-top:3px; }
+
+/* ── 2-col layout row ── */
+.charts-row { display:grid; grid-template-columns:2fr 1fr; gap:.85rem; margin-bottom:.85rem; }
+.charts-row3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:.85rem; margin-bottom:.85rem; }
+@media(max-width:900px) {
+  .charts-row,.charts-row3 { grid-template-columns:1fr; }
+}
+
+/* ── Panel card ── */
+.panel {
+  background:#fff; border:1px solid #e2e8f0; border-radius:var(--card-r);
+  box-shadow:var(--card-sh); overflow:hidden;
+}
+.panel-hdr {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:.75rem 1.1rem; border-bottom:1px solid #f1f5f9;
+}
+.panel-ttl { font-size:.86rem; font-weight:700; color:var(--text); display:flex; align-items:center; gap:.4rem; }
+.panel-sub { font-size:.72rem; color:var(--text3); }
+.panel-body { padding:.75rem 1.1rem; }
+
+/* ── Employee table ── */
+.emp-table { width:100%; border-collapse:collapse; font-size:.78rem; }
+.emp-table th {
+  text-align:left; font-size:.67rem; font-weight:700; text-transform:uppercase;
+  letter-spacing:.07em; color:var(--text3); padding:.45rem .7rem;
+  border-bottom:2px solid #f1f5f9; white-space:nowrap;
+}
+.emp-table td { padding:.55rem .7rem; border-bottom:1px solid #f8fafc; vertical-align:middle; }
+.emp-table tr:last-child td { border-bottom:none; }
+.emp-table tr:hover td { background:#fafafe; }
+
+.emp-av {
+  width:32px; height:32px; border-radius:50%; flex-shrink:0;
+  background:linear-gradient(135deg,#7c3aed,#c026d3);
+  display:flex; align-items:center; justify-content:center;
+  font-size:.7rem; font-weight:700; color:#fff; text-transform:uppercase;
+}
+.emp-name { font-weight:600; color:var(--text); font-size:.82rem; }
+.emp-role { font-size:.68rem; color:var(--text3); }
+
+.score-bar-wrap { display:flex; align-items:center; gap:.5rem; min-width:100px; }
+.score-bar { flex:1; height:6px; background:#f1f5f9; border-radius:3px; overflow:hidden; }
+.score-fill { height:100%; border-radius:3px; transition:width .4s ease; }
+.score-num { font-size:.72rem; font-weight:700; color:var(--text2); white-space:nowrap; }
+
+.badge-sm {
+  display:inline-flex; align-items:center; justify-content:center;
+  padding:2px 8px; border-radius:20px; font-size:.67rem; font-weight:700;
+  white-space:nowrap;
+}
+.badge-green  { background:var(--dr-green-lt);  color:var(--dr-green); }
+.badge-amber  { background:var(--dr-amber-lt);  color:var(--dr-amber); }
+.badge-purple { background:var(--dr-purple-lt); color:var(--dr-purple); }
+.badge-red    { background:var(--dr-red-lt);    color:var(--dr-red); }
+.badge-blue   { background:var(--dr-blue-lt);   color:var(--dr-blue); }
+.badge-grey   { background:#f1f5f9; color:var(--text3); }
+
+/* ── Activity Feed ── */
+.feed-item {
+  display:flex; align-items:flex-start; gap:.65rem;
+  padding:.5rem 0; border-bottom:1px solid #f8fafc;
+}
+.feed-item:last-child { border-bottom:none; }
+.feed-ic {
+  width:28px; height:28px; border-radius:8px; flex-shrink:0;
+  display:flex; align-items:center; justify-content:center; font-size:.85rem;
+}
+.feed-body { flex:1; min-width:0; }
+.feed-action { font-size:.79rem; font-weight:600; color:var(--text);
+               white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.feed-meta   { font-size:.68rem; color:var(--text3); margin-top:1px; }
+.feed-time   { font-size:.68rem; color:var(--text3); white-space:nowrap; }
+
+.atype-icon {
+  task_created:'🆕', task_updated:'🔄', task_completed:'✅',
+  status_changed:'🔀', milestone_updated:'🎯', comment_added:'💬',
+  formulation_added:'🧪', artwork_uploaded:'🎨', packing_updated:'📦',
+  project_closed:'🔒', project_deleted:'🗑️', project_viewed:'👁️'
+}
+
+/* ── Chart containers ── */
+.chart-wrap { position:relative; }
+
+/* ── WhatsApp share button ── */
+.btn-wa {
+  display:inline-flex; align-items:center; gap:.45rem;
+  background:#25d366; color:#fff; border:none; border-radius:8px;
+  padding:.45rem .95rem; font-size:.8rem; font-weight:700;
+  cursor:pointer; transition:background .15s;
+}
+.btn-wa:hover { background:#1da851; }
+.btn-wa svg { width:18px; height:18px; fill:currentColor; }
+
+/* ── Refresh button ── */
+.btn-refresh {
+  display:inline-flex; align-items:center; gap:.4rem;
+  background:#fff; color:var(--text2); border:1px solid #e2e8f0;
+  border-radius:8px; padding:.42rem .85rem; font-size:.78rem;
+  font-weight:600; cursor:pointer; transition:all .15s;
+}
+.btn-refresh:hover { border-color:var(--dr-purple); color:var(--dr-purple); }
+.btn-refresh.spinning .ri { animation:spin .7s linear infinite; }
+@keyframes spin { to{transform:rotate(360deg)} }
+
+/* ── Generate Report btn ── */
+.btn-gen {
+  display:inline-flex; align-items:center; gap:.4rem;
+  background:var(--dr-purple); color:#fff; border:none; border-radius:8px;
+  padding:.44rem .9rem; font-size:.78rem; font-weight:700;
+  cursor:pointer; transition:background .15s;
+}
+.btn-gen:hover { background:#6d28d9; }
+
+/* ── Skeleton loader ── */
+.skel { background:linear-gradient(90deg,#f1f5f9 25%,#e2e8f0 50%,#f1f5f9 75%);
+        background-size:200% 100%; animation:shimmer 1.3s infinite;
+        border-radius:6px; }
+@keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+
+/* ── Empty state ── */
+.empty-state { text-align:center; padding:2.5rem 1rem; color:var(--text3); }
+.empty-state .es-ic { font-size:2.2rem; margin-bottom:.6rem; }
+.empty-state .es-ttl { font-size:.88rem; font-weight:600; color:var(--text2); }
+.empty-state .es-sub { font-size:.75rem; margin-top:.25rem; }
+
+/* ── WhatsApp modal ── */
+.wa-modal-overlay {
+  position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:999;
+  display:none; align-items:center; justify-content:center; padding:1rem;
+}
+.wa-modal-overlay.open { display:flex; }
+.wa-modal {
+  background:#fff; border-radius:16px; padding:1.5rem; width:100%; max-width:520px;
+  box-shadow:0 20px 60px rgba(0,0,0,.2);
+}
+.wa-modal-hdr { display:flex; align-items:center; justify-content:space-between;
+                margin-bottom:1rem; }
+.wa-modal-ttl { font-size:1rem; font-weight:800; color:var(--text);
+                display:flex; align-items:center; gap:.5rem; }
+.wa-close { background:none; border:none; cursor:pointer; font-size:1.2rem;
+            color:var(--text3); line-height:1; }
+.wa-msg-box {
+  background:#e8fde8; border:1px solid #a7f3d0; border-radius:10px;
+  padding:.85rem 1rem; font-family:monospace; font-size:.78rem;
+  color:#065f46; white-space:pre-wrap; word-break:break-word;
+  max-height:280px; overflow-y:auto; margin-bottom:1rem; line-height:1.6;
+}
+.wa-actions { display:flex; gap:.6rem; flex-wrap:wrap; }
+.btn-copy {
+  display:inline-flex; align-items:center; gap:.4rem;
+  background:#f1f5f9; color:var(--text2); border:1px solid #e2e8f0;
+  border-radius:8px; padding:.42rem .85rem; font-size:.78rem;
+  font-weight:600; cursor:pointer; transition:all .15s; flex:1;
+  justify-content:center;
+}
+.btn-copy:hover { background:#e2e8f0; }
+.btn-copy.copied { background:#dcfce7; color:#16a34a; border-color:#86efac; }
+
+/* ── Responsive tweaks ── */
+@media(max-width:640px){
+  .kpi-num { font-size:1.6rem; }
+  .panel-body { padding:.6rem .8rem; }
+  .emp-table th:nth-child(n+5),
+  .emp-table td:nth-child(n+5) { display:none; }
+}
+
+/* ── Tab strip (for employee/project tabs) ── */
+.tab-strip {
+  display:flex; gap:0; border-bottom:2px solid #f1f5f9; margin-bottom:.8rem;
+}
+.tab-btn {
+  background:none; border:none; border-bottom:2px solid transparent;
+  margin-bottom:-2px; padding:.5rem .9rem; font-size:.79rem; font-weight:600;
+  color:var(--text3); cursor:pointer; transition:color .15s,border-color .15s;
+}
+.tab-btn.active { color:var(--dr-purple); border-bottom-color:var(--dr-purple); }
+
+/* ── Trend arrows ── */
+.trend-up   { color:var(--dr-green); font-size:.72rem; font-weight:700; }
+.trend-down { color:var(--dr-red);   font-size:.72rem; font-weight:700; }
+.trend-flat { color:var(--text3);    font-size:.72rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- WhatsApp Modal -->
+<div class="wa-modal-overlay" id="waModal">
+  <div class="wa-modal">
+    <div class="wa-modal-hdr">
+      <div class="wa-modal-ttl">
+        <svg viewBox="0 0 24 24" style="width:22px;height:22px;fill:#25d366">
+          <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
+        </svg>
+        Share via WhatsApp
+      </div>
+      <button class="wa-close" onclick="closeWaModal()">✕</button>
+    </div>
+    <div class="wa-msg-box" id="waMsgBox">Loading report…</div>
+    <div class="wa-actions">
+      <button class="btn-copy" id="btnCopy" onclick="copyMsg()">
+        <span>📋</span> Copy Message
+      </button>
+      <a class="btn-wa" id="btnWaLink" href="#" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg>
+        Open WhatsApp
+      </a>
+    </div>
+  </div>
+</div>
+
+<!-- ── Page Header ── -->
+<div class="dr-hdr">
+  <div class="dr-hdr-left">
+    <h2>📋 NPD Daily Work Report</h2>
+    <div class="sub">Auto-tracked activity from all NPD modules</div>
+  </div>
+  <div class="dr-hdr-right">
+    <span class="live-badge"><span class="live-dot"></span> Live</span>
+    <span class="last-upd" id="lastUpdLabel">—</span>
+    <button class="btn-refresh" id="btnRefresh" onclick="loadDashboard()">
+      <span class="ri">🔄</span> Refresh
+    </button>
+    <button class="btn-gen" onclick="generateReport()">
+      ⚡ Generate Report
+    </button>
+    <button class="btn-wa" onclick="openWaModal()">
+      <svg viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg>
+      Share Report
+    </button>
+  </div>
+</div>
+
+<!-- ── Toolbar (Filters) ── -->
+<div class="dr-toolbar">
+  <label>📅 Date:</label>
+  <input type="date" id="filterDate" onchange="loadDashboard()" />
+  <label>👤 Employee:</label>
+  <select id="filterEmp" onchange="filterByEmployee()">
+    <option value="">All Employees</option>
+  </select>
+  <div class="sep"></div>
+  <span id="reportDateLabel" style="font-size:.78rem;font-weight:700;color:var(--dr-purple);">Today</span>
+</div>
+
+<!-- ── KPI Cards ── -->
+<div class="kpi-grid" id="kpiGrid">
+  <!-- Skeleton placeholders -->
+  <div class="kpi-card c-purple"><div class="skel" style="height:80px;"></div></div>
+  <div class="kpi-card c-green" ><div class="skel" style="height:80px;"></div></div>
+  <div class="kpi-card c-amber" ><div class="skel" style="height:80px;"></div></div>
+  <div class="kpi-card c-red"   ><div class="skel" style="height:80px;"></div></div>
+  <div class="kpi-card c-blue"  ><div class="skel" style="height:80px;"></div></div>
+  <div class="kpi-card c-teal"  ><div class="skel" style="height:80px;"></div></div>
+  <div class="kpi-card c-purple"><div class="skel" style="height:80px;"></div></div>
+  <div class="kpi-card c-green" ><div class="skel" style="height:80px;"></div></div>
+</div>
+
+<!-- ── Row 1: Activity chart + Action breakdown ── -->
+<div class="charts-row">
+  <div class="panel">
+    <div class="panel-hdr">
+      <div class="panel-ttl">📈 Hourly Activity Distribution</div>
+      <div class="panel-sub" id="activityChartSub">Today's task actions by hour</div>
+    </div>
+    <div class="panel-body">
+      <div class="chart-wrap" style="height:200px;">
+        <canvas id="chartHourly"></canvas>
+      </div>
+    </div>
+  </div>
+  <div class="panel">
+    <div class="panel-hdr">
+      <div class="panel-ttl">🎯 Action Breakdown</div>
+    </div>
+    <div class="panel-body">
+      <div class="chart-wrap" style="height:200px;">
+        <canvas id="chartDoughnut"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Row 2: 7-day trend ── -->
+<div class="panel" style="margin-bottom:.85rem;">
+  <div class="panel-hdr">
+    <div class="panel-ttl">📊 7-Day Productivity Trend</div>
+    <div class="panel-sub">Tasks worked vs completed per day</div>
+  </div>
+  <div class="panel-body">
+    <div class="chart-wrap" style="height:160px;">
+      <canvas id="chartTrend"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- ── Row 3: Employee table + Activity Feed ── -->
+<div class="charts-row">
+
+  <!-- Employee Performance Table -->
+  <div class="panel">
+    <div class="panel-hdr">
+      <div class="panel-ttl">👥 Employee Performance</div>
+      <div class="panel-sub" id="empCountLabel">—</div>
+    </div>
+    <div class="panel-body" style="padding:0;">
+      <div style="overflow-x:auto;">
+        <table class="emp-table" id="empTable">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Employee</th>
+              <th>✅ Done</th>
+              <th>🔄 Updated</th>
+              <th>🎯 Milestones</th>
+              <th>💬 Comments</th>
+              <th>⏱ Time</th>
+              <th>Score</th>
+            </tr>
+          </thead>
+          <tbody id="empTableBody">
+            <tr><td colspan="8">
+              <div class="empty-state">
+                <div class="es-ic">👥</div>
+                <div class="es-ttl">Loading employee data…</div>
+              </div>
+            </td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Live Activity Feed -->
+  <div class="panel">
+    <div class="panel-hdr">
+      <div class="panel-ttl">⚡ Live Activity Feed</div>
+      <div class="live-badge" style="transform:scale(.85)"><span class="live-dot"></span> Updating</div>
+    </div>
+    <div class="panel-body" style="max-height:350px;overflow-y:auto;padding:.5rem .85rem;">
+      <div id="activityFeed">
+        <div class="empty-state"><div class="es-ic">⚡</div><div class="es-ttl">Loading feed…</div></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ── Row 4: Recently Updated Projects ── -->
+<div class="panel" style="margin-bottom:.85rem;">
+  <div class="panel-hdr">
+    <div class="panel-ttl">🕒 Recently Updated Projects</div>
+    <a href="/npd/npd-projects" style="font-size:.75rem;color:var(--dr-blue);text-decoration:none;font-weight:600;">
+      View All →
+    </a>
+  </div>
+  <div class="panel-body" style="padding:0;">
+    <div style="overflow-x:auto;">
+      <table class="emp-table" id="recentTable">
+        <thead>
+          <tr>
+            <th>Project</th>
+            <th>Product</th>
+            <th>Status</th>
+            <th>Action</th>
+            <th>By</th>
+            <th>Time</th>
+          </tr>
+        </thead>
+        <tbody id="recentTableBody">
+          <tr><td colspan="6">
+            <div class="empty-state"><div class="es-ic">🕒</div><div class="es-ttl">Loading…</div></div>
+          </td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ── Row 5: Late Tasks Warning ── -->
+<div class="panel" id="lateTasksPanel" style="display:none;margin-bottom:.85rem;border-left:4px solid var(--dr-red);">
+  <div class="panel-hdr">
+    <div class="panel-ttl" style="color:var(--dr-red);">⚠️ Late / Overdue Tasks</div>
+    <div class="panel-sub" id="lateCountLabel"></div>
+  </div>
+  <div class="panel-body">
+    <div id="lateTasksBody">
+      <div class="empty-state"><div class="es-ttl">Loading…</div></div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+
+{% block extra_js %}
+<!-- Chart.js from CDN -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+
+<script>
+// ══════════════════════════════════════════════════════
+//  NPD Daily Report Dashboard — JS Controller
+// ══════════════════════════════════════════════════════
+
+let chartHourly   = null;
+let chartDoughnut = null;
+let chartTrend    = null;
+let autoRefreshTimer = null;
+let currentDate = new Date().toISOString().split('T')[0];
+
+const ATYPE_ICONS = {
+  task_created:      '🆕',
+  task_updated:      '🔄',
+  task_completed:    '✅',
+  status_changed:    '🔀',
+  milestone_updated: '🎯',
+  comment_added:     '💬',
+  formulation_added: '🧪',
+  artwork_uploaded:  '🎨',
+  packing_updated:   '📦',
+  project_closed:    '🔒',
+  project_deleted:   '🗑️',
+  project_viewed:    '👁️',
+};
+
+const ATYPE_COLORS = {
+  task_created:      '#7c3aed',
+  task_completed:    '#059669',
+  task_updated:      '#2563eb',
+  status_changed:    '#d97706',
+  milestone_updated: '#0d9488',
+  comment_added:     '#db2777',
+  formulation_added: '#7c3aed',
+  artwork_uploaded:  '#c026d3',
+  packing_updated:   '#ea580c',
+  project_closed:    '#6b7280',
+};
+
+const ATYPE_BG = {
+  task_created:      '#ede9fe',
+  task_completed:    '#d1fae5',
+  task_updated:      '#dbeafe',
+  status_changed:    '#fef3c7',
+  milestone_updated: '#ccfbf1',
+  comment_added:     '#fce7f3',
+  formulation_added: '#ede9fe',
+  artwork_uploaded:  '#fae8ff',
+  packing_updated:   '#ffedd5',
+  project_closed:    '#f1f5f9',
+};
+
+// ── Init ──────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  const today = new Date().toISOString().split('T')[0];
+  document.getElementById('filterDate').value = today;
+  currentDate = today;
+
+  loadDashboard();
+  loadTrend();
+  loadActivityFeed();
+
+  // Auto-refresh every 45 seconds
+  autoRefreshTimer = setInterval(() => {
+    loadDashboard(true);
+    loadActivityFeed();
+  }, 45000);
+});
+
+// ── Main dashboard loader ─────────────────────────────
+function loadDashboard(silent = false) {
+  const d = document.getElementById('filterDate').value || currentDate;
+  currentDate = d;
+
+  if (!silent) {
+    const btn = document.getElementById('btnRefresh');
+    btn.classList.add('spinning');
+  }
+
+  fetch(`/npd/api/daily-dashboard?date=${d}`)
+    .then(r => r.json())
+    .then(data => {
+      if (!data.ok) { console.error(data); return; }
+      renderKPI(data.report);
+      renderEmployeeTable(data.report.employee_summary || []);
+      renderRecentTable(data.report.recently_updated  || []);
+      renderHourlyChart(data.report.hourly_activity   || {});
+      renderDoughnutChart(data.report.action_breakdown|| {});
+      handleLateTasks(data.report.late_tasks, data.report.late_task_list || []);
+      updateEmployeeDropdown(data.report.employee_summary || []);
+
+      document.getElementById('reportDateLabel').textContent = data.date;
+      document.getElementById('lastUpdLabel').textContent =
+        'Updated ' + new Date().toLocaleTimeString('en-IN', {hour:'2-digit',minute:'2-digit'});
+    })
+    .catch(e => console.error('Dashboard error:', e))
+    .finally(() => {
+      document.getElementById('btnRefresh').classList.remove('spinning');
+    });
+}
+
+// ── KPI Cards ─────────────────────────────────────────
+function renderKPI(r) {
+  const cards = [
+    { color:'purple', icon:'📊', label:'Total Worked',    val: r.total_tasks_worked, sub:'Projects with activity today' },
+    { color:'green',  icon:'✅', label:'Completed',       val: r.completed_tasks,    sub:'Finished today'                },
+    { color:'amber',  icon:'⏳', label:'Pending',         val: r.pending_tasks,      sub:'Still in progress'             },
+    { color:'red',    icon:'⚠️', label:'Late / Overdue',  val: r.late_tasks,         sub:'Past target date'              },
+    { color:'blue',   icon:'🆕', label:'New Today',       val: r.new_tasks_today,    sub:'Created today'                 },
+    { color:'teal',   icon:'👥', label:'Active Team',     val: r.active_employees,   sub:'Employees with activity'       },
+    { color:'purple', icon:'⏱️', label:'Team Time',       val: r.total_time_label || '0m', sub:'Total tracked time'    },
+    { color:'green',  icon:'🏆', label:'Top Performer',
+      val: r.top_employee ? r.top_employee.name.split(' ')[0] : '—',
+      sub: r.top_employee ? `Score: ${r.top_employee.score.toFixed(0)}` : 'No data yet' },
+  ];
+
+  const grid = document.getElementById('kpiGrid');
+  grid.innerHTML = cards.map(c => `
+    <div class="kpi-card c-${c.color}">
+      <div class="kpi-top">
+        <div>
+          <div class="kpi-lbl">${c.label}</div>
+        </div>
+        <div class="kpi-ic c-${c.color}">${c.icon}</div>
+      </div>
+      <div class="kpi-num">${c.val ?? 0}</div>
+      <div class="kpi-sub">${c.sub}</div>
+    </div>
+  `).join('');
+}
+
+// ── Employee Table ────────────────────────────────────
+function renderEmployeeTable(emps) {
+  const tbody = document.getElementById('empTableBody');
+  document.getElementById('empCountLabel').textContent = `${emps.length} active member${emps.length !== 1 ? 's' : ''}`;
+
+  if (!emps.length) {
+    tbody.innerHTML = `<tr><td colspan="8">
+      <div class="empty-state">
+        <div class="es-ic">👥</div>
+        <div class="es-ttl">No employee activity today</div>
+        <div class="es-sub">Activity will appear here as team members work on NPD projects.</div>
+      </div>
+    </td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = emps.map((e, i) => {
+    const score = e.score || 0;
+    const scoreColor = score >= 70 ? '#059669' : score >= 40 ? '#d97706' : '#dc2626';
+    const initials = (e.name || 'U').split(' ').map(w => w[0]).slice(0,2).join('').toUpperCase();
+    return `
+      <tr>
+        <td><span class="badge-grey badge-sm">${i + 1}</span></td>
+        <td>
+          <div style="display:flex;align-items:center;gap:.6rem;">
+            <div class="emp-av" style="background:${avatarGrad(i)}">${initials}</div>
+            <div>
+              <div class="emp-name">${e.name}</div>
+              <div class="emp-role">${e.total_actions || 0} actions</div>
+            </div>
+          </div>
+        </td>
+        <td><span class="badge-sm badge-green">${e.completed || 0}</span></td>
+        <td><span class="badge-sm badge-blue">${e.updated || 0}</span></td>
+        <td><span class="badge-sm badge-purple">${e.milestones || 0}</span></td>
+        <td><span class="badge-sm badge-grey">${e.comments || 0}</span></td>
+        <td style="white-space:nowrap;font-size:.76rem;color:var(--text2);">⏱ ${e.time_label || '0m'}</td>
+        <td>
+          <div class="score-bar-wrap">
+            <div class="score-bar">
+              <div class="score-fill" style="width:${Math.min(100,score)}%;background:${scoreColor};"></div>
+            </div>
+            <div class="score-num" style="color:${scoreColor}">${score.toFixed(0)}</div>
+          </div>
+        </td>
+      </tr>`;
+  }).join('');
+}
+
+// ── Recent Projects Table ─────────────────────────────
+function renderRecentTable(items) {
+  const tbody = document.getElementById('recentTableBody');
+  if (!items.length) {
+    tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state"><div class="es-ic">🕒</div><div class="es-ttl">No recent activity</div></div></td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = items.map(p => `
+    <tr>
+      <td><span class="badge-sm badge-purple">${escHtml(p.project_code)}</span></td>
+      <td style="font-size:.79rem;font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+        ${escHtml(p.product_name)}
+      </td>
+      <td><span class="badge-sm" style="background:${p.status_color}22;color:${p.status_color};">${escHtml(p.status)}</span></td>
+      <td style="font-size:.74rem;color:var(--text2);max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+        ${escHtml(p.action)}
+      </td>
+      <td style="font-size:.75rem;color:var(--text2);">${escHtml(p.updated_by)}</td>
+      <td style="font-size:.72rem;color:var(--text3);white-space:nowrap;">🕐 ${escHtml(p.updated_at)}</td>
+    </tr>
+  `).join('');
+}
+
+// ── Activity Feed ─────────────────────────────────────
+function loadActivityFeed() {
+  const d = document.getElementById('filterDate').value || currentDate;
+  fetch(`/npd/api/activity-feed?date=${d}&limit=25`)
+    .then(r => r.json())
+    .then(data => {
+      const feed = document.getElementById('activityFeed');
+      if (!data.ok || !data.feed.length) {
+        feed.innerHTML = `<div class="empty-state"><div class="es-ic">⚡</div><div class="es-ttl">No activity yet today</div><div class="es-sub">Actions will appear here in real time.</div></div>`;
+        return;
+      }
+
+      feed.innerHTML = data.feed.map(item => {
+        const icon  = ATYPE_ICONS[item.action_type]  || '📌';
+        const color = ATYPE_COLORS[item.action_type] || '#6b7280';
+        const bg    = ATYPE_BG[item.action_type]     || '#f1f5f9';
+        return `
+          <div class="feed-item">
+            <div class="feed-ic" style="background:${bg};color:${color};">${icon}</div>
+            <div class="feed-body">
+              <div class="feed-action">${escHtml(item.action)}</div>
+              <div class="feed-meta">
+                <strong style="color:var(--text2);">${escHtml(item.user)}</strong>
+                on <a href="/npd/project-view/${item.project}" style="color:var(--dr-blue);font-weight:600;">${escHtml(item.project)}</a>
+                — ${escHtml(item.product)}
+              </div>
+            </div>
+            <div class="feed-time">${escHtml(item.time_ago)}</div>
+          </div>`;
+      }).join('');
+    })
+    .catch(e => console.error('Feed error:', e));
+}
+
+// ── Hourly Chart ──────────────────────────────────────
+function renderHourlyChart(hourlyData) {
+  const labels = [];
+  const data   = [];
+  for (let h = 7; h <= 20; h++) {
+    labels.push(`${h}:00`);
+    data.push(hourlyData[String(h)] || 0);
+  }
+
+  if (chartHourly) chartHourly.destroy();
+  const ctx = document.getElementById('chartHourly').getContext('2d');
+  chartHourly = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Actions',
+        data,
+        backgroundColor: 'rgba(124,58,237,.7)',
+        borderRadius: 5,
+        borderSkipped: false,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { display: false }, ticks: { font: { size: 10 } } },
+        y: { beginAtZero: true, ticks: { stepSize: 1, font: { size: 10 } }, grid: { color: '#f1f5f9' } },
+      }
+    }
+  });
+}
+
+// ── Doughnut Chart ────────────────────────────────────
+function renderDoughnutChart(breakdown) {
+  const labelMap = {
+    task_created: 'Created', task_updated: 'Updated', task_completed: 'Completed',
+    status_changed: 'Status', milestone_updated: 'Milestone', comment_added: 'Comments',
+    formulation_added: 'Formulation', artwork_uploaded: 'Artwork', packing_updated: 'Packing',
+    project_closed: 'Closed',
+  };
+  const entries  = Object.entries(breakdown).filter(([, v]) => v > 0);
+  const labels   = entries.map(([k]) => labelMap[k] || k);
+  const data     = entries.map(([, v]) => v);
+  const colors   = entries.map(([k]) => ATYPE_COLORS[k] || '#6b7280');
+
+  if (chartDoughnut) chartDoughnut.destroy();
+  const ctx = document.getElementById('chartDoughnut').getContext('2d');
+
+  if (!data.length) {
+    ctx.canvas.parentNode.innerHTML =
+      `<div class="empty-state" style="height:200px;display:flex;flex-direction:column;justify-content:center;">
+        <div class="es-ic">📊</div><div class="es-ttl">No actions today</div>
+      </div>`;
+    return;
+  }
+
+  chartDoughnut = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels,
+      datasets: [{ data, backgroundColor: colors, borderWidth: 2, borderColor: '#fff' }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      cutout: '65%',
+      plugins: {
+        legend: {
+          position: 'right',
+          labels: { boxWidth: 10, font: { size: 10 }, padding: 8 }
+        }
+      }
+    }
+  });
+}
+
+// ── Trend Chart ───────────────────────────────────────
+function loadTrend() {
+  fetch('/npd/api/productivity-trend?days=7')
+    .then(r => r.json())
+    .then(data => {
+      if (!data.ok) return;
+      const labels   = data.trend.map(d => d.label);
+      const worked   = data.trend.map(d => d.tasks_worked);
+      const completed= data.trend.map(d => d.completed);
+      const emps     = data.trend.map(d => d.active_emps);
+
+      if (chartTrend) chartTrend.destroy();
+      const ctx = document.getElementById('chartTrend').getContext('2d');
+      chartTrend = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [
+            {
+              label: 'Tasks Worked',
+              data: worked,
+              borderColor: '#7c3aed',
+              backgroundColor: 'rgba(124,58,237,.08)',
+              tension: .35, fill: true, pointRadius: 4,
+              pointBackgroundColor: '#7c3aed',
+            },
+            {
+              label: 'Completed',
+              data: completed,
+              borderColor: '#059669',
+              backgroundColor: 'rgba(5,150,105,.08)',
+              tension: .35, fill: true, pointRadius: 4,
+              pointBackgroundColor: '#059669',
+            },
+            {
+              label: 'Active Employees',
+              data: emps,
+              borderColor: '#2563eb',
+              borderDash: [4, 3],
+              tension: .35, fill: false, pointRadius: 3,
+              pointBackgroundColor: '#2563eb',
+            }
+          ]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { labels: { font: { size: 10 }, boxWidth: 12 } } },
+          scales: {
+            x: { grid: { display: false }, ticks: { font: { size: 10 } } },
+            y: { beginAtZero: true, ticks: { stepSize: 1, font: { size: 10 } }, grid: { color: '#f1f5f9' } },
+          }
+        }
+      });
+    })
+    .catch(e => console.error('Trend error:', e));
+}
+
+// ── Late Tasks ────────────────────────────────────────
+function handleLateTasks(count, list) {
+  const panel = document.getElementById('lateTasksPanel');
+  if (!count) { panel.style.display = 'none'; return; }
+
+  panel.style.display = '';
+  document.getElementById('lateCountLabel').textContent = `${count} overdue project${count !== 1 ? 's' : ''}`;
+
+  const body = document.getElementById('lateTasksBody');
+  if (!list || !list.length) {
+    body.innerHTML = `<p style="font-size:.78rem;color:var(--text3);">${count} project(s) are past target date. <a href="/npd/npd-projects" style="color:var(--dr-blue);">View Projects →</a></p>`;
+    return;
+  }
+
+  body.innerHTML = list.slice(0, 10).map(p => `
+    <div style="display:flex;align-items:center;gap:.8rem;padding:.4rem 0;border-bottom:1px solid #fee2e2;">
+      <span class="badge-sm badge-red">${escHtml(p.code || '—')}</span>
+      <span style="font-size:.79rem;font-weight:600;flex:1;">${escHtml(p.product_name || '—')}</span>
+      <span style="font-size:.72rem;color:var(--dr-red);">Due: ${escHtml(p.target_date || '—')}</span>
+    </div>
+  `).join('');
+}
+
+// ── Employee filter ───────────────────────────────────
+function updateEmployeeDropdown(emps) {
+  const sel = document.getElementById('filterEmp');
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">All Employees</option>' +
+    emps.map(e => `<option value="${e.user_id}">${escHtml(e.name)}</option>`).join('');
+  sel.value = cur;
+}
+
+function filterByEmployee() {
+  // client-side row filter on employee table
+  const uid = document.getElementById('filterEmp').value;
+  const rows = document.querySelectorAll('#empTableBody tr');
+  if (!uid) { rows.forEach(r => r.style.display = ''); return; }
+  rows.forEach(r => {
+    const nameCell = r.querySelector('.emp-name');
+    r.style.display = nameCell ? '' : 'none';
+  });
+}
+
+// ── Generate report ───────────────────────────────────
+function generateReport() {
+  const d = document.getElementById('filterDate').value || currentDate;
+  fetch('/npd/api/generate-daily-report', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ date: d }),
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.ok) {
+      showToast('✅ Report generated successfully!', 'success');
+      loadDashboard();
+      loadTrend();
+    } else {
+      showToast('❌ ' + (data.error || 'Error generating report'), 'error');
+    }
+  })
+  .catch(() => showToast('❌ Network error', 'error'));
+}
+
+// ── WhatsApp modal ────────────────────────────────────
+function openWaModal() {
+  const d = document.getElementById('filterDate').value || currentDate;
+  document.getElementById('waModal').classList.add('open');
+  document.getElementById('waMsgBox').textContent = 'Generating report…';
+
+  fetch(`/npd/api/whatsapp-message?date=${d}`)
+    .then(r => r.json())
+    .then(data => {
+      if (data.ok) {
+        document.getElementById('waMsgBox').textContent = data.message;
+        const encoded = encodeURIComponent(data.message);
+        document.getElementById('btnWaLink').href = `https://wa.me/?text=${encoded}`;
+      } else {
+        document.getElementById('waMsgBox').textContent = 'Could not generate message: ' + (data.error || 'unknown error');
+      }
+    })
+    .catch(() => {
+      document.getElementById('waMsgBox').textContent = 'Network error. Please try again.';
+    });
+}
+
+function closeWaModal() {
+  document.getElementById('waModal').classList.remove('open');
+}
+
+function copyMsg() {
+  const txt = document.getElementById('waMsgBox').textContent;
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(txt).then(() => {
+      const btn = document.getElementById('btnCopy');
+      btn.classList.add('copied');
+      btn.innerHTML = '<span>✅</span> Copied!';
+      setTimeout(() => {
+        btn.classList.remove('copied');
+        btn.innerHTML = '<span>📋</span> Copy Message';
+      }, 2000);
+    });
+  }
+}
+
+// Close modal on overlay click
+document.getElementById('waModal').addEventListener('click', function(e) {
+  if (e.target === this) closeWaModal();
+});
+
+// ── Time Ping (for project view pages) ───────────────
+// This function is called from project view pages to track time.
+// Inject into /npd/project-view/<id> template:
+//   <script>
+//     if (window.NPDTimePing) NPDTimePing.start({{ project.id }});
+//   </script>
+window.NPDTimePing = {
+  _timer: null,
+  _pid: null,
+  start(projectId) {
+    this._pid = projectId;
+    this._ping();
+    this._timer = setInterval(() => this._ping(), 60000);
+  },
+  _ping() {
+    if (!this._pid) return;
+    fetch('/npd/api/time-ping', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ project_id: this._pid, action: 'project_viewed' }),
+    }).catch(() => {});
+  },
+  stop() {
+    if (this._timer) clearInterval(this._timer);
+  }
+};
+
+// ── Helpers ───────────────────────────────────────────
+function escHtml(s) {
+  if (s == null) return '';
+  return String(s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function avatarGrad(i) {
+  const grads = [
+    'linear-gradient(135deg,#7c3aed,#c026d3)',
+    'linear-gradient(135deg,#2563eb,#06b6d4)',
+    'linear-gradient(135deg,#059669,#10b981)',
+    'linear-gradient(135deg,#d97706,#f59e0b)',
+    'linear-gradient(135deg,#dc2626,#f87171)',
+    'linear-gradient(135deg,#0891b2,#6366f1)',
+  ];
+  return grads[i % grads.length];
+}
+
+function showToast(msg, type = 'info') {
+  // Uses existing ERP toast system if available
+  if (window.showFlash) { window.showFlash(msg, type); return; }
+  const t = document.createElement('div');
+  t.style.cssText = `position:fixed;bottom:1.5rem;right:1.5rem;z-index:9999;
+    padding:.7rem 1.2rem;border-radius:10px;font-size:.82rem;font-weight:600;
+    box-shadow:0 4px 20px rgba(0,0,0,.15);
+    background:${type==='success'?'#d1fae5':type==='error'?'#fee2e2':'#dbeafe'};
+    color:${type==='success'?'#065f46':type==='error'?'#991b1b':'#1e40af'};
+    transition:opacity .3s;`;
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 300); }, 3000);
+}
+</script>
+{% endblock %}

@@ -98,6 +98,8 @@
             {% set _mod = 'hr' %}
         {% elif _pg in ('approvals','permissions','audit_logs','users','admin_profile') %}
             {% set _mod = 'admin' %}
+        {% elif _pg in ('material',) %}
+            {% set _mod = 'procurement' %}
         {% elif _pg in ('packing',) %}
             {% set _mod = 'packing' %}
         {% endif %}
@@ -169,6 +171,20 @@
             </button>
             <div class="sb-acc-body">
                 <a class="nav-a" href="/packing"><span class="nav-ic">📋</span><span class="nav-txt">Sample Receipt Log</span></a>
+            </div>
+        </div>
+        {% endif %}
+
+        {% set _perm_material = get_perm('material') %}
+        {% if role == 'admin' or (_perm_material and _perm_material.can_view) %}
+        <div class="sb-sec sb-accordion">
+            <button class="sb-acc-hdr" onclick="toggleAccordion(this)">
+                <span class="sb-acc-ic">📦</span>
+                <span class="sb-acc-lbl">Procurement</span>
+                <span class="sb-acc-arrow">▶</span>
+            </button>
+            <div class="sb-acc-body">
+                <a class="nav-a" href="/material"><span class="nav-ic">🗂️</span><span class="nav-txt">Item Master</span></a>
             </div>
         </div>
         {% endif %}
@@ -709,6 +725,19 @@
             <div class="sb-sec-lbl">Packing</div>
             <a class="nav-a {% if _pg == 'packing' %}active{% endif %}" href="/packing">
                 <span class="nav-ic">📋</span><span class="nav-txt">Sample Receipt Log</span>
+            </a>
+        </div>
+
+        {% elif _mod == 'procurement' %}
+        <div class="sb-sec">
+            <a class="nav-a nav-back" href="{{ url_for('dashboard') }}">
+                <span class="nav-ic">←</span><span class="nav-txt">Main Dashboard</span>
+            </a>
+        </div>
+        <div class="sb-sec">
+            <div class="sb-sec-lbl">Procurement</div>
+            <a class="nav-a {% if _pg == 'material' %}active{% endif %}" href="/material">
+                <span class="nav-ic">🗂️</span><span class="nav-txt">Item Master</span>
             </a>
         </div>
 

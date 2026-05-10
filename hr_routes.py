@@ -141,6 +141,18 @@ CTR_COLS_ALL = {
 # EMPLOYEES — main list page
 # ══════════════════════════════════════
 
+
+def _sync_user_on_emp_delete(emp, deactivate=True):
+    """Deactivate or reactivate the linked User when employee is soft-deleted/restored."""
+    if emp.user_id:
+        u = User.query.get(emp.user_id)
+        if u:
+            u.is_active = not deactivate
+            # Don't touch admin users
+            if u.role == 'admin':
+                return
+            u.is_active = not deactivate
+
 @hr.route('/employees')
 @login_required
 def employees():
@@ -1595,6 +1607,7 @@ def emp_delete(id):
     name = e.full_name
     e.is_deleted = True
     e.deleted_at = datetime.utcnow()
+    _sync_user_on_emp_delete(e, deactivate=True)   # ← deactivate linked user
     db.session.commit()
     flash(f'Employee "{name}" moved to trash.', 'warning')
     return redirect(url_for('hr.employees'))
@@ -1609,6 +1622,7 @@ def emp_restore(id):
     e = Employee.query.get_or_404(id)
     e.is_deleted = False
     e.deleted_at = None
+    _sync_user_on_emp_delete(e, deactivate=False)  # ← reactivate linked user
     db.session.commit()
     flash(f'Employee "{e.full_name}" restored successfully!', 'success')
     return redirect(url_for('hr.employees', trash=1))
@@ -1649,6 +1663,7 @@ def emp_bulk_delete():
     for e in emps:
         e.is_deleted = True
         e.deleted_at = now
+        _sync_user_on_emp_delete(e, deactivate=True)
         count += 1
 
     db.session.commit()
@@ -1690,6 +1705,7 @@ def emp_bulk_restore():
     for e in emps:
         e.is_deleted = False
         e.deleted_at = None
+        _sync_user_on_emp_delete(e, deactivate=False)
         count += 1
 
     db.session.commit()
@@ -1713,7 +1729,15 @@ def _hard_delete_employee(e):
     )
     # 2. Remove WishLog entries targeting this employee (avoid FK violation)
     WishLog.query.filter_by(target_emp_id=e.id).delete(synchronize_session=False)
-    # 3. Finally delete the employee row itself
+    # 3. Delete linked User (non-admin only)
+    if e.user_id:
+        linked_user = User.query.get(e.user_id)
+        if linked_user and linked_user.role != 'admin':
+            from models.permission import UserPermission, UserGridConfig
+            UserPermission.query.filter_by(user_id=linked_user.id).delete(synchronize_session=False)
+            UserGridConfig.query.filter_by(user_id=linked_user.id).delete(synchronize_session=False)
+            db.session.delete(linked_user)
+    # 4. Finally delete the employee row itself
     db.session.delete(e)
 
 

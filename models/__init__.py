@@ -21,7 +21,7 @@ from .npd        import (NPDProject, MilestoneMaster, MilestoneLog, NPDMilestone
                          SampleApprovalLog,
                          RDTrialLog)
 from .packing    import PackingEntry
-from .material  import MaterialType, MaterialGroup, Material
+from .material  import MaterialType, MaterialGroup, Material, ItemCategory
 from .raw_material_sample import (RawMaterialSampleRequest, RMSActivityLog,
                                    RMSNotification, RMSDailyAck,
                                    RMS_STATUSES, RMS_STATUS_LABELS, RMS_STATUS_COLORS)
@@ -56,7 +56,7 @@ __all__ = [
     'RDTrialLog',
     # Packing Department
     'PackingEntry',
-    'MaterialType', 'MaterialGroup', 'Material',
+    'MaterialType', 'MaterialGroup', 'Material', 'ItemCategory',
     # Raw Material Sample Request module
     'RawMaterialSampleRequest', 'RMSActivityLog', 'RMSNotification', 'RMSDailyAck',
 ]

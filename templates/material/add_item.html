@@ -1,0 +1,1095 @@
+{% extends "base.html" %}
+{% block title %}{% if item %}Edit Item — {{ item.material_name }}{% else %}Add New Item{% endif %} — HCP ERP{% endblock %}
+{% block page_title %}{% if item %}Edit Item{% else %}Add New Item{% endif %}{% endblock %}
+{% block bread %}Procurement / Item Master / {% if item %}Edit{% else %}Add New{% endif %}{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ═══════════════════════════════════════════════
+   ADD ITEM PAGE — STYLES
+═══════════════════════════════════════════════ */
+
+/* ── Page Layout ── */
+.ai-page        { max-width: 1200px; margin: 0 auto; padding-bottom: 60px; }
+
+/* ── Type Selector Cards ── */
+.ai-type-grid   { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; margin-bottom: 24px; }
+.ai-type-card   {
+  border: 2px solid var(--border);
+  border-radius: 12px;
+  padding: 14px 10px 12px;
+  text-align: center;
+  cursor: pointer;
+  transition: all .18s cubic-bezier(.16,1,.3,1);
+  background: var(--white);
+  user-select: none;
+}
+.ai-type-card:hover { border-color: var(--blue,#2563eb); background: #eff6ff; transform: translateY(-1px); }
+.ai-type-card.selected {
+  border-color: var(--blue,#2563eb);
+  background: var(--blue,#2563eb);
+  color: #fff;
+  box-shadow: 0 4px 16px rgba(37,99,235,.3);
+  transform: translateY(-2px);
+}
+.ai-type-dot    { width: 28px; height: 28px; border-radius: 50%; margin: 0 auto 8px; }
+.ai-type-card.selected .ai-type-dot { box-shadow: 0 0 0 3px rgba(255,255,255,.4); }
+.ai-type-abbr   { font-size: 13px; font-weight: 800; display: block; letter-spacing: .5px; }
+.ai-type-name   { font-size: 10.5px; font-weight: 500; margin-top: 2px; opacity: .75; display: block; line-height: 1.3; }
+.ai-type-card.selected .ai-type-name { opacity: .85; }
+
+/* ── Form Card ── */
+.ai-card        {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 2px 12px rgba(0,0,0,.05);
+}
+.ai-card-hdr    {
+  padding: 16px 22px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--bg);
+}
+.ai-card-hdr-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.ai-card-hdr h2  { font-size: 13.5px; font-weight: 700; color: var(--text); margin: 0; }
+.ai-card-body   { padding: 22px; }
+
+/* ── Section Divider ── */
+.ai-section     {
+  font-size: 10px;
+  font-weight: 800;
+  color: var(--blue,#2563eb);
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  background: var(--bg);
+  border-radius: 6px;
+  padding: 6px 12px;
+  margin: 22px 0 16px;
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.ai-section:first-child { margin-top: 0; }
+
+/* ── Grid Layouts ── */
+.ai-grid-3      { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+.ai-grid-2      { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.ai-grid-1      { display: grid; grid-template-columns: 1fr; gap: 16px; }
+.ai-span-2      { grid-column: span 2; }
+.ai-span-3      { grid-column: span 3; }
+
+/* ── Form Field ── */
+.ai-fld         { display: flex; flex-direction: column; gap: 5px; }
+.ai-label       { font-size: 11.5px; font-weight: 700; color: var(--text2); letter-spacing: .2px; display: flex; align-items: center; gap: 4px; }
+.ai-label .req  { color: #ef4444; font-size: 13px; line-height: 1; }
+.ai-input,
+.ai-select,
+.ai-textarea    {
+  width: 100%;
+  padding: 9px 12px;
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  font-size: 13px;
+  font-family: inherit;
+  color: var(--text);
+  background: var(--white);
+  transition: border-color .15s, box-shadow .15s;
+  box-sizing: border-box;
+  outline: none;
+}
+.ai-input:focus,
+.ai-select:focus,
+.ai-textarea:focus {
+  border-color: var(--blue,#2563eb);
+  box-shadow: 0 0 0 3px rgba(37,99,235,.1);
+}
+.ai-input.invalid,
+.ai-select.invalid { border-color: #ef4444; box-shadow: 0 0 0 3px rgba(239,68,68,.1); }
+.ai-select      { cursor: pointer; appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; padding-right: 34px; }
+.ai-textarea    { resize: vertical; min-height: 72px; }
+.ai-hint        { font-size: 10.5px; color: var(--text3,#94a3b8); margin-top: 1px; }
+.ai-err         { font-size: 11px; color: #ef4444; font-weight: 600; display: none; }
+.ai-fld.has-err .ai-err { display: block; }
+
+/* ── Tag Input ── */
+.tag-wrap   { display:flex; flex-wrap:wrap; gap:5px; padding:6px 9px; border:1.5px solid var(--border); border-radius:8px; background:var(--white); min-height:40px; cursor:text; transition:border-color .15s, box-shadow .15s; }
+.tag-wrap:focus-within { border-color:var(--blue,#2563eb); box-shadow:0 0 0 3px rgba(37,99,235,.1); }
+.tag-pill   { display:inline-flex; align-items:center; gap:5px; background:#eff6ff; border:1px solid #bfdbfe; color:#1d4ed8; padding:2px 8px; border-radius:20px; font-size:11.5px; font-weight:600; white-space:nowrap; }
+.tag-pill button { border:none; background:none; cursor:pointer; color:#93c5fd; font-size:14px; line-height:1; padding:0; display:flex; align-items:center; }
+.tag-pill button:hover { color:#1d4ed8; }
+.tag-bare   { border:none; outline:none; font-size:12.5px; font-family:inherit; background:transparent; color:var(--text); min-width:90px; flex:1; padding:2px 3px; }
+
+/* ── Number Input ── */
+.ai-num-wrap { position: relative; }
+.ai-num-wrap .ai-prefix,
+.ai-num-wrap .ai-suffix {
+  position: absolute;
+  top: 50%; transform: translateY(-50%);
+  font-size: 12px; font-weight: 700;
+  color: var(--text3,#94a3b8);
+  pointer-events: none;
+}
+.ai-num-wrap .ai-prefix { left: 10px; }
+.ai-num-wrap .ai-suffix { right: 10px; }
+.ai-num-wrap.has-prefix .ai-input { padding-left: 24px; }
+.ai-num-wrap.has-suffix .ai-input { padding-right: 32px; }
+
+/* ── Footer Actions ── */
+.ai-footer  {
+  position: sticky;
+  bottom: 0;
+  background: var(--white);
+  border-top: 1px solid var(--border);
+  padding: 14px 22px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  z-index: 10;
+  border-radius: 0 0 14px 14px;
+  box-shadow: 0 -4px 20px rgba(0,0,0,.06);
+}
+.ai-footer-left  { display: flex; align-items: center; gap: 8px; }
+.ai-footer-right { display: flex; align-items: center; gap: 10px; }
+
+/* ── Buttons ── */
+.btn-save   { background: var(--blue,#2563eb); color: #fff; border: none; border-radius: 8px; padding: 9px 22px; font-size: 13px; font-weight: 700; font-family: inherit; cursor: pointer; display: flex; align-items: center; gap: 7px; transition: all .15s; }
+.btn-save:hover   { background: #1d4ed8; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(37,99,235,.3); }
+.btn-save:disabled { opacity: .6; cursor: not-allowed; transform: none; box-shadow: none; }
+.btn-cancel { background: var(--bg); color: var(--text2); border: 1.5px solid var(--border); border-radius: 8px; padding: 9px 18px; font-size: 13px; font-weight: 600; font-family: inherit; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; transition: all .15s; }
+.btn-cancel:hover { background: #fee2e2; border-color: #fca5a5; color: #dc2626; }
+
+/* ── Active Toggle ── */
+.ai-toggle-wrap { display: flex; align-items: center; gap: 8px; }
+.ai-toggle      { width: 38px; height: 22px; background: #e2e8f0; border-radius: 11px; position: relative; cursor: pointer; transition: background .2s; border: none; outline: none; flex-shrink: 0; }
+.ai-toggle.on   { background: #22c55e; }
+.ai-toggle::after { content:''; position:absolute; width:18px; height:18px; background:#fff; border-radius:50%; top:2px; left:2px; transition:transform .2s; box-shadow:0 1px 3px rgba(0,0,0,.2); }
+.ai-toggle.on::after { transform: translateX(16px); }
+.ai-toggle-label { font-size:12px; font-weight:600; color:var(--text2); }
+
+/* ── Step Progress (top) ── */
+.ai-steps   { display: flex; align-items: center; gap: 0; margin-bottom: 20px; }
+.ai-step    { display: flex; align-items: center; gap: 8px; flex: 1; }
+.ai-step-num { width: 26px; height: 26px; border-radius: 50%; border: 2px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800; color: var(--text3); background: var(--white); flex-shrink: 0; transition: all .2s; }
+.ai-step.done .ai-step-num { background: #22c55e; border-color: #22c55e; color: #fff; }
+.ai-step.active .ai-step-num { background: var(--blue,#2563eb); border-color: var(--blue,#2563eb); color: #fff; }
+.ai-step-label { font-size: 11px; font-weight: 600; color: var(--text3); transition: color .2s; }
+.ai-step.active .ai-step-label { color: var(--blue,#2563eb); font-weight: 700; }
+.ai-step.done .ai-step-label { color: #16a34a; }
+.ai-step-line { height: 2px; flex: 1; background: var(--border); margin: 0 6px; border-radius: 2px; }
+.ai-step-line.done { background: #22c55e; }
+
+/* ── Field visibility ── */
+.ai-field-rm  { } /* RM only */
+.ai-field-pm  { } /* PM only */
+.ai-field-fg  { } /* FG only */
+.ai-field-pm-fg { } /* PM + FG */
+[data-hide]   { display: none !important; }
+
+/* ── Responsive ── */
+@media (max-width: 680px) {
+  .ai-grid-3  { grid-template-columns: 1fr 1fr; }
+  .ai-span-3  { grid-column: span 2; }
+  .ai-grid-2  { grid-template-columns: 1fr 1fr; }
+  .ai-type-grid { grid-template-columns: repeat(3, 1fr); }
+  .ai-card-body { padding: 16px; }
+  .ai-footer  { padding: 12px 16px; }
+}
+@media (max-width: 460px) {
+  .ai-grid-3, .ai-grid-2 { grid-template-columns: 1fr; }
+  .ai-span-2, .ai-span-3 { grid-column: span 1; }
+  .ai-type-grid { grid-template-columns: repeat(2, 1fr); }
+  .ai-steps   { display: none; }
+  .ai-footer-right { gap: 6px; }
+  .btn-save   { padding: 9px 16px; font-size: 12.5px; }
+  .btn-cancel { padding: 9px 12px; font-size: 12.5px; }
+}
+@media print { .ai-footer, .ai-steps { display: none !important; } }
+</style>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.1.0-rc.0/css/select2.min.css" rel="stylesheet">
+<style>
+/* ── Select2 Custom Theme — match our design system ── */
+.select2-container { width: 100% !important; }
+.select2-container--default .select2-selection--single {
+  height: 38px !important;
+  border: 1.5px solid var(--border) !important;
+  border-radius: 8px !important;
+  background: var(--white) !important;
+  display: flex !important;
+  align-items: center !important;
+  padding: 0 !important;
+  transition: border-color .15s, box-shadow .15s !important;
+}
+.select2-container--default.select2-container--open .select2-selection--single,
+.select2-container--default.select2-container--focus .select2-selection--single {
+  border-color: var(--blue, #2563eb) !important;
+  box-shadow: 0 0 0 3px rgba(37,99,235,.1) !important;
+  outline: none !important;
+}
+.select2-container--default .select2-selection--single .select2-selection__rendered {
+  color: var(--text) !important;
+  font-size: 13px !important;
+  font-family: inherit !important;
+  line-height: 36px !important;
+  padding-left: 12px !important;
+  padding-right: 32px !important;
+}
+.select2-container--default .select2-selection--single .select2-selection__placeholder {
+  color: #94a3b8 !important;
+}
+.select2-container--default .select2-selection--single .select2-selection__arrow {
+  height: 36px !important;
+  right: 8px !important;
+}
+.select2-container--default .select2-selection--single .select2-selection__arrow b {
+  border-color: #94a3b8 transparent transparent transparent !important;
+}
+.select2-container--default.select2-container--open .select2-selection--single .select2-selection__arrow b {
+  border-color: transparent transparent #94a3b8 transparent !important;
+}
+/* Dropdown */
+.select2-dropdown {
+  border: 1.5px solid var(--border) !important;
+  border-radius: 10px !important;
+  box-shadow: 0 8px 24px rgba(0,0,0,.1) !important;
+  background: var(--white) !important;
+  overflow: hidden !important;
+  margin-top: 2px !important;
+}
+.select2-search--dropdown {
+  padding: 8px !important;
+  border-bottom: 1px solid var(--border) !important;
+}
+.select2-search--dropdown .select2-search__field {
+  border: 1.5px solid var(--border) !important;
+  border-radius: 7px !important;
+  padding: 7px 10px !important;
+  font-size: 12.5px !important;
+  font-family: inherit !important;
+  color: var(--text) !important;
+  background: var(--bg) !important;
+  outline: none !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+.select2-search--dropdown .select2-search__field:focus {
+  border-color: var(--blue, #2563eb) !important;
+  box-shadow: 0 0 0 2px rgba(37,99,235,.1) !important;
+}
+.select2-results__options { max-height: 220px !important; overflow-y: auto !important; padding: 4px !important; }
+.select2-results__option {
+  font-size: 13px !important;
+  font-family: inherit !important;
+  padding: 8px 10px !important;
+  border-radius: 6px !important;
+  color: var(--text) !important;
+}
+.select2-results__option--highlighted {
+  background: #eff6ff !important;
+  color: var(--blue, #2563eb) !important;
+}
+.select2-results__option[aria-selected="true"] {
+  background: #dbeafe !important;
+  color: #1d4ed8 !important;
+  font-weight: 600 !important;
+}
+.select2-results__option--disabled { color: #94a3b8 !important; }
+/* Error state */
+.select2-container--default.s2-invalid .select2-selection--single {
+  border-color: #ef4444 !important;
+  box-shadow: 0 0 0 3px rgba(239,68,68,.1) !important;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="ai-page">
+
+  <!-- Step Indicator -->
+  <div class="ai-steps" id="aiSteps">
+    <div class="ai-step active" id="step1">
+      <div class="ai-step-num">1</div>
+      <div class="ai-step-label">Select Type</div>
+    </div>
+    <div class="ai-step-line" id="line1"></div>
+    <div class="ai-step" id="step2">
+      <div class="ai-step-num">2</div>
+      <div class="ai-step-label">Basic Info</div>
+    </div>
+    <div class="ai-step-line" id="line2"></div>
+    <div class="ai-step" id="step3">
+      <div class="ai-step-num">3</div>
+      <div class="ai-step-label">Stock & GST</div>
+    </div>
+  </div>
+
+  <!-- ① Item Type Selector -->
+  <div class="ai-card" style="margin-bottom:16px;">
+    <div class="ai-card-hdr">
+      <span style="font-size:16px;">🏷️</span>
+      <h2>Select Item Type <span style="color:#ef4444;">*</span></h2>
+    </div>
+    <div class="ai-card-body" style="padding-bottom:18px;">
+      <div class="ai-type-grid" id="typeGrid">
+        {% if types %}
+          {% for t in types %}
+          <div class="ai-type-card {% if item and item.material_type_id == t.id %}selected{% endif %}"
+               onclick="selectType({{ t.id }}, '{{ t.abbreviation }}', '{{ t.type_name }}', '{{ t.color }}')"
+               data-type-id="{{ t.id }}"
+               data-type-abbr="{{ t.abbreviation }}"
+               data-type-name="{{ t.type_name }}"
+               data-type-color="{{ t.color }}">
+            <div class="ai-type-dot" style="background:{{ t.color }};"></div>
+            <span class="ai-type-abbr">{{ t.abbreviation }}</span>
+            <span class="ai-type-name">{{ t.type_name }}</span>
+          </div>
+          {% endfor %}
+        {% else %}
+          <div style="grid-column:1/-1;padding:20px;text-align:center;color:#94a3b8;font-size:13px;">
+            ⚠️ Aapko koi Item Type allow nahi kiya gaya. Admin se contact karo.
+          </div>
+        {% endif %}
+      </div>
+      <p id="typeHint" style="font-size:11.5px;color:#94a3b8;margin:8px 0 0;display:{% if item %}none{% else %}block{% endif %};">
+        👆 Item type select karo to fields dikhenge
+      </p>
+    </div>
+  </div>
+
+  <!-- ② Main Form (hidden until type selected) -->
+  <form id="itemForm" onsubmit="submitForm(event)" novalidate
+        style="display:{% if item %}block{% else %}none{% endif %};">
+    <input type="hidden" id="fItemId"     value="{{ item.id if item else '' }}">
+    <input type="hidden" id="fTypeId"     name="material_type_id" value="{{ item.material_type_id if item else '' }}">
+    <input type="hidden" id="fTypeAbbr"   value="{{ item.material_type.abbreviation if item and item.material_type else '' }}">
+
+    <!-- ─── BASIC INFORMATION ─── -->
+    <div class="ai-card" style="margin-bottom:16px;">
+      <div class="ai-card-hdr">
+        <div class="ai-card-hdr-dot" id="hdrDot" style="background:#6366f1;"></div>
+        <h2 id="hdrTitle">Basic Information</h2>
+      </div>
+      <div class="ai-card-body">
+
+        <!-- Row 1: Item Name + Code + Per Box Qty (FG only) -->
+        <div class="ai-grid-3">
+          <div class="ai-fld">
+            <label class="ai-label">Item Name <span class="req">*</span></label>
+            <input class="ai-input" id="fName" name="material_name" type="text"
+                   placeholder="e.g. Sodium Chloride"
+                   value="{{ item.material_name if item else '' }}" autocomplete="off">
+            <span class="ai-err">Item name required</span>
+          </div>
+          <div class="ai-fld">
+            <label class="ai-label">Code <span class="req">*</span></label>
+            <input class="ai-input" id="fCode" name="code" type="text"
+                   placeholder="e.g. RM-001"
+                   value="{{ item.code if item else '' }}" autocomplete="off">
+            <span class="ai-err">Code required</span>
+          </div>
+          <!-- Per Box Qty — FG only, hidden by default -->
+          <div class="ai-fld ai-field-fg" id="rowPerBox" data-hide>
+            <label class="ai-label">Per Box Qty <span class="req">*</span></label>
+            <div class="ai-num-wrap has-suffix">
+              <input class="ai-input" id="fPerBoxQty" name="per_box_qty" type="number"
+                     min="1" step="1" value="{{ item.per_box_qty if item else '' }}"
+                     placeholder="e.g. 24">
+              <span class="ai-suffix">PCS</span>
+            </div>
+            <span class="ai-hint">Units per box</span>
+            <span class="ai-err">Per box qty required</span>
+          </div>
+        </div>
+
+        <!-- Row: Alias -->
+        <div style="margin-top:16px;">
+          <div class="ai-fld">
+            <label class="ai-label">Alias <span class="req">*</span></label>
+            <div class="tag-wrap" id="tagWrap" onclick="document.getElementById('tagInput').focus()">
+              <input class="tag-bare" id="tagInput" placeholder="Type and press Enter or comma…" autocomplete="off">
+            </div>
+            <input type="hidden" id="fAliases" name="aliases" value="{{ item.aliases if item else '' }}">
+            <span class="ai-err" id="aliasErr">At least one alias required</span>
+            <span class="ai-hint">Press Enter or comma to add multiple aliases</span>
+          </div>
+        </div>
+
+        <!-- Brand + Category / Group — same row -->
+        <div class="ai-grid-2" style="margin-top:16px;">
+
+          <!-- Brand (PM + FG only) -->
+          <div class="ai-fld ai-field-pm-fg" id="rowBrand" data-hide>
+            <label class="ai-label">Brand <span class="req">*</span></label>
+            <select class="ai-select" id="fBrand" name="brand">
+              <option value="">-- Select Brand --</option>
+              {% for b in brands %}
+              <option value="{{ b.brand_name }}"
+                {% if item and item.brand == b.brand_name %}selected{% endif %}>
+                {{ b.brand_name }}{% if b.client %} — {{ b.client.company_name or b.client.contact_name }}{% endif %}
+              </option>
+              {% endfor %}
+            </select>
+            <span class="ai-err">Brand required</span>
+            <span class="ai-hint">CRM → Client Master</span>
+          </div>
+
+          <!-- Category (all types) -->
+          <div class="ai-fld">
+            <label class="ai-label">Category <span class="req">*</span></label>
+            <select class="ai-select" id="fCategory" name="category">
+              <option value="">-- Select Category --</option>
+              {% for cat in categories %}
+              <option value="{{ cat.category_name }}"
+                {% if item and item.category == cat.category_name %}selected{% endif %}>
+                {{ cat.category_name }}
+              </option>
+              {% endfor %}
+            </select>
+            <span class="ai-err">Category required</span>
+          </div>
+
+          <!-- Group (RM only) -->
+          <div class="ai-fld ai-field-rm" id="rowGroup" data-hide>
+            <label class="ai-label">Group <span class="req">*</span></label>
+            <select class="ai-select" id="fGroup" name="group_id">
+              <option value="">-- Select Group --</option>
+              {% for g in groups %}
+              <option value="{{ g.id }}"
+                {% if item and item.group_id == g.id %}selected{% endif %}>
+                {{ g.group_name }}
+              </option>
+              {% endfor %}
+            </select>
+            <span class="ai-err">Group required</span>
+          </div>
+
+        </div>
+
+        <!-- INCI (RM) / SKU (PM+FG) + UOM — same row -->
+        <div class="ai-grid-2" style="margin-top:16px;">
+
+          <!-- Slot 1: INCI for RM  -->
+          <div class="ai-fld ai-field-rm" id="rowInci" data-hide>
+            <label class="ai-label">INCI Name</label>
+            <input class="ai-input" id="fInci" name="inci_name" type="text"
+                   placeholder="e.g. Sodium Chloride (INCI)"
+                   value="{{ item.inci_name if item else '' }}">
+            <span class="ai-hint">International Nomenclature of Cosmetic Ingredients</span>
+          </div>
+
+          <!-- Slot 1: SKU Size for PM + FG -->
+          <div class="ai-fld ai-field-pm-fg" id="rowSkuSize" data-hide>
+            <label class="ai-label">SKU Size <span class="req">*</span></label>
+            <div class="tag-wrap" id="skuTagWrap" onclick="document.getElementById('skuTagInput').focus()">
+              <input class="tag-bare" id="skuTagInput" placeholder="50GM, 100ML — press Enter…" autocomplete="off">
+            </div>
+            <input type="hidden" id="fSkuSizes" name="sku_sizes" value="{{ item.sku_sizes if item else '' }}">
+            <span class="ai-err" id="skuErr">At least one SKU size required</span>
+            <span class="ai-hint">Press Enter to add each size</span>
+          </div>
+
+          <!-- Slot 2: UOM — always visible -->
+          <div class="ai-fld">
+            <label class="ai-label">UOM <span class="req">*</span></label>
+            <select class="ai-select" id="fUom" name="uom">
+              {% set uoms = ['KG','G','MG','L','ML','PCS','BOX','PKT','SET','MTR','CM','ROLL','BAG','BTL','CAN','DRUM','TON'] %}
+              {% for u in uoms %}
+              <option value="{{ u }}" {% if item and item.uom == u %}selected{% elif not item and u=='KG' %}selected{% endif %}>{{ u }}</option>
+              {% endfor %}
+            </select>
+            <span class="ai-err">UOM required</span>
+          </div>
+
+        </div>
+
+        <!-- Description -->
+        <div style="margin-top:16px;">
+          <div class="ai-fld">
+            <label class="ai-label">Description</label>
+            <textarea class="ai-textarea" id="fDesc" name="description"
+                      placeholder="Optional notes about this item…">{{ item.description if item else '' }}</textarea>
+          </div>
+        </div>
+
+      </div><!-- /card-body -->
+    </div><!-- /card -->
+
+    <!-- ─── STOCK & PRICING ─── -->
+    <div class="ai-card" style="margin-bottom:16px;">
+      <div class="ai-card-hdr">
+        <span style="font-size:16px;">📦</span>
+        <h2>Stock &amp; Pricing</h2>
+      </div>
+      <div class="ai-card-body">
+        <div class="ai-grid-3">
+          <div class="ai-fld">
+            <label class="ai-label">Rate (₹) <span class="req">*</span></label>
+            <div class="ai-num-wrap has-prefix">
+              <span class="ai-prefix">₹</span>
+              <input class="ai-input" id="fRate" name="last_purchase_rate" type="number"
+                     min="0" step="0.01" value="{{ item.last_purchase_rate if item else '0' }}">
+            </div>
+            <span class="ai-hint">0 allowed</span>
+            <span class="ai-err">Rate required</span>
+          </div>
+
+          <div class="ai-fld">
+            <label class="ai-label">Min Stock Level <span class="req">*</span></label>
+            <div class="ai-num-wrap has-suffix">
+              <input class="ai-input" id="fMsl" name="msl" type="number"
+                     min="0" step="0.001" value="{{ item.msl if item else '0' }}">
+              <span class="ai-suffix" id="mslUomSuffix">KG</span>
+            </div>
+            <span class="ai-hint">0 allowed</span>
+            <span class="ai-err">MSL required</span>
+          </div>
+
+          <div class="ai-fld">
+            <label class="ai-label">Opening Balance <span class="req">*</span></label>
+            <div class="ai-num-wrap has-suffix">
+              <input class="ai-input" id="fOb" name="opening_balance" type="number"
+                     min="0" step="0.001" value="{{ item.opening_balance if item else '0' }}">
+              <span class="ai-suffix" id="obUomSuffix">KG</span>
+            </div>
+            <span class="ai-hint">0 allowed</span>
+            <span class="ai-err">Opening balance required</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── GST & STATUTORY ─── -->
+    <div class="ai-card">
+      <div class="ai-card-hdr">
+        <span style="font-size:16px;">🧾</span>
+        <h2>GST &amp; Statutory Details</h2>
+      </div>
+      <div class="ai-card-body">
+        <div class="ai-grid-3">
+          <div class="ai-fld">
+            <label class="ai-label">HSN / SAC Code</label>
+            <input class="ai-input" id="fHsn" name="hsn_code" type="text"
+                   placeholder="e.g. 2905, 3401"
+                   value="{{ item.hsn_code if item else '' }}">
+          </div>
+
+          <div class="ai-fld">
+            <label class="ai-label">GST Rate (%) <span class="req">*</span></label>
+            <select class="ai-select" id="fGst" name="gst_rate">
+              {% for r in [0, 5, 12, 18, 28] %}
+              <option value="{{ r }}"
+                {% if item and item.gst_rate == r %}selected
+                {% elif not item and r == 18 %}selected{% endif %}>{{ r }}%</option>
+              {% endfor %}
+            </select>
+            <span class="ai-err">GST rate required</span>
+          </div>
+
+          <div class="ai-fld">
+            <label class="ai-label">Taxability <span class="req">*</span></label>
+            <select class="ai-select" id="fTax" name="taxability">
+              {% for opt in ['Taxable', 'Exempt', 'Nil Rated', 'Non-GST'] %}
+              <option value="{{ opt }}"
+                {% if item and item.taxability == opt %}selected{% elif not item and opt=='Taxable' %}selected{% endif %}>
+                {{ opt }}
+              </option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+
+        <!-- Active toggle -->
+        <div style="margin-top:18px;display:flex;align-items:center;justify-content:space-between;padding-top:16px;border-top:1px solid var(--border);">
+          <div>
+            <div style="font-size:13px;font-weight:700;color:var(--text);">Active Status</div>
+            <div style="font-size:11px;color:var(--text3);margin-top:2px;">Inactive items won't appear in procurement</div>
+          </div>
+          <div class="ai-toggle-wrap">
+            <button type="button" class="ai-toggle {% if not item or item.is_active %}on{% endif %}"
+                    id="activeToggle" onclick="toggleActive(this)" aria-label="Active"></button>
+            <span class="ai-toggle-label" id="activeLabel">{% if not item or item.is_active %}Active{% else %}Inactive{% endif %}</span>
+            <input type="hidden" id="fActive" name="is_active" value="{% if not item or item.is_active %}1{% else %}0{% endif %}">
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ─── FOOTER ACTIONS ─── -->
+    <div class="ai-footer">
+      <div class="ai-footer-left">
+        <span id="footerTypeBadge" style="font-size:12px;font-weight:700;padding:4px 10px;border-radius:20px;background:#eff6ff;color:#1d4ed8;"></span>
+      </div>
+      <div class="ai-footer-right">
+        <a href="/material" class="btn-cancel">✕ Cancel</a>
+        <button type="submit" class="btn-save" id="btnSave">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 20 4 14"/></svg>
+          <span id="btnSaveLabel">{% if item %}Update Item{% else %}Save Item{% endif %}</span>
+        </button>
+      </div>
+    </div>
+
+  </form><!-- /itemForm -->
+</div><!-- /ai-page -->
+{% endblock %}
+
+
+{% block extra_js %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.1.0-rc.0/js/select2.min.js"></script>
+<script>
+/* ═══════════════════════════════════════════════
+   ADD ITEM PAGE — JAVASCRIPT
+═══════════════════════════════════════════════ */
+
+// ── State ──────────────────────────────────────
+let _selectedTypeId   = {{ item.material_type_id if item else 'null' }};
+let _selectedTypeAbbr = '{{ item.material_type.abbreviation if item and item.material_type else "" }}';
+let _selectedTypeName = '{{ item.material_type.type_name if item and item.material_type else "" }}';
+let _selectedColor    = '{{ item.material_type.color if item and item.material_type else "#6366f1" }}';
+let _aliasList        = [];
+let _skuList          = [];
+
+// ── Init ────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', function () {
+  // Load saved aliases
+  const saved = document.getElementById('fAliases').value;
+  if (saved) {
+    saved.split(',').map(a => a.trim()).filter(Boolean).forEach(addTag);
+  }
+  // Load saved SKU sizes
+  const savedSku = document.getElementById('fSkuSizes').value;
+  if (savedSku) {
+    savedSku.split(',').map(s => s.trim()).filter(Boolean).forEach(addSkuTag);
+  }
+  // If editing, apply field visibility
+  if (_selectedTypeId) {
+    applyTypeFields(_selectedTypeAbbr, _selectedColor, _selectedTypeName);
+    updateStepIndicator(3);
+  }
+
+  // ── Select2 init ────────────────────────────────
+  function initSelect2(id, placeholder) {
+    $('#' + id).select2({
+      placeholder: placeholder || 'Select...',
+      allowClear: true,
+      width: '100%',
+    }).on('select2:open', function() {
+      // Remove invalid class when user opens
+      $(this).closest('.ai-fld').removeClass('has-err');
+      $(this).removeClass('invalid');
+      $('.select2-container').removeClass('s2-invalid');
+    });
+  }
+
+  // Init all selects
+  initSelect2('fBrand',    '-- Select Brand --');
+  initSelect2('fCategory', '-- Select Category --');
+  initSelect2('fGroup',    '-- Select Group --');
+  initSelect2('fUom',      'Select UOM');
+  initSelect2('fGst',      'Select GST Rate');
+  initSelect2('fTax',      'Select Taxability');
+
+  // UOM suffix sync
+  document.getElementById('fUom').addEventListener('change', syncUomSuffix);
+  $('#fUom').on('change', syncUomSuffix);
+  syncUomSuffix();
+
+  // SKU tag input events
+  const skuInput = document.getElementById('skuTagInput');
+  skuInput.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault();
+      const v = this.value.trim().replace(/,$/, '').toUpperCase();
+      if (v) addSkuTag(v);
+      this.value = '';
+    } else if (e.key === 'Backspace' && !this.value && _skuList.length) {
+      removeSkuTag(_skuList[_skuList.length - 1]);
+    }
+  });
+  skuInput.addEventListener('blur', function() {
+    const v = this.value.trim().replace(/,$/, '').toUpperCase();
+    if (v) { addSkuTag(v); this.value = ''; }
+  });
+});
+
+// ── Type Selection ──────────────────────────────
+function selectType(id, abbr, name, color) {
+  _selectedTypeId   = id;
+  _selectedTypeAbbr = abbr;
+  _selectedTypeName = name;
+  _selectedColor    = color;
+
+  // Update card UI
+  document.querySelectorAll('.ai-type-card').forEach(c => c.classList.remove('selected'));
+  const card = document.querySelector(`[data-type-id="${id}"]`);
+  if (card) card.classList.add('selected');
+
+  document.getElementById('fTypeId').value   = id;
+  document.getElementById('fTypeAbbr').value = abbr;
+
+  // Show form
+  document.getElementById('typeHint').style.display  = 'none';
+  document.getElementById('itemForm').style.display   = 'block';
+
+  applyTypeFields(abbr, color, name);
+  updateStepIndicator(2);
+  // Smooth scroll to form
+  setTimeout(() => {
+    document.getElementById('itemForm').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, 100);
+}
+
+function applyTypeFields(abbr, color, name) {
+  const isRM = abbr === 'RM';
+  const isPM = abbr === 'PM';
+  const isFG = abbr === 'FG';
+  const isPMFG = isPM || isFG;
+
+  // RM-only fields
+  toggleField('rowInci',  isRM);
+  toggleField('rowGroup', isRM);
+
+  // PM+FG fields
+  toggleField('rowBrand',   isPMFG);
+  toggleField('rowSkuSize', isPMFG);
+
+  // FG-only fields
+  toggleField('rowPerBox', isFG);
+
+  // Update card header colour + title
+  document.getElementById('hdrDot').style.background = color;
+  document.getElementById('hdrTitle').textContent = name + ' — Basic Information';
+
+  // Footer badge
+  const badge = document.getElementById('footerTypeBadge');
+  badge.textContent = abbr + ' — ' + name;
+  badge.style.background = color + '22';
+  badge.style.color = color;
+  badge.style.border = '1px solid ' + color + '55';
+
+  // Update required attributes dynamically
+  setRequired('fBrand',     isPMFG);
+  setRequired('fGroup',     isRM);
+  setRequired('fInci',      false);   // never required
+  setRequired('fPerBoxQty', isFG);
+
+  // SKU tag validation hint text reset
+  if (!isPMFG) {
+    _skuList = [];
+    renderSkuTags();
+  }
+}
+
+function toggleField(id, show) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  if (show) el.removeAttribute('data-hide');
+  else       el.setAttribute('data-hide', '1');
+}
+
+function setRequired(id, req) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  if (req) el.setAttribute('required', '');
+  else     el.removeAttribute('required');
+}
+
+// ── Step Indicator ──────────────────────────────
+function updateStepIndicator(activeStep) {
+  [1,2,3].forEach(i => {
+    const s = document.getElementById('step' + i);
+    const l = document.getElementById('line' + i);
+    if (!s) return;
+    s.classList.remove('active','done');
+    if (i < activeStep)       s.classList.add('done');
+    else if (i === activeStep) s.classList.add('active');
+    if (l) l.classList.toggle('done', i < activeStep);
+  });
+}
+
+// ── UOM Suffix Sync ─────────────────────────────
+function syncUomSuffix() {
+  const uom = document.getElementById('fUom').value;
+  document.getElementById('mslUomSuffix').textContent = uom;
+  document.getElementById('obUomSuffix').textContent  = uom;
+}
+
+// ── Tag Input ───────────────────────────────────
+const tagInput = document.getElementById('tagInput');
+
+tagInput.addEventListener('keydown', function(e) {
+  if (e.key === 'Enter' || e.key === ',') {
+    e.preventDefault();
+    const v = this.value.trim().replace(/,$/, '');
+    if (v) addTag(v);
+    this.value = '';
+  } else if (e.key === 'Backspace' && !this.value && _aliasList.length) {
+    removeTag(_aliasList[_aliasList.length - 1]);
+  }
+});
+
+tagInput.addEventListener('blur', function() {
+  const v = this.value.trim().replace(/,$/, '');
+  if (v) { addTag(v); this.value = ''; }
+});
+
+function addTag(val) {
+  val = val.trim();
+  if (!val || _aliasList.includes(val)) return;
+  _aliasList.push(val);
+  renderTags();
+}
+
+function removeTag(val) {
+  _aliasList = _aliasList.filter(a => a !== val);
+  renderTags();
+}
+
+function renderTags() {
+  const wrap = document.getElementById('tagWrap');
+  // Clear old pills (keep input)
+  wrap.querySelectorAll('.tag-pill').forEach(p => p.remove());
+  _aliasList.forEach(a => {
+    const pill = document.createElement('span');
+    pill.className = 'tag-pill';
+    pill.innerHTML = `${escH(a)}<button type="button" onclick="removeTag('${escH(a).replace(/'/g,"\\'")}')">×</button>`;
+    wrap.insertBefore(pill, tagInput);
+  });
+  document.getElementById('fAliases').value = _aliasList.join(',');
+}
+
+function escH(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ── SKU Tag Input ────────────────────────────────
+function addSkuTag(val) {
+  val = val.trim().toUpperCase();
+  if (!val || _skuList.includes(val)) return;
+  _skuList.push(val);
+  renderSkuTags();
+}
+
+function removeSkuTag(val) {
+  _skuList = _skuList.filter(s => s !== val);
+  renderSkuTags();
+}
+
+function renderSkuTags() {
+  const wrap = document.getElementById('skuTagWrap');
+  if (!wrap) return;
+  wrap.querySelectorAll('.tag-pill').forEach(p => p.remove());
+  _skuList.forEach(s => {
+    const pill = document.createElement('span');
+    pill.className = 'tag-pill';
+    pill.style.background = '#f0fdf4';
+    pill.style.borderColor = '#86efac';
+    pill.style.color = '#15803d';
+    pill.innerHTML = `${escH(s)}<button type="button" onclick="removeSkuTag('${escH(s).replace(/'/g,"\\'")}')">×</button>`;
+    wrap.insertBefore(pill, document.getElementById('skuTagInput'));
+  });
+  document.getElementById('fSkuSizes').value = _skuList.join(',');
+}
+
+// ── Active Toggle ────────────────────────────────
+function toggleActive(btn) {
+  btn.classList.toggle('on');
+  const on = btn.classList.contains('on');
+  document.getElementById('activeLabel').textContent = on ? 'Active' : 'Inactive';
+  document.getElementById('fActive').value = on ? '1' : '0';
+}
+
+// ── Validation ───────────────────────────────────
+function validateForm() {
+  let ok = true;
+
+  // Type must be selected
+  if (!_selectedTypeId) {
+    alert('Please select an Item Type first.');
+    return false;
+  }
+
+  // Item Name
+  ok = validateReq('fName') && ok;
+  // Code
+  ok = validateReq('fCode') && ok;
+  // Aliases
+  if (_aliasList.length === 0) {
+    document.getElementById('tagWrap').style.borderColor = '#ef4444';
+    document.getElementById('aliasErr').style.display = 'block';
+    ok = false;
+  } else {
+    document.getElementById('tagWrap').style.borderColor = '';
+    document.getElementById('aliasErr').style.display = 'none';
+  }
+  // Category
+  ok = validateReq('fCategory') && ok;
+
+  const abbr = _selectedTypeAbbr;
+  const isPMFG = (abbr === 'PM' || abbr === 'FG');
+  const isRM   = abbr === 'RM';
+
+  if (isPMFG) ok = validateReq('fBrand') && ok;
+  if (isRM)   ok = validateReq('fGroup') && ok;
+
+  // SKU Size validation (PM + FG)
+  if (isPMFG) {
+    if (_skuList.length === 0) {
+      document.getElementById('skuTagWrap').style.borderColor = '#ef4444';
+      document.getElementById('skuErr').style.display = 'block';
+      ok = false;
+    } else {
+      document.getElementById('skuTagWrap').style.borderColor = '';
+      document.getElementById('skuErr').style.display = 'none';
+    }
+  }
+
+  // Per Box Qty (FG only)
+  if (abbr === 'FG') {
+    const pbq = document.getElementById('fPerBoxQty');
+    if (!pbq.value || parseInt(pbq.value) < 1) {
+      pbq.closest('.ai-fld').classList.add('has-err');
+      pbq.classList.add('invalid');
+      ok = false;
+    } else {
+      pbq.closest('.ai-fld').classList.remove('has-err');
+      pbq.classList.remove('invalid');
+    }
+  }
+
+  // Rate, MSL, OB — can be 0 but must be a number
+  ok = validateNum('fRate') && ok;
+  ok = validateNum('fMsl') && ok;
+  ok = validateNum('fOb') && ok;
+
+  // UOM
+  ok = validateReq('fUom') && ok;
+
+  return ok;
+}
+
+function validateReq(id) {
+  const el = document.getElementById(id);
+  if (!el) return true;
+  const fld = el.closest('.ai-fld');
+  const val = el.value ? el.value.trim() : '';
+  if (!val) {
+    if (fld) fld.classList.add('has-err');
+    el.classList.add('invalid');
+    // Mark Select2 container too
+    if (el.tagName === 'SELECT') {
+      const s2 = el.nextElementSibling;
+      if (s2 && s2.classList.contains('select2-container')) s2.classList.add('s2-invalid');
+    }
+    return false;
+  }
+  if (fld) fld.classList.remove('has-err');
+  el.classList.remove('invalid');
+  // Clear Select2 error
+  if (el.tagName === 'SELECT') {
+    const s2 = el.nextElementSibling;
+    if (s2 && s2.classList.contains('select2-container')) s2.classList.remove('s2-invalid');
+  }
+  return true;
+}
+
+function validateNum(id) {
+  const el = document.getElementById(id);
+  if (!el) return true;
+  const fld = el.closest('.ai-fld');
+  if (el.value === '' || isNaN(parseFloat(el.value))) {
+    if (fld) fld.classList.add('has-err');
+    el.classList.add('invalid');
+    return false;
+  }
+  if (fld) fld.classList.remove('has-err');
+  el.classList.remove('invalid');
+  return true;
+}
+
+// ── Submit ───────────────────────────────────────
+async function submitForm(e) {
+  e.preventDefault();
+  if (!validateForm()) {
+    // Scroll to first error
+    const first = document.querySelector('.ai-input.invalid, .ai-select.invalid');
+    if (first) first.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    return;
+  }
+
+  const btn = document.getElementById('btnSave');
+  const lbl = document.getElementById('btnSaveLabel');
+  btn.disabled = true;
+  lbl.textContent = 'Saving…';
+
+  const payload = {
+    id:                  document.getElementById('fItemId').value || null,
+    material_name:       document.getElementById('fName').value.trim(),
+    code:                document.getElementById('fCode').value.trim(),
+    inci_name:           document.getElementById('fInci').value.trim(),
+    brand:               document.getElementById('fBrand').value.trim(),
+    aliases:             document.getElementById('fAliases').value.trim(),
+    sku_sizes:           document.getElementById('fSkuSizes').value.trim(),
+    per_box_qty:         parseInt(document.getElementById('fPerBoxQty').value) || 0,
+    category:            document.getElementById('fCategory').value.trim(),
+    group_id:            document.getElementById('fGroup').value || null,
+    uom:                 document.getElementById('fUom').value,
+    description:         document.getElementById('fDesc').value.trim(),
+    last_purchase_rate:  parseFloat(document.getElementById('fRate').value) || 0,
+    msl:                 parseFloat(document.getElementById('fMsl').value)  || 0,
+    opening_balance:     parseFloat(document.getElementById('fOb').value)   || 0,
+    hsn_code:            document.getElementById('fHsn').value.trim(),
+    gst_rate:            parseFloat(document.getElementById('fGst').value)  || 0,
+    taxability:          document.getElementById('fTax').value,
+    is_active:           document.getElementById('fActive').value === '1',
+    material_type_id:    _selectedTypeId,
+  };
+
+  try {
+    const res  = await fetch('/material/api/save', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+
+    if (data.status === 'ok') {
+      showToast('✅ Item saved successfully!', 'success');
+      setTimeout(() => { window.location.href = '/material'; }, 900);
+    } else {
+      showToast('❌ ' + (data.message || 'Save failed'), 'error');
+      btn.disabled = false;
+      lbl.textContent = payload.id ? 'Update Item' : 'Save Item';
+    }
+  } catch (err) {
+    showToast('❌ Network error: ' + err.message, 'error');
+    btn.disabled = false;
+    lbl.textContent = payload.id ? 'Update Item' : 'Save Item';
+  }
+}
+
+// ── Toast ─────────────────────────────────────────
+function showToast(msg, type) {
+  const t = document.createElement('div');
+  t.textContent = msg;
+  Object.assign(t.style, {
+    position:'fixed', bottom:'24px', right:'24px', zIndex:'9999',
+    padding:'12px 20px', borderRadius:'10px', fontWeight:'700', fontSize:'13px',
+    color:'#fff', boxShadow:'0 8px 24px rgba(0,0,0,.2)',
+    background: type === 'success' ? '#16a34a' : '#dc2626',
+    animation: 'slideUp .3s ease',
+  });
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 3500);
+}
+</script>
+<style>
+@keyframes slideUp { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }
+</style>
+{% endblock %}

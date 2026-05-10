@@ -17,6 +17,8 @@ class MaterialType(db.Model):
     color        = db.Column(db.String(20),   default='#6366f1')
     sort_order   = db.Column(db.Integer,      default=0)
     is_active    = db.Column(db.Boolean,      default=True)
+    is_deleted   = db.Column(db.Boolean,      default=False)
+    deleted_at   = db.Column(db.DateTime,     nullable=True)
     created_at   = db.Column(db.DateTime,     default=datetime.utcnow)
     created_by   = db.Column(db.String(100),  default='')
 
@@ -33,6 +35,7 @@ class MaterialType(db.Model):
             'color': self.color or '#6366f1',
             'sort_order': self.sort_order or 0,
             'is_active': self.is_active,
+            'is_deleted': getattr(self, 'is_deleted', False) or False,
             'has_sku': self.has_sku,
         }
 
@@ -47,6 +50,8 @@ class MaterialGroup(db.Model):
     created_at  = db.Column(db.DateTime,    default=datetime.utcnow)
     updated_at  = db.Column(db.DateTime,    default=datetime.utcnow, onupdate=datetime.utcnow)
     created_by  = db.Column(db.String(100), default='')
+    is_deleted  = db.Column(db.Boolean,     default=False)
+    deleted_at  = db.Column(db.DateTime,    nullable=True)
 
     children    = db.relationship('MaterialGroup', backref=db.backref('parent', remote_side=[id]), lazy='dynamic')
     materials   = db.relationship('Material', backref='group', lazy='dynamic')
@@ -56,6 +61,8 @@ class MaterialGroup(db.Model):
             'id': self.id, 'group_name': self.group_name,
             'parent_id': self.parent_id,
             'description': self.description or '',
+            'is_deleted': getattr(self,'is_deleted',False) or False,
+            'deleted_at': self.deleted_at.isoformat() if getattr(self,'deleted_at',None) else None,
         }
 
 
@@ -94,6 +101,10 @@ class Material(db.Model):
     taxability          = db.Column(db.String(50),    default='Taxable')
     type_of_supply      = db.Column(db.String(50),    default='Goods')
 
+    # Soft Delete
+    is_deleted          = db.Column(db.Boolean,       default=False)
+    deleted_at          = db.Column(db.DateTime,      nullable=True)
+
     # Meta
     is_active           = db.Column(db.Boolean,       default=True)
     created_by          = db.Column(db.String(100),   default='')
@@ -114,6 +125,11 @@ class Material(db.Model):
             'aliases': self.aliases or '',
             'description': self.description or '',
             'uom': self.uom or 'KG',
+            'code': getattr(self, 'code', '') or '',
+            'inci_name': getattr(self, 'inci_name', '') or '',
+            'brand': getattr(self, 'brand', '') or '',
+            'category': getattr(self, 'category', '') or '',
+            'per_box_qty': getattr(self, 'per_box_qty', 0) or 0,
             'material_type_id': self.material_type_id,
             'material_type': self.material_type.type_name if self.material_type else '',
             'material_type_abbr': self.material_type.abbreviation if self.material_type else '',
@@ -136,7 +152,31 @@ class Material(db.Model):
             'taxability': self.taxability or 'Taxable',
             'type_of_supply': self.type_of_supply or 'Goods',
             'is_active': self.is_active,
+            'is_deleted': getattr(self, 'is_deleted', False) or False,
             'created_by': self.created_by or '',
             'updated_by': self.updated_by or '',
             'updated_at': self.updated_at.isoformat() if self.updated_at else '',
+        }
+
+class ItemCategory(db.Model):
+    __tablename__ = 'item_categories'
+
+    id            = db.Column(db.Integer,      primary_key=True, autoincrement=True)
+    category_name = db.Column(db.String(150),  nullable=False, unique=True)
+    description   = db.Column(db.Text,         nullable=True)
+    is_active     = db.Column(db.Boolean,      default=True)
+    created_at    = db.Column(db.DateTime,     default=datetime.utcnow)
+    updated_at    = db.Column(db.DateTime,     default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_by    = db.Column(db.String(100),  default='')
+    is_deleted    = db.Column(db.Boolean,      default=False)
+    deleted_at    = db.Column(db.DateTime,     nullable=True)
+
+    def to_dict(self):
+        return {
+            'id':            self.id,
+            'category_name': self.category_name,
+            'description':   self.description or '',
+            'is_active':     self.is_active,
+            'is_deleted':    getattr(self,'is_deleted',False) or False,
+            'deleted_at':    self.deleted_at.isoformat() if getattr(self,'deleted_at',None) else None,
         }

@@ -595,6 +595,59 @@
     </div>
 
     {# ═══════════════════════════════════════
+       Procurement — Item Master
+    ═══════════════════════════════════════ #}
+    {% set _mat = modules|selectattr('name','eq','material')|first %}
+    <div class="mg">
+      <div class="mg-hdr" onclick="tog(this,'g-material')">
+        <span class="mg-arrow" id="a-g-material">▶</span><span class="mg-ic">📦</span>
+        <span class="mg-nm">Procurement — Item Master</span>
+        {% if _mat %}<button class="ea" data-uid="{{ uid }}" data-mid="{{ _mat.id }}" onclick="mAll(event,this,true)">Enable All</button><button class="da" data-uid="{{ uid }}" data-mid="{{ _mat.id }}" onclick="mAll(event,this,false)">Disable All</button>{% endif %}
+      </div>
+      <div class="mg-body" id="g-material">
+        {% if _mat %}
+        {{ prow('material','Item Master',uid,true) }}
+        <div style="margin:10px 0 2px;font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;">Item Types Tab</div>
+        {{ chips('material',[
+          ('tab_types',   'View Tab'),
+          ('type_add',    'Add'),
+          ('type_edit',   'Edit'),
+          ('type_delete', 'Delete')
+        ], uid) }}
+        <div style="margin:10px 0 2px;font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;">Item Groups Tab</div>
+        {{ chips('material',[
+          ('tab_groups',  'View Tab'),
+          ('group_add',   'Add'),
+          ('group_edit',  'Edit'),
+          ('group_delete','Delete')
+        ], uid) }}
+        <div style="margin:10px 0 2px;font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;">Categories Tab</div>
+        {{ chips('material',[
+          ('tab_categories','View Tab'),
+          ('trash_items',   'Items Trash'),
+          ('trash_types',   'Types Trash'),
+          ('trash_groups',  'Groups Trash'),
+          ('trash_cats',    'Categories Trash'),
+          ('cat_add',       'Add'),
+          ('cat_edit',      'Edit'),
+          ('cat_delete',    'Delete')
+        ], uid) }}
+        <div style="margin:10px 0 2px;font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;">Item Types Allowed</div>
+        {{ chips('material',[
+          ('type_rm',  'RM — Raw Material'),
+          ('type_pm',  'PM — Packing Material'),
+          ('type_fg',  'FG — Finished Goods'),
+          ('type_sfg', 'SFG — Semi-Finished'),
+          ('type_con', 'CON — Consumable'),
+          ('type_tg',  'TG — Trading Goods')
+        ], uid) }}
+        {% else %}
+        <p style="font-size:.75rem;color:var(--text3);padding:6px 0;">⚠️ Module DB mein nahi hai — fix_material_module.py run karo.</p>
+        {% endif %}
+      </div>
+    </div>
+
+    {# ═══════════════════════════════════════
        Packing
     ═══════════════════════════════════════ #}
     {% set _pk = modules|selectattr('name','eq','packing')|first %}
