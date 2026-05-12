@@ -180,7 +180,7 @@
 
 /* ── Submenu (inside sub-group) ── */
 .nav-submenu { overflow: hidden; max-height: 0; transition: max-height .25s ease; padding-left: 8px; }
-.nav-submenu.open { max-height: 300px; }
+.nav-submenu.open { max-height: 500px; }
 
 .nav-submenu .nav-a {
     font-size: 13px;
@@ -189,6 +189,28 @@
     border-left: 2px solid #e2e8f0;
     border-radius: 0 6px 6px 0;
     margin-bottom: 1px;
+}
+
+/* ── Nested sub-submenu (e.g. Purchase Order → PM/COR/SLV under Packing Material) ── */
+.nav-subgroup-toggle {
+    font-size: 12.5px;
+    padding-left: 14px;
+    margin-top: 2px;
+    border-left: 2px solid #e2e8f0;
+    border-radius: 0 6px 6px 0;
+}
+.nav-subgroup-toggle:hover { border-left-color: #93c5fd; }
+.nav-subgroup-toggle.open  { border-left-color: #2563eb; color: #2563eb; }
+.nav-subsubmenu { padding-left: 18px; }
+.nav-subsubmenu.open { max-height: 300px; }
+.nav-subsubmenu .nav-a {
+    font-size: 12px;
+    padding: 6px 8px 6px 12px;
+    color: #64748b;
+    border-left: 2px solid #f1f5f9;
+}
+.nav-subsubmenu .nav-a .nav-ic {
+    color: #cbd5e1; font-size: 14px; width: 14px; opacity: 1;
 }
 .nav-submenu .nav-a:hover { border-left-color: #93c5fd; color: #1e293b; background: #f8fafc; }
 .nav-submenu .nav-a.active {

@@ -255,12 +255,28 @@ def masters():
 @material_bp.route('/import-template')
 @login_required
 def import_template():
-    """Download a sample CSV template for importing items."""
+    """Download a type-aware sample CSV template for importing items."""
     abbr = request.args.get('item_type', 'RM').strip().upper()
-    csv_content = 'item_name,code,uom,hsn_code,gst_rate,msl,last_purchase_rate,opening_balance,description\n'
-    csv_content += f'Sample Item 1,{abbr}-001,KG,12345678,18,10,100.00,0,Optional description\n'
-    csv_content += f'Sample Item 2,{abbr}-002,L,87654321,12,5,50.00,0,'
     from flask import Response
+
+    if abbr == 'RM':
+        hdrs = 'item_name,code,aliases,category,group,inci_name,uom,msl,last_purchase_rate,opening_balance,hsn_code,gst_rate,taxability,description'
+        row1 = f'Mineral Oil Light Grade,{abbr}-001,"Light Oil,Base Oil",Oils,Base Oils,Paraffinum Liquidum,KG,10,95.00,0,27101990,18,Taxable,Optional notes'
+        row2 = f'Rose Fragrance Oil,{abbr}-002,"Rose Oil,Floral Scent",Fragrance,,Rosa Damascena Flower Oil,KG,5,1200.00,0,33021090,18,Taxable,'
+    elif abbr == 'PM':
+        hdrs = 'item_name,code,aliases,pm_type,material_type_hm_cm,brand,category,sku_size,attributes,corrugation_ply,lengthmm,widthmm,heightmm,uom,msl,last_purchase_rate,opening_balance,hsn_code,gst_rate,taxability,description'
+        row1 = f'Frosted Glass Bottle 100ml,{abbr}-001,"Glass Bottle,100ml Bottle",PM,HM,Twasa,Bottles,100,"Bottle,Glass,Frosted",,,,,PCS,0,28.50,0,70109090,18,Taxable,'
+        row2 = f'Corrugated Box 300x200x150mm 3Ply,{abbr}-002,"Carton Box,Corrugated Carton",Corrugation,HM,Twasa,Cartons,,,"3 Ply",300,200,150,PCS,0,18.00,0,48191000,12,Taxable,'
+    elif abbr == 'FG':
+        hdrs = 'item_name,code,aliases,brand,category,sku_size,per_box_qty,uom,msl,last_purchase_rate,opening_balance,hsn_code,gst_rate,taxability,description'
+        row1 = f'Rose Glow Face Wash 100ml,{abbr}-001,"Rose Face Wash,Glow Cleanser",Twasa,Face Wash,100,24,PCS,0,0.00,0,33049990,18,Taxable,'
+        row2 = f'Anti Dandruff Shampoo 250ml,{abbr}-002,"AD Shampoo,Dandruff Shampoo",Twasa,Shampoo,250,12,PCS,0,0.00,0,33051000,18,Taxable,'
+    else:
+        hdrs = 'item_name,code,aliases,uom,msl,last_purchase_rate,opening_balance,hsn_code,gst_rate,taxability,description'
+        row1 = f'Sample Item 1,{abbr}-001,,KG,10,100.00,0,12345678,18,Taxable,'
+        row2 = f'Sample Item 2,{abbr}-002,,KG,5,50.00,0,87654321,12,Taxable,'
+
+    csv_content = hdrs + '\n' + row1 + '\n' + row2 + '\n'
     return Response(
         '\uFEFF' + csv_content,
         mimetype='text/csv',
@@ -324,64 +340,59 @@ def edit_item(item_id):
 @material_bp.route('/api/next-code')
 @login_required
 def api_next_code():
-    """Auto-generate next available code. e.g. RM → RM-001
-    Logic:
-      1. Get all existing codes with this prefix (PM-001, PM-002...)
-      2. If none found → count total items of this type → start from count+1
-      3. Find next gap-free number
+    """Auto-generate next available code.
+    PM sub-type prefixes:
+      PM (regular)  → PM-0001
+      Corrugation   → PM-CORR-0001
+      Sleeves       → PM-SLV-0001
+    All other types → ABBR-0001
+    Each series is independent.
     """
-    abbr = request.args.get('type_abbr', '').strip().upper()
+    abbr     = request.args.get('type_abbr', '').strip().upper()
+    pm_sub   = request.args.get('pm_sub', '').strip()   # Corrugation | Sleeves | PM | ''
     if not abbr:
         return jsonify({'status': 'error', 'message': 'type_abbr required'}), 400
     try:
         from sqlalchemy import text
-        prefix = f'{abbr}-'
 
-        # Get all existing codes
+        # ── Determine prefix based on type + PM sub-type ──────────────
+        if abbr == 'PM':
+            sub_upper = pm_sub.upper()
+            if sub_upper == 'CORRUGATION':
+                prefix = 'PM-CORR-'
+            elif sub_upper == 'SLEEVES':
+                prefix = 'PM-SLV-'
+            else:
+                prefix = 'PM-'   # regular PM
+        else:
+            prefix = f'{abbr}-'
+
+        # ── Get all existing codes ─────────────────────────────────────
         rows = db.session.execute(
             text("SELECT code FROM materials WHERE (is_deleted IS NULL OR is_deleted = 0)")
         ).fetchall()
 
         existing_codes = set()
         max_num = 0
-        coded_count = 0  # how many items have this prefix code
 
         for row in rows:
-            code = (row[0] or '').upper().strip()
-            if code:
-                existing_codes.add(code)
-            if code.startswith(prefix):
-                coded_count += 1
+            c = (row[0] or '').upper().strip()
+            if c:
+                existing_codes.add(c)
+            if c.startswith(prefix):
+                suffix = c[len(prefix):]
                 try:
-                    num = int(code[len(prefix):])
+                    num = int(suffix)
                     max_num = max(max_num, num)
                 except (ValueError, IndexError):
                     pass
 
-        # If no coded items found, count total items of this type from DB
-        if max_num == 0:
-            try:
-                # Find MaterialType by abbreviation
-                type_rows = db.session.execute(
-                    text("SELECT id FROM material_types WHERE UPPER(abbreviation) = :abbr AND (is_deleted IS NULL OR is_deleted = 0)"),
-                    {'abbr': abbr}
-                ).fetchone()
-                if type_rows:
-                    count_row = db.session.execute(
-                        text("SELECT COUNT(*) FROM materials WHERE material_type_id = :tid AND (is_deleted IS NULL OR is_deleted = 0)"),
-                        {'tid': type_rows[0]}
-                    ).fetchone()
-                    total_items = count_row[0] if count_row else 0
-                    max_num = total_items  # next = total + 1
-            except Exception:
-                pass
-
-        # Find next available slot (concurrent-safe)
+        # ── Find next available slot (4-digit, gap-free) ───────────────
         next_num = max_num + 1
-        while f'{prefix}{next_num:03d}' in existing_codes:
+        while f'{prefix}{next_num:04d}' in existing_codes:
             next_num += 1
 
-        return jsonify({'status': 'ok', 'code': f'{abbr}-{next_num:03d}'})
+        return jsonify({'status': 'ok', 'code': f'{prefix}{next_num:04d}'})
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
@@ -418,13 +429,60 @@ def api_list():
     rows = q.order_by(Material.material_name).all()
     return jsonify({'status':'ok','rows':[r.to_dict() for r in rows]})
 
+@material_bp.route('/api/check-name', methods=['POST'])
+@login_required
+def api_check_name():
+    """Check if material_name already exists (case-insensitive). Exclude current id on edit."""
+    d    = request.get_json() or {}
+    name = d.get('material_name', '').strip()
+    _raw_exc = d.get('exclude_id') or d.get('id') or ''
+    try:
+        exc_int = int(str(_raw_exc).strip()) if str(_raw_exc).strip() else None
+    except (ValueError, TypeError):
+        exc_int = None
+    if not name:
+        return jsonify({'exists': False})
+    q = Material.query.filter(
+        Material.material_name.ilike(name),
+        (Material.is_deleted == False) | (Material.is_deleted == None)
+    )
+    if exc_int:
+        q = q.filter(Material.id != exc_int)
+    exists = q.first() is not None
+    return jsonify({'exists': exists})
+
+
 @material_bp.route('/api/save', methods=['POST'])
 @login_required
 def api_save():
     if not _can('edit'): return jsonify({'status':'error','message':'Access denied'}),403
     d = request.get_json() or {}
-    if not (d.get('material_name','').strip()):
+    name = d.get('material_name','').strip()
+    if not name:
         return jsonify({'status':'error','message':'Material Name is required'})
+    # Duplicate name check — exclude current item on edit
+    _raw_id = d.get('id') or d.get('exclude_id') or ''
+    try:
+        exc_int = int(str(_raw_id).strip()) if str(_raw_id).strip() else None
+    except (ValueError, TypeError):
+        exc_int = None
+
+    # If editing: skip check when name hasn't changed from DB value
+    _skip_dup = False
+    if exc_int:
+        _cur = Material.query.filter_by(id=exc_int).first()
+        if _cur and (_cur.material_name or '').strip().lower() == name.lower():
+            _skip_dup = True   # same name as before — no duplicate issue
+
+    if not _skip_dup:
+        dup_q = Material.query.filter(
+            Material.material_name.ilike(name),
+            (Material.is_deleted == False) | (Material.is_deleted == None)
+        )
+        if exc_int:
+            dup_q = dup_q.filter(Material.id != exc_int)
+        if dup_q.first():
+            return jsonify({'status':'error','message':f'Item name "{name}" already exists. Please use a unique name.'})
 
     from sqlalchemy import text
 
@@ -492,11 +550,18 @@ def api_save():
         m.category           = d.get('category', '').strip()
         m.per_box_qty        = int(d.get('per_box_qty') or 0)
         m.pm_material_type   = d.get('pm_material_type', '').strip()
+        m.pm_client_type     = d.get('pm_client_type', '').strip()
         m.pm_attribute       = d.get('pm_attribute', '').strip()
         m.corrugation_ply    = d.get('corrugation_ply','').strip()
-        m.dim_length         = d.get('dim_length') or None
-        m.dim_width          = d.get('dim_width') or None
-        m.dim_height         = d.get('dim_height') or None
+        def _to_decimal(val):
+            try:
+                v = str(val).strip()
+                return float(v) if v else None
+            except (ValueError, TypeError):
+                return None
+        m.dim_length         = _to_decimal(d.get('dim_length'))
+        m.dim_width          = _to_decimal(d.get('dim_width'))
+        m.dim_height         = _to_decimal(d.get('dim_height'))
         m.material_type_id   = d.get('material_type_id') or None
         m.group_id           = d.get('group_id') or None
         m.sku_sizes          = d.get('sku_sizes','').strip()
@@ -508,7 +573,6 @@ def api_save():
         m.hsn_code           = d.get('hsn_code','').strip()
         m.gst_rate           = float(d.get('gst_rate') or 0)
         m.taxability         = d.get('taxability','Taxable')
-        m.type_of_supply     = d.get('type_of_supply','Goods')
         m.is_active          = bool(d.get('is_active', True))
         # Image path (PM/FG)
         # Image data (base64) — compress and store directly in DB

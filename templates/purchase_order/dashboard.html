@@ -1,0 +1,240 @@
+{% extends 'base.html' %}
+{% block title %}PO Dashboard — HCP ERP{% endblock %}
+{% block page_title %}Purchase Order Dashboard{% endblock %}
+{% block bread %}Procurement / Purchase Order / Dashboard{% endblock %}
+
+{% block extra_css %}
+<style>
+.pd-cards { display:grid; grid-template-columns:repeat(auto-fit, minmax(180px,1fr)); gap:14px; margin-bottom:22px; }
+.pd-card { background:#fff; border:1.5px solid #e2e8f0; border-radius:12px; padding:16px 18px;
+    position:relative; overflow:hidden; transition:transform .15s, box-shadow .15s; cursor:pointer; }
+.pd-card:hover { transform:translateY(-2px); box-shadow:0 8px 18px rgba(15,23,42,.08); }
+.pd-card .strip { position:absolute; left:0; top:0; bottom:0; width:4px; }
+.pd-card .lab { font-size:11px; color:#64748b; font-weight:700; text-transform:uppercase;
+    letter-spacing:.05em; margin-bottom:8px; }
+.pd-card .count { font-size:30px; font-weight:900; color:#1e293b; line-height:1; }
+.pd-card .amt { font-size:13px; color:#475569; font-weight:600; margin-top:8px;
+    font-variant-numeric:tabular-nums; }
+.pd-card .icon { position:absolute; right:12px; top:14px; font-size:24px; opacity:.4; }
+
+.pd-row { display:grid; grid-template-columns:1.4fr 1fr; gap:18px; margin-bottom:22px; }
+@media (max-width:920px){ .pd-row { grid-template-columns:1fr; } }
+
+.pd-panel { background:#fff; border:1.5px solid #e2e8f0; border-radius:12px; padding:18px 20px; }
+.pd-panel h3 { font-size:13px; font-weight:800; color:#1e293b; margin:0 0 14px;
+    text-transform:uppercase; letter-spacing:.04em; display:flex; justify-content:space-between;
+    align-items:center; border-bottom:1px solid #f1f5f9; padding-bottom:8px; }
+.pd-panel h3 small { font-size:11px; color:#94a3b8; font-weight:500; }
+.pd-empty { color:#94a3b8; text-align:center; padding:40px 20px; font-size:13px; }
+
+.pd-type-list { display:flex; flex-direction:column; gap:10px; }
+.pd-type-row { display:grid; grid-template-columns:90px 1fr 100px 110px; gap:12px;
+    align-items:center; padding:8px 12px; border-radius:8px; background:#f8fafc;
+    cursor:pointer; transition:background .15s; }
+.pd-type-row:hover { background:#eff6ff; }
+.pd-type-pill { display:inline-block; padding:3px 9px; border-radius:11px;
+    font-size:11px; font-weight:800; text-transform:uppercase; text-align:center; }
+.pd-type-pill.RM  { background:#dbeafe; color:#1d4ed8; }
+.pd-type-pill.PM  { background:#fae8ff; color:#7e22ce; }
+.pd-type-pill.COR { background:#fef3c7; color:#a16207; }
+.pd-type-pill.SLV { background:#dcfce7; color:#15803d; }
+.pd-bar { height:8px; background:#e2e8f0; border-radius:4px; overflow:hidden; }
+.pd-bar > div { height:100%; background:linear-gradient(90deg, #3b82f6, #2563eb); border-radius:4px; }
+.pd-rt-count { font-size:13px; font-weight:700; color:#1e293b; text-align:right;
+    font-variant-numeric:tabular-nums; }
+.pd-rt-amt { font-size:13px; font-weight:700; color:#1e3a5f; text-align:right;
+    font-variant-numeric:tabular-nums; }
+
+.pd-quick { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:22px; }
+.pd-quick a { padding:8px 14px; border-radius:8px; font-size:12.5px; font-weight:700;
+    background:#fff; color:#475569; border:1.5px solid #e2e8f0; text-decoration:none;
+    transition:all .15s; }
+.pd-quick a:hover { border-color:#2563eb; color:#2563eb; background:#eff6ff; }
+
+#chartContainer { position:relative; height:260px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div style="max-width:1200px;margin:0 auto;padding:0 16px;">
+
+  <!-- Quick links -->
+  <div class="pd-quick">
+    <a href="{{ url_for('purchase_order.new_po', po_type='RM') }}">➕ New RM PO</a>
+    <a href="{{ url_for('purchase_order.new_po', po_type='PM') }}">➕ New PM PO</a>
+    <a href="{{ url_for('purchase_order.new_po', po_type='COR') }}">➕ New COR PO</a>
+    <a href="{{ url_for('purchase_order.new_po', po_type='SLV') }}">➕ New SLV PO</a>
+    <a href="{{ url_for('purchase_order.index') }}" style="margin-left:auto;">📋 All POs</a>
+    <a href="{{ url_for('purchase_order.reports') }}">📊 Reports</a>
+  </div>
+
+  <!-- Status Cards -->
+  <div class="pd-cards" id="pdCards">
+    <div class="pd-card" data-status="Pending Approval">
+      <div class="strip" style="background:#f59e0b;"></div>
+      <div class="icon">⏳</div>
+      <div class="lab">Pending Approval</div>
+      <div class="count" id="cntPending">…</div>
+      <div class="amt" id="amtPending">₹ —</div>
+    </div>
+    <div class="pd-card" data-status="Approved">
+      <div class="strip" style="background:#3b82f6;"></div>
+      <div class="icon">✅</div>
+      <div class="lab">Approved</div>
+      <div class="count" id="cntApproved">…</div>
+      <div class="amt" id="amtApproved">₹ —</div>
+    </div>
+    <div class="pd-card" data-status="Partial Received">
+      <div class="strip" style="background:#8b5cf6;"></div>
+      <div class="icon">📦</div>
+      <div class="lab">Partial Received</div>
+      <div class="count" id="cntPartial">…</div>
+      <div class="amt" id="amtPartial">₹ —</div>
+    </div>
+    <div class="pd-card" data-status="Completed">
+      <div class="strip" style="background:#16a34a;"></div>
+      <div class="icon">🎉</div>
+      <div class="lab">Completed</div>
+      <div class="count" id="cntCompleted">…</div>
+      <div class="amt" id="amtCompleted">₹ —</div>
+    </div>
+    <div class="pd-card" data-status="Rejected">
+      <div class="strip" style="background:#dc2626;"></div>
+      <div class="icon">⛔</div>
+      <div class="lab">Rejected</div>
+      <div class="count" id="cntRejected">…</div>
+      <div class="amt" id="amtRejected">₹ —</div>
+    </div>
+    <div class="pd-card" data-status="Draft">
+      <div class="strip" style="background:#64748b;"></div>
+      <div class="icon">📝</div>
+      <div class="lab">Draft</div>
+      <div class="count" id="cntDraft">…</div>
+      <div class="amt" id="amtDraft">₹ —</div>
+    </div>
+    <div class="pd-card" data-status="Cancelled">
+      <div class="strip" style="background:#94a3b8;"></div>
+      <div class="icon">❌</div>
+      <div class="lab">Cancelled</div>
+      <div class="count" id="cntCancelled">…</div>
+      <div class="amt" id="amtCancelled">₹ —</div>
+    </div>
+    <div class="pd-card" style="background:#1e3a5f;color:#fff;border-color:#1e3a5f;">
+      <div class="strip" style="background:#0ea5e9;"></div>
+      <div class="icon" style="opacity:.5;">📊</div>
+      <div class="lab" style="color:#cbd5e1;">Total POs</div>
+      <div class="count" id="cntTotal" style="color:#fff;">…</div>
+      <div class="amt" id="amtTotal" style="color:#cbd5e1;">₹ —</div>
+    </div>
+  </div>
+
+  <!-- Charts row -->
+  <div class="pd-row">
+    <div class="pd-panel">
+      <h3>Status Distribution <small id="last30Label">— last 30 days</small></h3>
+      <div id="chartContainer"><canvas id="statusChart"></canvas></div>
+    </div>
+    <div class="pd-panel">
+      <h3>By PO Type</h3>
+      <div class="pd-type-list" id="byTypeList">
+        <div class="pd-empty">Loading…</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+(function(){
+  const COLORS = {
+    'Draft':            '#64748b',
+    'Pending Approval': '#f59e0b',
+    'Approved':         '#3b82f6',
+    'Rejected':         '#dc2626',
+    'Partial Received': '#8b5cf6',
+    'Completed':        '#16a34a',
+    'Cancelled':        '#94a3b8'
+  };
+  const STATUS_TO_CARD = {
+    'Pending Approval':'Pending', 'Approved':'Approved',
+    'Partial Received':'Partial', 'Completed':'Completed',
+    'Rejected':'Rejected', 'Draft':'Draft', 'Cancelled':'Cancelled'
+  };
+
+  function inr(n){
+    n = Math.round(n || 0);
+    return '₹ ' + n.toLocaleString('en-IN');
+  }
+
+  let chart;
+
+  fetch("{{ url_for('purchase_order.api_dashboard_counts') }}")
+    .then(r => r.json())
+    .then(d => {
+      const stats = d.stats || {};
+      let total = 0, totalAmt = 0;
+      // Clear all
+      for (const st in STATUS_TO_CARD) {
+        const k = STATUS_TO_CARD[st];
+        const c = (stats[st] && stats[st].count) || 0;
+        const a = (stats[st] && stats[st].amount) || 0;
+        document.getElementById('cnt' + k).textContent = c;
+        document.getElementById('amt' + k).textContent = inr(a);
+        total += c; totalAmt += a;
+      }
+      document.getElementById('cntTotal').textContent = total;
+      document.getElementById('amtTotal').textContent = inr(totalAmt);
+
+      // Chart
+      const labels = []; const data = []; const colors = [];
+      for (const st in STATUS_TO_CARD) {
+        const c = (stats[st] && stats[st].count) || 0;
+        if (c > 0) { labels.push(st); data.push(c); colors.push(COLORS[st] || '#94a3b8'); }
+      }
+      if (data.length) {
+        chart = new Chart(document.getElementById('statusChart'), {
+          type:'doughnut',
+          data:{ labels, datasets:[{ data, backgroundColor: colors, borderWidth:2, borderColor:'#fff' }] },
+          options:{
+            responsive:true, maintainAspectRatio:false, cutout:'62%',
+            plugins:{ legend:{ position:'right', labels:{ font:{ size:11 }, padding:10, boxWidth:12 } } }
+          }
+        });
+      } else {
+        document.getElementById('chartContainer').innerHTML = '<div class="pd-empty">No data yet</div>';
+      }
+
+      // By type
+      const byT = d.by_type || {};
+      const ttl = document.getElementById('byTypeList');
+      ttl.innerHTML = '';
+      const types = ['RM','PM','COR','SLV'];
+      const maxAmt = Math.max(1, ...types.map(t => (byT[t] && byT[t].amount) || 0));
+      types.forEach(t => {
+        const c = (byT[t] && byT[t].count) || 0;
+        const a = (byT[t] && byT[t].amount) || 0;
+        const pct = (a / maxAmt) * 100;
+        const row = document.createElement('div');
+        row.className = 'pd-type-row';
+        row.onclick = () => location.href = "{{ url_for('purchase_order.index') }}?po_type=" + t;
+        row.innerHTML = `
+          <span class="pd-type-pill ${t}">${t}</span>
+          <div class="pd-bar"><div style="width:${pct}%"></div></div>
+          <div class="pd-rt-count">${c} POs</div>
+          <div class="pd-rt-amt">${inr(a)}</div>
+        `;
+        ttl.appendChild(row);
+      });
+    })
+    .catch(e => { console.error(e); });
+
+  // Click a card → drill into listing scoped by status
+  document.getElementById('pdCards').addEventListener('click', e => {
+    const card = e.target.closest('[data-status]');
+    if (!card) return;
+    location.href = "{{ url_for('purchase_order.index') }}?status=" + encodeURIComponent(card.dataset.status);
+  });
+})();
+</script>
+{% endblock %}

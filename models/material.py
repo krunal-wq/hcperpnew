@@ -95,6 +95,7 @@ class Material(db.Model):
     dim_length          = db.Column(db.Numeric(10,2), nullable=True)  # mm
     dim_width           = db.Column(db.Numeric(10,2), nullable=True)  # mm
     dim_height          = db.Column(db.Numeric(10,2), nullable=True)  # mm (Corrugation only)
+    pm_client_type      = db.Column(db.String(10),    default='', nullable=True)  # HM or CM
 
     # Classification
     material_type_id    = db.Column(db.Integer, db.ForeignKey('material_types.id'), nullable=True)
@@ -118,7 +119,6 @@ class Material(db.Model):
     hsn_code            = db.Column(db.String(20),    default='')
     gst_rate            = db.Column(db.Numeric(5,2),  default=0)
     taxability          = db.Column(db.String(50),    default='Taxable')
-    type_of_supply      = db.Column(db.String(50),    default='Goods')
 
     # Soft Delete
     is_deleted          = db.Column(db.Boolean,       default=False)
@@ -155,6 +155,7 @@ class Material(db.Model):
             'pm_material_type': self.pm_material_type or '',
             'pm_attribute':     self.pm_attribute or '',
             'corrugation_ply':  self.corrugation_ply or '',
+            'pm_client_type':   self.pm_client_type or '',
             'dim_length':       float(self.dim_length) if self.dim_length else None,
             'dim_width':        float(self.dim_width) if self.dim_width else None,
             'dim_height':       float(self.dim_height) if self.dim_height else None,
@@ -176,7 +177,6 @@ class Material(db.Model):
             'hsn_code': self.hsn_code or '',
             'gst_rate': float(self.gst_rate or 0),
             'taxability': self.taxability or 'Taxable',
-            'type_of_supply': self.type_of_supply or 'Goods',
             'is_active': self.is_active,
             'is_deleted': getattr(self, 'is_deleted', False) or False,
             'image_data': self.image_data or '',

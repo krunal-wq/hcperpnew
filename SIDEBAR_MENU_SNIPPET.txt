@@ -1,0 +1,107 @@
+═══════════════════════════════════════════════════════════════════════════════
+  base.html — Sidebar Menu Snippet for Purchase Order Module
+═══════════════════════════════════════════════════════════════════════════════
+
+  WHERE TO PASTE: /templates/base.html
+  EXACT LOCATION: Inside the existing "Purchase" accordion block.
+
+  Open base.html, search for this line (around line 226):
+
+      <!-- Masters & Settings -->
+      <a class="nav-a {% if request.path == '/material/masters' %}active{% endif %}" href="/material/masters">
+          <span class="nav-ic"><i class="bi bi-gear"></i></span>
+          <span class="nav-txt">Masters & Settings</span>
+      </a>
+
+  RIGHT AFTER that <a> closes (and BEFORE the </div> that closes
+  `sb-acc-body`, line 232), paste the snippet below.
+
+═══════════════════════════════════════════════════════════════════════════════
+
+                <!-- ════════════════════════════════════════════════════════
+                     Purchase Order  (RM / PM / Corrugation / Sleeves)
+                     ════════════════════════════════════════════════════════ -->
+                {% set _perm_po = get_perm('purchase_order') %}
+                {% if role == 'admin' or (_perm_po and _perm_po.can_view) %}
+                <button class="nav-group-toggle {% if request.path.startswith('/purchase-order') %}open{% endif %}" onclick="toggleNavGroup(this)">
+                    <span class="nav-ic"><i class="bi bi-file-earmark-text"></i></span>
+                    <span class="nav-txt">Purchase Order</span>
+                    <span class="nav-group-arrow">▶</span>
+                </button>
+                <div class="nav-submenu {% if request.path.startswith('/purchase-order') %}open{% endif %}">
+
+                    <a class="nav-a {% if request.path == '/purchase-order/' and request.args.get('po_type','').upper() == 'RM' %}active{% endif %}"
+                       href="/purchase-order/?po_type=RM">
+                        <span class="nav-ic"><i class="bi bi-droplet-half"></i></span>
+                        <span class="nav-txt">RM PO</span>
+                    </a>
+
+                    <a class="nav-a {% if request.path == '/purchase-order/' and request.args.get('po_type','').upper() == 'PM' %}active{% endif %}"
+                       href="/purchase-order/?po_type=PM">
+                        <span class="nav-ic"><i class="bi bi-archive"></i></span>
+                        <span class="nav-txt">PM PO</span>
+                    </a>
+
+                    <a class="nav-a {% if request.path == '/purchase-order/' and request.args.get('po_type','').upper() == 'COR' %}active{% endif %}"
+                       href="/purchase-order/?po_type=COR">
+                        <span class="nav-ic"><i class="bi bi-box-seam"></i></span>
+                        <span class="nav-txt">Corrugation PO</span>
+                    </a>
+
+                    <a class="nav-a {% if request.path == '/purchase-order/' and request.args.get('po_type','').upper() == 'SLV' %}active{% endif %}"
+                       href="/purchase-order/?po_type=SLV">
+                        <span class="nav-ic"><i class="bi bi-tag"></i></span>
+                        <span class="nav-txt">Sleeves PO</span>
+                    </a>
+
+                    <a class="nav-a {% if request.path == '/purchase-order/dashboard' %}active{% endif %}"
+                       href="/purchase-order/dashboard">
+                        <span class="nav-ic"><i class="bi bi-bar-chart"></i></span>
+                        <span class="nav-txt">PO Dashboard</span>
+                    </a>
+
+                    <a class="nav-a {% if request.path == '/purchase-order/reports' %}active{% endif %}"
+                       href="/purchase-order/reports">
+                        <span class="nav-ic"><i class="bi bi-graph-up"></i></span>
+                        <span class="nav-txt">PO Reports</span>
+                    </a>
+
+                    <a class="nav-a {% if request.path == '/purchase-order/terms-master' %}active{% endif %}"
+                       href="/purchase-order/terms-master">
+                        <span class="nav-ic"><i class="bi bi-list-check"></i></span>
+                        <span class="nav-txt">Terms Master</span>
+                    </a>
+
+                    <a class="nav-a {% if request.path == '/purchase-order/company-settings' %}active{% endif %}"
+                       href="/purchase-order/company-settings">
+                        <span class="nav-ic"><i class="bi bi-building-gear"></i></span>
+                        <span class="nav-txt">Company Settings</span>
+                    </a>
+
+                </div>
+                {% endif %}
+                <!-- ════════════════════════════════════════════════════════
+                     End Purchase Order
+                     ════════════════════════════════════════════════════════ -->
+
+═══════════════════════════════════════════════════════════════════════════════
+
+  AFTER PASTING:
+  1. Save base.html
+  2. Restart Flask (Ctrl+C, then `python index.py`)
+  3. Refresh browser (Ctrl+F5 to bust cache)
+  4. Click "Purchase" accordion in sidebar → "Purchase Order" dropdown will be at the bottom
+
+  NOT SEEING IT EVEN NOW?
+  - Hard refresh (Ctrl+Shift+R) to clear cached HTML
+  - Confirm migration ran: `SELECT * FROM modules WHERE name='purchase_order';`
+    Should return 1 row. If empty, run `python add_purchase_order_module.py`
+    or the SQL script's "SIDEBAR REGISTRATION" section.
+  - Confirm blueprint registered: open http://your-server/purchase-order/
+    directly in browser. If 404, you forgot to add to index.py:
+        from purchase_order_routes import po_bp
+        app.register_blueprint(po_bp)
+  - For non-admin users: grant `can_view` on the `purchase_order` module via
+    User Permissions page, or insert into `user_permissions` table directly.
+
+═══════════════════════════════════════════════════════════════════════════════

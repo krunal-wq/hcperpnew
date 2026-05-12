@@ -1,0 +1,475 @@
+{% extends 'base.html' %}
+{% block title %}{% if grn_type_label %}{{ grn_type_label }} – {% endif %}GRN — HCP ERP{% endblock %}
+{% block page_title %}{% if grn_type_label %}{{ grn_type_label }} – {% endif %}Goods Receipt Notes{% endblock %}
+{% block bread %}Stores / GRN{% if grn_type_label %} / {{ grn_type_label }}{% endif %}{% endblock %}
+
+{% block extra_css %}
+<style>
+.grn-toolbar { display:flex; gap:10px; align-items:center; margin-bottom:14px; flex-wrap:wrap; }
+.grn-toolbar .search-box { flex:1; max-width:340px; position:relative; }
+.grn-toolbar .search-box input { width:100%; padding:9px 12px 9px 36px; border:1.5px solid #e2e8f0;
+    border-radius:8px; font-size:13px; outline:none; background:#fff; }
+.grn-toolbar .search-box input:focus { border-color:#2563eb; }
+.grn-toolbar .search-box::before { content:'🔍'; position:absolute; left:11px; top:50%;
+    transform:translateY(-50%); font-size:13px; opacity:.6; }
+.grn-toolbar select { padding:9px 12px; border:1.5px solid #e2e8f0; border-radius:8px;
+    font-size:13px; background:#fff; cursor:pointer; }
+.btn-add-new { padding:9px 18px; border-radius:8px; background:#1e40af; color:#fff;
+    font-size:13px; font-weight:700; text-decoration:none; display:inline-flex;
+    align-items:center; gap:6px; margin-left:auto; transition:all .15s; border:0; cursor:pointer; }
+.btn-add-new:hover { background:#1e3a8a; color:#fff; }
+
+.grn-wrap { background:#fff; border-radius:12px; border:1px solid #e2e8f0;
+    box-shadow:0 1px 3px rgba(0,0,0,.04); overflow:hidden; }
+.grn-table { width:100%; border-collapse:collapse; font-size:13px; }
+.grn-table thead th { background:#f1f5f9; color:#475569; font-size:11px; font-weight:700;
+    text-transform:uppercase; letter-spacing:.04em; padding:11px 12px; text-align:left;
+    border-bottom:2px solid #cbd5e1; }
+.grn-table tbody td { padding:11px 12px; border-bottom:1px solid #f1f5f9; vertical-align:middle; }
+.grn-table tbody tr:hover { background:#fafbfd; }
+.grn-table .num-col { font-weight:700; color:#1e40af; }
+.grn-table .num-col a { color:#1e40af; text-decoration:none; }
+.grn-table .num-col a:hover { text-decoration:underline; }
+.grn-table .small-meta { font-size:11px; color:#94a3b8; }
+
+.po-cell-center { text-align:center; }
+.po-actions { display:flex; gap:5px; justify-content:flex-end; }
+.po-act { width:30px; height:30px; display:inline-flex; align-items:center;
+          justify-content:center; border-radius:7px; border:1.5px solid #e2e8f0;
+          background:#fff; color:#475569; cursor:pointer; transition:all .15s;
+          font-family:inherit; text-decoration:none; }
+.po-act:hover { background:#eff6ff; color:#2563eb; border-color:#2563eb; }
+.po-act.danger:hover { background:#fef2f2; color:#dc2626; border-color:#fca5a5; }
+.po-act.success:hover { background:#f0fdf4; color:#16a34a; border-color:#86efac; }
+.po-act.po-act-edit { background:#eff6ff; border-color:#93c5fd; color:#1d4ed8; }
+.po-act.po-act-edit:hover { background:#2563eb; border-color:#2563eb; color:#fff; }
+
+.type-pill { display:inline-block; padding:2px 9px; border-radius:11px;
+    font-size:10.5px; font-weight:800; text-transform:uppercase; letter-spacing:.04em;
+    background:#e0f2fe; color:#0369a1; }
+
+.status-pill { display:inline-block; padding:3px 10px; border-radius:12px;
+    font-size:10.5px; font-weight:800; text-transform:uppercase; letter-spacing:.04em;
+    color:#fff; }
+
+.empty-state { padding:60px 20px; text-align:center; color:#94a3b8; }
+.empty-state .icon { font-size:48px; margin-bottom:10px; opacity:.5; }
+
+/* ─── Row expand on double-click ─── */
+.grn-table tbody tr.grn-row { cursor:pointer; user-select:none; }
+.grn-table tbody tr.grn-row.expanded { background:#f8fafc; }
+.grn-table tbody tr.grn-row.expanded td { border-bottom:0; }
+.grn-expand-row td { padding:0 !important; background:#f1f5f9; border-bottom:2px solid #cbd5e1 !important; }
+.grn-expand-wrap { padding:14px 18px; background:#ffffff; border:2px solid #2563eb;
+    border-radius:0; margin:0; }
+.grn-expand-title { font-size:11.5px; font-weight:800; color:#1e3a5f; margin-bottom:8px;
+    text-transform:uppercase; letter-spacing:.04em; display:flex; align-items:center; gap:8px; }
+.grn-expand-title .pe-cnt { background:#dbeafe; color:#1e40af; padding:2px 9px;
+    border-radius:11px; font-size:10.5px; }
+.grn-loading { padding:24px; text-align:center; color:#64748b; font-size:12px; }
+.grn-expand-table { width:100%; border-collapse:collapse; font-size:11.5px; }
+.grn-expand-table th { background:#eff6ff; color:#1e3a5f; font-size:10px; font-weight:700;
+    text-transform:uppercase; letter-spacing:.03em; padding:7px 9px; text-align:left;
+    border-bottom:1.5px solid #93c5fd; }
+.grn-expand-table th.num { text-align:right; }
+.grn-expand-table td { padding:7px 9px; border-bottom:1px solid #e0e7ff; vertical-align:top; }
+.grn-expand-table td.num { text-align:right; }
+.grn-expand-table tr:hover td { background:#fafbfd; }
+
+.pager { display:flex; gap:6px; justify-content:flex-end; align-items:center; padding:14px 18px;
+    border-top:1px solid #e2e8f0; background:#f8fafc; }
+.pager button { padding:5px 10px; border:1.5px solid #e2e8f0; border-radius:5px;
+    background:#fff; cursor:pointer; font-size:12px; font-weight:600; }
+.pager button:hover:not(:disabled) { border-color:#2563eb; color:#2563eb; }
+.pager button:disabled { opacity:.4; cursor:not-allowed; }
+.pager .total { font-size:11.5px; color:#64748b; margin-right:auto; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="grn-toolbar">
+  <div class="search-box">
+    <input id="fSearch" type="text" placeholder="Search GRN no, PO no, supplier, invoice...">
+  </div>
+  <select id="fType" {% if request.args.get('grn_type') %}disabled title="Locked from menu"{% endif %}>
+    {% if not request.args.get('grn_type') %}<option value="">All Types</option>{% endif %}
+    {% for code, label in grn_types.items() %}
+    <option value="{{ code }}" {% if code == grn_type %}selected{% endif %}>{{ label }}</option>
+    {% endfor %}
+  </select>
+  <select id="fStatus">
+    <option value="">All Status</option>
+    {% for s in grn_statuses %}
+    <option value="{{ s }}">{{ s }}</option>
+    {% endfor %}
+  </select>
+  <input type="date" id="fDateFrom" title="From date"
+    style="padding:9px 10px; border:1.5px solid #e2e8f0; border-radius:8px; font-size:13px;">
+  <input type="date" id="fDateTo" title="To date"
+    style="padding:9px 10px; border:1.5px solid #e2e8f0; border-radius:8px; font-size:13px;">
+  <button type="button" onclick="clearFilters()"
+    style="padding:9px 12px; border:1.5px solid #e2e8f0; border-radius:8px; font-size:12px;
+    background:#fff; cursor:pointer; font-weight:600; color:#475569;">Clear</button>
+
+  <a href="{{ url_for('grn.stock_page') }}"
+    style="padding:9px 14px; background:#1e40af; color:#fff; border-radius:8px;
+    font-size:12px; font-weight:700; text-decoration:none; margin-left:auto;">📦 Stock</a>
+  <a href="#" onclick="exportExcel(event)"
+    style="padding:9px 14px; background:#16a34a; color:#fff; border-radius:8px;
+    font-size:12px; font-weight:700; text-decoration:none;">📊 Excel</a>
+  <a class="btn-add-new" href="{{ url_for('grn.new_grn') }}?grn_type={{ grn_type or 'RM' }}">
+    + New GRN
+  </a>
+</div>
+
+<div class="grn-wrap">
+  <table class="grn-table">
+    <thead>
+      <tr>
+        <th>GRN No.</th>
+        <th>Date</th>
+        <th>Type</th>
+        <th>Supplier</th>
+        <th>PO No.</th>
+        <th>Invoice</th>
+        <th style="text-align:right;">Total Qty</th>
+        <th style="text-align:center;">Status</th>
+        <th>Created By</th>
+        <th style="text-align:right;">Actions</th>
+      </tr>
+    </thead>
+    <tbody id="grnBody">
+      <tr><td colspan="10" class="empty-state">
+        <div class="icon">📦</div>Loading GRNs...
+      </td></tr>
+    </tbody>
+  </table>
+
+  <div class="pager">
+    <span class="total" id="totalCount">— rows</span>
+    <button id="prevBtn" onclick="changePage(-1)">‹ Prev</button>
+    <span id="pageInfo" style="font-size:12px;padding:0 8px;">Page 1</span>
+    <button id="nextBtn" onclick="changePage(1)">Next ›</button>
+  </div>
+</div>
+
+<!-- Modal for confirm dialogs (approve / reject / cancel) -->
+<div id="grnModal" class="po-modal" style="display:none;">
+  <div class="po-modal-bg" onclick="closeModal()"></div>
+  <div class="po-modal-box">
+    <div class="po-modal-hdr">
+      <h3 id="grnModalTitle">Action</h3>
+      <span style="cursor:pointer;color:#94a3b8;" onclick="closeModal()">✕</span>
+    </div>
+    <div class="po-modal-bd" id="grnModalBody"></div>
+    <div class="po-modal-ft">
+      <button class="po-btn po-btn-outline" onclick="closeModal()">Cancel</button>
+      <button class="po-btn po-btn-primary" id="grnModalGo" onclick="submitAction()">OK</button>
+    </div>
+  </div>
+</div>
+<style>
+.po-modal { position:fixed; inset:0; z-index:9999; display:flex; align-items:center; justify-content:center; }
+.po-modal-bg { position:absolute; inset:0; background:rgba(15,23,42,.45); }
+.po-modal-box { position:relative; background:#fff; border-radius:12px; width:480px; max-width:92vw;
+    overflow:hidden; box-shadow:0 10px 30px rgba(0,0,0,.2); }
+.po-modal-hdr { padding:14px 18px; border-bottom:1px solid #e2e8f0; display:flex;
+    align-items:center; justify-content:space-between; }
+.po-modal-hdr h3 { margin:0; font-size:15px; font-weight:800; color:#0f172a; }
+.po-modal-bd { padding:18px; max-height:60vh; overflow:auto; }
+.po-modal-bd .po-fld { margin-bottom:12px; }
+.po-modal-bd .po-fld label { display:block; font-size:11px; font-weight:700; color:#475569;
+    text-transform:uppercase; margin-bottom:5px; letter-spacing:.04em; }
+.po-modal-bd textarea, .po-modal-bd select, .po-modal-bd input {
+    width:100%; padding:8px 11px; border:1.5px solid #e2e8f0; border-radius:6px;
+    font-size:13px; font-family:inherit; box-sizing:border-box; }
+.po-modal-ft { padding:12px 18px; border-top:1px solid #e2e8f0; display:flex; justify-content:flex-end; gap:8px; }
+.po-btn { padding:9px 18px; border-radius:6px; border:0; font-size:13px; font-weight:700; cursor:pointer; }
+.po-btn-primary { background:#2563eb; color:#fff; }
+.po-btn-primary:hover { background:#1d4ed8; }
+.po-btn-outline { background:#fff; border:1.5px solid #e2e8f0; color:#475569; }
+.po-btn-danger { background:#dc2626; color:#fff; }
+.po-btn-success { background:#16a34a; color:#fff; }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const STATUS_COLORS = {{ status_colors|tojson }};
+const TYPE_LABELS   = {{ grn_types|tojson }};
+const FORCED_TYPE   = "{{ grn_type or '' }}";
+
+let currentPage = 1;
+let currentTotal = 0;
+const PAGE_SIZE = 25;
+
+function escapeHTML(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function load(){
+  const params = new URLSearchParams({
+    page: currentPage, limit: PAGE_SIZE,
+    q: document.getElementById('fSearch').value.trim(),
+    grn_type: document.getElementById('fType').value,
+    status: document.getElementById('fStatus').value,
+    date_from: document.getElementById('fDateFrom').value,
+    date_to:   document.getElementById('fDateTo').value,
+  });
+  fetch('{{ url_for("grn.api_list") }}?' + params.toString(), { credentials:'same-origin' })
+    .then(r => r.json())
+    .then(d => renderRows(d.results || [], d.total || 0))
+    .catch(e => console.warn('Load failed', e));
+}
+
+window.clearFilters = function(){
+  document.getElementById('fSearch').value = '';
+  document.getElementById('fStatus').value = '';
+  document.getElementById('fDateFrom').value = '';
+  document.getElementById('fDateTo').value = '';
+  currentPage = 1; load();
+};
+
+window.exportExcel = function(e){
+  e.preventDefault();
+  const params = new URLSearchParams({
+    kind: 'grn_listing',
+    q:         document.getElementById('fSearch').value.trim(),
+    grn_type:  document.getElementById('fType').value,
+    status:    document.getElementById('fStatus').value,
+    date_from: document.getElementById('fDateFrom').value,
+    date_to:   document.getElementById('fDateTo').value,
+  });
+  window.location = `{{ url_for('grn.export_excel') }}?${params}`;
+};
+
+function renderRows(rows, total){
+  currentTotal = total;
+  const tbody = document.getElementById('grnBody');
+  if (!rows.length){
+    tbody.innerHTML = `<tr><td colspan="10" class="empty-state">
+        <div class="icon">📦</div>No GRNs found. Click <b>+ New GRN</b> above to create one.
+      </td></tr>`;
+    document.getElementById('totalCount').textContent = '0 rows';
+    document.getElementById('pageInfo').textContent = 'Page 1';
+    document.getElementById('prevBtn').disabled = true;
+    document.getElementById('nextBtn').disabled = true;
+    return;
+  }
+
+  let html = '';
+  rows.forEach(r => {
+    const canEdit = r.is_editable || r.status === 'Draft';
+    const editBtn = canEdit
+      ? `<a class="po-act po-act-edit" title="Edit" href="/grn/${r.id}/edit">✏️</a>`
+      : `<span class="po-act" style="opacity:.4;cursor:not-allowed;" title="Locked — ${r.status}">🔒</span>`;
+    const deleteBtn = r.status === 'Draft'
+      ? `<button class="po-act danger" title="Delete Draft" onclick="grnDelete(${r.id},'${escapeHTML(r.grn_number)}')">🗑️</button>`
+      : '';
+
+    html += `<tr class="grn-row" data-grn-id="${r.id}" data-grn-number="${escapeHTML(r.grn_number)}" title="Double-click to view items">
+      <td class="num-col"><a href="/grn/${r.id}/view">${escapeHTML(r.grn_number)}</a>
+          <div class="small-meta">${escapeHTML(r.grn_number_short)}</div></td>
+      <td>${escapeHTML(r.grn_date)}</td>
+      <td><span class="type-pill">${escapeHTML(r.grn_type)}</span></td>
+      <td>${escapeHTML(r.supplier_name)}</td>
+      <td>${escapeHTML(r.po_number)}
+          <div class="small-meta">${escapeHTML(r.po_date)}</div></td>
+      <td>${escapeHTML(r.invoice_no)}
+          <div class="small-meta">${escapeHTML(r.invoice_date)}</div></td>
+      <td style="text-align:right;">
+          <b>${r.total_received_qty.toFixed(2)}</b>
+          ${r.item_count ? `<div class="small-meta">${r.item_count} item${r.item_count === 1 ? '' : 's'}</div>` : ''}
+      </td>
+      <td class="po-cell-center">
+          <span class="status-pill" style="background:${r.status_color};">${escapeHTML(r.status)}</span></td>
+      <td>${escapeHTML(r.created_by)}
+          <div class="small-meta">${escapeHTML(r.created_at)}</div></td>
+      <td class="po-cell-center"><div class="po-actions">
+          <a class="po-act" title="View" href="/grn/${r.id}/view">👁️</a>
+          ${editBtn}
+          ${deleteBtn}
+      </div></td>
+    </tr>`;
+  });
+  tbody.innerHTML = html;
+  bindRowExpand();
+  const totalPages = Math.ceil(total / PAGE_SIZE);
+  document.getElementById('totalCount').textContent = `${total} rows`;
+  document.getElementById('pageInfo').textContent = `Page ${currentPage} of ${totalPages}`;
+  document.getElementById('prevBtn').disabled = (currentPage <= 1);
+  document.getElementById('nextBtn').disabled = (currentPage >= totalPages);
+}
+
+function changePage(d){
+  const totalPages = Math.ceil(currentTotal / PAGE_SIZE);
+  const next = currentPage + d;
+  if (next < 1 || next > totalPages) return;
+  currentPage = next;
+  load();
+}
+
+let debounce; document.getElementById('fSearch').addEventListener('input', () => {
+  clearTimeout(debounce); debounce = setTimeout(() => { currentPage = 1; load(); }, 250);
+});
+document.getElementById('fType').addEventListener('change', () => { currentPage = 1; load(); });
+document.getElementById('fStatus').addEventListener('change', () => { currentPage = 1; load(); });
+document.getElementById('fDateFrom').addEventListener('change', () => { currentPage = 1; load(); });
+document.getElementById('fDateTo').addEventListener('change', () => { currentPage = 1; load(); });
+
+// ────────── Approve modal ──────────
+let pendingId = null;
+function openApprove(id, num){
+  pendingId = id;
+  document.getElementById('grnModalTitle').textContent = `Approve GRN — ${num}`;
+  document.getElementById('grnModalBody').innerHTML = `
+    <div class="po-fld">
+      <label>Approval Level</label>
+      <select id="mLevel">
+        <option value="Manager">Manager</option>
+        <option value="Director">Director (Final)</option>
+      </select>
+    </div>
+    <div class="po-fld">
+      <label>Comment (optional)</label>
+      <textarea id="mComment" rows="3"></textarea>
+    </div>`;
+  document.getElementById('grnModalGo').className = 'po-btn po-btn-success';
+  document.getElementById('grnModalGo').textContent = 'Approve';
+  document.getElementById('grnModalGo').dataset.action = 'approve';
+  document.getElementById('grnModal').style.display = 'flex';
+}
+
+function submitAction(){
+  if (!pendingId) return;
+  const action = document.getElementById('grnModalGo').dataset.action;
+  const fd = new FormData();
+  if (action === 'approve'){
+    fd.append('level', document.getElementById('mLevel').value);
+    fd.append('comment', document.getElementById('mComment').value);
+  }
+  fetch(`/grn/${pendingId}/${action}`, { method:'POST', body:fd, credentials:'same-origin' })
+    .then(r => r.json())
+    .then(d => {
+      if (d.success){ closeModal(); load(); }
+      else alert('Failed: ' + (d.error || 'unknown'));
+    })
+    .catch(e => alert('Network error: ' + e));
+}
+
+function closeModal(){ document.getElementById('grnModal').style.display = 'none'; pendingId = null; }
+
+function grnDelete(id, num){
+  if (!confirm(`Delete this draft GRN?\n\n${num}\n\nThis action cannot be undone.`)) return;
+  fetch(`/grn/${id}/delete`, { method:'POST', credentials:'same-origin' })
+    .then(r => r.json())
+    .then(d => {
+      if (d.success){ load(); }
+      else { alert('Delete failed: ' + (d.error || 'unknown')); }
+    })
+    .catch(e => alert('Network error: ' + e));
+}
+
+// ─────────── Double-click row to expand & preview items ───────────
+function bindRowExpand(){
+  document.querySelectorAll('#grnBody .grn-row').forEach(tr => {
+    tr.addEventListener('dblclick', function(e){
+      if (e.target.closest('a, button')) return;
+      toggleGrnExpand(this);
+    });
+  });
+}
+
+function toggleGrnExpand(tr){
+  const grnId  = tr.getAttribute('data-grn-id');
+  const grnNum = tr.getAttribute('data-grn-number');
+  const next   = tr.nextElementSibling;
+  // If this row is already expanded, collapse it
+  if (next && next.classList.contains('grn-expand-row') && next.dataset.grnId === grnId){
+    next.remove();
+    tr.classList.remove('expanded');
+    return;
+  }
+  // Collapse any other expanded row first
+  document.querySelectorAll('#grnBody .grn-expand-row').forEach(el => el.remove());
+  document.querySelectorAll('#grnBody .grn-row.expanded').forEach(el => el.classList.remove('expanded'));
+
+  // Insert expand row with loading spinner
+  const colspan = tr.children.length;
+  const er = document.createElement('tr');
+  er.className = 'grn-expand-row';
+  er.dataset.grnId = grnId;
+  er.innerHTML = `<td colspan="${colspan}">
+    <div class="grn-expand-wrap">
+      <div class="grn-loading">⏳ Loading items for ${escapeHTML(grnNum)}…</div>
+    </div>
+  </td>`;
+  tr.classList.add('expanded');
+  tr.parentNode.insertBefore(er, tr.nextSibling);
+
+  // Fetch items
+  fetch(`/grn/api/${grnId}/items`, { credentials:'same-origin' })
+    .then(r => r.json())
+    .then(d => renderItemsInline(er, d, grnNum))
+    .catch(e => {
+      er.querySelector('.grn-expand-wrap').innerHTML =
+        `<div class="grn-loading" style="color:#dc2626;">Failed to load: ${escapeHTML(e.message)}</div>`;
+    });
+}
+
+function fmt(n){ return Number(n || 0).toLocaleString(undefined, {minimumFractionDigits:3, maximumFractionDigits:3}); }
+
+function renderItemsInline(er, d, grnNum){
+  if (!d || d.error){
+    er.querySelector('.grn-expand-wrap').innerHTML =
+      `<div class="grn-loading" style="color:#dc2626;">${escapeHTML((d && d.error) || 'No data')}</div>`;
+    return;
+  }
+  if (!d.items || !d.items.length){
+    er.querySelector('.grn-expand-wrap').innerHTML =
+      `<div class="grn-loading">No items in this GRN.</div>`;
+    return;
+  }
+  const rowsHtml = d.items.map(it => `
+    <tr>
+      <td>${it.sr_no}</td>
+      <td>${escapeHTML(it.po_number || '—')}</td>
+      <td>
+        <div style="font-weight:700;">${escapeHTML(it.item_name)}</div>
+        ${it.item_code  ? `<div style="font-size:10px;color:#94a3b8;">${escapeHTML(it.item_code)}</div>` : ''}
+        ${it.manufacturer ? `<div style="font-size:10px;color:#94a3b8;">Mfg: ${escapeHTML(it.manufacturer)}</div>` : ''}
+      </td>
+      <td>${escapeHTML(it.batch_no || '—')}
+        ${it.mfg_date || it.expiry_date ? `<div style="font-size:10px;color:#94a3b8;">MFG: ${escapeHTML(it.mfg_date||'—')} · EXP: ${escapeHTML(it.expiry_date||'—')}</div>` : ''}
+      </td>
+      <td class="num">${it.no_of_boxes || 0}</td>
+      <td class="num">${fmt(it.per_box_qty)}</td>
+      <td class="num">${fmt(it.ordered_qty)}</td>
+      <td class="num"><b>${fmt(it.received_qty)}</b> ${escapeHTML(it.uom)}</td>
+      <td>${escapeHTML(it.storage_location_name || '—')}</td>
+    </tr>`).join('');
+  er.querySelector('.grn-expand-wrap').innerHTML = `
+    <div class="grn-expand-title">
+      📦 Items in <span style="color:#1e40af;">${escapeHTML(grnNum)}</span>
+      <span class="pe-cnt">${d.items.length} item${d.items.length===1?'':'s'}</span>
+      <a href="/grn/${d.grn_id}/view" style="margin-left:auto;font-size:11px;color:#2563eb;text-decoration:none;font-weight:700;">Open full view →</a>
+    </div>
+    <table class="grn-expand-table">
+      <thead>
+        <tr>
+          <th style="width:30px;">#</th>
+          <th>PO No.</th>
+          <th>Item</th>
+          <th>Batch</th>
+          <th class="num">Boxes</th>
+          <th class="num">Per Box</th>
+          <th class="num">Ordered</th>
+          <th class="num">Received</th>
+          <th>Storage</th>
+        </tr>
+      </thead>
+      <tbody>${rowsHtml}</tbody>
+    </table>`;
+}
+
+load();
+</script>
+{% endblock %}

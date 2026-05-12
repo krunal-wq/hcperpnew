@@ -1,0 +1,652 @@
+{% extends 'base.html' %}
+{% block title %}{% if mode == 'edit' %}Edit{% else %}New{% endif %} GRN — HCP ERP{% endblock %}
+{% block page_title %}{% if mode == 'edit' %}Edit{% else %}New{% endif %} Goods Receipt Note{% endblock %}
+{% block bread %}Stores / GRN / {{ grn_types.get(grn_type, grn_type) }} / {% if mode == 'edit' %}Edit{% else %}New{% endif %}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<style>
+.gr-wrap { max-width:1500px; margin:0 auto; padding:0 12px 40px; }
+.gr-title { text-align:center; font-size:20px; font-weight:800; color:#0f172a;
+    margin:18px 0 6px; text-decoration:underline; letter-spacing:.04em; }
+.gr-subtitle { text-align:center; font-size:13px; font-weight:700; color:#2563eb; margin-bottom:14px; }
+.gr-number-pill { display:inline-block; padding:4px 14px; border-radius:16px; background:#dbeafe;
+    color:#1e40af; font-size:11px; font-weight:800; letter-spacing:.05em; }
+
+.gr-card { background:#fff; border-radius:12px; padding:0; border:1px solid #e2e8f0;
+    box-shadow:0 1px 3px rgba(0,0,0,.04); margin-bottom:16px; overflow:hidden; }
+.gr-card-hdr { padding:11px 16px; background:#f8fafc; border-bottom:1px solid #e2e8f0;
+    font-size:12px; font-weight:800; color:#1e3a5f; text-transform:uppercase; letter-spacing:.05em;
+    display:flex; align-items:center; justify-content:space-between; }
+.gr-card-hdr .badge { font-size:10px; padding:2px 8px; border-radius:10px; background:#dbeafe; color:#1d4ed8; }
+.gr-card-bd { padding:16px; }
+
+.gr-grid { display:grid; gap:12px; }
+.gr-grid.col4 { grid-template-columns:repeat(4, 1fr); }
+.gr-grid.col2 { grid-template-columns:repeat(2, 1fr); }
+
+.gr-fld { position:relative; }
+.gr-fld label { display:block; font-size:10.5px; font-weight:700; color:#64748b;
+    text-transform:uppercase; letter-spacing:.04em; margin-bottom:4px; }
+.gr-fld .req { color:#dc2626; }
+.gr-fld input, .gr-fld select, .gr-fld textarea {
+    width:100%; padding:8px 11px; border:1.5px solid #e2e8f0; border-radius:6px;
+    font-size:13px; font-family:inherit; background:#fff; outline:none; box-sizing:border-box;
+    transition:border-color .15s;
+}
+.gr-fld input:focus, .gr-fld select:focus, .gr-fld textarea:focus { border-color:#2563eb; }
+.gr-fld input[readonly] { background:#f8fafc; cursor:not-allowed; }
+.gr-fld textarea { min-height:60px; resize:vertical; }
+.gr-fld input[type="file"] { padding:5px; background:#f8fafc; }
+.file-link { display:inline-block; margin-top:4px; font-size:11px; color:#2563eb; text-decoration:none; }
+.file-link:hover { text-decoration:underline; }
+
+/* Compact items grid */
+.gr-items-wrap { overflow-x:auto; border:1px solid #e2e8f0; border-radius:8px; }
+.gr-items { width:100%; border-collapse:collapse; font-size:11.5px; min-width:1380px; }
+.gr-items thead th {
+    background:#f1f5f9; color:#475569; font-size:10px; font-weight:700;
+    text-transform:uppercase; letter-spacing:.04em; padding:10px 8px; text-align:left;
+    border-bottom:2px solid #cbd5e1; border-right:1px solid #e2e8f0; vertical-align:middle;
+    white-space:nowrap;
+}
+.gr-items thead th .sub { display:block; font-size:9px; color:#94a3b8; font-weight:600;
+    margin-top:2px; text-transform:none; letter-spacing:0; }
+.gr-items thead th.qty  { background:#fef3c7; color:#78350f; }
+.gr-items thead th.recv { background:#dcfce7; color:#14532d; }
+.gr-items tbody td {
+    padding:8px 8px; border-bottom:1px solid #f1f5f9; border-right:1px solid #f1f5f9;
+    vertical-align:top;
+}
+.gr-items tbody tr:hover { background:#fafbfd; }
+
+.stack { display:flex; flex-direction:column; gap:5px; }
+.stack input, .stack select { padding:5px 7px; border:1.5px solid #e2e8f0;
+    border-radius:4px; font-size:11.5px; font-family:inherit; outline:none; background:#fff;
+    box-sizing:border-box; width:100%; }
+.stack input:focus, .stack select:focus { border-color:#2563eb; }
+.stack input[readonly] { background:#f8fafc; cursor:default; }
+.stack input.num { text-align:right; }
+.stack input.bg-recv { background:#f0fdf4; }
+.stack input.bg-rej  { background:#fef2f2; }
+.stack input[type="file"] { padding:2px; font-size:10px; background:#f8fafc; }
+.stack a.file-link { font-size:10px; color:#2563eb; text-decoration:none; }
+.stack a.file-link:hover { text-decoration:underline; }
+
+.row-del { background:#fee2e2; color:#dc2626; border:0; width:28px; height:28px;
+    border-radius:5px; cursor:pointer; font-size:14px; }
+.row-del:hover { background:#fecaca; }
+
+.gr-add-row { display:inline-flex; align-items:center; gap:6px; margin:14px 0 4px;
+    background:#eff6ff; color:#2563eb; border:1px dashed #93c5fd; padding:10px 22px;
+    border-radius:6px; font-size:13px; font-weight:600; cursor:pointer; transition:all .15s; }
+.gr-add-row:hover:not(:disabled) { background:#dbeafe; }
+
+.gr-checks { display:grid; grid-template-columns:repeat(3, 1fr); gap:12px 24px;
+    padding:12px 16px; background:#fefce8; border-radius:8px; }
+.gr-checks label { display:flex; align-items:center; gap:8px; font-size:13px; cursor:pointer;
+    font-weight:600; color:#451a03; }
+.gr-checks input { width:18px; height:18px; cursor:pointer; }
+
+.gr-action-bar { position:sticky; bottom:0; background:#fff; border-top:1px solid #e2e8f0;
+    padding:14px 16px; display:flex; gap:10px; justify-content:flex-end; align-items:center;
+    box-shadow:0 -2px 8px rgba(0,0,0,.05); border-radius:0 0 12px 12px; }
+.gr-btn { padding:10px 24px; border-radius:7px; border:0; font-size:13px; font-weight:700;
+    cursor:pointer; transition:all .15s; font-family:inherit; }
+.gr-btn-outline { background:#fff; border:1.5px solid #cbd5e1; color:#475569; }
+.gr-btn-outline:hover { border-color:#94a3b8; color:#1e293b; }
+.gr-btn-success { background:#16a34a; color:#fff; }
+.gr-btn-success:hover { background:#15803d; }
+
+.select2-container--default .select2-selection--single {
+    height:36px; border:1.5px solid #e2e8f0; border-radius:6px;
+}
+.select2-container--default .select2-selection--single .select2-selection__rendered {
+    line-height:32px; padding-left:11px; font-size:13px;
+}
+.select2-container--default .select2-selection--single .select2-selection__arrow { height:34px; }
+
+.totals-bar { display:flex; gap:12px; padding:10px 16px; background:#f0fdf4;
+    border-radius:8px; margin-top:12px; flex-wrap:wrap; }
+.totals-bar .tot-cell { font-size:12px; color:#15803d; font-weight:700; }
+.totals-bar .tot-cell b { font-size:14px; color:#14532d; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="gr-wrap">
+  <h1 class="gr-title">{% if mode == 'edit' %}EDIT{% else %}GENERATE{% endif %} {{ grn_types.get(grn_type, '') | upper }} GRN</h1>
+  <div class="gr-subtitle">GRN No: <span class="gr-number-pill">{{ preview_grn_no }}</span></div>
+
+  <form id="grnForm" enctype="multipart/form-data" onsubmit="event.preventDefault(); grnSave('draft');">
+    <input type="hidden" name="grn_id" id="fGrnId" value="{{ grn.id if grn else '' }}">
+    <input type="hidden" name="grn_type" id="fGrnType" value="{{ grn_type }}">
+    <input type="hidden" name="action" id="fAction" value="draft">
+
+    <!-- Card 1: Supplier & Reference -->
+    <div class="gr-card">
+      <div class="gr-card-hdr">📋 Supplier &amp; Reference
+        <span class="badge">Pick supplier first</span>
+      </div>
+      <div class="gr-card-bd">
+        <div class="gr-grid col4">
+          <div class="gr-fld">
+            <label>GRN Date <span class="req">*</span></label>
+            <input type="text" id="fGrnDate" name="grn_date"
+                   value="{{ grn.grn_date.strftime('%Y-%m-%d') if grn and grn.grn_date else '' }}"
+                   placeholder="YYYY-MM-DD" required>
+          </div>
+          <div class="gr-fld">
+            <label>Supplier <span class="req">*</span></label>
+            <select id="fSupplier" name="supplier_id" required>
+              {% if grn and grn.supplier_id %}
+              <option value="{{ grn.supplier_id }}" selected>{{ grn.supplier_name }}</option>
+              {% endif %}
+            </select>
+          </div>
+          <div class="gr-fld">
+            <label>Receive Into Location <span class="req">*</span></label>
+            <select id="fReceiveLoc" name="receive_location_id" required>
+              {% if grn and grn.receive_location_id %}
+              <option value="{{ grn.receive_location_id }}" selected>{{ grn.receive_location_name }}</option>
+              {% endif %}
+            </select>
+            <input type="hidden" id="fReceiveLocName" name="receive_location_name" value="{{ grn.receive_location_name or '' }}">
+            <input type="hidden" id="fReceiveLocAddr" name="receive_location_address" value="{{ grn.receive_location_address or '' }}">
+          </div>
+          <div class="gr-fld">
+            <label>Invoice No</label>
+            <input type="text" name="invoice_no" value="{{ grn.invoice_no or '' }}">
+          </div>
+
+          <div class="gr-fld">
+            <label>Invoice Date</label>
+            <input type="text" id="fInvDate" name="invoice_date"
+                   value="{{ grn.invoice_date.strftime('%Y-%m-%d') if grn and grn.invoice_date else '' }}"
+                   placeholder="YYYY-MM-DD">
+          </div>
+          <div class="gr-fld" style="grid-column:span 3;">
+            <label>📎 Upload Invoice (PDF / Image)</label>
+            <input type="file" name="invoice_file" accept=".pdf,.jpg,.jpeg,.png,.gif,.webp">
+            {% if grn and grn.invoice_file %}
+            <a class="file-link" href="{{ url_for('static', filename=grn.invoice_file) }}" target="_blank">
+              📄 View current: {{ grn.invoice_file.split('/')[-1] }}
+            </a>
+            {% endif %}
+          </div>
+        </div>
+        <input type="hidden" id="fSupName" name="supplier_name" value="{{ grn.supplier_name or '' }}">
+        <input type="hidden" id="fSupAddr" name="supplier_address" value="{{ grn.supplier_address or '' }}">
+        <!-- Optional: master-level PO (kept for compat — will be set from first row's PO) -->
+        <input type="hidden" name="po_id" id="fPoIdHidden" value="{{ grn.po_id or '' }}">
+        <input type="hidden" name="po_number" id="fPoNumberHidden" value="{{ grn.po_number or '' }}">
+        <input type="hidden" name="po_date" id="fPoDateHidden" value="{{ grn.po_date.strftime('%Y-%m-%d') if grn and grn.po_date else '' }}">
+      </div>
+    </div>
+
+    <!-- Card 2: Gate Inward + Logistics -->
+    <div class="gr-card">
+      <div class="gr-card-hdr">🚚 Gate Inward &amp; Logistics</div>
+      <div class="gr-card-bd">
+        <div class="gr-grid col4">
+          <div class="gr-fld"><label>Gate Inward No</label><input type="text" name="gate_inward_no" value="{{ grn.gate_inward_no or '' }}"></div>
+          <div class="gr-fld"><label>Gate Inward Date</label><input type="text" id="fGateDate" name="gate_inward_date" value="{{ grn.gate_inward_date.strftime('%Y-%m-%d') if grn and grn.gate_inward_date else '' }}" placeholder="YYYY-MM-DD"></div>
+          <div class="gr-fld"><label>Gate Inward Time</label><input type="time" name="gate_inward_time" value="{{ grn.gate_inward_time.strftime('%H:%M') if grn and grn.gate_inward_time else '' }}"></div>
+          <div class="gr-fld"><label>Unloading Time</label><input type="time" name="unloading_time" value="{{ grn.unloading_time.strftime('%H:%M') if grn and grn.unloading_time else '' }}"></div>
+
+          <div class="gr-fld"><label>LR No.</label><input type="text" name="lr_no" value="{{ grn.lr_no or '' }}"></div>
+          <div class="gr-fld"><label>LR Date</label><input type="text" id="fLrDate" name="lr_date" value="{{ grn.lr_date.strftime('%Y-%m-%d') if grn and grn.lr_date else '' }}" placeholder="YYYY-MM-DD"></div>
+          <div class="gr-fld"><label>Logistics Name</label><input type="text" name="logistics_name" value="{{ grn.logistics_name or '' }}"></div>
+          <div class="gr-fld"><label>Delivery Type</label>
+            <select name="delivery_type">
+              <option value="">-- Select --</option>
+              {% for dt in delivery_types %}
+              <option value="{{ dt }}" {% if grn and grn.delivery_type == dt %}selected{% endif %}>{{ dt }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="gr-fld"><label>Driver Name</label><input type="text" name="driver_name" value="{{ grn.driver_name or '' }}"></div>
+          <div class="gr-fld"><label>Driver Contact</label><input type="text" name="driver_contact" value="{{ grn.driver_contact or '' }}"></div>
+          <div class="gr-fld"><label>Vehicle No</label><input type="text" name="vehicle_no" value="{{ grn.vehicle_no or '' }}"></div>
+          <div class="gr-fld"><label>Supervisor Name</label><input type="text" name="supervisor_name" value="{{ grn.supervisor_name or '' }}"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card 3: Items (compact stacked layout) -->
+    <div class="gr-card">
+      <div class="gr-card-hdr">📦 Receive Items
+        <span class="badge" id="itemBadge">0 items</span>
+      </div>
+      <div class="gr-card-bd">
+        <div class="gr-items-wrap">
+          <table class="gr-items">
+            <thead>
+              <tr>
+                <th style="width:32px;">#</th>
+                <th style="width:160px;">PO Number<span class="sub">PO No / PO Date</span></th>
+                <th style="min-width:260px;">Item<span class="sub">Pick item → auto-fills qty/rate</span></th>
+                <th style="width:150px;">Batch<span class="sub">Batch No / MFG / Expiry</span></th>
+                <th style="width:160px;">Packet &amp; COA<span class="sub">Boxes / Per Box / Upload</span></th>
+                <th style="width:130px;" class="qty">Order Qty<span class="sub">Ordered / Already / Remain</span></th>
+                <th style="width:130px;" class="recv">Receive<span class="sub">Received / Accepted / Rejected</span></th>
+                <th style="width:110px;">UOM &amp; Storage<span class="sub">UOM / Location</span></th>
+                <th style="width:160px;">Remarks</th>
+                <th style="width:40px;"></th>
+              </tr>
+            </thead>
+            <tbody id="grItemsBody"></tbody>
+          </table>
+        </div>
+
+        <button type="button" class="gr-add-row" onclick="grAddRow()">+ Add More Item</button>
+
+        <div class="totals-bar">
+          <div class="tot-cell">Total Boxes: <b id="totBox">0</b></div>
+          <div class="tot-cell">Total Received: <b id="totRecv">0.000</b></div>
+          <div class="tot-cell">Total Accepted: <b id="totAcc">0.000</b></div>
+          <div class="tot-cell" style="color:#7f1d1d;">Total Rejected: <b id="totRej">0.000</b></div>
+          <div class="tot-cell" style="margin-left:auto;">Total Amount: ₹<b id="totAmt">0.00</b></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card 4: Quality Checklist -->
+    <div class="gr-card">
+      <div class="gr-card-hdr">✅ Quality Checklist</div>
+      <div class="gr-card-bd">
+        <div class="gr-checks">
+          <label><input type="checkbox" name="qc_test_certificate" {% if grn and grn.qc_test_certificate %}checked{% endif %}> Test Certificate Received</label>
+          <label><input type="checkbox" name="qc_batch_on_product" {% if grn and grn.qc_batch_on_product %}checked{% endif %}> Batch Number on Product</label>
+          <label><input type="checkbox" name="qc_physical_condition" {% if grn and grn.qc_physical_condition %}checked{% endif %}> Physical Condition OK</label>
+          <label><input type="checkbox" name="qc_expiry_date" {% if grn and grn.qc_expiry_date %}checked{% endif %}> Expiry Date Checked</label>
+          <label><input type="checkbox" name="qc_label_checked" {% if grn and grn.qc_label_checked %}checked{% endif %}> Labels Verified</label>
+        </div>
+
+        <div class="gr-grid col2" style="margin-top:14px;">
+          <div class="gr-fld"><label>Supplier Remarks</label><textarea name="supplier_remarks">{{ grn.supplier_remarks or '' }}</textarea></div>
+          <div class="gr-fld"><label>Internal Remarks</label><textarea name="internal_remarks">{{ grn.internal_remarks or '' }}</textarea></div>
+        </div>
+        <div class="gr-fld" style="margin-top:10px;">
+          <label>Rejection Remarks (if any items rejected)</label>
+          <textarea name="rejection_remarks">{{ grn.rejection_remarks or '' }}</textarea>
+        </div>
+      </div>
+    </div>
+
+    <div class="gr-action-bar">
+      <a href="{{ url_for('grn.index') }}?grn_type={{ grn_type }}" class="gr-btn gr-btn-outline">Cancel</a>
+      <button type="button" class="gr-btn gr-btn-outline" onclick="grnSave('draft')">💾 Save Draft</button>
+      <button type="button" class="gr-btn gr-btn-success"  onclick="grnSave('submit')">📤 Save &amp; Submit</button>
+    </div>
+  </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script>
+const MODE     = "{{ mode }}";
+const GRN_TYPE = "{{ grn_type }}";
+const EXISTING = {% if items %}{{ items|map(attribute='to_dict')|list|tojson }}{% else %}[]{% endif %};
+let _rowIdx = 0;
+
+flatpickr("#fGrnDate", { dateFormat:"Y-m-d", defaultDate: "{{ grn.grn_date.strftime('%Y-%m-%d') if grn and grn.grn_date else '' }}" || "today", allowInput:true });
+flatpickr("#fInvDate",  { dateFormat:"Y-m-d", allowInput:true });
+flatpickr("#fGateDate", { dateFormat:"Y-m-d", allowInput:true });
+flatpickr("#fLrDate",   { dateFormat:"Y-m-d", allowInput:true });
+
+$('#fSupplier').select2({
+  placeholder:'-- Select Supplier --', allowClear:true, width:'100%',
+  ajax:{
+    url:"{{ url_for('grn.api_suppliers') }}", dataType:'json', delay:200,
+    data: p => ({ q: p.term || '', grn_type: GRN_TYPE }),
+    processResults: d => ({ results: (d.results || []) }),
+    cache: true
+  }
+});
+
+let _supplierInitDone = (MODE === 'edit');
+$('#fSupplier').on('change', function(){
+  const id = $(this).val(); if (!id) return;
+  if (!_supplierInitDone){ _supplierInitDone = true; refreshSupplierPos(); return; }
+  $.getJSON("{{ url_for('grn.api_suppliers') }}?grn_type=" + GRN_TYPE)
+    .done(d => {
+      const found = (d.results || []).find(s => String(s.id) === String(id));
+      if (found){
+        $('#fSupName').val(found.name);
+        $('#fSupAddr').val(found.address);
+      }
+    });
+  refreshSupplierPos().then(() => {
+    // Re-populate PO dropdowns in existing rows
+    document.querySelectorAll('#grItemsBody tr').forEach(tr => {
+      const $sel = $(tr.querySelector('.cell-po-select'));
+      const cur = $sel.val();
+      let opts = '<option value="">-- Pick PO --</option>';
+      _supplierPos.forEach(p => {
+        opts += `<option value="${p.id}" data-po-no="${esc(p.po_number)}" data-po-date="${esc(p.po_date)}">${esc(p.po_number)} — ${esc(p.po_date_disp||p.po_date)}</option>`;
+      });
+      $sel.html(opts);
+      if (cur) $sel.val(cur);
+    });
+  });
+});
+
+$('#fReceiveLoc').select2({ placeholder:'-- Select Location --', allowClear:true, width:'100%' });
+$.getJSON("{{ url_for('grn.api_ship_locations') }}")
+  .done(d => {
+    const $sel = $('#fReceiveLoc');
+    const currentVal = $sel.val();
+    if (currentVal) $sel.empty();
+    else $sel.empty().append('<option value="">-- Select Location --</option>');
+    (d.results || []).forEach(loc => {
+      const sel = (currentVal && String(loc.id) === String(currentVal)) ? 'selected' : '';
+      $sel.append(`<option value="${loc.id}" data-name="${loc.name}" data-address="${escapeAttr(loc.address)}" ${sel}>${loc.name}${loc.city ? ' — ' + loc.city : ''}</option>`);
+    });
+    $sel.trigger('change.select2');
+  });
+$('#fReceiveLoc').on('change', function(){
+  const $opt = $(this).find('option:selected');
+  $('#fReceiveLocName').val($opt.data('name') || '');
+  $('#fReceiveLocAddr').val($opt.data('address') || '');
+});
+
+function escapeAttr(s){ return String(s||'').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
+function esc(s){ return String(s||'').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
+
+// ────────── Helper: fetch list of POs for current supplier (cached) ──────────
+let _supplierPos = [];   // [{id, po_number, po_date, ...}]
+function refreshSupplierPos(){
+  _supplierPos = [];
+  const supId = $('#fSupplier').val();
+  if (!supId) return Promise.resolve();
+  return new Promise(resolve => {
+    $.getJSON(`/grn/api/pos-for-supplier/${supId}?grn_type=${GRN_TYPE}`)
+      .done(d => { _supplierPos = d.results || []; resolve(); })
+      .fail(() => resolve());
+  });
+}
+
+window.grAddRow = function(data){
+  data = data || {};
+  const i = _rowIdx++;
+  const tr = document.createElement('tr');
+  tr.dataset.idx = i;
+
+  const coaName = (data.coa_file||'').split('/').pop();
+  const coaLink = data.coa_file
+    ? `<a class="file-link" href="/static/${esc(data.coa_file)}" target="_blank">📄 ${esc(coaName.slice(0,20))}…</a>`
+    : '';
+
+  // Build PO options from cached supplier POs
+  let poOpts = '<option value="">-- Pick PO --</option>';
+  _supplierPos.forEach(p => {
+    const sel = (String(p.id) === String(data.po_id||'')) ? 'selected' : '';
+    poOpts += `<option value="${p.id}" data-po-no="${esc(p.po_number)}" data-po-date="${esc(p.po_date)}" ${sel}>${esc(p.po_number)} — ${esc(p.po_date_disp||p.po_date)}</option>`;
+  });
+
+  // Pre-fill item Select2 option if editing
+  let itemOpt = '';
+  if (data.item_name){
+    const idVal = data.po_item_id ? data.po_item_id : (data.material_id ? `mat-${data.material_id}` : '');
+    itemOpt = `<option value="${idVal}" selected>${esc(data.item_name)} — ${esc(data.item_code||'')}</option>`;
+  }
+
+  tr.innerHTML = `
+    <td style="text-align:center;font-size:11px;color:#94a3b8;vertical-align:middle;">${i+1}</td>
+    <td>
+      <div class="stack">
+        <select class="cell-po-select" name="po_row_id[]">${poOpts}</select>
+        <input class="cell-po-date" name="po_row_date[]" placeholder="PO Date" value="${esc(data.po_date||'')}" readonly>
+        <input type="hidden" class="cell-po-number" name="po_number_row[]" value="${esc(data.po_number||'')}">
+      </div>
+    </td>
+    <td>
+      <div class="stack">
+        <select class="cell-item-select" name="item_select[]" style="width:100%;">${itemOpt}</select>
+        <input name="item_name[]"    placeholder="Item name *" value="${esc(data.item_name||'')}" required>
+        <input name="manufacturer[]" placeholder="Manufacturer" value="${esc(data.manufacturer||'')}">
+        <input type="hidden" name="item_code[]"     value="${esc(data.item_code||'')}">
+        <input type="hidden" name="material_id[]"   value="${data.material_id||''}">
+        <input type="hidden" name="po_item_id[]"    value="${data.po_item_id||''}">
+        <input type="hidden" name="category[]"      value="${esc(data.category||'')}">
+        <input type="hidden" name="hsn_code[]"      value="${esc(data.hsn_code||'')}">
+        <input type="hidden" name="gst_pct[]"       value="${data.gst_pct||0}">
+        <input type="hidden" name="rate[]"          value="${data.rate||0}">
+        <input type="hidden" name="rejection_reason[]" value="">
+      </div>
+    </td>
+    <td>
+      <div class="stack">
+        <input name="batch_no[]" placeholder="Batch No" value="${esc(data.batch_no||'')}">
+        <input class="cell-mfg-date" name="mfg_date[]"    placeholder="MFG Date" value="${data.mfg_date||''}">
+        <input class="cell-exp-date" name="expiry_date[]" placeholder="EXP Date" value="${data.expiry_date||''}">
+      </div>
+    </td>
+    <td>
+      <div class="stack">
+        <input class="num cell-boxes"  name="no_of_boxes[]" type="number" min="0" step="1"     placeholder="No. of Boxes" value="${data.no_of_boxes||0}">
+        <input class="num cell-perbox" name="per_box_qty[]" type="number" min="0" step="0.001" placeholder="Per Box Qty"  value="${data.per_box_qty||0}">
+        <input type="file" name="coa_file_${i}" accept=".pdf,.jpg,.jpeg,.png">
+        ${coaLink}
+      </div>
+    </td>
+    <td>
+      <div class="stack">
+        <input class="num cell-ord"     name="ordered_qty[]"          type="number" placeholder="Ordered"   value="${data.ordered_qty||0}"          readonly>
+        <input class="num cell-already" name="already_received_qty[]" type="number" placeholder="Already"   value="${data.already_received_qty||0}" readonly>
+        <input class="num cell-remain"  name="remaining_qty[]"        type="number" placeholder="Remaining" value="${data.remaining_qty||0}"        readonly>
+      </div>
+    </td>
+    <td>
+      <div class="stack">
+        <input class="num cell-recv bg-recv" name="received_qty[]" type="number" min="0" step="0.001" placeholder="Received" value="${data.received_qty||0}">
+        <input class="num cell-acc  bg-recv" name="accepted_qty[]" type="number" min="0" step="0.001" placeholder="Accepted" value="${data.accepted_qty||0}">
+        <input class="num cell-rej  bg-rej"  name="rejected_qty[]" type="number" min="0" step="0.001" placeholder="Rejected" value="${data.rejected_qty||0}">
+      </div>
+    </td>
+    <td>
+      <div class="stack">
+        <input name="uom[]" value="${esc(data.uom||'KG')}" style="text-align:center;">
+        <select class="cell-storage" name="storage_location_id[]">
+          <option value="">-- pick --</option>
+        </select>
+        <input type="hidden" name="storage_location_name[]" value="${esc(data.storage_location_name||'')}">
+      </div>
+    </td>
+    <td>
+      <textarea name="remarks[]" rows="3" style="padding:5px 7px;border:1.5px solid #e2e8f0;border-radius:4px;font-size:11.5px;font-family:inherit;width:100%;resize:vertical;box-sizing:border-box;">${esc(data.remarks||'')}</textarea>
+    </td>
+    <td style="vertical-align:middle;text-align:center;">
+      <button type="button" class="row-del" onclick="grDelRow(${i})" title="Remove">×</button>
+    </td>
+  `;
+  document.getElementById('grItemsBody').appendChild(tr);
+
+  flatpickr(tr.querySelector('.cell-mfg-date'), { dateFormat:'Y-m-d', allowInput:true });
+  flatpickr(tr.querySelector('.cell-exp-date'), { dateFormat:'Y-m-d', allowInput:true });
+
+  // PO change → update PO date snapshot + re-init item Select2 for this row
+  const $poSel = $(tr.querySelector('.cell-po-select'));
+  $poSel.on('change', function(){
+    const $opt = $(this).find('option:selected');
+    const poNo = $opt.data('po-no') || '';
+    const poDt = $opt.data('po-date') || '';
+    const $r = $(this).closest('tr');
+    $r.find('.cell-po-number').val(poNo);
+    $r.find('.cell-po-date').val(poDt);
+    // Clear item & all related fields
+    const $is = $r.find('.cell-item-select');
+    if ($is.data('select2')) $is.select2('destroy');
+    $is.empty().html('<option value="">-- Search item --</option>');
+    initItemSelect2($r);
+    // Clear data
+    ['item_name','manufacturer','item_code','category','hsn_code'].forEach(n => $r.find(`[name="${n}[]"]`).val(''));
+    ['material_id','po_item_id','rate','gst_pct'].forEach(n => $r.find(`input[name="${n}[]"]`).val(''));
+    $r.find('input[name="ordered_qty[]"]').val(0);
+    $r.find('input[name="already_received_qty[]"]').val(0);
+    $r.find('input[name="remaining_qty[]"]').val(0);
+    recalcTotals();
+  });
+
+  // Init Item Select2 for this row
+  initItemSelect2($(tr));
+
+  // Storage locations
+  const $stor = $(tr.querySelector('.cell-storage'));
+  $.getJSON("{{ url_for('grn.api_ship_locations') }}").done(d => {
+    (d.results || []).forEach(loc => {
+      const sel = (String(loc.id) === String(data.storage_location_id||'')) ? 'selected' : '';
+      $stor.append(`<option value="${loc.id}" data-name="${esc(loc.name)}" ${sel}>${esc(loc.name)}</option>`);
+    });
+  });
+  $stor.on('change', function(){
+    const name = $(this).find('option:selected').data('name') || '';
+    $(this).closest('tr').find('input[name="storage_location_name[]"]').val(name);
+  });
+
+  // Qty change handlers
+  ['.cell-boxes','.cell-perbox','.cell-recv','.cell-acc','.cell-rej'].forEach(sel => {
+    const el = tr.querySelector(sel);
+    if (el) el.addEventListener('input', () => onRowQtyChange(tr));
+  });
+  recalcTotals();
+};
+
+function initItemSelect2($row){
+  const $sel = $row.find('.cell-item-select');
+  $sel.select2({
+    width: '100%',
+    placeholder: 'Search & pick item',
+    minimumInputLength: 0,
+    ajax: {
+      url: '/grn/api/search-items',
+      delay: 250,
+      dataType: 'json',
+      data: function(params){
+        return {
+          q: params.term || '',
+          po_id: $row.find('.cell-po-select').val() || '',
+        };
+      },
+      processResults: function(d){ return { results: d.results || [] }; },
+      cache: false,
+    }
+  }).on('select2:select', function(e){
+    const item = e.params.data;
+    const $r = $(this).closest('tr');
+    $r.find('input[name="item_name[]"]').val(item.item_name || '');
+    $r.find('input[name="item_code[]"]').val(item.item_code || '');
+    $r.find('input[name="material_id[]"]').val(item.material_id || '');
+    $r.find('input[name="po_item_id[]"]').val(item.po_item_id || '');
+    $r.find('input[name="hsn_code[]"]').val(item.hsn_code || '');
+    $r.find('input[name="category[]"]').val(item.category || '');
+    $r.find('input[name="rate[]"]').val(item.rate || 0);
+    $r.find('input[name="gst_pct[]"]').val(item.gst_pct || 0);
+    $r.find('input[name="uom[]"]').val(item.uom || 'KG');
+    $r.find('input[name="ordered_qty[]"]').val(item.ordered_qty || 0);
+    $r.find('input[name="already_received_qty[]"]').val(item.already_received_qty || 0);
+    $r.find('input[name="remaining_qty[]"]').val(item.remaining_qty || 0);
+    recalcTotals();
+  });
+}
+
+function onRowQtyChange(tr){
+  const boxes  = parseFloat(tr.querySelector('.cell-boxes').value) || 0;
+  const perBox = parseFloat(tr.querySelector('.cell-perbox').value) || 0;
+  const remain = parseFloat(tr.querySelector('.cell-remain').value) || 0;
+  let recv     = parseFloat(tr.querySelector('.cell-recv').value) || 0;
+  let acc      = parseFloat(tr.querySelector('.cell-acc').value)  || 0;
+  let rej      = parseFloat(tr.querySelector('.cell-rej').value)  || 0;
+
+  if (boxes > 0 && perBox > 0 && !recv){
+    recv = boxes * perBox;
+    tr.querySelector('.cell-recv').value = recv;
+  }
+  if (remain > 0 && recv > remain){
+    tr.querySelector('.cell-recv').value = remain;
+    recv = remain;
+  }
+  if (recv > 0 && rej >= 0){
+    acc = Math.max(recv - rej, 0);
+    tr.querySelector('.cell-acc').value = acc.toFixed(3);
+  }
+  recalcTotals();
+}
+
+window.grDelRow = function(i){
+  const tr = document.querySelector(`#grItemsBody tr[data-idx="${i}"]`);
+  if (tr) tr.remove();
+  recalcTotals();
+};
+
+function recalcTotals(){
+  let tBox=0, tRecv=0, tAcc=0, tRej=0, tAmt=0, count=0;
+  document.querySelectorAll('#grItemsBody tr').forEach(tr => {
+    tBox  += parseInt(tr.querySelector('.cell-boxes').value || 0);
+    const r = parseFloat(tr.querySelector('.cell-recv').value || 0);
+    tRecv += r;
+    tAcc  += parseFloat(tr.querySelector('.cell-acc').value || 0);
+    tRej  += parseFloat(tr.querySelector('.cell-rej').value || 0);
+    const rate = parseFloat(tr.querySelector('input[name="rate[]"]').value || 0);
+    tAmt  += r * rate;
+    count++;
+  });
+  document.getElementById('totBox').textContent = tBox;
+  document.getElementById('totRecv').textContent = tRecv.toFixed(3);
+  document.getElementById('totAcc').textContent  = tAcc.toFixed(3);
+  document.getElementById('totRej').textContent  = tRej.toFixed(3);
+  document.getElementById('totAmt').textContent  = tAmt.toFixed(2);
+  document.getElementById('itemBadge').textContent = `${count} item${count === 1 ? '' : 's'}`;
+}
+
+// Init: pre-load supplier POs if editing (so existing rows show their PO numbers)
+(async function(){
+  if ($('#fSupplier').val()) await refreshSupplierPos();
+  if (EXISTING.length){ EXISTING.forEach(it => grAddRow(it)); }
+})();
+
+window.grnSave = function(action){
+  document.getElementById('fAction').value = action;
+  const rows = document.querySelectorAll('#grItemsBody tr');
+  if (!rows.length){
+    alert('Add at least one item before saving.');
+    return;
+  }
+  // Sync header po_id/po_number from first row that has a PO (for legacy reporting)
+  const firstRow = rows[0];
+  const $firstPo = $(firstRow.querySelector('.cell-po-select'));
+  document.getElementById('fPoIdHidden').value     = $firstPo.val() || '';
+  document.getElementById('fPoNumberHidden').value = firstRow.querySelector('.cell-po-number').value || '';
+  document.getElementById('fPoDateHidden').value   = firstRow.querySelector('.cell-po-date').value || '';
+
+  const fd = new FormData(document.getElementById('grnForm'));
+  fetch("{{ url_for('grn.save_grn') }}", {
+    method:'POST', body: fd, credentials:'same-origin'
+  })
+    .then(async r => {
+      const text = await r.text();
+      try { return JSON.parse(text); }
+      catch (e) {
+        const errMatch = text.match(/<title>([^<]+)<\/title>/) || text.match(/<h1>([^<]+)<\/h1>/);
+        throw new Error('Server error: ' + (errMatch ? errMatch[1] : 'check Flask terminal'));
+      }
+    })
+    .then(d => {
+      if (d.success){
+        if (action === 'submit') alert('✓ GRN submitted for approval.');
+        else alert('✓ GRN saved as draft.');
+        location.href = d.redirect_url;
+      } else {
+        alert('Save failed: ' + (d.error || 'unknown'));
+      }
+    })
+    .catch(e => alert(e.message));
+};
+</script>
+{% endblock %}

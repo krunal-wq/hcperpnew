@@ -26,6 +26,8 @@ from material_routes import material_bp
 from supplier_routes import supplier_bp
 from routes.module_settings_routes import module_settings  # ← Module enable/disable
 from daily_report_share import daily_report_bp   # ← Daily Report Share
+from purchase_order_routes import po_bp           # ← NEW: Purchase Order Module
+from grn_routes import grn_bp                     # ← NEW: GRN (Goods Receipt Note) Module
 from error_handlers import register_error_handlers          # ← 403/404/500 pages
 
 app = Flask(__name__)
@@ -98,6 +100,8 @@ app.register_blueprint(material_bp)    # Item Master
 app.register_blueprint(supplier_bp)    # Supplier Master
 app.register_blueprint(module_settings)   # Module enable/disable settings
 app.register_blueprint(daily_report_bp)   # ← Daily Report Share
+app.register_blueprint(po_bp)             # ← NEW: Purchase Order Module
+app.register_blueprint(grn_bp)            # ← NEW: GRN (Goods Receipt Note) Module
 
 # Register global 403 / 404 / 500 error pages
 register_error_handlers(app)

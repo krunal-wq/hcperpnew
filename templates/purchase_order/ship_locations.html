@@ -1,0 +1,203 @@
+{% extends "base.html" %}
+{% block title %}Ship Locations Master — HCP ERP{% endblock %}
+{% block page_title %}Ship Locations{% endblock %}
+{% block bread %}Procurement / Purchase Order / Ship Locations Master{% endblock %}
+
+{% block extra_css %}
+<style>
+.sl-wrap{ background:#fff; border-radius:12px; padding:0; margin-bottom:30px;
+          border:1px solid #e2e8f0; box-shadow:0 1px 3px rgba(0,0,0,.04); }
+.sl-hdr{ display:flex; align-items:center; justify-content:space-between;
+         padding:18px 24px; border-bottom:1px solid #e2e8f0; background:#f8fafc;
+         border-radius:12px 12px 0 0; }
+.sl-hdr h2{ margin:0; font-size:17px; font-weight:800; color:#0f172a; }
+.sl-hdr .desc{ font-size:12.5px; color:#64748b; margin-top:3px; }
+.sl-body{ padding:18px 22px; }
+
+.sl-table{ width:100%; border-collapse:collapse; font-size:13px; }
+.sl-table thead th{
+    background:#f1f5f9; color:#475569; font-size:11px; font-weight:700;
+    text-transform:uppercase; letter-spacing:.04em; padding:10px 8px;
+    text-align:left; border-bottom:2px solid #cbd5e1; }
+.sl-table tbody td{ padding:8px 6px; border-bottom:1px solid #e2e8f0; vertical-align:top; }
+.sl-table tbody tr:hover{ background:#fafbfd; }
+
+.sl-table .cell-input, .sl-table .cell-textarea{
+    width:100%; padding:7px 9px; border:1px solid #e2e8f0; border-radius:5px;
+    font-size:13px; background:#fff; outline:none; font-family:inherit; }
+.sl-table .cell-input:focus, .sl-table .cell-textarea:focus{ border-color:#2563eb; }
+.sl-table .cell-textarea{ min-height:60px; resize:vertical; }
+.sl-table .ck-cell{ text-align:center; }
+.sl-table .ck-cell input{ width:18px; height:18px; cursor:pointer; }
+
+.sl-row-del{ background:#fee2e2; color:#dc2626; border:0;
+             width:28px; height:28px; border-radius:5px; cursor:pointer; font-size:16px; }
+.sl-row-del:hover{ background:#fecaca; }
+
+.sl-add-row{ display:inline-flex; align-items:center; gap:6px; margin-top:12px;
+             background:#eff6ff; color:#2563eb; border:1px dashed #93c5fd;
+             padding:8px 18px; border-radius:6px; font-size:13px; font-weight:600;
+             cursor:pointer; }
+.sl-add-row:hover{ background:#dbeafe; }
+
+.sl-footer{ display:flex; justify-content:flex-end; gap:10px; padding:14px 22px;
+            border-top:1px solid #e2e8f0; background:#f8fafc;
+            border-radius:0 0 12px 12px; }
+.sl-btn{ padding:9px 20px; border-radius:6px; font-size:13px; font-weight:700;
+         cursor:pointer; border:0; transition:all .15s; }
+.sl-btn-primary{ background:#1e40af; color:#fff; }
+.sl-btn-primary:hover{ background:#1e3a8a; }
+.sl-btn-outline{ background:#fff; color:#475569; border:1px solid #d1d5db; }
+.sl-btn-outline:hover{ background:#f8fafc; }
+
+.sl-help{ margin:10px 0 14px; padding:10px 14px; background:#fffbeb;
+          border:1px solid #fde68a; border-radius:6px;
+          color:#78350f; font-size:12.5px; }
+.sl-help b{ color:#92400e; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="sl-wrap">
+  <div class="sl-hdr">
+    <div>
+      <h2>📦 Ship Locations Master</h2>
+      <div class="desc">Manage destination addresses available in Purchase Order's "Ship Location" dropdown</div>
+    </div>
+    <a class="sl-btn sl-btn-outline" href="{{ url_for('purchase_order.index') }}">← Back to POs</a>
+  </div>
+
+  <div class="sl-body">
+    <div class="sl-help">
+      ⓘ <b>How it works:</b> Add multiple shipping destinations (factory, godowns, head office).
+      The first row marked as <b>Default</b> will auto-populate on new POs. Inactive rows are hidden
+      from the PO dropdown but kept for history.
+    </div>
+
+    <table class="sl-table" id="slTable">
+      <thead>
+        <tr>
+          <th style="width:30px;">#</th>
+          <th style="width:14%;">Name <span style="color:#dc2626;">*</span></th>
+          <th style="width:25%;">Address <span style="color:#dc2626;">*</span></th>
+          <th style="width:9%;">City</th>
+          <th style="width:9%;">State</th>
+          <th style="width:5%;">Code</th>
+          <th style="width:7%;">Pincode</th>
+          <th style="width:11%;">GSTIN</th>
+          <th style="width:9%;">Contact</th>
+          <th style="width:7%;" class="ck-cell">Default</th>
+          <th style="width:7%;" class="ck-cell">Active</th>
+          <th style="width:38px;"></th>
+        </tr>
+      </thead>
+      <tbody id="slBody"></tbody>
+    </table>
+    <button type="button" class="sl-add-row" onclick="slAddRow()">+ Add Location</button>
+  </div>
+
+  <div class="sl-footer">
+    <a href="{{ url_for('purchase_order.index') }}" class="sl-btn sl-btn-outline">Cancel</a>
+    <button type="button" class="sl-btn sl-btn-primary" onclick="slSave()">💾 Save All Locations</button>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const EXISTING = {{ locations_json|tojson }};
+let _idx = 0;
+
+function slAddRow(d){
+  d = d || {};
+  const i = _idx++;
+  const tr = document.createElement('tr');
+  tr.dataset.idx = i;
+  tr.innerHTML = `
+    <td style="color:#94a3b8;font-size:11px;text-align:center;">${i+1}</td>
+    <td><input class="cell-input cell-name"  value="${escapeAttr(d.name||'')}" placeholder="e.g. Bavla Factory"></td>
+    <td><textarea class="cell-textarea cell-addr" placeholder="Full address...">${escapeHtml(d.address||'')}</textarea></td>
+    <td><input class="cell-input cell-city"  value="${escapeAttr(d.city||'')}"></td>
+    <td><input class="cell-input cell-state" value="${escapeAttr(d.state||'Gujarat')}"></td>
+    <td><input class="cell-input cell-stcode" value="${escapeAttr(d.state_code||'24')}" maxlength="3" style="text-align:center;"></td>
+    <td><input class="cell-input cell-pin"   value="${escapeAttr(d.pincode||'')}"></td>
+    <td><input class="cell-input cell-gstin" value="${escapeAttr(d.gstin||'')}" style="font-family:monospace;font-size:11.5px;"></td>
+    <td>
+      <input class="cell-input cell-cp" value="${escapeAttr(d.contact_person||'')}" placeholder="Contact" style="margin-bottom:4px;">
+      <input class="cell-input cell-ph" value="${escapeAttr(d.phone||'')}" placeholder="Phone" style="font-size:11.5px;">
+    </td>
+    <td class="ck-cell"><input type="radio" name="slDefault" class="cell-default" ${d.is_default ? 'checked' : ''}></td>
+    <td class="ck-cell"><input type="checkbox" class="cell-active" ${(d.is_active !== false) ? 'checked' : ''}></td>
+    <td><button type="button" class="sl-row-del" title="Remove" onclick="slDelRow(${i})">×</button></td>
+  `;
+  document.getElementById('slBody').appendChild(tr);
+}
+
+function slDelRow(i){
+  const tr = document.querySelector(`#slBody tr[data-idx="${i}"]`);
+  if (tr) tr.remove();
+}
+
+function escapeHtml(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function escapeAttr(s){ return String(s||'').replace(/"/g,'&quot;').replace(/&/g,'&amp;'); }
+
+function slSave(){
+  const rows = [];
+  let order = 0;
+  let hasInvalid = false;
+  document.querySelectorAll('#slBody tr').forEach(tr => {
+    const name = tr.querySelector('.cell-name').value.trim();
+    const addr = tr.querySelector('.cell-addr').value.trim();
+    if (!name && !addr) return;          // skip blank rows entirely
+    if (!name || !addr){                  // partial → flag invalid
+      tr.querySelector(name ? '.cell-addr' : '.cell-name').style.borderColor = '#dc2626';
+      hasInvalid = true;
+      return;
+    }
+    rows.push({
+      name, address: addr,
+      city:       tr.querySelector('.cell-city').value.trim(),
+      state:      tr.querySelector('.cell-state').value.trim(),
+      state_code: tr.querySelector('.cell-stcode').value.trim(),
+      pincode:    tr.querySelector('.cell-pin').value.trim(),
+      gstin:      tr.querySelector('.cell-gstin').value.trim(),
+      contact_person: tr.querySelector('.cell-cp').value.trim(),
+      phone:      tr.querySelector('.cell-ph').value.trim(),
+      sort_order: ++order,
+      is_default: tr.querySelector('.cell-default').checked,
+      is_active:  tr.querySelector('.cell-active').checked,
+    });
+  });
+  if (hasInvalid){
+    alert('Please fill both Name and Address for each row (or remove the incomplete row).');
+    return;
+  }
+  if (!rows.length){
+    if (!confirm('No locations to save. This will remove all existing locations. Continue?')) return;
+  }
+  fetch("{{ url_for('purchase_order.api_save_ship_locations') }}", {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'same-origin',
+    body: JSON.stringify({ rows }),
+  })
+    .then(r => r.json())
+    .then(d => {
+      if (d.success){
+        alert(`✓ Saved ${d.saved} location(s) successfully.`);
+        location.reload();
+      } else {
+        alert('Save failed: ' + (d.error || 'unknown error'));
+      }
+    })
+    .catch(e => alert('Save error: ' + e.message));
+}
+
+// Init — load existing rows or one blank row
+if (EXISTING.length){
+  EXISTING.forEach(d => slAddRow(d));
+} else {
+  slAddRow();
+}
+</script>
+{% endblock %}

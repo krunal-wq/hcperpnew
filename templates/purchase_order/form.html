@@ -1,0 +1,910 @@
+{% extends "base.html" %}
+{% block title %}{% if mode == 'edit' %}Edit{% else %}Generate{% endif %} Purchase Order — HCP ERP{% endblock %}
+{% block page_title %}Purchase Order{% endblock %}
+{% block bread %}Procurement / Purchase Order / {{ po_types.get(po_type, po_type) }} / {% if mode == 'edit' %}Edit{% else %}New{% endif %}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<style>
+  .po-wrap{ background:#fff; border-radius:12px; padding:0; margin-bottom:90px;
+            border:1px solid #e2e8f0; box-shadow:0 1px 3px rgba(0,0,0,.04); }
+  .po-title-bar{ padding:24px 28px 18px; border-bottom:1px solid #e2e8f0;
+                 background:#f8fafc; border-radius:12px 12px 0 0; text-align:center; }
+  .po-title-bar h1{ font-size:22px; font-weight:800; letter-spacing:.04em;
+                    text-decoration:underline; text-underline-offset:6px;
+                    color:#0f172a; margin:0; }
+  .po-type-tabs{ display:flex; gap:6px; justify-content:center; margin-top:10px; }
+  .po-type-tab{ padding:5px 14px; border-radius:20px; font-size:11px; font-weight:700;
+                background:#e2e8f0; color:#475569; cursor:pointer; border:0; transition:all .15s; }
+  .po-type-tab.active{ background:#2563eb; color:#fff; }
+  .po-type-tab:hover:not(.active){ background:#cbd5e1; }
+
+  /* Packing Material sub-type tabs (PM / Corrugation / Sleeves) */
+  .po-subtype-tabs{ display:inline-flex; gap:0; justify-content:center; margin-top:12px;
+                    align-items:center; padding:4px; background:#f1f5f9; border-radius:8px;
+                    border:1px solid #e2e8f0; }
+  .po-subtype-lbl{ font-size:10.5px; font-weight:700; color:#64748b;
+                   text-transform:uppercase; letter-spacing:.05em; padding:0 10px 0 6px; }
+  .po-subtype-tab{ padding:6px 16px; border-radius:6px; font-size:12px; font-weight:600;
+                   background:transparent; color:#64748b; cursor:pointer; border:0;
+                   transition:all .15s; }
+  .po-subtype-tab.active{ background:#0ea5e9; color:#fff; box-shadow:0 1px 3px rgba(14,165,233,.3); }
+  .po-subtype-tab:hover:not(.active){ background:#e2e8f0; color:#1e293b; }
+
+  .po-body{ padding:22px 28px; }
+
+  .po-3col{ display:grid; grid-template-columns:1fr 1fr 1.6fr; gap:18px; margin-bottom:24px; }
+  @media (max-width:1024px){ .po-3col{ grid-template-columns:1fr; } }
+  .po-col{ display:flex; flex-direction:column; gap:10px; }
+
+  .po-fld{ position:relative; }
+  .po-fld .req{ color:#dc2626; margin-left:2px; }
+
+  .po-input, .po-select, .po-textarea{
+    width:100%; padding:18px 12px 6px; font-size:13px; color:#0f172a;
+    border:1px solid #d1d5db; border-radius:6px; background:#f8fafc;
+    outline:none; transition:border-color .15s, background .15s; font-family:inherit;
+  }
+  .po-textarea{ min-height:64px; resize:vertical; }
+  .po-input:focus, .po-select:focus, .po-textarea:focus{ border-color:#2563eb; background:#fff; }
+  .po-input[readonly]{ background:#f1f5f9; color:#64748b; }
+  .po-input.invalid, .po-select.invalid, .po-textarea.invalid{ border-color:#dc2626; background:#fef2f2; }
+
+  .po-fld label{
+    position:absolute; left:12px; top:4px; font-size:10px; font-weight:600;
+    color:#64748b; letter-spacing:.04em; pointer-events:none; text-transform:uppercase;
+  }
+
+  .po-fld .select2-container--default .select2-selection--single{
+    height:46px; border:1px solid #d1d5db; border-radius:6px; background:#f8fafc; padding:14px 0 0 0;
+  }
+  .po-fld .select2-container--default .select2-selection--single .select2-selection__rendered{
+    line-height:30px; padding-left:12px; color:#0f172a; font-size:13px;
+  }
+  .po-fld .select2-container--default .select2-selection--single .select2-selection__placeholder{ color:#94a3b8; }
+  .po-fld .select2-container--default .select2-selection--single .select2-selection__arrow{ height:44px; }
+  .po-fld .select2-container--default.select2-container--focus .select2-selection--single{ border-color:#2563eb; background:#fff; }
+
+  .po-terms-card{ border:1px solid #d1d5db; border-radius:6px; min-height:380px;
+                  display:flex; flex-direction:column; background:#fff; }
+  .po-terms-toolbar{ display:flex; gap:2px; padding:6px 8px; flex-wrap:wrap;
+                     border-bottom:1px solid #e2e8f0; background:#f8fafc;
+                     border-radius:6px 6px 0 0; }
+  .po-terms-toolbar button{
+    width:30px; height:30px; border:0; background:transparent; border-radius:4px;
+    color:#475569; cursor:pointer; display:inline-flex; align-items:center;
+    justify-content:center; font-size:13px;
+  }
+  .po-terms-toolbar button:hover{ background:#e2e8f0; }
+  .po-terms-toolbar select{ height:30px; border:0; background:transparent; font-size:13px; color:#475569; cursor:pointer; padding:0 6px; }
+  .po-terms-toolbar .po-tb-sep{ width:1px; background:#e2e8f0; margin:4px 4px; }
+  .po-terms-body{ flex:1; min-height:320px; padding:14px 16px; outline:none; font-size:13px; line-height:1.55; color:#0f172a; }
+  .po-terms-body:empty::before{ content:"Terms of Delivery"; color:#94a3b8; pointer-events:none; }
+
+  .po-items-card{ border:1px solid #e2e8f0; border-radius:8px; overflow:visible; margin-top:6px; }
+  .po-items-card table{ width:100%; border-collapse:collapse; font-size:13px; }
+  .po-items-card thead th{
+    background:#f1f5f9; color:#475569; font-size:11px; font-weight:700;
+    text-transform:uppercase; letter-spacing:.04em; padding:10px 8px; text-align:left; border-bottom:1px solid #e2e8f0;
+  }
+  .po-items-card thead th.num{ text-align:right; }
+  .po-items-card tbody td{ padding:6px; border-bottom:1px solid #f1f5f9; vertical-align:top; }
+  .po-items-card tbody tr:hover{ background:#fcfcfd; }
+  .po-items-card .cell-input{
+    width:100%; padding:8px 10px; border:1px solid #e2e8f0; border-radius:5px;
+    font-size:13px; background:#fff; outline:none; font-family:inherit;
+  }
+  .po-items-card .cell-input:focus{ border-color:#2563eb; }
+  .po-items-card .cell-input.num{ text-align:right; }
+  .po-items-card .cell-amt{ padding:8px 10px; text-align:right; font-weight:700; }
+  .po-items-card .row-del{ background:#fee2e2; color:#dc2626; border:0;
+                           width:28px; height:28px; border-radius:5px; cursor:pointer; font-size:16px; }
+  .po-items-card .row-del:hover{ background:#fecaca; }
+  .po-items-card .select2-container--default .select2-selection--single{ height:36px; padding:0; border:1px solid #e2e8f0; border-radius:5px; }
+  .po-items-card .select2-container--default .select2-selection--single .select2-selection__rendered{ line-height:34px; padding-left:10px; font-size:13px; }
+  .po-items-card .select2-container--default .select2-selection--single .select2-selection__arrow{ height:34px; }
+
+  .po-add-row{
+    display:inline-flex; align-items:center; gap:6px; margin:12px;
+    background:#eff6ff; color:#2563eb; border:1px dashed #93c5fd;
+    padding:8px 18px; border-radius:6px; font-size:13px; font-weight:600; cursor:pointer;
+    transition:all .15s;
+  }
+  .po-add-row:hover:not(:disabled){ background:#dbeafe; }
+  .po-add-row:disabled{
+    background:#f1f5f9; color:#94a3b8; border-color:#cbd5e1;
+    cursor:not-allowed; opacity:.7;
+  }
+
+  .po-totals{ margin-left:auto; max-width:480px; margin-top:14px; display:flex; flex-direction:column; gap:8px; }
+  .po-total-row{ display:flex; align-items:center; justify-content:space-between; padding:8px 14px; border-radius:6px; }
+  .po-total-row.alt{ background:#f8fafc; }
+  .po-total-row.grand{ background:#1e40af; color:#fff; font-weight:700; font-size:15px; padding:12px 14px; }
+  .po-total-lbl{ font-size:13px; font-weight:600; color:#475569; }
+  .po-total-row.grand .po-total-lbl{ color:#fff; }
+  .po-total-val{ font-size:14px; font-weight:700; color:#0f172a; font-variant-numeric:tabular-nums; }
+  .po-total-row.grand .po-total-val{ color:#fff; font-size:16px; }
+  .po-amt-words{ margin-top:6px; padding:10px 14px; background:#fef3c7; border-radius:6px; font-size:12px; color:#78350f; font-style:italic; }
+
+  .po-footer{ position:fixed; bottom:0; left:0; right:0;
+              padding:12px 28px; background:#fff; border-top:1px solid #e2e8f0;
+              box-shadow:0 -2px 10px rgba(0,0,0,.04);
+              display:flex; justify-content:flex-end; gap:10px; z-index:100; }
+  .po-btn{ padding:10px 22px; border-radius:6px; font-size:13px; font-weight:700; cursor:pointer; border:0; transition:all .15s; }
+  .po-btn-primary{ background:#1e40af; color:#fff; }
+  .po-btn-primary:hover{ background:#1e3a8a; }
+  .po-btn-outline{ background:#fff; color:#475569; border:1px solid #d1d5db; }
+  .po-btn-outline:hover{ background:#f8fafc; }
+  .po-btn-success{ background:#16a34a; color:#fff; }
+  .po-btn-success:hover{ background:#15803d; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="po-wrap">
+
+  <div class="po-title-bar">
+    <h1>GENERATE {{ po_types.get(po_type, '') | upper }} PURCHASE ORDER</h1>
+    {# Show full 4-type tabs ONLY when accessed without an explicit po_type #}
+    {% if mode != 'edit' and not request.args.get('po_type') %}
+    <div class="po-type-tabs">
+      {% for code, label in po_types.items() %}
+      <button type="button" class="po-type-tab {% if po_type == code %}active{% endif %}"
+              onclick="location.href='?po_type={{ code }}'">{{ label }}</button>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    {# When in the Packing Material family (PM / COR / SLV), show a sub-type
+       toggle so the user can switch between the 3 packing sub-types from
+       the form itself. Items dropdown auto-refilters on switch. #}
+    {% if mode != 'edit' and po_type in ('PM', 'COR', 'SLV') %}
+    <div class="po-subtype-tabs">
+      <span class="po-subtype-lbl">Sub-Type:</span>
+      <button type="button" class="po-subtype-tab {% if po_type == 'PM'  %}active{% endif %}"
+              onclick="location.href='?po_type=PM'">Packing Material</button>
+      <button type="button" class="po-subtype-tab {% if po_type == 'COR' %}active{% endif %}"
+              onclick="location.href='?po_type=COR'">Corrugation</button>
+      <button type="button" class="po-subtype-tab {% if po_type == 'SLV' %}active{% endif %}"
+              onclick="location.href='?po_type=SLV'">Sleeves</button>
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="po-body">
+    <form id="poForm" autocomplete="off" onsubmit="return false;">
+      <input type="hidden" name="po_id"   value="{{ po.id if po else '' }}">
+      <input type="hidden" name="po_type" id="fPoType" value="{{ po_type }}">
+
+      <!-- ═════ Header — 3 columns ═════ -->
+      <div class="po-3col">
+
+        <!-- COLUMN 1: SUPPLIER (BILL FROM) -->
+        <div class="po-col">
+          {# Show PO Type dropdown ONLY when no po_type was specified via URL #}
+          {% if not request.args.get('po_type') %}
+          <div class="po-fld">
+            <select class="po-select" id="fPoTypeSelect" disabled>
+              {% for code, label in po_types.items() %}
+              <option value="{{ code }}" {% if po_type == code %}selected{% endif %}>{{ label }} PO</option>
+              {% endfor %}
+            </select>
+            <label>Select PO Type <span class="req">*</span></label>
+          </div>
+          {% endif %}
+
+          <div class="po-fld">
+            <select class="po-select" id="fShipLocation" name="ship_location">
+              {# Options injected from master via JS on page load #}
+              {% if po and po.delivery_address %}
+              <option value="{{ po.delivery_address.split(',')[0] }}" selected>(saved) {{ po.delivery_address[:60] }}…</option>
+              {% endif %}
+            </select>
+            <label>Select Ship Location <span class="req">*</span></label>
+          </div>
+
+          <div class="po-fld">
+            <select class="po-select" id="fSupplier" name="supplier_id" style="width:100%;">
+              {% if po and po.supplier_id %}
+              <option value="{{ po.supplier_id }}" selected>{{ po.supplier_name }}{% if po.supplier_gst %} ({{ po.supplier_gst }}){% endif %}</option>
+              {% endif %}
+            </select>
+            <label>Select From Supplier <span class="req">*</span></label>
+          </div>
+
+          <div class="po-fld">
+            <textarea class="po-textarea" id="fSupAddr" name="supplier_address" rows="2">{{ po.supplier_address if po else '' }}</textarea>
+            <label>From Address <span class="req">*</span></label>
+          </div>
+
+          <div class="po-fld">
+            <input type="email" class="po-input" id="fSupEmail" name="supplier_email" value="{{ po.supplier_email if po else '' }}">
+            <label>From Email Address</label>
+          </div>
+
+          <div class="po-fld">
+            <input class="po-input" id="fSupGst" name="supplier_gst" value="{{ po.supplier_gst if po else '' }}" style="font-family:monospace;">
+            <label>GST Number <span class="req">*</span></label>
+          </div>
+
+          <div class="po-fld">
+            <select class="po-select" id="fSupCountry" name="supplier_country" style="width:100%;">
+              {% if po and po.supplier_country %}
+                <option value="{{ po.supplier_country }}" selected>{{ po.supplier_country }}</option>
+              {% else %}
+                <option value="India" selected>India</option>
+              {% endif %}
+            </select>
+            <label>Select Country</label>
+          </div>
+
+          <div class="po-fld">
+            <select class="po-select" id="fSupState" name="supplier_state" style="width:100%;">
+              {% if po and po.supplier_state %}
+                <option value="{{ po.supplier_state }}" selected>{{ po.supplier_state }}{% if po.supplier_state_code %} ({{ po.supplier_state_code }}){% endif %}</option>
+              {% endif %}
+            </select>
+            <label>Select State</label>
+          </div>
+
+          <input type="hidden" id="fSupName"      name="supplier_name"           value="{{ po.supplier_name if po else '' }}">
+          <input type="hidden" id="fSupStateCode" name="supplier_state_code"     value="{{ po.supplier_state_code if po else '' }}">
+          <input type="hidden" id="fSupContact"   name="supplier_contact_person" value="{{ po.supplier_contact_person if po else '' }}">
+          <input type="hidden" id="fSupMobile"    name="supplier_mobile"         value="{{ po.supplier_mobile if po else '' }}">
+        </div>
+
+        <!-- COLUMN 2: INVOICE / DISPATCH DETAILS -->
+        <div class="po-col">
+          <div class="po-fld">
+            <input class="po-input" id="fVoucherNo" value="{{ po.po_number if po else '(auto-generated on save)' }}" readonly>
+            <label>Voucher Number</label>
+          </div>
+
+          <div class="po-fld">
+            <input class="po-input" id="fPoDate" name="po_date" value="{{ po.po_date.strftime('%Y-%m-%d') if po and po.po_date else '' }}" placeholder="YYYY-MM-DD">
+            <label>Date <span class="req">*</span></label>
+          </div>
+
+          <div class="po-fld">
+            <input class="po-input" id="fRefNo" name="reference_no" value="{{ po.reference_no if po else '' }}">
+            <label>Reference Number</label>
+          </div>
+
+          <div class="po-fld">
+            <input class="po-input" id="fRefDate" name="reference_date" value="{{ po.reference_date.strftime('%Y-%m-%d') if po and po.reference_date else '' }}" placeholder="YYYY-MM-DD">
+            <label>Select Reference Date</label>
+          </div>
+
+          <div class="po-fld">
+            <input class="po-input" id="fOtherRef" name="other_references" value="{{ po.other_references if po else '' }}">
+            <label>Other Reference</label>
+          </div>
+
+          <div class="po-fld">
+            <input class="po-input" id="fPayTerms" name="payment_terms" value="{{ (po.payment_terms or '')|striptags if po else '30 DAYS' }}">
+            <label>Payment Terms</label>
+          </div>
+
+          <div class="po-fld">
+            <input class="po-input" id="fDispatch" name="dispatched_through" value="{{ po.dispatched_through if po else '' }}">
+            <label>Dispatch Note</label>
+          </div>
+
+          <div class="po-fld">
+            <input class="po-input" id="fDest" name="destination" value="{{ po.destination if po else '' }}">
+            <label>Destination</label>
+          </div>
+
+          <input type="hidden" id="fExpDate"     name="expected_delivery" value="{{ po.expected_delivery.strftime('%Y-%m-%d') if po and po.expected_delivery else '' }}">
+          <input type="hidden" id="fTransport"   name="transport_mode"    value="{{ po.transport_mode if po else 'Road' }}">
+          <input type="hidden" id="fCreditDays"  name="credit_days"       value="{{ po.credit_days if po else 30 }}">
+          <input type="hidden" id="fDeliveryAddr" name="delivery_address" value="{{ po.delivery_address if po else '' }}">
+        </div>
+
+        <!-- COLUMN 3: TERMS OF DELIVERY -->
+        <div class="po-col">
+          <div class="po-terms-card">
+            <div class="po-terms-toolbar">
+              <button type="button" onclick="document.execCommand('undo')" title="Undo">↶</button>
+              <button type="button" onclick="document.execCommand('redo')" title="Redo">↷</button>
+              <span class="po-tb-sep"></span>
+              <select onchange="document.execCommand('formatBlock', false, this.value); this.selectedIndex=0;">
+                <option value="">Paragraph</option>
+                <option value="h2">Heading 2</option>
+                <option value="h3">Heading 3</option>
+                <option value="p">Paragraph</option>
+              </select>
+              <span class="po-tb-sep"></span>
+              <button type="button" onclick="document.execCommand('bold')" title="Bold"><b>B</b></button>
+              <button type="button" onclick="document.execCommand('italic')" title="Italic"><i>I</i></button>
+              <span class="po-tb-sep"></span>
+              <button type="button" onclick="document.execCommand('insertUnorderedList')" title="Bullet list">•</button>
+              <button type="button" onclick="document.execCommand('insertOrderedList')" title="Numbered list">1.</button>
+              <span class="po-tb-sep"></span>
+              <button type="button" onclick="poInsertLink()" title="Insert link">🔗</button>
+            </div>
+            <div class="po-terms-body" id="fTermsBody" contenteditable="true">{% if po and po.terms %}{% for t in po.terms %}<p>{{ t.text }}</p>{% endfor %}{% elif terms %}{% for t in terms %}<p>{{ t.text }}</p>{% endfor %}{% endif %}</div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ═════ Items table ═════ -->
+      <div class="po-items-card">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:34%;">Item Name</th>
+              <th style="width:9%;"  class="num">GST Rate(%)</th>
+              <th style="width:11%;">Due On</th>
+              <th style="width:9%;"  class="num">Quantity</th>
+              <th style="width:10%;" class="num">Rate</th>
+              <th style="width:7%;">Per</th>
+              <th style="width:7%;"  class="num">Disc(%)</th>
+              <th style="width:11%;" class="num">Amount (₹)</th>
+              <th style="width:38px;"></th>
+            </tr>
+          </thead>
+          <tbody id="poItemsBody"></tbody>
+        </table>
+        <button type="button" id="poAddRowBtn" class="po-add-row" onclick="poAddRow()">+ Add Item</button>
+        <div id="poAddRowHint" style="display:none;font-size:11.5px;color:#dc2626;margin:0 12px 12px;font-style:italic;">
+          ⓘ Pelaa current row fill karo (Item + Quantity + Rate) — pachhi navi row add thai shake
+        </div>
+      </div>
+
+      <!-- ═════ Totals ═════ -->
+      <div class="po-totals">
+        <div class="po-total-row">
+          <div class="po-total-lbl">Sub Total</div>
+          <div class="po-total-val" id="ttSubTotal">0.00</div>
+        </div>
+        <div class="po-total-row alt" id="rowCgst">
+          <div class="po-total-lbl">CGST</div>
+          <div class="po-total-val" id="ttCgst">0.00</div>
+        </div>
+        <div class="po-total-row alt" id="rowSgst">
+          <div class="po-total-lbl">SGST</div>
+          <div class="po-total-val" id="ttSgst">0.00</div>
+        </div>
+        <div class="po-total-row alt" id="rowIgst" style="display:none;">
+          <div class="po-total-lbl">IGST</div>
+          <div class="po-total-val" id="ttIgst">0.00</div>
+        </div>
+        <div class="po-total-row">
+          <div class="po-total-lbl">Roundoff Amount</div>
+          <div class="po-total-val" id="ttRoundoff">0.00</div>
+        </div>
+        <div class="po-total-row grand">
+          <div class="po-total-lbl">Total Amount</div>
+          <div class="po-total-val" id="ttGrand">₹ 0.00</div>
+        </div>
+        <div class="po-amt-words" id="ttWords">INR Zero Only</div>
+      </div>
+
+    </form>
+  </div>
+</div>
+
+<div class="po-footer">
+  <a href="{{ url_for('purchase_order.index', po_type=po_type) }}" class="po-btn po-btn-outline">Cancel</a>
+  <button type="button" class="po-btn po-btn-outline" onclick="poSave('draft')">Save Draft</button>
+  <button type="button" class="po-btn po-btn-success"  onclick="poSave('submit')">Save &amp; Submit</button>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script>
+(function(){
+  const PO_TYPE = "{{ po_type }}";
+  const MODE = "{{ mode }}";
+  const COMPANY_STATE = ({{ ((company.state if company else '')|tojson) }} || '').toLowerCase().trim();
+
+  // Pre-loaded items for edit mode (provided by route as JSON)
+  const EXISTING_ITEMS = {% if po and po.items %}[
+    {% for it in po.items %}
+    {
+      material_id: {{ it.material_id or 'null' }},
+      item_name:   {{ (it.item_name or '')|tojson }},
+      item_code:   {{ (it.item_code or '')|tojson }},
+      category:    {{ (it.category or '')|tojson }},
+      hsn_code:    {{ (it.hsn_code or '')|tojson }},
+      uom:         {{ (it.uom or 'KG')|tojson }},
+      quantity:    {{ it.quantity or 0 }},
+      rate:        {{ it.rate or 0 }},
+      discount_pct:{{ it.discount_pct or 0 }},
+      gst_pct:     {{ it.gst_pct or 0 }},
+      due_date:    {{ (it.due_date.strftime('%Y-%m-%d') if it.due_date else '')|tojson }},
+      remark:      {{ (it.remark or '')|tojson }},
+      description: {{ (it.description or '')|tojson }},
+    },
+    {% endfor %}
+  ]{% else %}[]{% endif %};
+
+  // ───── Date pickers ──────────────────────────────────────
+  flatpickr("#fPoDate",  { dateFormat:"Y-m-d", defaultDate: "{{ po.po_date.strftime('%Y-%m-%d') if po and po.po_date else '' }}" || "today", allowInput:true });
+  flatpickr("#fRefDate", { dateFormat:"Y-m-d", allowInput:true });
+
+  // ───── Load Ship Locations from master ────────────────────
+  // Populates the Ship Location dropdown from the master table.
+  // The first row marked is_default auto-selects (only on new PO; edit
+  // keeps the PO's saved value).
+  const PRESELECTED_SHIP = "{{ po.delivery_address|default('', true) }}".trim();
+  fetch("{{ url_for('purchase_order.api_ship_locations') }}", { credentials: 'same-origin' })
+    .then(r => r.json())
+    .then(d => {
+      const $sel = $('#fShipLocation');
+      $sel.empty().append('<option value="">-- Select Ship Location --</option>');
+      let pickedId = '';
+      (d.results || []).forEach(loc => {
+        const $opt = $('<option>')
+          .val(loc.name)
+          .text(loc.name + (loc.city ? ' — ' + loc.city : ''))
+          .attr('data-address', loc.address)
+          .attr('data-state', loc.state || '')
+          .attr('data-state-code', loc.state_code || '');
+        // Match by name if PO had a saved value (edit mode)
+        if (MODE === 'edit' && PRESELECTED_SHIP &&
+            PRESELECTED_SHIP.toLowerCase().indexOf(loc.name.toLowerCase()) === 0){
+          $opt.prop('selected', true); pickedId = loc.name;
+        } else if (!pickedId && MODE !== 'edit' && loc.is_default){
+          $opt.prop('selected', true); pickedId = loc.name;
+        }
+        $sel.append($opt);
+      });
+      // If no default and no edit-mode match, select first
+      if (!pickedId && $sel.find('option[value!=""]').length){
+        $sel.find('option[value!=""]').first().prop('selected', true);
+      }
+    })
+    .catch(e => console.warn('Ship locations load failed', e));
+
+  // ───── Supplier Select2 ──────────────────────────────────
+  $('#fSupplier').select2({
+    placeholder:'-- Select Supplier --', allowClear:true, width:'100%',
+    ajax:{
+      url: "{{ url_for('purchase_order.api_suppliers') }}",
+      dataType:'json', delay:200,
+      data: function(p){ return { q: p.term||'', po_type: PO_TYPE }; },
+      processResults: function(d){
+        return { results:(d.results||[]).map(function(s){
+          return { id:s.id, text: s.text||s.name||('Supplier #'+s.id) };
+        })};
+      }, cache:true
+    }
+  });
+
+  // In edit mode, the supplier dropdown is pre-selected with the saved PO's
+  // supplier. We want to PRESERVE the PO's saved snapshot (address, GST, etc.)
+  // and only re-fetch supplier-master values when the user MANUALLY picks a
+  // different supplier. So we mark the initial state as "already loaded" and
+  // skip the first auto-trigger.
+  let _supplierInitDone = (MODE === 'edit');
+
+  $('#fSupplier').on('change', function(){
+    const id = $(this).val(); if(!id) return;
+    // Skip the first change event on edit-mode page load (initial value).
+    // This prevents overwriting the saved PO snapshot with supplier master defaults.
+    if (!_supplierInitDone){
+      _supplierInitDone = true;
+      return;
+    }
+    fetch("{{ url_for('purchase_order.api_supplier_detail', sup_id=0) }}".replace('/0','/'+id))
+      .then(r=>r.json()).then(function(s){
+        console.log('Supplier detail API returned:', s);  // DevTools debug
+        if(!s || !s.id) return;
+        $('#fSupName').val(s.supplier_name||'');
+        $('#fSupGst').val(s.gst_number||'');
+        $('#fSupStateCode').val(s.billing_state_code||'');
+        $('#fSupAddr').val(s.address||'');
+        $('#fSupContact').val(s.contact_person||'');
+        $('#fSupMobile').val(s.phone||'');
+        $('#fSupEmail').val(s.email||'');
+        if (s.payment_terms) $('#fPayTerms').val(stripHtml(s.payment_terms));
+        if (s.credit_days) $('#fCreditDays').val(s.credit_days);
+        if (s.billing_country){
+          $('#fSupCountry').empty().append(new Option(s.billing_country, s.billing_country, true, true)).trigger('change');
+        }
+        if (s.billing_state){
+          const txt = s.billing_state + (s.billing_state_code ? ' ('+s.billing_state_code+')' : '');
+          $('#fSupState').empty().append(new Option(txt, s.billing_state, true, true)).trigger('change');
+        }
+        poRecalcAll();
+      }).catch(e=>console.warn('Supplier load failed', e));
+  });
+
+  // ───── Country Select2 ────────────────────────────────────
+  $('#fSupCountry').select2({
+    placeholder:'-- Select Country --', allowClear:true, width:'100%',
+    ajax:{
+      url:"{{ url_for('purchase_order.api_countries') }}",
+      dataType:'json', delay:200,
+      data: p=>({ q: p.term||'' }),
+      processResults: d=>({ results:(d.results||[]).map(c=>({ id:c.name, text:c.text||c.name, _id:c.id })) }),
+      cache:true
+    }
+  });
+  let SUP_COUNTRY_ID=null;
+  $('#fSupCountry').on('select2:select', function(e){
+    SUP_COUNTRY_ID = (e.params.data && e.params.data._id) || null;
+    $('#fSupState').val(null).trigger('change');
+    $('#fSupStateCode').val('');
+  });
+
+  // ───── State Select2 ──────────────────────────────────────
+  $('#fSupState').select2({
+    placeholder:'-- Select State --', allowClear:true, width:'100%',
+    ajax:{
+      url:"{{ url_for('purchase_order.api_states') }}",
+      dataType:'json', delay:200,
+      data: p => { const d = { q: p.term||'' }; if (SUP_COUNTRY_ID) d.country_id = SUP_COUNTRY_ID; return d; },
+      processResults: d => ({ results:(d.results||[]).map(s=>({ id:s.name, text:s.text||(s.name+(s.code?' ('+s.code+')':'')), _code:s.code||'' })) }),
+      cache:true
+    }
+  });
+  $('#fSupState').on('select2:select', function(e){
+    const code = (e.params.data && e.params.data._code) || '';
+    $('#fSupStateCode').val(code);
+    poRecalcAll();
+  });
+
+  // ───── Auto-derive State from GSTIN's first 2 digits ─────────────────
+  // Fires when supplier loads (if billing_state was empty) OR when user
+  // manually edits the GST input.
+  function autoFillStateFromGst(){
+    const gst = ($('#fSupGst').val() || '').trim();
+    if (gst.length < 2) return;
+    // Skip if state is already set (don't overwrite a manual choice)
+    if (($('#fSupState').val() || '').trim()) return;
+    fetch("{{ url_for('purchase_order.api_state_by_gst') }}?gst=" + encodeURIComponent(gst))
+      .then(r => r.json())
+      .then(function(d){
+        if (!d) return;
+        $('#fSupStateCode').val(d.code || '');
+        if (d.name){
+          const txt = d.name + (d.code ? ' (' + d.code + ')' : '');
+          $('#fSupState').empty().append(new Option(txt, d.name, true, true)).trigger('change');
+          poRecalcAll();
+        }
+      })
+      .catch(e => console.warn('State-by-GST failed', e));
+  }
+  $('#fSupGst').on('blur', autoFillStateFromGst);
+
+  // ───── Items table ────────────────────────────────────────
+  let _rowIdx = 0;
+
+  // Check whether the *last* (current bottom) row is filled enough to allow
+  // a new row: item selected + qty > 0 + rate > 0.
+  function _isRowFilled($row){
+    if (!$row.length) return false;
+    const matId = $row.find('.cell-material').val();
+    const qty   = parseFloat($row.find('.cell-qty').val()) || 0;
+    const rate  = parseFloat($row.find('.cell-rate').val()) || 0;
+    return !!matId && qty > 0 && rate > 0;
+  }
+
+  // Enable/disable the "+ Add Item" button based on last row state
+  function updateAddRowState(){
+    const $rows = $('#poItemsBody tr');
+    const $btn  = $('#poAddRowBtn');
+    const $hint = $('#poAddRowHint');
+    if (!$rows.length){
+      // No rows yet — always allow adding the first row
+      $btn.prop('disabled', false);
+      $hint.hide();
+      return;
+    }
+    const $last = $rows.last();
+    const filled = _isRowFilled($last);
+    $btn.prop('disabled', !filled);
+    $hint.toggle(!filled);
+  }
+
+  window.poAddRow = function(data){
+    data = data || {};
+    // Gate: when no data passed (manual click), ensure last row is filled
+    const isManual = !data || !data.material_id;
+    if (isManual){
+      const $rows = $('#poItemsBody tr');
+      if ($rows.length && !_isRowFilled($rows.last())){
+        // Block adding — show the hint and keep button disabled
+        updateAddRowState();
+        return;
+      }
+    }
+    const i = _rowIdx++;
+    const tr = document.createElement('tr');
+    tr.dataset.idx = i;
+    tr.innerHTML = `
+      <td>
+        <select class="cell-input cell-material" name="material_id[]" data-idx="${i}" style="width:100%;">
+          ${data.material_id ? `<option value="${data.material_id}" selected>${(data.item_name||'').replace(/"/g,'&quot;')}</option>` : ''}
+        </select>
+        <input type="hidden" name="item_name[]"   class="hf-item-name"  value="${(data.item_name||'').replace(/"/g,'&quot;')}">
+        <input type="hidden" name="item_code[]"   class="hf-item-code"  value="${data.item_code || ''}">
+        <input type="hidden" name="category[]"    class="hf-category"   value="${data.category || ''}">
+        <input type="hidden" name="hsn_code[]"    class="hf-hsn"        value="${data.hsn_code || ''}">
+        <input type="hidden" name="description[]" class="hf-desc"       value="${(data.description||'').replace(/"/g,'&quot;')}">
+        <input type="hidden" name="remark[]"      class="hf-remark"     value="${(data.remark||'').replace(/"/g,'&quot;')}">
+      </td>
+      <td><input class="cell-input num cell-gst"  name="gst_pct[]"      type="number" step="0.01" value="${data.gst_pct ?? 18}"></td>
+      <td><input class="cell-input cell-due"      name="due_date[]"     type="text"  placeholder="YYYY-MM-DD" value="${data.due_date || ''}"></td>
+      <td><input class="cell-input num cell-qty"  name="quantity[]"     type="number" step="0.001" value="${data.quantity || ''}"></td>
+      <td><input class="cell-input num cell-rate" name="rate[]"         type="number" step="0.0001" value="${data.rate || ''}"></td>
+      <td><input class="cell-input cell-uom"      name="uom[]"          value="${data.uom || 'KG'}"></td>
+      <td><input class="cell-input num cell-disc" name="discount_pct[]" type="number" step="0.01" value="${data.discount_pct || 0}"></td>
+      <td><div class="cell-amt num">0.00</div></td>
+      <td class="cell-del-wrap">
+        <button type="button" class="row-del" title="Remove row" onclick="poDelRow(${i})">×</button>
+      </td>
+    `;
+    document.getElementById('poItemsBody').appendChild(tr);
+    flatpickr(tr.querySelector('.cell-due'), { dateFormat:'Y-m-d', allowInput:true });
+
+    // After appending, hide the × on whichever row is currently FIRST,
+    // and show × on all other rows.
+    refreshDeleteVisibility();
+
+    const $sel = $(tr).find('.cell-material');
+    // Track whether the material change is the initial pre-population (edit mode)
+    // or a real user change. For pre-loaded edit rows, we skip the API fetch so
+    // the saved PO item snapshot (rate/UOM/etc.) isn't overwritten.
+    let _materialInitDone = !data.material_id;  // true when no preloaded value
+    $sel.select2({
+      placeholder:'-- Select Item --', allowClear:true, width:'100%',
+      ajax:{
+        url:"{{ url_for('purchase_order.api_items') }}", dataType:'json', delay:200,
+        data: p=>({ q: p.term||'', po_type: PO_TYPE }),
+        processResults: d=>({ results:(d.results||[]).map(it=>({ id:it.id, text:it.text||it.name })) }),
+        cache:true
+      }
+    });
+    $sel.on('change', function(){
+      const mid = $(this).val(); if (!mid) return;
+      // Skip initial trigger on edit-mode pre-population
+      if (!_materialInitDone){
+        _materialInitDone = true;
+        return;
+      }
+      const $row = $(this).closest('tr');
+      fetch("{{ url_for('purchase_order.api_item_detail', mat_id=0) }}".replace('/0','/'+mid))
+        .then(r=>r.json()).then(function(it){
+          if (!it || !it.id) return;
+          console.log('Item master loaded:', it);   // DevTools debug
+          // Snapshot fields
+          $row.find('.hf-item-name').val(it.item_name||'');
+          $row.find('.hf-item-code').val(it.item_code||'');
+          $row.find('.hf-category').val(it.category||'');
+          $row.find('.hf-hsn').val(it.hsn_code||'');
+          $row.find('.hf-desc').val(it.description||'');
+
+          // Auto-fill UOM (always overwrite — most-recent item's UOM)
+          $row.find('.cell-uom').val(it.uom || 'KG');
+
+          // Auto-fill GST rate (always overwrite — even if 0)
+          if (it.gst_rate !== undefined && it.gst_rate !== null) {
+              $row.find('.cell-gst').val(it.gst_rate);
+          }
+
+          // Auto-fill Rate from item master's last_purchase_rate.
+          // Always overwrite when user picks a NEW item (they expect master's rate).
+          // If item master has no rate (0/null), leave whatever is currently there.
+          if (it.last_purchase_rate && parseFloat(it.last_purchase_rate) > 0) {
+              $row.find('.cell-rate').val(it.last_purchase_rate);
+          }
+
+          poRowCalc($row);
+          updateAddRowState();
+        })
+        .catch(e => console.warn('Item detail load failed', e));
+    });
+
+    tr.querySelectorAll('.cell-qty, .cell-rate, .cell-disc, .cell-gst').forEach(el=>{
+      el.addEventListener('input',  ()=>{ poRowCalc($(tr)); updateAddRowState(); });
+      el.addEventListener('change', ()=>{ poRowCalc($(tr)); updateAddRowState(); });
+    });
+    // Material change also affects "is row filled" check
+    $(tr).find('.cell-material').on('change', updateAddRowState);
+
+    if (data.quantity && data.rate) poRowCalc($(tr));
+    updateAddRowState();
+  };
+
+  // Show × button only on non-first rows; first row cannot be deleted
+  function refreshDeleteVisibility(){
+    const rows = document.querySelectorAll('#poItemsBody tr');
+    rows.forEach((tr, idx) => {
+      const btn = tr.querySelector('.row-del');
+      if (!btn) return;
+      if (idx === 0){
+        btn.style.display = 'none';
+      } else {
+        btn.style.display = '';
+      }
+    });
+  }
+
+  window.poDelRow = function(i){
+    const rows = document.querySelectorAll('#poItemsBody tr');
+    // Safety: never allow deletion of the first row
+    if (rows.length && rows[0].dataset.idx === String(i)) return;
+    const tr = document.querySelector('#poItemsBody tr[data-idx="'+i+'"]');
+    if (tr) tr.remove();
+    refreshDeleteVisibility();
+    poRecalcAll();
+    updateAddRowState();
+  };
+
+  // ───── Calculations ────────────────────────────────────────
+  function _n(v){ const f = parseFloat(v); return isNaN(f) ? 0 : f; }
+  function isInterstate(){
+    const supState = ($('#fSupState').val()||'').toLowerCase().trim();
+    return supState && supState !== COMPANY_STATE;
+  }
+
+  window.poRowCalc = function($row){
+    const qty=_n($row.find('.cell-qty').val());
+    const rate=_n($row.find('.cell-rate').val());
+    const disc=_n($row.find('.cell-disc').val());
+    const gst=_n($row.find('.cell-gst').val());
+    const amount = qty*rate;
+    const taxable = amount - amount*disc/100;
+    const total = taxable + taxable*gst/100;
+    $row.find('.cell-amt').text(total.toFixed(2));
+    poRecalcAll();
+  };
+
+  window.poRecalcAll = function(){
+    let sub=0, taxable=0, cgst=0, sgst=0, igst=0;
+    const inter = isInterstate();
+    $('#poItemsBody tr').each(function(){
+      const $r=$(this);
+      const q=_n($r.find('.cell-qty').val()), rt=_n($r.find('.cell-rate').val());
+      const dp=_n($r.find('.cell-disc').val()), gp=_n($r.find('.cell-gst').val());
+      const amt=q*rt, dAmt=amt*dp/100, tax=amt-dAmt, taxAmt=tax*gp/100;
+      sub+=amt; taxable+=tax;
+      if (inter) igst+=taxAmt; else { cgst+=taxAmt/2; sgst+=taxAmt/2; }
+    });
+    const grandRaw=taxable+cgst+sgst+igst;
+    const grand=Math.round(grandRaw);
+    const roundOff=+(grand-grandRaw).toFixed(2);
+    $('#ttSubTotal').text(sub.toFixed(2));
+    $('#ttCgst').text(cgst.toFixed(2));
+    $('#ttSgst').text(sgst.toFixed(2));
+    $('#ttIgst').text(igst.toFixed(2));
+    $('#ttRoundoff').text(roundOff.toFixed(2));
+    $('#ttGrand').text('₹ '+grand.toFixed(2));
+    if (inter){ $('#rowCgst, #rowSgst').hide(); $('#rowIgst').show(); }
+    else      { $('#rowCgst, #rowSgst').show(); $('#rowIgst').hide(); }
+    $('#ttWords').text(amountInWordsINR(grand)+' Only');
+  };
+
+  function amountInWordsINR(num){
+    if (!num) return 'INR Zero';
+    num = Math.round(num);
+    const ones=['','One','Two','Three','Four','Five','Six','Seven','Eight','Nine','Ten','Eleven','Twelve','Thirteen','Fourteen','Fifteen','Sixteen','Seventeen','Eighteen','Nineteen'];
+    const tens=['','','Twenty','Thirty','Forty','Fifty','Sixty','Seventy','Eighty','Ninety'];
+    function under1000(n){
+      let out=''; if (n>=100){ out+=ones[Math.floor(n/100)]+' Hundred '; n%=100; }
+      if (n>=20){ out+=tens[Math.floor(n/10)]+' '; n%=10; }
+      if (n>0 && n<20){ out+=ones[n]+' '; }
+      return out.trim();
+    }
+    let n=num, parts=[];
+    const cr=Math.floor(n/10000000); n%=10000000;
+    const lk=Math.floor(n/100000);   n%=100000;
+    const th=Math.floor(n/1000);     n%=1000;
+    const rs=n;
+    if (cr) parts.push(under1000(cr)+' Crore');
+    if (lk) parts.push(under1000(lk)+' Lakh');
+    if (th) parts.push(under1000(th)+' Thousand');
+    if (rs) parts.push(under1000(rs));
+    return 'INR '+parts.join(' ').replace(/\s+/g,' ').trim();
+  }
+
+  // ───── Link in terms editor ────────────────────────────────
+  window.poInsertLink = function(){
+    const url = prompt('Enter URL:'); if (!url) return;
+    document.execCommand('createLink', false, url);
+  };
+
+  // Strip HTML tags from a string (used for payment_terms which may contain
+  // <p>/<br> from rich-text editor in supplier master)
+  function stripHtml(html){
+    if (!html) return '';
+    const tmp = document.createElement('div');
+    tmp.innerHTML = html;
+    return (tmp.textContent || tmp.innerText || '').replace(/\s+/g, ' ').trim();
+  }
+
+  // ───── Save ────────────────────────────────────────────────
+  window.poSave = function(action){
+    let ok = true;
+    if (!$('#fSupplier').val()){ ok=false; }
+    if (!$('#fSupAddr').val().trim()){ $('#fSupAddr').addClass('invalid'); ok=false; }
+    if (!$('#fSupGst').val().trim()){ $('#fSupGst').addClass('invalid'); ok=false; }
+    if (!$('#poItemsBody tr').length){ alert('Please add at least one item.'); return; }
+    if (!ok){ alert('Please fill required fields.'); return; }
+
+    // Terms editor → split paragraphs into multiple term_text[] rows
+    $('input[name="term_text[]"], input[name="term_section[]"]').remove();
+    const termsHtml = document.getElementById('fTermsBody').innerHTML.trim();
+    if (termsHtml){
+      const tmp=document.createElement('div'); tmp.innerHTML=termsHtml;
+      const paragraphs=[];
+      tmp.childNodes.forEach(n=>{
+        const txt=(n.textContent||'').trim();
+        if (txt) paragraphs.push(txt);
+      });
+      if (!paragraphs.length){
+        const txt=(tmp.textContent||'').trim();
+        if (txt) paragraphs.push(txt);
+      }
+      paragraphs.forEach(p=>{
+        const t=document.createElement('input'); t.type='hidden'; t.name='term_text[]'; t.value=p;
+        document.getElementById('poForm').appendChild(t);
+        const s=document.createElement('input'); s.type='hidden'; s.name='term_section[]'; s.value='GENERAL';
+        document.getElementById('poForm').appendChild(s);
+      });
+    }
+
+    // Ship Location → delivery_address (resolved from loaded master)
+    const $shipOpt = $('#fShipLocation option:selected');
+    const shipAddr = $shipOpt.data('address')
+                  || $('#fShipLocation').val()
+                  || '';
+    $('#fDeliveryAddr').val(shipAddr);
+
+    const fd = new FormData(document.getElementById('poForm'));
+    fetch("{{ url_for('purchase_order.save_po') }}", { method:'POST', body:fd, credentials:'same-origin' })
+      .then(function(r){
+        // Read response as text first; try to parse as JSON. If HTML/text, show it.
+        return r.text().then(function(body){
+          try { return { status:r.status, json:JSON.parse(body), raw:body }; }
+          catch(e){ return { status:r.status, json:null, raw:body }; }
+        });
+      })
+      .then(function(res){
+        const d = res.json;
+        if (d && (d.po_id || d.success === true || d.status === 'ok')){
+          const next = d.redirect_url || d.view_url || "{{ url_for('purchase_order.index') }}";
+          if (action === 'submit' && d.po_id){
+            fetch("{{ url_for('purchase_order.submit_po', po_id=0) }}".replace('/0/','/'+d.po_id+'/'),
+                  { method:'POST', credentials:'same-origin' })
+              .finally(()=>{ location.href = next; });
+          } else {
+            location.href = next;
+          }
+        } else if (d && (d.error || d.message)){
+          alert('Save failed: ' + (d.error || d.message));
+        } else {
+          // Non-JSON response — usually a 500 HTML error page. Extract a useful snippet.
+          let snippet = res.raw || '';
+          const m = snippet.match(/<title>([^<]+)<\/title>/i)
+                 || snippet.match(/<h1>([^<]+)<\/h1>/i)
+                 || snippet.match(/(OperationalError[\s\S]{0,200}|IntegrityError[\s\S]{0,200}|ProgrammingError[\s\S]{0,200})/);
+          const msg = m ? m[1] || m[0] : snippet.substring(0, 240);
+          alert('Server error (HTTP ' + res.status + '):\n\n' + msg
+                + '\n\n(Check Flask terminal for full traceback.)');
+        }
+      })
+      .catch(e => alert('Network/JS error: ' + e.message));
+  };
+
+  // ───── Init existing rows (edit mode only) — NO default empty row ────
+  // For new POs, table starts empty; user must click "+ Add Item" to add the first row.
+  if (EXISTING_ITEMS.length){
+    EXISTING_ITEMS.forEach(it => poAddRow(it));
+  }
+  poRecalcAll();
+  updateAddRowState();
+
+  $('#fSupState').on('change', poRecalcAll);
+})();
+</script>
+{% endblock %}

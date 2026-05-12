@@ -197,6 +197,21 @@
                     <a class="nav-a {% if request.args.get('item_type','').upper() == 'RM' %}active{% endif %}" href="/material?item_type=RM">
                         <span class="nav-ic"><i class="bi bi-card-list"></i></span><span class="nav-txt">Item Master</span>
                     </a>
+                    <a class="nav-a {% if request.path.startswith('/supplier') and request.args.get('type','').upper() == 'RM' %}active{% endif %}" href="/supplier?type=RM">
+                        <span class="nav-ic"><i class="bi bi-people"></i></span><span class="nav-txt">Supplier</span>
+                    </a>
+                    <a class="nav-a {% if request.path.startswith('/purchase-order') and request.args.get('po_type','').upper() == 'RM' %}active{% endif %}" href="/purchase-order?po_type=RM">
+                        <span class="nav-ic"><i class="bi bi-file-earmark-text"></i></span><span class="nav-txt">Purchase Order</span>
+                    </a>
+                    <a class="nav-a {% if request.path.startswith('/grn') and request.args.get('grn_type','').upper() == 'RM' %}active{% endif %}" href="/grn?grn_type=RM">
+                        <span class="nav-ic"><i class="bi bi-box-arrow-in-down"></i></span><span class="nav-txt">GRN (Goods Receipt)</span>
+                    </a>
+                    <a class="nav-a {% if request.path == '/grn/stock' %}active{% endif %}" href="/grn/stock">
+                        <span class="nav-ic"><i class="bi bi-grid-3x3-gap-fill"></i></span><span class="nav-txt">📦 Current Stock</span>
+                    </a>
+                    <a class="nav-a {% if request.path == '/grn/stock-ledger' %}active{% endif %}" href="/grn/stock-ledger">
+                        <span class="nav-ic"><i class="bi bi-clock-history"></i></span><span class="nav-txt">📋 Stock Ledger</span>
+                    </a>
                 </div>
 
                 <!-- Packing Material -->
@@ -209,6 +224,45 @@
                     <a class="nav-a {% if request.args.get('item_type','').upper() == 'PM' %}active{% endif %}" href="/material?item_type=PM">
                         <span class="nav-ic"><i class="bi bi-card-list"></i></span><span class="nav-txt">Item Master</span>
                     </a>
+                    <a class="nav-a {% if request.path.startswith('/supplier') and request.args.get('type','').upper() == 'PM' %}active{% endif %}" href="/supplier?type=PM">
+                        <span class="nav-ic"><i class="bi bi-people"></i></span><span class="nav-txt">Supplier</span>
+                    </a>
+
+                    <!-- Purchase Order — nested dropdown with PM / Corrugation / Sleeves -->
+                    <button class="nav-group-toggle nav-subgroup-toggle" onclick="toggleNavGroup(this)">
+                        <span class="nav-ic"><i class="bi bi-file-earmark-text"></i></span>
+                        <span class="nav-txt">Purchase Order</span>
+                        <span class="nav-group-arrow">▶</span>
+                    </button>
+                    <div class="nav-submenu nav-subsubmenu">
+                        <a class="nav-a {% if request.path.startswith('/purchase-order') and request.args.get('po_type','').upper() == 'PM' %}active{% endif %}" href="/purchase-order?po_type=PM">
+                            <span class="nav-ic">·</span><span class="nav-txt">PM Purchase Order</span>
+                        </a>
+                        <a class="nav-a {% if request.path.startswith('/purchase-order') and request.args.get('po_type','').upper() == 'COR' %}active{% endif %}" href="/purchase-order?po_type=COR">
+                            <span class="nav-ic">·</span><span class="nav-txt">Corrugation Purchase Order</span>
+                        </a>
+                        <a class="nav-a {% if request.path.startswith('/purchase-order') and request.args.get('po_type','').upper() == 'SLV' %}active{% endif %}" href="/purchase-order?po_type=SLV">
+                            <span class="nav-ic">·</span><span class="nav-txt">Sleeves Purchase Order</span>
+                        </a>
+                    </div>
+
+                    <!-- GRN — nested dropdown with PM / Corrugation / Sleeves -->
+                    <button class="nav-group-toggle nav-subgroup-toggle" onclick="toggleNavGroup(this)">
+                        <span class="nav-ic"><i class="bi bi-box-arrow-in-down"></i></span>
+                        <span class="nav-txt">GRN (Goods Receipt)</span>
+                        <span class="nav-group-arrow">▶</span>
+                    </button>
+                    <div class="nav-submenu nav-subsubmenu">
+                        <a class="nav-a {% if request.path.startswith('/grn') and request.args.get('grn_type','').upper() == 'PM' %}active{% endif %}" href="/grn?grn_type=PM">
+                            <span class="nav-ic">·</span><span class="nav-txt">PM GRN</span>
+                        </a>
+                        <a class="nav-a {% if request.path.startswith('/grn') and request.args.get('grn_type','').upper() == 'COR' %}active{% endif %}" href="/grn?grn_type=COR">
+                            <span class="nav-ic">·</span><span class="nav-txt">Corrugation GRN</span>
+                        </a>
+                        <a class="nav-a {% if request.path.startswith('/grn') and request.args.get('grn_type','').upper() == 'SLV' %}active{% endif %}" href="/grn?grn_type=SLV">
+                            <span class="nav-ic">·</span><span class="nav-txt">Sleeves GRN</span>
+                        </a>
+                    </div>
                 </div>
 
                 <!-- Finish Goods -->
@@ -224,10 +278,25 @@
                 </div>
 
                 <!-- Masters & Settings -->
-                <a class="nav-a {% if request.path == '/material/masters' %}active{% endif %}" href="/material/masters">
+                <button class="nav-group-toggle" onclick="toggleNavGroup(this)">
                     <span class="nav-ic"><i class="bi bi-gear"></i></span>
-                    <span class="nav-txt">Masters & Settings</span>
-                </a>
+                    <span class="nav-txt">Masters &amp; Settings</span>
+                    <span class="nav-group-arrow">▶</span>
+                </button>
+                <div class="nav-submenu">
+                    <a class="nav-a {% if request.path == '/material/masters' %}active{% endif %}" href="/material/masters">
+                        <span class="nav-ic"><i class="bi bi-card-list"></i></span><span class="nav-txt">Item Masters</span>
+                    </a>
+                    <a class="nav-a {% if request.path == '/purchase-order/ship-locations' %}active{% endif %}" href="/purchase-order/ship-locations">
+                        <span class="nav-ic"><i class="bi bi-truck"></i></span><span class="nav-txt">Ship Locations</span>
+                    </a>
+                    <a class="nav-a {% if request.path == '/purchase-order/terms-master' %}active{% endif %}" href="/purchase-order/terms-master">
+                        <span class="nav-ic"><i class="bi bi-file-text"></i></span><span class="nav-txt">PO Terms &amp; Delivery</span>
+                    </a>
+                    <a class="nav-a {% if request.path == '/purchase-order/company-settings' %}active{% endif %}" href="/purchase-order/company-settings">
+                        <span class="nav-ic"><i class="bi bi-building"></i></span><span class="nav-txt">Company Settings</span>
+                    </a>
+                </div>
 
             </div>
         </div>
@@ -782,33 +851,75 @@
             <div class="sb-sec-lbl">🛍️ Purchase</div>
 
             <!-- Raw Material -->
-            <button class="nav-group-toggle {% if request.args.get('item_type','').upper() == 'RM' %}open{% endif %}" onclick="toggleNavGroup(this)">
+            <button class="nav-group-toggle {% if request.args.get('item_type','').upper() == 'RM' or (request.path.startswith('/supplier') and request.args.get('supplier_type','').upper() == 'RM') %}open{% endif %}" onclick="toggleNavGroup(this)">
                 <span class="nav-ic"><i class="bi bi-droplet-half"></i></span>
                 <span class="nav-txt">Raw Material</span>
                 <span class="nav-group-arrow">▶</span>
             </button>
-            <div class="nav-submenu {% if request.args.get('item_type','').upper() == 'RM' %}open{% endif %}">
+            <div class="nav-submenu {% if request.args.get('item_type','').upper() == 'RM' or (request.path.startswith('/supplier') and request.args.get('supplier_type','').upper() == 'RM') or (request.path.startswith('/purchase-order') and request.args.get('po_type','').upper() == 'RM') or (request.path.startswith('/grn') and request.args.get('grn_type','').upper() == 'RM') %}open{% endif %}">
                 <a class="nav-a {% if request.args.get('item_type','').upper() == 'RM' %}active{% endif %}" href="/material?item_type=RM">
                     <span class="nav-ic"><i class="bi bi-card-list"></i></span><span class="nav-txt">Item Master</span>
                 </a>
                 <a class="nav-a {% if request.path.startswith('/supplier') and request.args.get('supplier_type','').upper() == 'RM' %}active{% endif %}" href="/supplier/?supplier_type=RM">
                     <span class="nav-ic"><i class="bi bi-people"></i></span><span class="nav-txt">Supplier</span>
                 </a>
+                <a class="nav-a {% if request.path.startswith('/purchase-order') and request.args.get('po_type','').upper() == 'RM' %}active{% endif %}" href="/purchase-order?po_type=RM">
+                    <span class="nav-ic"><i class="bi bi-file-earmark-text"></i></span><span class="nav-txt">Purchase Order</span>
+                </a>
+                <a class="nav-a {% if request.path.startswith('/grn') and request.args.get('grn_type','').upper() == 'RM' %}active{% endif %}" href="/grn?grn_type=RM">
+                    <span class="nav-ic"><i class="bi bi-box-arrow-in-down"></i></span><span class="nav-txt">GRN (Goods Receipt)</span>
+                </a>
             </div>
 
             <!-- Packing Material -->
-            <button class="nav-group-toggle {% if request.args.get('item_type','').upper() == 'PM' %}open{% endif %}" onclick="toggleNavGroup(this)">
+            <button class="nav-group-toggle {% if request.args.get('item_type','').upper() == 'PM' or (request.path.startswith('/supplier') and request.args.get('supplier_type','').upper() == 'PM') or (request.path.startswith('/grn') and request.args.get('grn_type','').upper() in ('PM','COR','SLV')) %}open{% endif %}" onclick="toggleNavGroup(this)">
                 <span class="nav-ic"><i class="bi bi-archive"></i></span>
                 <span class="nav-txt">Packing Material</span>
                 <span class="nav-group-arrow">▶</span>
             </button>
-            <div class="nav-submenu {% if request.args.get('item_type','').upper() == 'PM' %}open{% endif %}">
+            <div class="nav-submenu {% if request.args.get('item_type','').upper() == 'PM' or (request.path.startswith('/supplier') and request.args.get('supplier_type','').upper() == 'PM') or (request.path.startswith('/purchase-order') and request.args.get('po_type','').upper() in ('PM','COR','SLV')) or (request.path.startswith('/grn') and request.args.get('grn_type','').upper() in ('PM','COR','SLV')) %}open{% endif %}">
                 <a class="nav-a {% if request.args.get('item_type','').upper() == 'PM' %}active{% endif %}" href="/material?item_type=PM">
                     <span class="nav-ic"><i class="bi bi-card-list"></i></span><span class="nav-txt">Item Master</span>
                 </a>
                 <a class="nav-a {% if request.path.startswith('/supplier') and request.args.get('supplier_type','').upper() == 'PM' %}active{% endif %}" href="/supplier/?supplier_type=PM">
                     <span class="nav-ic"><i class="bi bi-people"></i></span><span class="nav-txt">Supplier</span>
                 </a>
+
+                <!-- Purchase Order — nested dropdown -->
+                <button class="nav-group-toggle nav-subgroup-toggle {% if request.path.startswith('/purchase-order') and request.args.get('po_type','').upper() in ('PM','COR','SLV') %}open{% endif %}" onclick="toggleNavGroup(this)">
+                    <span class="nav-ic"><i class="bi bi-file-earmark-text"></i></span>
+                    <span class="nav-txt">Purchase Order</span>
+                    <span class="nav-group-arrow">▶</span>
+                </button>
+                <div class="nav-submenu nav-subsubmenu {% if request.path.startswith('/purchase-order') and request.args.get('po_type','').upper() in ('PM','COR','SLV') %}open{% endif %}">
+                    <a class="nav-a {% if request.path.startswith('/purchase-order') and request.args.get('po_type','').upper() == 'PM' %}active{% endif %}" href="/purchase-order?po_type=PM">
+                        <span class="nav-ic">·</span><span class="nav-txt">PM Purchase Order</span>
+                    </a>
+                    <a class="nav-a {% if request.path.startswith('/purchase-order') and request.args.get('po_type','').upper() == 'COR' %}active{% endif %}" href="/purchase-order?po_type=COR">
+                        <span class="nav-ic">·</span><span class="nav-txt">Corrugation Purchase Order</span>
+                    </a>
+                    <a class="nav-a {% if request.path.startswith('/purchase-order') and request.args.get('po_type','').upper() == 'SLV' %}active{% endif %}" href="/purchase-order?po_type=SLV">
+                        <span class="nav-ic">·</span><span class="nav-txt">Sleeves Purchase Order</span>
+                    </a>
+                </div>
+
+                <!-- GRN — nested dropdown -->
+                <button class="nav-group-toggle nav-subgroup-toggle {% if request.path.startswith('/grn') and request.args.get('grn_type','').upper() in ('PM','COR','SLV') %}open{% endif %}" onclick="toggleNavGroup(this)">
+                    <span class="nav-ic"><i class="bi bi-box-arrow-in-down"></i></span>
+                    <span class="nav-txt">GRN (Goods Receipt)</span>
+                    <span class="nav-group-arrow">▶</span>
+                </button>
+                <div class="nav-submenu nav-subsubmenu {% if request.path.startswith('/grn') and request.args.get('grn_type','').upper() in ('PM','COR','SLV') %}open{% endif %}">
+                    <a class="nav-a {% if request.path.startswith('/grn') and request.args.get('grn_type','').upper() == 'PM' %}active{% endif %}" href="/grn?grn_type=PM">
+                        <span class="nav-ic">·</span><span class="nav-txt">PM GRN</span>
+                    </a>
+                    <a class="nav-a {% if request.path.startswith('/grn') and request.args.get('grn_type','').upper() == 'COR' %}active{% endif %}" href="/grn?grn_type=COR">
+                        <span class="nav-ic">·</span><span class="nav-txt">Corrugation GRN</span>
+                    </a>
+                    <a class="nav-a {% if request.path.startswith('/grn') and request.args.get('grn_type','').upper() == 'SLV' %}active{% endif %}" href="/grn?grn_type=SLV">
+                        <span class="nav-ic">·</span><span class="nav-txt">Sleeves GRN</span>
+                    </a>
+                </div>
             </div>
 
             <!-- Finish Goods -->
@@ -824,10 +935,25 @@
             </div>
 
             <!-- Masters & Settings -->
-            <a class="nav-a {% if request.path == '/material/masters' %}active{% endif %}" href="/material/masters">
+            <button class="nav-group-toggle {% if request.path == '/material/masters' or request.path.startswith('/purchase-order/ship-locations') or request.path.startswith('/purchase-order/terms-master') or request.path.startswith('/purchase-order/company-settings') %}open{% endif %}" onclick="toggleNavGroup(this)">
                 <span class="nav-ic"><i class="bi bi-gear"></i></span>
-                <span class="nav-txt">Masters & Settings</span>
-            </a>
+                <span class="nav-txt">Masters &amp; Settings</span>
+                <span class="nav-group-arrow">▶</span>
+            </button>
+            <div class="nav-submenu {% if request.path == '/material/masters' or request.path.startswith('/purchase-order/ship-locations') or request.path.startswith('/purchase-order/terms-master') or request.path.startswith('/purchase-order/company-settings') %}open{% endif %}">
+                <a class="nav-a {% if request.path == '/material/masters' %}active{% endif %}" href="/material/masters">
+                    <span class="nav-ic"><i class="bi bi-card-list"></i></span><span class="nav-txt">Item Masters</span>
+                </a>
+                <a class="nav-a {% if request.path == '/purchase-order/ship-locations' %}active{% endif %}" href="/purchase-order/ship-locations">
+                    <span class="nav-ic"><i class="bi bi-truck"></i></span><span class="nav-txt">Ship Locations</span>
+                </a>
+                <a class="nav-a {% if request.path == '/purchase-order/terms-master' %}active{% endif %}" href="/purchase-order/terms-master">
+                    <span class="nav-ic"><i class="bi bi-file-text"></i></span><span class="nav-txt">PO Terms &amp; Delivery</span>
+                </a>
+                <a class="nav-a {% if request.path == '/purchase-order/company-settings' %}active{% endif %}" href="/purchase-order/company-settings">
+                    <span class="nav-ic"><i class="bi bi-building"></i></span><span class="nav-txt">Company Settings</span>
+                </a>
+            </div>
         </div>
 
         {% elif _mod == 'admin' %}
@@ -1936,14 +2062,25 @@ document.addEventListener('DOMContentLoaded', function() {
         const body = btn.nextElementSibling;
         if (body) body.classList.remove('open');
     });
-    // Only auto-open nav-submenu if active link inside (for procurement sub-menus)
+    // Auto-open nav-submenu (and parent sub-groups, if nested) when an
+    // active link is inside — supports multi-level nesting up to 3 deep.
     document.querySelectorAll('.nav-submenu').forEach(sub => {
         if (sub.querySelector('.nav-a.active')) {
-            sub.classList.add('open');
-            const toggle = sub.previousElementSibling;
-            if (toggle && toggle.classList.contains('nav-group-toggle')) {
-                toggle.classList.add('open');
+            // Walk up: open every .nav-submenu and its preceding .nav-group-toggle
+            let current = sub;
+            while (current) {
+                if (current.classList && current.classList.contains('nav-submenu')) {
+                    current.classList.add('open');
+                    const toggle = current.previousElementSibling;
+                    if (toggle && toggle.classList.contains('nav-group-toggle')) {
+                        toggle.classList.add('open');
+                    }
+                }
+                current = current.parentElement
+                          ? current.parentElement.closest('.nav-submenu')
+                          : null;
             }
+            // Also open the outer accordion (Purchase, etc.)
             const accBody = sub.closest('.sb-acc-body');
             if (accBody) {
                 accBody.classList.add('open');

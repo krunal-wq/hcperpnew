@@ -389,10 +389,18 @@
         <div class="ai-grid-3">
           <div class="ai-fld">
             <label class="ai-label">Item Name <span class="req">*</span></label>
-            <input class="ai-input" id="fName" name="material_name" type="text"
-                   placeholder="e.g. Sodium Chloride"
-                   value="{{ item.material_name if item else '' }}" autocomplete="off">
-            <span class="ai-err">Item name required</span>
+            <div style="display:flex;align-items:center;gap:6px;">
+              <span id="nameTypePfx" style="display:none;font-size:12px;font-weight:800;padding:6px 10px;border-radius:6px;white-space:nowrap;flex-shrink:0;"></span>
+              <div style="flex:1;position:relative;">
+                <input class="ai-input" id="fName" name="material_name" type="text"
+                       placeholder="e.g. Sodium Chloride"
+                       value="{{ item.material_name if item else '' }}" autocomplete="off" style="width:100%;"
+                       oninput="debouncedNameCheck(this.value)">
+                <span id="nameCheckIcon" style="display:none;position:absolute;right:10px;top:50%;transform:translateY(-50%);font-size:14px;"></span>
+              </div>
+            </div>
+            <span class="ai-err" id="nameErr" style="display:none;">Item name required</span>
+            <span id="nameDupErr" style="display:none;font-size:11.5px;color:#ef4444;margin-top:3px;">⚠️ Ye naam pehle se exist karta hai</span>
           </div>
           <div class="ai-fld">
             <label class="ai-label">Code <span class="req">*</span>
@@ -420,6 +428,17 @@
               {% endif %}
             </div>
             <span class="ai-err">Code required</span>
+          </div>
+          <!-- Material Type (HM/CM) — PM only -->
+          {% set _pmclienttype = item.pm_client_type if item else '' %}
+          <div class="ai-fld ai-field-pm" id="rowMaterialType" {% if not ((auto_type and auto_type.abbreviation|upper == 'PM') or (item and item.material_type and item.material_type.abbreviation|upper == 'PM')) %}data-hide{% endif %}>
+            <label class="ai-label">Material Type <span class="req">*</span></label>
+            <select class="ai-select" id="fPmClientType" name="pm_client_type" style="width:100%;">
+              <option value="">-- Select Type --</option>
+              <option value="HM" {% if item and item.pm_client_type == 'HM' %}selected{% endif %}>HM — HCP Material</option>
+              <option value="CM" {% if item and item.pm_client_type == 'CM' %}selected{% endif %}>CM — Client Material</option>
+            </select>
+            <span class="ai-err" id="pmClientTypeErr" style="display:none;">Material Type required</span>
           </div>
           <!-- Per Box Qty — FG only, hidden by default -->
           <div class="ai-fld ai-field-fg" id="rowPerBox" data-hide>
@@ -459,9 +478,9 @@
               <label class="ai-label">PM Type <span class="req">*</span></label>
               <select class="ai-select" id="fPmType" name="pm_material_type" style="width:100%;">
                 <option value="">-- Select Type --</option>
-                <option value="PM" {% if item and item.pm_material_type == 'PM' %}selected{% endif %}>PM — Packing Material</option>
+                <option value="PM"          {% if item and item.pm_material_type == 'PM' %}selected{% endif %}>PM — Packing Material</option>
                 <option value="Corrugation" {% if item and item.pm_material_type == 'Corrugation' %}selected{% endif %}>Corrugation</option>
-                <option value="Sleeves" {% if item and item.pm_material_type == 'Sleeves' %}selected{% endif %}>Sleeves</option>
+                <option value="Sleeves"     {% if item and item.pm_material_type == 'Sleeves' %}selected{% endif %}>Sleeves</option>
               </select>
               <span class="ai-err" id="pmTypeErr">PM Type required</span>
             </div>
@@ -525,15 +544,15 @@
               </div>
               <div class="ai-fld">
                 <label class="ai-label">Length (mm)</label>
-                <input class="ai-input" id="fDimL" type="number" min="0" step="0.1" placeholder="0" value="{{ item.dim_length if item else '' }}">
+                <input class="ai-input" id="fDimL" type="number" min="0" step="0.1" placeholder="0" value="{{ item.dim_length if item and item.dim_length is not none else '' }}">
               </div>
               <div class="ai-fld">
                 <label class="ai-label">Width (mm)</label>
-                <input class="ai-input" id="fDimW" type="number" min="0" step="0.1" placeholder="0" value="{{ item.dim_width if item else '' }}">
+                <input class="ai-input" id="fDimW" type="number" min="0" step="0.1" placeholder="0" value="{{ item.dim_width if item and item.dim_width is not none else '' }}">
               </div>
               <div class="ai-fld">
                 <label class="ai-label">Height (mm)</label>
-                <input class="ai-input" id="fDimH" type="number" min="0" step="0.1" placeholder="0" value="{{ item.dim_height if item else '' }}">
+                <input class="ai-input" id="fDimH" type="number" min="0" step="0.1" placeholder="0" value="{{ item.dim_height if item and item.dim_height is not none else '' }}">
               </div>
             </div>
           </div>
@@ -544,11 +563,11 @@
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
               <div class="ai-fld">
                 <label class="ai-label">Length (mm)</label>
-                <input class="ai-input" id="fSleeveL" type="number" min="0" step="0.1" placeholder="0" value="{{ item.dim_length if item else '' }}">
+                <input class="ai-input" id="fSleeveL" type="number" min="0" step="0.1" placeholder="0" value="{{ item.dim_length if item and item.dim_length is not none else '' }}">
               </div>
               <div class="ai-fld">
                 <label class="ai-label">Width (mm)</label>
-                <input class="ai-input" id="fSleeveW" type="number" min="0" step="0.1" placeholder="0" value="{{ item.dim_width if item else '' }}">
+                <input class="ai-input" id="fSleeveW" type="number" min="0" step="0.1" placeholder="0" value="{{ item.dim_width if item and item.dim_width is not none else '' }}">
               </div>
             </div>
           </div>
@@ -600,14 +619,14 @@
           <!-- Slot 1: SKU Size for PM + FG -->
           {% set _abbr = auto_type.abbreviation|upper if auto_type else (item.material_type.abbreviation|upper if item and item.material_type else '') %}
           {% set _pmtype = item.pm_material_type if item else '' %}
-          {% set _showSku = (_abbr in ['PM','FG']) and (_pmtype not in ['Corrugation','Sleeves']) %}
+          {% set _showSku = (_abbr in ['PM','FG']) and (_pmtype not in ['Corrugation','Sleeves','HM','CM']) %}
           {% if _showSku %}<div class="ai-fld ai-field-pm-fg" id="rowSkuSize">{% else %}<div class="ai-fld ai-field-pm-fg" id="rowSkuSize" data-hide>{% endif %}
             <label class="ai-label">SKU Size <span class="req">*</span></label>
             <div style="display:flex;align-items:center;gap:8px;">
               <input class="ai-input" id="fSkuSizes" name="sku_sizes" type="number"
                      min="0" step="0.01"
                      placeholder="e.g. 500"
-                     value="{{ item.sku_sizes if item else '' }}"
+                     value="{{ item.sku_sizes if item and item.sku_sizes is not none else '' }}"
                      style="flex:1;"
                      oninput="this.value=this.value.replace(/[^0-9.]/g,'')">
               <span style="font-size:13px;color:#94a3b8;font-weight:600;white-space:nowrap;">
@@ -855,12 +874,15 @@ let _aliasList        = [];
 
 // ── Auto Code Generation ──────────────────────────────
 async function autoGenCode() {
-  const abbr = '{{ auto_type_abbr }}' || document.getElementById('fTypeAbbr')?.value;
+  const abbr = '{{ auto_type_abbr }}' || _selectedTypeAbbr || document.getElementById('fTypeAbbr')?.value;
   if (!abbr) { showToast('Item type select karo pehle', 'warning'); return; }
+  // For PM: pass pm_sub so backend picks correct prefix
+  const pmSub = (abbr === 'PM') ? (document.getElementById('fPmType')?.value || '') : '';
   const btn = document.getElementById('btnAutoCode');
   if (btn) { btn.textContent = '⏳'; btn.disabled = true; }
   try {
-    const res  = await fetch('/material/api/next-code?type_abbr=' + abbr);
+    const url = '/material/api/next-code?type_abbr=' + abbr + (pmSub ? '&pm_sub=' + encodeURIComponent(pmSub) : '');
+    const res  = await fetch(url);
     const data = await res.json();
     if (data.status === 'ok') {
       document.getElementById('fCode').value = data.code;
@@ -876,7 +898,9 @@ document.addEventListener('DOMContentLoaded', function () {
   // Auto-generate code for new items
   const AUTO_TYPE_ABBR = '{{ auto_type_abbr }}';
   if (AUTO_TYPE_ABBR && !document.getElementById('fCode').value) {
-    fetch('/material/api/next-code?type_abbr=' + AUTO_TYPE_ABBR)
+    const _initPmSub = AUTO_TYPE_ABBR === 'PM' ? (document.getElementById('fPmType')?.value || '') : '';
+    const _initUrl = '/material/api/next-code?type_abbr=' + AUTO_TYPE_ABBR + (_initPmSub ? '&pm_sub=' + encodeURIComponent(_initPmSub) : '');
+    fetch(_initUrl)
       .then(r => r.json())
       .then(d => { if (d.status === 'ok') document.getElementById('fCode').value = d.code; })
       .catch(() => {});
@@ -912,7 +936,19 @@ document.addEventListener('DOMContentLoaded', function () {
   initSelect2('fTax',      'Select Taxability');
 
   initPmAttrTags();
-  $('#fPmType').on('change select2:select select2:clear', function(){ updatePmTypeFields($(this).val() || ''); });
+  $('#fPmType').on('change select2:select select2:clear', function(){
+    const pmTypeVal = $(this).val() || '';
+    updatePmTypeFields(pmTypeVal);
+    // Auto-regenerate code when PM sub-type changes (new items only)
+    {% if not item %}
+    if(pmTypeVal) autoGenCode();
+    {% endif %}
+  });
+  // Material Type (HM/CM) → name prefix
+  initSelect2('fPmClientType', '-- Select Type --');
+  $('#fPmClientType').on('change select2:select select2:clear', function(){ updateNamePrefix($(this).val() || ''); });
+  // Init prefix on page load (edit mode)
+  updateNamePrefix(document.getElementById('fPmClientType')?.value || '');
 
   // UOM suffix sync
   document.getElementById('fUom').addEventListener('change', syncUomSuffix);
@@ -928,6 +964,42 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
 });
+
+// ── Duplicate Name Check ────────────────────────
+let _nameCheckTimer = null;
+const _ITEM_ID = '{{ item.id if item else "" }}';
+
+async function debouncedNameCheck(val){
+  clearTimeout(_nameCheckTimer);
+  const icon = document.getElementById('nameCheckIcon');
+  const dupErr = document.getElementById('nameDupErr');
+  const inp = document.getElementById('fName');
+  if(!val || val.trim().length < 2){
+    icon.style.display = 'none';
+    dupErr.style.display = 'none';
+    inp.style.borderColor = '';
+    return;
+  }
+  icon.textContent = '⏳'; icon.style.display = 'inline';
+  _nameCheckTimer = setTimeout(async ()=>{
+    try{
+      const res = await fetch('/material/api/check-name',{
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ material_name: val.trim(), exclude_id: parseInt(_ITEM_ID) || null })
+      });
+      const d = await res.json();
+      if(d.exists){
+        icon.textContent = '❌'; icon.style.display = 'inline';
+        dupErr.style.display = 'block';
+        inp.style.borderColor = '#ef4444';
+      } else {
+        icon.textContent = '✅'; icon.style.display = 'inline';
+        dupErr.style.display = 'none';
+        inp.style.borderColor = '#22c55e';
+      }
+    } catch(e){ icon.style.display='none'; }
+  }, 600);
+}
 
 // ── Type Selection ──────────────────────────────
 function selectType(id, abbr, name, color) {
@@ -958,9 +1030,9 @@ function selectType(id, abbr, name, color) {
 
 function applyTypeFields(abbr, color, name) {
   abbr = (abbr || '').toUpperCase().trim();  // normalize
-  const isRM = abbr === 'RM';
-  const isPM = abbr === 'PM';
-  const isFG = abbr === 'FG';
+  const isRM   = abbr === 'RM';
+  const isPM   = abbr === 'PM';
+  const isFG   = abbr === 'FG';
   const isPMFG = isPM || isFG;
   // Update globals so validateForm can access them
   _isRM = isRM; _isPM = isPM; _isFG = isFG; _isPMFG = isPMFG;
@@ -970,16 +1042,22 @@ function applyTypeFields(abbr, color, name) {
   toggleField('rowGroup', isRM);
 
   // PM+FG fields
-  toggleField('rowBrand',         isPMFG);
-  toggleField('rowSkuSize',       isPMFG);
-  toggleField('rowProductImage',  isPMFG);
-  toggleField('rowPmType',        isPM);   // PM only
-  toggleField('rowPmAttr',        isPM);   // PM attribute
-  toggleField('rowRmCatGroup',     isRM);   // RM: Category + Group row
-  toggleField('rowCatPmFg',        isPMFG); // PM/FG: Category in 3-col row
+  toggleField('rowBrand',        isPMFG);
+  toggleField('rowSkuSize',      isPMFG);
+  toggleField('rowProductImage', isPMFG);
+  toggleField('rowPmType',       isPM);    // PM only
+  toggleField('rowPmAttr',       isPM);    // PM attribute
+  toggleField('rowRmCatGroup',   isRM);    // RM: Category + Group row
+  toggleField('rowCatPmFg',      isPMFG);  // PM/FG: Category row
 
   // FG-only fields
   toggleField('rowPerBox', isFG);
+
+  // Show Material Type row only for PM
+  toggleField('rowMaterialType', isPM);
+  // Clear name prefix when type changes
+  const namePfx = document.getElementById('nameTypePfx');
+  if (namePfx) namePfx.style.display = 'none';
 
   // Update card header colour + title
   document.getElementById('hdrDot').style.background = color;
@@ -995,11 +1073,8 @@ function applyTypeFields(abbr, color, name) {
   // Update required attributes dynamically
   setRequired('fBrand',     isPMFG);
   setRequired('fGroup',     isRM);
-  setRequired('fInci',      false);   // never required
+  setRequired('fInci',      false);
   setRequired('fPerBoxQty', isFG);
-
-  // SKU tag validation hint text reset
-  // SKU is single numeric — no tag reset needed
 }
 
 function toggleField(id, show) {
@@ -1105,6 +1180,12 @@ function validateForm() {
 
   // Item Name
   ok = validateReq('fName') && ok;
+  // Block if duplicate name detected
+  if(document.getElementById('nameDupErr')?.style.display !== 'none'){
+    showToast('⚠️ Item name already exists — change karo', 'danger');
+    document.getElementById('fName').focus();
+    ok = false;
+  }
   // Code
   ok = validateReq('fCode') && ok;
   // Aliases
@@ -1116,14 +1197,14 @@ function validateForm() {
     document.getElementById('tagWrap').style.borderColor = '';
     document.getElementById('aliasErr').style.display = 'none';
   }
-  // Category
-  ok = validateReq('fCategory') && ok;
-
   const abbr = _selectedTypeAbbr;
   const isPMFG = _isPMFG;
   const isRM   = _isRM;
   const isPM   = _isPM;
   const isFG   = _isFG;
+
+  // Category — only for PM/FG; RM uses fCategoryRm instead
+  if (isPMFG) ok = validateReq('fCategory') && ok;
 
   if (isPMFG) ok = validateReq('fBrand') && ok;
   if (isRM)   ok = validateReq('fGroup') && ok;
@@ -1140,10 +1221,24 @@ function validateForm() {
       document.getElementById('fPmType').style.borderColor = '';
       document.getElementById('pmTypeErr').style.display = 'none';
     }
+    // Material Type (HM/CM) — required for PM
+    const pmClientVal = document.getElementById('fPmClientType')?.value || '';
+    const pmClientErr = document.getElementById('pmClientTypeErr');
+    const pmClientEl  = document.getElementById('fPmClientType');
+    if (!pmClientVal) {
+      if(pmClientEl)  pmClientEl.style.borderColor = '#ef4444';
+      if(pmClientErr) pmClientErr.style.display = 'block';
+      ok = false;
+    } else {
+      if(pmClientEl)  pmClientEl.style.borderColor = '';
+      if(pmClientErr) pmClientErr.style.display = 'none';
+    }
   }
 
-  // SKU Size validation (PM + FG) — single numeric
-  if (isPMFG) {
+  // SKU Size validation — PM (only for regular PM, NOT Corrugation/Sleeves) + FG
+  const _pmTypeForSku = document.getElementById('fPmType')?.value || '';
+  const _needsSku = isFG || (isPM && _pmTypeForSku !== 'Corrugation' && _pmTypeForSku !== 'Sleeves');
+  if (_needsSku) {
     const skuVal = document.getElementById('fSkuSizes').value.trim();
     if (!skuVal || isNaN(parseFloat(skuVal)) || parseFloat(skuVal) <= 0) {
       document.getElementById('fSkuSizes').style.borderColor = '#ef4444';
@@ -1153,6 +1248,10 @@ function validateForm() {
       document.getElementById('fSkuSizes').style.borderColor = '';
       document.getElementById('skuErr').style.display = 'none';
     }
+  } else {
+    // Corrugation / Sleeves — clear any stale SKU error
+    document.getElementById('fSkuSizes').style.borderColor = '';
+    document.getElementById('skuErr').style.display = 'none';
   }
 
   // Per Box Qty (FG only)
@@ -1234,7 +1333,7 @@ async function submitForm(e) {
   lbl.textContent = 'Saving…';
 
   const payload = {
-    id:                  document.getElementById('fItemId').value || null,
+    id:                  parseInt(document.getElementById('fItemId').value) || null,
     material_name:       document.getElementById('fName').value.trim(),
     code:                document.getElementById('fCode').value.trim(),
     inci_name:           document.getElementById('fInci').value.trim(),
@@ -1256,6 +1355,7 @@ async function submitForm(e) {
     material_type_id:    _selectedTypeId,
     image_path:          document.getElementById('fImagePath')?.value || _imgResultDataUrl || null,
     pm_material_type:    document.getElementById('fPmType') ? document.getElementById('fPmType').value : '',
+    pm_client_type:      document.getElementById('fPmClientType')?.value || '',
     pm_attribute:        document.getElementById('fPmAttr')?.value || '',
     corrugation_ply:     document.getElementById('fCorrPly')?.value || '',
     dim_length:          parseFloat(document.getElementById('fDimL')?.value || document.getElementById('fSleeveL')?.value || 0) || null,
@@ -1368,12 +1468,16 @@ function closeCropModal(){
 }
 
 function showImgPreview(dataUrl){
-  document.getElementById('imgUploadZone').style.display='none';
-  document.getElementById('imgPreviewArea').style.display='block';
-  document.getElementById('imgResultPreview').src=dataUrl;
-  document.getElementById('imgSavedBadge').style.display='none';
+  const uploadZone = document.getElementById('imgUploadZone');
+  const previewArea = document.getElementById('imgPreviewArea');
+  const resultPreview = document.getElementById('imgResultPreview');
+  const savedBadge = document.getElementById('imgSavedBadge');
+  if(uploadZone)   uploadZone.style.display='none';
+  if(previewArea)  previewArea.style.display='block';
+  if(resultPreview) resultPreview.src=dataUrl;
+  if(savedBadge)   savedBadge.style.display='none';
   const btn=document.getElementById('btnImgSave');
-  btn.textContent='✅ Use This Image'; btn.disabled=false; btn.style.background='';
+  if(btn){ btn.textContent='✅ Use This Image'; btn.disabled=false; btn.style.background=''; }
 }
 
 function imgReCrop(){
@@ -1413,17 +1517,18 @@ async function imgAutoSave(){
 async function imgSaveToServer(){
   if(!_imgResultDataUrl){ showToast('Pehle crop karo','danger'); return; }
   const btn=document.getElementById('btnImgSave');
-  btn.textContent='⏳ Saving…'; btn.disabled=true;
+  if(btn){ btn.textContent='⏳ Saving…'; btn.disabled=true; }
   try{
     const res=await fetch('/material/api/upload-image',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({image_base64:_imgResultDataUrl})});
     const d=await res.json();
     if(d.status==='ok'){
       document.getElementById('fImagePath').value=d.url;
-      document.getElementById('imgSavedBadge').style.display='block';
-      btn.textContent='✅ Saved'; btn.style.background='#16a34a';
+      const badge=document.getElementById('imgSavedBadge');
+      if(badge){ badge.style.display='block'; }
+      if(btn){ btn.textContent='✅ Saved'; btn.style.background='#16a34a'; }
       showToast('Image saved ✓','success');
-    } else { showToast(d.message||'Save failed','danger'); btn.textContent='✅ Use This Image'; btn.disabled=false; }
-  } catch(e){ showToast('Network error','danger'); btn.textContent='✅ Use This Image'; btn.disabled=false; }
+    } else { showToast(d.message||'Save failed','danger'); if(btn){ btn.textContent='✅ Use This Image'; btn.disabled=false; } }
+  } catch(e){ showToast('Network error','danger'); if(btn){ btn.textContent='✅ Use This Image'; btn.disabled=false; } }
 }
 
 function imgReset(){
@@ -1443,24 +1548,42 @@ function imgClearExisting(){
 
 // ── PM Type Conditional Fields ──────────────────────────────
 function updatePmTypeFields(type){
-  const showCorr   = type === 'Corrugation';
-  const showSleeve = type === 'Sleeves';
-  const showSkuAttr = (type !== 'Corrugation' && type !== 'Sleeves');  // Only for regular PM
+  const showCorr    = type === 'Corrugation';
+  const showSleeve  = type === 'Sleeves';
+  const showSkuAttr = !showCorr && !showSleeve;
 
   document.getElementById('rowCorrugation').style.display = showCorr   ? 'block' : 'none';
   document.getElementById('rowSleeves').style.display     = showSleeve ? 'block' : 'none';
 
-  // SKU Size: hide for Corrugation & Sleeves
+  // Material Type row: always visible for all PM sub-types (PM, Corrugation, Sleeves)
+  // rowMaterialType visibility is controlled by applyTypeFields (isPM toggle)
+
+  // SKU Size: hide for Corrugation & Sleeves only
   const skuEl = document.getElementById('rowSkuSize');
   if(skuEl){
     if(showSkuAttr){ skuEl.removeAttribute('data-hide'); skuEl.style.display=''; }
     else           { skuEl.setAttribute('data-hide',''); skuEl.style.display='none'; }
   }
-  // Attribute: hide for Corrugation & Sleeves
+  // Attribute: hide for Corrugation & Sleeves only
   const attrEl = document.getElementById('rowPmAttr');
   if(attrEl){
     if(showSkuAttr){ attrEl.removeAttribute('data-hide'); attrEl.style.display=''; }
     else           { attrEl.setAttribute('data-hide',''); attrEl.style.display='none'; }
+  }
+}
+
+// ── Name prefix badge: driven by Material Type (HM/CM) ──────────
+function updateNamePrefix(val){
+  const namePfx = document.getElementById('nameTypePfx');
+  if (!namePfx) return;
+  if (val === 'HM') {
+    namePfx.textContent = 'HM —';
+    namePfx.style.cssText = 'display:inline-flex;align-items:center;font-size:12px;font-weight:800;padding:6px 10px;border-radius:6px;white-space:nowrap;flex-shrink:0;background:#0891b218;color:#0891b2;border:1.5px solid #0891b244;';
+  } else if (val === 'CM') {
+    namePfx.textContent = 'CM —';
+    namePfx.style.cssText = 'display:inline-flex;align-items:center;font-size:12px;font-weight:800;padding:6px 10px;border-radius:6px;white-space:nowrap;flex-shrink:0;background:#7c3aed18;color:#7c3aed;border:1.5px solid #7c3aed44;';
+  } else {
+    namePfx.style.display = 'none';
   }
 }
 

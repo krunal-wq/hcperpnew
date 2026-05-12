@@ -2,6 +2,8 @@ from flask import Blueprint, render_template, request, jsonify, abort
 from flask_login import login_required, current_user
 from models import db
 from models.supplier import Supplier
+from models.employee import StateMaster, CountryMaster
+from sqlalchemy import or_
 from datetime import datetime
 
 supplier_bp = Blueprint('supplier', __name__, url_prefix='/supplier')
@@ -239,6 +241,7 @@ def api_duplicate():
 
 
 
+@supplier_bp.route('/api/delete', methods=['POST'])
 @login_required
 def api_delete():
     if not _can('delete'): return jsonify({'status':'error','message':'Access denied'}), 403
@@ -359,3 +362,56 @@ def import_template():
         mimetype='text/csv',
         headers={'Content-Disposition': f'attachment; filename={sup_type}_supplier_template.csv'}
     )
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+#  GEO masters (countries + states) — used by supplier form address dropdowns
+# ═════════════════════════════════════════════════════════════════════════════
+@supplier_bp.route('/api/countries')
+@login_required
+def api_countries():
+    """List active countries. Optional ?q= search term."""
+    q = (request.args.get('q', '') or '').strip()
+    qs = CountryMaster.query.filter(CountryMaster.is_active == True)
+    if q:
+        like = f'%{q}%'
+        qs = qs.filter(or_(
+            CountryMaster.name.ilike(like),
+            CountryMaster.iso2.ilike(like),
+            CountryMaster.iso3.ilike(like),
+        ))
+    rows = qs.order_by(CountryMaster.sort_order, CountryMaster.name).limit(300).all()
+    return jsonify(results=[{
+        'id'        : r.id,
+        'name'      : r.name,
+        'iso2'      : r.iso2 or '',
+        'iso3'      : r.iso3 or '',
+        'phone_code': r.phone_code or '',
+    } for r in rows])
+
+
+@supplier_bp.route('/api/states')
+@login_required
+def api_states():
+    """List active states. Optional ?country_id=<id>&q=<search>.
+    Returned objects always include country_id so the client can cache + filter."""
+    q   = (request.args.get('q', '') or '').strip()
+    cid = (request.args.get('country_id', '') or '').strip()
+    qs = StateMaster.query.filter(StateMaster.is_active == True)
+    if cid.isdigit():
+        qs = qs.filter(StateMaster.country_id == int(cid))
+    if q:
+        like = f'%{q}%'
+        qs = qs.filter(or_(
+            StateMaster.name.ilike(like),
+            StateMaster.short_name.ilike(like),
+            StateMaster.state_code.ilike(like),
+        ))
+    rows = qs.order_by(StateMaster.sort_order, StateMaster.name).limit(1000).all()
+    return jsonify(results=[{
+        'id'        : r.id,
+        'name'      : r.name,
+        'short_name': r.short_name or '',
+        'code'      : r.state_code or '',
+        'country_id': r.country_id,
+    } for r in rows])

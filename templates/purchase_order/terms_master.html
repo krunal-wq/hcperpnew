@@ -1,0 +1,246 @@
+{% extends 'base.html' %}
+{% block title %}PO Terms Master — HCP ERP{% endblock %}
+{% block page_title %}Default Terms &amp; Delivery Master{% endblock %}
+{% block bread %}Procurement / Purchase Order / Terms &amp; Delivery Master{% endblock %}
+
+{% block extra_css %}
+<style>
+.tm-info { background:#eff6ff; border:1.5px solid #bfdbfe; color:#1e3a8a; padding:12px 16px;
+    border-radius:10px; margin-bottom:16px; font-size:12.5px; }
+.tm-info b { color:#1e40af; }
+
+.tm-wrap { background:#fff; border:1.5px solid #e2e8f0; border-radius:12px; overflow:hidden; }
+.tm-bar { padding:14px 18px; background:#f8fafc; border-bottom:1px solid #e2e8f0;
+    display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+.tm-bar h3 { font-size:13px; font-weight:800; color:#1e293b; margin:0; }
+.tm-bar .total { font-size:11px; color:#94a3b8; }
+.tm-bar .actions { margin-left:auto; display:flex; gap:8px; }
+
+.tm-btn { padding:7px 13px; border-radius:7px; font-size:12px; font-weight:700;
+    cursor:pointer; font-family:inherit; border:1.5px solid; transition:all .15s; }
+.tm-btn.primary { background:#2563eb; color:#fff; border-color:#2563eb; }
+.tm-btn.primary:hover { background:#1d4ed8; }
+.tm-btn.outline { background:#fff; color:#475569; border-color:#e2e8f0; }
+.tm-btn.outline:hover { border-color:#94a3b8; color:#1e293b; }
+
+/* New simplified 3-col layout: PO Type | Editor | Active+Delete */
+.tm-row { display:grid; grid-template-columns:110px 1fr 110px; gap:12px;
+    padding:14px 16px; border-bottom:1px solid #f1f5f9; align-items:flex-start; }
+.tm-row.head { background:#f8fafc; font-size:10.5px; font-weight:800; color:#1e3a5f;
+    text-transform:uppercase; letter-spacing:.04em; padding:10px 16px; border-bottom:2px solid #e2e8f0;
+    align-items:center; }
+.tm-row .tm-po-type {
+    width:100%; padding:8px 10px; border:1.5px solid #e2e8f0; border-radius:6px;
+    font-size:12.5px; font-family:inherit; box-sizing:border-box; background:#fff; font-weight:600;
+}
+
+/* Rich-text editor for term text */
+.tm-editor-wrap { border:1.5px solid #e2e8f0; border-radius:8px; background:#fff;
+    display:flex; flex-direction:column; overflow:hidden; min-height:120px; }
+.tm-editor-toolbar { display:flex; gap:1px; padding:5px 8px; background:#f8fafc;
+    border-bottom:1px solid #e2e8f0; flex-wrap:wrap; align-items:center; }
+.tm-editor-toolbar button { width:28px; height:28px; border:0; background:transparent;
+    border-radius:4px; color:#475569; cursor:pointer; display:inline-flex; align-items:center;
+    justify-content:center; font-size:13px; }
+.tm-editor-toolbar button:hover { background:#e2e8f0; }
+.tm-editor-toolbar select { height:28px; border:0; background:transparent; font-size:12.5px;
+    color:#475569; cursor:pointer; padding:0 6px; }
+.tm-editor-toolbar .sep { width:1px; background:#e2e8f0; margin:3px 4px; align-self:stretch; }
+.tm-editor-body { flex:1; min-height:90px; padding:10px 12px; outline:none; font-size:13px;
+    line-height:1.5; color:#0f172a; }
+.tm-editor-body:empty::before { content:"Enter term text..."; color:#94a3b8; pointer-events:none; }
+
+.tm-actions-cell { display:flex; align-items:center; gap:8px; padding-top:8px; }
+.tm-toggle { width:38px; height:20px; border-radius:10px; background:#cbd5e1; position:relative;
+    cursor:pointer; transition:background .15s; flex-shrink:0; }
+.tm-toggle.on { background:#16a34a; }
+.tm-toggle::after { content:''; position:absolute; left:2px; top:2px; width:16px; height:16px;
+    border-radius:50%; background:#fff; transition:left .15s; }
+.tm-toggle.on::after { left:20px; }
+
+.tm-del { background:#fef2f2; color:#dc2626; border:1px solid #fecaca; border-radius:6px;
+    width:30px; height:30px; cursor:pointer; }
+.tm-del:hover { background:#fee2e2; }
+
+.tm-empty { padding:50px 20px; text-align:center; color:#94a3b8; }
+
+@media (max-width:900px) {
+    .tm-row { grid-template-columns:1fr; }
+    .tm-row.head { display:none; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div style="max-width:1200px;margin:0 auto;padding:0 16px 60px;">
+
+  <div class="tm-info">
+    💡 <b>Tip:</b> Aa default terms badha new PO ma auto-load thase.
+    PO Type <b>ALL</b> rakho jo term every PO type ne lagu padto hoy.
+    Specific type select karo jo sirf RM/PM/Corrugation/Sleeves PO ne lagu padto hoy.
+    Editor ma bold, italic, list, link badhu kari shako.
+  </div>
+
+  <div class="tm-wrap">
+    <div class="tm-bar">
+      <h3>📜 Default Terms &amp; Delivery Master</h3>
+      <span class="total" id="tmTotal">— rows</span>
+      <div class="actions">
+        <button class="tm-btn outline" onclick="tmAdd()">+ Add Term</button>
+        <button class="tm-btn primary" onclick="tmSaveAll()">💾 Save All</button>
+      </div>
+    </div>
+
+    <div class="tm-row head">
+      <div>PO Type</div>
+      <div>Term Text</div>
+      <div style="text-align:center;">Active</div>
+    </div>
+
+    <div id="tmBody">
+      {% for t in terms %}
+      <div class="tm-row" data-id="{{ t.id }}">
+        <select class="tm-po-type">
+          {% for k in ['ALL','RM','PM','COR','SLV'] %}
+            <option value="{{ k }}" {% if t.po_type == k %}selected{% endif %}>{{ k }}</option>
+          {% endfor %}
+        </select>
+        <div class="tm-editor-wrap">
+          <div class="tm-editor-toolbar">
+            <button type="button" onclick="document.execCommand('undo')" title="Undo">↶</button>
+            <button type="button" onclick="document.execCommand('redo')" title="Redo">↷</button>
+            <span class="sep"></span>
+            <select onchange="document.execCommand('formatBlock', false, this.value); this.selectedIndex=0;">
+              <option value="">Paragraph</option>
+              <option value="h3">Heading</option>
+              <option value="p">Paragraph</option>
+            </select>
+            <span class="sep"></span>
+            <button type="button" onclick="document.execCommand('bold')" title="Bold"><b>B</b></button>
+            <button type="button" onclick="document.execCommand('italic')" title="Italic"><i>I</i></button>
+            <button type="button" onclick="document.execCommand('underline')" title="Underline"><u>U</u></button>
+            <span class="sep"></span>
+            <button type="button" onclick="document.execCommand('insertUnorderedList')" title="Bullet list">•</button>
+            <button type="button" onclick="document.execCommand('insertOrderedList')" title="Numbered list">1.</button>
+            <span class="sep"></span>
+            <button type="button" onclick="tmInsertLink(this)" title="Insert link">🔗</button>
+          </div>
+          <div class="tm-editor-body" contenteditable="true">{{ t.text or '' }}</div>
+        </div>
+        <div class="tm-actions-cell">
+          <div class="tm-toggle {% if t.is_active %}on{% endif %}" onclick="this.classList.toggle('on')"></div>
+          <button class="tm-del" onclick="tmRemoveRow(this)" title="Delete">✕</button>
+        </div>
+      </div>
+      {% endfor %}
+      {% if not terms %}
+        <div class="tm-empty" id="tmEmpty">
+          <div style="font-size:42px;margin-bottom:10px;opacity:.5;">📜</div>
+          No terms defined yet. Click <b>+ Add Term</b> above to begin.
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  const PO_TYPES = ['ALL','RM','PM','COR','SLV'];
+
+  function updateTotal(){
+    const n = document.querySelectorAll('#tmBody .tm-row').length;
+    document.getElementById('tmTotal').textContent = n + ' rows';
+  }
+  updateTotal();
+
+  window.tmAdd = function(){
+    const empty = document.getElementById('tmEmpty');
+    if (empty) empty.remove();
+    const html = `
+      <div class="tm-row">
+        <select class="tm-po-type">${PO_TYPES.map(k => `<option value="${k}">${k}</option>`).join('')}</select>
+        <div class="tm-editor-wrap">
+          <div class="tm-editor-toolbar">
+            <button type="button" onclick="document.execCommand('undo')" title="Undo">↶</button>
+            <button type="button" onclick="document.execCommand('redo')" title="Redo">↷</button>
+            <span class="sep"></span>
+            <select onchange="document.execCommand('formatBlock', false, this.value); this.selectedIndex=0;">
+              <option value="">Paragraph</option>
+              <option value="h3">Heading</option>
+              <option value="p">Paragraph</option>
+            </select>
+            <span class="sep"></span>
+            <button type="button" onclick="document.execCommand('bold')" title="Bold"><b>B</b></button>
+            <button type="button" onclick="document.execCommand('italic')" title="Italic"><i>I</i></button>
+            <button type="button" onclick="document.execCommand('underline')" title="Underline"><u>U</u></button>
+            <span class="sep"></span>
+            <button type="button" onclick="document.execCommand('insertUnorderedList')" title="Bullet list">•</button>
+            <button type="button" onclick="document.execCommand('insertOrderedList')" title="Numbered list">1.</button>
+            <span class="sep"></span>
+            <button type="button" onclick="tmInsertLink(this)" title="Insert link">🔗</button>
+          </div>
+          <div class="tm-editor-body" contenteditable="true"></div>
+        </div>
+        <div class="tm-actions-cell">
+          <div class="tm-toggle on" onclick="this.classList.toggle('on')"></div>
+          <button class="tm-del" onclick="tmRemoveRow(this)" title="Delete">✕</button>
+        </div>
+      </div>`;
+    document.getElementById('tmBody').insertAdjacentHTML('beforeend', html);
+    updateTotal();
+  };
+
+  window.tmInsertLink = function(){
+    const url = prompt('Enter URL:');
+    if (url) document.execCommand('createLink', false, url);
+  };
+
+  window.tmRemoveRow = function(btn){
+    if (!confirm('Remove this term?')) return;
+    btn.closest('.tm-row').remove();
+    updateTotal();
+  };
+
+  // Strip HTML tags but preserve line breaks
+  function stripHtml(html){
+    if (!html) return '';
+    const tmp = document.createElement('div');
+    tmp.innerHTML = html.replace(/<\/(p|div|li)>/gi, '$&\n').replace(/<br\s*\/?>/gi, '\n');
+    return (tmp.textContent || tmp.innerText || '').replace(/\n{3,}/g, '\n\n').trim();
+  }
+
+  window.tmSaveAll = function(){
+    const rows = [];
+    document.querySelectorAll('#tmBody .tm-row').forEach((r, idx) => {
+      const html = r.querySelector('.tm-editor-body').innerHTML.trim();
+      const text = stripHtml(html);
+      if (!text) return;
+      rows.push({
+        po_type:    r.querySelector('.tm-po-type').value,
+        section:    'GENERAL',     // default — column kept in DB for compat
+        sort_order: idx,           // auto from row position
+        text:       text,
+        is_active:  r.querySelector('.tm-toggle').classList.contains('on'),
+      });
+    });
+
+    fetch("{{ url_for('purchase_order.api_save_default_terms') }}", {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ rows }),
+      credentials:'same-origin'
+    })
+    .then(r => r.json())
+    .then(d => {
+      if (d.success) {
+        alert('✓ Terms saved successfully.');
+        location.reload();
+      } else {
+        alert('Save failed: ' + (d.error || 'unknown'));
+      }
+    })
+    .catch(e => alert('Network error: ' + e));
+  };
+})();
+</script>
+{% endblock %}

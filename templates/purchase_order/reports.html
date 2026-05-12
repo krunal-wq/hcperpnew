@@ -1,0 +1,107 @@
+{% extends 'base.html' %}
+{% block title %}PO Reports — HCP ERP{% endblock %}
+{% block page_title %}Purchase Order Reports{% endblock %}
+{% block bread %}Procurement / Purchase Order / Reports{% endblock %}
+
+{% block extra_css %}
+<style>
+.pr-filter { background:#fff; border:1.5px solid #e2e8f0; border-radius:12px; padding:16px 18px;
+    margin-bottom:18px; display:grid; grid-template-columns:1fr 1fr 1fr; gap:14px; align-items:end; }
+.pr-filter .pf-fld { display:flex; flex-direction:column; gap:5px; }
+.pr-filter .pf-label { font-size:11px; font-weight:700; color:#64748b; text-transform:uppercase;
+    letter-spacing:.05em; }
+.pr-filter input, .pr-filter select {
+    padding:8px 11px; border:1.5px solid #e2e8f0; border-radius:8px;
+    font-size:13px; font-family:inherit; background:#fff; box-sizing:border-box; width:100%;
+}
+@media (max-width:920px){ .pr-filter { grid-template-columns:1fr; } }
+
+.pr-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:16px; }
+.pr-tile { background:#fff; border:1.5px solid #e2e8f0; border-radius:12px; padding:20px 22px;
+    cursor:pointer; transition:all .15s; position:relative; overflow:hidden; }
+.pr-tile:hover { transform:translateY(-2px); border-color:#2563eb; box-shadow:0 8px 18px rgba(15,23,42,.08); }
+.pr-tile .ico { font-size:32px; margin-bottom:10px; }
+.pr-tile h3 { font-size:14px; font-weight:800; color:#1e293b; margin:0 0 6px; }
+.pr-tile p { font-size:12px; color:#64748b; margin:0 0 12px; line-height:1.5; }
+.pr-tile .pr-go { display:inline-flex; align-items:center; gap:5px; font-size:12px;
+    color:#2563eb; font-weight:700; }
+.pr-tile .strip { position:absolute; left:0; top:0; bottom:0; width:4px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div style="max-width:1100px;margin:0 auto;padding:0 16px 60px;">
+
+  <form id="prFilters" class="pr-filter">
+    <div class="pf-fld">
+      <label class="pf-label">From Date</label>
+      <input type="date" name="date_from">
+    </div>
+    <div class="pf-fld">
+      <label class="pf-label">To Date</label>
+      <input type="date" name="date_to">
+    </div>
+    <div class="pf-fld">
+      <label class="pf-label">PO Type</label>
+      <select name="po_type">
+        <option value="">— All Types —</option>
+        {% for k, v in po_types.items() %}<option value="{{ k }}">{{ v }}</option>{% endfor %}
+      </select>
+    </div>
+  </form>
+
+  <div class="pr-grid">
+    <div class="pr-tile" data-kind="supplier">
+      <div class="strip" style="background:#3b82f6;"></div>
+      <div class="ico">🏭</div>
+      <h3>Supplier Wise PO Report</h3>
+      <p>Total PO value grouped by supplier with GSTIN, count and taxable / grand totals.</p>
+      <span class="pr-go">View Report →</span>
+    </div>
+    <div class="pr-tile" data-kind="item">
+      <div class="strip" style="background:#16a34a;"></div>
+      <div class="ico">📦</div>
+      <h3>Item Wise PO Report</h3>
+      <p>Quantity, amount and HSN aggregated per item across all POs in the date range.</p>
+      <span class="pr-go">View Report →</span>
+    </div>
+    <div class="pr-tile" data-kind="pending">
+      <div class="strip" style="background:#f59e0b;"></div>
+      <div class="ico">⏳</div>
+      <h3>Pending PO Report</h3>
+      <p>Open POs — Pending Approval, Approved or Partial Received — with remaining quantity.</p>
+      <span class="pr-go">View Report →</span>
+    </div>
+    <div class="pr-tile" data-kind="category">
+      <div class="strip" style="background:#a855f7;"></div>
+      <div class="ico">📂</div>
+      <h3>Category Wise PO Report</h3>
+      <p>Aggregate spend per material category — useful for cost analysis &amp; budgeting.</p>
+      <span class="pr-go">View Report →</span>
+    </div>
+    <div class="pr-tile" data-kind="date">
+      <div class="strip" style="background:#0ea5e9;"></div>
+      <div class="ico">📅</div>
+      <h3>Date Wise Purchase Report</h3>
+      <p>All POs in the selected date range with taxable, GST and grand total breakdown.</p>
+      <span class="pr-go">View Report →</span>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  const baseUrl = "{{ url_for('purchase_order.report_view', kind='__KIND__') }}";
+  document.querySelectorAll('.pr-tile').forEach(tile => {
+    tile.addEventListener('click', () => {
+      const kind = tile.dataset.kind;
+      const form = document.getElementById('prFilters');
+      const params = new URLSearchParams();
+      new FormData(form).forEach((v, k) => { if (v) params.append(k, v); });
+      const url = baseUrl.replace('__KIND__', kind) + (params.toString() ? '?' + params.toString() : '');
+      location.href = url;
+    });
+  });
+})();
+</script>
+{% endblock %}

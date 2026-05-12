@@ -1,0 +1,657 @@
+{% extends 'base.html' %}
+{% block title %}{{ po.po_number }} — Purchase Order — HCP ERP{% endblock %}
+{% block page_title %}Purchase Order: {{ po.po_number_short or po.po_number }}{% endblock %}
+{% block bread %}Procurement / Purchase Order / {{ po_types.get(po.po_type, po.po_type) }} / {{ po.po_number_short or po.po_number }}{% endblock %}
+
+{% block extra_css %}
+<style>
+.pv-actions { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:18px; align-items:center; }
+.pv-act { padding:8px 14px; border-radius:8px; font-size:12.5px; font-weight:700; cursor:pointer;
+    font-family:inherit; border:1.5px solid; transition:all .15s; text-decoration:none;
+    display:inline-flex; align-items:center; gap:6px; }
+.pv-act.outline  { background:#fff; color:#475569; border-color:#e2e8f0; }
+.pv-act.outline:hover { border-color:#94a3b8; color:#1e293b; }
+.pv-act.primary  { background:#2563eb; color:#fff; border-color:#2563eb; }
+.pv-act.primary:hover { background:#1d4ed8; }
+.pv-act.success  { background:#16a34a; color:#fff; border-color:#16a34a; }
+.pv-act.success:hover { background:#15803d; }
+.pv-act.danger   { background:#dc2626; color:#fff; border-color:#dc2626; }
+.pv-act.danger:hover { background:#b91c1c; }
+.pv-act.warning  { background:#f59e0b; color:#fff; border-color:#f59e0b; }
+.pv-act.warning:hover { background:#d97706; }
+
+.pv-status-pill { display:inline-flex; align-items:center; gap:4px; padding:4px 12px;
+    border-radius:14px; font-size:11.5px; font-weight:800; text-transform:uppercase;
+    letter-spacing:.04em; }
+.pv-type-pill { display:inline-block; padding:3px 10px; border-radius:11px;
+    font-size:11px; font-weight:800; text-transform:uppercase; }
+.pv-type-pill.RM  { background:#dbeafe; color:#1d4ed8; }
+.pv-type-pill.PM  { background:#fae8ff; color:#7e22ce; }
+.pv-type-pill.COR { background:#fef3c7; color:#a16207; }
+.pv-type-pill.SLV { background:#dcfce7; color:#15803d; }
+
+/* Tally-style PO container */
+.pv-doc { background:#fff; border:2px solid #1e293b; border-radius:6px; margin-bottom:18px;
+    font-size:12.5px; color:#1e293b; }
+.pv-doc-title { text-align:center; padding:8px 12px; border-bottom:2px solid #1e293b; }
+.pv-doc-title h1 { font-size:18px; font-weight:800; margin:0; letter-spacing:1px; }
+.pv-doc-title .short { font-size:13px; color:#475569; margin-top:2px; font-family:'JetBrains Mono', monospace; }
+
+.pv-doc-grid { display:grid; grid-template-columns:1fr 1fr; }
+.pv-doc-cell { padding:10px 14px; border-bottom:1.5px solid #1e293b; border-right:1.5px solid #1e293b; }
+.pv-doc-cell:nth-child(2n) { border-right:none; }
+.pv-doc-cell .lab { font-size:11px; color:#64748b; margin-bottom:3px; }
+.pv-doc-cell .val { font-weight:700; }
+.pv-doc-cell strong.title { display:block; font-size:13.5px; margin-bottom:4px; }
+.pv-doc-cell .gstin { font-family:'JetBrains Mono', monospace; font-size:11.5px; }
+
+/* Left column: Invoice To + Consignee + Supplier stacked vertically */
+.pv-doc-left  { display:flex; flex-direction:column; border-right:1.5px solid #1e293b; }
+.pv-doc-left > .pv-doc-cell { border-right:none; }
+.pv-doc-left > .pv-doc-cell:last-child { border-bottom:none; }
+
+/* Right column: Voucher grid takes natural space; filler stretches to match left column height */
+.pv-doc-right { display:flex; flex-direction:column; }
+.pv-doc-right > .pv-doc-cell { border-right:none; }
+.pv-doc-right-filler { flex:1 1 auto; border-bottom:none; }
+
+.pv-doc-row-2 { display:grid; grid-template-columns:1fr 1fr 1fr; }
+.pv-doc-row-2 .pv-doc-cell:nth-child(3n) { border-right:none; }
+.pv-doc-row-2 .pv-doc-cell { border-right:1.5px solid #1e293b; border-bottom:1.5px solid #1e293b; }
+
+/* Items table */
+.pv-items { width:100%; border-collapse:collapse; border-top:2px solid #1e293b; }
+.pv-items thead th { background:#f1f5f9; padding:8px 10px; font-size:11px; font-weight:800;
+    color:#1e293b; text-transform:uppercase; letter-spacing:.04em;
+    border-bottom:2px solid #1e293b; border-right:1.5px solid #1e293b; text-align:left; }
+.pv-items thead th:last-child { border-right:none; }
+.pv-items tbody td { padding:7px 10px; font-size:12.5px; vertical-align:top;
+    border-bottom:1px solid #cbd5e1; border-right:1.5px solid #1e293b; }
+.pv-items tbody td:last-child { border-right:none; }
+.pv-items .num { text-align:right; font-variant-numeric:tabular-nums;
+    /* explicit font fallback chain so ₹ (U+20B9) always renders */
+    font-family:'Segoe UI', 'Inter', 'Roboto', 'Noto Sans', 'Arial Unicode MS', Arial, sans-serif; }
+.pv-items .ctr { text-align:center; }
+
+/* Summary rows folded INSIDE the items table (Tally-style) */
+.pv-items tbody tr.pv-sum td {
+    padding:5px 10px; font-size:12px; border-bottom:1px solid #e2e8f0;
+    border-right:1.5px solid #1e293b; color:#1e293b; background:#fff;
+}
+.pv-items tbody tr.pv-sum td:last-child { border-right:none; }
+.pv-items tbody tr.pv-total-row td {
+    padding:9px 10px; font-size:13.5px; font-weight:800;
+    background:#f8fafc; color:#0f172a;
+    border-top:2px solid #1e293b; border-bottom:2px solid #1e293b;
+    border-right:1.5px solid #1e293b;
+}
+.pv-items tbody tr.pv-total-row td:last-child { border-right:none; }
+
+.pv-amt-words { padding:10px 14px; border-top:2px solid #1e293b; display:flex;
+    justify-content:space-between; align-items:flex-start; font-size:12.5px; }
+.pv-amt-words .lab { color:#64748b; font-size:11px; margin-bottom:3px; }
+.pv-amt-words .v { font-weight:800; font-size:13px; }
+
+/* Declaration + Signature in side-by-side box (matches PDF) */
+.pv-decl-sig { display:grid; grid-template-columns:1fr 1fr;
+    border-top:2px solid #1e293b; min-height:110px; }
+.pv-decl-sig .decl, .pv-decl-sig .sig {
+    padding:12px 14px; font-size:11.5px; color:#1e293b;
+}
+.pv-decl-sig .decl { border-right:1.5px solid #1e293b; }
+.pv-decl-sig .lab {
+    font-weight:800; color:#64748b; margin-bottom:6px;
+    text-transform:uppercase; font-size:10.5px;
+}
+.pv-decl-sig .sig .who { font-weight:800; font-size:12.5px; color:#1e293b; }
+
+.pv-terms { background:#fff; border:1.5px solid #e2e8f0; border-radius:10px; margin-bottom:18px;
+    padding:18px 22px; }
+.pv-terms h3 { font-size:13px; font-weight:800; color:#1e293b; margin:14px 0 8px;
+    text-transform:uppercase; letter-spacing:.04em; border-bottom:1px solid #e2e8f0; padding-bottom:6px; }
+.pv-terms h3:first-child { margin-top:0; }
+.pv-terms ol { padding-left:24px; font-size:12.5px; color:#1e293b; line-height:1.6; }
+.pv-terms ol li { margin-bottom:4px; }
+
+/* Timeline */
+.pv-timeline { background:#fff; border:1.5px solid #e2e8f0; border-radius:10px; padding:18px 22px;
+    margin-bottom:18px; }
+.pv-timeline h3 { font-size:13px; font-weight:800; color:#1e293b; margin:0 0 12px;
+    text-transform:uppercase; letter-spacing:.04em; }
+.pv-tl-row { display:flex; gap:14px; padding:8px 0; border-bottom:1px dashed #f1f5f9; }
+.pv-tl-row:last-child { border-bottom:none; }
+.pv-tl-row .dot { width:10px; height:10px; border-radius:50%; flex:0 0 10px; margin-top:6px; }
+.pv-tl-row .dot.SUBMITTED      { background:#3b82f6; }
+.pv-tl-row .dot.APPROVED       { background:#16a34a; }
+.pv-tl-row .dot.REJECTED       { background:#dc2626; }
+.pv-tl-row .dot.CANCELLED      { background:#64748b; }
+.pv-tl-row .dot.RE-SUBMITTED   { background:#f59e0b; }
+.pv-tl-row .body { flex:1; font-size:12.5px; }
+.pv-tl-row .body .head { font-weight:700; color:#1e293b; }
+.pv-tl-row .body .meta { font-size:11.5px; color:#64748b; margin-top:1px; }
+.pv-tl-row .body .com  { font-size:12px; color:#475569; margin-top:4px;
+    background:#f8fafc; padding:6px 10px; border-radius:6px; border-left:3px solid #e2e8f0; }
+
+/* Modal */
+.pv-modal-bg { position:fixed; inset:0; background:rgba(15,23,42,.5); display:none;
+    align-items:center; justify-content:center; z-index:9000; }
+.pv-modal-bg.show { display:flex; }
+.pv-modal { background:#fff; border-radius:12px; width:480px; max-width:90vw; padding:0;
+    box-shadow:0 25px 60px rgba(15,23,42,.4); }
+.pv-modal-hdr { padding:14px 18px; border-bottom:1px solid #f1f5f9; display:flex;
+    justify-content:space-between; align-items:center; }
+.pv-modal-hdr h3 { font-size:14px; margin:0; color:#1e293b; }
+.pv-modal-bd { padding:18px; }
+.pv-modal-bd .pf-fld { margin-bottom:12px; display:flex; flex-direction:column; gap:5px; }
+.pv-modal-bd .pf-label { font-size:11px; font-weight:700; color:#64748b;
+    text-transform:uppercase; letter-spacing:.04em; }
+.pv-modal-bd input, .pv-modal-bd select, .pv-modal-bd textarea {
+    width:100%; padding:8px 11px; border:1.5px solid #e2e8f0; border-radius:8px;
+    font-size:13px; font-family:inherit; box-sizing:border-box;
+}
+.pv-modal-ft { padding:12px 18px; border-top:1px solid #f1f5f9; display:flex;
+    justify-content:flex-end; gap:8px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div style="max-width:1200px;margin:0 auto;padding:0 16px 80px;">
+
+  <!-- ACTION BAR -->
+  <div class="pv-actions">
+    <span class="pv-type-pill {{ po.po_type }}">{{ po_types.get(po.po_type, po.po_type) }}</span>
+    {% set color = po_status_colors.get(po.status, '#64748b') %}
+    <span class="pv-status-pill" style="background:{{ color }}22; color:{{ color }};">{{ po.status }}</span>
+    {% if po.is_locked %}<span style="font-size:11px;color:#16a34a;font-weight:700;">🔒 Locked</span>{% endif %}
+
+    <div style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap;">
+      {% if po.is_editable %}
+      <a href="{{ url_for('purchase_order.edit_po', po_id=po.id) }}" class="pv-act outline">✏️ Edit</a>
+      {% endif %}
+      <a href="{{ url_for('purchase_order.pdf_po', po_id=po.id) }}?inline=1" target="_blank" class="pv-act outline">📄 PDF</a>
+      <a href="{{ url_for('purchase_order.pdf_po', po_id=po.id) }}" class="pv-act outline">⬇️ Download</a>
+      <a href="{{ url_for('purchase_order.print_po', po_id=po.id) }}" target="_blank" class="pv-act outline">🖨️ Print</a>
+      <button class="pv-act outline" onclick="pvOpen('emailModal')">✉️ Email</button>
+      <button class="pv-act outline" onclick="pvOpen('whatsappModal')">💬 WhatsApp</button>
+
+      {% if po.status == 'Draft' %}
+        <button class="pv-act primary" onclick="pvSubmitPO()">📤 Submit for Approval</button>
+      {% endif %}
+
+      {% if can_approve and po.status == 'Pending Approval' %}
+        <button class="pv-act success" onclick="pvOpen('approveModal')">✅ Approve</button>
+        <button class="pv-act danger" onclick="pvOpen('rejectModal')">❌ Reject</button>
+      {% endif %}
+
+      {% if can_cancel and po.status not in ['Completed','Cancelled'] %}
+        <button class="pv-act warning" onclick="pvOpen('cancelModal')">⛔ Cancel</button>
+      {% endif %}
+
+      {% if po.status in ['Rejected','Cancelled'] %}
+        <button class="pv-act outline" onclick="pvReopenPO()">↻ Re-open</button>
+      {% endif %}
+
+      {% if can_delete and po.status in ['Draft','Rejected','Cancelled'] %}
+        <button class="pv-act danger" onclick="pvDeletePO()">🗑 Delete</button>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- TALLY-STYLE DOCUMENT -->
+  <div class="pv-doc">
+    <div class="pv-doc-title">
+      <h1>PURCHASE ORDER</h1>
+      <div class="short">{{ po.po_number_short or po.po_number }}</div>
+    </div>
+
+    <!-- Header: Left col (Invoice To + Consignee + Supplier stacked) + Right col (Voucher grid) -->
+    <div class="pv-doc-grid">
+      <!-- LEFT COLUMN: Invoice To + Consignee + Supplier stacked -->
+      <div class="pv-doc-left">
+        <div class="pv-doc-cell" style="border-right:none;">
+          <div class="lab">Invoice To</div>
+          <strong class="title">{{ po.company_name or (company.company_name if company else '') }}</strong>
+          <div style="white-space:pre-line;">{{ po.company_bill_address or (company.bill_address if company else '') }}</div>
+          <div style="margin-top:6px;">GSTIN/UIN: <span class="gstin">{{ po.company_gst or (company.gst_number if company else '') }}</span></div>
+          <div>State Name : {{ company.state if company else 'Gujarat' }}, Code : <b>{{ company.state_code if company else '24' }}</b></div>
+        </div>
+        <div class="pv-doc-cell" style="border-right:none;">
+          <div class="lab">Consignee (Ship to)</div>
+          <strong class="title">{{ po.company_name or (company.company_name if company else '') }}</strong>
+          <div style="white-space:pre-line;">{{ po.delivery_address or (company.ship_address if company else '') }}</div>
+        </div>
+        <div class="pv-doc-cell" style="border-right:none;">
+          <div class="lab">Supplier (Bill from)</div>
+          <strong class="title">{{ po.supplier_name or '—' }}</strong>
+          <div style="white-space:pre-line;">{{ po.supplier_address or '' }}</div>
+          {% if po.supplier_gst %}<div style="margin-top:6px;">GSTIN/UIN: <span class="gstin">{{ po.supplier_gst }}</span></div>{% endif %}
+          {% if po.supplier_state %}<div>State Name: {{ po.supplier_state }}, Code: <b>{{ po.supplier_state_code or '' }}</b></div>{% endif %}
+          {% if po.supplier_contact or po.supplier_mobile or po.supplier_email %}
+            <div style="margin-top:6px;font-size:11.5px;color:#475569;">
+              {% if po.supplier_contact %}{{ po.supplier_contact }}{% endif %}
+              {% if po.supplier_mobile %} · {{ po.supplier_mobile }}{% endif %}
+              {% if po.supplier_email %} · {{ po.supplier_email }}{% endif %}
+            </div>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- RIGHT COLUMN: Voucher details grid (2-col 4-row with Mode/Terms span) -->
+      <div class="pv-doc-right">
+        <!-- Row 1: Voucher No | Dated -->
+        <div class="pv-doc-row-2" style="grid-template-columns:1fr 1fr;">
+          <div class="pv-doc-cell">
+            <div class="lab">Voucher No:</div>
+            <div class="val gstin" style="font-size:13px;">{{ po.po_number }}</div>
+          </div>
+          <div class="pv-doc-cell">
+            <div class="lab">Dated :</div>
+            <div class="val">{{ po.po_date.strftime('%d-%m-%Y') if po.po_date else '—' }}</div>
+          </div>
+        </div>
+        <!-- Row 2: Mode/Terms of Payment (spans full width) -->
+        <div class="pv-doc-cell" style="border-right:none;">
+          <div class="lab">Mode/Terms of Payment</div>
+          <div class="val">{{ (po.payment_terms or '')|striptags }}</div>
+        </div>
+        <!-- Row 3: Reference No. & Date | Other References -->
+        <div class="pv-doc-row-2" style="grid-template-columns:1fr 1fr;">
+          <div class="pv-doc-cell">
+            <div class="lab">Reference No. &amp; Date</div>
+            <div class="val">{{ po.reference_no or 'N/A' }}{% if po.reference_date %} · {{ po.reference_date.strftime('%d-%m-%Y') }}{% endif %}</div>
+          </div>
+          <div class="pv-doc-cell">
+            <div class="lab">Other References</div>
+            <div class="val">{{ po.other_references or '' }}</div>
+          </div>
+        </div>
+        <!-- Row 4: Dispatched through | Destination -->
+        <div class="pv-doc-row-2" style="grid-template-columns:1fr 1fr;">
+          <div class="pv-doc-cell">
+            <div class="lab">Dispatched through</div>
+            <div class="val">{{ po.dispatched_through or '' }}</div>
+          </div>
+          <div class="pv-doc-cell">
+            <div class="lab">Destination</div>
+            <div class="val">{{ po.destination or '' }}</div>
+          </div>
+        </div>
+        <!-- Filler — right column stretches to match left column height -->
+        <div class="pv-doc-right-filler"></div>
+      </div>
+    </div>
+
+    <!-- Items table -->
+    <table class="pv-items">
+      <thead>
+        <tr>
+          <th style="width:40px;">Sl No</th>
+          <th>Description of Goods</th>
+          <th style="width:70px;" class="ctr">GST Rate</th>
+          <th style="width:110px;">Due On</th>
+          <th style="width:90px;" class="num">Quantity</th>
+          <th style="width:90px;" class="num">Rate</th>
+          <th style="width:50px;" class="ctr">Per</th>
+          <th style="width:60px;" class="ctr">Disc. %</th>
+          <th style="width:110px;" class="num">Amount</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for it in items %}
+        <tr>
+          <td class="ctr">{{ loop.index }}</td>
+          <td>
+            <b>{{ it.item_name }}</b>
+            {% if it.description %}<div style="font-size:11px;color:#64748b;">{{ it.description }}</div>{% endif %}
+            {% if it.hsn_code %}<div style="font-size:11px;color:#94a3b8;font-family:monospace;">HSN: {{ it.hsn_code }}</div>{% endif %}
+          </td>
+          <td class="ctr">{{ '%.2f'|format(it.gst_pct or 0) }}%</td>
+          <td>{{ it.due_date.strftime('%d-%b-%Y') if it.due_date else '—' }}</td>
+          <td class="num">{{ '%.3f'|format(it.quantity or 0) }} {{ it.uom or '' }}</td>
+          <td class="num">₹{{ '%.2f'|format(it.rate or 0) }}</td>
+          <td class="ctr">{{ it.uom or '' }}</td>
+          <td class="ctr">{{ '%.2f'|format(it.discount_pct or 0) }}</td>
+          <td class="num">₹{{ '%.2f'|format(it.amount or 0) }}</td>
+        </tr>
+        {% endfor %}
+
+        {# ── Summary rows folded into the table (Tally-style) ── #}
+        <tr class="pv-sum">
+          <td colspan="8" style="border-right:none;"></td>
+          <td class="num">₹ {{ '%.2f'|format(po.taxable_amount or 0) }}</td>
+        </tr>
+        {% if (po.cgst_total or 0) > 0 %}
+        <tr class="pv-sum">
+          <td colspan="7" style="border-right:none;"></td>
+          <td style="text-align:right;">CGST</td>
+          <td class="num">₹ {{ '%.2f'|format(po.cgst_total) }}</td>
+        </tr>{% endif %}
+        {% if (po.sgst_total or 0) > 0 %}
+        <tr class="pv-sum">
+          <td colspan="7" style="border-right:none;"></td>
+          <td style="text-align:right;">SGST</td>
+          <td class="num">₹ {{ '%.2f'|format(po.sgst_total) }}</td>
+        </tr>{% endif %}
+        {% if (po.igst_total or 0) > 0 %}
+        <tr class="pv-sum">
+          <td colspan="7" style="border-right:none;"></td>
+          <td style="text-align:right;">IGST</td>
+          <td class="num">₹ {{ '%.2f'|format(po.igst_total) }}</td>
+        </tr>{% endif %}
+        <tr class="pv-sum">
+          <td colspan="7" style="border-right:none;"></td>
+          <td style="text-align:right;">Round Off</td>
+          <td class="num">₹ {{ '%.2f'|format(po.round_off or 0) }}</td>
+        </tr>
+        <tr class="pv-total-row">
+          <td colspan="2"><b>Total</b></td>
+          <td colspan="2" style="border-right:none;"></td>
+          <td class="num"><b>{{ '%.3f'|format(po.total_quantity or 0) }} {{ items[0].uom if items else '' }}</b></td>
+          <td colspan="3" style="border-right:none;"></td>
+          <td class="num"><b>₹{{ '%.2f'|format(po.grand_total or 0) }}</b></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- Amount in words -->
+    <div class="pv-amt-words">
+      <div>
+        <div class="lab">Amount Chargeable (in words)</div>
+        <div class="v">{{ po.amount_words or 'INR Zero Only' }}</div>
+      </div>
+      <div style="font-size:11px;color:#94a3b8;">E. &amp; O.E</div>
+    </div>
+
+    <!-- Declaration + Signature side-by-side -->
+    <div class="pv-decl-sig">
+      <div class="decl">
+        <div class="lab">Declaration</div>
+        <div style="white-space:pre-line;">{{ company.declaration_text if company else 'IF DISPATCHING THE MATERIAL THROUGH LOGISTIC GODOWN DELIVERY, PLEASE DISPATCH TO SARKHEJ OR CHANGODAR(1ST PRIORITY) GODOWN ONLY' }}</div>
+      </div>
+      <div class="sig">
+        <div class="who">For {{ po.company_name or (company.company_name if company else '') }}</div>
+        <div style="margin-top:30px;font-size:11px;color:#475569;">Authorised Signatory</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer text OUTSIDE the document box (centered, like the PDF) -->
+  <div style="text-align:center;font-size:12px;color:#1e293b;margin:6px 0 24px;">
+    <div style="font-weight:700;">SUBJECT TO {{ (company.jurisdiction if company else 'AHMEDABAD')|upper }} JURISDICTION</div>
+    <div style="font-style:italic;color:#64748b;font-size:11px;margin-top:2px;">This is a Computer Generated Document</div>
+  </div>
+
+  <!-- TERMS -->
+  {% if terms %}
+  <div class="pv-terms">
+    {% set sections = {} %}
+    {% for t in terms %}{% if sections.update({t.section: sections.get(t.section, []) + [t]}) %}{% endif %}{% endfor %}
+    {% for sec in ['GENERAL','DISPATCH','PAYMENT','OTHER'] %}
+      {% set sec_terms = terms|selectattr('section','equalto',sec)|list %}
+      {% if sec_terms %}
+        <h3>{{ sec }} TERMS</h3>
+        <ol>
+          {% for t in sec_terms %}<li>{{ t.text }}</li>{% endfor %}
+        </ol>
+      {% endif %}
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <!-- TIMELINE: Approval + Status -->
+  {% if approval_logs or status_logs %}
+  <div class="pv-timeline">
+    <h3>📊 Activity Timeline</h3>
+
+    {% set all_events = [] %}
+    {% for a in approval_logs %}
+      {% if all_events.append({'when': a.created_at, 'type':'approval', 'action':a.action, 'level':a.level, 'by':a.actor_username, 'role':a.actor_role, 'comment':a.comment}) %}{% endif %}
+    {% endfor %}
+    {% for s in status_logs %}
+      {% if all_events.append({'when': s.created_at, 'type':'status', 'action': (s.from_status or '—') + ' → ' + (s.to_status or '—'), 'level':'', 'by': s.actor_username, 'role':'', 'comment':s.note}) %}{% endif %}
+    {% endfor %}
+
+    {% for e in all_events|sort(attribute='when') %}
+    <div class="pv-tl-row">
+      <div class="dot {{ e.action.split(' ')[0] if e.type == 'approval' else 'SUBMITTED' }}"></div>
+      <div class="body">
+        <div class="head">
+          {% if e.type == 'approval' %}{{ e.level }} · {{ e.action }}{% else %}Status: {{ e.action }}{% endif %}
+        </div>
+        <div class="meta">
+          by <b>{{ e.by or 'system' }}</b>{% if e.role %} ({{ e.role }}){% endif %}
+          · {{ e.when.strftime('%d-%b-%Y %H:%M') if e.when else '' }}
+        </div>
+        {% if e.comment %}<div class="com">{{ e.comment }}</div>{% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+</div>
+
+<!-- ──────────────────────────  MODALS  ────────────────────────── -->
+<div class="pv-modal-bg" id="approveModal">
+  <div class="pv-modal">
+    <div class="pv-modal-hdr"><h3>✅ Approve Purchase Order</h3><span style="cursor:pointer;color:#94a3b8;" onclick="pvClose('approveModal')">✕</span></div>
+    <div class="pv-modal-bd">
+      <div class="pf-fld">
+        <label class="pf-label">Approving As</label>
+        <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:#f0fdf4;border:1px solid #86efac;border-radius:6px;">
+          <span style="font-size:18px;">{% if role in ('director','admin') %}👔{% else %}🧑‍💼{% endif %}</span>
+          <div>
+            <div style="font-weight:700;color:#15803d;font-size:13px;">
+              {% if role in ('director','admin') %}Director (Final){% else %}Purchase Manager{% endif %}
+            </div>
+            <div style="font-size:11px;color:#64748b;">
+              Single approval is sufficient — this PO will be marked Approved.
+            </div>
+          </div>
+        </div>
+        {# Hidden input — auto-set from role so backend gets correct level for audit log #}
+        <input type="hidden" id="approveLevel"
+               value="{% if role in ('director','admin') %}Director{% else %}Manager{% endif %}">
+      </div>
+      <div class="pf-fld">
+        <label class="pf-label">Comment (optional)</label>
+        <textarea id="approveComment" rows="3" placeholder="Any notes..."></textarea>
+      </div>
+    </div>
+    <div class="pv-modal-ft">
+      <button class="pv-act outline" onclick="pvClose('approveModal')">Cancel</button>
+      <button class="pv-act success" onclick="pvDoApprove()">Approve</button>
+    </div>
+  </div>
+</div>
+
+<div class="pv-modal-bg" id="rejectModal">
+  <div class="pv-modal">
+    <div class="pv-modal-hdr"><h3>❌ Reject Purchase Order</h3><span style="cursor:pointer;color:#94a3b8;" onclick="pvClose('rejectModal')">✕</span></div>
+    <div class="pv-modal-bd">
+      <div class="pf-fld">
+        <label class="pf-label">Reason <span style="color:#ef4444;">*</span></label>
+        <textarea id="rejectReason" rows="4" placeholder="Why is this PO being rejected?"></textarea>
+      </div>
+    </div>
+    <div class="pv-modal-ft">
+      <button class="pv-act outline" onclick="pvClose('rejectModal')">Cancel</button>
+      <button class="pv-act danger" onclick="pvDoReject()">Reject</button>
+    </div>
+  </div>
+</div>
+
+<div class="pv-modal-bg" id="cancelModal">
+  <div class="pv-modal">
+    <div class="pv-modal-hdr"><h3>⛔ Cancel Purchase Order</h3><span style="cursor:pointer;color:#94a3b8;" onclick="pvClose('cancelModal')">✕</span></div>
+    <div class="pv-modal-bd">
+      <div class="pf-fld">
+        <label class="pf-label">Reason <span style="color:#ef4444;">*</span></label>
+        <textarea id="cancelReason" rows="4" placeholder="Why is this PO being cancelled?"></textarea>
+      </div>
+    </div>
+    <div class="pv-modal-ft">
+      <button class="pv-act outline" onclick="pvClose('cancelModal')">Back</button>
+      <button class="pv-act warning" onclick="pvDoCancel()">Cancel PO</button>
+    </div>
+  </div>
+</div>
+
+<div class="pv-modal-bg" id="emailModal">
+  <div class="pv-modal">
+    <div class="pv-modal-hdr"><h3>✉️ Email Purchase Order</h3><span style="cursor:pointer;color:#94a3b8;" onclick="pvClose('emailModal')">✕</span></div>
+    <div class="pv-modal-bd">
+      <div class="pf-fld">
+        <label class="pf-label">To <span style="color:#ef4444;">*</span></label>
+        <input type="email" id="emailTo" value="{{ po.supplier_email or '' }}" placeholder="supplier@example.com">
+      </div>
+      <div class="pf-fld">
+        <label class="pf-label">CC</label>
+        <input type="text" id="emailCc" placeholder="optional cc emails (comma-separated)">
+      </div>
+      <div class="pf-fld">
+        <label class="pf-label">Subject</label>
+        <input id="emailSubject" value="Purchase Order - {{ po.po_number }}">
+      </div>
+      <div class="pf-fld">
+        <label class="pf-label">Message</label>
+        <textarea id="emailBody" rows="5">Dear {{ po.supplier_name or 'Supplier' }},
+
+Please find attached our Purchase Order {{ po.po_number }} dated {{ po.po_date.strftime('%d-%m-%Y') if po.po_date else '' }}.
+
+Kindly acknowledge receipt and confirm dispatch schedule.
+
+Regards,
+{{ po.company_name or (company.company_name if company else '') }}</textarea>
+      </div>
+    </div>
+    <div class="pv-modal-ft">
+      <button class="pv-act outline" onclick="pvClose('emailModal')">Cancel</button>
+      <button class="pv-act primary" onclick="pvDoEmail()">Send Email</button>
+    </div>
+  </div>
+</div>
+
+<div class="pv-modal-bg" id="whatsappModal">
+  <div class="pv-modal">
+    <div class="pv-modal-hdr"><h3>💬 WhatsApp Purchase Order</h3><span style="cursor:pointer;color:#94a3b8;" onclick="pvClose('whatsappModal')">✕</span></div>
+    <div class="pv-modal-bd">
+      <div class="pf-fld">
+        <label class="pf-label">Mobile (with country code, e.g. 919876543210)</label>
+        <input id="waMobile" value="{{ (po.supplier_mobile or '')|replace('+','')|replace(' ','')|replace('-','') }}">
+      </div>
+      <div class="pf-fld">
+        <label class="pf-label">Message</label>
+        <textarea id="waMessage" rows="4">Hello {{ po.supplier_name or 'Supplier' }},
+
+Please find our PO {{ po.po_number }} attached. Kindly acknowledge.
+
+Thanks,
+{{ po.company_name or (company.company_name if company else '') }}</textarea>
+      </div>
+      <div style="font-size:11px;color:#94a3b8;">If WhatsApp Business API isn't configured, a wa.me link will open in a new tab so you can send manually.</div>
+    </div>
+    <div class="pv-modal-ft">
+      <button class="pv-act outline" onclick="pvClose('whatsappModal')">Cancel</button>
+      <button class="pv-act primary" onclick="pvDoWhatsApp()">Send</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  const PO_ID = {{ po.id }};
+  const URLS = {
+    submit:   "{{ url_for('purchase_order.submit_po', po_id=po.id) }}",
+    approve:  "{{ url_for('purchase_order.approve_po', po_id=po.id) }}",
+    reject:   "{{ url_for('purchase_order.reject_po', po_id=po.id) }}",
+    cancel:   "{{ url_for('purchase_order.cancel_po', po_id=po.id) }}",
+    reopen:   "{{ url_for('purchase_order.reopen_po', po_id=po.id) }}",
+    deleteUrl:"{{ url_for('purchase_order.delete_po', po_id=po.id) }}",
+    email:    "{{ url_for('purchase_order.email_po', po_id=po.id) }}",
+    whatsapp: "{{ url_for('purchase_order.whatsapp_po', po_id=po.id) }}",
+    listing:  "{{ url_for('purchase_order.index') }}"
+  };
+
+  window.pvOpen  = function(id){ document.getElementById(id).classList.add('show'); };
+  window.pvClose = function(id){ document.getElementById(id).classList.remove('show'); };
+
+  function postJSON(url, payload){
+    const fd = new FormData();
+    for (const k in payload) fd.append(k, payload[k]);
+    return fetch(url, { method:'POST', body:fd, credentials:'same-origin' })
+      .then(function(r){ return r.json(); });
+  }
+
+  window.pvSubmitPO = function(){
+    if (!confirm('Submit this PO for approval?')) return;
+    postJSON(URLS.submit, {}).then(function(d){
+      if (d.success) location.reload();
+      else alert('Failed: ' + (d.error || 'unknown'));
+    });
+  };
+
+  window.pvDoApprove = function(){
+    const level   = document.getElementById('approveLevel').value;
+    const comment = document.getElementById('approveComment').value;
+    postJSON(URLS.approve, { level, comment }).then(function(d){
+      if (d.success) location.reload();
+      else alert('Failed: ' + (d.error || 'unknown'));
+    });
+  };
+  window.pvDoReject = function(){
+    const reason = document.getElementById('rejectReason').value.trim();
+    if (!reason) { alert('Reason required'); return; }
+    postJSON(URLS.reject, { reason }).then(function(d){
+      if (d.success) location.reload();
+      else alert('Failed: ' + (d.error || 'unknown'));
+    });
+  };
+  window.pvDoCancel = function(){
+    const reason = document.getElementById('cancelReason').value.trim();
+    if (!reason) { alert('Reason required'); return; }
+    postJSON(URLS.cancel, { reason }).then(function(d){
+      if (d.success) location.reload();
+      else alert('Failed: ' + (d.error || 'unknown'));
+    });
+  };
+  window.pvReopenPO = function(){
+    if (!confirm('Re-open this PO for editing?')) return;
+    postJSON(URLS.reopen, {}).then(function(d){
+      if (d.success) location.reload();
+      else alert('Failed: ' + (d.error || 'unknown'));
+    });
+  };
+  window.pvDeletePO = function(){
+    if (!confirm('Delete this PO permanently? This action cannot be undone.')) return;
+    postJSON(URLS.deleteUrl, {}).then(function(d){
+      if (d.success) location.href = URLS.listing;
+      else alert('Failed: ' + (d.error || 'unknown'));
+    });
+  };
+  window.pvDoEmail = function(){
+    const to      = document.getElementById('emailTo').value.trim();
+    const cc      = document.getElementById('emailCc').value.trim();
+    const subject = document.getElementById('emailSubject').value.trim();
+    const body    = document.getElementById('emailBody').value;
+    if (!to) { alert('To address is required'); return; }
+    postJSON(URLS.email, { to, cc, subject, body }).then(function(d){
+      if (d.success) { alert('Email sent successfully.'); pvClose('emailModal'); }
+      else alert('Failed: ' + (d.error || 'unknown'));
+    });
+  };
+  window.pvDoWhatsApp = function(){
+    const mobile  = document.getElementById('waMobile').value.trim();
+    const message = document.getElementById('waMessage').value;
+    if (!mobile) { alert('Mobile is required'); return; }
+    postJSON(URLS.whatsapp, { mobile, message }).then(function(d){
+      if (d.success) {
+        if (d.wa_link) window.open(d.wa_link, '_blank');
+        alert(d.message || 'WhatsApp message dispatched.');
+        pvClose('whatsappModal');
+      } else alert('Failed: ' + (d.error || 'unknown'));
+    });
+  };
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,576 @@
+{% extends 'base.html' %}
+{% block title %}
+{% if po_type_label %}{{ po_type_label }} – Purchase Orders{% else %}Purchase Orders{% endif %} — HCP ERP
+{% endblock %}
+{% block page_title %}
+{% if po_type_label %}{{ po_type_label }} – Purchase Orders{% else %}Purchase Orders{% endif %}
+{% endblock %}
+{% block bread %}Procurement / Purchase Order{% if po_type_label %} / {{ po_type_label }}{% endif %}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css">
+<style>
+/* Listing toolbar / cards */
+.po-toolbar { display:flex; flex-wrap:wrap; gap:8px; padding:12px 16px;
+              border-bottom:1px solid #f1f5f9; align-items:center; }
+.po-search-wrap { position:relative; flex:1; min-width:160px; max-width:300px; }
+.po-search-wrap svg { position:absolute; left:10px; top:50%; transform:translateY(-50%); color:#94a3b8; }
+.po-search-input { width:100%; padding:7px 10px 7px 30px; border:1.5px solid #e2e8f0;
+                   border-radius:8px; font-size:13px; font-family:inherit; }
+.po-search-input:focus { outline:none; border-color:#2563eb; box-shadow:0 0 0 3px rgba(37,99,235,.1); }
+
+.po-fbtn { display:inline-flex; align-items:center; gap:5px; padding:7px 11px;
+           border:1.5px solid #e2e8f0; border-radius:8px; background:#fff;
+           color:#475569; font-size:12.5px; font-weight:600; cursor:pointer;
+           transition:all .15s; font-family:inherit; }
+.po-fbtn:hover { border-color:#2563eb; color:#2563eb; background:#eff6ff; }
+.po-fbtn.active { background:#2563eb; color:#fff; border-color:#2563eb; }
+
+.po-filter-panel { display:none; padding:14px 16px; background:#f8fafc;
+                   border-bottom:1px solid #e2e8f0; }
+.po-filter-panel.open { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:10px; }
+.po-filter-panel label { display:block; font-size:10.5px; font-weight:700;
+                          color:#64748b; text-transform:uppercase; letter-spacing:.04em;
+                          margin-bottom:4px; }
+.po-filter-panel input, .po-filter-panel select {
+    width:100%; padding:7px 9px; border:1.5px solid #e2e8f0; border-radius:7px;
+    font-size:12.5px; font-family:inherit; background:#fff;
+}
+
+/* Status pill */
+.po-status-pill { display:inline-flex; align-items:center; gap:4px;
+                  padding:3px 10px; border-radius:12px; font-size:10.5px;
+                  font-weight:800; text-transform:uppercase; letter-spacing:.04em; }
+
+/* Type pill */
+.po-type-pill { display:inline-block; padding:2px 8px; border-radius:11px;
+                font-size:10px; font-weight:800; text-transform:uppercase; }
+.po-type-pill.RM  { background:#dbeafe; color:#1d4ed8; }
+.po-type-pill.PM  { background:#fae8ff; color:#7e22ce; }
+.po-type-pill.COR { background:#fef3c7; color:#a16207; }
+.po-type-pill.SLV { background:#dcfce7; color:#15803d; }
+
+/* Data table */
+.po-table { width:100%; border-collapse:collapse; background:#fff; }
+.po-table thead th {
+    background:#f8fafc; padding:10px 12px; font-size:10.5px; font-weight:800;
+    color:#1e3a5f; text-transform:uppercase; letter-spacing:.04em;
+    border-bottom:2px solid #e2e8f0; text-align:left; position:sticky; top:0; z-index:2;
+}
+.po-table tbody td { padding:10px 12px; font-size:13px; color:#1e293b;
+                     border-bottom:1px solid #f1f5f9; vertical-align:middle; }
+.po-table tbody tr:hover { background:#f8fafc; }
+.po-table tbody tr.po-locked td:first-child { border-left:3px solid #16a34a; }
+.po-cell-right { text-align:right; font-variant-numeric:tabular-nums; font-weight:600; }
+.po-cell-center { text-align:center; }
+.po-cell-num { font-family:'JetBrains Mono', monospace; font-size:12px; color:#1e3a5f; font-weight:700; }
+.po-cell-supplier { font-weight:600; }
+.po-cell-supplier .gst-mini { display:block; font-size:10.5px; color:#94a3b8; font-weight:500; margin-top:1px; }
+
+.po-actions { display:inline-flex; gap:4px; }
+.po-act { width:30px; height:30px; display:inline-flex; align-items:center;
+          justify-content:center; border-radius:7px; border:1.5px solid #e2e8f0;
+          background:#fff; color:#475569; cursor:pointer; transition:all .15s;
+          font-family:inherit; text-decoration:none; }
+.po-act:hover { background:#eff6ff; color:#2563eb; border-color:#2563eb; }
+.po-act.danger:hover { background:#fef2f2; color:#dc2626; border-color:#fca5a5; }
+.po-act.success:hover { background:#f0fdf4; color:#16a34a; border-color:#86efac; }
+
+.po-empty { padding:60px 20px; text-align:center; color:#94a3b8; }
+.po-empty .ico { font-size:48px; opacity:.5; margin-bottom:10px; }
+
+/* Modal */
+.po-modal-overlay { display:none; position:fixed; inset:0;
+                    background:rgba(2,6,23,.72); backdrop-filter:blur(2px);
+                    z-index:1100; justify-content:center; align-items:flex-start;
+                    padding:32px 16px; overflow-y:auto; }
+.po-modal-overlay.open { display:flex; }
+.po-modal { background:#fff; border-radius:14px; width:100%; max-width:480px;
+            box-shadow:0 24px 60px rgba(0,0,0,.3); overflow:hidden; }
+.po-modal-hdr { display:flex; align-items:center; justify-content:space-between;
+                padding:16px 22px; border-bottom:1.5px solid #e2e8f0; }
+.po-modal-hdr h3 { margin:0; font-size:15px; font-weight:800; color:#1e293b; }
+.po-modal-body { padding:18px 22px; }
+.po-modal-foot { display:flex; justify-content:flex-end; gap:8px;
+                 padding:14px 22px; border-top:1px solid #e2e8f0; background:#f8fafc; }
+.po-mclose { width:30px; height:30px; border-radius:7px; border:1px solid #e2e8f0;
+             background:#fff; cursor:pointer; font-size:18px; color:#64748b; }
+.po-mclose:hover { background:#fef2f2; color:#dc2626; }
+.po-btn { padding:8px 16px; border-radius:8px; font-size:13px; font-weight:700;
+          cursor:pointer; border:1.5px solid; font-family:inherit; transition:all .15s; }
+.po-btn-primary { background:#2563eb; color:#fff; border-color:#2563eb; }
+.po-btn-primary:hover { background:#1d4ed8; }
+.po-btn-danger  { background:#dc2626; color:#fff; border-color:#dc2626; }
+.po-btn-danger:hover { background:#b91c1c; }
+.po-btn-ghost   { background:#fff; color:#475569; border-color:#e2e8f0; }
+.po-btn-ghost:hover { background:#f1f5f9; }
+
+.po-fld { margin-bottom:12px; }
+.po-fld label { display:block; font-size:11.5px; font-weight:700; color:#475569;
+                margin-bottom:5px; }
+.po-fld input, .po-fld textarea, .po-fld select {
+    width:100%; padding:8px 11px; border:1.5px solid #e2e8f0; border-radius:8px;
+    font-size:13px; font-family:inherit;
+}
+.po-fld input:focus, .po-fld textarea:focus, .po-fld select:focus {
+    outline:none; border-color:#2563eb; box-shadow:0 0 0 3px rgba(37,99,235,.1);
+}
+
+/* Loading skeleton */
+.po-skel { padding:40px; text-align:center; color:#94a3b8; }
+
+/* Row hover affordance + clickable PO number */
+.po-row { cursor:default; }
+.po-row.expanded { background:#f8fafc; }
+.po-num-link {
+    color:#1d4ed8; font-weight:700; text-decoration:none; cursor:pointer;
+    display:inline-block;
+}
+.po-num-link:hover { text-decoration:underline; color:#1e40af; }
+
+/* Expanded sub-row showing PO items */
+.po-expand-row td { padding:0 !important; background:#f1f5f9; }
+.po-expand-wrap {
+    padding:14px 24px; background:#f8fafc;
+    border-top:2px solid #2563eb; border-bottom:1px solid #cbd5e1;
+}
+.po-expand-title {
+    font-size:11px; font-weight:700; text-transform:uppercase;
+    color:#64748b; letter-spacing:.05em; margin-bottom:10px;
+    display:flex; align-items:center; gap:10px;
+}
+.po-expand-title .pe-cnt {
+    background:#dbeafe; color:#1d4ed8; padding:2px 8px; border-radius:10px;
+    font-size:10px; font-weight:700;
+}
+.po-mini-table { width:100%; border-collapse:collapse; font-size:12px; background:#fff;
+                 border:1px solid #e2e8f0; border-radius:6px; overflow:hidden; }
+.po-mini-table th {
+    background:#f1f5f9; color:#475569; font-size:10.5px; font-weight:700;
+    text-transform:uppercase; padding:8px 10px; text-align:left;
+    border-bottom:1px solid #e2e8f0; letter-spacing:.04em;
+}
+.po-mini-table th.num { text-align:right; }
+.po-mini-table td { padding:8px 10px; border-bottom:1px solid #f1f5f9; color:#0f172a; }
+.po-mini-table td.num { text-align:right; font-variant-numeric:tabular-nums; }
+.po-mini-table tbody tr:last-child td { border-bottom:0; }
+.po-mini-table tbody tr:hover { background:#fafbfd; }
+.po-loading { padding:20px; text-align:center; color:#94a3b8; font-size:13px; }
+
+@media print { .po-toolbar, .po-filter-panel, .po-actions, .grid-toolbar { display:none !important; } }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="grid-card">
+
+  <!-- Toolbar -->
+  <div class="po-toolbar">
+    {% if can_add %}
+    <a class="btn-add-new" href="{{ url_for('purchase_order.new_po') }}?po_type={{ po_type or 'RM' }}"
+       style="text-decoration:none;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+      </svg> New PO
+    </a>
+    {% endif %}
+
+    <div class="po-search-wrap">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+      </svg>
+      <input type="text" id="poSearch" class="po-search-input" placeholder="Search PO No., Supplier, GST…">
+    </div>
+
+    <button class="po-fbtn" id="poFilterBtn" onclick="togglePoFilters()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
+      </svg> Filters
+    </button>
+
+    <button class="po-fbtn" onclick="loadList()">↻ Refresh</button>
+
+    <div style="flex:1"></div>
+
+    <span style="font-size:12px; color:#64748b; font-weight:600;">
+      Total: <strong id="poTotalCount" style="color:#2563eb;">0</strong>
+    </span>
+  </div>
+
+  <!-- Filter panel -->
+  <div class="po-filter-panel" id="poFilterPanel">
+    <div>
+      <label>PO Type</label>
+      <select id="fPoType">
+        <option value="">All Types</option>
+        {% for code, label in po_types.items() %}
+        <option value="{{ code }}" {% if code == po_type %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label>Status</label>
+      <select id="fStatus">
+        <option value="">All Status</option>
+        {% for s in po_statuses %}
+        <option value="{{ s }}">{{ s }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label>Supplier</label>
+      <select id="fSupplier" style="width:100%;"><option value="">All Suppliers</option></select>
+    </div>
+    <div>
+      <label>From Date</label>
+      <input type="date" id="fDateFrom">
+    </div>
+    <div>
+      <label>To Date</label>
+      <input type="date" id="fDateTo">
+    </div>
+    <div style="display:flex; align-items:flex-end; gap:6px;">
+      <button class="po-btn po-btn-primary" onclick="loadList()" style="flex:1;">Apply</button>
+      <button class="po-btn po-btn-ghost"   onclick="clearFilters()">Clear</button>
+    </div>
+  </div>
+
+  <!-- Hidden po_type from URL -->
+  <input type="hidden" id="urlPoType" value="{{ po_type }}">
+
+  <!-- Table -->
+  <div style="overflow-x:auto;">
+    <table class="po-table" id="poTable">
+      <thead>
+        <tr>
+          <th>PO Number</th>
+          <th>Date</th>
+          <th>Type</th>
+          <th>Supplier</th>
+          <th>Items</th>
+          <th class="po-cell-right">Amount</th>
+          <th>Status</th>
+          <th>Created By</th>
+          <th style="text-align:center;">Actions</th>
+        </tr>
+      </thead>
+      <tbody id="poTbody">
+        <tr><td colspan="9" class="po-skel">Loading purchase orders…</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Modals: Approve / Reject / Cancel / Email -->
+<div id="poModal" class="po-modal-overlay" onclick="if(event.target===this) closePoModal()">
+  <div class="po-modal">
+    <div class="po-modal-hdr">
+      <h3 id="poModalTitle">Action</h3>
+      <button class="po-mclose" onclick="closePoModal()">×</button>
+    </div>
+    <div class="po-modal-body" id="poModalBody"></div>
+    <div class="po-modal-foot">
+      <button class="po-btn po-btn-ghost" onclick="closePoModal()">Cancel</button>
+      <button class="po-btn po-btn-primary" id="poModalGo" onclick="submitPoModal()">Confirm</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script>
+const STATUS_COLORS = {{ po_status_colors | tojson }};
+
+function togglePoFilters(){
+  document.getElementById('poFilterPanel').classList.toggle('open');
+  document.getElementById('poFilterBtn').classList.toggle('active');
+}
+function clearFilters(){
+  document.getElementById('fStatus').value='';
+  document.getElementById('fDateFrom').value='';
+  document.getElementById('fDateTo').value='';
+  $('#fSupplier').val('').trigger('change');
+  // keep PO type from URL
+  loadList();
+}
+
+// Init Select2 for supplier filter
+$(function(){
+  $('#fSupplier').select2({
+    placeholder: 'All suppliers',
+    allowClear: true,
+    minimumInputLength: 0,
+    ajax: {
+      url: '/purchase-order/api/suppliers',
+      delay: 250,
+      data: params => ({ q: params.term || '', po_type: $('#fPoType').val() || '' }),
+      processResults: data => ({ results: data.results || [] }),
+    }
+  });
+  loadList();
+
+  // search-as-you-type with small debounce
+  let t;
+  $('#poSearch').on('input', function(){
+    clearTimeout(t); t = setTimeout(loadList, 250);
+  });
+});
+
+function escapeHTML(s){ if(s===null||s===undefined) return ''; return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function fmt(n){ return Number(n||0).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+
+function loadList(){
+  const params = new URLSearchParams();
+  const urlType = document.getElementById('urlPoType').value;
+  if (urlType) params.set('po_type', urlType);
+  const ft = document.getElementById('fPoType').value;
+  if (ft && !urlType) params.set('po_type', ft);
+  const fs = document.getElementById('fStatus').value;
+  if (fs) params.set('status', fs);
+  const sup = $('#fSupplier').val();
+  if (sup) params.set('supplier_id', sup);
+  const df = document.getElementById('fDateFrom').value;
+  if (df) params.set('date_from', df);
+  const dt = document.getElementById('fDateTo').value;
+  if (dt) params.set('date_to', dt);
+  const q = document.getElementById('poSearch').value.trim();
+  if (q) params.set('search', q);
+
+  fetch('/purchase-order/api/list?' + params.toString())
+    .then(r => r.json())
+    .then(j => render(j.data || []));
+}
+
+function statusPill(s){
+  const c = STATUS_COLORS[s] || '#64748b';
+  return `<span class="po-status-pill" style="background:${c}22;color:${c};border:1px solid ${c}44;">${escapeHTML(s)}</span>`;
+}
+
+function render(rows){
+  const tbody = document.getElementById('poTbody');
+  document.getElementById('poTotalCount').textContent = rows.length;
+  if (!rows.length){
+    tbody.innerHTML = `<tr><td colspan="9" class="po-empty">
+        <div class="ico">📄</div>
+        <div style="font-size:14px;font-weight:600;color:#64748b;">No purchase orders found</div>
+        <div style="font-size:12px;margin-top:4px;">Try adjusting filters or create a new PO.</div>
+      </td></tr>`;
+    return;
+  }
+  let html = '';
+  rows.forEach(r => {
+    const lockedCls = r.is_locked ? 'po-locked' : '';
+    const editBtn = r.is_editable
+      ? `<a class="po-act" title="Edit" href="/purchase-order/${r.id}/edit">✏️</a>`
+      : `<span class="po-act" style="opacity:.4;cursor:not-allowed;" title="Locked">🔒</span>`;
+    const approveBtn = (r.status === 'Pending Approval' && {{ 'true' if can_approve else 'false' }})
+      ? `<button class="po-act success" title="Approve" onclick="openApprove(${r.id},'${escapeHTML(r.po_number)}')">✅</button>`
+      : '';
+    const cancelBtn = (['Completed','Cancelled'].indexOf(r.status) === -1 && {{ 'true' if can_cancel else 'false' }})
+      ? `<button class="po-act danger" title="Cancel" onclick="openCancel(${r.id},'${escapeHTML(r.po_number)}')">⊘</button>`
+      : '';
+    const delBtn = ({{ 'true' if can_delete else 'false' }} && ['Draft','Rejected','Cancelled'].indexOf(r.status) > -1)
+      ? `<button class="po-act danger" title="Delete" onclick="deletePo(${r.id},'${escapeHTML(r.po_number)}')">🗑️</button>`
+      : '';
+    html += `<tr class="${lockedCls} po-row" data-po-id="${r.id}" data-po-number="${escapeHTML(r.po_number)}" title="Click PO number to open · Double-click row to preview items">
+      <td>
+        <a class="po-cell-num po-num-link" href="/purchase-order/${r.id}/view" onclick="event.stopPropagation();">${escapeHTML(r.po_number)}</a>
+        <div style="font-size:10.5px;color:#94a3b8;margin-top:2px;">${escapeHTML(r.po_number_short)}</div>
+      </td>
+      <td style="white-space:nowrap;">${escapeHTML(r.po_date)}</td>
+      <td><span class="po-type-pill ${escapeHTML(r.po_type)}">${escapeHTML(r.po_type)}</span></td>
+      <td class="po-cell-supplier">
+        ${escapeHTML(r.supplier_name)}
+        ${r.supplier_gst ? `<span class="gst-mini">${escapeHTML(r.supplier_gst)}</span>` : ''}
+      </td>
+      <td class="po-cell-center">${r.item_count}</td>
+      <td class="po-cell-right">₹${fmt(r.grand_total)}</td>
+      <td>${statusPill(r.status)}</td>
+      <td style="font-size:12px;color:#64748b;">${escapeHTML(r.created_by)}</td>
+      <td class="po-cell-center">
+        <div class="po-actions">
+          <a class="po-act" title="View" href="/purchase-order/${r.id}/view">👁️</a>
+          ${editBtn}
+          <a class="po-act" title="PDF" href="/purchase-order/${r.id}/pdf" target="_blank">📄</a>
+          ${approveBtn}${cancelBtn}${delBtn}
+        </div>
+      </td>
+    </tr>`;
+  });
+  tbody.innerHTML = html;
+  bindRowExpand();
+}
+
+// ─────────── Double-click row to expand & preview items ───────────
+function bindRowExpand(){
+  document.querySelectorAll('#poTBody .po-row').forEach(tr => {
+    tr.addEventListener('dblclick', function(e){
+      // Don't trigger when double-clicking a button/link inside the row
+      if (e.target.closest('a, button')) return;
+      togglePoExpand(this);
+    });
+  });
+}
+
+function togglePoExpand(tr){
+  const poId  = tr.getAttribute('data-po-id');
+  const poNum = tr.getAttribute('data-po-number');
+  const next  = tr.nextElementSibling;
+  // Toggle: collapse if already expanded
+  if (next && next.classList.contains('po-expand-row') && next.dataset.poId === poId){
+    next.remove();
+    tr.classList.remove('expanded');
+    return;
+  }
+  // Collapse any other expanded row first
+  document.querySelectorAll('#poTBody .po-expand-row').forEach(el => el.remove());
+  document.querySelectorAll('#poTBody .po-row.expanded').forEach(el => el.classList.remove('expanded'));
+
+  // Insert new expand row with loading state
+  const colspan = tr.children.length;
+  const er = document.createElement('tr');
+  er.className = 'po-expand-row';
+  er.dataset.poId = poId;
+  er.innerHTML = `<td colspan="${colspan}">
+    <div class="po-expand-wrap">
+      <div class="po-loading">⏳ Loading items for ${escapeHTML(poNum)}…</div>
+    </div>
+  </td>`;
+  tr.classList.add('expanded');
+  tr.parentNode.insertBefore(er, tr.nextSibling);
+
+  // Fetch items
+  fetch(`/purchase-order/api/${poId}/items`, { credentials:'same-origin' })
+    .then(r => r.json())
+    .then(d => renderItemsInline(er, d))
+    .catch(e => {
+      er.querySelector('.po-expand-wrap').innerHTML =
+        `<div class="po-loading" style="color:#dc2626;">Failed to load: ${escapeHTML(e.message)}</div>`;
+    });
+}
+
+function renderItemsInline(er, d){
+  if (!d || d.error){
+    er.querySelector('.po-expand-wrap').innerHTML =
+      `<div class="po-loading" style="color:#dc2626;">${escapeHTML((d && d.error) || 'No data')}</div>`;
+    return;
+  }
+  if (!d.items || !d.items.length){
+    er.querySelector('.po-expand-wrap').innerHTML =
+      `<div class="po-loading">No items in this PO.</div>`;
+    return;
+  }
+  const rowsHtml = d.items.map(it => `
+    <tr>
+      <td>${it.sr_no}</td>
+      <td>
+        <div style="font-weight:600;">${escapeHTML(it.item_name)}</div>
+        ${it.item_code ? `<div style="font-size:10px;color:#94a3b8;">${escapeHTML(it.item_code)}</div>` : ''}
+      </td>
+      <td>${escapeHTML(it.hsn_code)}</td>
+      <td class="num">${fmt(it.quantity)} ${escapeHTML(it.uom)}</td>
+      <td class="num">₹${fmt(it.rate)}</td>
+      <td class="num">${fmt(it.gst_pct)}%</td>
+      <td class="num">${fmt(it.discount_pct)}%</td>
+      <td>${escapeHTML(it.due_date)}</td>
+      <td class="num"><strong>₹${fmt(it.total_amount)}</strong></td>
+    </tr>`).join('');
+  er.querySelector('.po-expand-wrap').innerHTML = `
+    <div class="po-expand-title">
+      📦 Items in ${escapeHTML(d.po_number)}
+      <span class="pe-cnt">${d.item_count} item${d.item_count !== 1 ? 's' : ''}</span>
+      <span style="color:#16a34a;font-weight:600;">Grand Total: ₹${fmt(d.grand_total)}</span>
+      <span style="margin-left:auto;font-size:10px;font-weight:500;color:#94a3b8;">Double-click row again to close</span>
+    </div>
+    <table class="po-mini-table">
+      <thead>
+        <tr>
+          <th style="width:40px;">#</th>
+          <th>Item</th>
+          <th style="width:90px;">HSN</th>
+          <th class="num" style="width:110px;">Qty × UOM</th>
+          <th class="num" style="width:90px;">Rate</th>
+          <th class="num" style="width:60px;">GST</th>
+          <th class="num" style="width:60px;">Disc</th>
+          <th style="width:100px;">Due On</th>
+          <th class="num" style="width:110px;">Amount</th>
+        </tr>
+      </thead>
+      <tbody>${rowsHtml}</tbody>
+    </table>`;
+}
+
+// ─────────── Modal handlers ───────────
+let modalCfg = null;
+function openApprove(id, num){
+  modalCfg = { url:`/purchase-order/${id}/approve`, label:'Approve', okLbl:'Approve' };
+  document.getElementById('poModalTitle').textContent = `Approve PO – ${num}`;
+  document.getElementById('poModalBody').innerHTML = `
+    <div class="po-fld">
+      <label>Approval Level</label>
+      <select id="mLevel">
+        <option value="Manager">Purchase Manager</option>
+        <option value="Director">Director (Final)</option>
+      </select>
+    </div>
+    <div class="po-fld">
+      <label>Comment (optional)</label>
+      <textarea id="mComment" rows="3" placeholder="Optional approval note…"></textarea>
+    </div>`;
+  document.getElementById('poModalGo').className = 'po-btn po-btn-primary';
+  document.getElementById('poModalGo').textContent = 'Approve';
+  document.getElementById('poModal').classList.add('open');
+}
+function openCancel(id, num){
+  modalCfg = { url:`/purchase-order/${id}/cancel`, label:'Cancel', okLbl:'Confirm Cancel' };
+  document.getElementById('poModalTitle').textContent = `Cancel PO – ${num}`;
+  document.getElementById('poModalBody').innerHTML = `
+    <div class="po-fld">
+      <label>Reason for cancellation *</label>
+      <textarea id="mReason" rows="3" placeholder="Why are you cancelling this PO?" required></textarea>
+    </div>`;
+  document.getElementById('poModalGo').className = 'po-btn po-btn-danger';
+  document.getElementById('poModalGo').textContent = 'Confirm Cancel';
+  document.getElementById('poModal').classList.add('open');
+}
+function closePoModal(){
+  document.getElementById('poModal').classList.remove('open');
+  modalCfg = null;
+}
+function submitPoModal(){
+  if (!modalCfg) return;
+  const fd = new FormData();
+  if (modalCfg.label === 'Approve'){
+    fd.append('level', document.getElementById('mLevel').value);
+    fd.append('comment', document.getElementById('mComment').value);
+  } else if (modalCfg.label === 'Cancel'){
+    const r = document.getElementById('mReason').value.trim();
+    if (!r){ alert('Reason is required'); return; }
+    fd.append('reason', r);
+  }
+  fetch(modalCfg.url, {method:'POST', body:fd})
+    .then(r => r.json())
+    .then(j => {
+      if (j.success){
+        closePoModal();
+        loadList();
+      } else {
+        alert(j.error || 'Action failed');
+      }
+    })
+    .catch(() => alert('Network error'));
+}
+
+function deletePo(id, num){
+  if (!confirm(`Delete PO ${num}? Only Draft / Rejected / Cancelled POs can be deleted.`)) return;
+  fetch(`/purchase-order/${id}/delete`, { method:'POST' })
+    .then(r => r.json())
+    .then(j => {
+      if (j.success){ loadList(); }
+      else { alert(j.error || 'Delete failed'); }
+    });
+}
+</script>
+{% endblock %}

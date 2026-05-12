@@ -591,7 +591,12 @@
       <button class="im-mclose" onclick="closeImportModal()">✕</button>
     </div>
     <div class="im-mbody">
-      <p style="font-size:13px;color:#475569;margin-bottom:12px;">CSV file upload karein. Required columns: <code style="background:#f1f5f9;padding:1px 6px;border-radius:4px;font-size:12px;">item_name, code, uom, hsn_code, gst_rate, msl, last_purchase_rate</code></p>
+      <p style="font-size:13px;color:#475569;margin-bottom:12px;">CSV file upload karein. Required columns: <code style="background:#f1f5f9;padding:1px 6px;border-radius:4px;font-size:12px;">
+        {% if auto_type_abbr == 'RM' %}item_name, code, aliases, category, uom, msl, last_purchase_rate, hsn_code, gst_rate
+        {% elif auto_type_abbr == 'PM' %}item_name, code, pm_type, brand, uom, last_purchase_rate, hsn_code, gst_rate
+        {% elif auto_type_abbr == 'FG' %}item_name, code, brand, sku_size, uom, last_purchase_rate, hsn_code, gst_rate
+        {% else %}item_name, code, uom, hsn_code, gst_rate, msl, last_purchase_rate{% endif %}
+      </code></p>
       <a href="/material/import-template{% if auto_type_abbr %}?item_type={{ auto_type_abbr }}{% endif %}" style="font-size:12px;color:#2563eb;font-weight:600;">⬇️ Download Template CSV</a>
       <div id="importDropZone" style="border:2px dashed #e2e8f0;border-radius:10px;padding:28px;text-align:center;cursor:pointer;margin-top:12px;transition:all .2s;"
            onclick="document.getElementById('importFile').click()"
@@ -789,7 +794,7 @@ function imRender(){
           ${(r.material_type_abbr==='PM'||r.material_type_abbr==='FG')?`<div style="width:38px;height:38px;flex-shrink:0;border-radius:7px;border:1px solid #e2e8f0;background:#f8fafc;display:flex;align-items:center;justify-content:center;overflow:hidden;">${r.image_data?`<img src="${r.image_data}" style="width:100%;height:100%;object-fit:contain;">`:`<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>`}</div>`:''}
           <div>
             <div style="font-weight:700;">
-              ${r.pm_material_type?`<span style="color:#2563eb;font-weight:800;">${esc(r.pm_material_type)}</span> — `:''}
+              ${r.pm_client_type?`<span style="color:#0891b2;font-weight:800;">${esc(r.pm_client_type)}</span> — `:''}
               ${esc(r.material_name)}
             </div>
             ${r.aliases?`<div style="font-size:11px;color:var(--text3)">${esc(r.aliases)}</div>`:''}
@@ -797,7 +802,7 @@ function imRender(){
           </div>
         </div>
       </td>
-      <td class=\"colType\">${r.material_type?`<span class="type-badge" style="background:${r.material_type_color}18;color:${r.material_type_color}">${esc(r.material_type_abbr||r.material_type)}</span>`:''}</td>
+      <td class=\"colType\">${r.material_type?`<span class="type-badge" style="background:${r.material_type_color}18;color:${r.material_type_color}">${esc(r.material_type_abbr==='PM'&&r.pm_material_type?r.pm_material_type:(r.material_type_abbr||r.material_type))}</span>`:''}</td>
       <td class=\"colGroup\" style="font-size:12px">${r.brand?`<span style="background:#fdf4ff;color:#7c3aed;padding:2px 8px;border-radius:8px;font-weight:600;font-size:11.5px;">${esc(r.brand)}</span>`:esc(r.group_name||'')}</td>
       <td class=\"colUom\"><span style="background:var(--bg);border:1px solid var(--border);padding:2px 7px;border-radius:5px;font-size:11px;font-weight:700">${esc(r.uom)}</span></td>
       <td class=\"colMsl\" style="font-weight:700;color:var(--blue,#2563eb)">${r.msl||0}</td>
@@ -1067,7 +1072,7 @@ function imViewItem(id){
   const isPM  = abbr === 'PM';
   const isFG  = abbr === 'FG';
   const isPMFG = isPM || isFG;
-  document.getElementById('viewTitle').textContent = r.material_name;
+  document.getElementById('viewTitle').textContent = (r.pm_client_type ? r.pm_client_type + ' — ' : '') + r.material_name;
   const badge = document.getElementById('viewTypeBadge');
   badge.textContent = abbr || r.material_type || '';
   badge.style.background = (r.material_type_color||'#6366f1')+'22';
@@ -1083,14 +1088,15 @@ function imViewItem(id){
   let html = `<div style="padding:6px 24px 20px;">`;
   html += sec('📦', 'Basic Information');
   html += row('Code', r.code ? mono(r.code) : pill('Not assigned','#fef9c3','#854d0e'), true);
-  html += row('Item Name', `<strong style="font-size:14px;">${r.pm_material_type?`<span style="color:#2563eb;">${esc(r.pm_material_type)}</span> — `:''}  ${esc(r.material_name)}</strong>`, true);
+  html += row('Item Name', `<strong style="font-size:14px;">${r.pm_client_type?`<span style="color:#0891b2;">${esc(r.pm_client_type)}</span> — `:''}${esc(r.material_name)}</strong>`, true);
   if(r.aliases) html += row('Aliases', r.aliases.split(',').filter(Boolean).map(a=>pill(a.trim())).join(''));
-  if(r.description) html += row('Description', `<em style="color:#475569;">${esc(r.description)}</em>`);
+  if(r.description && r.description !== 'None') html += row('Description', `<em style="color:#475569;">${esc(r.description)}</em>`);
   if(isRM && r.inci_name) html += row('INCI Name', esc(r.inci_name));
   if(isRM) html += row('Group', r.group_name ? pill(r.group_name,'#eff6ff','#2563eb') : '—', true);
   if(isPMFG && r.brand) html += row('Brand', pill(r.brand,'#fdf4ff','#7c3aed'));
   if(isPMFG && r.sku_sizes) html += row('SKU Sizes', r.sku_sizes.split(',').filter(Boolean).map(s=>pill(s.trim(),'#f0fdf4','#15803d')).join(''));
   if(isPM && r.pm_material_type){ html += row('PM Type',`<span style="background:#eff6ff;color:#2563eb;padding:2px 10px;border-radius:8px;font-weight:700;font-size:12px;">${esc(r.pm_material_type)}</span>`); }
+  if(isPM && r.pm_client_type){ html += row('Material Type',`<span style="background:#ecfeff;color:#0891b2;padding:2px 10px;border-radius:8px;font-weight:700;font-size:12px;">${esc(r.pm_client_type)}</span>`); }
   if(isPM && r.pm_attribute){ html += row('Attributes',r.pm_attribute.split(',').filter(Boolean).map(a=>`<span style="background:#fdf4ff;color:#7c3aed;padding:2px 8px;border-radius:6px;font-size:11.5px;font-weight:600;margin-right:4px;">${esc(a.trim())}</span>`).join('')); }
   if(isPM && r.corrugation_ply) html += row('Ply',`<span style="background:#eff6ff;color:#2563eb;padding:2px 10px;border-radius:8px;font-weight:700;">${esc(r.corrugation_ply)}</span>`);
   if(isPM && (r.dim_length||r.dim_width)){ const dimParts=[r.dim_length&&`L:${r.dim_length}mm`,r.dim_width&&`W:${r.dim_width}mm`,r.dim_height&&`H:${r.dim_height}mm`].filter(Boolean); html += row('Dimension',`<span style="font-weight:700;">${dimParts.join(' × ')}</span>`); }
@@ -1108,7 +1114,6 @@ function imViewItem(id){
   if(r.hsn_code) html += row('HSN / SAC Code', mono(r.hsn_code));
   html += row('GST Rate', r.gst_rate ? `<strong>${r.gst_rate}%</strong>` : '0%', true);
   html += row('Taxability', esc(r.taxability||'Taxable'), true);
-  html += row('Type of Supply', esc(r.type_of_supply||'Goods'), true);
 
   html += row('Status', r.is_active ? `<span style="color:#16a34a;font-weight:700;font-size:13px;">\u25cf Active</span>` : `<span style="color:#94a3b8;font-weight:700;font-size:13px;">\u25cf Inactive</span>`, true);
 
@@ -1487,18 +1492,54 @@ function toggleCol(cls, show){
   });
 }
 
+// ── Build export rows based on material type ────────────────
+function _buildExportRows(rows, sep){
+  const abbr  = '{{ auto_type_abbr }}';
+  const isRM  = abbr === 'RM';
+  const isPM  = abbr === 'PM';
+  const isFG  = abbr === 'FG';
+  const q = v => sep===','? `"${String(v||'').replace(/"/g,'""')}"` : String(v||'');
+
+  // ── Headers ──
+  let hdrs = ['#','Item Name','Code','Aliases'];
+  if(isRM){ hdrs = hdrs.concat(['Category','Group','INCI Name']); }
+  if(isPM){ hdrs = hdrs.concat(['PM Type','Material Type (HM/CM)','Brand','Category','SKU Size','Attributes','Corrugation Ply','Length(mm)','Width(mm)','Height(mm)']); }
+  if(isFG){ hdrs = hdrs.concat(['Brand','Category','SKU Size','Per Box Qty']); }
+  hdrs = hdrs.concat(['UOM','MSL','Last Rate (Rs)','Opening Balance','HSN','GST%','Taxability','Description','Status']);
+
+  // ── Data rows ──
+  const dataRows = rows.map((r,i)=>{
+    let cols = [i+1, q(r.material_name), r.code||'', q(r.aliases||'')];
+    if(isRM){
+      cols = cols.concat([q(r.category||''), q(r.group_name||''), q(r.inci_name||'')]);
+    }
+    if(isPM){
+      cols = cols.concat([
+        q(r.pm_material_type||''), q(r.pm_client_type||''), q(r.brand||''), q(r.category||''),
+        r.sku_sizes||'', q(r.pm_attribute||''),
+        q(r.corrugation_ply||''),
+        r.dim_length||'', r.dim_width||'', r.dim_height||''
+      ]);
+    }
+    if(isFG){
+      cols = cols.concat([q(r.brand||''), q(r.category||''), r.sku_sizes||'', r.per_box_qty||0]);
+    }
+    cols = cols.concat([
+      r.uom||'', r.msl||0, r.last_purchase_rate||0,
+      r.opening_balance||0, r.hsn_code||'', r.gst_rate||'',
+      r.taxability||'', q(r.description||''),
+      r.is_active?'Active':'Inactive'
+    ]);
+    return cols.join(sep);
+  });
+
+  return [hdrs.join(sep), ...dataRows].join('\n');
+}
+
 // Export CSV
 function exportCSV(){
   const rows = sortRows(imRows);
-  const hdrs = ['#','Item Name','Code','Type','Group','Category','UOM','MSL','Rate (Rs)','HSN','GST%','Taxability','Opening Balance','Status'];
-  const esc2 = v => `"${String(v||'').replace(/"/g,'""')}"`;
-  const csv  = [hdrs.join(','), ...rows.map((r,i)=>[
-    i+1, esc2(r.material_name), r.code||'', r.material_type||'',
-    r.group_name||'', r.category||'', r.uom||'', r.msl||0,
-    r.last_purchase_rate||0, r.hsn_code||'', r.gst_rate||'',
-    r.taxability||'',
-    r.opening_balance||0, r.is_active?'Active':'Inactive'
-  ].join(','))].join('\n');
+  const csv  = _buildExportRows(rows, ',');
   const a = document.createElement('a');
   a.href = 'data:text/csv;charset=utf-8,\uFEFF' + encodeURIComponent(csv);
   const abbr = '{{ auto_type_abbr }}';
@@ -1508,20 +1549,12 @@ function exportCSV(){
   showToast('CSV exported ✓','success');
 }
 
-// Export Excel (CSV with xls header - opens in Excel)
+// Export Excel (tab-separated, opens in Excel)
 function exportExcel(){
   const rows = sortRows(imRows);
-  const hdrs = ['Item Name','Code','Type','Group','Category','UOM','MSL','Rate','HSN','GST%','Taxability','Opening Balance','Status'];
-  const esc2 = v => `"${String(v||'').replace(/"/g,'""')}"`;
-  const csv  = [hdrs.join('\t'), ...rows.map(r=>[
-    esc2(r.material_name), r.code||'', r.material_type||'',
-    r.group_name||'', r.category||'', r.uom||'', r.msl||0,
-    r.last_purchase_rate||0, r.hsn_code||'', r.gst_rate||'',
-    r.taxability||'',
-    r.opening_balance||0, r.is_active?'Active':'Inactive'
-  ].join('\t'))].join('\n');
+  const tsv  = _buildExportRows(rows, '\t');
   const a = document.createElement('a');
-  a.href = 'data:application/vnd.ms-excel;charset=utf-8,\uFEFF' + encodeURIComponent(csv);
+  a.href = 'data:application/vnd.ms-excel;charset=utf-8,\uFEFF' + encodeURIComponent(tsv);
   const abbr = '{{ auto_type_abbr }}';
   a.download = (abbr||'items') + '_' + new Date().toISOString().slice(0,10) + '.xls';
   a.click();
@@ -1556,15 +1589,27 @@ function handleImportFile(file){
   reader.onload=e=>{
     const lines=e.target.result.split('\n').map(l=>l.trim()).filter(Boolean);
     if(lines.length<2){ showToast('File empty ya invalid','danger'); return; }
-    const headers=lines[0].split(',').map(h=>h.trim().toLowerCase().replace(/[\s\-]/g,'_').replace(/[^a-z_]/g,''));
+    // Strip BOM and normalize headers
+    const rawHdr = lines[0].replace(/^﻿/,'');
+    const headers = rawHdr.split(',').map(h=>h.trim().replace(/^"|"$/g,'').toLowerCase().replace(/[\s\-\/\(\)]/g,'_').replace(/[^a-z_0-9]/g,'').replace(/_+/g,'_').replace(/^_|_$/g,''));
     _importData = lines.slice(1).map(line=>{
       const vals=[]; let cur='', inQ=false;
       for(const ch of line){ if(ch==='"') inQ=!inQ; else if(ch===','&&!inQ){vals.push(cur);cur='';}else cur+=ch; }
       vals.push(cur);
       const obj={};
-      headers.forEach((h,i)=>obj[h]=(vals[i]||'').trim().replace(/^"|"$/g,''));
+      headers.forEach((h,i)=>{ if(h) obj[h]=(vals[i]||'').trim().replace(/^"|"$/g,''); });
       return obj;
-    }).filter(r=>(r.item_name||r.material_name||'').trim());
+    }).filter(r=>{
+      // Accept any of these as item name column
+      const name = r.item_name||r.material_name||r.name||r.item||'';
+      return name.trim().length > 0;
+    });
+    // Normalize item_name key for downstream use
+    _importData = _importData.map(r=>{
+      if(!r.item_name) r.item_name = r.material_name||r.name||r.item||'';
+      return r;
+    });
+    if(_importData.length===0){ showToast('0 items mila — check: item_name column hai?','danger'); }
 
     const preview=document.getElementById('importPreview');
     preview.style.display='block';
@@ -1572,17 +1617,28 @@ function handleImportFile(file){
     <div style="max-height:180px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:8px;font-size:11.5px;">
       <table style="width:100%;border-collapse:collapse;">
         <thead><tr style="background:#f8fafc;position:sticky;top:0;">
-          ${['#','Item Name','Code','UOM','Rate'].map(h=>`<th style="padding:6px 10px;text-align:left;font-weight:700;color:#64748b;">${h}</th>`).join('')}
+          ${(()=>{ const ab='{{ auto_type_abbr }}'; const isRM=ab==='RM'; const isPM=ab==='PM'; const isFG=ab==='FG';
+            let ph=['#','Item Name','Code','Aliases'];
+            if(isRM) ph=ph.concat(['Category','Group','INCI Name']);
+            if(isPM) ph=ph.concat(['PM Type','Mat. Type','Brand','Category','SKU Size']);
+            if(isFG) ph=ph.concat(['Brand','Category','SKU Size']);
+            ph=ph.concat(['UOM','Rate (Rs)','MSL','Opening Bal','HSN','GST%','Taxability','Description']);
+            return ph.map(h=>`<th style="padding:6px 10px;text-align:left;font-weight:700;color:#64748b;">${h}</th>`).join('');
+          })()}
         </tr></thead>
         <tbody>
-          ${_importData.slice(0,8).map((r,i)=>`<tr style="border-top:1px solid #f1f5f9;">
-            <td style="padding:5px 10px;color:#94a3b8;">${i+1}</td>
+          ${_importData.slice(0,8).map((r,i)=>{ const ab='{{ auto_type_abbr }}'; const isRM=ab==='RM'; const isPM=ab==='PM'; const isFG=ab==='FG';
+            let cells=`<td style="padding:5px 10px;color:#94a3b8;">${i+1}</td>
             <td style="padding:5px 10px;font-weight:600;">${esc(r.item_name||r.material_name||'')}</td>
             <td style="padding:5px 10px;font-family:monospace;">${esc(r.code||'—')}</td>
-            <td style="padding:5px 10px;">${esc(r.uom||'KG')}</td>
-            <td style="padding:5px 10px;">₹${r.last_purchase_rate||r.rate||0}</td>
-          </tr>`).join('')}
-          ${_importData.length>8?`<tr><td colspan="5" style="padding:6px 10px;color:#94a3b8;font-style:italic;">... aur ${_importData.length-8} items</td></tr>`:''}
+            <td style="padding:5px 10px;">${esc(r.aliases||'')}</td>`;
+            if(isRM) cells+=`<td style="padding:5px 10px;">${esc(r.category||'')}</td><td style="padding:5px 10px;">${esc(r.group||'')}</td><td style="padding:5px 10px;">${esc(r.inci_name||'')}</td>`;
+            if(isPM) cells+=`<td style="padding:5px 10px;">${esc(r.pm_type||r.pm_material_type||'')}</td><td style="padding:5px 10px;">${esc(r.material_type_hm_cm||r.pm_client_type||'')}</td><td style="padding:5px 10px;">${esc(r.brand||'')}</td><td style="padding:5px 10px;">${esc(r.category||'')}</td><td style="padding:5px 10px;">${esc(r.sku_size||r.sku_sizes||'')}</td>`;
+            if(isFG) cells+=`<td style="padding:5px 10px;">${esc(r.brand||'')}</td><td style="padding:5px 10px;">${esc(r.category||'')}</td><td style="padding:5px 10px;">${esc(r.sku_size||r.sku_sizes||'')}</td>`;
+            cells+=`<td style="padding:5px 10px;">${esc(r.uom||'KG')}</td><td style="padding:5px 10px;">₹${r.last_purchase_rate||r.rate||0}</td><td style="padding:5px 10px;">${r.msl||0}</td><td style="padding:5px 10px;">${r.opening_balance||0}</td><td style="padding:5px 10px;">${esc(r.hsn_code||r.hsn||'')}</td><td style="padding:5px 10px;">${r.gst||r.gst_rate||18}%</td><td style="padding:5px 10px;">${esc(r.taxability||'Taxable')}</td><td style="padding:5px 10px;">${esc(r.description||'')}</td>`;
+            return `<tr style="border-top:1px solid #f1f5f9;">${cells}</tr>`;
+          }).join('')}
+          ${_importData.length>8?`<tr><td colspan="20" style="padding:6px 10px;color:#94a3b8;font-style:italic;">... aur ${_importData.length-8} items</td></tr>`:''}
         </tbody>
       </table>
     </div>`;
@@ -1598,9 +1654,13 @@ async function doImport(){
   const autoTypeId='{{ auto_type.id if auto_type else "" }}';
   let ok=0, updated=0, fail=0;
 
-  // Build code → id map from already-loaded rows for quick lookup
+  // Build code → id map AND name → id map from already-loaded rows
   const codeMap={};
-  imRows.forEach(row=>{ if(row.code) codeMap[row.code.toUpperCase().trim()]=row.id; });
+  const nameMap={};
+  imRows.forEach(row=>{
+    if(row.code) codeMap[row.code.toUpperCase().trim()]=row.id;
+    if(row.material_name) nameMap[row.material_name.trim().toLowerCase()]=row.id;
+  });
 
   for(let i=0; i<_importData.length; i++){
     const r=_importData[i];
@@ -1610,20 +1670,64 @@ async function doImport(){
     document.getElementById('importProgressBar').style.width=`${Math.round((i+1)/_importData.length*100)}%`;
 
     const code=(r.code||'').trim();
+    const importName=(r.item_name||r.material_name||'').trim();
     // Check: same code already exists → update (pass id), else create new
-    const existingId = code ? (codeMap[code.toUpperCase()] || null) : null;
+    const existingById  = code ? (codeMap[code.toUpperCase()] || null) : null;
+    const existingByName = !existingById ? (nameMap[importName.toLowerCase()] || null) : null;
+    // If name exists but code doesn't match → SKIP (duplicate name, different item)
+    if(existingByName && !existingById){
+      fail++;
+      document.getElementById('importProgressText').textContent=`${i+1}/${_importData.length} (⚠️ "${importName}" duplicate)`;
+      continue;
+    }
+    const existingId = existingById;
     const isUpdate = !!existingId;
 
     try{
-      const res=await fetch(IM+'/save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+      const ab_imp = '{{ auto_type_abbr }}';
+      const payload_imp = {
         id: existingId || undefined,
-        material_name:name, code:code, uom:(r.uom||'KG').trim(),
-        hsn_code:(r.hsn_code||'').trim(), gst_rate:parseFloat(r.gst_rate||18),
-        msl:parseFloat(r.msl||0), last_purchase_rate:parseFloat(r.last_purchase_rate||r.rate||0),
-        opening_balance:parseFloat(r.opening_balance||0),
-        taxability:r.taxability||'Taxable', type_of_supply:r.type_of_supply||'Goods',
-        material_type_id:autoTypeId||null, is_active:true,
-      })});
+        material_name: name,
+        code: code,
+        aliases: (r.aliases||'').trim(),
+        uom: (r.uom||'KG').trim(),
+        hsn_code: (r.hsn_code||r.hsn||'').trim(),
+        gst_rate: parseFloat(r.gst_rate||r.gst||18),
+        msl: parseFloat(r.msl||0),
+        last_purchase_rate: parseFloat(r.last_purchase_rate||r.rate||0),
+        opening_balance: parseFloat(r.opening_balance||0),
+        taxability: (r.taxability||'Taxable').trim(),
+        description: (r.description||'').trim(),
+        material_type_id: autoTypeId||null,
+        is_active: true,
+      };
+      // RM-specific
+      if(ab_imp==='RM'){
+        payload_imp.inci_name  = (r.inci_name||'').trim();
+        payload_imp.category   = (r.category||'').trim();
+        payload_imp.group_name = (r.group||r.group_name||'').trim();
+      }
+      // PM-specific
+      if(ab_imp==='PM'){
+        payload_imp.pm_material_type = (r.pm_type||r.pm_material_type||'').trim();
+        payload_imp.pm_client_type   = (r.material_type_hm_cm||r.pm_client_type||'').trim();
+        payload_imp.brand            = (r.brand||'').trim();
+        payload_imp.category         = (r.category||'').trim();
+        payload_imp.sku_sizes        = (r.sku_size||r.sku_sizes||'').trim();
+        payload_imp.pm_attribute     = (r.attributes||r.pm_attribute||'').trim();
+        payload_imp.corrugation_ply  = (r.corrugation_ply||'').trim();
+        payload_imp.dim_length       = parseFloat(r.lengthmm||r.dim_length||0)||null;
+        payload_imp.dim_width        = parseFloat(r.widthmm||r.dim_width||0)||null;
+        payload_imp.dim_height       = parseFloat(r.heightmm||r.dim_height||0)||null;
+      }
+      // FG-specific
+      if(ab_imp==='FG'){
+        payload_imp.brand       = (r.brand||'').trim();
+        payload_imp.category    = (r.category||'').trim();
+        payload_imp.sku_sizes   = (r.sku_size||r.sku_sizes||'').trim();
+        payload_imp.per_box_qty = parseInt(r.per_box_qty||0)||0;
+      }
+      const res=await fetch(IM+'/save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload_imp)});
       const d=await res.json();
       if(d.status==='ok'){
         if(isUpdate) updated++; else ok++;

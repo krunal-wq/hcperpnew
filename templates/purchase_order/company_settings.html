@@ -1,0 +1,143 @@
+{% extends 'base.html' %}
+{% block title %}Company Settings — HCP ERP{% endblock %}
+{% block page_title %}Company Settings (Purchase Orders){% endblock %}
+{% block bread %}Procurement / Purchase Order / Company Settings{% endblock %}
+
+{% block extra_css %}
+<style>
+.cs-card { background:#fff; border:1.5px solid #e2e8f0; border-radius:12px; margin-bottom:18px; overflow:hidden; }
+.cs-hdr { display:flex; align-items:center; gap:10px; padding:13px 18px; background:#f8fafc; border-bottom:1px solid #f1f5f9; }
+.cs-hdr h2 { font-size:13.5px; font-weight:700; color:#1e293b; margin:0; }
+.cs-body { padding:20px; }
+.cs-grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+.cs-grid-3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:14px; }
+.cs-fld { display:flex; flex-direction:column; gap:5px; margin-bottom:14px; }
+.cs-label { font-size:11px; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:.05em; }
+.cs-label .req { color:#ef4444; }
+.cs-input, .cs-textarea {
+    width:100%; padding:9px 12px; border:1.5px solid #e2e8f0; border-radius:8px;
+    font-size:13px; font-family:inherit; color:#1e293b; background:#fff;
+    box-sizing:border-box; outline:none; transition:border-color .15s;
+}
+.cs-input:focus, .cs-textarea:focus { border-color:#2563eb; box-shadow:0 0 0 3px rgba(37,99,235,.1); }
+.cs-textarea { resize:vertical; min-height:72px; }
+.cs-mono { font-family:'JetBrains Mono', monospace; font-weight:700; }
+.cs-hint { font-size:10.5px; color:#94a3b8; margin-top:2px; }
+
+.cs-footer { position:sticky; bottom:0; background:#fff; border-top:1.5px solid #e2e8f0;
+    padding:14px 22px; display:flex; align-items:center; justify-content:space-between;
+    z-index:10; margin:0 -16px; }
+.cs-btn { padding:9px 18px; border-radius:8px; font-size:13px; font-weight:700;
+    cursor:pointer; font-family:inherit; border:1.5px solid; transition:all .15s; text-decoration:none; }
+.cs-btn.primary { background:#2563eb; color:#fff; border-color:#2563eb; }
+.cs-btn.primary:hover { background:#1d4ed8; }
+.cs-btn.outline { background:#fff; color:#475569; border-color:#e2e8f0; }
+.cs-btn.outline:hover { border-color:#94a3b8; color:#1e293b; }
+
+@media (max-width:900px){ .cs-grid-2, .cs-grid-3 { grid-template-columns:1fr; } }
+</style>
+{% endblock %}
+
+{% block content %}
+<form method="post" action="{{ url_for('purchase_order.save_company_settings') }}" style="max-width:1000px;margin:0 auto;padding:0 16px 80px;">
+
+  <div class="cs-card">
+    <div class="cs-hdr"><span style="font-size:16px;">🏢</span><h2>Company Identification</h2></div>
+    <div class="cs-body">
+      <div class="cs-grid-2">
+        <div class="cs-fld">
+          <label class="cs-label">Company Name <span class="req">*</span></label>
+          <input class="cs-input" name="company_name" required value="{{ company.company_name if company else '' }}">
+        </div>
+        <div class="cs-fld">
+          <label class="cs-label">Short Code</label>
+          <input class="cs-input cs-mono" name="short_code" placeholder="HCP" value="{{ company.short_code if company else 'HCP' }}">
+          <div class="cs-hint">Used as prefix in PO numbers (e.g. HCP/RM/PO-0001/26-27)</div>
+        </div>
+      </div>
+
+      <div class="cs-grid-3">
+        <div class="cs-fld">
+          <label class="cs-label">GSTIN</label>
+          <input class="cs-input cs-mono" name="gst_number" placeholder="24AAFCH7246H1ZK" value="{{ company.gst_number if company else '' }}">
+        </div>
+        <div class="cs-fld">
+          <label class="cs-label">PAN</label>
+          <input class="cs-input cs-mono" name="pan_number" placeholder="AAFCH7246H" value="{{ company.pan_number if company else '' }}">
+        </div>
+        <div class="cs-fld">
+          <label class="cs-label">State / Code</label>
+          <div style="display:flex;gap:8px;">
+            <input class="cs-input" name="state" placeholder="Gujarat" value="{{ company.state if company else 'Gujarat' }}" style="flex:2;">
+            <input class="cs-input cs-mono" name="state_code" placeholder="24" value="{{ company.state_code if company else '24' }}" style="flex:1;">
+          </div>
+          <div class="cs-hint">State must match supplier state to use CGST+SGST (else IGST)</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="cs-card">
+    <div class="cs-hdr"><span style="font-size:16px;">📍</span><h2>Addresses</h2></div>
+    <div class="cs-body">
+      <div class="cs-fld">
+        <label class="cs-label">Invoice / Bill Address <span class="req">*</span></label>
+        <textarea class="cs-textarea" name="bill_address" rows="3" required>{{ company.bill_address if company else '' }}</textarea>
+        <div class="cs-hint">Appears under "Invoice To" on the PO PDF.</div>
+      </div>
+      <div class="cs-fld">
+        <label class="cs-label">Ship / Delivery Address <span class="req">*</span></label>
+        <textarea class="cs-textarea" name="ship_address" rows="3" required>{{ company.ship_address if company else '' }}</textarea>
+        <div class="cs-hint">Used as the default "Consignee (Ship to)" on every PO.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="cs-card">
+    <div class="cs-hdr"><span style="font-size:16px;">📞</span><h2>Contact</h2></div>
+    <div class="cs-body">
+      <div class="cs-grid-3">
+        <div class="cs-fld">
+          <label class="cs-label">Phone</label>
+          <input class="cs-input" name="phone" value="{{ company.phone if company else '' }}">
+        </div>
+        <div class="cs-fld">
+          <label class="cs-label">Email</label>
+          <input type="email" class="cs-input" name="email" value="{{ company.email if company else '' }}">
+        </div>
+        <div class="cs-fld">
+          <label class="cs-label">Website</label>
+          <input class="cs-input" name="website" value="{{ company.website if company else '' }}">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="cs-card">
+    <div class="cs-hdr"><span style="font-size:16px;">📜</span><h2>PO Document Footer</h2></div>
+    <div class="cs-body">
+      <div class="cs-fld">
+        <label class="cs-label">Declaration Text</label>
+        <textarea class="cs-textarea" name="declaration_text" rows="3">{{ company.declaration_text if company else '' }}</textarea>
+        <div class="cs-hint">Shown at the bottom of every PO PDF (above the signature section).</div>
+      </div>
+      <div class="cs-fld">
+        <label class="cs-label">Jurisdiction</label>
+        <input class="cs-input" name="jurisdiction" value="{{ company.jurisdiction if company else 'Ahmedabad' }}">
+        <div class="cs-hint">Used in "SUBJECT TO &lt;city&gt; JURISDICTION" footer.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="cs-footer">
+    <div style="font-size:11.5px;color:#94a3b8;">
+      Last updated:
+      <b style="color:#475569;">{{ company.updated_at.strftime('%d-%b-%Y %H:%M') if company and company.updated_at else '—' }}</b>
+    </div>
+    <div style="display:flex;gap:8px;">
+      <a href="{{ url_for('purchase_order.index') }}" class="cs-btn outline">Cancel</a>
+      <button type="submit" class="cs-btn primary">💾 Save Settings</button>
+    </div>
+  </div>
+</form>
+{% endblock %}

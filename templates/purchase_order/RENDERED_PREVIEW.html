@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>HCP/PO/26-27/0198 — Purchase Order</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:'Segoe UI', Arial, sans-serif; font-size:11.5pt; color:#000;
+       background:#fff; padding:18px; }
+.po-doc { max-width:780px; margin:0 auto; border:2px solid #000; }
+.po-title { text-align:center; padding:6px 8px; border-bottom:2px solid #000; }
+.po-title h1 { font-size:16pt; font-weight:800; letter-spacing:1.5pt; }
+.po-title .short { font-size:10pt; color:#555; margin-top:1pt; font-family:'Courier New', monospace; }
+
+.row2 { display:grid; grid-template-columns:1fr 1fr; }
+.row3 { display:grid; grid-template-columns:1fr 1fr 1fr; }
+.cell { padding:6px 10px; border-bottom:1.5px solid #000; border-right:1.5px solid #000; vertical-align:top; }
+.cell:last-child { border-right:none; }
+.row-noborder .cell { border-bottom:none; }
+.lab { font-size:9pt; color:#555; }
+.tit { font-weight:800; font-size:11pt; margin-bottom:1pt; }
+.mono { font-family:'Courier New', monospace; font-size:10pt; }
+
+/* Header 2-column layout: left stacked, right voucher grid */
+.hdr-grid { display:grid; grid-template-columns:1fr 1fr; }
+.hdr-left { display:flex; flex-direction:column; border-right:1.5px solid #000; }
+.hdr-left > .hdr-cell { border-right:none; }
+.hdr-right { display:flex; flex-direction:column; }
+.hdr-right-filler { flex:1 1 auto; }
+
+table.items { width:100%; border-collapse:collapse; border-top:2px solid #000; }
+table.items th { background:#f0f0f0; padding:5px 6px; font-size:9.5pt; font-weight:800;
+       text-align:left; border-bottom:2px solid #000; border-right:1.5px solid #000; }
+table.items th:last-child { border-right:none; }
+table.items td { padding:5px 6px; font-size:10pt; vertical-align:top;
+       border-bottom:1px solid #888; border-right:1.5px solid #000; }
+table.items td:last-child { border-right:none; }
+.num { text-align:right; }
+.ctr { text-align:center; }
+
+/* Summary rows folded INSIDE items table */
+table.items tbody tr.sum-row td {
+    padding:4px 6px; font-size:9.5pt; border-bottom:0;
+    border-right:1.5px solid #000;
+}
+table.items tbody tr.sum-row td:last-child { border-right:none; }
+table.items tbody tr.total-row td {
+    padding:6px; font-size:10.5pt; font-weight:800;
+    border-top:1.5px solid #000; border-bottom:1.5px solid #000;
+    border-right:1.5px solid #000;
+}
+table.items tbody tr.total-row td:last-child { border-right:none; }
+
+.words { padding:6px 10px; border-top:2px solid #000; display:flex;
+       justify-content:space-between; font-size:10pt; }
+.words .v { font-weight:800; }
+.words .lab { font-size:9pt; color:#555; }
+
+/* Declaration + signature side-by-side (matches PDF) */
+.decl-sig { display:grid; grid-template-columns:1fr 1fr;
+            border-top:2px solid #000; min-height:80pt; }
+.decl-sig .cell { padding:8pt 10pt; vertical-align:top; }
+.decl-sig .cell .lab { font-size:9pt; color:#555; }
+
+.terms-page { page-break-before:always; padding:14pt; }
+.terms-page h3 { font-size:11pt; font-weight:800; border-bottom:1px solid #555;
+       margin:10pt 0 4pt; padding-bottom:2pt; }
+.terms-page ol { padding-left:18pt; font-size:9.5pt; line-height:1.4; }
+.terms-page ol li { margin-bottom:2pt; }
+
+@media print {
+  body { padding:0; }
+  .po-doc { border:1.5px solid #000; }
+  .no-print { display:none !important; }
+  @page { size:A4; margin:14mm; }
+}
+.print-bar { background:#1e3a5f; color:#fff; padding:10px 16px; margin-bottom:16px;
+       text-align:center; max-width:780px; margin:0 auto 16px; border-radius:6px; }
+.print-bar button { background:#fff; color:#1e3a5f; border:0; padding:6px 14px;
+       border-radius:4px; font-weight:700; cursor:pointer; }
+</style>
+</head>
+<body>
+
+<div class="print-bar no-print">
+  <button onclick="window.print()">🖨️ Print Now</button>
+  <button onclick="window.close()" style="margin-left:8px;background:#fff;color:#1e3a5f;">Close</button>
+</div>
+
+<div class="po-doc">
+  <div class="po-title">
+    <h1>PURCHASE ORDER</h1>
+    <div class="short">HCPPO26-270198</div>
+  </div>
+
+  <!-- Header: Left col (Invoice To + Consignee + Supplier) + Right col (Voucher grid) -->
+  <div class="row2 hdr-grid">
+    <!-- LEFT COLUMN: Invoice To + Consignee + Supplier stacked -->
+    <div class="hdr-left">
+      <div class="cell hdr-cell">
+        <div class="lab">Invoice To</div>
+        <div class="tit">HCP Wellness Pvt Ltd</div>
+        <div style="white-space:pre-line;">403 Maruti Vertex Elanza, Opp. Global Hospital, Nr. GTPL House, Sindhubhavan Road, Bodakdev, Ahmedabad-380054</div>
+        <div style="margin-top:4pt;">GSTIN/UIN: <span class="mono">24AAFCH7246H1ZK</span></div>
+        <div>State Name : Gujarat, Code : <b>24</b></div>
+      </div>
+      <div class="cell hdr-cell">
+        <div class="lab">Consignee (Ship to)</div>
+        <div class="tit">HCP Wellness Pvt Ltd</div>
+        <div style="white-space:pre-line;">Plot No. 8, Ozone Industrial Estate, Beside Kerala GIDC, Bavla-Bagodara Road, Bhayla, Bavla-382220, Gujarat, India.</div>
+      </div>
+      <div class="cell hdr-cell" style="border-bottom:none;">
+        <div class="lab">Supplier (Bill from)</div>
+        <div class="tit">Velox Pack</div>
+        <div style="white-space:pre-line;">House No-175, 2nd Floor Mohan Lal Ganj Sultan Pur Road Amethi Lucknow Lucknow</div>
+        <div style="margin-top:4pt;">GSTIN/UIN: <span class="mono">09CRNPN3678M1ZR</span></div>
+        <div>State Name: Uttar Pradesh, Code: <b>9</b></div>
+      </div>
+    </div>
+
+    <!-- RIGHT COLUMN: Voucher 2x4 grid (with Mode/Terms spanning) -->
+    <div class="hdr-right">
+      <div class="row2">
+        <div class="cell"><div class="lab">Voucher No:</div><div class="mono" style="font-weight:800;">HCP/PO/26-27/0198</div></div>
+        <div class="cell" style="border-right:none;"><div class="lab">Dated :</div><div style="font-weight:800;">11-05-2026</div></div>
+      </div>
+      <div class="cell" style="border-right:none;">
+        <div class="lab">Mode/Terms of Payment</div>
+        <div style="font-weight:800;"></div>
+      </div>
+      <div class="row2">
+        <div class="cell"><div class="lab">Reference No. &amp; Date</div><div>N/A</div></div>
+        <div class="cell" style="border-right:none;"><div class="lab">Other References</div><div></div></div>
+      </div>
+      <div class="row2">
+        <div class="cell"><div class="lab">Dispatched through</div><div></div></div>
+        <div class="cell" style="border-right:none;"><div class="lab">Destination</div><div>LUCKNOW</div></div>
+      </div>
+      <!-- Filler to make right column stretch to match left height -->
+      <div class="hdr-right-filler"></div>
+    </div>
+  </div>
+
+  <!-- Items + folded summary rows -->
+  <table class="items">
+    <thead>
+      <tr>
+        <th style="width:30pt;" class="ctr">Sl<br>No</th>
+        <th>Description of Goods</th>
+        <th style="width:50pt;" class="ctr">GST Rate</th>
+        <th style="width:70pt;">Due On</th>
+        <th style="width:70pt;" class="num">Quantity</th>
+        <th style="width:70pt;" class="num">Rate</th>
+        <th style="width:40pt;" class="ctr">Per</th>
+        <th style="width:48pt;" class="ctr">Disc. %</th>
+        <th style="width:80pt;" class="num">Amount</th>
+      </tr>
+    </thead>
+    <tbody>
+      
+      <tr>
+        <td class="ctr">1</td>
+        <td>
+          <b>HM - Twasa Water Spray 100ml Frosted Bottle</b>
+          
+          
+        </td>
+        <td class="ctr">18.00%</td>
+        <td>21-May-2026</td>
+        <td class="num">20000.000 NOS</td>
+        <td class="num">₹3.50</td>
+        <td class="ctr">NOS</td>
+        <td class="ctr">0.00</td>
+        <td class="num">₹70000.00</td>
+      </tr>
+      
+      <tr>
+        <td class="ctr">2</td>
+        <td>
+          <b>HM - Twasa Water Spray 100ml Frosted Bottle Pump</b>
+          
+          
+        </td>
+        <td class="ctr">18.00%</td>
+        <td>21-May-2026</td>
+        <td class="num">20000.000 NOS</td>
+        <td class="num">₹6.50</td>
+        <td class="ctr">NOS</td>
+        <td class="ctr">0.00</td>
+        <td class="num">₹130000.00</td>
+      </tr>
+      
+
+      
+      <tr class="sum-row">
+        <td colspan="8" style="border-right:none;"></td>
+        <td class="num">₹ 200000.00</td>
+      </tr>
+      
+      
+      
+      <tr class="sum-row">
+        <td colspan="7" style="border-right:none;"></td>
+        <td style="text-align:right;">IGST</td>
+        <td class="num">₹ 36000.00</td>
+      </tr>
+      <tr class="sum-row">
+        <td colspan="7" style="border-right:none;"></td>
+        <td style="text-align:right;">Round Off</td>
+        <td class="num">₹ 0.00</td>
+      </tr>
+      <tr class="total-row">
+        <td colspan="2"><b>Total</b></td>
+        <td colspan="2" style="border-right:none;"></td>
+        <td class="num"><b>40000.000 NOS</b></td>
+        <td colspan="3" style="border-right:none;"></td>
+        <td class="num"><b>₹236000.00</b></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="words">
+    <div>
+      <div class="lab">Amount Chargeable (in words)</div>
+      <div class="v">INR Two Lakh Thirty Six Thousand Only</div>
+    </div>
+    <div style="font-size:9pt;color:#666;">E. &amp; O.E</div>
+  </div>
+
+  <!-- Declaration + Signature side-by-side -->
+  <div class="decl-sig">
+    <div class="cell" style="border-right:1.5px solid #000;border-bottom:none;">
+      <div class="lab" style="font-weight:800;text-transform:uppercase;">Declaration</div>
+      <div style="white-space:pre-line;font-size:9.5pt;">IF DISPATCHING THE MATERIAL THROUGH LOGISTIC GODOWN DELIVERY, PLEASE DISPATCH TO SARKHEJ OR CHANGODAR(1ST PRIORITY) GODOWN ONLY</div>
+    </div>
+    <div class="cell" style="border-right:none;border-bottom:none;">
+      <div style="font-weight:800;font-size:10.5pt;">For HCP Wellness Pvt Ltd</div>
+      <div style="margin-top:30pt;font-size:9pt;">Authorised Signatory</div>
+    </div>
+  </div>
+</div>
+
+<!-- Footer text OUTSIDE the document box (centered) -->
+<div style="text-align:center;font-size:10pt;color:#000;margin:8pt 0 4pt;max-width:780px;margin-left:auto;margin-right:auto;">
+  <div style="font-weight:700;">SUBJECT TO AHMEDABAD JURISDICTION</div>
+  <div style="font-style:italic;color:#555;font-size:9pt;margin-top:2pt;">This is a Computer Generated Document</div>
+</div>
+
+<!-- Page 2: Terms -->
+
+
+<script>
+// Auto-trigger print dialog 400 ms after load.
+setTimeout(function(){ window.print(); }, 400);
+</script>
+</body>
+</html>

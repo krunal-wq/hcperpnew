@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>{{ po.po_number }} — Purchase Order</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:'Segoe UI', Arial, sans-serif; font-size:11.5pt; color:#000;
+       background:#fff; padding:18px; }
+.po-doc { max-width:780px; margin:0 auto; border:2px solid #000; }
+.po-title { text-align:center; padding:6px 8px; border-bottom:2px solid #000; }
+.po-title h1 { font-size:16pt; font-weight:800; letter-spacing:1.5pt; }
+.po-title .short { font-size:10pt; color:#555; margin-top:1pt; font-family:'Courier New', monospace; }
+
+.row2 { display:grid; grid-template-columns:1fr 1fr; }
+.row3 { display:grid; grid-template-columns:1fr 1fr 1fr; }
+.cell { padding:6px 10px; border-bottom:1.5px solid #000; border-right:1.5px solid #000; vertical-align:top; }
+.cell:last-child { border-right:none; }
+.row-noborder .cell { border-bottom:none; }
+.lab { font-size:9pt; color:#555; }
+.tit { font-weight:800; font-size:11pt; margin-bottom:1pt; }
+.mono { font-family:'Courier New', monospace; font-size:10pt; }
+
+/* Header 2-column layout: left stacked, right voucher grid */
+.hdr-grid { display:grid; grid-template-columns:1fr 1fr; }
+.hdr-left { display:flex; flex-direction:column; border-right:1.5px solid #000; }
+.hdr-left > .hdr-cell { border-right:none; }
+.hdr-right { display:flex; flex-direction:column; }
+.hdr-right-filler { flex:1 1 auto; }
+
+table.items { width:100%; border-collapse:collapse; border-top:2px solid #000; }
+table.items th { background:#f0f0f0; padding:5px 6px; font-size:9.5pt; font-weight:800;
+       text-align:left; border-bottom:2px solid #000; border-right:1.5px solid #000; }
+table.items th:last-child { border-right:none; }
+table.items td { padding:5px 6px; font-size:10pt; vertical-align:top;
+       border-bottom:1px solid #888; border-right:1.5px solid #000; }
+table.items td:last-child { border-right:none; }
+.num { text-align:right;
+    /* explicit font fallback chain so ₹ (U+20B9) always renders */
+    font-family:'Segoe UI', 'Inter', 'Roboto', 'Noto Sans', 'Arial Unicode MS', Arial, sans-serif; }
+.ctr { text-align:center; }
+
+/* Summary rows folded INSIDE items table */
+table.items tbody tr.sum-row td {
+    padding:4px 6px; font-size:9.5pt; border-bottom:0;
+    border-right:1.5px solid #000;
+}
+table.items tbody tr.sum-row td:last-child { border-right:none; }
+table.items tbody tr.total-row td {
+    padding:6px; font-size:10.5pt; font-weight:800;
+    border-top:1.5px solid #000; border-bottom:1.5px solid #000;
+    border-right:1.5px solid #000;
+}
+table.items tbody tr.total-row td:last-child { border-right:none; }
+
+.words { padding:6px 10px; border-top:2px solid #000; display:flex;
+       justify-content:space-between; font-size:10pt; }
+.words .v { font-weight:800; }
+.words .lab { font-size:9pt; color:#555; }
+
+/* Declaration + signature side-by-side (matches PDF) */
+.decl-sig { display:grid; grid-template-columns:1fr 1fr;
+            border-top:2px solid #000; min-height:80pt; }
+.decl-sig .cell { padding:8pt 10pt; vertical-align:top; }
+.decl-sig .cell .lab { font-size:9pt; color:#555; }
+
+.terms-page { page-break-before:always; padding:14pt; }
+.terms-page h3 { font-size:11pt; font-weight:800; border-bottom:1px solid #555;
+       margin:10pt 0 4pt; padding-bottom:2pt; }
+.terms-page ol { padding-left:18pt; font-size:9.5pt; line-height:1.4; }
+.terms-page ol li { margin-bottom:2pt; }
+
+@media print {
+  body { padding:0; }
+  .po-doc { border:1.5px solid #000; }
+  .no-print { display:none !important; }
+  @page { size:A4; margin:14mm; }
+}
+.print-bar { background:#1e3a5f; color:#fff; padding:10px 16px; margin-bottom:16px;
+       text-align:center; max-width:780px; margin:0 auto 16px; border-radius:6px; }
+.print-bar button { background:#fff; color:#1e3a5f; border:0; padding:6px 14px;
+       border-radius:4px; font-weight:700; cursor:pointer; }
+</style>
+</head>
+<body>
+
+<div class="print-bar no-print">
+  <button onclick="window.print()">🖨️ Print Now</button>
+  <button onclick="window.close()" style="margin-left:8px;background:#fff;color:#1e3a5f;">Close</button>
+</div>
+
+<div class="po-doc">
+  <div class="po-title">
+    <h1>PURCHASE ORDER</h1>
+    <div class="short">{{ po.po_number_short or po.po_number }}</div>
+  </div>
+
+  <!-- Header: Left col (Invoice To + Consignee + Supplier) + Right col (Voucher grid) -->
+  <div class="row2 hdr-grid">
+    <!-- LEFT COLUMN: Invoice To + Consignee + Supplier stacked -->
+    <div class="hdr-left">
+      <div class="cell hdr-cell">
+        <div class="lab">Invoice To</div>
+        <div class="tit">{{ po.company_name or (company.company_name if company else '') }}</div>
+        <div style="white-space:pre-line;">{{ po.company_bill_address or (company.bill_address if company else '') }}</div>
+        <div style="margin-top:4pt;">GSTIN/UIN: <span class="mono">{{ po.company_gst or (company.gst_number if company else '') }}</span></div>
+        <div>State Name : {{ company.state if company else 'Gujarat' }}, Code : <b>{{ company.state_code if company else '24' }}</b></div>
+      </div>
+      <div class="cell hdr-cell">
+        <div class="lab">Consignee (Ship to)</div>
+        <div class="tit">{{ po.company_name or (company.company_name if company else '') }}</div>
+        <div style="white-space:pre-line;">{{ po.delivery_address or (company.ship_address if company else '') }}</div>
+      </div>
+      <div class="cell hdr-cell" style="border-bottom:none;">
+        <div class="lab">Supplier (Bill from)</div>
+        <div class="tit">{{ po.supplier_name or '—' }}</div>
+        <div style="white-space:pre-line;">{{ po.supplier_address or '' }}</div>
+        {% if po.supplier_gst %}<div style="margin-top:4pt;">GSTIN/UIN: <span class="mono">{{ po.supplier_gst }}</span></div>{% endif %}
+        {% if po.supplier_state %}<div>State Name: {{ po.supplier_state }}, Code: <b>{{ po.supplier_state_code or '' }}</b></div>{% endif %}
+      </div>
+    </div>
+
+    <!-- RIGHT COLUMN: Voucher 2x4 grid (with Mode/Terms spanning) -->
+    <div class="hdr-right">
+      <div class="row2">
+        <div class="cell"><div class="lab">Voucher No:</div><div class="mono" style="font-weight:800;">{{ po.po_number }}</div></div>
+        <div class="cell" style="border-right:none;"><div class="lab">Dated :</div><div style="font-weight:800;">{{ po.po_date.strftime('%d-%m-%Y') if po.po_date else '—' }}</div></div>
+      </div>
+      <div class="cell" style="border-right:none;">
+        <div class="lab">Mode/Terms of Payment</div>
+        <div style="font-weight:800;">{{ (po.payment_terms or '')|striptags }}</div>
+      </div>
+      <div class="row2">
+        <div class="cell"><div class="lab">Reference No. &amp; Date</div><div>{{ po.reference_no or 'N/A' }}{% if po.reference_date %} · {{ po.reference_date.strftime('%d-%m-%Y') }}{% endif %}</div></div>
+        <div class="cell" style="border-right:none;"><div class="lab">Other References</div><div>{{ po.other_references or '' }}</div></div>
+      </div>
+      <div class="row2">
+        <div class="cell"><div class="lab">Dispatched through</div><div>{{ po.dispatched_through or '' }}</div></div>
+        <div class="cell" style="border-right:none;"><div class="lab">Destination</div><div>{{ po.destination or '' }}</div></div>
+      </div>
+      <!-- Filler to make right column stretch to match left height -->
+      <div class="hdr-right-filler"></div>
+    </div>
+  </div>
+
+  <!-- Items + folded summary rows -->
+  <table class="items">
+    <thead>
+      <tr>
+        <th style="width:30pt;" class="ctr">Sl<br>No</th>
+        <th>Description of Goods</th>
+        <th style="width:50pt;" class="ctr">GST Rate</th>
+        <th style="width:70pt;">Due On</th>
+        <th style="width:70pt;" class="num">Quantity</th>
+        <th style="width:70pt;" class="num">Rate</th>
+        <th style="width:40pt;" class="ctr">Per</th>
+        <th style="width:48pt;" class="ctr">Disc. %</th>
+        <th style="width:80pt;" class="num">Amount</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for it in items %}
+      <tr>
+        <td class="ctr">{{ loop.index }}</td>
+        <td>
+          <b>{{ it.item_name }}</b>
+          {% if it.description %}<div style="font-size:9pt;color:#444;">{{ it.description }}</div>{% endif %}
+          {% if it.hsn_code %}<div style="font-size:8.5pt;color:#666;">HSN: {{ it.hsn_code }}</div>{% endif %}
+        </td>
+        <td class="ctr">{{ '%.2f'|format(it.gst_pct or 0) }}%</td>
+        <td>{{ it.due_date.strftime('%d-%b-%Y') if it.due_date else '—' }}</td>
+        <td class="num">{{ '%.3f'|format(it.quantity or 0) }} {{ it.uom or '' }}</td>
+        <td class="num">₹{{ '%.2f'|format(it.rate or 0) }}</td>
+        <td class="ctr">{{ it.uom or '' }}</td>
+        <td class="ctr">{{ '%.2f'|format(it.discount_pct or 0) }}</td>
+        <td class="num">₹{{ '%.2f'|format(it.amount or 0) }}</td>
+      </tr>
+      {% endfor %}
+
+      {# ── Summary rows folded INTO items table (Tally-style) ── #}
+      <tr class="sum-row">
+        <td colspan="8" style="border-right:none;"></td>
+        <td class="num">₹ {{ '%.2f'|format(po.taxable_amount or 0) }}</td>
+      </tr>
+      {% if (po.cgst_total or 0) > 0 %}
+      <tr class="sum-row">
+        <td colspan="7" style="border-right:none;"></td>
+        <td style="text-align:right;">CGST</td>
+        <td class="num">₹ {{ '%.2f'|format(po.cgst_total) }}</td>
+      </tr>{% endif %}
+      {% if (po.sgst_total or 0) > 0 %}
+      <tr class="sum-row">
+        <td colspan="7" style="border-right:none;"></td>
+        <td style="text-align:right;">SGST</td>
+        <td class="num">₹ {{ '%.2f'|format(po.sgst_total) }}</td>
+      </tr>{% endif %}
+      {% if (po.igst_total or 0) > 0 %}
+      <tr class="sum-row">
+        <td colspan="7" style="border-right:none;"></td>
+        <td style="text-align:right;">IGST</td>
+        <td class="num">₹ {{ '%.2f'|format(po.igst_total) }}</td>
+      </tr>{% endif %}
+      <tr class="sum-row">
+        <td colspan="7" style="border-right:none;"></td>
+        <td style="text-align:right;">Round Off</td>
+        <td class="num">₹ {{ '%.2f'|format(po.round_off or 0) }}</td>
+      </tr>
+      <tr class="total-row">
+        <td colspan="2"><b>Total</b></td>
+        <td colspan="2" style="border-right:none;"></td>
+        <td class="num"><b>{{ '%.3f'|format(po.total_quantity or 0) }} {{ items[0].uom if items else '' }}</b></td>
+        <td colspan="3" style="border-right:none;"></td>
+        <td class="num"><b>₹{{ '%.2f'|format(po.grand_total or 0) }}</b></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="words">
+    <div>
+      <div class="lab">Amount Chargeable (in words)</div>
+      <div class="v">{{ po.amount_words or 'INR Zero Only' }}</div>
+    </div>
+    <div style="font-size:9pt;color:#666;">E. &amp; O.E</div>
+  </div>
+
+  <!-- Declaration + Signature side-by-side -->
+  <div class="decl-sig">
+    <div class="cell" style="border-right:1.5px solid #000;border-bottom:none;">
+      <div class="lab" style="font-weight:800;text-transform:uppercase;">Declaration</div>
+      <div style="white-space:pre-line;font-size:9.5pt;">{{ company.declaration_text if company else '' }}</div>
+    </div>
+    <div class="cell" style="border-right:none;border-bottom:none;">
+      <div style="font-weight:800;font-size:10.5pt;">For {{ po.company_name or (company.company_name if company else '') }}</div>
+      <div style="margin-top:30pt;font-size:9pt;">Authorised Signatory</div>
+    </div>
+  </div>
+</div>
+
+<!-- Footer text OUTSIDE the document box (centered) -->
+<div style="text-align:center;font-size:10pt;color:#000;margin:8pt 0 4pt;max-width:780px;margin-left:auto;margin-right:auto;">
+  <div style="font-weight:700;">SUBJECT TO {{ (company.jurisdiction if company else 'AHMEDABAD')|upper }} JURISDICTION</div>
+  <div style="font-style:italic;color:#555;font-size:9pt;margin-top:2pt;">This is a Computer Generated Document</div>
+</div>
+
+<!-- Page 2: Terms -->
+{% if terms %}
+<div class="po-doc terms-page">
+  {% for sec in ['GENERAL','DISPATCH','PAYMENT','OTHER'] %}
+    {% set sec_terms = terms|selectattr('section','equalto',sec)|list %}
+    {% if sec_terms %}
+      <h3>{{ sec }} TERMS :</h3>
+      <ol>
+        {% for t in sec_terms %}<li>{{ t.text }}</li>{% endfor %}
+      </ol>
+    {% endif %}
+  {% endfor %}
+</div>
+{% endif %}
+
+<script>
+// Auto-trigger print dialog 400 ms after load.
+setTimeout(function(){ window.print(); }, 400);
+</script>
+</body>
+</html>
