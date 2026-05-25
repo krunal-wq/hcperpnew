@@ -1101,6 +1101,7 @@ function imViewItem(id){
   if(isPM && r.corrugation_ply) html += row('Ply',`<span style="background:#eff6ff;color:#2563eb;padding:2px 10px;border-radius:8px;font-weight:700;">${esc(r.corrugation_ply)}</span>`);
   if(isPM && (r.dim_length||r.dim_width)){ const dimParts=[r.dim_length&&`L:${r.dim_length}mm`,r.dim_width&&`W:${r.dim_width}mm`,r.dim_height&&`H:${r.dim_height}mm`].filter(Boolean); html += row('Dimension',`<span style="font-weight:700;">${dimParts.join(' × ')}</span>`); }
   if(isFG && r.per_box_qty) html += row('Per Box Qty', r.per_box_qty+' units');
+  if(isFG && r.per_box_weight) html += row('Per Box Weight', parseFloat(r.per_box_weight).toFixed(3)+' '+(r.per_box_weight_uom||'KG'));
   if(r.category) html += row('Category', pill(r.category,'#fff7ed','#c2410c'));
   html += row('Type', r.material_type ? `<span style="background:${r.material_type_color||'#6366f1'}22;color:${r.material_type_color||'#6366f1'};padding:3px 10px;border-radius:12px;font-size:12px;font-weight:800;">${esc(r.material_type)}</span>` : null);
   html += row('UOM', `<span style="background:#f1f5f9;border:1px solid #e2e8f0;padding:2px 10px;border-radius:5px;font-size:12px;font-weight:700;">${esc(r.uom)}</span>`, true);
@@ -1504,7 +1505,7 @@ function _buildExportRows(rows, sep){
   let hdrs = ['#','Item Name','Code','Aliases'];
   if(isRM){ hdrs = hdrs.concat(['Category','Group','INCI Name']); }
   if(isPM){ hdrs = hdrs.concat(['PM Type','Material Type (HM/CM)','Brand','Category','SKU Size','Attributes','Corrugation Ply','Length(mm)','Width(mm)','Height(mm)']); }
-  if(isFG){ hdrs = hdrs.concat(['Brand','Category','SKU Size','Per Box Qty']); }
+  if(isFG){ hdrs = hdrs.concat(['Brand','Category','SKU Size','Per Box Qty','Per Box Weight','Weight UOM']); }
   hdrs = hdrs.concat(['UOM','MSL','Last Rate (Rs)','Opening Balance','HSN','GST%','Taxability','Description','Status']);
 
   // ── Data rows ──
@@ -1522,7 +1523,7 @@ function _buildExportRows(rows, sep){
       ]);
     }
     if(isFG){
-      cols = cols.concat([q(r.brand||''), q(r.category||''), r.sku_sizes||'', r.per_box_qty||0]);
+      cols = cols.concat([q(r.brand||''), q(r.category||''), r.sku_sizes||'', r.per_box_qty||0, r.per_box_weight||0, q(r.per_box_weight_uom||'KG')]);
     }
     cols = cols.concat([
       r.uom||'', r.msl||0, r.last_purchase_rate||0,
@@ -1722,10 +1723,12 @@ async function doImport(){
       }
       // FG-specific
       if(ab_imp==='FG'){
-        payload_imp.brand       = (r.brand||'').trim();
-        payload_imp.category    = (r.category||'').trim();
-        payload_imp.sku_sizes   = (r.sku_size||r.sku_sizes||'').trim();
-        payload_imp.per_box_qty = parseInt(r.per_box_qty||0)||0;
+        payload_imp.brand              = (r.brand||'').trim();
+        payload_imp.category           = (r.category||'').trim();
+        payload_imp.sku_sizes          = (r.sku_size||r.sku_sizes||'').trim();
+        payload_imp.per_box_qty        = parseInt(r.per_box_qty||0)||0;
+        payload_imp.per_box_weight     = parseFloat(r.per_box_weight||0)||0;
+        payload_imp.per_box_weight_uom = (r.per_box_weight_uom||r.weight_uom||'KG').trim().toUpperCase();
       }
       const res=await fetch(IM+'/save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload_imp)});
       const d=await res.json();

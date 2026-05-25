@@ -62,7 +62,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/theme.css') }}">
     {% block extra_css %}{% endblock %}
 </head>
-<body>
+<body class="sb-preload">
 
 <div class="overlay" id="overlay" onclick="closeSB()"></div>
 
@@ -95,7 +95,7 @@
             {% set _mod = 'rd' %}
         {% elif _pg in ('cat_master','uom_master','hsn_master','masters') %}
             {% set _mod = 'masters' %}
-        {% elif _pg in ('hr_emp_dashboard','hr_employees','hr_contractors','hierarchy','salary_config','hr_attendance','att_sync','att_daily','att_monthly','att_manual','att_late','att_holidays','my_attendance','hr_masters','late_rules','hr_shifts','hr_locations_master','hr_late_rules','hr_early_rules','hr_ot_rules','hr_leave_policy','hr_lop_rules','hr_absent_rules','hr_compoff_rules','hr_dept_master','hr_desig_master','hr_shift_master','hr_emptype_master','hr_loc_master','hr_nationality_master') %}
+        {% elif _pg in ('hr_emp_dashboard','hr_employees','hr_contractors','hierarchy','salary_config','hr_attendance','att_sync','att_daily','att_monthly','att_manual','att_late','att_holidays','my_attendance','hr_masters','late_rules','hr_shifts','hr_locations_master','hr_late_rules','hr_early_rules','hr_ot_rules','hr_leave_policy','hr_lop_rules','hr_absent_rules','hr_compoff_rules','hr_dept_master','hr_desig_master','hr_shift_master','hr_emptype_master','hr_loc_master','hr_nationality_master','hr_grade_master') %}
             {% set _mod = 'hr' %}
         {% elif _pg in ('approvals','permissions','audit_logs','users','admin_profile') %}
             {% set _mod = 'admin' %}
@@ -212,6 +212,12 @@
                     <a class="nav-a {% if request.path == '/grn/stock-ledger' %}active{% endif %}" href="/grn/stock-ledger">
                         <span class="nav-ic"><i class="bi bi-clock-history"></i></span><span class="nav-txt">📋 Stock Ledger</span>
                     </a>
+                    {% set _perm_formulation = get_perm('formulation') %}
+                    {% if role == 'admin' or (_perm_formulation and _perm_formulation.can_view) %}
+                    <a class="nav-a {% if request.path.startswith('/formulation') %}active{% endif %}" href="/formulation">
+                        <span class="nav-ic"><i class="bi bi-flask"></i></span><span class="nav-txt">🧪 Formulation</span>
+                    </a>
+                    {% endif %}
                 </div>
 
                 <!-- Packing Material -->
@@ -227,6 +233,12 @@
                     <a class="nav-a {% if request.path.startswith('/supplier') and request.args.get('type','').upper() == 'PM' %}active{% endif %}" href="/supplier?type=PM">
                         <span class="nav-ic"><i class="bi bi-people"></i></span><span class="nav-txt">Supplier</span>
                     </a>
+                    {% set _perm_packing_bom = get_perm('packing_bom') %}
+                    {% if role == 'admin' or (_perm_packing_bom and _perm_packing_bom.can_view) %}
+                    <a class="nav-a {% if request.path.startswith('/packing-bom') %}active{% endif %}" href="/packing-bom">
+                        <span class="nav-ic"><i class="bi bi-diagram-3"></i></span><span class="nav-txt">📦 Packing BOM</span>
+                    </a>
+                    {% endif %}
 
                     <!-- Purchase Order — nested dropdown with PM / Corrugation / Sleeves -->
                     <button class="nav-group-toggle nav-subgroup-toggle" onclick="toggleNavGroup(this)">
@@ -351,6 +363,7 @@
             <div class="sb-acc-body">
                 <a class="nav-a" href="/npd/npd-dashboard"><span class="nav-ic"><i class="bi bi-speedometer2"></i></span><span class="nav-txt">NPD Dashboard</span></a>
                 <a class="nav-a" href="/npd/npd-projects"><span class="nav-ic"><i class="bi bi-kanban"></i></span><span class="nav-txt">NPD Projects</span></a>
+                <a class="nav-a {% if _pg == 'npd_fees_report' %}active{% endif %}" href="/npd/fees-report"><span class="nav-ic"><i class="bi bi-cash-coin"></i></span><span class="nav-txt">NPD Fees Report</span></a>
                 <a class="nav-a {% if _pg == 'npd_sample_ready' %}active{% endif %}" href="/npd/sample-ready"><span class="nav-ic"><i class="bi bi-check-circle"></i></span><span class="nav-txt">Sample Ready</span></a>
                 <a class="nav-a {% if _pg == 'npd_sample_history' %}active{% endif %}" href="/npd/sample-history"><span class="nav-ic"><i class="bi bi-clock-history"></i></span><span class="nav-txt">Sample History</span></a>
                 <a class="nav-a {% if _pg == 'client_dispatch' %}active{% endif %}" href="/client-dispatch/"><span class="nav-ic"><i class="bi bi-truck"></i></span><span class="nav-txt">Client Dispatch</span></a>
@@ -604,6 +617,9 @@
             <a class="nav-a {% if _pg == 'npd_npd_projects' %}active{% endif %}" href="/npd/npd-projects">
                 <span class="nav-ic"><i class="bi bi-kanban"></i></span><span class="nav-txt">NPD Projects</span>
             </a>
+            <a class="nav-a {% if _pg == 'npd_fees_report' %}active{% endif %}" href="/npd/fees-report">
+                <span class="nav-ic"><i class="bi bi-cash-coin"></i></span><span class="nav-txt">NPD Fees Report</span>
+            </a>
             <a class="nav-a {% if _pg == 'npd_sample_ready' %}active{% endif %}" href="/npd/sample-ready">
                 <span class="nav-ic"><i class="bi bi-check-circle"></i></span><span class="nav-txt">Sample Ready</span>
             </a>
@@ -763,12 +779,12 @@
             <div class="sb-sec-lbl">Masters</div>
 
             {# ── HR Masters Accordion ── #}
-            <button class="sb-acc-hdr {% if _pg in ('hr_masters','hr_dept_master','hr_desig_master','hr_shift_master','hr_emptype_master','hr_loc_master','hr_country_master','hr_state_master','hr_nationality_master') %}open{% endif %}" onclick="toggleAccordion(this)">
+            <button class="sb-acc-hdr {% if _pg in ('hr_masters','hr_dept_master','hr_desig_master','hr_shift_master','hr_emptype_master','hr_loc_master','hr_country_master','hr_state_master','hr_nationality_master','hr_grade_master') %}open{% endif %}" onclick="toggleAccordion(this)">
                 <span class="sb-acc-ic"><i class="bi bi-folder2-open"></i></span>
                 <span class="sb-acc-lbl">HR Masters</span>
                 <span class="sb-acc-arrow">›</span>
             </button>
-            <div class="sb-acc-body {% if _pg in ('hr_masters','hr_dept_master','hr_desig_master','hr_shift_master','hr_emptype_master','hr_loc_master','hr_country_master','hr_state_master','hr_nationality_master') %}open{% endif %}">
+            <div class="sb-acc-body {% if _pg in ('hr_masters','hr_dept_master','hr_desig_master','hr_shift_master','hr_emptype_master','hr_loc_master','hr_country_master','hr_state_master','hr_nationality_master','hr_grade_master') %}open{% endif %}">
                 <a class="nav-a nav-sub {% if _pg == 'hr_emptype_master' %}active{% endif %}" href="/hr/masters/?tab=emp_type">
                     <span class="nav-ic"><i class="bi bi-briefcase"></i></span><span class="nav-txt">Employee Type</span>
                 </a>
@@ -780,6 +796,9 @@
                 </a>
                 <a class="nav-a nav-sub {% if _pg == 'hr_desig_master' %}active{% endif %}" href="/hr/masters/?tab=designation">
                     <span class="nav-ic"><i class="bi bi-person"></i></span><span class="nav-txt">Designation</span>
+                </a>
+                <a class="nav-a nav-sub {% if _pg == 'hr_grade_master' %}active{% endif %}" href="/hr/masters/?tab=grade">
+                    <span class="nav-ic"><i class="bi bi-bookmark-star"></i></span><span class="nav-txt">Grade</span>
                 </a>
                 <a class="nav-a nav-sub {% if _pg == 'hr_nationality_master' %}active{% endif %}" href="/hr/masters/?tab=nationality">
                     <span class="nav-ic"><i class="bi bi-globe2"></i></span><span class="nav-txt">Nationality</span>
@@ -1381,10 +1400,13 @@ function _staleRenderBellSection() {
 }
 
 // Poll stale leads every 5 minutes, first check after 10 seconds
-document.addEventListener('DOMContentLoaded', function() {
-    setTimeout(_stalePoll, 10000);
-    setInterval(_stalePoll, 5 * 60 * 1000);
-});
+// ── DISABLED per user request — stale-lead auto-popups band kar diye.
+// User-set reminders (_remPoll) chalu rahenge — wo intentional hain.
+// Agar kabhi wapas chalu karna ho to neeche ke 2 lines uncomment karo.
+// document.addEventListener('DOMContentLoaded', function() {
+//     setTimeout(_stalePoll, 10000);
+//     setInterval(_stalePoll, 5 * 60 * 1000);
+// });
 
 // Patch toggleReminderPanel to also show stale leads
 var _origToggle = toggleReminderPanel;
@@ -1459,6 +1481,7 @@ var GS_DATA=[
   {icon:'📥',bg:'#fdf4ff',label:'Import Employees',sub:'HR / Bulk employee import',url:'/hr/employees/import',tags:['import','employees','bulk','upload','hr','excel'],section:'HR'},
   {icon:'🧪',bg:'#f3e8ff',label:'NPD Dashboard',sub:'NPD / New Product Development overview',url:'/npd/npd-dashboard',tags:['npd','dashboard','new product'],section:'NPD'},
   {icon:'📋',bg:'#f3e8ff',label:'NPD Projects',sub:'NPD / All NPD project list',url:'/npd/npd-projects',tags:['npd','projects','list'],section:'NPD'},
+  {icon:'💰',bg:'#f3e8ff',label:'NPD Fees Report',sub:'NPD / Fees received with date filter & total',url:'/npd/fees-report',tags:['npd','fees','fee','payment','receipt','report','collection','revenue','total','date','filter'],section:'NPD'},
   {icon:'➕',bg:'#f3e8ff',label:'New NPD Project',sub:'NPD / Create new NPD project',url:'/npd/npd-new',tags:['npd','new','create'],section:'NPD'},  {icon:'📦',bg:'#d1fae5',label:'EPD Dashboard',sub:'EPD / Existing Product Development overview',url:'/npd/epd-dashboard',tags:['epd','dashboard','existing product'],section:'EPD'},
   {icon:'📋',bg:'#d1fae5',label:'EPD Projects',sub:'EPD / All EPD project list',url:'/npd/epd-projects',tags:['epd','projects','list'],section:'EPD'},
   {icon:'➕',bg:'#d1fae5',label:'New EPD Project',sub:'EPD / Create new EPD project',url:'/npd/epd-new',tags:['epd','new','create'],section:'EPD'},
@@ -2053,43 +2076,107 @@ function toggleAccordion(btn) {
     body.classList.toggle('open', !isOpen);
 }
 
-// Page load: ALL accordions closed by default — no localStorage restore
-document.addEventListener('DOMContentLoaded', function() {
-    // Clear old saved accordion states from localStorage
-    Object.keys(localStorage).forEach(k => { if (k.startsWith('acc_') || k.startsWith('sg_')) localStorage.removeItem(k); });
-    document.querySelectorAll('.sb-acc-hdr').forEach(btn => {
-        btn.classList.remove('open');
-        const body = btn.nextElementSibling;
-        if (body) body.classList.remove('open');
-    });
-    // Auto-open nav-submenu (and parent sub-groups, if nested) when an
-    // active link is inside — supports multi-level nesting up to 3 deep.
-    document.querySelectorAll('.nav-submenu').forEach(sub => {
-        if (sub.querySelector('.nav-a.active')) {
-            // Walk up: open every .nav-submenu and its preceding .nav-group-toggle
-            let current = sub;
-            while (current) {
-                if (current.classList && current.classList.contains('nav-submenu')) {
-                    current.classList.add('open');
-                    const toggle = current.previousElementSibling;
-                    if (toggle && toggle.classList.contains('nav-group-toggle')) {
-                        toggle.classList.add('open');
+// ── Sidebar accordion init: runs SYNC (no DOMContentLoaded wait) ──
+// Body has class="sb-preload" which suppresses ALL sidebar transitions.
+// We set the active accordion's .open class + scroll the active item
+// into view, then drop sb-preload after layout settles so user clicks
+// animate normally afterward.
+(function initSidebarAccordion() {
+    var preloadCleared = false;
+
+    function clearPreload() {
+        if (preloadCleared) return;
+        preloadCleared = true;
+        document.body.classList.remove('sb-preload');
+    }
+
+    function run() {
+        // Clear old saved accordion states from localStorage
+        try {
+            Object.keys(localStorage).forEach(k => {
+                if (k.startsWith('acc_') || k.startsWith('sg_')) localStorage.removeItem(k);
+            });
+        } catch (_) { /* private mode etc. */ }
+
+        // Default: all accordions closed
+        document.querySelectorAll('.sb-acc-hdr').forEach(btn => {
+            btn.classList.remove('open');
+            const body = btn.nextElementSibling;
+            if (body) body.classList.remove('open');
+        });
+
+        // Open the chain that contains an active link
+        var activeAccBody = null;
+        document.querySelectorAll('.nav-submenu').forEach(sub => {
+            if (sub.querySelector('.nav-a.active')) {
+                let current = sub;
+                while (current) {
+                    if (current.classList && current.classList.contains('nav-submenu')) {
+                        current.classList.add('open');
+                        const toggle = current.previousElementSibling;
+                        if (toggle && toggle.classList.contains('nav-group-toggle')) {
+                            toggle.classList.add('open');
+                        }
                     }
+                    current = current.parentElement
+                              ? current.parentElement.closest('.nav-submenu')
+                              : null;
                 }
-                current = current.parentElement
-                          ? current.parentElement.closest('.nav-submenu')
-                          : null;
+                const accBody = sub.closest('.sb-acc-body');
+                if (accBody) {
+                    accBody.classList.add('open');
+                    const accHdr = accBody.previousElementSibling;
+                    if (accHdr) accHdr.classList.add('open');
+                    activeAccBody = accBody;
+                }
             }
-            // Also open the outer accordion (Purchase, etc.)
-            const accBody = sub.closest('.sb-acc-body');
-            if (accBody) {
+        });
+
+        // Also handle direct active links inside .sb-acc-body without nav-submenu wrapper
+        document.querySelectorAll('.sb-acc-body .nav-a.active').forEach(a => {
+            const accBody = a.closest('.sb-acc-body');
+            if (accBody && !accBody.classList.contains('open')) {
                 accBody.classList.add('open');
                 const accHdr = accBody.previousElementSibling;
                 if (accHdr) accHdr.classList.add('open');
+                if (!activeAccBody) activeAccBody = accBody;
             }
-        }
-    });
-});
+        });
+
+        // Scroll active item into view INSTANTLY (preload suppresses
+        // scroll-behavior smooth) so user doesn't see a scroll animation
+        // when sidebar slides in for the first time.
+        try {
+            const activeLink = document.querySelector('.sb-nav .nav-a.active');
+            if (activeLink) {
+                const sbNav = activeLink.closest('.sb-nav');
+                if (sbNav) {
+                    const linkTop = activeLink.offsetTop;
+                    const navHeight = sbNav.clientHeight;
+                    if (linkTop > navHeight - 80) {
+                        sbNav.scrollTop = linkTop - navHeight / 2;
+                    }
+                }
+            }
+        } catch (_) { /* defensive */ }
+
+        // After layout settles, drop preload class — user clicks now animate
+        requestAnimationFrame(function() {
+            requestAnimationFrame(clearPreload);
+        });
+    }
+
+    // The script is at end of <body>, so DOM is ready; run sync.
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', run);
+    } else {
+        run();
+    }
+
+    // Safety net: even if rAF doesn't fire (rare, e.g. tab in background),
+    // ensure preload is removed within 500ms so user interaction works.
+    setTimeout(clearPreload, 500);
+})();
 </script>
 
 {% block extra_js %}{% endblock %}

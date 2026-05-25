@@ -600,7 +600,82 @@ def lead_send_npd(id):
     return redirect(url_for('crm.lead_view', id=id))
 
 
-# ══════════════════════════════════════
+@mail_bp.route('/leads/<int:id>/send-email', methods=['POST'])
+@login_required
+def lead_send_email(id):
+    """Quick custom email to a lead. AJAX endpoint — takes JSON
+    {to, subject, body, from_name, from_email}. Body is treated as HTML.
+    Sends via SMTP directly, returns JSON. No external client opens."""
+    import html as _html
+    import re as _re
+    from models import LeadActivityLog
+    lead = Lead.query.get_or_404(id)
+
+    data = request.get_json(silent=True) or {}
+    to_email   = (data.get('to') or '').strip()
+    subject    = (data.get('subject') or '').strip()
+    body       = (data.get('body') or '').strip()
+    from_name  = (data.get('from_name')  or '').strip()
+    from_email = (data.get('from_email') or '').strip()
+
+    if not to_email:
+        return jsonify(success=False, error='To email required'), 400
+    if '@' not in to_email or '.' not in to_email:
+        return jsonify(success=False, error='Invalid To email address'), 400
+    if not subject:
+        return jsonify(success=False, error='Subject required'), 400
+    if not body:
+        return jsonify(success=False, error='Message body required'), 400
+
+    # SMTP config check
+    cfg = current_app.config
+    if not cfg.get('MAIL_SERVER') or not cfg.get('MAIL_USERNAME'):
+        return jsonify(success=False, error='SMTP not configured. config.py mein MAIL_SERVER / MAIL_USERNAME / MAIL_PASSWORD set karein.'), 500
+
+    # Defaults from config if user didn't override
+    if not from_email:
+        from_email = cfg.get('MAIL_DEFAULT_SENDER') or cfg.get('MAIL_USERNAME') or 'noreply@hcpwellness.in'
+    if not from_name:
+        from_name  = cfg.get('MAIL_FROM_NAME', 'HCP Wellness Pvt. Ltd.')
+
+    if '@' not in from_email or '.' not in from_email:
+        return jsonify(success=False, error='Invalid From email address'), 400
+
+    # Detect plain-text vs HTML. If no HTML tags, convert newlines to <br>.
+    if _re.search(r'<\w+[^>]*>', body):
+        html_body = (
+            '<div style="font-family:Arial,sans-serif;font-size:14px;'
+            'line-height:1.6;color:#1f2937;">' + body + '</div>'
+        )
+    else:
+        safe = _html.escape(body).replace('\r\n', '\n').replace('\n', '<br>')
+        html_body = (
+            '<div style="font-family:Arial,sans-serif;font-size:14px;'
+            'line-height:1.6;color:#1f2937;">' + safe + '</div>'
+        )
+
+    success, err = _send_smtp(to_email, subject, html_body, from_email, from_name)
+
+    if success:
+        try:
+            db.session.add(LeadActivityLog(
+                lead_id = id,
+                user_id = current_user.id,
+                action  = f'Email sent to {to_email}: {subject[:60]}',
+            ))
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+        try:
+            audit('mail', 'SEND', id, f'Email → {to_email}', obj=None)
+        except Exception:
+            pass
+        return jsonify(success=True, message=f'Email sent to {to_email}')
+    else:
+        return jsonify(success=False, error=err or 'Send failed'), 500
+
+
+# ═══════════════════════════════════════
 # SEND SAMPLE ORDER EMAIL — from SampleOrder
 # ══════════════════════════════════════
 

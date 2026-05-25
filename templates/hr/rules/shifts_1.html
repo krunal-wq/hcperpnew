@@ -1,0 +1,243 @@
+{% extends "base.html" %}
+{% block title %}Shift Master{% endblock %}
+{% block page_title %}Shift Master{% endblock %}
+{% block bread %}HR / Rules / Shifts{% endblock %}
+
+{% block extra_css %}
+<style>
+.rule-page-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:.5rem;}
+.rule-cards-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:1rem;}
+.rule-card{background:#fff;border:1px solid var(--border);border-radius:14px;overflow:hidden;box-shadow:0 1px 6px rgba(0,0,0,.05);}
+.rule-card-hdr{display:flex;align-items:center;gap:.6rem;padding:.8rem 1rem;border-bottom:1px solid var(--border);}
+.rule-card-title{font-size:.88rem;font-weight:800;flex:1;}
+.rule-badge-active{background:#dcfce7;color:#16a34a;font-size:.65rem;font-weight:700;padding:2px 8px;border-radius:20px;}
+.rule-badge-inactive{background:#fee2e2;color:#dc2626;font-size:.65rem;font-weight:700;padding:2px 8px;border-radius:20px;}
+.rule-card-body{padding:.85rem 1rem;}
+.rule-meta-grid{display:grid;grid-template-columns:1fr 1fr;gap:.35rem .8rem;margin-bottom:.7rem;}
+.rule-meta-item{display:flex;flex-direction:column;gap:.1rem;}
+.rml{font-size:.6rem;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;}
+.rmv{font-size:.8rem;font-weight:700;color:var(--text);font-family:monospace;}
+.rule-card-actions{display:flex;gap:.4rem;padding:.6rem 1rem;border-top:1px solid #f1f5f9;background:#fafbfc;}
+.ra-btn2{padding:.28rem .75rem;border-radius:7px;font-size:.72rem;font-weight:700;cursor:pointer;border:1px solid var(--border);background:#fff;color:var(--text2);transition:all .12s;}
+.ra-btn2:hover{background:#f1f5f9;}
+.ra-btn2.danger{border-color:#fecaca;color:#dc2626;}
+.ra-btn2.danger:hover{background:#fee2e2;}
+/* Add form modal */
+.add-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1000;align-items:center;justify-content:center;padding:1rem;}
+.add-modal.open{display:flex;}
+.add-modal-box{background:#fff;border-radius:14px;width:640px;max-width:96vw;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.2);}
+.add-modal-hdr{display:flex;align-items:center;justify-content:space-between;padding:.85rem 1.1rem;border-bottom:1px solid var(--border);background:#f8fafc;border-radius:14px 14px 0 0;}
+.add-modal-title{font-size:.9rem;font-weight:800;}
+.add-modal-body{padding:1rem 1.1rem;}
+.add-modal-footer{display:flex;gap:.5rem;justify-content:flex-end;padding:.75rem 1.1rem;border-top:1px solid var(--border);}
+.fg2{display:flex;flex-direction:column;gap:.25rem;margin-bottom:.65rem;}
+.fg2 label{font-size:.67rem;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;}
+.fg2 input,.fg2 select,.fg2 textarea{padding:.38rem .65rem;border:1.5px solid var(--border);border-radius:8px;font-size:.82rem;font-family:inherit;outline:none;transition:border .15s;}
+.fg2 input:focus,.fg2 select:focus,.fg2 textarea:focus{border-color:#2563eb;box-shadow:0 0 0 3px rgba(37,99,235,.1);}
+.fgrid2{display:grid;grid-template-columns:1fr 1fr;gap:.65rem;}
+.fgrid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:.65rem;}
+.save-btn2{padding:.42rem 1.1rem;background:#2563eb;color:#fff;border:none;border-radius:8px;font-size:.82rem;font-weight:700;cursor:pointer;}
+.cancel-btn2{padding:.42rem .9rem;background:#f1f5f9;color:var(--text2);border:1px solid var(--border);border-radius:8px;font-size:.82rem;font-weight:600;cursor:pointer;}
+.shift-dot{width:14px;height:14px;border-radius:50%;flex-shrink:0;}
+.empty-state{text-align:center;padding:3rem;color:var(--text3);}
+.empty-state .ei{font-size:2.5rem;margin-bottom:.5rem;}
+.flash-ok{background:#f0fdf4;border:1px solid #bbf7d0;color:#16a34a;border-radius:8px;padding:.55rem 1rem;font-size:.79rem;font-weight:600;margin-bottom:.9rem;}
+.flash-err{background:#fef2f2;border:1px solid #fecaca;color:#dc2626;border-radius:8px;padding:.55rem 1rem;font-size:.79rem;font-weight:600;margin-bottom:.9rem;}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="rule-page-hdr">
+  <div>
+    <h2 style="margin:0;font-size:1.15rem;font-weight:800;">🔄 Shift Master</h2>
+    <div style="font-size:.72rem;color:var(--text3);">Shift timings, late time, break hours define karo</div>
+  </div>
+  <button class="btn-primary" onclick="document.getElementById('addShiftModal').classList.add('open')">
+    + Add Shift
+  </button>
+</div>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% for cat, msg in messages %}
+  <div class="{{ 'flash-ok' if cat=='success' else 'flash-err' }}">{{ '✅' if cat=='success' else '❌' }} {{ msg }}</div>
+  {% endfor %}
+{% endwith %}
+
+{% if shifts %}
+<div class="rule-cards-grid">
+  {% for s in shifts %}
+  <div class="rule-card">
+    <div class="rule-card-hdr">
+      <div class="shift-dot" style="background:{{ s.color or '#2563eb' }};"></div>
+      <div class="rule-card-title">{{ s.name }}
+        <span style="font-size:.7rem;color:var(--text3);font-weight:500;margin-left:4px;">({{ s.code }})</span>
+      </div>
+      <span class="{{ 'rule-badge-active' if s.is_active else 'rule-badge-inactive' }}">
+        {{ 'Active' if s.is_active else 'Inactive' }}
+      </span>
+    </div>
+    <div class="rule-card-body">
+      <div class="rule-meta-grid">
+        <div class="rule-meta-item"><span class="rml">Shift Start</span><span class="rmv">{{ s.shift_start }}</span></div>
+        <div class="rule-meta-item"><span class="rml">Shift End</span><span class="rmv">{{ s.shift_end }}</span></div>
+        <div class="rule-meta-item"><span class="rml">Late After</span><span class="rmv" style="color:#dc2626;">{{ s.late_after or '—' }}</span></div>
+        <div class="rule-meta-item"><span class="rml">Half Day After</span><span class="rmv" style="color:#d97706;">{{ s.half_day_after or '—' }}</span></div>
+        <div class="rule-meta-item"><span class="rml">Absent After</span><span class="rmv" style="color:#dc2626;">{{ s.absent_after or '—' }}</span></div>
+        <div class="rule-meta-item"><span class="rml">Early Go Before</span><span class="rmv" style="color:#7c3aed;">{{ s.early_go_before or '—' }}</span></div>
+        <div class="rule-meta-item"><span class="rml">Full Day Hours</span><span class="rmv">{{ s.min_hours_full }}h</span></div>
+        <div class="rule-meta-item"><span class="rml">Half Day Hours</span><span class="rmv">{{ s.min_hours_half }}h</span></div>
+        <div class="rule-meta-item"><span class="rml">Break</span><span class="rmv">{{ s.break_minutes }} min</span></div>
+        <div class="rule-meta-item"><span class="rml">Weekly Off</span><span class="rmv">{{ s.weekly_off }}</span></div>
+      </div>
+    </div>
+    <div class="rule-card-actions">
+      <button class="ra-btn2" onclick="openEditShift({{ s.id }},'{{ s.name }}','{{ s.code }}','{{ s.shift_start }}','{{ s.shift_end }}','{{ s.late_after or '' }}','{{ s.half_day_after or '' }}','{{ s.absent_after or '' }}','{{ s.early_go_before or '' }}','{{ s.min_hours_full }}','{{ s.min_hours_half }}','{{ s.break_minutes }}','{{ s.weekly_off }}','{{ s.color or '#2563eb' }}')">✏️ Edit</button>
+      <form method="post" style="display:inline;" onsubmit="return confirm('Delete {{ s.name }}?')">
+        <input type="hidden" name="action" value="delete">
+        <input type="hidden" name="id" value="{{ s.id }}">
+        <button type="submit" class="ra-btn2 danger">🗑 Delete</button>
+      </form>
+      <form method="post" style="display:inline;margin-left:auto;">
+        <input type="hidden" name="action" value="toggle">
+        <input type="hidden" name="id" value="{{ s.id }}">
+        <button type="submit" class="ra-btn2">{{ '⏸ Deactivate' if s.is_active else '▶ Activate' }}</button>
+      </form>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="empty-state">
+  <div class="ei">🔄</div>
+  <div style="font-weight:700;margin-bottom:.3rem;">Koi shift nahi</div>
+  <div style="font-size:.8rem;">Upar "+ Add Shift" se pehla shift banao</div>
+</div>
+{% endif %}
+
+<!-- Add Shift Modal -->
+<div class="add-modal" id="addShiftModal">
+  <div class="add-modal-box">
+    <div class="add-modal-hdr">
+      <span class="add-modal-title">➕ Add New Shift</span>
+      <button class="cancel-btn2" onclick="document.getElementById('addShiftModal').classList.remove('open')">✕</button>
+    </div>
+    <form method="post">
+      <input type="hidden" name="action" value="add">
+      <div class="add-modal-body">
+        <div class="fgrid2">
+          <div class="fg2"><label>Shift Name *</label><input type="text" name="name" placeholder="e.g. General, Morning" required></div>
+          <div class="fg2"><label>Code *</label><input type="text" name="code" placeholder="e.g. GEN, MORN" maxlength="10" required></div>
+        </div>
+        <div class="fgrid2">
+          <div class="fg2"><label>Shift Start *</label><input type="time" name="shift_start" value="09:00" required></div>
+          <div class="fg2"><label>Shift End *</label><input type="time" name="shift_end" value="18:00" required></div>
+        </div>
+        <div class="fgrid3">
+          <div class="fg2"><label>Late After</label><input type="time" name="late_after" placeholder="HH:MM"></div>
+          <div class="fg2"><label>Half Day After</label><input type="time" name="half_day_after" placeholder="HH:MM"></div>
+          <div class="fg2"><label>Absent After</label><input type="time" name="absent_after" placeholder="HH:MM"></div>
+        </div>
+        <div class="fgrid3">
+          <div class="fg2"><label>Early Go Before</label><input type="time" name="early_go_before" placeholder="HH:MM"></div>
+          <div class="fg2"><label>Full Day Min Hours</label><input type="number" name="min_hours_full" value="8" step="0.5" min="1" max="24"></div>
+          <div class="fg2"><label>Half Day Min Hours</label><input type="number" name="min_hours_half" value="4" step="0.5" min="1" max="12"></div>
+        </div>
+        <div class="fgrid3">
+          <div class="fg2"><label>Break (minutes)</label><input type="number" name="break_minutes" value="60" min="0" max="180"></div>
+          <div class="fg2"><label>Weekly Off</label>
+            <select name="weekly_off">
+              <option value="Sunday">Sunday</option>
+              <option value="Saturday,Sunday">Saturday & Sunday</option>
+              <option value="Saturday">Saturday</option>
+              <option value="None">No Weekly Off</option>
+            </select>
+          </div>
+          <div class="fg2"><label>Color</label><input type="color" name="color" value="#2563eb" style="height:38px;padding:2px 4px;"></div>
+        </div>
+      </div>
+      <div class="add-modal-footer">
+        <button type="button" class="cancel-btn2" onclick="document.getElementById('addShiftModal').classList.remove('open')">Cancel</button>
+        <button type="submit" class="save-btn2">💾 Save Shift</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Edit Shift Modal -->
+<div class="add-modal" id="editShiftModal">
+  <div class="add-modal-box">
+    <div class="add-modal-hdr">
+      <span class="add-modal-title">✏️ Edit Shift</span>
+      <button class="cancel-btn2" onclick="document.getElementById('editShiftModal').classList.remove('open')">✕</button>
+    </div>
+    <form method="post" id="editShiftForm">
+      <input type="hidden" name="action" value="edit">
+      <input type="hidden" name="id" id="edit_shift_id">
+      <div class="add-modal-body">
+        <div class="fgrid2">
+          <div class="fg2"><label>Shift Name *</label><input type="text" name="name" id="edit_shift_name" required></div>
+          <div class="fg2"><label>Code *</label><input type="text" name="code" id="edit_shift_code" maxlength="10" required></div>
+        </div>
+        <div class="fgrid2">
+          <div class="fg2"><label>Shift Start *</label><input type="time" name="shift_start" id="edit_shift_start" required></div>
+          <div class="fg2"><label>Shift End *</label><input type="time" name="shift_end" id="edit_shift_end" required></div>
+        </div>
+        <div class="fgrid3">
+          <div class="fg2"><label>Late After</label><input type="time" name="late_after" id="edit_shift_late"></div>
+          <div class="fg2"><label>Half Day After</label><input type="time" name="half_day_after" id="edit_shift_hda"></div>
+          <div class="fg2"><label>Absent After</label><input type="time" name="absent_after" id="edit_shift_aa"></div>
+        </div>
+        <div class="fgrid3">
+          <div class="fg2"><label>Early Go Before</label><input type="time" name="early_go_before" id="edit_shift_egb"></div>
+          <div class="fg2"><label>Full Day Min Hours</label><input type="number" name="min_hours_full" id="edit_shift_mhf" step="0.5" min="1" max="24"></div>
+          <div class="fg2"><label>Half Day Min Hours</label><input type="number" name="min_hours_half" id="edit_shift_mhh" step="0.5" min="1" max="12"></div>
+        </div>
+        <div class="fgrid3">
+          <div class="fg2"><label>Break (minutes)</label><input type="number" name="break_minutes" id="edit_shift_brk" min="0" max="180"></div>
+          <div class="fg2"><label>Weekly Off</label>
+            <select name="weekly_off" id="edit_shift_woff">
+              <option value="Sunday">Sunday</option>
+              <option value="Saturday,Sunday">Saturday & Sunday</option>
+              <option value="Saturday">Saturday</option>
+              <option value="None">No Weekly Off</option>
+            </select>
+          </div>
+          <div class="fg2"><label>Color</label><input type="color" name="color" id="edit_shift_color" style="height:38px;padding:2px 4px;"></div>
+        </div>
+      </div>
+      <div class="add-modal-footer">
+        <button type="button" class="cancel-btn2" onclick="document.getElementById('editShiftModal').classList.remove('open')">Cancel</button>
+        <button type="submit" class="save-btn2">💾 Update Shift</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function openEditShift(id,name,code,ss,se,la,hda,aa,egb,mhf,mhh,brk,woff,color){
+  document.getElementById('edit_shift_id').value=id;
+  document.getElementById('edit_shift_name').value=name;
+  document.getElementById('edit_shift_code').value=code;
+  document.getElementById('edit_shift_start').value=ss;
+  document.getElementById('edit_shift_end').value=se;
+  document.getElementById('edit_shift_late').value=la;
+  document.getElementById('edit_shift_hda').value=hda;
+  document.getElementById('edit_shift_aa').value=aa;
+  document.getElementById('edit_shift_egb').value=egb;
+  document.getElementById('edit_shift_mhf').value=mhf;
+  document.getElementById('edit_shift_mhh').value=mhh;
+  document.getElementById('edit_shift_brk').value=brk;
+  document.getElementById('edit_shift_woff').value=woff;
+  document.getElementById('edit_shift_color').value=color;
+  document.getElementById('editShiftModal').classList.add('open');
+}
+document.addEventListener('click',function(e){
+  ['addShiftModal','editShiftModal'].forEach(function(id){
+    var m=document.getElementById(id);
+    if(e.target===m) m.classList.remove('open');
+  });
+});
+</script>
+{% endblock %}

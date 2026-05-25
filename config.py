@@ -14,8 +14,7 @@ class Config:
 
     WTF_CSRF_ENABLED = True
     SESSION_COOKIE_SECURE = False
-    SESSION_COOKIE_HTTPONLY = True
-    PERMANENT_SESSION_LIFETIME = 1800
+    SESSION_COOKIE_HTTPONLY = True 
 
     # ── SMTP / Mail Settings ──────────────────────────────────────────────
     MAIL_SERVER   = os.environ.get('MAIL_SERVER',   'smtp.gmail.com')

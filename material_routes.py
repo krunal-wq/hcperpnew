@@ -5,7 +5,7 @@ Blueprint: material at /material
 from datetime import datetime
 from flask import Blueprint, render_template, request, jsonify, abort
 from flask_login import login_required, current_user
-from models import db, Material, MaterialType, MaterialGroup, ItemCategory
+from models import db, Material, MaterialType, MaterialGroup, ItemCategory, UOMMaster
 from models.client import ClientBrand
 from permissions import get_perm, get_sub_perm
 
@@ -32,12 +32,13 @@ _TYPE_PERM_MAP = {
 
 def _allowed_types(types):
     """Filter types list based on user's type-level sub-permissions.
-    Admin → sab types.
+    Admin / Manager → sab types (case-insensitive, whitespace-tolerant).
     Non-admin → sirf jinhe permission mili ho.
     Agar kisi bhi type ka perm check nahi set → sab allow (backward compat).
     """
     from flask_login import current_user
-    if getattr(current_user, 'role', '') == 'admin':
+    role = (getattr(current_user, 'role', '') or '').strip().lower()
+    if role in ('admin', 'manager'):
         return types
     filtered = []
     for t in types:
@@ -268,9 +269,9 @@ def import_template():
         row1 = f'Frosted Glass Bottle 100ml,{abbr}-001,"Glass Bottle,100ml Bottle",PM,HM,Twasa,Bottles,100,"Bottle,Glass,Frosted",,,,,PCS,0,28.50,0,70109090,18,Taxable,'
         row2 = f'Corrugated Box 300x200x150mm 3Ply,{abbr}-002,"Carton Box,Corrugated Carton",Corrugation,HM,Twasa,Cartons,,,"3 Ply",300,200,150,PCS,0,18.00,0,48191000,12,Taxable,'
     elif abbr == 'FG':
-        hdrs = 'item_name,code,aliases,brand,category,sku_size,per_box_qty,uom,msl,last_purchase_rate,opening_balance,hsn_code,gst_rate,taxability,description'
-        row1 = f'Rose Glow Face Wash 100ml,{abbr}-001,"Rose Face Wash,Glow Cleanser",Twasa,Face Wash,100,24,PCS,0,0.00,0,33049990,18,Taxable,'
-        row2 = f'Anti Dandruff Shampoo 250ml,{abbr}-002,"AD Shampoo,Dandruff Shampoo",Twasa,Shampoo,250,12,PCS,0,0.00,0,33051000,18,Taxable,'
+        hdrs = 'item_name,code,aliases,brand,category,sku_size,per_box_qty,per_box_weight,per_box_weight_uom,uom,msl,last_purchase_rate,opening_balance,hsn_code,gst_rate,taxability,description'
+        row1 = f'Rose Glow Face Wash 100ml,{abbr}-001,"Rose Face Wash,Glow Cleanser",Twasa,Face Wash,100,24,2.880,KG,PCS,0,0.00,0,33049990,18,Taxable,'
+        row2 = f'Anti Dandruff Shampoo 250ml,{abbr}-002,"AD Shampoo,Dandruff Shampoo",Twasa,Shampoo,250,12,3.500,KG,PCS,0,0.00,0,33051000,18,Taxable,'
     else:
         hdrs = 'item_name,code,aliases,uom,msl,last_purchase_rate,opening_balance,hsn_code,gst_rate,taxability,description'
         row1 = f'Sample Item 1,{abbr}-001,,KG,10,100.00,0,12345678,18,Taxable,'
@@ -293,6 +294,7 @@ def add_item():
     groups = MaterialGroup.query.order_by(MaterialGroup.group_name).all()
     brands     = ClientBrand.query.filter_by(is_active=True).order_by(ClientBrand.brand_name).all()
     categories = ItemCategory.query.filter_by(is_active=True).order_by(ItemCategory.category_name).all()
+    uom_list   = UOMMaster.query.filter_by(status=True, is_deleted=False).order_by(UOMMaster.code).all()
 
     # ── Auto Item Type from URL param ─────────────────────────────────────
     auto_type_abbr = request.args.get('item_type', '').strip().upper()
@@ -306,7 +308,7 @@ def add_item():
     return render_template('material/add_item.html',
         active_page='material', role=_role(),
         types=types, groups=groups, item=None,
-        brands=brands, categories=categories,
+        brands=brands, categories=categories, uom_list=uom_list,
         user_name=getattr(current_user, 'full_name', '') or _cu(),
         auto_type      = auto_type,
         auto_type_abbr = auto_type_abbr,
@@ -322,6 +324,7 @@ def edit_item(item_id):
     groups = MaterialGroup.query.order_by(MaterialGroup.group_name).all()
     brands     = ClientBrand.query.filter_by(is_active=True).order_by(ClientBrand.brand_name).all()
     categories = ItemCategory.query.filter_by(is_active=True).order_by(ItemCategory.category_name).all()
+    uom_list   = UOMMaster.query.filter_by(status=True, is_deleted=False).order_by(UOMMaster.code).all()
     # Pass item_type from URL or from item's type
     auto_type_abbr = request.args.get('item_type', '').strip().upper()
     if not auto_type_abbr and item.material_type:
@@ -330,7 +333,7 @@ def edit_item(item_id):
     return render_template('material/add_item.html',
         active_page='material', role=_role(),
         types=types, groups=groups, item=item,
-        brands=brands, categories=categories,
+        brands=brands, categories=categories, uom_list=uom_list,
         user_name=getattr(current_user, 'full_name', '') or _cu(),
         auto_type=auto_type,
         auto_type_abbr=auto_type_abbr,
@@ -549,6 +552,8 @@ def api_save():
         m.brand              = d.get('brand', '').strip()
         m.category           = d.get('category', '').strip()
         m.per_box_qty        = int(d.get('per_box_qty') or 0)
+        m.per_box_weight     = float(d.get('per_box_weight') or 0)
+        m.per_box_weight_uom = (d.get('per_box_weight_uom') or 'KG').strip()
         m.pm_material_type   = d.get('pm_material_type', '').strip()
         m.pm_client_type     = d.get('pm_client_type', '').strip()
         m.pm_attribute       = d.get('pm_attribute', '').strip()

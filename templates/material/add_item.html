@@ -485,6 +485,36 @@
               <span class="ai-err" id="pmTypeErr">PM Type required</span>
             </div>
 
+            <!-- Per Box Weight (FG only) — sits in slot 1 when FG is selected -->
+            {% if (auto_type and auto_type.abbreviation|upper == 'FG') or (item and item.material_type and item.material_type.abbreviation|upper == 'FG') %}<div class="ai-fld ai-field-fg" id="rowPerBoxWeight">{% else %}<div class="ai-fld ai-field-fg" id="rowPerBoxWeight" data-hide>{% endif %}
+              <label class="ai-label">Per Box Weight <span class="req">*</span></label>
+              <div style="display:flex;align-items:stretch;gap:6px;">
+                <input class="ai-input" id="fPerBoxWeight" name="per_box_weight" type="number"
+                       min="0" step="0.001" value="{{ item.per_box_weight if item and item.per_box_weight else '' }}"
+                       placeholder="e.g. 12.500" style="flex:1;">
+                <select class="ai-select" id="fPerBoxWeightUom" name="per_box_weight_uom"
+                        style="width:88px;flex-shrink:0;">
+                  {% if uom_list %}
+                    {% for u in uom_list %}
+                    <option value="{{ u.code }}"
+                      {% if item and item.per_box_weight_uom == u.code %}selected
+                      {% elif not item and u.code == 'KG' %}selected{% endif %}>
+                      {{ u.code }}
+                    </option>
+                    {% endfor %}
+                  {% else %}
+                    {% for u in ['KG','G','MG','L','ML','PCS','BOX'] %}
+                    <option value="{{ u }}"
+                      {% if item and item.per_box_weight_uom == u %}selected
+                      {% elif not item and u == 'KG' %}selected{% endif %}>{{ u }}</option>
+                    {% endfor %}
+                  {% endif %}
+                </select>
+              </div>
+              <span class="ai-hint">Total weight of one box</span>
+              <span class="ai-err">Per box weight required</span>
+            </div>
+
             <!-- Brand (PM + FG) -->
             {% if (auto_type and auto_type.abbreviation|upper in ['PM','FG']) or (item and item.material_type and item.material_type.abbreviation|upper in ['PM','FG']) %}<div class="ai-fld ai-field-pm-fg" id="rowBrand">{% else %}<div class="ai-fld ai-field-pm-fg" id="rowBrand" data-hide>{% endif %}
               <label class="ai-label">Brand <span class="req">*</span></label>
@@ -642,10 +672,20 @@
           <div class="ai-fld">
             <label class="ai-label">UOM <span class="req">*</span></label>
             <select class="ai-select" id="fUom" name="uom">
-              {% set uoms = ['KG','G','MG','L','ML','PCS','BOX','PKT','SET','MTR','CM','ROLL','BAG','BTL','CAN','DRUM','TON'] %}
-              {% for u in uoms %}
-              <option value="{{ u }}" {% if item and item.uom == u %}selected{% elif not item and u=='KG' %}selected{% endif %}>{{ u }}</option>
-              {% endfor %}
+              {% if uom_list %}
+                {% for u in uom_list %}
+                <option value="{{ u.code }}"
+                  {% if item and item.uom == u.code %}selected
+                  {% elif not item and u.code == 'KG' %}selected{% endif %}>
+                  {{ u.code }}{% if u.name and u.name != u.code %} — {{ u.name }}{% endif %}
+                </option>
+                {% endfor %}
+              {% else %}
+                {% set uoms = ['KG','G','MG','L','ML','PCS','BOX','PKT','SET','MTR','CM','ROLL','BAG','BTL','CAN','DRUM','TON'] %}
+                {% for u in uoms %}
+                <option value="{{ u }}" {% if item and item.uom == u %}selected{% elif not item and u=='KG' %}selected{% endif %}>{{ u }}</option>
+                {% endfor %}
+              {% endif %}
             </select>
             <span class="ai-err">UOM required</span>
           </div>
@@ -1052,6 +1092,7 @@ function applyTypeFields(abbr, color, name) {
 
   // FG-only fields
   toggleField('rowPerBox', isFG);
+  toggleField('rowPerBoxWeight', isFG);
 
   // Show Material Type row only for PM
   toggleField('rowMaterialType', isPM);
@@ -1075,6 +1116,7 @@ function applyTypeFields(abbr, color, name) {
   setRequired('fGroup',     isRM);
   setRequired('fInci',      false);
   setRequired('fPerBoxQty', isFG);
+  setRequired('fPerBoxWeight', isFG);
 }
 
 function toggleField(id, show) {
@@ -1265,6 +1307,17 @@ function validateForm() {
       pbq.closest('.ai-fld').classList.remove('has-err');
       pbq.classList.remove('invalid');
     }
+
+    // Per Box Weight (FG only)
+    const pbw = document.getElementById('fPerBoxWeight');
+    if (!pbw.value || parseFloat(pbw.value) <= 0) {
+      pbw.closest('.ai-fld').classList.add('has-err');
+      pbw.classList.add('invalid');
+      ok = false;
+    } else {
+      pbw.closest('.ai-fld').classList.remove('has-err');
+      pbw.classList.remove('invalid');
+    }
   }
 
   // Rate, MSL, OB — can be 0 but must be a number
@@ -1341,6 +1394,8 @@ async function submitForm(e) {
     aliases:             document.getElementById('fAliases').value.trim(),
     sku_sizes:           document.getElementById('fSkuSizes').value.trim(),
     per_box_qty:         parseInt(document.getElementById('fPerBoxQty').value) || 0,
+    per_box_weight:      parseFloat(document.getElementById('fPerBoxWeight').value) || 0,
+    per_box_weight_uom:  document.getElementById('fPerBoxWeightUom').value || 'KG',
     category:            (_isRM ? (document.getElementById('fCategoryRm')?.value||'') : document.getElementById('fCategory').value).trim(),
     group_id:            document.getElementById('fGroup').value || null,
     uom:                 document.getElementById('fUom').value,

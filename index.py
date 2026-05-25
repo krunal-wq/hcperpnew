@@ -23,6 +23,8 @@ from late_rule_routes import late_rules_bp
 from hr_rules_routes import hr_rules_bp
 from packing_routes  import packing
 from material_routes import material_bp
+from formulation_routes import formulation_bp   # ← NEW: Formulation Master under Raw Material
+from packing_bom_routes import packing_bom_bp   # ← NEW: Packing Material BOM
 from supplier_routes import supplier_bp
 from routes.module_settings_routes import module_settings  # ← Module enable/disable
 from daily_report_share import daily_report_bp   # ← Daily Report Share
@@ -97,6 +99,8 @@ app.register_blueprint(late_rules_bp)
 app.register_blueprint(hr_rules_bp)
 app.register_blueprint(packing)        # Packing Department
 app.register_blueprint(material_bp)    # Item Master
+app.register_blueprint(formulation_bp) # ← NEW: Formulation Master
+app.register_blueprint(packing_bom_bp) # ← NEW: Packing Material BOM
 app.register_blueprint(supplier_bp)    # Supplier Master
 app.register_blueprint(module_settings)   # Module enable/disable settings
 app.register_blueprint(daily_report_bp)   # ← Daily Report Share

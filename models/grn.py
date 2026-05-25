@@ -69,6 +69,10 @@ class GrnMaster(db.Model):
     po_number           = db.Column(db.String(60),  default='')
     po_date             = db.Column(db.Date,        nullable=True)
 
+    # GRN-Without-PO flag (set when user picked "NA" in supplier dropdown
+    # and chose a supplier manually from the master, bypassing the PO link).
+    is_without_po       = db.Column(db.Boolean,     default=False, nullable=False)
+
     # Supplier
     supplier_id         = db.Column(db.Integer,     nullable=True, index=True)
     supplier_name       = db.Column(db.String(300), default='')
@@ -196,6 +200,7 @@ class GrnMaster(db.Model):
             'grn_date': self.grn_date.strftime('%d-%m-%Y') if self.grn_date else '',
             'po_number': self.po_number or '',
             'po_date': self.po_date.strftime('%d-%m-%Y') if self.po_date else '',
+            'is_without_po': bool(self.is_without_po),
             'supplier_id': self.supplier_id,
             'supplier_name': self.supplier_name or '',
             'invoice_no': self.invoice_no or '',

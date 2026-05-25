@@ -413,7 +413,11 @@ select.fi.field-error + .select2-container--default .select2-selection--single,
                 <label class="fl">Pay Grade<span class="req-star">*</span></label>
                 <select name="pay_grade" id="proPayGrade" class="fi sd">
                     <option value="">Select</option>
-                    {% for g in ['G1','G2','G3','G4','G5','G6','M1','M2','M3','E1','E2','E3'] %}<option value="{{ g }}" {{ 'selected' if employee and employee.pay_grade==g }}>{{ g }}</option>{% endfor %}
+                    {% if grades is defined %}
+                      {% for g in grades %}
+                      <option value="{{ g.grade_code }}" {{ 'selected' if employee and employee.pay_grade==g.grade_code }}>{{ g.grade_code }} — {{ g.grade_level }}</option>
+                      {% endfor %}
+                    {% endif %}
                 </select>
                 <div class="field-err-msg" id="err_pro_paygrade">Pay Grade is required.</div>
             </div>
@@ -434,9 +438,20 @@ select.fi.field-error + .select2-container--default .select2-selection--single,
             </div>
             <div class="fg">
                 <label class="fl">Shift<span class="req-star">*</span></label>
-                <select name="shift" id="proShift" class="fi sd">
+                <select name="shift" id="proShift" class="fi sd" onchange="onShiftChange(this)">
                     <option value="">Select</option>
-                    {% for s in ['General (9–6)','Morning (6–2)','Afternoon (2–10)','Night (10–6)','Flexible'] %}<option value="{{ s }}" {{ 'selected' if employee and employee.shift==s }}>{{ s }}</option>{% endfor %}
+                    {% if shifts is defined %}
+                      {% for s in shifts %}
+                      <option value="{{ s.name }}"
+                              data-hours="{{ s.min_hours_full }}"
+                              data-weekly-off="{{ s.weekly_off }}"
+                              data-start="{{ s.shift_start }}"
+                              data-end="{{ s.shift_end }}"
+                              {{ 'selected' if employee and employee.shift==s.name }}>
+                        {{ s.name }} ({{ s.shift_start }}–{{ s.shift_end }})
+                      </option>
+                      {% endfor %}
+                    {% endif %}
                 </select>
                 <div class="field-err-msg" id="err_pro_shift">Shift is required.</div>
             </div>
@@ -2073,6 +2088,44 @@ function _writeDateInput(el, dt){
     var mm = String(dt.getMonth() + 1).padStart(2, '0');
     var dd = String(dt.getDate()).padStart(2, '0');
     el.value = yy + '-' + mm + '-' + dd;
+}
+
+// ─── Shift selection → auto-fill Work Hours + Weekly Off ───
+function onShiftChange(sel){
+    if (!sel) return;
+    var opt = sel.options[sel.selectedIndex];
+    if (!opt || !opt.value) return;
+
+    var hours = opt.getAttribute('data-hours');
+    var woff  = opt.getAttribute('data-weekly-off');
+
+    // Auto-fill Work Hours / Day
+    var hrsEl = document.getElementById('proWorkHrs');
+    if (hrsEl && hours) {
+        hrsEl.value = parseFloat(hours);
+    }
+
+    // Auto-select Weekly Off (only if matching option exists)
+    var woffEl = document.getElementById('proWeeklyOff');
+    if (woffEl && woff) {
+        var matched = false;
+        for (var i = 0; i < woffEl.options.length; i++) {
+            if (woffEl.options[i].value === woff) {
+                woffEl.value = woff;
+                matched = true;
+                break;
+            }
+        }
+        // If shift has Sat,Sun or weird value, fallback to Sunday
+        if (!matched) {
+            for (var j = 0; j < woffEl.options.length; j++) {
+                if (woffEl.options[j].value === 'Sunday') {
+                    woffEl.value = 'Sunday';
+                    break;
+                }
+            }
+        }
+    }
 }
 
 function calculateProbationEnd(){

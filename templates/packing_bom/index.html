@@ -1,0 +1,1035 @@
+{% extends 'base.html' %}
+{% block title %}Packing BOM | HCP{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ─── Re-uses the same teal/blue palette as Formulation ─── */
+:root {
+  --pb-blue: #2563eb; --pb-blue-2: #1d4ed8;
+  --pb-teal: #14b8a6; --pb-teal-2: #0f766e;
+  --pb-purple: #7c3aed; --pb-red: #dc2626; --pb-amber: #f59e0b;
+  --border: #e2e8f0; --text: #0f172a; --text2: #64748b;
+  --bg: #f8fafc; --white: #ffffff;
+}
+
+/* Layout */
+.pb-toolbar      { display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin-bottom:16px; background:var(--white); padding:12px 14px; border-radius:10px; border:1px solid var(--border); }
+.pb-toolbar .grow{ flex:1; min-width:160px; }
+.pb-search       { width:100%; padding:8px 12px 8px 34px; border:1.5px solid var(--border); border-radius:8px; background:var(--white) url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='11' cy='11' r='8'/><line x1='21' y1='21' x2='16.65' y2='16.65'/></svg>") 10px center no-repeat; font-size:13px; font-family:inherit; color:var(--text); }
+.pb-search:focus { outline:none; border-color:var(--pb-blue); box-shadow:0 0 0 3px rgba(37,99,235,.1); }
+.pb-sel          { padding:8px 12px; border:1.5px solid var(--border); border-radius:8px; background:var(--white); font-size:13px; font-family:inherit; color:var(--text); cursor:pointer; }
+.pb-chip         { background:var(--bg); color:var(--text2); padding:6px 11px; border-radius:8px; font-size:12px; font-weight:600; }
+.pb-chip .val    { color:var(--pb-blue); font-weight:800; margin-left:4px; }
+
+.pb-btn          { display:inline-flex; align-items:center; gap:7px; padding:8px 14px; border-radius:8px; border:none; font-family:inherit; font-size:13px; font-weight:600; cursor:pointer; transition:all .15s; }
+.pb-btn-primary  { background:var(--pb-teal); color:#fff; }
+.pb-btn-primary:hover { background:var(--pb-teal-2); }
+.pb-btn-secondary{ background:var(--pb-blue); color:#fff; }
+.pb-btn-secondary:hover { background:var(--pb-blue-2); }
+.pb-btn-ghost    { background:var(--white); color:var(--text); border:1.5px solid var(--border); }
+.pb-btn-ghost:hover { border-color:var(--pb-blue); color:var(--pb-blue); }
+.pb-btn-danger   { background:var(--white); color:var(--pb-red); border:1.5px solid #fecaca; }
+.pb-btn-danger:hover { background:#fef2f2; }
+.pb-btn:disabled { opacity:.5; cursor:not-allowed; }
+.pb-btn-icon     { padding:6px 9px; border-radius:6px; background:transparent; border:none; cursor:pointer; color:var(--text2); transition:all .15s; text-decoration:none; }
+.pb-btn-icon:hover { background:var(--bg); color:var(--text); }
+.pb-btn-icon.del:hover { color:var(--pb-red); background:#fef2f2; }
+
+.pb-table-wrap   { background:var(--white); border:1px solid var(--border); border-radius:10px; overflow:hidden; }
+.pb-table        { width:100%; border-collapse:collapse; font-size:13.5px; }
+.pb-table th     { background:#f1f5f9; padding:11px 14px; text-align:left; font-size:11px; font-weight:800; color:var(--text2); text-transform:uppercase; letter-spacing:.4px; border-bottom:1px solid var(--border); }
+.pb-table td     { padding:12px 14px; border-bottom:1px solid #f1f5f9; vertical-align:middle; }
+.pb-table tr:last-child td { border-bottom:none; }
+.pb-table tr:hover td { background:#f8fafc; }
+.pb-table .empty { padding:40px 14px; text-align:center; color:var(--text2); font-size:13px; }
+.pb-row-deleted td       { background:#fef2f2 !important; }
+.pb-row-deleted .pb-name { color:#991b1b; text-decoration:line-through; }
+
+.pb-pill         { display:inline-block; padding:2px 9px; border-radius:12px; font-size:10px; font-weight:800; letter-spacing:.3px; }
+.pb-pill.fg      { background:#dbeafe; color:#1d4ed8; }
+.pb-pill.count   { background:#ccfbf1; color:var(--pb-teal-2); }
+.pb-pill.del     { background:#fee2e2; color:#991b1b; }
+
+/* ─── Modal scaffolding (same as Formulation) ─── */
+.pb-modal-bd     { position:fixed; inset:0; background:rgba(15,23,42,.6); display:none; align-items:flex-start; justify-content:center; z-index:1000; padding:40px 16px; overflow-y:auto; }
+.pb-modal-bd.show{ display:flex; }
+.pb-modal        { background:var(--white); border-radius:13px; width:100%; max-width:720px; box-shadow:0 25px 70px rgba(15,23,42,.3); overflow:hidden; display:flex; flex-direction:column; max-height:calc(100vh - 80px); }
+.pb-modal.lg     { max-width:1080px; }
+.pb-modal-hd     { padding:18px 24px; border-bottom:1px solid var(--border); background:linear-gradient(135deg,#f0fdfa,#e0f2fe); position:relative; }
+.pb-modal-close  { position:absolute; top:14px; right:18px; background:transparent; border:none; cursor:pointer; font-size:18px; color:var(--text2); padding:4px 9px; border-radius:6px; }
+.pb-modal-close:hover { background:#fff; color:var(--text); }
+.pb-modal-eyebrow{ font-size:10px; font-weight:800; color:var(--pb-teal-2); letter-spacing:1px; text-transform:uppercase; }
+.pb-modal-title  { font-size:18px; font-weight:800; color:var(--text); margin-top:3px; }
+.pb-modal-sub    { font-size:12.5px; color:var(--text2); margin-top:2px; }
+.pb-modal-body   { padding:20px 24px; flex:1; overflow-y:auto; }
+.pb-modal-foot   { padding:14px 24px; border-top:1px solid var(--border); display:flex; gap:10px; justify-content:flex-end; background:#fcfcfd; }
+.pb-modal-foot .left { margin-right:auto; }
+
+/* Form fields */
+.pb-lbl          { font-size:11px; font-weight:800; color:var(--text2); letter-spacing:.5px; text-transform:uppercase; margin-bottom:5px; display:block; }
+.pb-inp          { width:100%; padding:8px 11px; border:1.5px solid var(--border); border-radius:7px; font-size:13.5px; font-family:inherit; color:var(--text); background:var(--white); }
+.pb-inp:focus    { outline:none; border-color:var(--pb-blue); box-shadow:0 0 0 3px rgba(37,99,235,.1); }
+.pb-inp:disabled { background:#f8fafc; color:var(--text2); cursor:not-allowed; }
+.pb-grid-3       { display:grid; grid-template-columns:2fr 1fr 1fr; gap:14px; }
+.pb-grid-2       { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+@media (max-width:760px){
+  .pb-grid-3, .pb-grid-2 { grid-template-columns:1fr; }
+  .pb-modal { max-width:100%; }
+}
+
+/* Items table inside modal */
+.pb-itable       { width:100%; border-collapse:collapse; margin-top:10px; font-size:13px; }
+.pb-itable th    { background:#f1f5f9; padding:8px 10px; text-align:left; font-size:10.5px; font-weight:800; color:var(--text2); text-transform:uppercase; letter-spacing:.4px; border-bottom:1px solid var(--border); }
+.pb-itable td    { padding:6px 8px; border-bottom:1px solid #f1f5f9; vertical-align:middle; }
+.pb-itable input, .pb-itable select { width:100%; padding:6px 8px; border:1px solid var(--border); border-radius:5px; font-size:12.5px; font-family:inherit; color:var(--text); background:var(--white); }
+.pb-itable input:focus, .pb-itable select:focus { outline:none; border-color:var(--pb-blue); }
+.pb-itable td.r  { text-align:right; }
+.pb-itable .empty{ padding:18px; text-align:center; color:var(--text2); font-size:12px; }
+
+/* Edit warning banner */
+.pb-warn-banner  { background:#fef3c7; border:1px solid #fcd34d; color:#92400e; padding:10px 14px; border-radius:8px; font-size:12.5px; margin-bottom:12px; display:flex; gap:10px; align-items:center; }
+
+/* View modal meta strip */
+.pb-view-meta    { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:14px; margin-bottom:18px; padding:14px; background:#f8fafc; border-radius:9px; border:1px solid var(--border); }
+.pb-view-meta .k { font-size:10px; font-weight:800; color:var(--text2); text-transform:uppercase; letter-spacing:.7px; }
+.pb-view-meta .v { font-size:14px; font-weight:700; color:var(--text); margin-top:3px; word-break:break-word; }
+
+/* Toast */
+.pb-toast        { position:fixed; bottom:30px; right:30px; padding:14px 22px; background:#0f172a; color:#fff; border-radius:9px; box-shadow:0 12px 30px rgba(15,23,42,.3); font-size:13px; font-weight:600; z-index:5000; display:none; animation:pbSlide .25s ease; }
+.pb-toast.show   { display:block; }
+.pb-toast.error  { background:#dc2626; }
+.pb-toast.success{ background:var(--pb-teal-2); }
+@keyframes pbSlide { from { transform:translateY(8px); opacity:0;} to {transform:translateY(0); opacity:1;}}
+
+/* Category color tag on PM dropdown options (cosmetic only) */
+.pb-cat-tag      { display:inline-block; font-size:9px; font-weight:800; padding:1px 6px; border-radius:8px; margin-left:6px; }
+.pb-cat-tag.corr { background:#fed7aa; color:#9a3412; }
+.pb-cat-tag.slv  { background:#ddd6fe; color:#5b21b6; }
+.pb-cat-tag.pm   { background:#bfdbfe; color:#1d4ed8; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- ─── Toolbar ────────────────────────────────────────────── -->
+<div class="pb-toolbar">
+    <div class="grow">
+        <input id="pbSearch" class="pb-search" type="text" placeholder="Search by FG name, code, or brand…" oninput="pbReload()">
+    </div>
+    <select class="pb-sel" id="pbStatus" onchange="pbReload()">
+        <option value="active">Active</option>
+        <option value="deleted">🗑 Deleted</option>
+        <option value="all">All (incl. deleted)</option>
+    </select>
+    <span class="pb-chip">Total <span class="val" id="pbCount">0</span></span>
+
+    {% if can_export %}
+    <button class="pb-btn pb-btn-ghost" onclick="pbExportAll()">⬇ Export All</button>
+    {% endif %}
+    {% if can_add %}
+    <button class="pb-btn" style="background:#7c3aed; color:#fff;" onclick="pbOpenImport()">📥 Import Excel</button>
+    <button class="pb-btn pb-btn-primary" onclick="pbOpenCreate()">＋ New Packing BOM</button>
+    {% endif %}
+</div>
+
+<!-- ─── List Table ────────────────────────────────────────── -->
+<div class="pb-table-wrap">
+    <table class="pb-table">
+        <thead>
+            <tr>
+                <th style="width:50px;">#</th>
+                <th>FG Item</th>
+                <th>Code</th>
+                <th>Brand</th>
+                <th style="text-align:right;">FG Qty</th>
+                <th style="text-align:center;">Items</th>
+                <th>Updated</th>
+                <th style="text-align:right; width:150px;">Actions</th>
+            </tr>
+        </thead>
+        <tbody id="pbTbody">
+            <tr><td colspan="8" class="empty">Loading…</td></tr>
+        </tbody>
+    </table>
+</div>
+
+
+<!-- ════════════════════════════════════════════════════════════════════════════
+     CREATE / EDIT MODAL
+     ════════════════════════════════════════════════════════════════════════════ -->
+<div class="pb-modal-bd" id="pbFormModal" onclick="if(event.target===this)pbCloseForm()">
+    <div class="pb-modal lg">
+        <div class="pb-modal-hd">
+            <button class="pb-modal-close" onclick="pbCloseForm()" type="button">✕</button>
+            <div class="pb-modal-eyebrow" id="pbFormEyebrow">PACKING BOM</div>
+            <div class="pb-modal-title" id="pbFormTitle">New Packing BOM</div>
+            <div class="pb-modal-sub">Define which packing materials are required for a finished good.</div>
+        </div>
+        <div class="pb-modal-body">
+            <div class="pb-warn-banner" id="pbExistsWarn" style="display:none;">
+                ⚠️ <span>A BOM already exists for this FG. Saving will <b>overwrite</b> the existing items.</span>
+            </div>
+
+            <div class="pb-grid-2">
+                <div>
+                    <label class="pb-lbl">FG Item *</label>
+                    <select class="pb-inp" id="pbFG" onchange="pbOnFGChange()">
+                        <option value="">— select finished good —</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="pb-lbl">FG Qty *</label>
+                    <input type="number" step="0.001" min="0" class="pb-inp" id="pbFGQty" placeholder="0" oninput="pbRecalc()">
+                </div>
+            </div>
+
+            <div style="margin-top:16px;">
+                <label class="pb-lbl">Notes (optional)</label>
+                <input type="text" class="pb-inp" id="pbNotes" placeholder="Any notes…">
+            </div>
+
+            <!-- Items section -->
+            <div style="margin-top:18px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;">
+                <label class="pb-lbl" style="margin:0;">Packing Items *</label>
+                <span style="font-size:11.5px; color:var(--text2);">
+                    <b id="pbItemCount">0</b> items
+                </span>
+            </div>
+            <table class="pb-itable">
+                <thead>
+                    <tr>
+                        <th style="width:40px;">#</th>
+                        <th style="width:140px;">Category *</th>
+                        <th>Item Name *</th>
+                        <th style="width:110px; text-align:right;">Qty *</th>
+                        <th style="width:90px;">UOM</th>
+                        <th style="width:40px;"></th>
+                    </tr>
+                </thead>
+                <tbody id="pbItemTbody"></tbody>
+            </table>
+            <div style="margin-top:10px;">
+                <button type="button" class="pb-btn pb-btn-ghost" onclick="pbAddItemRow()">＋ Add More</button>
+            </div>
+        </div>
+        <div class="pb-modal-foot">
+            <button class="pb-btn pb-btn-ghost"     type="button" onclick="pbCloseForm()">Cancel</button>
+            <button class="pb-btn pb-btn-primary"   type="button" id="pbSaveBtn" onclick="pbSave()">💾 Save BOM</button>
+        </div>
+    </div>
+</div>
+
+
+<!-- ════════════════════════════════════════════════════════════════════════════
+     VIEW MODAL
+     ════════════════════════════════════════════════════════════════════════════ -->
+<div class="pb-modal-bd" id="pbViewModal" onclick="if(event.target===this)pbCloseView()">
+    <div class="pb-modal lg">
+        <div class="pb-modal-hd">
+            <button class="pb-modal-close" onclick="pbCloseView()" type="button">✕</button>
+            <div class="pb-modal-eyebrow">PACKING BOM</div>
+            <div class="pb-modal-title" id="pbViewTitle">Packing BOM</div>
+            <div class="pb-modal-sub" id="pbViewSub"></div>
+        </div>
+        <div class="pb-modal-body">
+            <div class="pb-view-meta" id="pbViewMeta"></div>
+            <table class="pb-itable">
+                <thead>
+                    <tr>
+                        <th style="width:40px;">#</th>
+                        <th>Item Name</th>
+                        <th>Code</th>
+                        <th>Category</th>
+                        <th style="width:120px; text-align:right;">Qty</th>
+                        <th style="width:80px;">UOM</th>
+                    </tr>
+                </thead>
+                <tbody id="pbViewTbody"></tbody>
+            </table>
+        </div>
+        <div class="pb-modal-foot">
+            <button class="pb-btn pb-btn-ghost" type="button" onclick="pbCloseView()">Close</button>
+            {% if can_export %}<button class="pb-btn pb-btn-ghost" type="button" onclick="pbExportFromView()">⬇ Export Excel</button>{% endif %}
+            {% if can_edit %}<button class="pb-btn pb-btn-secondary" type="button" id="pbViewEditBtn" onclick="pbEditFromView()">✎ Edit</button>{% endif %}
+        </div>
+    </div>
+</div>
+
+
+<!-- ════════════════════════════════════════════════════════════════════════════
+     IMPORT MODAL — upload Excel, see per-sheet preview, then commit
+     ════════════════════════════════════════════════════════════════════════════ -->
+<div class="pb-modal-bd" id="pbImportModal" onclick="if(event.target===this)pbCloseImport()">
+    <div class="pb-modal lg">
+        <div class="pb-modal-hd">
+            <button class="pb-modal-close" onclick="pbCloseImport()" type="button">✕</button>
+            <div class="pb-modal-eyebrow">PACKING BOM · IMPORT</div>
+            <div class="pb-modal-title">📥 Import from Excel</div>
+            <div class="pb-modal-sub">Upload an Excel file — each sheet = one Packing BOM. Existing BOMs (same FG) will be overwritten.</div>
+        </div>
+        <div class="pb-modal-body">
+            <!-- Step 1: file picker -->
+            <div id="pbImpStep1">
+                <div style="border:2px dashed var(--border); border-radius:10px; padding:30px; text-align:center; background:#fcfcfd;">
+                    <div style="font-size:48px; margin-bottom:8px;">📂</div>
+                    <div style="font-size:14px; font-weight:600; color:var(--text); margin-bottom:4px;">Choose an Excel file</div>
+                    <div style="font-size:11.5px; color:var(--text2); margin-bottom:14px;">.xlsx, .xlsm, .xls — multiple sheets supported</div>
+                    <input type="file" id="pbImpFile" accept=".xlsx,.xlsm,.xls" style="display:none;" onchange="pbImportUpload()">
+                    <button class="pb-btn pb-btn-secondary" type="button" onclick="document.getElementById('pbImpFile').click()">Browse Files</button>
+                    <div style="margin-top:14px; font-size:11.5px;">
+                        <a href="/packing-bom/api/template" style="color:var(--pb-blue); text-decoration:none; font-weight:600;">⬇ Download sample template</a>
+                    </div>
+                </div>
+                <div style="margin-top:14px; padding:12px 14px; background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; font-size:12px; color:var(--text);">
+                    <b>Expected layout:</b> Header rows with <i>FG Item, Brand, FG Qty</i>, then a row with column headers
+                    (<code>#, Item Name, Category, Qty, UOM</code>), then one item per row.
+                    Items are matched by <b>name</b> from the Item master.
+                    Use the sample template above for the exact format.
+                </div>
+            </div>
+
+            <!-- Step 2: preview -->
+            <div id="pbImpStep2" style="display:none;">
+                <div id="pbImpSummary" style="margin-bottom:12px; font-size:12.5px; color:var(--text);"></div>
+                <div id="pbImpSheets"></div>
+            </div>
+        </div>
+        <div class="pb-modal-foot">
+            <button class="pb-btn pb-btn-ghost"   type="button" onclick="pbCloseImport()">Cancel</button>
+            <button class="pb-btn pb-btn-ghost"   type="button" id="pbImpBackBtn" onclick="pbImpBack()" style="display:none;">← Back</button>
+            <button class="pb-btn pb-btn-primary" type="button" id="pbImpCommitBtn" onclick="pbImportCommit()" style="display:none;">💾 Import Selected</button>
+        </div>
+    </div>
+</div>
+
+
+<!-- ════════════════════════════════════════════════════════════════════════════
+     CONFIRM MODAL
+     ════════════════════════════════════════════════════════════════════════════ -->
+<div class="pb-modal-bd" id="pbConfirmModal" onclick="if(event.target===this)pbConfirmCancel()">
+    <div class="pb-modal" style="max-width:460px;">
+        <div class="pb-modal-hd">
+            <div class="pb-modal-eyebrow" id="pbConfirmEyebrow">CONFIRM ACTION</div>
+            <div class="pb-modal-title" id="pbConfirmTitle">Are you sure?</div>
+            <div class="pb-modal-sub" id="pbConfirmSub"></div>
+        </div>
+        <div class="pb-modal-body">
+            <div id="pbConfirmMessage" style="font-size:13.5px; color:var(--text); line-height:1.5;"></div>
+        </div>
+        <div class="pb-modal-foot">
+            <button class="pb-btn pb-btn-ghost" type="button" onclick="pbConfirmCancel()">Cancel</button>
+            <button class="pb-btn pb-btn-danger" id="pbConfirmOk" type="button" onclick="pbConfirmDo()">Confirm</button>
+        </div>
+    </div>
+</div>
+
+
+<div class="pb-toast" id="pbToast"></div>
+
+{% endblock %}
+
+
+{% block extra_js %}
+<script>
+// ════════════════════════════════════════════════════════════════════════════
+//  STATE
+// ════════════════════════════════════════════════════════════════════════════
+const PB_CAN_ADD    = {{ 'true' if can_add else 'false' }};
+const PB_CAN_EDIT   = {{ 'true' if can_edit else 'false' }};
+const PB_CAN_DELETE = {{ 'true' if can_delete else 'false' }};
+const PB_CAN_EXPORT = {{ 'true' if can_export else 'false' }};
+
+let pbList         = [];
+let pbFGOptions    = [];   // FG materials [{id,name,code,...}]
+let pbPMOptions    = [];   // PM materials [{id,name,code,category,uom}]
+let pbUomOptions   = [];   // UOMs from master [{code, name}]
+let pbEditId       = null;
+let pbCurrentView  = null;
+let pbConfirmCb    = null;
+
+// ════════════════════════════════════════════════════════════════════════════
+//  TOAST
+// ════════════════════════════════════════════════════════════════════════════
+function pbToast(msg, kind){
+    const t = document.getElementById('pbToast');
+    t.textContent = msg;
+    t.className = 'pb-toast show ' + (kind || '');
+    clearTimeout(window._pbToastT);
+    window._pbToastT = setTimeout(() => t.classList.remove('show'), 2800);
+}
+
+function pbFmt(n){
+    n = Number(n) || 0;
+    return n.toLocaleString(undefined, {maximumFractionDigits: 3});
+}
+function pbEsc(s){
+    return String(s ?? '').replace(/[&<>"']/g, c =>
+        ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+
+// ════════════════════════════════════════════════════════════════════════════
+//  CONFIRM modal helper
+// ════════════════════════════════════════════════════════════════════════════
+function pbConfirm({title, message, sub, okText, danger, cb}){
+    document.getElementById('pbConfirmTitle').textContent   = title || 'Are you sure?';
+    document.getElementById('pbConfirmSub').textContent     = sub   || '';
+    document.getElementById('pbConfirmMessage').textContent = message || '';
+    const okBtn = document.getElementById('pbConfirmOk');
+    okBtn.textContent = okText || 'Confirm';
+    okBtn.className = 'pb-btn ' + (danger ? 'pb-btn-danger' : 'pb-btn-primary');
+    pbConfirmCb = cb;
+    document.getElementById('pbConfirmModal').classList.add('show');
+}
+function pbConfirmDo(){
+    const cb = pbConfirmCb; pbConfirmCb = null;
+    document.getElementById('pbConfirmModal').classList.remove('show');
+    if (cb) cb();
+}
+function pbConfirmCancel(){
+    pbConfirmCb = null;
+    document.getElementById('pbConfirmModal').classList.remove('show');
+}
+
+
+// ════════════════════════════════════════════════════════════════════════════
+//  INITIAL LOAD
+// ════════════════════════════════════════════════════════════════════════════
+window.addEventListener('DOMContentLoaded', () => {
+    pbLoadDropdowns().then(pbReload);
+});
+
+async function pbLoadDropdowns(){
+    try {
+        const [fgR, pmR, uomR] = await Promise.all([
+            fetch('/packing-bom/api/fg-list').then(r => r.json()),
+            fetch('/packing-bom/api/pm-list').then(r => r.json()),
+            fetch('/packing-bom/api/uom-list').then(r => r.json()),
+        ]);
+        pbFGOptions  = (fgR.status  === 'ok') ? (fgR.items  || []) : [];
+        pbPMOptions  = (pmR.status  === 'ok') ? (pmR.items  || []) : [];
+        pbUomOptions = (uomR.status === 'ok') ? (uomR.items || []) : [];
+    } catch (e) {
+        pbToast('Could not load FG / PM / UOM lists', 'error');
+        pbFGOptions = []; pbPMOptions = []; pbUomOptions = [];
+    }
+}
+
+
+// ════════════════════════════════════════════════════════════════════════════
+//  LIST
+// ════════════════════════════════════════════════════════════════════════════
+async function pbReload(){
+    const search = document.getElementById('pbSearch').value.trim();
+    const status = document.getElementById('pbStatus').value;
+    const params = new URLSearchParams();
+    if (search) params.set('search', search);
+    if (status) params.set('status', status);
+
+    const tb = document.getElementById('pbTbody');
+    tb.innerHTML = '<tr><td colspan="8" class="empty">Loading…</td></tr>';
+
+    try {
+        const r = await fetch('/packing-bom/api/list?' + params.toString());
+        const d = await r.json();
+        if (d.status !== 'ok') throw new Error(d.message || 'Load failed');
+        pbList = d.items || [];
+        pbRenderList();
+        document.getElementById('pbCount').textContent = pbList.length;
+    } catch (e) {
+        tb.innerHTML = `<tr><td colspan="8" class="empty">${pbEsc(e.message)}</td></tr>`;
+    }
+}
+
+function pbRenderList(){
+    const tb = document.getElementById('pbTbody');
+    if (!pbList.length) {
+        tb.innerHTML = '<tr><td colspan="8" class="empty">No Packing BOMs yet — click <b>＋ New Packing BOM</b> to create one.</td></tr>';
+        return;
+    }
+    tb.innerHTML = pbList.map((b, i) => {
+        const deleted = b.is_deleted;
+        return `<tr class="${deleted ? 'pb-row-deleted' : ''}">
+            <td>${i + 1}</td>
+            <td class="pb-name">
+                <b>${pbEsc(b.fg_name)}</b>
+                ${deleted ? '<span class="pb-pill del">DELETED</span>' : ''}
+            </td>
+            <td>${pbEsc(b.fg_code || '—')}</td>
+            <td>${pbEsc(b.fg_brand || '—')}</td>
+            <td style="text-align:right;">${pbFmt(b.fg_qty)} ${pbEsc(b.fg_uom)}</td>
+            <td style="text-align:center;"><span class="pb-pill count">${b.item_count}</span></td>
+            <td style="font-size:12px; color:var(--text2);">${pbEsc(b.updated_at || '—')}</td>
+            <td style="text-align:right;">
+                ${deleted ? '' : `
+                    <button class="pb-btn-icon" title="View"   onclick="pbView(${b.id})">👁</button>
+                    ${PB_CAN_EDIT   ? `<button class="pb-btn-icon" title="Edit"   onclick="pbEdit(${b.id})">✎</button>` : ''}
+                    ${PB_CAN_EXPORT ? `<a class="pb-btn-icon" title="Export" href="javascript:void(0)" onclick="pbExportOne(${b.id})">⬇</a>` : ''}
+                    ${PB_CAN_DELETE ? `<button class="pb-btn-icon del" title="Delete" onclick="pbDelete(${b.id}, ${JSON.stringify(b.fg_name).replace(/"/g,'&quot;')})">🗑</button>` : ''}
+                `}
+            </td>
+        </tr>`;
+    }).join('');
+}
+
+
+// ════════════════════════════════════════════════════════════════════════════
+//  CREATE / EDIT
+// ════════════════════════════════════════════════════════════════════════════
+function pbOpenCreate(){
+    pbEditId = null;
+    document.getElementById('pbFormTitle').textContent   = 'New Packing BOM';
+    document.getElementById('pbFormEyebrow').textContent = 'PACKING BOM · CREATE';
+    document.getElementById('pbSaveBtn').textContent     = '💾 Save BOM';
+    pbResetForm();
+    pbPopulateFGSelect();
+    pbAddItemRow();
+    document.getElementById('pbFormModal').classList.add('show');
+}
+
+function pbResetForm(){
+    document.getElementById('pbExistsWarn').style.display = 'none';
+    document.getElementById('pbFG').value = '';
+    document.getElementById('pbFGQty').value = '';
+    document.getElementById('pbNotes').value = '';
+    document.getElementById('pbItemTbody').innerHTML = '';
+    document.getElementById('pbItemCount').textContent = '0';
+    pbRecalc();
+}
+
+function pbPopulateFGSelect(){
+    const sel = document.getElementById('pbFG');
+    sel.innerHTML = '<option value="">— select finished good —</option>'
+        + pbFGOptions.map(f => {
+            const lbl = (f.code ? `[${f.code}] ` : '') + f.name +
+                        (f.brand ? ` · ${f.brand}` : '');
+            return `<option value="${f.id}">${pbEsc(lbl)}</option>`;
+        }).join('');
+}
+
+async function pbOnFGChange(){
+    const fid = Number(document.getElementById('pbFG').value) || 0;
+    if (!fid) {
+        document.getElementById('pbExistsWarn').style.display = 'none';
+        return;
+    }
+    // If creating fresh, warn if a BOM for this FG already exists
+    if (pbEditId) return;
+    try {
+        const r = await fetch('/packing-bom/api/by-fg/' + fid);
+        const d = await r.json();
+        document.getElementById('pbExistsWarn').style.display =
+            (d.status === 'ok') ? 'flex' : 'none';
+    } catch (_) {}
+}
+
+function pbAddItemRow(data){
+    const tb = document.getElementById('pbItemTbody');
+    const tr = document.createElement('tr');
+    const idx = tb.children.length;
+    data = data || {};
+
+    // Default qty for a brand-new row = current FG Qty (sensible 1-PM-per-1-FG)
+    let defaultQty = data.qty;
+    if (defaultQty == null || defaultQty === '') {
+        const fgQty = Number(document.getElementById('pbFGQty').value);
+        defaultQty = (fgQty && !pbEditId && !data.material_id) ? fgQty : '';
+    }
+
+    // Build the UOM dropdown from master.
+    const currentUom = (data.uom || '').toString();
+    const uomCodes = new Set(pbUomOptions.map(u => u.code));
+    let uomHTML = '<option value="">—</option>';
+    pbUomOptions.forEach(u => {
+        const sel = (u.code === currentUom) ? ' selected' : '';
+        uomHTML += `<option value="${pbEsc(u.code)}"${sel}>${pbEsc(u.code)}</option>`;
+    });
+    if (currentUom && !uomCodes.has(currentUom)) {
+        uomHTML += `<option value="${pbEsc(currentUom)}" selected>${pbEsc(currentUom)} (legacy)</option>`;
+    }
+
+    tr.innerHTML = `
+        <td>${idx + 1}</td>
+        <td>
+            <select class="pb-cat" onchange="pbOnCategoryChange(this)">
+                <option value="">All</option>
+                <option value="PM">PM</option>
+                <option value="Corrugation">Corrugation</option>
+                <option value="Sleeves">Sleeves</option>
+            </select>
+        </td>
+        <td>
+            <select class="pb-mat" onchange="pbOnItemChange(this)"></select>
+        </td>
+        <td class="r"><input type="number" step="0.001" min="0" class="pb-qty" placeholder="0" value="${defaultQty}" oninput="pbRecalc()"></td>
+        <td><select class="pb-uom">${uomHTML}</select></td>
+        <td><button class="pb-btn-icon del" type="button" onclick="pbRemoveItemRow(this)" title="Remove">✕</button></td>`;
+    tb.appendChild(tr);
+
+    // Figure out which category to start with.
+    // - If editing an existing item, use its material's category
+    // - Otherwise, leave on "All"
+    let initialCat = data.category || '';
+    if (!initialCat && data.material_id) {
+        const m = pbPMOptions.find(x => x.id === Number(data.material_id));
+        if (m) initialCat = m.category || '';
+    }
+    if (initialCat) tr.querySelector('.pb-cat').value = initialCat;
+
+    // Populate the item dropdown (filtered by category)
+    pbFillItemSelect(tr, initialCat, data.material_id);
+    pbRecalc();
+}
+
+function pbFillItemSelect(tr, category, selectedId){
+    const sel = tr.querySelector('.pb-mat');
+    let pool = pbPMOptions;
+    if (category) {
+        const want = category.toLowerCase();
+        pool = pbPMOptions.filter(m => (m.category || '').toLowerCase() === want);
+    }
+    let html = '<option value="">— select item —</option>';
+    pool.forEach(m => {
+        const lbl = m.name + (m.category ? ` · ${m.category}` : '');
+        const sel2 = (Number(selectedId) === m.id) ? ' selected' : '';
+        html += `<option value="${m.id}" data-uom="${pbEsc(m.uom)}" data-cat="${pbEsc(m.category || '')}"${sel2}>${pbEsc(lbl)}</option>`;
+    });
+    sel.innerHTML = html;
+}
+
+function pbOnCategoryChange(catSel){
+    const tr = catSel.closest('tr');
+    pbFillItemSelect(tr, catSel.value, '');
+}
+
+function pbOnItemChange(sel){
+    const tr  = sel.closest('tr');
+    const opt = sel.options[sel.selectedIndex];
+    if (!opt) return;
+    const uom = opt.dataset.uom;
+    const cat = opt.dataset.cat;
+    // Snap the row's category to match the selected item
+    if (cat) {
+        const catSel = tr.querySelector('.pb-cat');
+        if ([...catSel.options].some(o => o.value === cat)) {
+            catSel.value = cat;
+        }
+    }
+    if (uom) {
+        const uomSel = tr.querySelector('.pb-uom');
+        if ([...uomSel.options].some(o => o.value === uom)) {
+            uomSel.value = uom;
+        } else {
+            const o = document.createElement('option');
+            o.value = uom; o.textContent = uom + ' (item default)';
+            o.selected = true;
+            uomSel.appendChild(o);
+        }
+    }
+}
+
+function pbRemoveItemRow(btn){
+    const tb = document.getElementById('pbItemTbody');
+    btn.closest('tr').remove();
+    // renumber
+    [...tb.querySelectorAll('tr')].forEach((tr, i) => tr.firstElementChild.textContent = i + 1);
+    pbRecalc();
+}
+
+function pbRecalc(){
+    const rows = document.getElementById('pbItemTbody').querySelectorAll('tr');
+    document.getElementById('pbItemCount').textContent = rows.length;
+}
+
+function pbCollectRows(){
+    const rows = [...document.getElementById('pbItemTbody').querySelectorAll('tr')];
+    return rows.map((r, i) => {
+        const sel = r.querySelector('.pb-mat');
+        const mid = Number(sel.value) || 0;
+        const uomSel = r.querySelector('.pb-uom');
+        return {
+            sr_no       : i + 1,
+            material_id : mid,
+            qty         : Number(r.querySelector('.pb-qty').value) || 0,
+            uom         : (uomSel && uomSel.value) ? uomSel.value : '',
+        };
+    }).filter(x => x.material_id);
+}
+
+async function pbSave(){
+    const fgId  = Number(document.getElementById('pbFG').value) || 0;
+    const fgQty = Number(document.getElementById('pbFGQty').value) || 0;
+    const notes = (document.getElementById('pbNotes').value || '').trim();
+
+    if (!fgId)  { pbToast('Please select an FG Item',   'error'); return; }
+    if (!fgQty) { pbToast('Please enter FG quantity',   'error'); return; }
+    const items = pbCollectRows();
+    if (!items.length) { pbToast('Add at least one packing item', 'error'); return; }
+    // Validate qty > 0 in each item
+    for (const it of items) {
+        if (!it.qty) { pbToast('Every item needs a quantity', 'error'); return; }
+    }
+
+    const btn = document.getElementById('pbSaveBtn');
+    btn.disabled = true; const oldTxt = btn.textContent; btn.textContent = 'Saving…';
+    try {
+        const r = await fetch('/packing-bom/api/save', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                fg_material_id: fgId,
+                fg_qty: fgQty,
+                notes: notes,
+                items: items,
+            }),
+        });
+        const d = await r.json();
+        if (!r.ok || d.status !== 'ok') {
+            pbToast(d.message || 'Save failed', 'error');
+            return;
+        }
+        pbToast(d.mode === 'created' ? 'Packing BOM created ✓' : 'Packing BOM updated ✓', 'success');
+        pbCloseForm();
+        pbReload();
+    } catch (e) {
+        pbToast('Network error', 'error');
+    } finally {
+        btn.disabled = false; btn.textContent = oldTxt;
+    }
+}
+
+function pbCloseForm(){
+    document.getElementById('pbFormModal').classList.remove('show');
+    pbEditId = null;
+}
+
+
+// ════════════════════════════════════════════════════════════════════════════
+//  VIEW
+// ════════════════════════════════════════════════════════════════════════════
+async function pbView(id){
+    try {
+        const r = await fetch('/packing-bom/api/' + id);
+        const d = await r.json();
+        if (d.status !== 'ok') { pbToast(d.message || 'Load failed', 'error'); return; }
+        pbCurrentView = d.item;
+
+        document.getElementById('pbViewTitle').textContent = d.item.fg_name || 'Packing BOM';
+        document.getElementById('pbViewSub').textContent   =
+            (d.item.fg_code ? `Code: ${d.item.fg_code} · ` : '') +
+            `${d.item.item_count} packing item${d.item.item_count === 1 ? '' : 's'}`;
+
+        document.getElementById('pbViewMeta').innerHTML = `
+            <div><div class="k">FG Code</div><div class="v">${pbEsc(d.item.fg_code || '—')}</div></div>
+            <div><div class="k">Brand</div><div class="v">${pbEsc(d.item.fg_brand || '—')}</div></div>
+            <div><div class="k">FG Qty</div><div class="v">${pbFmt(d.item.fg_qty)} ${pbEsc(d.item.fg_uom)}</div></div>
+            <div><div class="k">Items</div><div class="v">${d.item.item_count}</div></div>
+            ${d.item.notes ? `<div style="grid-column:1/-1;"><div class="k">Notes</div><div class="v">${pbEsc(d.item.notes)}</div></div>` : ''}
+        `;
+
+        const tb = document.getElementById('pbViewTbody');
+        if (!d.item.items.length) {
+            tb.innerHTML = '<tr><td colspan="6" class="empty">No items.</td></tr>';
+        } else {
+            tb.innerHTML = d.item.items.map((it, i) => {
+                const catCls = (it.category || '').toLowerCase().startsWith('corr') ? 'corr'
+                             : (it.category || '').toLowerCase().startsWith('sleev') ? 'slv' : 'pm';
+                return `<tr>
+                    <td>${it.sr_no || (i + 1)}</td>
+                    <td>${pbEsc(it.item_name)}</td>
+                    <td>${pbEsc(it.item_code || '—')}</td>
+                    <td><span class="pb-cat-tag ${catCls}">${pbEsc(it.category || 'PM')}</span></td>
+                    <td class="r">${pbFmt(it.qty)}</td>
+                    <td>${pbEsc(it.uom || 'PCS')}</td>
+                </tr>`;
+            }).join('');
+        }
+        document.getElementById('pbViewModal').classList.add('show');
+    } catch (e) {
+        pbToast('Network error', 'error');
+    }
+}
+
+function pbCloseView(){
+    document.getElementById('pbViewModal').classList.remove('show');
+    pbCurrentView = null;
+}
+
+function pbEditFromView(){
+    if (!pbCurrentView) return;
+    const id = pbCurrentView.id;
+    pbCloseView();
+    pbEdit(id);
+}
+
+
+// ════════════════════════════════════════════════════════════════════════════
+//  EDIT
+// ════════════════════════════════════════════════════════════════════════════
+async function pbEdit(id){
+    try {
+        const r = await fetch('/packing-bom/api/' + id);
+        const d = await r.json();
+        if (d.status !== 'ok') { pbToast(d.message || 'Load failed', 'error'); return; }
+        const it = d.item;
+
+        pbEditId = it.id;
+        document.getElementById('pbFormTitle').textContent   = 'Edit Packing BOM';
+        document.getElementById('pbFormEyebrow').textContent = 'PACKING BOM · EDIT';
+        document.getElementById('pbSaveBtn').textContent     = '💾 Update BOM';
+        document.getElementById('pbExistsWarn').style.display = 'none';
+
+        pbResetForm();
+        pbPopulateFGSelect();
+
+        document.getElementById('pbFG').value     = it.fg_material_id;
+        document.getElementById('pbFGQty').value  = it.fg_qty;
+        document.getElementById('pbNotes').value  = it.notes || '';
+
+        (it.items || []).forEach(row => pbAddItemRow(row));
+        if (!(it.items && it.items.length)) pbAddItemRow();
+
+        document.getElementById('pbFormModal').classList.add('show');
+    } catch (e) {
+        pbToast('Network error', 'error');
+    }
+}
+
+
+// ════════════════════════════════════════════════════════════════════════════
+//  DELETE
+// ════════════════════════════════════════════════════════════════════════════
+function pbDelete(id, name){
+    pbConfirm({
+        title:   'Delete Packing BOM?',
+        sub:     pbEsc(name),
+        message: 'This will move the BOM to Deleted. You can restore it later from the "Deleted" filter.',
+        okText:  'Delete',
+        danger:  true,
+        cb: async () => {
+            try {
+                const r = await fetch('/packing-bom/api/' + id, {method: 'DELETE'});
+                const d = await r.json();
+                if (!r.ok || d.status !== 'ok') { pbToast(d.message || 'Delete failed', 'error'); return; }
+                pbToast('Deleted ✓', 'success');
+                pbReload();
+            } catch (e) { pbToast('Network error', 'error'); }
+        },
+    });
+}
+
+
+// ════════════════════════════════════════════════════════════════════════════
+//  EXPORT
+// ════════════════════════════════════════════════════════════════════════════
+function pbExportOne(id){
+    if (!id) return;
+    window.location = '/packing-bom/api/export/' + id;
+}
+function pbExportFromView(){
+    if (!pbCurrentView) return;
+    pbExportOne(pbCurrentView.id);
+}
+function pbExportAll(){
+    if (!pbList.length) {
+        pbToast('No BOMs to export', 'error');
+        return;
+    }
+    window.location = '/packing-bom/api/export-all';
+}
+
+
+// ════════════════════════════════════════════════════════════════════════════
+//  IMPORT
+// ════════════════════════════════════════════════════════════════════════════
+let pbImpPreview   = null;          // server response
+let pbImpSelection = new Set();     // indexes of sheets to import
+
+function pbOpenImport(){
+    pbImpPreview   = null;
+    pbImpSelection = new Set();
+    document.getElementById('pbImpFile').value     = '';
+    document.getElementById('pbImpStep1').style.display     = '';
+    document.getElementById('pbImpStep2').style.display     = 'none';
+    document.getElementById('pbImpCommitBtn').style.display = 'none';
+    document.getElementById('pbImpBackBtn').style.display   = 'none';
+    document.getElementById('pbImpSheets').innerHTML   = '';
+    document.getElementById('pbImpSummary').innerHTML  = '';
+    document.getElementById('pbImportModal').classList.add('show');
+}
+function pbCloseImport(){
+    document.getElementById('pbImportModal').classList.remove('show');
+}
+function pbImpBack(){
+    document.getElementById('pbImpFile').value = '';
+    pbImpPreview = null;
+    pbImpSelection = new Set();
+    document.getElementById('pbImpStep1').style.display     = '';
+    document.getElementById('pbImpStep2').style.display     = 'none';
+    document.getElementById('pbImpCommitBtn').style.display = 'none';
+    document.getElementById('pbImpBackBtn').style.display   = 'none';
+}
+
+async function pbImportUpload(){
+    const fileInput = document.getElementById('pbImpFile');
+    const file = fileInput.files[0];
+    if (!file) return;
+
+    // Show parsing state
+    document.getElementById('pbImpStep1').innerHTML +=
+        '<div id="pbImpLoading" style="margin-top:14px; text-align:center; color:var(--text2); font-size:12.5px;">⏳ Parsing file…</div>';
+
+    const fd = new FormData();
+    fd.append('file', file);
+
+    try {
+        const r = await fetch('/packing-bom/api/import/preview', {method: 'POST', body: fd});
+        const d = await r.json();
+        if (!r.ok || d.status !== 'ok') {
+            pbToast(d.message || 'Parse failed', 'error');
+            pbImpBack();
+            return;
+        }
+        pbImpPreview = d;
+        // Pre-select all valid sheets
+        pbImpSelection = new Set(
+            (d.sheets || [])
+                .map((s, i) => s.valid ? i : -1)
+                .filter(x => x >= 0)
+        );
+        pbRenderImpPreview();
+    } catch (e) {
+        pbToast('Network error', 'error');
+        pbImpBack();
+    }
+}
+
+function pbRenderImpPreview(){
+    if (!pbImpPreview) return;
+    const d = pbImpPreview;
+
+    document.getElementById('pbImpStep1').style.display = 'none';
+    document.getElementById('pbImpStep2').style.display = '';
+    document.getElementById('pbImpBackBtn').style.display   = '';
+    document.getElementById('pbImpCommitBtn').style.display = '';
+
+    document.getElementById('pbImpSummary').innerHTML = `
+        <b>${pbEsc(d.file_name)}</b> &nbsp;·&nbsp;
+        ${d.total_sheets} sheet${d.total_sheets === 1 ? '' : 's'}
+        &nbsp;·&nbsp; <span style="color:var(--pb-teal-2); font-weight:700;">${d.valid_sheets} ready</span>
+        ${d.invalid_sheets ? `&nbsp;·&nbsp; <span style="color:var(--pb-red); font-weight:700;">${d.invalid_sheets} with issues</span>` : ''}
+    `;
+
+    const wrap = document.getElementById('pbImpSheets');
+    wrap.innerHTML = (d.sheets || []).map((s, i) => {
+        const checked  = pbImpSelection.has(i) ? 'checked' : '';
+        const disabled = !s.valid ? 'disabled' : '';
+        const bg       = s.valid ? '#f0fdfa' : '#fef2f2';
+        const border   = s.valid ? '#5eead4' : '#fecaca';
+
+        const matched = s.items.filter(x => x.matched).length;
+        const total   = s.items.length;
+
+        const itemsTbl = s.items.map((it, j) => `
+            <tr style="${it.matched ? '' : 'background:#fef2f2;'}">
+                <td style="padding:4px 8px; font-size:11px;">${it.sr_no || (j+1)}</td>
+                <td style="padding:4px 8px; font-size:11.5px;">
+                    ${pbEsc(it.item_name)}
+                    ${it.matched ? '' : '<span style="color:var(--pb-red); font-weight:700;"> ✗ not found</span>'}
+                </td>
+                <td style="padding:4px 8px; font-size:11px; color:var(--text2);">${pbEsc(it.resolved_cat || it.category || '')}</td>
+                <td style="padding:4px 8px; font-size:11.5px; text-align:right;">${pbFmt(it.qty)}</td>
+                <td style="padding:4px 8px; font-size:11px; text-align:center;">${pbEsc(it.resolved_uom || it.uom || '')}</td>
+            </tr>
+        `).join('');
+
+        const warnings = (s.warnings || []).map(w =>
+            `<div style="font-size:11.5px; color:#991b1b; margin-top:2px;">⚠ ${pbEsc(w)}</div>`
+        ).join('');
+
+        return `<div style="border:1.5px solid ${border}; background:${bg}; border-radius:9px; padding:12px 14px; margin-bottom:12px;">
+            <div style="display:flex; align-items:flex-start; gap:10px;">
+                <input type="checkbox" ${checked} ${disabled} onchange="pbImpToggle(${i}, this.checked)" style="margin-top:3px;">
+                <div style="flex:1; min-width:0;">
+                    <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                        <b style="font-size:13.5px;">${pbEsc(s.sheet_name)}</b>
+                        ${s.matched_fg_id
+                          ? `<span style="font-size:11px; color:var(--pb-teal-2); font-weight:700;">✓ FG matched: ${pbEsc(s.matched_fg_name)}</span>`
+                          : `<span style="font-size:11px; color:var(--pb-red); font-weight:700;">✗ FG not in master</span>`}
+                        ${s.already_exists ? '<span style="background:#fef3c7; color:#92400e; padding:1px 8px; border-radius:10px; font-size:10px; font-weight:800;">WILL OVERWRITE</span>' : ''}
+                    </div>
+                    <div style="font-size:11.5px; color:var(--text2); margin-top:3px;">
+                        FG: <b>${pbEsc(s.fg_name || '(blank)')}</b>
+                        &nbsp;·&nbsp; Qty: <b>${pbFmt(s.fg_qty)} ${pbEsc(s.fg_uom)}</b>
+                        &nbsp;·&nbsp; Items: <b>${matched}/${total} matched</b>
+                    </div>
+                    ${warnings}
+                    ${total ? `<details style="margin-top:8px;">
+                        <summary style="cursor:pointer; font-size:11px; color:var(--text2); font-weight:600;">Show ${total} item${total===1?'':'s'}</summary>
+                        <table style="width:100%; border-collapse:collapse; margin-top:6px; background:#fff; border:1px solid var(--border); border-radius:6px;">
+                            <thead><tr style="background:#f1f5f9;">
+                                <th style="padding:5px 8px; font-size:10px; text-align:left;">#</th>
+                                <th style="padding:5px 8px; font-size:10px; text-align:left;">Item</th>
+                                <th style="padding:5px 8px; font-size:10px; text-align:left;">Category</th>
+                                <th style="padding:5px 8px; font-size:10px; text-align:right;">Qty</th>
+                                <th style="padding:5px 8px; font-size:10px; text-align:center;">UOM</th>
+                            </tr></thead>
+                            <tbody>${itemsTbl}</tbody>
+                        </table>
+                    </details>` : ''}
+                </div>
+            </div>
+        </div>`;
+    }).join('');
+
+    pbImpUpdateCommitBtn();
+}
+
+function pbImpToggle(idx, on){
+    if (on) pbImpSelection.add(idx);
+    else    pbImpSelection.delete(idx);
+    pbImpUpdateCommitBtn();
+}
+
+function pbImpUpdateCommitBtn(){
+    const n = pbImpSelection.size;
+    const btn = document.getElementById('pbImpCommitBtn');
+    btn.disabled = (n === 0);
+    btn.textContent = n ? `💾 Import ${n} BOM${n === 1 ? '' : 's'}` : '💾 Import Selected';
+}
+
+async function pbImportCommit(){
+    if (!pbImpPreview || !pbImpSelection.size) return;
+    const sheets = [...pbImpSelection].map(i => pbImpPreview.sheets[i]);
+
+    const btn = document.getElementById('pbImpCommitBtn');
+    btn.disabled = true;
+    const oldText = btn.textContent; btn.textContent = 'Importing…';
+
+    try {
+        const r = await fetch('/packing-bom/api/import/commit', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({sheets: sheets}),
+        });
+        const d = await r.json();
+        if (!r.ok || d.status !== 'ok') {
+            pbToast(d.message || 'Import failed', 'error');
+            return;
+        }
+        const c = (d.created || []).length;
+        const u = (d.updated || []).length;
+        const s = (d.skipped || []).length;
+        let msg = `Imported ✓  created: ${c}, updated: ${u}`;
+        if (s) msg += `, skipped: ${s}`;
+        pbToast(msg, 'success');
+        pbCloseImport();
+        pbReload();
+    } catch (e) {
+        pbToast('Network error', 'error');
+    } finally {
+        btn.disabled = false; btn.textContent = oldText;
+    }
+}
+</script>
+{% endblock %}

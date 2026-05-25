@@ -469,6 +469,34 @@ class QualificationMaster(db.Model):
     def __repr__(self): return f'<QualificationMaster {self.name}>'
 
 
+class GradeMaster(db.Model):
+    """
+    Grade Master — J1, J2, J3, M1-M3, S1-S3, MG1-MG3 etc.
+
+    Structure (image ke according):
+      grade_level     → Junior / Mid / Senior / Management
+      grade_code      → J1, J2, M1, MG1 ...   (UNIQUE)
+      grade_positions → comma-separated job titles
+                         (e.g. "Trainee, Assistant")
+      remarks         → per-level note
+                         (e.g. "Entry Level & support staffs")
+    """
+    __tablename__ = 'grade_master'
+
+    id              = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    grade_code      = db.Column(db.String(20),  nullable=False, unique=True)
+    grade_level     = db.Column(db.String(50),  nullable=False, index=True)
+    grade_positions = db.Column(db.Text,        nullable=True)
+    remarks         = db.Column(db.String(255), nullable=True)
+    sort_order      = db.Column(db.Integer, default=0)
+    is_active       = db.Column(db.Boolean, default=True)
+    created_at      = db.Column(db.DateTime, default=datetime.now)
+    created_by      = db.Column(db.Integer, nullable=True)
+
+    def __repr__(self):
+        return f'<GradeMaster {self.grade_code} ({self.grade_level})>'
+
+
 class EmployeeLocationMaster(db.Model):
     """Employee Location/Branch Master — Office, Factory, etc."""
     __tablename__ = 'employee_location_master'
@@ -502,13 +530,18 @@ class DesignationMaster(db.Model):
     """Designation Master — Manager, Executive, etc."""
     __tablename__ = 'designation_master'
 
-    id         = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    name       = db.Column(db.String(100), nullable=False, unique=True)
-    department = db.Column(db.String(100))   # Optional: link to dept
-    sort_order = db.Column(db.Integer, default=0)
-    is_active  = db.Column(db.Boolean, default=True)
-    created_at = db.Column(db.DateTime, default=datetime.now)
-    created_by = db.Column(db.Integer, nullable=True)
+    id                 = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    name               = db.Column(db.String(100), nullable=False, unique=True)
+    department         = db.Column(db.String(100))   # Optional: link to dept
+    notice_period_days = db.Column(db.Integer, nullable=True)
+    grade_id           = db.Column(db.Integer, db.ForeignKey('grade_master.id', ondelete='SET NULL'), nullable=True, index=True)
+    sort_order         = db.Column(db.Integer, default=0)
+    is_active          = db.Column(db.Boolean, default=True)
+    created_at         = db.Column(db.DateTime, default=datetime.now)
+    created_by         = db.Column(db.Integer, nullable=True)
+
+    # Relationship to Grade
+    grade = db.relationship('GradeMaster', backref='designations', lazy='joined', foreign_keys=[grade_id])
 
     def __repr__(self): return f'<DesignationMaster {self.name}>'
 

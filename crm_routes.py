@@ -1277,10 +1277,13 @@ def lead_inline_edit(id):
     allowed = {
         'contact_name','company_name','email','phone','city','state',
         'product_name','category','source','status','priority',
-        'product_range','order_quantity','remark','tags'
+        'product_range','order_quantity','remark','tags','lead_type'
     }
     if field not in allowed:
         return jsonify(success=False, error='Field not allowed'), 400
+    # Validate lead_type values (Quality / Non-Quality only)
+    if field == 'lead_type' and value not in ('Quality', 'Non-Quality'):
+        return jsonify(success=False, error='Invalid lead type'), 400
     old_val = getattr(lead, field, None)
     setattr(lead, field, value.strip() if isinstance(value, str) else value)
     lead.updated_at = datetime.now()

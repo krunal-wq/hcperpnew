@@ -62,6 +62,7 @@
   <button class="mtab" onclick="switchMTab('location',this)">📍 Location <span class="cnt-pill">{{ locations|length }}</span></button>
   <button class="mtab" onclick="switchMTab('department',this)">🏢 Department <span class="cnt-pill">{{ departments|length }}</span></button>
   <button class="mtab" onclick="switchMTab('designation',this)">👤 Designation <span class="cnt-pill">{{ designations|length }}</span></button>
+  <button class="mtab" onclick="switchMTab('grade',this)">🏷️ Grade <span class="cnt-pill">{{ (grades|length) if grades is defined else 0 }}</span></button>
   <button class="mtab" onclick="switchMTab('nationality',this)">🌍 Nationality <span class="cnt-pill">{{ (nationalities|length) if nationalities is defined else 0 }}</span></button>
   <button class="mtab" onclick="switchMTab('qualification',this)">🎓 Qualification <span class="cnt-pill">{{ (qualifications|length) if qualifications is defined else 0 }}</span></button>
   <button class="mtab" onclick="switchMTab('shift',this)">🔄 Shift Master</button>
@@ -179,21 +180,148 @@
 <div id="mtab-designation" class="mtab-pane">
   <div class="master-card">
     <div class="master-hdr"><div class="master-hdr-title">👤 Designation</div><span class="master-count">{{ designations|length }}</span></div>
-    <div class="add-row"><form method="post" action="/hr/masters/designation/add" style="display:flex;gap:.5rem;flex:1;"><input type="text" name="name" placeholder="e.g. Manager, Executive" required><button type="submit" class="add-btn">+ Add</button></form></div>
+    <div class="add-row" style="flex-wrap:wrap;gap:.4rem;">
+      <form method="post" action="/hr/masters/designation/add"
+            style="display:flex;gap:.4rem;flex:1;flex-wrap:wrap;align-items:center;">
+        <input type="text" name="name" placeholder="e.g. Manager, Executive"
+               style="flex:1;min-width:180px;" required>
+        <select name="grade_id" style="max-width:200px;">
+          <option value="">— Grade —</option>
+          {% if grades is defined %}
+            {% for g in grades %}{% if g.is_active %}
+            <option value="{{ g.id }}">{{ g.grade_code }} ({{ g.grade_level }})</option>
+            {% endif %}{% endfor %}
+          {% endif %}
+        </select>
+        <input type="number" name="notice_period_days" placeholder="Notice (days)" min="0" max="365"
+               style="max-width:130px;">
+        <button type="submit" class="add-btn">+ Add</button>
+      </form>
+    </div>
     <div class="master-list">
       {% for d in designations %}
-      <div class="master-item {{ 'inactive-item' if not d.is_active }}" id="desig_{{ d.id }}">
-        <span class="mi-order">{{ loop.index }}</span><span class="mi-name">{{ d.name }}</span>
-        {% if not d.is_active %}<span style="font-size:.65rem;color:#dc2626;font-weight:700;background:#fee2e2;padding:1px 6px;border-radius:10px;">Inactive</span>{% endif %}
-        <button class="toggle-btn" onclick="toggleItem('/hr/masters/designation/{{ d.id }}/toggle','desig_{{ d.id }}',this)">{{ '✅' if d.is_active else '⭕' }}</button>
-        <button class="edit-btn" onclick="openEdit('desig_edit_{{ d.id }}')">✏️</button>
-        <form method="post" action="/hr/masters/designation/{{ d.id }}/delete" onsubmit="return confirm('Delete?')" style="display:inline;"><button type="submit" class="del-btn">🗑</button></form>
+      <div class="master-item {{ 'inactive-item' if not d.is_active }}" id="desig_{{ d.id }}"
+           style="display:grid;grid-template-columns:32px 1.4fr 90px 100px auto;gap:.5rem;align-items:center;">
+        <span class="mi-order">{{ loop.index }}</span>
+        <span class="mi-name">{{ d.name }}</span>
+        {% if d.grade %}
+        <span style="font-size:.7rem;font-weight:700;background:#eef2ff;color:#3730a3;padding:2px 8px;border-radius:10px;text-align:center;" title="{{ d.grade.grade_level }}">{{ d.grade.grade_code }}</span>
+        {% else %}
+        <span style="font-size:.68rem;color:#9ca3af;text-align:center;">—</span>
+        {% endif %}
+        <span style="font-size:.72rem;color:var(--text2);text-align:center;">
+          {% if d.notice_period_days %}{{ d.notice_period_days }} days{% else %}—{% endif %}
+        </span>
+        <span style="display:flex;gap:.3rem;align-items:center;">
+          {% if not d.is_active %}<span style="font-size:.65rem;color:#dc2626;font-weight:700;background:#fee2e2;padding:1px 6px;border-radius:10px;">Inactive</span>{% endif %}
+          <button class="toggle-btn" onclick="toggleItem('/hr/masters/designation/{{ d.id }}/toggle','desig_{{ d.id }}',this)">{{ '✅' if d.is_active else '⭕' }}</button>
+          <button class="edit-btn" onclick="openEdit('desig_edit_{{ d.id }}')">✏️</button>
+          <form method="post" action="/hr/masters/designation/{{ d.id }}/delete" onsubmit="return confirm('Delete?')" style="display:inline;"><button type="submit" class="del-btn">🗑</button></form>
+        </span>
       </div>
       <div class="edit-form" id="desig_edit_{{ d.id }}">
-        <form method="post" action="/hr/masters/designation/{{ d.id }}/edit" style="display:flex;gap:.5rem;flex:1;"><input type="text" name="name" value="{{ d.name }}" required><button type="submit" class="save-btn">💾</button></form>
+        <form method="post" action="/hr/masters/designation/{{ d.id }}/edit"
+              style="display:flex;gap:.4rem;flex:1;flex-wrap:wrap;align-items:center;">
+          <input type="text" name="name" value="{{ d.name }}"
+                 style="flex:1;min-width:180px;" required>
+          <select name="grade_id" style="max-width:200px;">
+            <option value="">— Grade —</option>
+            {% if grades is defined %}
+              {% for g in grades %}
+              <option value="{{ g.id }}" {% if d.grade_id == g.id %}selected{% endif %}>{{ g.grade_code }} ({{ g.grade_level }})</option>
+              {% endfor %}
+            {% endif %}
+          </select>
+          <input type="number" name="notice_period_days" value="{{ d.notice_period_days or '' }}"
+                 placeholder="Notice (days)" min="0" max="365" style="max-width:130px;">
+          <button type="submit" class="save-btn">💾 Save</button>
+        </form>
         <button class="cancel-btn" onclick="closeEdit('desig_edit_{{ d.id }}')">✕</button>
       </div>
       {% else %}<div style="text-align:center;padding:2rem;color:var(--text3);font-size:.8rem;">Add karo</div>{% endfor %}
+    </div>
+  </div>
+</div>
+
+<!-- ══ GRADE ══ -->
+<div id="mtab-grade" class="mtab-pane">
+  <div class="master-card">
+    <div class="master-hdr">
+      <div class="master-hdr-title">🏷️ Grade Master</div>
+      <span class="master-count">{{ (grades|length) if grades is defined else 0 }}</span>
+    </div>
+    <div class="add-row" style="flex-wrap:wrap;gap:.4rem;">
+      <form method="post" action="/hr/masters/grade/add"
+            style="display:flex;gap:.4rem;flex:1;flex-wrap:wrap;align-items:center;">
+        <input type="text" name="grade_code" placeholder="Code (J1, M2, MG3)"
+               style="max-width:130px;" maxlength="20" required>
+        <select name="grade_level" required style="max-width:140px;">
+          <option value="">— Level —</option>
+          <option value="Junior">Junior</option>
+          <option value="Mid">Mid</option>
+          <option value="Senior">Senior</option>
+          <option value="Management">Management</option>
+        </select>
+        <input type="text" name="grade_positions"
+               placeholder="Positions (e.g. Trainee, Assistant)"
+               style="flex:1;min-width:180px;">
+        <input type="text" name="remarks"
+               placeholder="Remarks"
+               style="flex:1;min-width:140px;">
+        <button type="submit" class="add-btn">+ Add</button>
+      </form>
+    </div>
+    <div class="master-list">
+      {% if grades is defined %}
+      {% for g in grades %}
+      <div class="master-item {{ 'inactive-item' if not g.is_active }}" id="grade_{{ g.id }}"
+           style="display:grid;grid-template-columns:32px 70px 100px 1fr 1fr auto;gap:.5rem;align-items:center;">
+        <span class="mi-order">{{ loop.index }}</span>
+        <span class="mi-name" style="font-weight:800;color:#1d4ed8;">{{ g.grade_code }}</span>
+        <span style="font-size:.72rem;font-weight:700;background:#eef2ff;color:#3730a3;padding:2px 8px;border-radius:10px;text-align:center;">{{ g.grade_level }}</span>
+        <span style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;">
+          {% if g.grade_positions %}
+            {% for pos in g.grade_positions.split(',') %}
+              {% set p = pos.strip() %}
+              {% if p %}
+              <span style="display:inline-block;font-size:.7rem;font-weight:600;background:#f0fdf4;color:#166534;border:1px solid #bbf7d0;padding:2px 8px;border-radius:999px;line-height:1.4;white-space:nowrap;">{{ p }}</span>
+              {% endif %}
+            {% endfor %}
+          {% else %}
+            <span style="font-size:.7rem;color:#9ca3af;">—</span>
+          {% endif %}
+        </span>
+        <span style="font-size:.72rem;color:var(--text3);font-style:italic;">{{ g.remarks or '' }}</span>
+        <span style="display:flex;gap:.3rem;align-items:center;">
+          {% if not g.is_active %}<span style="font-size:.65rem;color:#dc2626;font-weight:700;background:#fee2e2;padding:1px 6px;border-radius:10px;">Inactive</span>{% endif %}
+          <button class="toggle-btn" onclick="toggleItem('/hr/masters/grade/{{ g.id }}/toggle','grade_{{ g.id }}',this)">{{ '✅' if g.is_active else '⭕' }}</button>
+          <button class="edit-btn" onclick="openEdit('grade_edit_{{ g.id }}')">✏️</button>
+          <form method="post" action="/hr/masters/grade/{{ g.id }}/delete"
+                onsubmit="return confirm('Delete grade {{ g.grade_code }}?')" style="display:inline;">
+            <button type="submit" class="del-btn">🗑</button>
+          </form>
+        </span>
+      </div>
+      <div class="edit-form" id="grade_edit_{{ g.id }}">
+        <form method="post" action="/hr/masters/grade/{{ g.id }}/edit"
+              style="display:flex;gap:.4rem;flex:1;flex-wrap:wrap;align-items:center;">
+          <input type="text" name="grade_code" value="{{ g.grade_code }}"
+                 style="max-width:110px;" maxlength="20" required>
+          <select name="grade_level" required style="max-width:140px;">
+            {% for lvl in ['Junior','Mid','Senior','Management'] %}
+            <option value="{{ lvl }}" {% if g.grade_level == lvl %}selected{% endif %}>{{ lvl }}</option>
+            {% endfor %}
+          </select>
+          <input type="text" name="grade_positions" value="{{ g.grade_positions or '' }}"
+                 placeholder="Positions" style="flex:1;min-width:180px;">
+          <input type="text" name="remarks" value="{{ g.remarks or '' }}"
+                 placeholder="Remarks" style="flex:1;min-width:140px;">
+          <button type="submit" class="save-btn">💾 Save</button>
+        </form>
+        <button class="cancel-btn" onclick="closeEdit('grade_edit_{{ g.id }}')">✕</button>
+      </div>
+      {% else %}<div style="text-align:center;padding:2rem;color:var(--text3);font-size:.8rem;">Koi grade nahi — Add karo</div>{% endfor %}
+      {% endif %}
     </div>
   </div>
 </div>
@@ -266,7 +394,7 @@
 <script>
 var _tabs = document.querySelectorAll('.mtab');
 var _panes = document.querySelectorAll('.mtab-pane');
-var _tabKeys = ['emp_type','location','department','designation','nationality','qualification','shift'];
+var _tabKeys = ['emp_type','location','department','designation','grade','nationality','qualification','shift'];
 
 function switchMTab(tab, btn) {
   _panes.forEach(function(p){ p.classList.remove('active'); });

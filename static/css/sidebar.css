@@ -273,3 +273,25 @@ body.sb-open .main    { margin-left: var(--sw); }
     line-height: 1;
 }
 .nav-group-toggle .nav-ic i { font-size: 14px; }
+
+/* ──────────────────────────────────────────────────────────────
+   PRELOAD ANTI-FLICKER
+   Disable ALL sidebar transitions / animations during initial paint
+   so the JS that sets .open on the active accordion doesn't trigger
+   visible expand-animations on every page load.
+
+   The .sb-preload class is added to <body> on render (server-side)
+   and removed by JS after the first layout-settled paint.
+   This rule covers EVERY descendant of .sidebar so no element
+   (header, arrow, body, submenu, link colors, hover effects)
+   can fire a transition during the freeze window.
+   ────────────────────────────────────────────────────────────── */
+body.sb-preload .sidebar,
+body.sb-preload .sidebar *,
+body.sb-preload .sidebar *::before,
+body.sb-preload .sidebar *::after {
+    transition: none !important;
+    animation: none !important;
+}
+/* Also prevent scroll-behavior animation inside sidebar nav */
+body.sb-preload .sb-nav { scroll-behavior: auto !important; }

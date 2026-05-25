@@ -6,7 +6,8 @@ from flask import Blueprint, render_template, redirect, url_for, request, flash,
 from flask_login import login_required, current_user
 from audit_helper import audit, snapshot
 from datetime import datetime
-from models import db, User, Employee, Contractor, WishLog, SalaryConfig, SalaryComponent, EmployeeTypeMaster, EmployeeLocationMaster, DepartmentMaster, DesignationMaster, NationalityMaster, QualificationMaster
+from models import db, User, Employee, Contractor, WishLog, SalaryConfig, SalaryComponent, EmployeeTypeMaster, EmployeeLocationMaster, DepartmentMaster, DesignationMaster, NationalityMaster, QualificationMaster, GradeMaster
+from models.hr_rules import HRShift
 from permissions import get_perm, get_grid_columns, save_grid_columns
 
 hr = Blueprint('hr', __name__, url_prefix='/hr')
@@ -766,11 +767,14 @@ def emp_add():
     locations     = EmployeeLocationMaster.query.order_by(EmployeeLocationMaster.name).all()
     nationalities = NationalityMaster.query.filter_by(is_active=True).order_by(NationalityMaster.sort_order, NationalityMaster.name).all()
     qualifications= QualificationMaster.query.filter_by(is_active=True).order_by(QualificationMaster.sort_order, QualificationMaster.name).all()
+    grades        = GradeMaster.query.filter_by(is_active=True).order_by(GradeMaster.sort_order, GradeMaster.grade_code).all()
+    shifts        = HRShift.query.filter_by(is_active=True).order_by(HRShift.name).all() if hasattr(HRShift, 'is_active') else HRShift.query.order_by(HRShift.name).all()
     return render_template('hr/employees/form.html',
         employee=None, contractors=contractors, perm=perm, active_page='hr_employees',
         all_employees=all_employees, emp_types=emp_types,
         departments=departments, designations=designations, locations=locations,
-        nationalities=nationalities, qualifications=qualifications)
+        nationalities=nationalities, qualifications=qualifications,
+        grades=grades, shifts=shifts)
 
 
 @hr.route('/employees/<int:id>/edit', methods=['GET', 'POST'])
@@ -1007,11 +1011,14 @@ def emp_edit(id):
     locations     = EmployeeLocationMaster.query.order_by(EmployeeLocationMaster.name).all()
     nationalities = NationalityMaster.query.filter_by(is_active=True).order_by(NationalityMaster.sort_order, NationalityMaster.name).all()
     qualifications= QualificationMaster.query.filter_by(is_active=True).order_by(QualificationMaster.sort_order, QualificationMaster.name).all()
+    grades        = GradeMaster.query.filter_by(is_active=True).order_by(GradeMaster.sort_order, GradeMaster.grade_code).all()
+    shifts        = HRShift.query.filter_by(is_active=True).order_by(HRShift.name).all() if hasattr(HRShift, 'is_active') else HRShift.query.order_by(HRShift.name).all()
     return render_template('hr/employees/form.html',
         employee=e, contractors=contractors, perm=perm, active_page='hr_employees',
         all_employees=all_employees, emp_types=emp_types,
         departments=departments, designations=designations, locations=locations,
-        nationalities=nationalities, qualifications=qualifications)
+        nationalities=nationalities, qualifications=qualifications,
+        grades=grades, shifts=shifts)
 
 
 

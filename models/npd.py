@@ -77,6 +77,10 @@ class NPDProject(db.Model):
     npd_fee_paid    = db.Column(db.Boolean, default=False)
     npd_fee_amount  = db.Column(db.Numeric(10, 2), default=10000)
     npd_fee_receipt = db.Column(db.String(300))   # uploaded receipt filename
+    # When the NPD fee checkbox first flipped from unchecked → checked. Used
+    # by /npd/fees-report to date-filter received fees. Nullable so legacy
+    # rows don't break; report falls back to created_at when absent.
+    npd_fee_paid_at = db.Column(db.DateTime, nullable=True)
     reference_product = db.Column(db.String(300))
     custom_formulation= db.Column(db.Boolean, default=False)
     requirement_spec  = db.Column(db.Text)
@@ -486,6 +490,7 @@ class NPDComment(db.Model):
     milestone_key = db.Column(db.String(20), nullable=True)   # e.g. 'ms_1', 'ms_2'
     attachment  = db.Column(db.String(300), nullable=True)
     created_at  = db.Column(db.DateTime, default=datetime.now)
+    edited_at   = db.Column(db.DateTime, nullable=True)   # set when comment is edited
 
     user        = db.relationship('User', backref='npd_comments', lazy=True)
 

@@ -538,6 +538,11 @@ def new_project():
             created_by      = current_user.id,
         )
 
+        # Stamp fee-received timestamp if checkbox was ticked at create-time.
+        # Used by /npd/fees-report for from/to date filtering.
+        if proj.npd_fee_paid:
+            proj.npd_fee_paid_at = datetime.now()
+
         # Handle NPD fee receipt upload
         if 'npd_fee_receipt' in request.files:
             f = request.files['npd_fee_receipt']
@@ -777,6 +782,149 @@ def project_view(pid):
         project_id=proj.id, user_id=current_user.id, is_active=True
     ).first()
 
+    # ── Client Information visibility ────────────────────────────────
+    # STRICT policy (user requirement): Client Information card sirf
+    # in users ko dikhega:
+    #   1. Administrator (role == 'admin')
+    #   2. NPD department wale employees
+    #   3. New Product Development and Management Department wale employees
+    #      (i.e. department naam me 'npd', 'new product development',
+    #       'management' aata ho)
+    # Baki kisi ko bhi nahi — generic 'manager' role (Sales Manager,
+    # HR Manager, etc.) ko bhi nahi.
+    can_see_client_info = False
+    _client_visibility_reason = ''   # for debugging
+    try:
+        u_role = (getattr(current_user, 'role', '') or '').strip().lower()
+        # Administrator ko hamesha allow karo (role-based)
+        if u_role == 'admin':
+            can_see_client_info = True
+            _client_visibility_reason = f'role={u_role} (administrator)'
+        else:
+            # Baki sab cases me Employee.department check karo
+            from models.employee import Employee
+            emp = None
+            # 1) Primary: Employee.user_id == current_user.id
+            emp = Employee.query.filter(
+                Employee.user_id == current_user.id,
+                Employee.is_deleted == False,
+            ).first()
+            # 2) Fallback: match by email (User.email == Employee.official_email
+            #    OR Employee.personal_email if such field exists)
+            if not emp and getattr(current_user, 'email', None):
+                emp_email = current_user.email
+                for col_name in ('official_email', 'email', 'personal_email'):
+                    if hasattr(Employee, col_name):
+                        emp = Employee.query.filter(
+                            getattr(Employee, col_name).ilike(emp_email),
+                            Employee.is_deleted == False,
+                        ).first()
+                        if emp: break
+            # 3) Fallback: match by full_name (User.full_name == Employee full name)
+            if not emp and getattr(current_user, 'full_name', None):
+                full = (current_user.full_name or '').strip()
+                if full:
+                    # Try several name shapes
+                    candidates = Employee.query.filter(
+                        Employee.is_deleted == False,
+                    ).all()
+                    for e in candidates:
+                        e_full = ''
+                        if hasattr(e, 'full_name') and getattr(e, 'full_name', None):
+                            e_full = e.full_name
+                        else:
+                            e_full = ' '.join([
+                                (getattr(e, 'first_name', '') or ''),
+                                (getattr(e, 'middle_name', '') or ''),
+                                (getattr(e, 'last_name',  '') or '')
+                            ]).strip()
+                            e_full = ' '.join(e_full.split())   # collapse spaces
+                        if e_full and e_full.lower() == full.lower():
+                            emp = e
+                            break
+
+            if emp:
+                d = (emp.department or '').strip().lower()
+                # Sirf NPD ya Management/New Product Development department
+                # ke employees ko dikhayega. 'mgmt', 'npd', 'new product',
+                # 'product dev', 'management' jaise tokens match karte hain.
+                if d and any(tok in d for tok in
+                             ('npd', 'n.p.d', 'new product',
+                              'product dev', 'management', 'mgmt')):
+                    can_see_client_info = True
+                    _client_visibility_reason = f'dept={emp.department!r}'
+                else:
+                    _client_visibility_reason = f'dept={emp.department!r} (no match — only Admin/NPD/Management allowed)'
+            else:
+                _client_visibility_reason = 'no Employee row matched (user_id/email/full_name)'
+    except Exception as _e:
+        # If anything goes wrong, default to NOT showing (safer).
+        can_see_client_info = (getattr(current_user, 'role', '') == 'admin')
+        _client_visibility_reason = f'exception: {_e}'
+
+    # Debug log — visible in Flask server console
+    try:
+        import logging
+        logging.getLogger(__name__).info(
+            "[npd.project_view] user=%s role=%s -> can_see_client_info=%s (%s)",
+            getattr(current_user, 'username', '?'),
+            getattr(current_user, 'role', '?'),
+            can_see_client_info, _client_visibility_reason,
+        )
+    except Exception:
+        pass
+
+    # Inline debug mode: append ?debug_visibility=1 to the project URL to get
+    # a JSON dump of how the system resolved the current user's visibility.
+    # Works regardless of whether other new routes have been picked up by Flask.
+    if request.args.get('debug_visibility') == '1':
+        from models.employee import Employee
+        dump = {
+            'user': {
+                'id'       : current_user.id,
+                'username' : getattr(current_user, 'username', ''),
+                'full_name': getattr(current_user, 'full_name', ''),
+                'email'    : getattr(current_user, 'email',    ''),
+                'role'     : getattr(current_user, 'role',     ''),
+            },
+            'can_see_client_info': can_see_client_info,
+            'reason'             : _client_visibility_reason,
+            'employees_with_user_id': [
+                {'id': e.id,
+                 'first_name': getattr(e, 'first_name', ''),
+                 'last_name' : getattr(e, 'last_name',  ''),
+                 'department': getattr(e, 'department', ''),
+                 'user_id'   : getattr(e, 'user_id',   None)}
+                for e in Employee.query.filter(
+                    Employee.user_id == current_user.id,
+                    Employee.is_deleted == False,
+                ).all()
+            ],
+        }
+        # Also: lookup by name (Sneha case — user_id might be NULL)
+        full = (getattr(current_user, 'full_name', '') or '').strip().lower()
+        if full:
+            possible = []
+            for e in Employee.query.filter(Employee.is_deleted == False).all():
+                e_full = ''
+                if hasattr(e, 'full_name') and getattr(e, 'full_name', None):
+                    e_full = (e.full_name or '').strip().lower()
+                else:
+                    e_full = ' '.join([
+                        (getattr(e, 'first_name','') or ''),
+                        (getattr(e, 'middle_name','') or ''),
+                        (getattr(e, 'last_name', '') or '')
+                    ]).strip().lower()
+                    e_full = ' '.join(e_full.split())
+                if e_full and (full in e_full or e_full in full):
+                    possible.append({
+                        'id': e.id, 'name': e_full,
+                        'department': getattr(e, 'department', ''),
+                        'user_id': getattr(e, 'user_id', None),
+                    })
+            dump['employees_by_name_match'] = possible
+        return jsonify(dump)
+
     return render_template('npd/project_view.html',
         active_page='npd_projects',
         proj=proj, users=users,
@@ -794,6 +942,7 @@ def project_view(pid):
         ms_perm_map=ms_perm_map,
         can_start=can_start,
         my_sub=my_sub,
+        can_see_client_info=can_see_client_info,
     )
 
 
@@ -848,6 +997,119 @@ def add_comment(pid):
     db.session.commit()
     flash('Comment added!','success')
     return redirect(url_for('npd.project_view', pid=pid, tab='internal_discussion' if is_internal else 'discussion'))
+
+
+# ─────────────────────────────────────────────────────────────
+# Edit a Discussion / Internal Discussion comment
+# Only the author or an admin can edit.
+# Returns JSON so the row can be updated inline (no reload).
+# ─────────────────────────────────────────────────────────────
+@npd.route('/projects/<int:pid>/comment/<int:cid>/edit', methods=['POST'])
+@login_required
+def edit_comment(pid, cid):
+    from models.npd import NPDComment, NPDActivityLog
+    c = NPDComment.query.filter_by(id=cid, project_id=pid).first()
+    if not c:
+        return jsonify(success=False, error='Comment not found'), 404
+
+    # Permission: ONLY the comment's author can edit (no admin override)
+    if c.user_id != current_user.id:
+        return jsonify(success=False, error='You can only edit your own comments'), 403
+
+    new_text = (request.form.get('comment') or '').strip()
+
+    # Optional new attachment — replaces the existing one if uploaded
+    attachment_replaced = False
+    if 'attachment' in request.files:
+        f = request.files['attachment']
+        if f and f.filename and f.filename.strip():
+            try:
+                os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+                import uuid
+                ext   = f.filename.rsplit('.', 1)[-1].lower() if '.' in f.filename else 'bin'
+                fname = datetime.now().strftime('%Y%m%d%H%M%S_') + str(uuid.uuid4())[:8] + '.' + ext
+                fpath = os.path.join(UPLOAD_FOLDER, fname)
+                f.save(fpath)
+                if os.path.exists(fpath):
+                    # Remove old attachment file (best-effort)
+                    if c.attachment:
+                        try:
+                            old_file = c.attachment.split('|')[0]
+                            old_path = os.path.join(UPLOAD_FOLDER, old_file)
+                            if os.path.exists(old_path):
+                                os.remove(old_path)
+                        except Exception:
+                            pass
+                    c.attachment = fname + '|' + f.filename
+                    attachment_replaced = True
+            except Exception:
+                pass
+
+    # At least text OR an attachment (existing or new) must be present
+    if not new_text and not c.attachment:
+        return jsonify(success=False, error='Comment cannot be empty'), 400
+
+    c.comment   = new_text
+    c.edited_at = datetime.now()
+
+    db.session.add(NPDActivityLog(
+        project_id=pid, user_id=current_user.id,
+        action=f"{'Internal comment' if c.is_internal else 'Comment'} edited by {current_user.full_name}",
+        created_at=datetime.now(),
+    ))
+    db.session.commit()
+
+    return jsonify(
+        success=True,
+        comment=c.comment,
+        edited_at=c.edited_at.strftime('%d-%m-%Y %H:%M:%S'),
+        attachment_replaced=attachment_replaced,
+    )
+
+
+# ─────────────────────────────────────────────────────────────
+# Delete a Discussion / Internal Discussion comment
+# Only the author or an admin can delete.
+# Also removes the attached file from disk if present.
+# ─────────────────────────────────────────────────────────────
+@npd.route('/projects/<int:pid>/comment/<int:cid>/delete', methods=['POST'])
+@login_required
+def delete_comment(pid, cid):
+    from models.npd import NPDComment, NPDActivityLog
+    c = NPDComment.query.filter_by(id=cid, project_id=pid).first()
+    if not c:
+        flash('Comment not found', 'error')
+        return redirect(url_for('npd.project_view', pid=pid))
+
+    # Permission: ONLY the comment's author can delete (no admin override)
+    if c.user_id != current_user.id:
+        flash('You can only delete your own comments', 'error')
+        return redirect(url_for('npd.project_view', pid=pid,
+                                tab='internal_discussion' if c.is_internal else 'discussion'))
+
+    was_internal = bool(c.is_internal)
+
+    # Remove the attached file from disk (best-effort)
+    if c.attachment:
+        try:
+            att_file = c.attachment.split('|')[0]
+            fpath = os.path.join(UPLOAD_FOLDER, att_file)
+            if os.path.exists(fpath):
+                os.remove(fpath)
+        except Exception:
+            pass
+
+    db.session.delete(c)
+    db.session.add(NPDActivityLog(
+        project_id=pid, user_id=current_user.id,
+        action=f"{'Internal comment' if was_internal else 'Comment'} deleted by {current_user.full_name}",
+        created_at=datetime.now(),
+    ))
+    db.session.commit()
+
+    flash('Comment deleted!', 'success')
+    return redirect(url_for('npd.project_view', pid=pid,
+                            tab='internal_discussion' if was_internal else 'discussion'))
 
 
 @npd.route('/projects/<int:pid>/note', methods=['POST'])
@@ -948,7 +1210,12 @@ def edit_project(pid):
 
         # Fee & misc
         proj.custom_formulation   = 'custom_formulation' in request.form
+        # Track when fee transitions from unpaid → paid. Re-checking an
+        # already-paid project should NOT reset the original timestamp.
+        _was_paid = bool(proj.npd_fee_paid)
         proj.npd_fee_paid         = 'npd_fee_paid' in request.form
+        if proj.npd_fee_paid and not _was_paid:
+            proj.npd_fee_paid_at = datetime.now()
         proj.npd_fee_amount       = request.form.get('npd_fee_amount', proj.npd_fee_amount) or proj.npd_fee_amount
         proj.delay_reason         = request.form.get('delay_reason', '')
         proj.updated_by           = current_user.id
@@ -2250,6 +2517,124 @@ def npd_dashboard():
     )
 
 
+# ═════════════════════════════════════════════════════════════════
+#  NPD FEES REPORT
+# ─────────────────────────────────────────────────────────────────
+#  Lists all NPD projects where `npd_fee_paid=True`, with:
+#    • From-date / To-date filter (against npd_fee_paid_at)
+#    • Optional search by code/product/client
+#    • Total amount aggregate at the bottom
+#  Date filter uses npd_fee_paid_at (stamped on first paid-checkbox
+#  flip). Legacy paid-but-no-timestamp rows are backfilled to
+#  created_at by the migration script — but as a safety net, the
+#  report also coalesces null fee_paid_at → created_at when filtering
+#  and displaying. That way nothing silently disappears.
+# ═════════════════════════════════════════════════════════════════
+@npd.route('/fees-report')
+@login_required
+def npd_fees_report():
+    from sqlalchemy import func, or_
+
+    q       = (request.args.get('q')         or '').strip()
+    from_dt = (request.args.get('from_date') or '').strip()
+    to_dt   = (request.args.get('to_date')   or '').strip()
+    export  = (request.args.get('export')    or '').strip().lower()
+
+    # Permission: piggyback on the existing 'npd' module permission.
+    perm = get_perm('npd')
+    if perm and not perm.can_view:
+        flash('Access denied: NPD module view permission nahi hai.', 'error')
+        return redirect(url_for('npd.npd_dashboard'))
+
+    # Coalesce so legacy rows with NULL fee_paid_at still show under their
+    # created_at. SQLAlchemy `func.coalesce` works on both MySQL & SQLite.
+    fee_dt_expr = func.coalesce(NPDProject.npd_fee_paid_at,
+                                NPDProject.created_at)
+
+    query = NPDProject.query.filter(
+        NPDProject.is_deleted == False,
+        NPDProject.npd_fee_paid == True,
+    )
+
+    # Per-user visibility — same rule as /npd/npd-projects, so a non-manager
+    # only sees fees for projects they're assigned to. Accounts/managers
+    # who should see ALL paid fees need npd_manager / admin role.
+    query = _filter_npd_projects_for_user(query)
+
+    # ── Date filter ──
+    def _pd(s):
+        # Accepts 'YYYY-MM-DD' (browser <input type=date>) or 'DD-MM-YYYY'
+        if not s: return None
+        for fmt in ('%Y-%m-%d', '%d-%m-%Y'):
+            try:    return datetime.strptime(s, fmt).date()
+            except: pass
+        return None
+
+    from_d = _pd(from_dt)
+    to_d   = _pd(to_dt)
+    if from_d:
+        query = query.filter(fee_dt_expr >= datetime.combine(from_d, datetime.min.time()))
+    if to_d:
+        # Inclusive end-of-day so "to: 23-May" includes everything on May 23.
+        end_of_day = datetime.combine(to_d, datetime.max.time())
+        query = query.filter(fee_dt_expr <= end_of_day)
+
+    # ── Search ──
+    if q:
+        like = f'%{q}%'
+        query = query.filter(or_(
+            NPDProject.code.ilike(like),
+            NPDProject.product_name.ilike(like),
+            NPDProject.client_name.ilike(like),
+            NPDProject.client_company.ilike(like),
+        ))
+
+    # Newest fees first
+    rows = query.order_by(fee_dt_expr.desc()).all()
+
+    # Total — Decimal-safe sum (npd_fee_amount is Numeric).
+    from decimal import Decimal
+    total = Decimal('0')
+    for r in rows:
+        try:
+            if r.npd_fee_amount is not None:
+                total += Decimal(str(r.npd_fee_amount))
+        except Exception:
+            pass
+
+    # Optional CSV export
+    if export == 'csv':
+        si = io.StringIO()
+        writer = csv.writer(si)
+        writer.writerow(['Sr.', 'Project Code', 'Product', 'Client',
+                         'Company', 'Amount (₹)', 'Fee Received On',
+                         'Receipt'])
+        for i, r in enumerate(rows, 1):
+            received = r.npd_fee_paid_at or r.created_at
+            writer.writerow([
+                i, r.code or '', r.product_name or '',
+                r.client_name or '', r.client_company or '',
+                float(r.npd_fee_amount or 0),
+                received.strftime('%d-%m-%Y %H:%M') if received else '',
+                r.npd_fee_receipt or '',
+            ])
+        writer.writerow([])
+        writer.writerow(['', '', '', '', 'TOTAL', float(total), '', ''])
+        from flask import Response
+        return Response(
+            si.getvalue(),
+            mimetype='text/csv',
+            headers={'Content-Disposition': 'attachment; filename="npd_fees_report.csv"'},
+        )
+
+    return render_template('npd/fees_report.html',
+        active_page='npd_fees_report',
+        rows=rows, total=total,
+        q=q, from_date=from_dt, to_date=to_dt,
+        count=len(rows), perm=perm,
+    )
+
+
 @npd.route('/npd-projects')
 @login_required
 def npd_projects():
@@ -3106,6 +3491,9 @@ def npd_new():
             milestone_master_created=True,
             created_by=current_user.id,
         )
+        # Stamp fee-received timestamp if checkbox was ticked at create-time.
+        if proj.npd_fee_paid:
+            proj.npd_fee_paid_at = datetime.now()
         if 'npd_fee_receipt' in request.files:
             f = request.files['npd_fee_receipt']
             if f and f.filename and allowed_file(f.filename):
@@ -4358,3 +4746,125 @@ def fda_doc_upload(pid):
     proj.npd_milestone_data = json.dumps(data)
     db.session.commit()
     return jsonify(success=True, fname=fname)
+
+
+# ─── Debug helper for "Client Information visibility" ─────────────────────────
+# Open in browser:  /npd/debug/client-info-visibility
+# Shows exactly what the system sees for the logged-in user, so you can
+# verify whether their Employee row is linked / what their department string is.
+@npd.route('/debug/client-info-visibility')
+@login_required
+def debug_client_info_visibility():
+    from flask import jsonify
+    from models.employee import Employee
+
+    info = {
+        'user': {
+            'id'       : current_user.id,
+            'username' : getattr(current_user, 'username', ''),
+            'full_name': getattr(current_user, 'full_name', ''),
+            'email'    : getattr(current_user, 'email',    ''),
+            'role'     : getattr(current_user, 'role',     ''),
+        },
+        'lookups': [],
+        'employee_found_via': None,
+        'employee': None,
+        'verdict': False,
+        'verdict_reason': '',
+    }
+
+    role = (info['user']['role'] or '').lower().strip()
+    if role in ('admin', 'manager', 'npd_manager', 'npd'):
+        info['verdict']        = True
+        info['verdict_reason'] = f'role={role}'
+        return jsonify(info)
+
+    # 1) By user_id
+    emp = Employee.query.filter(
+        Employee.user_id == current_user.id,
+        Employee.is_deleted == False,
+    ).first()
+    info['lookups'].append({
+        'by'   : 'user_id',
+        'found': bool(emp),
+    })
+    if emp: info['employee_found_via'] = 'user_id'
+
+    # 2) By email (try several known column names)
+    if not emp and getattr(current_user, 'email', None):
+        for col_name in ('official_email', 'email', 'personal_email'):
+            if hasattr(Employee, col_name):
+                emp2 = Employee.query.filter(
+                    getattr(Employee, col_name).ilike(current_user.email),
+                    Employee.is_deleted == False,
+                ).first()
+                info['lookups'].append({
+                    'by'   : f'email:{col_name}',
+                    'value': current_user.email,
+                    'found': bool(emp2),
+                })
+                if emp2:
+                    emp = emp2; info['employee_found_via'] = f'email:{col_name}'
+                    break
+
+    # 3) By full_name (case-insensitive, exact)
+    if not emp and getattr(current_user, 'full_name', None):
+        full = (current_user.full_name or '').strip().lower()
+        if full:
+            for e in Employee.query.filter(Employee.is_deleted == False).all():
+                if hasattr(e, 'full_name') and getattr(e, 'full_name', None):
+                    e_full = (e.full_name or '').strip().lower()
+                else:
+                    e_full = ' '.join([
+                        (getattr(e, 'first_name','') or ''),
+                        (getattr(e, 'middle_name','') or ''),
+                        (getattr(e, 'last_name', '') or '')
+                    ]).strip().lower()
+                    e_full = ' '.join(e_full.split())
+                if e_full and e_full == full:
+                    emp = e
+                    info['employee_found_via'] = 'full_name'
+                    info['lookups'].append({
+                        'by'   : 'full_name',
+                        'value': full,
+                        'found': True,
+                    })
+                    break
+            if not emp:
+                info['lookups'].append({
+                    'by'   : 'full_name',
+                    'value': full,
+                    'found': False,
+                })
+
+    if emp:
+        info['employee'] = {
+            'id'         : emp.id,
+            'employee_id': getattr(emp, 'employee_id', ''),
+            'first_name' : getattr(emp, 'first_name', ''),
+            'last_name'  : getattr(emp, 'last_name',  ''),
+            'department' : getattr(emp, 'department', ''),
+            'designation': getattr(emp, 'designation', ''),
+            'user_id'    : getattr(emp, 'user_id', None),
+            'status'     : getattr(emp, 'status', ''),
+        }
+        d = (emp.department or '').strip().lower()
+        matched = [tok for tok in
+                   ('npd', 'n.p.d', 'new product', 'product dev', 'management', 'mgmt')
+                   if tok in d]
+        info['department_match_tokens'] = matched
+        if matched:
+            info['verdict']        = True
+            info['verdict_reason'] = f'dept={emp.department!r} matched {matched}'
+        else:
+            info['verdict_reason'] = (
+                f'employee found but department={emp.department!r} '
+                'has no NPD/Management keyword'
+            )
+    else:
+        info['verdict_reason'] = (
+            'no Employee row matched (tried user_id, email, full_name). '
+            'Ask HR to set the user_id link on Sneha\'s Employee row.'
+        )
+
+    return jsonify(info)

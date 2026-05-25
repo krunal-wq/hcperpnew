@@ -5,47 +5,232 @@
 
 {% block extra_css %}
 <style>
+/* ── Top control bar ───────────────────────────────────────────── */
 .lbl-controls { padding:14px; background:#fff; border-radius:10px; border:1px solid #e2e8f0;
     margin-bottom:16px; display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
 .lbl-controls .info { font-size:13px; color:#475569; flex:1; }
 .lbl-controls .info b { color:#0f172a; }
-.lbl-controls button { padding:9px 18px; border-radius:7px; font-size:13px; font-weight:700;
-    cursor:pointer; border:0; }
+.lbl-controls button, .lbl-controls .back-btn { padding:9px 18px; border-radius:7px; font-size:13px; font-weight:700;
+    cursor:pointer; border:0; text-decoration:none; display:inline-block; }
 .lbl-controls .print-btn { background:#16a34a; color:#fff; }
-.lbl-controls .back-btn { background:#fff; color:#475569; border:1.5px solid #cbd5e1; }
+.lbl-controls .back-btn  { background:#fff; color:#475569; border:1.5px solid #cbd5e1; }
 .lbl-controls input[type="number"] { width:60px; padding:7px 9px; border:1.5px solid #e2e8f0;
     border-radius:5px; font-size:13px; text-align:center; }
 
-.lbl-grid { display:grid; grid-template-columns:repeat(2, 1fr); gap:10px;
-    max-width:850px; margin:0 auto; }
+/* ── Grid layout (1 label per row, each label = 100mm × 75mm) ── */
+.lbl-grid { display:grid; grid-template-columns:100mm; gap:6mm;
+    justify-content:center; margin:0 auto; }
 
-.lbl-card { background:#fff; border:2px solid #1e293b; border-radius:0;
-    padding:14px 16px; font-family:'Segoe UI', Arial, sans-serif; min-height:240px; }
-.lbl-card .hdr { text-align:center; padding-bottom:8px; border-bottom:1.5px solid #1e293b; }
-.lbl-card .hdr h2 { margin:0; font-size:14px; font-weight:800; color:#0f172a; }
-.lbl-card .hdr .sub { font-size:10px; color:#64748b; margin-top:2px; font-weight:600; }
-.lbl-card .body { padding:10px 0; }
-.lbl-card .row { display:flex; padding:4px 0; font-size:13px; border-bottom:1px dashed #e2e8f0; }
-.lbl-card .row .lbl { width:90px; color:#64748b; font-weight:700; text-transform:uppercase;
-    font-size:10px; letter-spacing:.04em; }
-.lbl-card .row .val { flex:1; color:#0f172a; font-weight:700; font-size:13.5px; }
-.lbl-card .qty-row { background:#f0fdf4; padding:10px; margin:8px 0; border-radius:5px;
-    text-align:center; border:1.5px solid #16a34a; }
-.lbl-card .qty-row .qty-big { font-size:22px; font-weight:800; color:#15803d; }
-.lbl-card .qty-row .qty-lbl { font-size:9px; color:#15803d; text-transform:uppercase;
-    letter-spacing:.05em; font-weight:700; margin-top:2px; }
-.lbl-card .footer { padding-top:6px; border-top:1px solid #1e293b; text-align:center;
-    font-size:9.5px; color:#64748b; }
-.lbl-card .footer b { color:#0f172a; }
+/* ─────────────────────────────────────────────────────────────── */
+/*   LABEL CARD — FIXED 100mm × 75mm (thermal label printer size) */
+/* ─────────────────────────────────────────────────────────────── */
+.lbl-card {
+  width:100mm;
+  height:75mm;
+  box-sizing:border-box;
+  background:#fff;
+  border:0.5mm solid #000;
+  padding:2mm;
+  font-family: Arial, Helvetica, sans-serif;
+  color:#000;
+  display:flex;
+  flex-direction:column;
+  gap:1.2mm;
+  page-break-inside:avoid;
+  overflow:hidden;
+}
 
+/* Title (item name + product code) */
+.lbl-title-box {
+  border:0.35mm solid #000;
+  border-radius:1.2mm;
+  padding:1mm 2mm;
+  text-align:center;
+}
+.lbl-title-name {
+  font-weight:900;
+  font-size:10pt;
+  line-height:1.05;
+  letter-spacing:.2px;
+  text-transform:uppercase;
+}
+.lbl-title-sub {
+  font-weight:700;
+  font-size:6.5pt;
+  margin-top:0.4mm;
+  letter-spacing:.2px;
+}
+
+/* Row 2: Brand/Type or Code/Batch */
+.lbl-bt-row { display:grid; grid-template-columns:1fr 1fr; gap:1.5mm; }
+.lbl-bt-cell {
+  border:0.35mm solid #000;
+  border-radius:1.2mm;
+  padding:0.8mm 1.5mm;
+  font-weight:900;
+  font-size:8pt;
+  display:flex;
+  align-items:center;
+  gap:1mm;
+  min-height:5mm;
+  white-space:nowrap;
+  overflow:hidden;
+}
+.lbl-bt-cell .bt-key { font-weight:900; }
+.lbl-bt-cell .bt-val { font-weight:900; overflow:hidden; text-overflow:ellipsis; }
+
+/* Supplier */
+.lbl-supplier { margin-top:0.2mm; }
+.lbl-supplier-label { font-weight:800; font-size:6pt; letter-spacing:.4px; }
+.lbl-supplier-name {
+  font-weight:900;
+  font-size:11pt;
+  line-height:1.05;
+  margin-top:0.3mm;
+  text-transform:uppercase;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+/* Middle: GRN info | INV info | (MFG/EXP for RM) | QR + LOT NO */
+.lbl-mid {
+  display:grid;
+  grid-template-columns:1fr 1fr auto;
+  gap:2mm;
+  align-items:stretch;
+  border-top:0.3mm dashed #000;
+  border-bottom:0.3mm dashed #000;
+  padding:1.2mm 0;
+  flex:0 0 auto;
+}
+.lbl-mid.rm-mode {
+  /* For RM, add a 3rd info col (MFG/EXP dates) before the QR */
+  grid-template-columns:1fr 1fr 1fr auto;
+}
+.lbl-info-col {
+  display:flex;
+  flex-direction:column;
+  justify-content:flex-start;
+  gap:1.5mm;
+}
+.lbl-info-cell .ic-label {
+  font-weight:800;
+  font-size:6pt;
+  letter-spacing:.4px;
+  text-transform:uppercase;
+}
+.lbl-info-cell .ic-value {
+  font-weight:900;
+  font-size:8pt;
+  margin-top:0.2mm;
+  line-height:1.05;
+  word-break:break-all;
+}
+
+/* QR + LOT NO */
+.lbl-qr-col {
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  border-left:0.3mm dashed #000;
+  padding-left:1.5mm;
+  min-width:18mm;
+}
+.lbl-qr-target { width:14mm; height:14mm; }
+.lbl-qr-target img, .lbl-qr-target canvas {
+  display:block;
+  width:14mm !important; height:14mm !important;
+}
+.lbl-lot-label {
+  font-weight:800;
+  font-size:6pt;
+  letter-spacing:1px;
+  margin-top:0.4mm;
+  border-top:0.4mm solid #000;
+  width:100%;
+  text-align:center;
+  padding-top:0.3mm;
+}
+.lbl-lot-code {
+  font-weight:900;
+  font-size:13pt;
+  line-height:1;
+  text-align:center;
+  letter-spacing:.3px;
+}
+
+/* RM-specific: MFG. and LOCATION row (below middle section) */
+.lbl-rm-extra {
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:1.5mm;
+  padding:1mm 0 0.5mm 0;
+  border-bottom:0.3mm dashed #000;
+}
+.lbl-rm-extra .ic-value {
+  font-size:7pt !important;
+  font-weight:900;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+/* Bottom: Box info (NO.OF BOX × PER BOX QTY = TOTAL QTY) */
+.lbl-box-info {
+  border:0.35mm solid #000;
+  border-radius:1.2mm;
+  padding:1mm 1.5mm;
+  display:grid;
+  grid-template-columns:1fr auto 1fr auto 1fr;
+  gap:1mm;
+  align-items:center;
+  text-align:center;
+}
+.bi-cell .bi-label {
+  font-weight:800;
+  font-size:6pt;
+  letter-spacing:.4px;
+}
+.bi-cell .bi-value {
+  font-weight:900;
+  font-size:11pt;
+  line-height:1.05;
+  margin-top:0.3mm;
+}
+.bi-op { font-weight:900; font-size:12pt; }
+
+/* Footer */
+.lbl-footer {
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  font-weight:800;
+  font-size:6.5pt;
+  gap:1mm;
+  margin-top:auto;
+}
+.lbl-footer .ft-sup-label { font-weight:800; }
+.lbl-footer .ft-sup-name  { font-weight:900; text-transform:uppercase; }
+.lbl-footer .ft-company   { font-weight:900; text-transform:uppercase; }
+
+/* ── Print: exact 100mm × 75mm label printer page ─────────────── */
 @media print {
   body * { visibility:hidden; }
   .lbl-print-area, .lbl-print-area * { visibility:visible; }
   .lbl-print-area { position:absolute; left:0; top:0; width:100%; }
   .lbl-controls, .sidebar, .topbar, header, footer, nav { display:none !important; }
-  .lbl-grid { gap:8px; }
-  .lbl-card { page-break-inside:avoid; border-color:#000; }
-  @page { size:A4; margin:8mm; }
+  .lbl-grid { gap:0; margin:0; }
+  .lbl-card {
+    width:100mm;
+    height:75mm;
+    page-break-after:always;
+    border:0.5mm solid #000;
+    margin:0;
+  }
+  .lbl-card:last-child { page-break-after:auto; }
+  @page { size:100mm 75mm; margin:0; }
 }
 </style>
 {% endblock %}
@@ -55,10 +240,10 @@
   <div class="info">
     <b>{{ grn.grn_number }}</b> — {{ items|length }} item(s) from <b>{{ grn.supplier_name or '—' }}</b>
     <div style="font-size:11px;color:#94a3b8;margin-top:3px;">
-      Tip: Adjust copies per item below, then click Print. Use browser print to "Save as PDF" if needed.
+      Label size: <b>100mm × 75mm</b> (thermal printer). One label per box (1/65 ... 65/65). Use “Copies per box” for duplicates.
     </div>
   </div>
-  <label style="font-size:12px;font-weight:700;color:#475569;">Copies per item:
+  <label style="font-size:12px;font-weight:700;color:#475569;">Copies per box:
     <input type="number" id="copies" value="1" min="1" max="50" onchange="rebuild()">
   </label>
   <a href="{{ url_for('grn.view_grn', grn_id=grn.id) }}" class="back-btn">← Back to GRN</a>
@@ -67,66 +252,253 @@
 
 <div class="lbl-print-area">
   <div class="lbl-grid" id="labelGrid">
-    <!-- generated by JS -->
+    <!-- labels generated by JS -->
   </div>
 </div>
 {% endblock %}
 
 {% block extra_js %}
+<!-- QR code library (creates QR images in browser) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script>
 const ITEMS = {{ items_data|tojson }};
 const GRN = {
-  number:    "{{ grn.grn_number }}",
-  date:      "{{ grn.grn_date.strftime('%d-%m-%Y') if grn.grn_date else '' }}",
-  location:  "{{ grn.receive_location_name or '' }}",
-  supplier:  "{{ grn.supplier_name or '' }}",
+  id:           {{ grn.id }},
+  type:         "{{ grn.grn_type or '' }}",
+  number:       "{{ grn.grn_number }}",
+  short:        "{{ grn.grn_number_short or '' }}",
+  date:         "{{ grn.grn_date.strftime('%d/%m/%Y') if grn.grn_date else '' }}",
+  invoice_no:   "{{ grn.invoice_no or '' }}",
+  invoice_date: "{{ grn.invoice_date.strftime('%d/%m/%Y') if grn.invoice_date else '' }}",
+  supplier:     "{{ grn.supplier_name or '' }}",
+  supervisor:   "{{ grn.supervisor_name or '' }}",
+  serial:       {{ grn.grn_serial or 0 }},
+  location:     "{{ grn.receive_location_name or '' }}"
 };
 
-function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function pad(n,w){ return String(n).padStart(w,'0'); }
+function fmt(n){
+  const v = Number(n||0);
+  if (Number.isInteger(v)) return v.toLocaleString('en-IN');
+  return v.toLocaleString('en-IN',{minimumFractionDigits:0, maximumFractionDigits:3});
+}
+// Convert ISO date (YYYY-MM-DD) to DD/MM/YYYY for display
+function formatDate(s){
+  if (!s) return '—';
+  const m = String(s).match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return m ? (m[3] + '/' + m[2] + '/' + m[1]) : s;
+}
+
+// Build product code:  {GRN_TYPE}{grn_item.id}-{po_item_id}-{box_no}
+// e.g.  RM15-23-1   (RM type, grn_item id 15, po_item_id 23, box 1)
+// Note: grn_item.id is globally unique (primary key of tbl_grn_items),
+//       so this code is unique even across items within the same GRN.
+//       If po_item_id is null (GRN-without-PO), 0 is used.
+function buildProductCode(item, boxNo){
+  const type     = (GRN.type || '').toUpperCase();
+  const itemId   = item.id || 0;
+  const poItemId = item.po_item_id || 0;
+  return type + itemId + '-' + poItemId + '-' + boxNo;
+}
+
+// LOT NO:  R-[GRNID] for RM / FG,  P-[GRNID] for PM
+// Same lot no for all items / boxes of the same GRN (standard lot tracking).
+function buildLotCode(item, boxNo){
+  const prefix = (GRN.type === 'PM') ? 'P' : 'R';
+  return prefix + '-' + GRN.id;
+}
 
 function rebuild(){
   const copies = parseInt(document.getElementById('copies').value) || 1;
-  const grid = document.getElementById('labelGrid');
+  const grid   = document.getElementById('labelGrid');
   let html = '';
-  ITEMS.forEach(it => {
-    for (let c = 0; c < copies; c++){
-      html += `
-        <div class="lbl-card">
-          <div class="hdr">
-            <h2>HCP Wellness Pvt Ltd</h2>
-            <div class="sub">Goods Receipt Note — Batch Label</div>
-          </div>
-          <div class="body">
-            <div class="row"><div class="lbl">Item</div>
-                <div class="val">${esc(it.item_name)}</div></div>
-            <div class="row"><div class="lbl">Code</div>
-                <div class="val">${esc(it.item_code||'—')}</div></div>
-            <div class="row"><div class="lbl">Batch No</div>
-                <div class="val">${esc(it.batch_no || 'N/A')}</div></div>
-            <div class="row"><div class="lbl">MFG Date</div>
-                <div class="val">${esc(it.mfg_date || '—')}</div></div>
-            <div class="row"><div class="lbl">Exp Date</div>
-                <div class="val">${esc(it.expiry_date || '—')}</div></div>
-            <div class="qty-row">
-              <div class="qty-big">${Number(it.received_qty||0).toFixed(3)} ${esc(it.uom||'KG')}</div>
-              <div class="qty-lbl">Received Quantity</div>
+  const qrJobs = [];
+
+  // RM (Raw Material) / FG (Finished Goods) need batch / mfg / expiry / location.
+  // PM (Packing Material) is brand / type oriented.
+  const isRM = (GRN.type !== 'PM');
+
+  ITEMS.forEach(item => {
+    const totalBoxes = Math.max(1, parseInt(item.no_of_boxes) || 1);
+    let perBoxQty    = Number(item.per_box_qty || 0);
+    let totalQty     = Number(item.received_qty || 0);
+    if (perBoxQty <= 0 && totalQty > 0) perBoxQty = totalQty / totalBoxes;
+    if (totalQty  <= 0 && perBoxQty > 0) totalQty  = perBoxQty * totalBoxes;
+    const uom = item.uom || '';
+
+    for (let boxNo = 1; boxNo <= totalBoxes; boxNo++){
+      for (let c = 0; c < copies; c++){
+        const qrId         = 'qr_' + item.id + '_' + boxNo + '_' + c;
+        const productCode  = buildProductCode(item, boxNo);
+        const lotCode      = buildLotCode(item, boxNo);
+        // QR encodes the unique product code (with box no), e.g. RM15-23-1
+        const qrPayload    = productCode;
+        qrJobs.push({ id: qrId, text: qrPayload });
+
+        // ── Row 2: BRAND/TYPE for PM, GRN No./GRN Date for RM ──
+        // (BATCH NO moved into the middle section below for RM)
+        const row2Html = isRM
+          ? `
+            <div class="lbl-bt-row">
+              <div class="lbl-bt-cell"><span class="bt-key">GRN No. :</span><span class="bt-val">${esc(GRN.short || GRN.number)}</span></div>
+              <div class="lbl-bt-cell"><span class="bt-key">GRN Date :</span><span class="bt-val">${esc(GRN.date)}</span></div>
+            </div>`
+          : `
+            <div class="lbl-bt-row">
+              <div class="lbl-bt-cell"><span class="bt-key">BRAND :</span><span class="bt-val">${esc(item.manufacturer || '—')}</span></div>
+              <div class="lbl-bt-cell"><span class="bt-key">TYPE :</span><span class="bt-val">${esc(item.category || uom || '—')}</span></div>
+            </div>`;
+
+        // ── MFG. and LOCATION are now inside the middle section for RM.
+        // PM still has no extra info row.
+        const extraInfoHtml = '';
+
+        html += `
+          <div class="lbl-card">
+            <!-- Title -->
+            <div class="lbl-title-box">
+              <div class="lbl-title-name">${esc(item.item_name)}</div>
+              <div class="lbl-title-sub">(${esc(productCode)})</div>
             </div>
-            <div class="row"><div class="lbl">Mfg.</div>
-                <div class="val" style="font-size:11px;">${esc(it.manufacturer||'—')}</div></div>
-            <div class="row"><div class="lbl">Location</div>
-                <div class="val" style="font-size:11px;">${esc(it.storage_location_name||GRN.location||'—')}</div></div>
-          </div>
-          <div class="footer">
-            <b>GRN:</b> ${esc(GRN.number)} &nbsp;·&nbsp;
-            <b>Date:</b> ${esc(GRN.date)}<br>
-            <b>Supplier:</b> ${esc(GRN.supplier)}
-          </div>
-        </div>`;
+
+            <!-- Row 2: Brand/Type (PM) or Code/Batch (RM) -->
+            ${row2Html}
+
+            <!-- Supplier -->
+            <div class="lbl-supplier">
+              <div class="lbl-supplier-label">SUPPLIER</div>
+              <div class="lbl-supplier-name">${esc(GRN.supplier || '—')}</div>
+            </div>
+
+            <!-- Middle: dates / numbers / QR (layout differs RM vs PM) -->
+            ${isRM ? `
+            <div class="lbl-mid rm-mode">
+              <div class="lbl-info-col">
+                <div class="lbl-info-cell">
+                  <div class="ic-label">BATCH NO</div>
+                  <div class="ic-value">${esc(item.batch_no || '—')}</div>
+                </div>
+                <div class="lbl-info-cell">
+                  <div class="ic-label">MFG DATE</div>
+                  <div class="ic-value">${esc(formatDate(item.mfg_date))}</div>
+                </div>
+                <div class="lbl-info-cell">
+                  <div class="ic-label">MFG.</div>
+                  <div class="ic-value">${esc(item.manufacturer || '—')}</div>
+                </div>
+              </div>
+              <div class="lbl-info-col">
+                <div class="lbl-info-cell">
+                  <div class="ic-label">INV. DATE</div>
+                  <div class="ic-value">${esc(GRN.invoice_date || '—')}</div>
+                </div>
+                <div class="lbl-info-cell">
+                  <div class="ic-label">EXP. DATE</div>
+                  <div class="ic-value">${esc(formatDate(item.expiry_date))}</div>
+                </div>
+                <div class="lbl-info-cell">
+                  <div class="ic-label">LOCATION</div>
+                  <div class="ic-value">${esc(item.storage_location_name || GRN.location || '—')}</div>
+                </div>
+              </div>
+              <div class="lbl-info-col">
+                <div class="lbl-info-cell">
+                  <div class="ic-label">INV. NO</div>
+                  <div class="ic-value">${esc(GRN.invoice_no || '—')}</div>
+                </div>
+              </div>
+              <div class="lbl-qr-col">
+                <div class="lbl-qr-target" id="${qrId}"></div>
+                <div class="lbl-lot-label">LOT NO</div>
+                <div class="lbl-lot-code">${esc(lotCode)}</div>
+              </div>
+            </div>` : `
+            <div class="lbl-mid">
+              <div class="lbl-info-col">
+                <div class="lbl-info-cell">
+                  <div class="ic-label">GRN. DATE</div>
+                  <div class="ic-value">${esc(GRN.date)}</div>
+                </div>
+                <div class="lbl-info-cell">
+                  <div class="ic-label">GRN. NO</div>
+                  <div class="ic-value">${esc(GRN.short || GRN.number)}</div>
+                </div>
+              </div>
+              <div class="lbl-info-col">
+                <div class="lbl-info-cell">
+                  <div class="ic-label">INV. DATE</div>
+                  <div class="ic-value">${esc(GRN.invoice_date || '—')}</div>
+                </div>
+                <div class="lbl-info-cell">
+                  <div class="ic-label">INV. NO</div>
+                  <div class="ic-value">${esc(GRN.invoice_no || '—')}</div>
+                </div>
+              </div>
+              <div class="lbl-qr-col">
+                <div class="lbl-qr-target" id="${qrId}"></div>
+                <div class="lbl-lot-label">LOT NO</div>
+                <div class="lbl-lot-code">${esc(lotCode)}</div>
+              </div>
+            </div>`}
+
+            <!-- RM-only: MFG./EXP. dates + MFG./Location -->
+            ${extraInfoHtml}
+
+            <!-- Box info -->
+            <div class="lbl-box-info">
+              <div class="bi-cell">
+                <div class="bi-label">NO. OF BOX</div>
+                <div class="bi-value">${boxNo}/${totalBoxes}</div>
+              </div>
+              <div class="bi-op">×</div>
+              <div class="bi-cell">
+                <div class="bi-label">PER BOX QTY.</div>
+                <div class="bi-value">${fmt(perBoxQty)}${isRM && uom ? ' ' + esc(uom) : ''}</div>
+              </div>
+              <div class="bi-op">=</div>
+              <div class="bi-cell">
+                <div class="bi-label">TOTAL QTY.</div>
+                <div class="bi-value">${fmt(totalQty)}${isRM && uom ? ' ' + esc(uom) : ''}</div>
+              </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="lbl-footer">
+              <div><span class="ft-sup-label">SUPERVISOR :</span> <span class="ft-sup-name">${esc(GRN.supervisor || '—')}</span></div>
+              <div class="ft-company">HCP WELLNESS PVT. LTD</div>
+            </div>
+          </div>`;
+      }
     }
   });
+
   grid.innerHTML = html;
+
+  // Render QR codes after DOM is populated
+  if (typeof QRCode !== 'undefined') {
+    qrJobs.forEach(job => {
+      const el = document.getElementById(job.id);
+      if (!el) return;
+      el.innerHTML = '';
+      new QRCode(el, {
+        text: job.text,
+        width: 55,
+        height: 55,
+        correctLevel: QRCode.CorrectLevel.M
+      });
+    });
+  } else {
+    // Library still loading — retry briefly
+    setTimeout(rebuild, 200);
+  }
 }
 
-rebuild();
+// Initial render — wait for QRCode lib to be available
+if (typeof QRCode !== 'undefined') {
+  rebuild();
+} else {
+  window.addEventListener('load', rebuild);
+}
 </script>
 {% endblock %}

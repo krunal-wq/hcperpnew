@@ -88,6 +88,10 @@ class Material(db.Model):
     # Per box qty (FG only)
     per_box_qty         = db.Column(db.Integer,       default=0)
 
+    # Per box weight (FG only) — total weight of one full box
+    per_box_weight      = db.Column(db.Numeric(10,3), default=0)
+    per_box_weight_uom  = db.Column(db.String(30),    default='KG')
+
     # PM Material Type (PM only: HM = Hard Material, CM = Carton Material)
     pm_material_type    = db.Column(db.String(20),    default='', nullable=True)
     pm_attribute        = db.Column(db.String(300),   default='', nullable=True)  # comma-sep: Bottle,Tube,Box
@@ -152,6 +156,8 @@ class Material(db.Model):
             'brand': self.brand or '',
             'category': self.category or '',
             'per_box_qty': self.per_box_qty or 0,
+            'per_box_weight': float(self.per_box_weight or 0),
+            'per_box_weight_uom': self.per_box_weight_uom or 'KG',
             'pm_material_type': self.pm_material_type or '',
             'pm_attribute':     self.pm_attribute or '',
             'corrugation_ply':  self.corrugation_ply or '',

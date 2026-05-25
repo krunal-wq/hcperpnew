@@ -139,8 +139,22 @@
           </div>
           <div class="gr-fld">
             <label>Supplier <span class="req">*</span></label>
-            <select id="fSupplier" name="supplier_id" required>
-              {% if grn and grn.supplier_id %}
+            <select id="fSupplierPo" name="po_supplier_dropdown">
+              {% if grn and grn.supplier_id and not grn.is_without_po %}
+              <option value="{{ grn.supplier_id }}" selected>{{ grn.supplier_name }}</option>
+              {% elif grn and grn.is_without_po %}
+              <option value="__NA__" selected>NA — Create GRN without PO</option>
+              {% endif %}
+            </select>
+          </div>
+          <!-- Secondary (manual) supplier dropdown — only shown when user picks "NA" above.
+               Lists ALL suppliers from the master, no PO filter. -->
+          <div class="gr-fld" id="fManualSupplierWrap" style="{% if not (grn and grn.is_without_po) %}display:none;{% endif %}">
+            <label>Manual Supplier <span class="req">*</span>
+              <small style="color:#94a3b8;font-weight:400;">(GRN without PO)</small>
+            </label>
+            <select id="fSupplierManual" name="manual_supplier_dropdown">
+              {% if grn and grn.is_without_po and grn.supplier_id %}
               <option value="{{ grn.supplier_id }}" selected>{{ grn.supplier_name }}</option>
               {% endif %}
             </select>
@@ -176,6 +190,9 @@
             {% endif %}
           </div>
         </div>
+        <!-- Consolidated supplier_id (driven by either dropdown above) + flag -->
+        <input type="hidden" id="fSupplier" name="supplier_id" value="{{ grn.supplier_id or '' }}">
+        <input type="hidden" id="fIsWithoutPo" name="is_without_po" value="{{ '1' if (grn and grn.is_without_po) else '0' }}">
         <input type="hidden" id="fSupName" name="supplier_name" value="{{ grn.supplier_name or '' }}">
         <input type="hidden" id="fSupAddr" name="supplier_address" value="{{ grn.supplier_address or '' }}">
         <!-- Optional: master-level PO (kept for compat — will be set from first row's PO) -->
@@ -339,7 +356,15 @@ flatpickr("#fInvDate",  { dateFormat:"Y-m-d", allowInput:true });
 flatpickr("#fGateDate", { dateFormat:"Y-m-d", allowInput:true });
 flatpickr("#fLrDate",   { dateFormat:"Y-m-d", allowInput:true });
 
-$('#fSupplier').select2({
+// ────────── Supplier dropdowns (primary = PO-pending + NA, secondary = all) ──
+// The visible PRIMARY select shows only suppliers with Approved / Partially-
+// Received POs, with an "NA" sentinel at the end. Picking NA reveals the
+// SECONDARY select which lists all suppliers from master. Either select
+// updates the hidden #fSupplier (which carries `supplier_id` to the server)
+// and the hidden #fIsWithoutPo flag.
+const NA_SENTINEL = '__NA__';
+
+$('#fSupplierPo').select2({
   placeholder:'-- Select Supplier --', allowClear:true, width:'100%',
   ajax:{
     url:"{{ url_for('grn.api_suppliers') }}", dataType:'json', delay:200,
@@ -349,23 +374,62 @@ $('#fSupplier').select2({
   }
 });
 
-// In NEW mode, the FIRST change is a user action → populate.
-// In EDIT mode, the FIRST change may be auto-fired by Select2 init → skip to keep saved values.
-let _supplierInitDone = (MODE !== 'edit');
-$('#fSupplier').on('change', function(){
-  const id = $(this).val(); if (!id) return;
-  if (!_supplierInitDone){ _supplierInitDone = true; refreshSupplierPos(); return; }
-  // Populate supplier name + address from API result
-  $.getJSON("{{ url_for('grn.api_suppliers') }}?grn_type=" + GRN_TYPE)
+$('#fSupplierManual').select2({
+  placeholder:'-- Select Supplier (Manual) --', allowClear:true, width:'100%',
+  ajax:{
+    url:"{{ url_for('grn.api_all_suppliers') }}", dataType:'json', delay:200,
+    data: p => ({ q: p.term || '', grn_type: GRN_TYPE }),
+    processResults: d => ({ results: (d.results || []) }),
+    cache: true
+  }
+});
+
+// Central handler — invoked whenever EITHER dropdown changes.
+//   supId    : selected supplier id (number-as-string) or '' / null
+//   isManual : true when called from the manual (NA flow) dropdown
+function applySupplierChoice(supId, isManual){
+  // 1) Update hidden carriers that get posted to the server
+  $('#fSupplier').val(supId || '');
+  $('#fIsWithoutPo').val(isManual ? '1' : '0');
+
+  if (!supId){
+    $('#fSupName').val(''); $('#fSupAddr').val('');
+    _supplierPos = [];
+    // Clear PO selects in existing rows
+    document.querySelectorAll('#grItemsBody tr .cell-po-select').forEach(sel => {
+      sel.innerHTML = '<option value="">-- Pick PO --</option>';
+    });
+    return Promise.resolve();
+  }
+
+  // 2) Pull supplier master info (name + address) from the appropriate API
+  const infoUrl = isManual
+    ? "{{ url_for('grn.api_all_suppliers') }}"
+    : "{{ url_for('grn.api_suppliers') }}";
+  const infoPromise = $.getJSON(`${infoUrl}?grn_type=${GRN_TYPE}`)
     .done(d => {
-      const found = (d.results || []).find(s => String(s.id) === String(id));
+      const found = (d.results || []).find(s => String(s.id) === String(supId));
       if (found){
-        $('#fSupName').val(found.name);
-        $('#fSupAddr').val(found.address);
+        $('#fSupName').val(found.name || '');
+        $('#fSupAddr').val(found.address || '');
       }
     });
-  refreshSupplierPos().then(() => {
-    // Re-populate PO dropdowns in existing rows
+
+  // 3) Refresh PO list (skip entirely for manual / NA flow — no POs apply)
+  if (isManual){
+    _supplierPos = [];
+    document.querySelectorAll('#grItemsBody tr').forEach(tr => {
+      const $sel = $(tr.querySelector('.cell-po-select'));
+      $sel.html('<option value="">-- Pick PO --</option>').val('');
+      // Clear cached po_number / po_date on the row too
+      const $no = $(tr.querySelector('.cell-po-number'));
+      const $dt = $(tr.querySelector('.cell-po-date'));
+      if ($no.length) $no.val('');
+      if ($dt.length) $dt.val('');
+    });
+    return infoPromise;
+  }
+  return refreshSupplierPos().then(() => {
     document.querySelectorAll('#grItemsBody tr').forEach(tr => {
       const $sel = $(tr.querySelector('.cell-po-select'));
       const cur = $sel.val();
@@ -377,7 +441,63 @@ $('#fSupplier').on('change', function(){
       if (cur) $sel.val(cur);
     });
   });
+}
+
+// In NEW mode, the FIRST change is a user action → populate.
+// In EDIT mode, the FIRST change may be auto-fired by Select2 init → skip to keep saved values.
+let _supplierInitDone = (MODE !== 'edit');
+$('#fSupplierPo').on('change', function(){
+  const v = $(this).val();
+
+  // Show / hide the manual dropdown depending on NA selection
+  if (v === NA_SENTINEL){
+    $('#fManualSupplierWrap').show();
+    // Mark hidden carrier as "without PO" with no supplier yet; user must
+    // pick from the manual list next.
+    $('#fSupplier').val('');
+    $('#fIsWithoutPo').val('1');
+    $('#fSupName').val(''); $('#fSupAddr').val('');
+    // Clear cached POs & in-row PO selects
+    _supplierPos = [];
+    document.querySelectorAll('#grItemsBody tr .cell-po-select').forEach(sel => {
+      sel.innerHTML = '<option value="">-- Pick PO --</option>';
+    });
+    return;
+  }
+
+  // Normal supplier picked — hide manual dropdown, clear its value
+  $('#fManualSupplierWrap').hide();
+  $('#fSupplierManual').val(null).trigger('change.select2');
+
+  if (!v){
+    applySupplierChoice('', false);
+    return;
+  }
+
+  // EDIT-mode first-change is the Select2 init reflecting saved value
+  if (!_supplierInitDone){
+    _supplierInitDone = true;
+    $('#fSupplier').val(v);
+    $('#fIsWithoutPo').val('0');
+    refreshSupplierPos();
+    return;
+  }
+  applySupplierChoice(v, false);
 });
+
+// Manual dropdown change → set supplier_id, keep is_without_po=1
+$('#fSupplierManual').on('change', function(){
+  const v = $(this).val();
+  if (!v) return;
+  applySupplierChoice(v, true);
+});
+
+// EDIT mode: if the saved GRN was without-PO, ensure manual select stays
+// visible and is_without_po stays set even before any user interaction.
+if (MODE === 'edit' && $('#fIsWithoutPo').val() === '1'){
+  $('#fManualSupplierWrap').show();
+  _supplierInitDone = true;   // suppress NEW-mode auto-populate path
+}
 
 $('#fReceiveLoc').select2({ placeholder:'-- Select Location --', allowClear:true, width:'100%' });
 $.getJSON("{{ url_for('grn.api_ship_locations') }}")
@@ -666,25 +786,48 @@ function recalcTotals(){
   document.getElementById('itemBadge').textContent = `${count} item${count === 1 ? '' : 's'}`;
 }
 
-// Init: pre-load supplier POs if editing (so existing rows show their PO numbers)
+// Init: pre-load supplier POs if editing (so existing rows show their PO
+// numbers). Skip the pre-load entirely if this is a saved without-PO GRN —
+// it has no parent POs to fetch.
 (async function(){
-  if ($('#fSupplier').val()) await refreshSupplierPos();
+  if ($('#fSupplier').val() && $('#fIsWithoutPo').val() !== '1') await refreshSupplierPos();
   if (EXISTING.length){ EXISTING.forEach(it => grAddRow(it)); }
 })();
 
 window.grnSave = function(action){
   document.getElementById('fAction').value = action;
+
+  // ── Client-side guards for the dual-supplier flow ──────────────────────
+  const supId   = $('#fSupplier').val();
+  const without = $('#fIsWithoutPo').val() === '1';
+  const primaryPick = $('#fSupplierPo').val();
+  if (primaryPick === NA_SENTINEL && !supId){
+    alert('You picked "NA". Please choose a supplier from the Manual Supplier dropdown.');
+    return;
+  }
+  if (!supId){
+    alert('Please pick a supplier first.');
+    return;
+  }
+
   const rows = document.querySelectorAll('#grItemsBody tr');
   if (!rows.length){
     alert('Add at least one item before saving.');
     return;
   }
-  // Sync header po_id/po_number from first row that has a PO (for legacy reporting)
-  const firstRow = rows[0];
-  const $firstPo = $(firstRow.querySelector('.cell-po-select'));
-  document.getElementById('fPoIdHidden').value     = $firstPo.val() || '';
-  document.getElementById('fPoNumberHidden').value = firstRow.querySelector('.cell-po-number').value || '';
-  document.getElementById('fPoDateHidden').value   = firstRow.querySelector('.cell-po-date').value || '';
+  // Sync header po_id/po_number from first row that has a PO (for legacy
+  // reporting). Skip entirely on the GRN-without-PO flow.
+  if (!without){
+    const firstRow = rows[0];
+    const $firstPo = $(firstRow.querySelector('.cell-po-select'));
+    document.getElementById('fPoIdHidden').value     = $firstPo.val() || '';
+    document.getElementById('fPoNumberHidden').value = firstRow.querySelector('.cell-po-number').value || '';
+    document.getElementById('fPoDateHidden').value   = firstRow.querySelector('.cell-po-date').value || '';
+  } else {
+    document.getElementById('fPoIdHidden').value     = '';
+    document.getElementById('fPoNumberHidden').value = '';
+    document.getElementById('fPoDateHidden').value   = '';
+  }
 
   const fd = new FormData(document.getElementById('grnForm'));
   fetch("{{ url_for('grn.save_grn') }}", {
@@ -715,6 +858,10 @@ window.openBulkAdd = function(){
   const supId = $('#fSupplier').val();
   if (!supId){
     alert('Please pick a supplier first.');
+    return;
+  }
+  if ($('#fIsWithoutPo').val() === '1'){
+    alert('This GRN is being created WITHOUT a PO (NA flow). Bulk Add from PO is not available — add items manually using the "+ Add Row" button.');
     return;
   }
   // Populate PO dropdown

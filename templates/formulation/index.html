@@ -1,0 +1,1632 @@
+{% extends "base.html" %}
+{% block title %}Formulation — HCP ERP{% endblock %}
+{% block page_title %}Formulation{% endblock %}
+{% block bread %}Procurement / Purchase / Raw Material / Formulation{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ── Page-scoped tokens (match Item Master vibe) ──────────────── */
+:root {
+  --fm-blue:#2563eb; --fm-blue-2:#1d4ed8; --fm-teal:#10b981; --fm-teal-2:#059669;
+  --fm-purple:#7c3aed; --fm-red:#dc2626; --fm-amber:#f59e0b; --fm-slate:#475569;
+}
+
+/* ── Toolbar ────────────────────────────────────────────────── */
+.fm-toolbar      { display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin-bottom:16px; background:var(--white); padding:12px 14px; border-radius:10px; border:1px solid var(--border); }
+.fm-toolbar .grow{ flex:1; min-width:160px; }
+.fm-search       { width:100%; padding:8px 12px 8px 34px; border:1.5px solid var(--border); border-radius:8px; background:var(--white) url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='11' cy='11' r='8'/><line x1='21' y1='21' x2='16.65' y2='16.65'/></svg>") 10px center no-repeat; font-size:13px; font-family:inherit; color:var(--text); }
+.fm-search:focus { outline:none; border-color:var(--fm-blue); box-shadow:0 0 0 3px rgba(37,99,235,.1); }
+.fm-sel          { padding:8px 28px 8px 12px; border:1.5px solid var(--border); border-radius:8px; background:var(--white); font-size:13px; color:var(--text); font-family:inherit; cursor:pointer; -webkit-appearance:none; appearance:none; background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2.5' stroke-linecap='round'><polyline points='6 9 12 15 18 9'/></svg>"); background-repeat:no-repeat; background-position:right 8px center; }
+
+.fm-btn          { display:inline-flex; align-items:center; gap:7px; padding:8px 14px; border-radius:8px; border:none; font-family:inherit; font-size:13px; font-weight:600; cursor:pointer; transition:all .15s; }
+.fm-btn-primary  { background:var(--fm-teal); color:#fff; }
+.fm-btn-primary:hover  { background:var(--fm-teal-2); }
+.fm-btn-secondary{ background:var(--fm-blue); color:#fff; }
+.fm-btn-secondary:hover{ background:var(--fm-blue-2); }
+.fm-btn-purple   { background:var(--fm-purple); color:#fff; }
+.fm-btn-purple:hover   { background:#6d28d9; }
+.fm-btn-ghost    { background:var(--white); color:var(--text); border:1.5px solid var(--border); }
+.fm-btn-ghost:hover    { border-color:var(--fm-blue); color:var(--fm-blue); }
+.fm-btn-danger   { background:var(--white); color:var(--fm-red); border:1.5px solid #fecaca; }
+.fm-btn-danger:hover   { background:#fef2f2; }
+.fm-btn-icon     { padding:6px 9px; border-radius:6px; background:transparent; border:none; cursor:pointer; color:var(--text2); transition:all .15s; }
+.fm-btn-icon:hover     { background:var(--bg); color:var(--text); }
+.fm-btn-icon.del:hover { color:var(--fm-red); background:#fef2f2; }
+
+.fm-chip         { display:inline-flex; align-items:center; gap:6px; padding:3px 10px; border-radius:20px; font-size:11px; font-weight:700; background:var(--white); border:1px solid var(--border); color:var(--text2); }
+.fm-chip .val    { font-size:13px; font-weight:800; color:var(--fm-blue); }
+
+/* ── Table ──────────────────────────────────────────────────── */
+.fm-table-wrap   { background:var(--white); border:1px solid var(--border); border-radius:10px; overflow:hidden; }
+.fm-table        { width:100%; border-collapse:collapse; font-size:13px; }
+.fm-table th     { background:#f8fafc; color:var(--text); text-align:left; padding:11px 14px; font-weight:700; font-size:11px; text-transform:uppercase; letter-spacing:.5px; border-bottom:1px solid var(--border); white-space:nowrap; }
+.fm-table td     { padding:12px 14px; border-bottom:1px solid var(--border); vertical-align:middle; }
+.fm-table tr:hover td  { background:#f8fafc; }
+.fm-table tr:last-child td { border-bottom:none; }
+.fm-name         { font-weight:700; color:var(--text); }
+.fm-meta         { font-size:11px; color:var(--text2); margin-top:2px; }
+.fm-pill         { display:inline-block; padding:2px 8px; border-radius:12px; font-size:10px; font-weight:700; }
+.fm-pill.src     { background:#d1fae5; color:#065f46; }
+.fm-pill.linked  { background:#ede9fe; color:#5b21b6; }
+.fm-empty        { text-align:center; padding:60px 24px; color:var(--text2); }
+.fm-empty .icon  { font-size:42px; opacity:.4; margin-bottom:10px; }
+
+/* ── Modal ──────────────────────────────────────────────────── */
+.fm-modal-bd     { position:fixed; inset:0; background:rgba(15,23,42,.55); backdrop-filter:blur(2px); z-index:1000; display:none; align-items:flex-start; justify-content:center; padding:40px 16px; overflow-y:auto; }
+.fm-modal-bd.show{ display:flex; }
+.fm-modal        { width:100%; max-width:820px; background:var(--white); border-radius:14px; box-shadow:0 25px 60px rgba(0,0,0,.25); overflow:hidden; animation:fmPop .18s ease; }
+.fm-modal.lg     { max-width:1080px; }
+@keyframes fmPop { from{transform:translateY(-10px);opacity:0;} to{transform:translateY(0);opacity:1;} }
+.fm-modal-hd     { padding:18px 24px; border-bottom:1px solid var(--border); }
+.fm-modal-eyebrow{ font-size:10.5px; font-weight:800; color:var(--fm-blue); letter-spacing:1.2px; }
+.fm-modal-title  { font-size:18px; font-weight:800; color:var(--text); margin-top:4px; display:flex; align-items:center; gap:8px; }
+.fm-modal-sub    { font-size:12.5px; color:var(--text2); margin-top:3px; }
+.fm-modal-close  { float:right; background:transparent; border:1.5px solid var(--border); border-radius:7px; padding:4px 9px; cursor:pointer; color:var(--text2); font-size:14px; }
+.fm-modal-close:hover{ color:var(--fm-red); border-color:#fecaca; }
+.fm-modal-body   { padding:20px 24px; }
+.fm-modal-foot   { padding:14px 24px; border-top:1px solid var(--border); display:flex; gap:10px; align-items:center; justify-content:flex-end; }
+.fm-modal-foot .left { margin-right:auto; font-size:12px; color:var(--text2); }
+
+/* ── Form atoms ─────────────────────────────────────────────── */
+.fm-lbl          { display:block; font-size:10.5px; font-weight:800; color:var(--text2); letter-spacing:.8px; text-transform:uppercase; margin-bottom:5px; }
+.fm-req::after   { content:' *'; color:var(--fm-red); }
+.fm-input        { width:100%; padding:9px 11px; border:1.5px solid var(--border); border-radius:7px; font-size:13px; font-family:inherit; color:var(--text); background:var(--white); transition:border-color .15s, box-shadow .15s; }
+.fm-input:focus  { outline:none; border-color:var(--fm-blue); box-shadow:0 0 0 3px rgba(37,99,235,.12); }
+textarea.fm-input{ resize:vertical; min-height:60px; font-family:inherit; }
+.fm-grid-2       { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+.fm-grid-4       { display:grid; grid-template-columns:1.4fr 1fr 1fr 1fr; gap:14px; }
+
+/* Mode tabs */
+.fm-mode         { display:inline-flex; background:#f1f5f9; padding:4px; border-radius:9px; gap:4px; margin-bottom:16px; }
+.fm-mode-btn     { padding:7px 14px; border-radius:6px; background:transparent; border:none; cursor:pointer; font-size:12.5px; font-weight:700; color:var(--text2); font-family:inherit; display:inline-flex; align-items:center; gap:6px; }
+.fm-mode-btn.active { background:var(--fm-teal); color:#fff; }
+.fm-mode-btn.active.purple { background:var(--fm-purple); }
+.fm-mode-hint    { display:inline-block; margin-left:10px; font-size:12px; color:var(--text2); }
+
+/* Info banner */
+.fm-info         { background:#eef2ff; border:1px solid #c7d2fe; border-radius:9px; padding:11px 14px; font-size:12.5px; color:#3730a3; margin-bottom:14px; }
+.fm-info b       { color:#1e1b4b; }
+.fm-info-purple  { background:#f5f3ff; border-color:#ddd6fe; color:#5b21b6; }
+.fm-info-purple b{ color:#4c1d95; }
+
+/* Ingredient table inside modal */
+.fm-itable       { width:100%; border-collapse:collapse; font-size:12.5px; background:var(--white); border:1px solid var(--border); border-radius:8px; overflow:hidden; }
+.fm-itable th    { background:#1e3a5f; color:#fff; text-align:left; padding:9px 10px; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; }
+.fm-itable td    { padding:6px 8px; border-bottom:1px solid #f1f5f9; vertical-align:middle; }
+.fm-itable tr:last-child td { border-bottom:none; }
+.fm-itable td input { width:100%; padding:6px 8px; border:1px solid var(--border); border-radius:5px; font-size:12.5px; font-family:inherit; color:var(--text); background:var(--white); }
+.fm-itable td input:focus { outline:none; border-color:var(--fm-blue); box-shadow:0 0 0 2px rgba(37,99,235,.1); }
+.fm-itable td.r  { text-align:right; }
+.fm-itable .empty { text-align:center; padding:24px; color:var(--text2); font-style:italic; }
+
+.fm-enter-tabs    { display:inline-flex; background:#f1f5f9; padding:3px; border-radius:7px; gap:2px; }
+.fm-enter-btn     { padding:5px 11px; border-radius:5px; background:transparent; border:none; cursor:pointer; font-size:11.5px; font-weight:700; color:var(--text2); font-family:inherit; }
+.fm-enter-btn.active { background:var(--fm-teal); color:#fff; }
+
+/* Import preview cards */
+.fm-imp-wrap     { background:#f8fafc; border:1px solid var(--border); border-radius:9px; padding:14px; }
+.fm-imp-grid     { display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:12px; }
+.fm-imp-card     { background:var(--white); border:1.5px solid var(--border); border-radius:9px; padding:12px; cursor:pointer; transition:all .15s; position:relative; }
+.fm-imp-card:hover{ border-color:var(--fm-blue); }
+.fm-imp-card.sel { border-color:var(--fm-teal); background:#f0fdf4; }
+.fm-imp-card.invalid { border-color:#fca5a5; background:#fef2f2; cursor:not-allowed; opacity:.85; }
+.fm-imp-card .ttl{ font-size:13px; font-weight:700; color:var(--text); padding-right:24px; }
+.fm-imp-card .nm { font-size:12px; color:var(--text2); margin-top:4px; font-family:'JetBrains Mono',monospace; }
+.fm-imp-card .nm input { width:100%; padding:5px 8px; border:1px solid var(--border); border-radius:5px; font-size:11.5px; font-family:'JetBrains Mono',monospace; color:var(--text); background:var(--white); margin-top:3px; }
+.fm-imp-card .badges { display:flex; gap:5px; flex-wrap:wrap; margin-top:8px; }
+.fm-imp-badge    { font-size:10px; font-weight:700; padding:2px 7px; border-radius:10px; }
+.fm-imp-badge.ok { background:#d1fae5; color:#065f46; }
+.fm-imp-badge.dup{ background:#fee2e2; color:#991b1b; }
+.fm-imp-badge.err{ background:#fef3c7; color:#92400e; }
+.fm-imp-card .err-msg { margin-top:8px; padding:8px 10px; background:#fef2f2; border-radius:6px; font-size:11.5px; color:#991b1b; }
+.fm-imp-radio    { position:absolute; top:10px; left:10px; width:16px; height:16px; border:2px solid var(--border); border-radius:50%; background:var(--white); }
+.fm-imp-card.sel .fm-imp-radio { border-color:var(--fm-teal); background:var(--fm-teal); box-shadow:inset 0 0 0 3px #fff; }
+.fm-imp-card .ttl-row{ display:flex; justify-content:space-between; align-items:flex-start; gap:6px; }
+.fm-imp-card .ttl-wrap{ padding-left:24px; flex:1; }
+.fm-imp-spec     { font-size:11px; color:var(--text2); margin-top:6px; padding-top:8px; border-top:1px dashed var(--border); }
+.fm-imp-spec b   { color:var(--text); }
+
+.fm-rule-row     { background:#f0f9ff; border:1px solid #bae6fd; border-radius:7px; padding:8px 12px; font-size:11.5px; color:#075985; margin-top:14px; font-family:'JetBrains Mono',monospace; }
+
+/* File drop zone */
+.fm-drop         { display:block; border:2px dashed var(--border); border-radius:10px; padding:30px; text-align:center; background:#fafbfc; cursor:pointer; transition:all .15s; }
+.fm-drop:hover, .fm-drop.over { border-color:var(--fm-blue); background:#eff6ff; }
+.fm-drop .ic     { font-size:36px; opacity:.5; margin-bottom:8px; }
+.fm-drop .ttl    { font-weight:700; color:var(--text); }
+.fm-drop .sub    { font-size:12px; color:var(--text2); margin-top:4px; }
+.fm-drop input   { display:none; }
+
+/* ── View modal — ingredient list ─────────────────────────── */
+.fm-view-meta    { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:14px; margin-bottom:18px; padding:14px; background:#f8fafc; border-radius:9px; border:1px solid var(--border); }
+.fm-view-meta .k { font-size:10px; font-weight:800; color:var(--text2); text-transform:uppercase; letter-spacing:.7px; }
+.fm-view-meta .v { font-size:14px; font-weight:700; color:var(--text); margin-top:3px; word-break:break-word; }
+
+/* Deleted-row styling in the list */
+.fm-row-deleted td   { background:#fef2f2 !important; }
+.fm-row-deleted .fm-name { color:#991b1b; text-decoration:line-through; }
+.fm-row-deleted .fm-meta { color:#dc2626; }
+
+/* Status banner when viewing deleted */
+.fm-trash-banner     { background:#fef2f2; border:1px solid #fecaca; color:#991b1b; padding:10px 14px; border-radius:9px; margin-bottom:14px; display:flex; align-items:center; gap:10px; font-size:13px; }
+.fm-trash-banner .ic { font-size:18px; }
+
+/* Confirm modal — confirm button colour variants */
+.fm-btn.fm-btn-confirm-danger   { background:var(--fm-red); color:#fff; }
+.fm-btn.fm-btn-confirm-danger:hover { background:#b91c1c; }
+.fm-btn.fm-btn-confirm-warn     { background:var(--fm-amber); color:#fff; }
+.fm-btn.fm-btn-confirm-warn:hover { background:#d97706; }
+.fm-btn.fm-btn-confirm-info     { background:var(--fm-blue); color:#fff; }
+.fm-btn.fm-btn-confirm-info:hover { background:var(--fm-blue-2); }
+.fm-btn:disabled { opacity:.5; cursor:not-allowed; }
+
+@media (max-width:760px){
+  .fm-grid-2 { grid-template-columns:1fr; }
+  .fm-grid-4 { grid-template-columns:1fr 1fr; }
+}
+
+/* ── CKEditor inside modal ─────────────────────────────────── */
+.ck-editor__editable { min-height:160px !important; }
+.ck.ck-balloon-panel  { z-index:10010 !important; }   /* over our modal (1000) */
+.ck.ck-dropdown__panel{ z-index:10010 !important; }
+.ck.ck-dialog         { z-index:10010 !important; }
+
+/* tiny per-sheet textarea in import cards */
+.fm-imp-proc          { width:100%; margin-top:8px; padding:6px 8px; border:1px solid var(--border); border-radius:6px; font-size:11.5px; font-family:inherit; color:var(--text); background:var(--white); resize:vertical; min-height:80px; }
+.fm-imp-proc:focus    { outline:none; border-color:var(--fm-blue); box-shadow:0 0 0 2px rgba(37,99,235,.1); }
+.fm-imp-proc-lbl      { font-size:10px; font-weight:800; color:var(--text2); letter-spacing:.5px; text-transform:uppercase; margin-top:8px; display:block; }
+
+/* per-sheet include toggles row */
+.fm-imp-include       { display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-top:10px; padding:8px 10px; background:#f8fafc; border:1px solid var(--border); border-radius:6px; }
+.fm-imp-include label { display:inline-flex; align-items:center; gap:6px; font-size:11.5px; font-weight:600; color:var(--text); cursor:pointer; user-select:none; padding:3px 8px; border-radius:5px; transition:background .12s; }
+.fm-imp-include label:hover { background:#e0f2fe; }
+.fm-imp-include label input  { cursor:pointer; width:14px; height:14px; accent-color:var(--fm-teal); }
+
+/* Ingredients = info chip (NOT a checkbox, always on) */
+.fm-imp-base-chip     { display:inline-flex; align-items:center; gap:5px; font-size:11.5px; font-weight:600; color:var(--text); padding:3px 8px; background:#eff6ff; border:1px dashed #bfdbfe; border-radius:5px; }
+.fm-imp-base-tag      { font-size:9px; font-weight:700; padding:1px 6px; border-radius:8px; background:#dbeafe; color:#1d4ed8; text-transform:uppercase; letter-spacing:.4px; }
+
+/* Not-available state (e.g. no process detected in that sheet) */
+.fm-imp-na            { display:inline-flex; align-items:center; gap:5px; font-size:11.5px; font-weight:600; color:var(--text2); padding:3px 8px; opacity:.55; cursor:not-allowed; user-select:none; }
+
+.fm-imp-include .count{ font-weight:700; font-size:10px; padding:1px 6px; border-radius:8px; }
+.fm-imp-include .count.proc  { background:#ccfbf1; color:var(--fm-teal-2); }
+.fm-imp-include .count.specs { background:#ede9fe; color:var(--fm-purple); }
+.fm-imp-section-off   { opacity:.4; pointer-events:none; }
+
+/* ── Step-card list (View modal Specified Process) ──────────── */
+.fm-step-list        { display:flex; flex-direction:column; gap:8px; }
+.fm-step             { display:flex; align-items:flex-start; gap:12px; padding:11px 14px; background:var(--white); border:1px solid var(--border); border-radius:9px; box-shadow:0 1px 2px rgba(15,23,42,.04); transition:border-color .15s; }
+.fm-step:hover       { border-color:var(--fm-blue); }
+.fm-step-num         { display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; min-width:28px; border-radius:50%; background:linear-gradient(135deg, var(--fm-blue), var(--fm-blue-2)); color:#fff; font-size:13px; font-weight:800; box-shadow:0 1px 3px rgba(37,99,235,.3); }
+.fm-step-text        { flex:1; padding-top:3px; font-size:13.5px; line-height:1.55; color:var(--text); }
+.fm-step-text b      { color:var(--fm-blue); }
+.fm-step-text br + b { color:var(--fm-blue); }   /* highlight bold within step text */
+.fm-steps-header     { display:flex; align-items:center; gap:8px; margin-bottom:10px; }
+.fm-steps-count      { display:inline-flex; align-items:center; gap:4px; padding:3px 10px; border-radius:14px; background:#eff6ff; color:var(--fm-blue-2); font-size:11px; font-weight:800; letter-spacing:.3px; }
+
+/* ── Specs table — pretty styling in View modal ─────────────── */
+.fm-specs-wrap       { background:var(--white); border:1px solid var(--border); border-radius:9px; overflow:hidden; }
+.fm-specs-wrap table { width:100%; border-collapse:collapse; font-size:13px; }
+.fm-specs-wrap th    { background:#1e3a5f; color:#fff; text-align:left; padding:9px 12px; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.4px; border:none; }
+.fm-specs-wrap td    { padding:9px 12px; border-top:1px solid #f1f5f9; vertical-align:middle; }
+.fm-specs-wrap tr:hover td { background:#f8fafc; }
+.fm-specs-wrap td b  { color:var(--text); font-weight:700; }
+
+/* ── View filter (Default / Supplier / Percentage / Rate) ───── */
+.fm-view-filter      { display:flex; align-items:center; gap:6px; margin:6px 0 14px; flex-wrap:wrap; }
+.fm-view-filter .lbl { font-size:10px; font-weight:800; color:var(--text2); letter-spacing:.7px; text-transform:uppercase; margin-right:8px; }
+.fm-view-filter button { padding:6px 14px; border:1px solid var(--border); background:#fff; color:var(--text); font-size:12px; font-weight:600; border-radius:6px; cursor:pointer; transition:all .12s; }
+.fm-view-filter button:hover { background:#f1f5f9; border-color:#94a3b8; }
+.fm-view-filter button.active { background:linear-gradient(135deg, var(--fm-blue), var(--fm-blue-2)); color:#fff; border-color:var(--fm-blue); box-shadow:0 1px 3px rgba(37,99,235,.3); }
+
+/* Column hide states — driven by fmViewFilter wrapper data-view */
+.fm-itable.hide-supplier   .col-supplier   { display:none; }
+.fm-itable.hide-pct        .col-pct        { display:none; }
+.fm-itable.hide-rm-rate    .col-rm-rate    { display:none; }
+.fm-itable.hide-bulk-rate  .col-bulk-rate  { display:none; }
+
+/* ── Export-format chooser popup ─────────────────────────────── */
+.fm-exp-options       { display:flex; flex-direction:column; gap:8px; padding:6px 0 4px; }
+.fm-exp-opt           { display:flex; align-items:flex-start; gap:12px; padding:12px 14px; border:1.5px solid var(--border); border-radius:9px; cursor:pointer; transition:all .12s; background:var(--white); text-align:left; width:100%; font-family:inherit; }
+.fm-exp-opt:hover     { border-color:var(--fm-blue); background:#eff6ff; }
+.fm-exp-opt.recommended { border-color:var(--fm-teal); background:#f0fdfa; }
+.fm-exp-opt-icon      { width:32px; height:32px; min-width:32px; display:inline-flex; align-items:center; justify-content:center; background:linear-gradient(135deg, var(--fm-blue), var(--fm-blue-2)); color:#fff; border-radius:8px; font-size:15px; font-weight:800; }
+.fm-exp-opt.recommended .fm-exp-opt-icon { background:linear-gradient(135deg, var(--fm-teal), var(--fm-teal-2)); }
+.fm-exp-opt-body      { flex:1; min-width:0; }
+.fm-exp-opt-ttl       { font-size:13.5px; font-weight:700; color:var(--text); display:flex; align-items:center; gap:8px; }
+.fm-exp-opt-tag       { display:inline-block; font-size:9px; font-weight:800; padding:2px 7px; border-radius:8px; background:#ccfbf1; color:var(--fm-teal-2); letter-spacing:.4px; }
+.fm-exp-opt-sub       { font-size:11.5px; color:var(--text2); margin-top:3px; line-height:1.5; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- ─── Toolbar ─────────────────────────────────────────────── -->
+<div class="fm-toolbar">
+    <div class="grow">
+        <input id="fmSearch" class="fm-search" type="text" placeholder="Search by name, product code, brand…" oninput="fmReload()">
+    </div>
+    <select class="fm-sel" id="fmBrand" onchange="fmReload()">
+        <option value="">All Brands</option>
+        {% for b in brands %}<option value="{{ b }}">{{ b }}</option>{% endfor %}
+    </select>
+    <select class="fm-sel" id="fmLink" onchange="fmReload()">
+        <option value="">All</option>
+        <option value="source">Sources only</option>
+        <option value="linked">Linked only</option>
+    </select>
+    <select class="fm-sel" id="fmStatus" onchange="fmReload()">
+        <option value="active">Active</option>
+        <option value="deleted">🗑 Deleted</option>
+        <option value="all">All (incl. deleted)</option>
+    </select>
+    <span class="fm-chip">Total <span class="val" id="fmCount">0</span></span>
+
+    {% if can_export %}
+    <button class="fm-btn fm-btn-ghost" onclick="fmExportShow('ALL', 'All formulations')">⬇ Export All</button>
+    {% endif %}
+    {% if can_add %}
+    <button class="fm-btn fm-btn-purple" onclick="fmOpenImport()">📥 Import Excel</button>
+    <button class="fm-btn fm-btn-primary" onclick="fmOpenCreate()">＋ New Formulation</button>
+    {% endif %}
+</div>
+
+<!-- ─── Table ───────────────────────────────────────────────── -->
+<div class="fm-table-wrap">
+    <table class="fm-table">
+        <thead>
+            <tr>
+                <th style="width:30px;">#</th>
+                <th>Formulation</th>
+                <th>Product Code</th>
+                <th>Brand</th>
+                <th>Batch Size</th>
+                <th>Ingredients</th>
+                <th>Type</th>
+                <th>Updated</th>
+                <th style="text-align:right; width:160px;">Actions</th>
+            </tr>
+        </thead>
+        <tbody id="fmTbody">
+            <tr><td colspan="9" class="fm-empty">Loading…</td></tr>
+        </tbody>
+    </table>
+</div>
+
+
+<!-- ════════════════════════════════════════════════════════════════════════════
+     CREATE / EDIT FORMULATION MODAL
+     ════════════════════════════════════════════════════════════════════════════ -->
+<div class="fm-modal-bd" id="fmCreateModal" onclick="if(event.target===this)fmCloseCreate()">
+    <div class="fm-modal lg">
+        <div class="fm-modal-hd">
+            <button class="fm-modal-close" onclick="fmCloseCreate()" type="button">✕</button>
+            <div class="fm-modal-eyebrow">FORMULATIONS</div>
+            <div class="fm-modal-title">━ <span id="fmModalTitle">Create Formulation</span></div>
+            <div class="fm-modal-sub" id="fmModalSub">Manually add ingredients and set concentrations</div>
+        </div>
+        <div class="fm-modal-body">
+
+            <!-- Create New vs Link to Existing tabs -->
+            <div class="fm-mode" id="fmModeTabs">
+                <button type="button" class="fm-mode-btn active" id="fmModeNew"
+                        onclick="fmSetMode('new')">━ Create New</button>
+                <button type="button" class="fm-mode-btn purple" id="fmModeLink"
+                        onclick="fmSetMode('link')">🔗 Link to Existing</button>
+                <span class="fm-mode-hint" id="fmModeHint">Build a new formulation from scratch by entering ingredients below.</span>
+            </div>
+
+            <!-- ───── LINK MODE banner ───── -->
+            <div class="fm-info fm-info-purple" id="fmLinkInfo" style="display:none;">
+                🔗 <b>Link Mode</b> — The new formulation will share all ingredients with the source.
+                Edits to the source's ingredients automatically propagate to linked batches.
+                Batch size and product code can still be different.
+            </div>
+
+            <!-- ───── Header fields ───── -->
+            <div class="fm-grid-4" id="fmHdrGrid">
+                <div>
+                    <label class="fm-lbl fm-req" id="fmNameLbl">Formulation Name</label>
+                    <input type="text" id="fmName" class="fm-input" placeholder="e.g. ACTIVEDENT — TOOTHPASTE">
+                </div>
+                <div id="fmSrcWrap" style="display:none;">
+                    <label class="fm-lbl fm-req">Source Formulation</label>
+                    <select id="fmSourceSel" class="fm-input" onchange="fmOnSourceChange()">
+                        <option value="">— Select existing formulation —</option>
+                    </select>
+                </div>
+                <div id="fmCodeWrap">
+                    <label class="fm-lbl">Product Code</label>
+                    <input type="text" id="fmCode" class="fm-input" placeholder="e.g. TP060323/1NI">
+                </div>
+                <div>
+                    <label class="fm-lbl">Batch Size <small style="font-weight:600;color:var(--text2);">(optional)</small></label>
+                    <div style="display:flex; gap:6px;">
+                        <input type="number" step="0.001" id="fmBatch" class="fm-input" placeholder="e.g. 500" style="flex:2;">
+                        <input type="text"   id="fmBatchUom" class="fm-input" value="KG" style="flex:1;">
+                    </div>
+                </div>
+                <div>
+                    <label class="fm-lbl">Brand</label>
+                    <select id="fmBrandSel" class="fm-input">
+                        <option value="">— No Brand —</option>
+                        {% for b in brands %}<option value="{{ b }}">{{ b }}</option>{% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <!-- ───── Enter By (only visible in CREATE NEW) ───── -->
+            <div id="fmEnterByWrap" style="margin-top:16px; display:flex; align-items:center; gap:14px; flex-wrap:wrap;">
+                <span class="fm-lbl" style="margin-bottom:0;">Enter By:</span>
+                <div class="fm-enter-tabs">
+                    <button type="button" class="fm-enter-btn active" data-mode="pct" onclick="fmSetEnterBy('pct')">% Concentration</button>
+                    <button type="button" class="fm-enter-btn" data-mode="qty" onclick="fmSetEnterBy('qty')">Qty by Batch Size</button>
+                </div>
+                <span class="fm-mode-hint" id="fmEnterHint">Enter concentration % directly for each ingredient.</span>
+            </div>
+
+            <!-- ───── Ingredient table (Create only) ───── -->
+            <div id="fmIngrWrap" style="margin-top:14px;">
+                <table class="fm-itable">
+                    <thead>
+                        <tr>
+                            <th style="width:36px;">#</th>
+                            <th style="width:64px; text-align:center;">Addl.</th>
+                            <th>Item *</th>
+                            <th>Supplier</th>
+                            <th style="width:90px; text-align:right;">% w/w</th>
+                            <th style="width:100px; text-align:right;">Qty</th>
+                            <th style="width:64px;">UOM</th>
+                            <th style="width:100px; text-align:right;">RM Rate/kg</th>
+                            <th style="width:100px; text-align:right;">Bulk Rate/kg</th>
+                            <th style="width:36px;"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="fmIngrTbody">
+                        <tr><td colspan="10" class="empty">No ingredients yet — click + Add Row</td></tr>
+                    </tbody>
+                    <tfoot id="fmIngrTfoot" style="display:none;">
+                        <tr style="background:#f1f5f9; font-weight:800;">
+                            <td colspan="4" style="text-align:right;">Total</td>
+                            <td class="r" id="fmFootPct">0</td>
+                            <td class="r" id="fmFootKg">0</td>
+                            <td></td>
+                            <td></td>
+                            <td class="r" id="fmFootBulk" style="color:var(--fm-teal-2);">0</td>
+                            <td></td>
+                        </tr>
+                    </tfoot>
+                </table>
+                <div style="margin-top:10px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                    <button type="button" class="fm-btn fm-btn-ghost" onclick="fmAddRow()">＋ Add Row</button>
+                    <span style="font-size:12px; color:var(--text2);">
+                        <b id="fmTotPct">0.00%</b> w/w
+                        · <b id="fmTotKg">0.000</b> KG
+                        · <b id="fmTotBulk" style="color:var(--fm-teal-2);">₹ 0.00</b> /kg of bulk
+                    </span>
+                </div>
+            </div>
+
+            <!-- ───── Manufacturing Process (Rich Text) ───── -->
+            <div style="margin-top:18px;">
+                <label class="fm-lbl">Specified Process <small style="font-weight:600;color:var(--text2);">(optional — printed on production sheet)</small></label>
+                <textarea id="fmProcess" placeholder="Enter step-by-step process, instructions, notes…"></textarea>
+            </div>
+
+            <!-- ───── QC Specifications (Rich Text — supports tables) ───── -->
+            <div style="margin-top:18px;">
+                <label class="fm-lbl">📋 Specifications <small style="font-weight:600;color:var(--text2);">(QC — Appearance, Colour, pH, etc.)</small></label>
+                <textarea id="fmSpecs" placeholder="Optional — QC parameters and acceptable ranges"></textarea>
+            </div>
+        </div>
+
+        <div class="fm-modal-foot">
+            <div class="left" id="fmFootHint"></div>
+            <button class="fm-btn fm-btn-ghost" type="button" onclick="fmCloseCreate()">Cancel</button>
+            <button class="fm-btn fm-btn-primary" id="fmSaveBtn" type="button" onclick="fmSave()">✓ Save Formulation</button>
+        </div>
+    </div>
+</div>
+
+
+<!-- ════════════════════════════════════════════════════════════════════════════
+     IMPORT EXCEL MODAL
+     ════════════════════════════════════════════════════════════════════════════ -->
+<div class="fm-modal-bd" id="fmImportModal" onclick="if(event.target===this)fmCloseImport()">
+    <div class="fm-modal lg">
+        <div class="fm-modal-hd">
+            <button class="fm-modal-close" onclick="fmCloseImport()" type="button">✕</button>
+            <div class="fm-modal-eyebrow">FORMULATIONS VS QTY</div>
+            <div class="fm-modal-title">📊 <span id="fmImpTitle">Select Worksheets to Import</span></div>
+            <div class="fm-modal-sub" id="fmImpSub">Upload your Excel sheet — each worksheet becomes one formulation</div>
+        </div>
+        <div class="fm-modal-body">
+
+            <!-- Step 1: file picker -->
+            <div id="fmImpStep1">
+                <label class="fm-drop" id="fmDropZone" for="fmImpFile">
+                    <div class="ic">📁</div>
+                    <div class="ttl">Click to choose an Excel file</div>
+                    <div class="sub">or drag &amp; drop here · .xlsx, .xlsm, .xls</div>
+                    <input type="file" id="fmImpFile" accept=".xlsx,.xlsm,.xls" onchange="fmImpUpload(this.files[0])">
+                </label>
+
+                <div class="fm-rule-row">
+                    📐 Parsing rule: <b>Col A row 13+</b> → trigger · <b>Col B</b> = Ingredient · <b>Col C</b> = Supplier
+                    · <b>Col D</b> = % w/w · <b>Col E</b> = Qty KG · <i>Stops at first empty Col A</i>
+                </div>
+            </div>
+
+            <!-- Step 2: preview & select sheets -->
+            <div id="fmImpStep2" style="display:none;">
+                <div class="fm-imp-wrap">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:10px;">
+                        <div>
+                            <span style="font-size:13px; font-weight:700;">📁 <span id="fmImpFname">—</span></span>
+                            <span style="font-size:12px; color:var(--text2); margin-left:10px;">
+                                <span id="fmImpValid">0</span> valid · <span id="fmImpInvalid">0</span> invalid · <span id="fmImpTotal">0</span> total
+                            </span>
+                        </div>
+                        <div style="display:flex; gap:6px;">
+                            <button class="fm-btn fm-btn-ghost" type="button" onclick="fmImpSelectAll(true)">Select All</button>
+                            <button class="fm-btn fm-btn-ghost" type="button" onclick="fmImpSelectAll(false)">Deselect All</button>
+                        </div>
+                    </div>
+                    <div class="fm-imp-grid" id="fmImpGrid"></div>
+                </div>
+
+                <div class="fm-rule-row" style="margin-top:14px;">
+                    📐 Col A row 13+ → trigger · Col B = Ingredient · Col C = Supplier · Col D = % w/w · Col E = Qty KG · <i>Stops at first empty Col A</i>
+                </div>
+
+                <div style="margin-top:16px; display:flex; gap:14px; align-items:flex-end; flex-wrap:wrap;">
+                    <div style="flex:1; min-width:220px;">
+                        <label class="fm-lbl">🏷 Assign Brand</label>
+                        <select id="fmImpBrand" class="fm-input">
+                            <option value="">— No Brand (assign later) —</option>
+                            {% for b in brands %}<option value="{{ b }}">{{ b }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <span style="font-size:12px; color:var(--text2);">Applied to all imported formulations · Per-sheet Specified Process is set inside each card above</span>
+                </div>
+            </div>
+
+        </div>
+
+        <div class="fm-modal-foot">
+            <div class="left" id="fmImpFootHint"><span id="fmImpStatus" style="color:var(--text2);"></span><span id="fmImpSelInfo"><span id="fmImpSelCount">0</span> worksheets selected</span></div>
+            <button class="fm-btn fm-btn-ghost" type="button" onclick="fmCloseImport()">Cancel</button>
+            <button class="fm-btn fm-btn-primary" id="fmImpCommitBtn" type="button" onclick="fmImpCommit()" disabled>Import 0 Sheets</button>
+        </div>
+    </div>
+</div>
+
+
+<!-- ════════════════════════════════════════════════════════════════════════════
+     VIEW INGREDIENTS MODAL
+     ════════════════════════════════════════════════════════════════════════════ -->
+<div class="fm-modal-bd" id="fmViewModal" onclick="if(event.target===this)fmCloseView()">
+    <div class="fm-modal lg">
+        <div class="fm-modal-hd">
+            <button class="fm-modal-close" onclick="fmCloseView()" type="button">✕</button>
+            <div class="fm-modal-eyebrow">FORMULATIONS</div>
+            <div class="fm-modal-title" id="fmViewTitle">━ Formulation</div>
+            <div class="fm-modal-sub" id="fmViewSub"></div>
+        </div>
+        <div class="fm-modal-body">
+            <div class="fm-view-meta" id="fmViewMeta"></div>
+
+            <!-- View filter (column selector) -->
+            <div class="fm-view-filter" id="fmViewFilter">
+                <span class="lbl">View:</span>
+                <button type="button" data-view="default"    onclick="fmSetView('default')">Default</button>
+                <button type="button" data-view="supplier"   onclick="fmSetView('supplier')">With Supplier</button>
+                <button type="button" data-view="percentage" onclick="fmSetView('percentage')">With Percentage</button>
+                <button type="button" data-view="all" class="active" onclick="fmSetView('all')">With Rate (All)</button>
+            </div>
+
+            <table class="fm-itable" id="fmViewTable">
+                <thead>
+                    <tr>
+                        <th style="width:40px;">#</th>
+                        <th style="width:58px; text-align:center;">Addl.</th>
+                        <th>Item</th>
+                        <th class="col-supplier">Supplier</th>
+                        <th class="col-pct" style="width:90px; text-align:right;">% w/w</th>
+                        <th style="width:100px; text-align:right;">Qty</th>
+                        <th style="width:60px;">UOM</th>
+                        <th class="col-rm-rate"   style="width:100px; text-align:right;">RM Rate/kg</th>
+                        <th class="col-bulk-rate" style="width:100px; text-align:right;">Bulk Rate/kg</th>
+                    </tr>
+                </thead>
+                <tbody id="fmViewTbody"></tbody>
+            </table>
+            <div id="fmViewProc" style="margin-top:18px; display:none;">
+                <div class="fm-steps-header">
+                    <label class="fm-lbl" style="margin-bottom:0;">Specified Process</label>
+                    <span class="fm-steps-count" id="fmViewProcCount">0 STEPS</span>
+                </div>
+                <div id="fmViewProcText"></div>
+            </div>
+            <div id="fmViewSpecs" style="margin-top:18px; display:none;">
+                <div class="fm-steps-header">
+                    <label class="fm-lbl" style="margin-bottom:0;">📋 Specifications (QC)</label>
+                    <span class="fm-steps-count" id="fmViewSpecsCount" style="background:#f5f3ff; color:var(--fm-purple);">0 ROWS</span>
+                </div>
+                <div class="fm-specs-wrap" id="fmViewSpecsText"></div>
+            </div>
+        </div>
+        <div class="fm-modal-foot">
+            <div class="left"><span id="fmViewBadge"></span></div>
+            <button class="fm-btn fm-btn-ghost" type="button" onclick="fmCloseView()">Close</button>
+            <button class="fm-btn fm-btn-secondary" type="button" id="fmViewExportBtn" onclick="fmExportOne()">⬇ Export Excel</button>
+            {% if can_edit %}<button class="fm-btn fm-btn-primary" type="button" id="fmViewEditBtn" onclick="fmEditFromView()">✎ Edit</button>{% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════════════
+     EXPORT FORMAT CHOOSER MODAL (pick which columns to include in the .xlsx)
+     ════════════════════════════════════════════════════════════════════════════ -->
+<div class="fm-modal-bd" id="fmExpModal" onclick="if(event.target===this)fmExportClose()">
+    <input type="hidden" id="fmExpFid" value="">
+    <div class="fm-modal" style="max-width:520px;">
+        <div class="fm-modal-hd">
+            <button class="fm-modal-close" onclick="fmExportClose()" type="button">✕</button>
+            <div class="fm-modal-eyebrow">EXPORT EXCEL</div>
+            <div class="fm-modal-title">⬇ Choose Format</div>
+            <div class="fm-modal-sub">Formulation: <b id="fmExpTarget"></b></div>
+        </div>
+        <div class="fm-modal-body">
+            <div class="fm-exp-options">
+                <button type="button" class="fm-exp-opt" data-view="default" onclick="fmDoExport('default')">
+                    <span class="fm-exp-opt-icon">1</span>
+                    <span class="fm-exp-opt-body">
+                        <span class="fm-exp-opt-ttl">Default</span>
+                        <span class="fm-exp-opt-sub">Sr.No · Addl. · Item · Qty · UOM</span>
+                    </span>
+                </button>
+                <button type="button" class="fm-exp-opt" data-view="supplier" onclick="fmDoExport('supplier')">
+                    <span class="fm-exp-opt-icon">2</span>
+                    <span class="fm-exp-opt-body">
+                        <span class="fm-exp-opt-ttl">With Supplier</span>
+                        <span class="fm-exp-opt-sub">Sr.No · Addl. · Item · Supplier · Qty · UOM</span>
+                    </span>
+                </button>
+                <button type="button" class="fm-exp-opt" data-view="percentage" onclick="fmDoExport('percentage')">
+                    <span class="fm-exp-opt-icon">3</span>
+                    <span class="fm-exp-opt-body">
+                        <span class="fm-exp-opt-ttl">With Percentage</span>
+                        <span class="fm-exp-opt-sub">Sr.No · Addl. · Item · % w/w · Qty · UOM</span>
+                    </span>
+                </button>
+                <button type="button" class="fm-exp-opt" data-view="all" onclick="fmDoExport('all')">
+                    <span class="fm-exp-opt-icon">4</span>
+                    <span class="fm-exp-opt-body">
+                        <span class="fm-exp-opt-ttl">With Rate (Full Production Sheet) <span class="fm-exp-opt-tag">Beardo Format</span></span>
+                        <span class="fm-exp-opt-sub">All fields + Manufacturing Process + Specifications + Approval box</span>
+                    </span>
+                </button>
+            </div>
+        </div>
+        <div class="fm-modal-foot">
+            <button class="fm-btn fm-btn-ghost" type="button" onclick="fmExportClose()">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════════════
+     CONFIRM MODAL (reusable — delete / restore / permanent delete)
+     ════════════════════════════════════════════════════════════════════════════ -->
+<div class="fm-modal-bd" id="fmConfirmModal" onclick="if(event.target===this)fmConfirmCancel()">
+    <div class="fm-modal" style="max-width:480px;">
+        <div class="fm-modal-hd">
+            <div class="fm-modal-eyebrow" id="fmConfirmEyebrow">CONFIRM ACTION</div>
+            <div class="fm-modal-title" id="fmConfirmTitle">Are you sure?</div>
+            <div class="fm-modal-sub" id="fmConfirmSub"></div>
+        </div>
+        <div class="fm-modal-body" id="fmConfirmBody">
+            <div id="fmConfirmMessage" style="font-size:13.5px; color:var(--text); line-height:1.5;"></div>
+            <div id="fmConfirmWarning" style="display:none; margin-top:14px; padding:11px 14px; background:#fef2f2; border:1px solid #fecaca; border-radius:8px; font-size:12.5px; color:#991b1b;"></div>
+            <div id="fmConfirmTypeCheck" style="display:none; margin-top:14px;">
+                <label class="fm-lbl">Type <code id="fmConfirmTypePhrase" style="background:#fef2f2; color:var(--fm-red); padding:1px 8px; border-radius:4px; font-weight:800;">DELETE</code> to confirm</label>
+                <input id="fmConfirmTypeInput" class="fm-input" type="text" placeholder="Type here to enable the button" oninput="fmConfirmTypeCheck()">
+            </div>
+        </div>
+        <div class="fm-modal-foot">
+            <button class="fm-btn fm-btn-ghost" type="button" onclick="fmConfirmCancel()">Cancel</button>
+            <button class="fm-btn" id="fmConfirmOk" type="button" onclick="fmConfirmDo()">Confirm</button>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+
+{% block extra_js %}
+<script src="https://cdn.ckeditor.com/ckeditor5/41.4.2/classic/ckeditor.js"></script>
+<script>
+// ════════════════════════════════════════════════════════════════════════════
+//  STATE
+// ════════════════════════════════════════════════════════════════════════════
+const CAN_ADD    = {{ 'true' if can_add else 'false' }};
+const CAN_EDIT   = {{ 'true' if can_edit else 'false' }};
+const CAN_DELETE = {{ 'true' if can_delete else 'false' }};
+const CAN_EXPORT = {{ 'true' if can_export else 'false' }};
+
+let fmList         = [];
+let fmCreateMode   = 'new';            // 'new' or 'link'
+let fmEditId       = null;
+let fmEnterBy      = 'pct';            // 'pct' or 'qty'
+let fmImpPreview   = null;             // parsed file preview from server
+let fmImpSelection = new Set();        // sheet indexes selected
+let fmCurrentView  = null;             // currently shown formulation object
+let fmCKE          = null;             // CKEditor instance for "Specified Process"
+let fmCKESpecs     = null;             // CKEditor instance for "Specifications"
+let fmConfirmCb    = null;             // pending confirm-modal callback
+let fmViewStatus   = 'active';         // 'active' / 'deleted' / 'all'
+
+// ════════════════════════════════════════════════════════════════════════════
+//  TOAST
+// ════════════════════════════════════════════════════════════════════════════
+function fmToast(msg, type){
+    if (typeof showToast === 'function') return showToast(msg, type || 'info');
+    alert(msg);
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+//  LIST
+// ════════════════════════════════════════════════════════════════════════════
+async function fmReload(){
+    const params = new URLSearchParams({
+        search: document.getElementById('fmSearch').value,
+        brand : document.getElementById('fmBrand').value,
+        link  : document.getElementById('fmLink').value,
+        status: document.getElementById('fmStatus').value || 'active',
+    });
+    fmViewStatus = document.getElementById('fmStatus').value || 'active';
+    const r = await fetch('/formulation/api/list?' + params.toString());
+    const d = await r.json();
+    if (d.status !== 'ok') { fmToast(d.message || 'Load failed', 'error'); return; }
+    fmList = d.items || [];
+    document.getElementById('fmCount').textContent = fmList.length;
+    fmRender();
+}
+
+function fmRender(){
+    const tb = document.getElementById('fmTbody');
+    const wrap = document.querySelector('.fm-table-wrap');
+
+    // Banner above the table — only when viewing deleted
+    let existingBanner = document.getElementById('fmTrashBanner');
+    if (fmViewStatus === 'deleted') {
+        if (!existingBanner) {
+            existingBanner = document.createElement('div');
+            existingBanner.id = 'fmTrashBanner';
+            existingBanner.className = 'fm-trash-banner';
+            existingBanner.innerHTML = '<span class="ic">🗑</span><div><b>Trash view</b> — showing soft-deleted formulations. Use 🔄 to restore or ✕ to permanently delete.</div>';
+            wrap.parentNode.insertBefore(existingBanner, wrap);
+        }
+    } else if (existingBanner) {
+        existingBanner.remove();
+    }
+
+    if (!fmList.length) {
+        const msg = fmViewStatus === 'deleted'
+            ? '<div class="icon">🗑</div><div>No deleted formulations</div><div style="font-size:12px; margin-top:4px;">Switch back to <b>Active</b> from the status filter</div>'
+            : '<div class="icon">🧪</div><div>No formulations yet</div><div style="font-size:12px; margin-top:4px;">Click <b>＋ New Formulation</b> or <b>📥 Import Excel</b> to get started</div>';
+        tb.innerHTML = `<tr><td colspan="9" class="fm-empty">${msg}</td></tr>`;
+        return;
+    }
+
+    tb.innerHTML = fmList.map((f, i) => {
+        // Action buttons differ for deleted vs active rows
+        const actions = f.is_deleted
+            ? `${CAN_EDIT   ? `<button class="fm-btn-icon" title="Restore" onclick="fmRestore(${f.id}, ${JSON.stringify(f.name).replace(/"/g,'&quot;')})" style="color:var(--fm-teal-2);">🔄</button>` : ''}
+               ${CAN_DELETE ? `<button class="fm-btn-icon del" title="Permanently delete" onclick="fmDeletePermanent(${f.id}, ${JSON.stringify(f.name).replace(/"/g,'&quot;')})">✕</button>` : ''}`
+            : `<button class="fm-btn-icon" title="View"   onclick="fmView(${f.id})">👁</button>
+               ${CAN_EXPORT ? `<a class="fm-btn-icon" title="Export" href="javascript:void(0)" onclick="fmExportShow(${f.id}, ${JSON.stringify(f.name).replace(/"/g,'&quot;')})">⬇</a>` : ''}
+               ${CAN_EDIT   ? `<button class="fm-btn-icon" title="Edit"   onclick="fmEdit(${f.id})">✎</button>` : ''}
+               ${CAN_DELETE ? `<button class="fm-btn-icon del" title="Delete" onclick="fmDelete(${f.id}, ${JSON.stringify(f.name).replace(/"/g,'&quot;')})">🗑</button>` : ''}`;
+
+        const rowClass = f.is_deleted ? 'fm-row-deleted' : '';
+        const updatedCell = f.is_deleted
+            ? `<span style="font-size:11.5px; color:var(--fm-red);" title="Deleted at">🗑 ${escapeHtml(f.deleted_at || '')}</span>`
+            : `<span style="font-size:11.5px; color:var(--text2);">${escapeHtml(f.updated_at || '')}</span>`;
+
+        return `
+        <tr class="${rowClass}">
+            <td>${i + 1}</td>
+            <td>
+                <div class="fm-name">${escapeHtml(f.name)}</div>
+                ${f.is_linked ? `<div class="fm-meta">↳ linked to <b>${escapeHtml(f.source_name)}</b></div>` : ''}
+            </td>
+            <td><code style="font-size:12px;">${escapeHtml(f.product_code || '—')}</code></td>
+            <td>${escapeHtml(f.brand || '—')}</td>
+            <td>${f.batch_size ? `<b>${fmt(f.batch_size)}</b> ${escapeHtml(f.batch_uom)}` : '—'}</td>
+            <td>${f.ingredient_count}</td>
+            <td>${f.is_linked
+                ? `<span class="fm-pill linked">🔗 Linked</span>`
+                : `<span class="fm-pill src">━ Source</span>`}</td>
+            <td>${updatedCell}</td>
+            <td style="text-align:right; white-space:nowrap;">${actions}</td>
+        </tr>`;
+    }).join('');
+}
+
+function escapeHtml(s){
+    if (s === null || s === undefined) return '';
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function fmt(n){
+    n = Number(n) || 0;
+    return n.toLocaleString(undefined, {maximumFractionDigits: 3});
+}
+
+// Show a stored fraction (0.04) as user-facing percent ("4.00%").
+// Falls back to "—" when value is 0 or missing.
+function fmtPct(n){
+    n = Number(n) || 0;
+    if (!n) return '—';
+    return (n * 100).toLocaleString(undefined,
+        {minimumFractionDigits: 2, maximumFractionDigits: 4}) + '%';
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+//  CREATE / EDIT
+// ════════════════════════════════════════════════════════════════════════════
+function fmOpenCreate(){
+    fmEditId = null;
+    document.getElementById('fmModalTitle').textContent = 'Create Formulation';
+    document.getElementById('fmModalSub').textContent   = 'Manually add ingredients and set concentrations';
+    document.getElementById('fmModeTabs').style.display = 'inline-flex';
+    fmSetMode('new');
+    // clear fields
+    document.getElementById('fmName').value      = '';
+    document.getElementById('fmCode').value      = '';
+    document.getElementById('fmBatch').value     = '';
+    document.getElementById('fmBatchUom').value  = 'KG';
+    document.getElementById('fmBrandSel').value  = '';
+    document.getElementById('fmProcess').value   = '';
+    document.getElementById('fmSourceSel').value = '';
+    document.getElementById('fmIngrTbody').innerHTML =
+        '<tr><td colspan="10" class="empty">No ingredients yet — click + Add Row</td></tr>';
+    fmRecalc();
+    document.getElementById('fmCreateModal').classList.add('show');
+    fmInitCKE('', '');                 // empty process & specs for new
+    document.getElementById('fmName').focus();
+}
+
+// ── CKEditor lifecycle ────────────────────────────────────────────────────
+async function fmInitCKE(processHTML, specsHTML){
+    if (typeof ClassicEditor === 'undefined') return;
+    await fmDestroyCKE();
+    try {
+        fmCKE = await ClassicEditor.create(document.getElementById('fmProcess'), {
+            toolbar: ['heading','|','bold','italic','|','bulletedList','numberedList',
+                      '|','link','blockQuote','insertTable','|','undo','redo'],
+            placeholder: 'Enter step-by-step process, instructions, notes…',
+        });
+        fmCKE.setData(processHTML || '');
+    } catch (err) {
+        console.error('CKEditor (process) init failed:', err);
+        fmCKE = null;
+    }
+    try {
+        fmCKESpecs = await ClassicEditor.create(document.getElementById('fmSpecs'), {
+            toolbar: ['bold','italic','|','bulletedList','numberedList','|','insertTable','|','undo','redo'],
+            placeholder: 'Optional — QC parameters and acceptable ranges (Appearance, Colour, pH, Viscosity, etc.)',
+        });
+        fmCKESpecs.setData(specsHTML || '');
+    } catch (err) {
+        console.error('CKEditor (specs) init failed:', err);
+        fmCKESpecs = null;
+    }
+}
+async function fmDestroyCKE(){
+    if (fmCKE)      { try { await fmCKE.destroy(); }      catch(e){} fmCKE = null; }
+    if (fmCKESpecs) { try { await fmCKESpecs.destroy(); } catch(e){} fmCKESpecs = null; }
+}
+function fmGetProcessHTML(){
+    if (fmCKE) return fmCKE.getData();
+    const t = document.getElementById('fmProcess');
+    return t ? t.value : '';
+}
+function fmGetSpecsHTML(){
+    if (fmCKESpecs) return fmCKESpecs.getData();
+    const t = document.getElementById('fmSpecs');
+    return t ? t.value : '';
+}
+
+function fmCloseCreate(){
+    fmDestroyCKE();
+    document.getElementById('fmCreateModal').classList.remove('show');
+}
+
+function fmSetMode(m){
+    fmCreateMode = m;
+    const isNew = (m === 'new');
+    document.getElementById('fmModeNew').classList.toggle('active',  isNew);
+    document.getElementById('fmModeLink').classList.toggle('active', !isNew);
+    document.getElementById('fmModeHint').textContent = isNew
+        ? 'Build a new formulation from scratch by entering ingredients below.'
+        : 'Pick an existing formulation — ingredients will be shared. Changes to the source propagate here.';
+    document.getElementById('fmLinkInfo').style.display      = isNew ? 'none' : 'block';
+    document.getElementById('fmSrcWrap').style.display       = isNew ? 'none' : 'block';
+    document.getElementById('fmCodeWrap').style.display      = isNew ? 'block' : 'block';
+    document.getElementById('fmEnterByWrap').style.display   = isNew ? 'flex' : 'none';
+    document.getElementById('fmIngrWrap').style.display      = isNew ? 'block' : 'none';
+    document.getElementById('fmNameLbl').textContent = isNew ? 'Formulation Name' : 'New Formulation Name';
+    document.getElementById('fmSaveBtn').textContent = isNew
+        ? (fmEditId ? '✓ Update Formulation' : '✓ Save Formulation')
+        : '🔗 Create Link';
+    if (!isNew) fmLoadSources();
+}
+
+async function fmLoadSources(){
+    const r = await fetch('/formulation/api/sources');
+    const d = await r.json();
+    const sel = document.getElementById('fmSourceSel');
+    sel.innerHTML = '<option value="">— Select existing formulation —</option>' +
+        (d.items || []).map(s => `<option value="${s.id}">${escapeHtml(s.name)} ${s.batch_size ? '· ' + fmt(s.batch_size) + ' KG' : ''} ${s.ingredient_count ? '· ' + s.ingredient_count + ' ings' : ''}</option>`).join('');
+}
+function fmOnSourceChange(){
+    const sel = document.getElementById('fmSourceSel');
+    const opt = sel.options[sel.selectedIndex];
+    // Could auto-fill batch size, but spec says "overrides source"; leave blank.
+}
+
+function fmSetEnterBy(m){
+    fmEnterBy = m;
+    document.querySelectorAll('.fm-enter-btn').forEach(b =>
+        b.classList.toggle('active', b.dataset.mode === m));
+    document.getElementById('fmEnterHint').textContent = (m === 'pct')
+        ? 'Enter concentration % directly for each ingredient.'
+        : 'Enter Qty in KG; % is auto-computed from batch size.';
+    fmRecalc();
+}
+
+function fmAddRow(data){
+    data = data || {};
+    const tb = document.getElementById('fmIngrTbody');
+    if (tb.querySelector('.empty')) tb.innerHTML = '';
+    const idx = tb.children.length;
+    const tr = document.createElement('tr');
+    const addl = data.is_additional ? 'checked' : '';
+    tr.innerHTML = `
+        <td>${idx + 1}</td>
+        <td style="text-align:center;"><input type="checkbox" class="addl" ${addl} title="Additional"></td>
+        <td><input type="text" placeholder="Ingredient / item name" value="${escapeHtml(data.ingredient_name || '')}"></td>
+        <td><input type="text" placeholder="Supplier" value="${escapeHtml(data.supplier_name || '')}"></td>
+        <td class="r"><input type="number" step="0.01" placeholder="0.00" class="pct" value="${data.percentage != null && data.percentage !== '' ? Number((Number(data.percentage) * 100).toFixed(6)) : ''}" oninput="fmRecalc()" title="Enter percentage (e.g. 4 for 4%)"></td>
+        <td class="r"><input type="number" step="0.000001" placeholder="0" class="kg"  value="${data.qty_kg ?? ''}"     oninput="fmRecalc()"></td>
+        <td><input type="text" placeholder="KG" class="uom" value="${escapeHtml(data.uom || 'KG')}" style="text-align:center;"></td>
+        <td class="r"><input type="number" step="0.0001" placeholder="0" class="rm" value="${data.rm_rate_per_kg ?? ''}" oninput="fmRecalc()"></td>
+        <td class="r"><input type="number" step="0.0001" placeholder="0" class="bulk" value="${data.bulk_rate_per_kg ?? ''}" oninput="fmRecalc('bulk')"  style="background:#f0fdf4; font-weight:600;"></td>
+        <td><button class="fm-btn-icon del" type="button" onclick="fmRemoveRow(this)">✕</button></td>`;
+    tb.appendChild(tr);
+    fmRecalc();
+}
+function fmRemoveRow(btn){
+    btn.closest('tr').remove();
+    const tb = document.getElementById('fmIngrTbody');
+    if (!tb.children.length) {
+        tb.innerHTML = '<tr><td colspan="10" class="empty">No ingredients yet — click + Add Row</td></tr>';
+    } else {
+        // Renumber
+        [...tb.querySelectorAll('tr')].forEach((tr, i) => tr.firstElementChild.textContent = i + 1);
+    }
+    fmRecalc();
+}
+
+function fmRecalc(skipBulk){
+    // skipBulk='bulk' means user is editing the Bulk Rate cell — don't overwrite it
+    const tb    = document.getElementById('fmIngrTbody');
+    const rows  = [...tb.querySelectorAll('tr')].filter(r => !r.querySelector('.empty'));
+    const batch = Number(document.getElementById('fmBatch').value) || 0;
+    let totPct = 0, totKg = 0, totBulk = 0;
+
+    rows.forEach(r => {
+        const pctEl = r.querySelector('.pct');
+        const kgEl  = r.querySelector('.kg');
+        const rmEl  = r.querySelector('.rm');
+        const bulkEl= r.querySelector('.bulk');
+
+        // pctEl holds the user-facing percentage (e.g. "4" for 4%).
+        // Internal math uses the fraction (0.04). Convert as we read/write.
+        let pct = (Number(pctEl.value) || 0) / 100;   // fraction
+        let kg  = Number(kgEl.value) || 0;
+
+        if (fmEnterBy === 'pct' && batch > 0) {
+            kg = batch * pct;
+            kgEl.value = kg ? Number(kg.toFixed(6)) : '';
+        } else if (fmEnterBy === 'qty' && batch > 0) {
+            pct = batch > 0 ? (kg / batch) : 0;
+            // Write back as user-facing percentage
+            pctEl.value = pct ? Number((pct * 100).toFixed(6)) : '';
+        }
+
+        const rm = Number(rmEl.value) || 0;
+        // bulk_rate auto = pct × rm (fraction × ₹/kg = contribution per kg of bulk)
+        if (skipBulk !== 'bulk') {
+            const computed = pct * rm;
+            bulkEl.value = computed ? Number(computed.toFixed(4)) : '';
+        }
+        const bulk = Number(bulkEl.value) || 0;
+
+        totPct  += pct;       // accumulate fraction
+        totKg   += kg;
+        totBulk += bulk;
+    });
+    document.getElementById('fmTotPct').textContent  = fmtPct(totPct);
+    document.getElementById('fmTotKg').textContent   = fmt(totKg);
+    document.getElementById('fmTotBulk').textContent = '₹ ' + totBulk.toFixed(2);
+
+    // Footer row in the table
+    const tfoot = document.getElementById('fmIngrTfoot');
+    if (rows.length) {
+        tfoot.style.display = '';
+        document.getElementById('fmFootPct').textContent  = fmtPct(totPct);
+        document.getElementById('fmFootKg').textContent   = fmt(totKg);
+        document.getElementById('fmFootBulk').textContent = '₹ ' + totBulk.toFixed(2);
+    } else {
+        tfoot.style.display = 'none';
+    }
+}
+
+document.addEventListener('input', e => {
+    if (e.target.id === 'fmBatch') fmRecalc();
+});
+
+function fmCollectRows(){
+    const tb = document.getElementById('fmIngrTbody');
+    const rows = [...tb.querySelectorAll('tr')].filter(r => !r.querySelector('.empty'));
+    return rows.map((r, i) => ({
+        sr_no            : i + 1,
+        is_additional    : r.querySelector('.addl').checked,
+        ingredient_name  : r.children[2].querySelector('input').value.trim(),
+        supplier_name    : r.children[3].querySelector('input').value.trim(),
+        // Input is user-facing percentage (e.g. 4 for 4%) — store as fraction (0.04)
+        percentage       : (Number(r.querySelector('.pct').value) || 0) / 100,
+        qty_kg           : Number(r.querySelector('.kg').value)  || 0,
+        uom              : r.querySelector('.uom').value.trim() || 'KG',
+        rm_rate_per_kg   : Number(r.querySelector('.rm').value)   || 0,
+        bulk_rate_per_kg : Number(r.querySelector('.bulk').value) || 0,
+    })).filter(x => x.ingredient_name);
+}
+
+async function fmSave(){
+    const name = document.getElementById('fmName').value.trim();
+    if (!name) { fmToast('Formulation name is required', 'error'); return; }
+
+    const payload = {
+        name                  : name,
+        product_code          : document.getElementById('fmCode').value.trim(),
+        batch_size            : Number(document.getElementById('fmBatch').value) || 0,
+        batch_uom             : document.getElementById('fmBatchUom').value.trim() || 'KG',
+        brand                 : document.getElementById('fmBrandSel').value,
+        manufacturing_process : fmGetProcessHTML(),
+        specifications        : fmGetSpecsHTML(),
+    };
+
+    let url, method;
+    if (fmCreateMode === 'link') {
+        const src = document.getElementById('fmSourceSel').value;
+        if (!src) { fmToast('Pick a source formulation', 'error'); return; }
+        payload.source_id = Number(src);
+        url = '/formulation/api/link'; method = 'POST';
+    } else if (fmEditId) {
+        payload.ingredients = fmCollectRows();
+        url = '/formulation/api/' + fmEditId; method = 'PUT';
+    } else {
+        payload.ingredients = fmCollectRows();
+        if (!payload.ingredients.length) { fmToast('Add at least one ingredient', 'error'); return; }
+        url = '/formulation/api/create'; method = 'POST';
+    }
+
+    const r = await fetch(url, {
+        method, headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(payload),
+    });
+    const d = await r.json();
+    if (d.status !== 'ok') { fmToast(d.message || 'Save failed', 'error'); return; }
+    fmToast(fmEditId ? 'Formulation updated' : 'Formulation saved', 'success');
+    fmCloseCreate();
+    fmReload();
+}
+
+async function fmEdit(id){
+    const r = await fetch('/formulation/api/' + id);
+    const d = await r.json();
+    if (d.status !== 'ok') { fmToast(d.message || 'Load failed', 'error'); return; }
+    const f = d.item;
+
+    fmEditId = id;
+    document.getElementById('fmModalTitle').textContent = 'Edit Formulation';
+    document.getElementById('fmModalSub').textContent =
+        f.is_linked ? 'Linked formulation — ingredients come from source and are read-only here.'
+                    : 'Update fields and ingredient rows.';
+    document.getElementById('fmModeTabs').style.display = 'none';  // hide mode tabs during edit
+    document.getElementById('fmLinkInfo').style.display = f.is_linked ? 'block' : 'none';
+    document.getElementById('fmSrcWrap').style.display  = 'none';
+    document.getElementById('fmEnterByWrap').style.display = f.is_linked ? 'none' : 'flex';
+    document.getElementById('fmIngrWrap').style.display    = f.is_linked ? 'none' : 'block';
+    document.getElementById('fmSaveBtn').textContent = '✓ Update Formulation';
+
+    document.getElementById('fmName').value     = f.name;
+    document.getElementById('fmCode').value     = f.product_code || '';
+    document.getElementById('fmBatch').value    = f.batch_size || '';
+    document.getElementById('fmBatchUom').value = f.batch_uom || 'KG';
+    document.getElementById('fmBrandSel').value = f.brand || '';
+
+    const tb = document.getElementById('fmIngrTbody');
+    tb.innerHTML = '';
+    if (!f.is_linked) {
+        (f.ingredients || []).forEach(ing => fmAddRow(ing));
+        if (!tb.children.length) tb.innerHTML = '<tr><td colspan="10" class="empty">No ingredients yet — click + Add Row</td></tr>';
+    }
+    fmRecalc();
+
+    document.getElementById('fmCreateModal').classList.add('show');
+    fmInitCKE(f.manufacturing_process || '', f.specifications || '');
+}
+
+async function fmDelete(id, name){
+    fmConfirmShow({
+        eyebrow : 'SOFT DELETE',
+        title   : '🗑 Move to Trash',
+        message : `Delete formulation <b>"${escapeHtml(name)}"</b>?<br><br>This is a <b>soft delete</b> — the record will move to the Trash view and can be restored later. Linked formulations will still resolve to this source (since it's not destroyed).`,
+        confirmText : 'Move to Trash',
+        confirmStyle: 'fm-btn-confirm-warn',
+        onConfirm   : async () => {
+            const r = await fetch('/formulation/api/' + id, { method: 'DELETE' });
+            const d = await r.json();
+            if (d.status !== 'ok') { fmToast(d.message || 'Delete failed', 'error'); return; }
+            fmToast('Formulation moved to trash', 'success');
+            fmReload();
+        },
+    });
+}
+
+async function fmRestore(id, name){
+    fmConfirmShow({
+        eyebrow : 'RESTORE',
+        title   : '🔄 Restore Formulation',
+        message : `Restore <b>"${escapeHtml(name)}"</b> from the Trash?<br><br>It will become active again and reappear in the main list.`,
+        confirmText : 'Restore',
+        confirmStyle: 'fm-btn-confirm-info',
+        onConfirm   : async () => {
+            const r = await fetch('/formulation/api/' + id + '/restore', { method: 'POST' });
+            const d = await r.json();
+            if (d.status !== 'ok') { fmToast(d.message || 'Restore failed', 'error'); return; }
+            fmToast('Formulation restored' + (d.warning ? ' — ' + d.warning : ''), 'success');
+            fmReload();
+        },
+    });
+}
+
+async function fmDeletePermanent(id, name){
+    fmConfirmShow({
+        eyebrow : 'PERMANENT DELETE',
+        title   : '⚠️ Permanently Delete',
+        message : `<b style="color:var(--fm-red);">This cannot be undone.</b><br><br>Permanently delete <b>"${escapeHtml(name)}"</b> and all its ingredient rows, process, and specifications. Any linked formulations pointing here will lose their source link.`,
+        warning : 'There is no recovery after this. Use Trash + Restore unless you really need to wipe the record.',
+        confirmText  : '✕ Permanently Delete',
+        confirmStyle : 'fm-btn-confirm-danger',
+        typeConfirm  : 'DELETE',
+        onConfirm    : async () => {
+            const r = await fetch('/formulation/api/' + id + '/permanent', { method: 'DELETE' });
+            const d = await r.json();
+            if (d.status !== 'ok') { fmToast(d.message || 'Delete failed', 'error'); return; }
+            fmToast('Formulation permanently deleted', 'success');
+            fmReload();
+        },
+    });
+}
+
+// ── Reusable confirm modal ────────────────────────────────────────────────
+// opts: { eyebrow, title, message (HTML), warning, confirmText, confirmStyle,
+//          typeConfirm (str — if set, user must type this to enable OK),
+//          onConfirm: async fn }
+function fmConfirmShow(opts){
+    document.getElementById('fmConfirmEyebrow').textContent = opts.eyebrow || 'CONFIRM';
+    document.getElementById('fmConfirmTitle').textContent   = opts.title   || 'Are you sure?';
+    document.getElementById('fmConfirmMessage').innerHTML   = opts.message || '';
+    const warnEl = document.getElementById('fmConfirmWarning');
+    if (opts.warning) { warnEl.style.display = 'block'; warnEl.textContent = opts.warning; }
+    else              { warnEl.style.display = 'none'; }
+
+    const tc = document.getElementById('fmConfirmTypeCheck');
+    const ti = document.getElementById('fmConfirmTypeInput');
+    if (opts.typeConfirm) {
+        tc.style.display = 'block';
+        ti.value = '';
+        document.getElementById('fmConfirmTypePhrase').textContent = opts.typeConfirm;
+        ti.dataset.required = opts.typeConfirm;
+    } else {
+        tc.style.display = 'none';
+        ti.dataset.required = '';
+    }
+
+    const ok = document.getElementById('fmConfirmOk');
+    ok.textContent = opts.confirmText || 'Confirm';
+    ok.className   = 'fm-btn ' + (opts.confirmStyle || 'fm-btn-confirm-info');
+    ok.disabled    = !!opts.typeConfirm;
+
+    fmConfirmCb = opts.onConfirm || null;
+    document.getElementById('fmConfirmModal').classList.add('show');
+    if (!opts.typeConfirm) setTimeout(() => ok.focus(), 50);
+    else                   setTimeout(() => ti.focus(),  50);
+}
+
+function fmConfirmTypeCheck(){
+    const ti = document.getElementById('fmConfirmTypeInput');
+    const req = ti.dataset.required || '';
+    document.getElementById('fmConfirmOk').disabled = (ti.value.trim() !== req);
+}
+
+function fmConfirmCancel(){
+    document.getElementById('fmConfirmModal').classList.remove('show');
+    fmConfirmCb = null;
+}
+
+async function fmConfirmDo(){
+    const ok = document.getElementById('fmConfirmOk');
+    if (ok.disabled) return;
+    ok.disabled = true;
+    try {
+        if (fmConfirmCb) await fmConfirmCb();
+    } finally {
+        fmConfirmCancel();
+    }
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+//  VIEW
+// ════════════════════════════════════════════════════════════════════════════
+async function fmView(id){
+    const r = await fetch('/formulation/api/' + id);
+    const d = await r.json();
+    if (d.status !== 'ok') { fmToast(d.message || 'Load failed', 'error'); return; }
+    fmCurrentView = d.item;
+
+    document.getElementById('fmViewTitle').innerHTML = '━ ' + escapeHtml(d.item.name);
+    document.getElementById('fmViewSub').textContent = d.item.is_linked
+        ? `Linked to source: ${d.item.source_name}`
+        : `Source formulation · ${d.item.ingredient_count} ingredients`;
+    document.getElementById('fmViewBadge').innerHTML = d.item.is_linked
+        ? `<span class="fm-pill linked">🔗 Linked</span>`
+        : `<span class="fm-pill src">━ Source</span>`;
+
+    document.getElementById('fmViewMeta').innerHTML = `
+        <div><div class="k">Product Code</div><div class="v">${escapeHtml(d.item.product_code || '—')}</div></div>
+        <div><div class="k">Batch Size</div><div class="v">${d.item.batch_size ? fmt(d.item.batch_size) + ' ' + escapeHtml(d.item.batch_uom) : '—'}</div></div>
+        <div><div class="k">Brand</div><div class="v">${escapeHtml(d.item.brand || '—')}</div></div>
+        <div><div class="k">Ingredients</div><div class="v">${d.item.ingredient_count}</div></div>
+    `;
+
+    const tb = document.getElementById('fmViewTbody');
+    let totPct = 0, totKg = 0, totBulk = 0;
+    tb.innerHTML = (d.item.ingredients || []).map((ing, i) => {
+        totPct  += Number(ing.percentage)       || 0;
+        totKg   += Number(ing.qty_kg)           || 0;
+        totBulk += Number(ing.bulk_rate_per_kg) || 0;
+        return `<tr>
+            <td>${ing.sr_no || (i + 1)}</td>
+            <td style="text-align:center;">${ing.is_additional ? '<span style="color:var(--fm-teal);">✓</span>' : ''}</td>
+            <td>${escapeHtml(ing.ingredient_name)}</td>
+            <td class="col-supplier">${escapeHtml(ing.supplier_name || '—')}</td>
+            <td class="col-pct r">${fmtPct(ing.percentage)}</td>
+            <td class="r">${fmt(ing.qty_kg)}</td>
+            <td>${escapeHtml(ing.uom || 'KG')}</td>
+            <td class="col-rm-rate r">${ing.rm_rate_per_kg ? '₹ ' + Number(ing.rm_rate_per_kg).toFixed(4) : '—'}</td>
+            <td class="col-bulk-rate r">${ing.bulk_rate_per_kg ? '₹ ' + Number(ing.bulk_rate_per_kg).toFixed(4) : '—'}</td>
+        </tr>`;
+    }).join('') + `<tr style="background:#f8fafc; font-weight:700;">
+        <td colspan="3" style="text-align:right;">Total</td>
+        <td class="col-supplier"></td>
+        <td class="col-pct r">${fmtPct(totPct)}</td>
+        <td class="r">${fmt(totKg)}</td>
+        <td></td>
+        <td class="col-rm-rate"></td>
+        <td class="col-bulk-rate r" style="color:var(--fm-teal-2);">₹ ${totBulk.toFixed(2)}</td>
+    </tr>`;
+
+    // Apply current saved view filter (if any) — defaults to 'all'
+    fmSetView(fmCurrentViewMode || 'all', true);
+
+    if (d.item.manufacturing_process) {
+        document.getElementById('fmViewProc').style.display = 'block';
+        const steps = fmParseSteps(d.item.manufacturing_process);
+        document.getElementById('fmViewProcCount').textContent =
+            steps.length + ' STEP' + (steps.length === 1 ? '' : 'S');
+        document.getElementById('fmViewProcText').innerHTML = fmRenderStepCards(steps);
+    } else {
+        document.getElementById('fmViewProc').style.display = 'none';
+    }
+    if (d.item.specifications) {
+        document.getElementById('fmViewSpecs').style.display = 'block';
+        // Specs is already an HTML table from the parser; render inline.
+        document.getElementById('fmViewSpecsText').innerHTML = d.item.specifications;
+        // Count rows
+        const tmp = document.createElement('div');
+        tmp.innerHTML = d.item.specifications;
+        const rows = tmp.querySelectorAll('tbody tr').length;
+        document.getElementById('fmViewSpecsCount').textContent =
+            rows + ' ROW' + (rows === 1 ? '' : 'S');
+    } else {
+        document.getElementById('fmViewSpecs').style.display = 'none';
+    }
+
+    // Finally, open the modal
+    document.getElementById('fmViewModal').classList.add('show');
+}
+
+// ── Helpers: parse process content (HTML or plain text) into step strings ──
+function fmParseSteps(content){
+    if (!content) return [];
+    const trimmed = content.trim();
+
+    // Case A: content has <li> tags (HTML from CKEditor or our auto-convert)
+    if (/<li[^>]*>/i.test(trimmed)) {
+        const tmp = document.createElement('div');
+        tmp.innerHTML = trimmed;
+        return [...tmp.querySelectorAll('li')]
+            .map(li => li.innerHTML.trim())
+            .filter(Boolean);
+    }
+
+    // Case B: any other HTML — extract text per <p>/<br>
+    if (/<[a-z][^>]*>/i.test(trimmed)) {
+        const tmp = document.createElement('div');
+        tmp.innerHTML = trimmed.replace(/<br\s*\/?>/gi, '\n');
+        const txt = tmp.textContent || '';
+        return txt.split('\n').map(s => s.replace(/^\s*\d+\s*[.)\-]\s*/, '').trim()).filter(Boolean);
+    }
+
+    // Case C: plain text — split on newlines, strip "1." prefixes
+    return trimmed.split(/\r?\n/)
+        .map(s => s.replace(/^\s*\d+\s*[.)\-]\s*/, '').trim())
+        .filter(Boolean);
+}
+
+function fmRenderStepCards(steps){
+    if (!steps.length) return '';
+    return '<div class="fm-step-list">' +
+        steps.map((s, i) =>
+            `<div class="fm-step">
+                <span class="fm-step-num">${i + 1}</span>
+                <div class="fm-step-text">${s}</div>
+            </div>`
+        ).join('') +
+        '</div>';
+}
+function fmCloseView(){ document.getElementById('fmViewModal').classList.remove('show'); fmCurrentView = null; }
+
+// ── View column filter state (persists across openings) ───────
+let fmCurrentViewMode = (function(){
+    try { return localStorage.getItem('fmViewMode') || 'all'; }
+    catch (_) { return 'all'; }
+})();
+
+function fmSetView(mode, silent){
+    // mode: 'default' | 'supplier' | 'percentage' | 'all'
+    const HIDE_MAP = {
+        'default'    : ['supplier', 'pct', 'rm-rate', 'bulk-rate'],
+        'supplier'   : ['pct', 'rm-rate', 'bulk-rate'],
+        'percentage' : ['supplier', 'rm-rate', 'bulk-rate'],
+        'all'        : [],
+    };
+    const hides = HIDE_MAP[mode] || [];
+    fmCurrentViewMode = mode;
+    if (!silent) { try { localStorage.setItem('fmViewMode', mode); } catch (_) {} }
+
+    const tbl = document.getElementById('fmViewTable');
+    if (tbl) {
+        ['supplier', 'pct', 'rm-rate', 'bulk-rate'].forEach(k => {
+            tbl.classList.toggle('hide-' + k, hides.includes(k));
+        });
+    }
+    // Active-button styling
+    document.querySelectorAll('#fmViewFilter button[data-view]').forEach(b => {
+        b.classList.toggle('active', b.dataset.view === mode);
+    });
+}
+
+// ── Export popup (4 format options) ──────────────────────────
+function fmExportOne(){
+    if (!fmCurrentView) return;
+    fmExportShow(fmCurrentView.id, fmCurrentView.name);
+}
+
+function fmExportShow(fid, name){
+    const cur = fmCurrentViewMode || 'all';
+    document.getElementById('fmExpTarget').textContent = name || '';
+    document.getElementById('fmExpFid').value = fid;
+    // Pre-highlight current view
+    document.querySelectorAll('#fmExpModal .fm-exp-opt').forEach(b => {
+        b.classList.toggle('recommended', b.dataset.view === cur);
+    });
+    document.getElementById('fmExpModal').classList.add('show');
+}
+
+function fmExportClose(){
+    document.getElementById('fmExpModal').classList.remove('show');
+}
+
+function fmDoExport(view){
+    const fid = document.getElementById('fmExpFid').value;
+    if (!fid) return;
+    fmExportClose();
+    const url = (fid === 'ALL')
+        ? ('/formulation/api/export-all?view=' + encodeURIComponent(view))
+        : ('/formulation/api/export/' + fid + '?view=' + encodeURIComponent(view));
+    window.location = url;
+}
+function fmExportOne(){ if (fmCurrentView) window.location = '/formulation/api/export/' + fmCurrentView.id; }
+function fmEditFromView(){ if (!fmCurrentView) return; const id = fmCurrentView.id; fmCloseView(); fmEdit(id); }
+
+// ════════════════════════════════════════════════════════════════════════════
+//  IMPORT
+// ════════════════════════════════════════════════════════════════════════════
+function fmOpenImport(){
+    fmImpPreview = null; fmImpSelection.clear();
+    document.getElementById('fmImpStep1').style.display = 'block';
+    document.getElementById('fmImpStep2').style.display = 'none';
+    document.getElementById('fmImpFile').value = '';
+    document.getElementById('fmImpCommitBtn').disabled = true;
+    document.getElementById('fmImpCommitBtn').textContent = 'Import 0 Sheets';
+    document.getElementById('fmImpSelCount').textContent = '0';
+    document.getElementById('fmImportModal').classList.add('show');
+}
+function fmCloseImport(){ document.getElementById('fmImportModal').classList.remove('show'); }
+
+// drag & drop
+const dz = document.getElementById('fmDropZone');
+['dragover','dragenter'].forEach(ev => dz.addEventListener(ev, e => {
+    e.preventDefault(); dz.classList.add('over');
+}));
+['dragleave','drop'].forEach(ev => dz.addEventListener(ev, e => {
+    e.preventDefault(); dz.classList.remove('over');
+}));
+dz.addEventListener('drop', e => {
+    const f = e.dataTransfer.files && e.dataTransfer.files[0];
+    if (f) fmImpUpload(f);
+});
+
+async function fmImpUpload(file){
+    if (!file) return;
+    const fd = new FormData();
+    fd.append('file', file);
+    const statusEl = document.getElementById('fmImpStatus');
+    const infoEl   = document.getElementById('fmImpSelInfo');
+    statusEl.textContent = '⏳ Parsing…';
+    infoEl.style.display = 'none';
+    const r = await fetch('/formulation/api/import/preview', { method: 'POST', body: fd });
+    const d = await r.json();
+    statusEl.textContent = '';
+    infoEl.style.display = '';
+    if (d.status !== 'ok') { fmToast(d.message || 'Upload failed', 'error'); return; }
+    fmImpPreview = d;
+    fmImpSelection = new Set();
+    // auto-select all valid + non-duplicate
+    // default include flags: include process/specs if auto-detected
+    (d.sheets || []).forEach((s, i) => {
+        if (s.include_process === undefined) s.include_process = !!s.process_step_count;
+        if (s.include_specs   === undefined) s.include_specs   = !!s.specs_row_count;
+        if (s.valid && !s.already_exists) fmImpSelection.add(i);
+    });
+    fmImpRender();
+    document.getElementById('fmImpStep1').style.display = 'none';
+    document.getElementById('fmImpStep2').style.display = 'block';
+}
+
+function fmImpRender(){
+    if (!fmImpPreview) return;
+    document.getElementById('fmImpFname').textContent   = fmImpPreview.file_name || '';
+    document.getElementById('fmImpValid').textContent   = fmImpPreview.valid_sheets;
+    document.getElementById('fmImpInvalid').textContent = fmImpPreview.invalid_sheets;
+    document.getElementById('fmImpTotal').textContent   = fmImpPreview.total_sheets;
+
+    const grid = document.getElementById('fmImpGrid');
+    grid.innerHTML = (fmImpPreview.sheets || []).map((s, i) => {
+        const cls = !s.valid ? 'invalid' : (fmImpSelection.has(i) ? 'sel' : '');
+        const badges = [];
+        if (s.valid)          badges.push('<span class="fm-imp-badge ok">✓ Valid</span>');
+        if (s.already_exists) badges.push('<span class="fm-imp-badge dup">⊘ Already Exists</span>');
+        if (!s.valid)         badges.push('<span class="fm-imp-badge err">⚠ Invalid</span>');
+        return `
+        <div class="fm-imp-card ${cls}" onclick="fmImpToggle(${i}, event)">
+            <div class="fm-imp-radio"></div>
+            <div class="ttl-wrap">
+                <div class="ttl-row">
+                    <div class="ttl">${escapeHtml(s.sheet_name)}</div>
+                </div>
+                <div class="badges">${badges.join('')}</div>
+                <div class="nm">
+                    <input type="text" value="${escapeHtml(s.formulation_name)}"
+                           onclick="event.stopPropagation()"
+                           oninput="fmImpRename(${i}, this.value)"
+                           ${!s.valid ? 'disabled' : ''}>
+                </div>
+                <div class="fm-imp-spec">
+                    <b>${s.ingredient_count}</b> ingredients · Batch: <b>${s.batch_size ? fmt(s.batch_size) + ' ' + escapeHtml(s.batch_uom) : '—'}</b>
+                    ${s.product_code ? '· Code: <b>' + escapeHtml(s.product_code) + '</b>' : ''}
+                </div>
+                ${s.valid ? `
+                    <div class="fm-imp-include" onclick="event.stopPropagation()">
+                        <span class="fm-imp-base-chip">🧪 Ingredients <span class="count" style="background:#dbeafe; color:#1d4ed8;">${s.ingredient_count}</span> <span class="fm-imp-base-tag">always</span></span>
+                        <label onclick="event.stopPropagation()" title="${s.process_step_count ? 'Process auto-detected — toggle to include' : 'No process detected in this sheet — toggle on to add manually'}">
+                            <input type="checkbox" ${s.include_process ? 'checked' : ''} onchange="event.stopPropagation(); fmImpToggleSec(${i},'process',this.checked)">
+                            <span>📝 Process ${s.process_step_count
+                                ? `<span class="count proc">${s.process_step_count}</span>`
+                                : `<span class="count" style="background:#f1f5f9; color:var(--text2);">0</span>`}</span>
+                        </label>
+                        <label onclick="event.stopPropagation()" title="${s.specs_row_count ? 'Specs auto-detected — toggle to include' : 'No specs detected in this sheet — toggle on to add manually'}">
+                            <input type="checkbox" ${s.include_specs ? 'checked' : ''} onchange="event.stopPropagation(); fmImpToggleSec(${i},'specs',this.checked)">
+                            <span>📋 Specifications ${s.specs_row_count
+                                ? `<span class="count specs">${s.specs_row_count}</span>`
+                                : `<span class="count" style="background:#f1f5f9; color:var(--text2);">0</span>`}</span>
+                        </label>
+                    </div>
+
+                    <div class="fm-imp-proc-section ${s.include_process === false ? 'fm-imp-section-off' : ''}" data-section="process-${i}">
+                        <label class="fm-imp-proc-lbl">📝 Specified Process ${s.process_step_count
+                            ? '<span style="font-weight:600; color:var(--fm-teal-2); text-transform:none;">— auto-filled from sheet, edit if needed</span>'
+                            : '<span style="font-weight:600; color:var(--text2); text-transform:none;">— add manually if needed</span>'}</label>
+                        <textarea class="fm-imp-proc"
+                                  onclick="event.stopPropagation()"
+                                  oninput="fmImpSetProc(${i}, this.value)"
+                                  placeholder="Enter step-by-step process for ${escapeHtml(s.sheet_name)}…">${escapeHtml(s.manufacturing_process || '')}</textarea>
+                    </div>
+
+                    <div class="fm-imp-specs-section ${s.include_specs === false ? 'fm-imp-section-off' : ''}" data-section="specs-${i}">
+                        <label class="fm-imp-proc-lbl">📋 Specifications ${s.specs_row_count
+                            ? '<span style="font-weight:600; color:var(--fm-purple); text-transform:none;">— auto-filled from sheet, edit if needed</span>'
+                            : '<span style="font-weight:600; color:var(--text2); text-transform:none;">— add manually if needed</span>'}</label>
+                        <textarea class="fm-imp-proc"
+                                  onclick="event.stopPropagation()"
+                                  oninput="fmImpSetSpecs(${i}, this.value)"
+                                  placeholder="Optional — QC parameters like pH, Viscosity, Density…\n(One per line, or paste an HTML table)">${escapeHtml(s.specifications || '')}</textarea>
+                    </div>
+                ` : ''}
+                ${s.already_exists ? `<div class="err-msg">Import blocked — <b>${escapeHtml(s.formulation_name)}</b> already exists. Rename the batch above to import as new.</div>` : ''}
+                ${(!s.valid && s.error) ? `<div class="err-msg">${escapeHtml(s.error)}</div>` : ''}
+            </div>
+        </div>`;
+    }).join('');
+
+    fmImpUpdateCount();
+}
+
+function fmImpSetProc(i, val){
+    if (fmImpPreview && fmImpPreview.sheets[i]) {
+        fmImpPreview.sheets[i].manufacturing_process = val;
+    }
+}
+function fmImpSetSpecs(i, val){
+    if (fmImpPreview && fmImpPreview.sheets[i]) {
+        fmImpPreview.sheets[i].specifications = val;
+    }
+}
+
+// Per-sheet toggle: enable/disable importing Process or Specs for this sheet
+function fmImpToggleSec(i, kind, on){
+    if (!fmImpPreview || !fmImpPreview.sheets[i]) return;
+    const s = fmImpPreview.sheets[i];
+    const card = document.querySelectorAll('.fm-imp-card')[i];
+    if (kind === 'process') {
+        s.include_process = !!on;
+        const sec = card && card.querySelector('.fm-imp-proc-section');
+        if (sec) sec.classList.toggle('fm-imp-section-off', !on);
+    } else if (kind === 'specs') {
+        s.include_specs = !!on;
+        const sec = card && card.querySelector('.fm-imp-specs-section');
+        if (sec) sec.classList.toggle('fm-imp-section-off', !on);
+    }
+}
+
+function fmImpToggle(i, ev){
+    // Ignore clicks that came from interactive children (checkboxes, textarea, name input)
+    if (ev && ev.target && ev.target.closest('.fm-imp-include, .fm-imp-proc-section, input, label, textarea, button, a')) return;
+    const s = fmImpPreview.sheets[i];
+    if (!s.valid || s.already_exists) return;
+    if (fmImpSelection.has(i)) fmImpSelection.delete(i); else fmImpSelection.add(i);
+    fmImpRender();
+}
+function fmImpRename(i, val){
+    const s = fmImpPreview.sheets[i];
+    s.formulation_name = val.trim();
+    // Re-check duplication client-side against current list
+    const lower = val.trim().toLowerCase();
+    s.already_exists = fmList.some(f => f.name.toLowerCase() === lower);
+    // We don't re-render the whole card to keep focus; just update its state
+    const card = document.querySelectorAll('.fm-imp-card')[i];
+    if (s.already_exists) { fmImpSelection.delete(i); card.classList.remove('sel'); }
+    fmImpUpdateCount();
+}
+
+function fmImpSelectAll(on){
+    if (!fmImpPreview) return;
+    fmImpPreview.sheets.forEach((s, i) => {
+        if (on) { if (s.valid && !s.already_exists) fmImpSelection.add(i); }
+        else fmImpSelection.delete(i);
+    });
+    fmImpRender();
+}
+function fmImpUpdateCount(){
+    const n = fmImpSelection.size;
+    document.getElementById('fmImpSelCount').textContent = n;
+    const btn = document.getElementById('fmImpCommitBtn');
+    btn.textContent = `Import ${n} Sheet${n === 1 ? '' : 's'}`;
+    btn.disabled = (n === 0);
+}
+
+async function fmImpCommit(){
+    if (!fmImpPreview || !fmImpSelection.size) return;
+    // Clone the selected sheets and respect the per-sheet include toggles
+    const sheets = [...fmImpSelection].map(i => {
+        const orig = fmImpPreview.sheets[i];
+        return {
+            ...orig,
+            manufacturing_process: orig.include_process === false ? '' : (orig.manufacturing_process || ''),
+            specifications       : orig.include_specs   === false ? '' : (orig.specifications || ''),
+        };
+    });
+    const payload = {
+        sheets: sheets,
+        brand: document.getElementById('fmImpBrand').value,
+    };
+    document.getElementById('fmImpCommitBtn').disabled = true;
+    const r = await fetch('/formulation/api/import/commit', {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify(payload),
+    });
+    const d = await r.json();
+    document.getElementById('fmImpCommitBtn').disabled = false;
+    if (d.status !== 'ok') { fmToast(d.message || 'Import failed', 'error'); return; }
+
+    // Detailed feedback — show created and skipped lists
+    const c = d.created || [], sk = d.skipped || [];
+    if (c.length && !sk.length) {
+        fmToast(`✓ Imported ${c.length} formulation${c.length===1?'':'s'} successfully`, 'success');
+    } else {
+        // Show a clear summary box inside the modal before closing
+        const lines = [];
+        if (c.length) {
+            lines.push(`<div style="color:var(--fm-teal-2); font-weight:700; margin-bottom:6px;">✓ Created ${c.length}:</div>`);
+            lines.push('<ul style="margin:0 0 12px 18px; font-size:12.5px;">' +
+                c.map(x => `<li><b>${escapeHtml(x.name)}</b> — ${x.rows} ingredients</li>`).join('') +
+                '</ul>');
+        }
+        if (sk.length) {
+            lines.push(`<div style="color:var(--fm-red); font-weight:700; margin-bottom:6px;">⊘ Skipped ${sk.length}:</div>`);
+            lines.push('<ul style="margin:0 0 8px 18px; font-size:12.5px;">' +
+                sk.map(x => `<li><b>${escapeHtml(x.sheet)}</b> — ${escapeHtml(x.reason)}</li>`).join('') +
+                '</ul>');
+            lines.push('<div style="font-size:11.5px; color:var(--text2);">Tip: to import an "already exists" sheet, rename it in the preview card or delete the existing one first.</div>');
+        }
+        const body = document.querySelector('#fmImportModal .fm-modal-body');
+        const hint = document.createElement('div');
+        hint.style.cssText = 'margin-top:16px; padding:14px; background:#f8fafc; border:1px solid var(--border); border-radius:9px;';
+        hint.innerHTML = lines.join('');
+        // Replace any previous summary, then append
+        const prev = body.querySelector('.fm-imp-summary');
+        if (prev) prev.remove();
+        hint.classList.add('fm-imp-summary');
+        body.appendChild(hint);
+        fmToast(`Imported ${c.length} · Skipped ${sk.length}`, sk.length ? 'warning' : 'success');
+    }
+    fmReload();
+    if ((d.skipped || []).length === 0) {
+        // Auto-close only if everything succeeded
+        setTimeout(fmCloseImport, 800);
+    }
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+//  BOOT
+// ════════════════════════════════════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', fmReload);
+</script>
+{% endblock %}

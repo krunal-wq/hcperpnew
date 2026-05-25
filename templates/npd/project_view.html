@@ -269,11 +269,23 @@
 .disc-input:focus{border-color:var(--blue);}
 .disc-item{display:flex;gap:.85rem;padding:1rem 0;border-bottom:1px solid var(--border);}
 .disc-item:last-child{border-bottom:none;}
+.disc-content{flex:1;min-width:0;}
 .disc-avatar{width:40px;height:40px;border-radius:50%;background:var(--blue);color:#fff;font-size:.82rem;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
 .disc-meta{font-size:.8rem;color:var(--text3);margin-bottom:.2rem;}
 .disc-text{font-size:.85rem;color:var(--text);}
 .disc-attach{margin-top:.35rem;display:flex;flex-wrap:wrap;gap:.3rem;}
 .attach-chip{display:inline-flex;align-items:center;gap:4px;padding:2px 9px;background:var(--blue-lt);border:1px solid var(--blue-border);border-radius:100px;font-size:.75rem;color:var(--blue);text-decoration:none;}
+/* Comment edit / delete actions */
+.disc-act-btn{display:inline-flex;align-items:center;gap:3px;padding:2px 9px;border:1px solid var(--border);background:#fff;border-radius:6px;font-size:.72rem;color:var(--text2);cursor:pointer;font-weight:600;line-height:1.4;transition:all .15s;}
+.disc-act-btn:hover{background:var(--blue-lt);border-color:var(--blue-border);color:var(--blue);}
+.disc-act-btn.disc-act-del:hover{background:#fef2f2;border-color:#fecaca;color:#dc2626;}
+.disc-actions{opacity:.55;transition:opacity .15s;}
+.disc-item:hover .disc-actions{opacity:1;}
+.edited-tag{font-size:.7rem;color:var(--text3);font-style:italic;}
+.disc-edit-tb-btn{width:28px;height:28px;border:none;background:none;cursor:pointer;border-radius:4px;font-size:.85rem;line-height:1;display:inline-flex;align-items:center;justify-content:center;padding:0;}
+.disc-edit-tb-btn:hover{background:#e2e8f0;}
+.disc-edit-tb-btn.disc-edit-tb-btn-green:hover{background:#d1fae5;}
+@media print { .no-print { display:none !important; } }
 /* Drop zone */
 .drop-zone{border:2px dashed var(--border);border-radius:10px;padding:1.25rem;text-align:center;cursor:pointer;transition:all .2s;margin-top:.5rem;background:var(--bg);}
 .drop-zone:hover,.drop-zone.drag-over{border-color:var(--blue);background:var(--blue-lt);}
@@ -311,7 +323,7 @@
         <div style="flex:1;min-width:0;">
             <h2 class="pv-title" style="font-size:1.1rem;font-weight:800;color:var(--text);margin-bottom:0;display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;">
                 {{ proj.code }}
-                {% if proj.client_company or proj.client_name %}
+                {% if can_see_client_info and (proj.client_company or proj.client_name) %}
                 <span style="color:var(--text3);">—</span>
                 <span>{{ proj.client_company or proj.client_name }}</span>
                 {% endif %}
@@ -470,6 +482,24 @@
     </div>
 </div>
 
+{# ── DISCUSSION COMMENT DELETE CONFIRM MODAL (reusable for Discussion + Internal) ── #}
+<div id="commentDeleteModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:10000;align-items:center;justify-content:center;" onclick="if(event.target===this)closeCommentDeleteModal()">
+    <div style="background:#fff;border-radius:14px;width:400px;max-width:92vw;box-shadow:0 20px 60px rgba(0,0,0,.22);overflow:hidden;animation:bomAlertIn .2s ease;">
+        <div style="padding:1rem 1.2rem;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;gap:.6rem;">
+            <span style="font-size:1.3rem;">🗑️</span>
+            <div style="font-weight:800;font-size:.95rem;color:#1e293b;">Delete Comment?</div>
+            <button onclick="closeCommentDeleteModal()" style="margin-left:auto;background:none;border:none;font-size:1.2rem;cursor:pointer;color:#94a3b8;">✕</button>
+        </div>
+        <div style="padding:1.1rem 1.2rem;">
+            <p style="font-size:.85rem;color:#475569;margin:0 0 1.2rem;line-height:1.5;">Are you sure you want to delete this comment? Any attached file will also be removed. This action cannot be undone.</p>
+            <div style="display:flex;gap:.5rem;justify-content:flex-end;">
+                <button onclick="closeCommentDeleteModal()" style="padding:7px 18px;border:1px solid #e2e8f0;border-radius:7px;background:#f8fafc;font-size:.85rem;font-weight:600;cursor:pointer;">Cancel</button>
+                <button id="commentDeleteConfirmBtn" onclick="performCommentDelete()" style="padding:7px 20px;background:#dc2626;color:#fff;border:none;border-radius:7px;font-size:.85rem;font-weight:700;cursor:pointer;">🗑 Delete</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 {# ── PACKING MATERIAL DELETE CONFIRM MODAL ── #}
 <div id="pmDeleteModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:10000;align-items:center;justify-content:center;" onclick="if(event.target===this)closePmDeleteModal()">
     <div style="background:#fff;border-radius:14px;width:380px;max-width:92vw;box-shadow:0 20px 60px rgba(0,0,0,.22);overflow:hidden;animation:bomAlertIn .2s ease;">
@@ -519,7 +549,7 @@
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:.4rem .75rem;font-size:.83rem;">
                     <div><span style="color:#6b7280;">Project No:</span> <strong>{{ proj.code }}</strong></div>
                     <div><span style="color:#6b7280;">Product:</span> <strong>{{ proj.product_name }}</strong></div>
-                    <div><span style="color:#6b7280;">Client:</span> <strong>{{ proj.client_company or proj.client_name or '—' }}</strong></div>
+                    {% if can_see_client_info %}<div><span style="color:#6b7280;">Client:</span> <strong>{{ proj.client_company or proj.client_name or '—' }}</strong></div>{% endif %}
                     <div><span style="color:#6b7280;">Category:</span> <strong>{{ proj.product_category or '—' }}</strong></div>
                     {% if proj.project_start_date %}<div><span style="color:#6b7280;">Start Date:</span> <strong>{{ proj.project_start_date.strftime('%d-%m-%Y') }}</strong></div>{% endif %}
                     {% if proj.project_end_date %}<div><span style="color:#6b7280;">End Date:</span> <strong>{{ proj.project_end_date.strftime('%d-%m-%Y') }}</strong></div>{% endif %}
@@ -574,8 +604,10 @@
                 <div><div style="font-size:.65rem;color:#6b7280;font-weight:700;">PROJECT</div><div style="font-size:.88rem;font-weight:800;">{{ proj.product_name }}</div></div>
                 <div style="width:1px;height:28px;background:#bfdbfe;"></div>
                 <div><div style="font-size:.65rem;color:#6b7280;font-weight:700;">CODE</div><div style="font-size:.82rem;font-weight:700;color:#2563eb;font-family:monospace;">{{ proj.code }}</div></div>
+                {% if can_see_client_info %}
                 <div style="width:1px;height:28px;background:#bfdbfe;"></div>
                 <div><div style="font-size:.65rem;color:#6b7280;font-weight:700;">CLIENT</div><div style="font-size:.82rem;font-weight:700;">{{ proj.client_company or proj.client_name or '—' }}</div></div>
+                {% endif %}
             </div>
 
             <form method="POST" action="/rd/trials/add" id="pvTrialForm">
@@ -874,6 +906,7 @@ function mySubEnd() {
         </div>
         <!-- Right: Client + Formulation Info -->
         <div>
+            {% if can_see_client_info %}
             <div class="card" style="margin-bottom:1rem;">
                 <div class="card-hdr"><div class="card-title">Client Information</div></div>
                 <div class="card-body">
@@ -903,6 +936,7 @@ function mySubEnd() {
                     {% endif %}
                 </div>
             </div>
+            {% endif %}
             <div class="card">
                 <div class="card-hdr"><div class="card-title">Formulation Details</div></div>
                 <div class="card-body">
@@ -995,12 +1029,57 @@ function mySubEnd() {
             {% if disc_comments %}
             {% for c in disc_comments %}
             {% set ci=(c.user.full_name.split()[0][0]+c.user.full_name.split()[-1][0]).upper() if c.user and c.user.full_name.split()|length>1 else (c.user.full_name[:2].upper() if c.user else 'U') %}
-            <div class="disc-item">
+            {% set can_modify = (c.user_id == current_user.id) %}
+            <div class="disc-item" id="disc-item-{{ c.id }}">
                 <div class="disc-avatar">{{ ci }}</div>
                 <div class="disc-content">
-                    <div class="disc-meta"><strong>{{ c.user.full_name if c.user else 'Unknown' }}</strong> · {{ c.created_at.strftime('%d-%m-%Y %H:%M:%S') if c.created_at else '' }}</div>
+                    <div class="disc-meta" style="display:flex;align-items:center;flex-wrap:wrap;gap:.4rem;">
+                        <span><strong>{{ c.user.full_name if c.user else 'Unknown' }}</strong> · {{ c.created_at.strftime('%d-%m-%Y %H:%M:%S') if c.created_at else '' }}</span>
+                        {% if c.edited_at %}
+                        <span class="edited-tag" title="Edited on {{ c.edited_at.strftime('%d-%m-%Y %H:%M:%S') }}">(edited)</span>
+                        {% endif %}
+                        {% if can_modify %}
+                        <span class="disc-actions no-print" style="margin-left:auto;display:inline-flex;gap:.35rem;">
+                            <button type="button" class="disc-act-btn" onclick="startEditComment({{ c.id }})" title="Edit">✏️ Edit</button>
+                            <button type="button" class="disc-act-btn disc-act-del" onclick="confirmDeleteComment({{ c.id }}, {{ proj.id }}, 0)" title="Delete">🗑 Delete</button>
+                        </span>
+                        {% endif %}
+                    </div>
                     {% if c.comment and not c.comment.startswith('📎 File attached:') %}
-                    <div class="disc-text">{{ c.comment|safe }}</div>
+                    <div class="disc-text" id="disc-text-{{ c.id }}">{{ c.comment|safe }}</div>
+                    {% endif %}
+                    {# Hidden editor — shown when the user clicks Edit #}
+                    {% if can_modify %}
+                    <div class="disc-edit-box" id="disc-edit-{{ c.id }}" style="display:none;margin-top:.5rem;">
+                        <div style="border:1.5px solid var(--border);border-radius:10px;overflow:hidden;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.06);">
+                            <div style="display:flex;align-items:center;gap:2px;padding:5px 8px;background:#f8fafc;border-bottom:1px solid var(--border);flex-wrap:wrap;">
+                                <button type="button" onclick="document.execCommand('bold')" class="disc-edit-tb-btn"><b>B</b></button>
+                                <button type="button" onclick="document.execCommand('italic')" class="disc-edit-tb-btn"><i>I</i></button>
+                                <button type="button" onclick="document.execCommand('underline')" class="disc-edit-tb-btn"><u>U</u></button>
+                                <div style="width:1px;height:18px;background:var(--border);margin:0 3px;"></div>
+                                <button type="button" onclick="document.execCommand('insertUnorderedList')" class="disc-edit-tb-btn">•≡</button>
+                                <button type="button" onclick="document.execCommand('insertOrderedList')" class="disc-edit-tb-btn">1≡</button>
+                                <div style="width:1px;height:18px;background:var(--border);margin:0 3px;"></div>
+                                <button type="button" onclick="document.getElementById('disc-edit-img-{{ c.id }}').click()" class="disc-edit-tb-btn" title="Insert image inline">🖼</button>
+                                <button type="button" onclick="document.getElementById('disc-edit-file-{{ c.id }}').click()" class="disc-edit-tb-btn" title="Replace attached file">📎</button>
+                                <input type="file" id="disc-edit-img-{{ c.id }}" accept="image/*" style="display:none;" onchange="insertImgInline(this,'disc-edit-area-{{ c.id }}')">
+                                <input type="file" id="disc-edit-file-{{ c.id }}" style="display:none;" onchange="showFileName(this,'disc-edit-label-{{ c.id }}')">
+                            </div>
+                            <div id="disc-edit-area-{{ c.id }}" contenteditable="true"
+                                 style="min-height:60px;max-height:220px;overflow-y:auto;padding:10px 14px;font-size:.88rem;outline:none;line-height:1.7;color:var(--text);"
+                                 onpaste="handleImgPaste(event,'disc-edit-area-{{ c.id }}')"
+                                 ondragover="event.preventDefault();this.style.outline='2px dashed var(--blue)';this.style.background='#f0f7ff'"
+                                 ondragleave="this.style.outline='';this.style.background=''"
+                                 ondrop="dropToEditor(event,'disc-edit-area-{{ c.id }}','disc-edit-file-{{ c.id }}','disc-edit-label-{{ c.id }}')"></div>
+                            <div style="display:flex;align-items:center;justify-content:space-between;padding:7px 12px;border-top:1px solid var(--border);background:#f8fafc;gap:.5rem;flex-wrap:wrap;">
+                                <div id="disc-edit-label-{{ c.id }}" style="font-size:.75rem;color:var(--blue);"></div>
+                                <div style="display:flex;gap:.4rem;">
+                                    <button type="button" class="disc-act-btn" onclick="cancelEditComment({{ c.id }})">Cancel</button>
+                                    <button type="button" class="btn-add-new" style="font-size:.78rem;padding:5px 14px;" onclick="saveEditComment({{ c.id }}, {{ proj.id }})">Save</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                     {% endif %}
                     {% if c.attachment %}
                     {% set att_parts = c.attachment.split('|') %}
@@ -1077,12 +1156,56 @@ function mySubEnd() {
             {% if internal_comments %}
             {% for c in internal_comments %}
             {% set ci=(c.user.full_name.split()[0][0]+c.user.full_name.split()[-1][0]).upper() if c.user and c.user.full_name.split()|length>1 else 'U' %}
-            <div class="disc-item">
+            {% set can_modify = (c.user_id == current_user.id) %}
+            <div class="disc-item" id="disc-item-{{ c.id }}">
                 <div class="disc-avatar" style="background:#059669;">{{ ci }}</div>
                 <div class="disc-content">
-                    <div class="disc-meta"><strong>{{ c.user.full_name if c.user else 'Unknown' }}</strong> · {{ c.created_at.strftime('%d-%m-%Y %H:%M:%S') if c.created_at else '' }}</div>
+                    <div class="disc-meta" style="display:flex;align-items:center;flex-wrap:wrap;gap:.4rem;">
+                        <span><strong>{{ c.user.full_name if c.user else 'Unknown' }}</strong> · {{ c.created_at.strftime('%d-%m-%Y %H:%M:%S') if c.created_at else '' }}</span>
+                        {% if c.edited_at %}
+                        <span class="edited-tag" title="Edited on {{ c.edited_at.strftime('%d-%m-%Y %H:%M:%S') }}">(edited)</span>
+                        {% endif %}
+                        {% if can_modify %}
+                        <span class="disc-actions no-print" style="margin-left:auto;display:inline-flex;gap:.35rem;">
+                            <button type="button" class="disc-act-btn" onclick="startEditComment({{ c.id }})" title="Edit">✏️ Edit</button>
+                            <button type="button" class="disc-act-btn disc-act-del" onclick="confirmDeleteComment({{ c.id }}, {{ proj.id }}, 1)" title="Delete">🗑 Delete</button>
+                        </span>
+                        {% endif %}
+                    </div>
                     {% if c.comment and not c.comment.startswith('📎 File attached:') %}
-                    <div class="disc-text">{{ c.comment|safe }}</div>
+                    <div class="disc-text" id="disc-text-{{ c.id }}">{{ c.comment|safe }}</div>
+                    {% endif %}
+                    {% if can_modify %}
+                    <div class="disc-edit-box" id="disc-edit-{{ c.id }}" style="display:none;margin-top:.5rem;">
+                        <div style="border:1.5px solid #a7f3d0;border-radius:10px;overflow:hidden;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.06);">
+                            <div style="display:flex;align-items:center;gap:2px;padding:5px 8px;background:#f0fdf4;border-bottom:1px solid #a7f3d0;flex-wrap:wrap;">
+                                <button type="button" onclick="document.execCommand('bold')" class="disc-edit-tb-btn disc-edit-tb-btn-green"><b>B</b></button>
+                                <button type="button" onclick="document.execCommand('italic')" class="disc-edit-tb-btn disc-edit-tb-btn-green"><i>I</i></button>
+                                <button type="button" onclick="document.execCommand('underline')" class="disc-edit-tb-btn disc-edit-tb-btn-green"><u>U</u></button>
+                                <div style="width:1px;height:18px;background:#a7f3d0;margin:0 3px;"></div>
+                                <button type="button" onclick="document.execCommand('insertUnorderedList')" class="disc-edit-tb-btn disc-edit-tb-btn-green">•≡</button>
+                                <button type="button" onclick="document.execCommand('insertOrderedList')" class="disc-edit-tb-btn disc-edit-tb-btn-green">1≡</button>
+                                <div style="width:1px;height:18px;background:#a7f3d0;margin:0 3px;"></div>
+                                <button type="button" onclick="document.getElementById('disc-edit-img-{{ c.id }}').click()" class="disc-edit-tb-btn disc-edit-tb-btn-green" title="Insert image inline">🖼</button>
+                                <button type="button" onclick="document.getElementById('disc-edit-file-{{ c.id }}').click()" class="disc-edit-tb-btn disc-edit-tb-btn-green" title="Replace attached file">📎</button>
+                                <input type="file" id="disc-edit-img-{{ c.id }}" accept="image/*" style="display:none;" onchange="insertImgInline(this,'disc-edit-area-{{ c.id }}')">
+                                <input type="file" id="disc-edit-file-{{ c.id }}" style="display:none;" onchange="showFileName(this,'disc-edit-label-{{ c.id }}')">
+                            </div>
+                            <div id="disc-edit-area-{{ c.id }}" contenteditable="true"
+                                 style="min-height:60px;max-height:220px;overflow-y:auto;padding:10px 14px;font-size:.88rem;outline:none;line-height:1.7;color:var(--text);"
+                                 onpaste="handleImgPaste(event,'disc-edit-area-{{ c.id }}')"
+                                 ondragover="event.preventDefault();this.style.outline='2px dashed #059669';this.style.background='#f0fdf4'"
+                                 ondragleave="this.style.outline='';this.style.background=''"
+                                 ondrop="dropToEditor(event,'disc-edit-area-{{ c.id }}','disc-edit-file-{{ c.id }}','disc-edit-label-{{ c.id }}')"></div>
+                            <div style="display:flex;align-items:center;justify-content:space-between;padding:7px 12px;border-top:1px solid #a7f3d0;background:#f0fdf4;gap:.5rem;flex-wrap:wrap;">
+                                <div id="disc-edit-label-{{ c.id }}" style="font-size:.75rem;color:#059669;"></div>
+                                <div style="display:flex;gap:.4rem;">
+                                    <button type="button" class="disc-act-btn" onclick="cancelEditComment({{ c.id }})">Cancel</button>
+                                    <button type="button" class="btn-add-new" style="font-size:.78rem;padding:5px 14px;background:#059669;" onclick="saveEditComment({{ c.id }}, {{ proj.id }})">Save</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                     {% endif %}
                     {% if c.attachment %}
                     {% set att_parts = c.attachment.split('|') %}
@@ -1637,17 +1760,34 @@ function renderDetail(idx) {
 
   } else if (isFDA) {
     // ── FDA Panel ──
+    // Two-step flow:
+    //   Step 1 → send FDA request mail (manual compose, attachments)
+    //   Step 2 → FDA Entries (Add FDA + per-doc upload)
+    // Step 2 stays locked until step 1 ka mail bhej diya jaata hai.
     panel.innerHTML =
       '<div>' + header +
-        '<div style="border:1px solid var(--border);border-radius:10px;overflow:hidden;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.05);">' +
-          // Header
-          '<div style="padding:10px 16px;background:#0f172a;color:#fff;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">' +
-            '<div style="font-size:.85rem;font-weight:800;letter-spacing:.04em;">🏛 FDA ENTRIES</div>' +
-            '<button onclick="openFdaForm(null)" style="padding:6px 14px;background:#3b82f6;color:#fff;border:none;border-radius:7px;font-size:.78rem;font-weight:700;cursor:pointer;">＋ Add FDA</button>' +
+        // ── Step 1: Mail Compose / Sent-Status section ──
+        '<div id="fda-mail-section" style="border:1px solid var(--border);border-radius:10px;overflow:hidden;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.05);margin-bottom:14px;">' +
+          '<div style="padding:30px;text-align:center;color:var(--text3);font-size:.85rem;">Loading FDA mail status...</div>' +
+        '</div>' +
+        // ── Step 2: FDA Entries (wrapped for lock overlay) ──
+        '<div id="fda-entries-wrap" style="position:relative;">' +
+          '<div style="border:1px solid var(--border);border-radius:10px;overflow:hidden;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.05);">' +
+            // Header
+            '<div style="padding:10px 16px;background:#0f172a;color:#fff;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">' +
+              '<div style="font-size:.85rem;font-weight:800;letter-spacing:.04em;">🏛 FDA ENTRIES</div>' +
+              '<button id="fda-add-btn" onclick="openFdaForm(null)" style="padding:6px 14px;background:#3b82f6;color:#fff;border:none;border-radius:7px;font-size:.78rem;font-weight:700;cursor:pointer;">＋ Add FDA</button>' +
+            '</div>' +
+            // List
+            '<div id="fda-list-wrap" style="padding:12px 14px;">' +
+              '<div style="text-align:center;padding:40px;color:var(--text3);font-size:.85rem;">Loading...</div>' +
+            '</div>' +
           '</div>' +
-          // List
-          '<div id="fda-list-wrap" style="padding:12px 14px;">' +
-            '<div style="text-align:center;padding:40px;color:var(--text3);font-size:.85rem;">Loading...</div>' +
+          // Mail-not-sent lock overlay (toggled by loadFdaMailStatus)
+          '<div id="fda-entries-lock" style="display:none;position:absolute;inset:0;background:rgba(248,250,252,.85);backdrop-filter:blur(2px);border-radius:10px;align-items:center;justify-content:center;flex-direction:column;gap:8px;z-index:5;">' +
+            '<div style="font-size:2rem;">🔒</div>' +
+            '<div style="font-size:.92rem;font-weight:800;color:#92400e;">FDA Request Mail Pending</div>' +
+            '<div style="font-size:.78rem;color:#64748b;text-align:center;max-width:320px;padding:0 12px;">Pehle upar wala FDA request mail bhej dijiye, fir yahan se entries add ho sakti hain.</div>' +
           '</div>' +
         '</div>' +
         // Inline add/edit form (hidden by default)
@@ -1688,6 +1828,7 @@ function renderDetail(idx) {
         '</div>' +
       '</div>';
     loadFdaList();
+    loadFdaMailStatus();
     setTimeout(_applyLockOverlay, 400);
 
   } else if (isBarcode) {
@@ -2311,6 +2452,12 @@ function fdaFormDocChosen(input) {
 
 function openFdaForm(entryId) {
   if (window._msLocked) return;
+  // Mail-sent gating: FDA Entries (add/edit) sirf tab open ho jab
+  // upar wala request mail bhej diya gaya ho. Otherwise abort softly.
+  if (!window._fdaMailSent) {
+    showBomAlert('Pehle FDA request mail bhejiye, fir entry add kar sakte hain.', '🔒');
+    return;
+  }
   document.getElementById('fda-form-wrap').style.display = 'block';
   document.getElementById('fda-editing-id').value = entryId || '';
   document.getElementById('fda-form-title').textContent = entryId ? '✏️ Edit FDA Entry' : '➕ New FDA Entry';
@@ -2440,6 +2587,217 @@ function fdaDocUpload(input, entryId, docKey) {
       else showBomAlert('Upload failed: ' + (d.error||'Unknown'), '❌');
     })
     .catch(function(){ input.disabled=false; showBomAlert('Upload failed. Try again.','❌'); });
+}
+
+// ═══ FDA REQUEST MAIL JS ════════════════════════════════════
+// Gate FDA Entries section behind a manual "send request mail" step.
+// User types To/CC/Subject/Body, picks attachments, hits send. On
+// success we lock the form and unlock the FDA Entries below.
+
+// Defaults pulled from Jinja — user can edit before sending.
+var FDA_MAIL_DEFAULT_SUBJECT = {{ ('Request for FDA | ' ~ (proj.client_company or proj.client_name or '') ~ ' | ' ~ (proj.product_name or ''))|tojson }};
+var FDA_MAIL_DEFAULT_BODY    = {{ ('Dear Team,\n\nKindly initiate the FDA processing for the following product:\n\nProduct Name: ' ~ (proj.product_name or '') ~ '\nSize: ' ~ (proj.product_size or '-') ~ '\n\nPlease let me know if you have any questions.\n\nThanks & Regards')|tojson }};
+
+// Tracks selected attachments before send (File objects + UI list).
+window._fdaMailAttachments = [];
+window._fdaMailSent = false;  // gate flag for openFdaForm
+
+function loadFdaMailStatus() {
+  var section = document.getElementById('fda-mail-section');
+  if (!section) return;
+  fetch('/npd/' + PROJ_ID + '/fda/mail/status')
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      if (d && d.sent) {
+        window._fdaMailSent = true;
+        renderFdaMailSentBanner(d);
+        toggleFdaEntriesLock(false);
+      } else {
+        window._fdaMailSent = false;
+        renderFdaMailComposeForm();
+        toggleFdaEntriesLock(true);
+      }
+    })
+    .catch(function(){
+      // On error fail-safe lock — better to block than allow.
+      window._fdaMailSent = false;
+      renderFdaMailComposeForm();
+      toggleFdaEntriesLock(true);
+    });
+}
+
+function toggleFdaEntriesLock(locked) {
+  var overlay = document.getElementById('fda-entries-lock');
+  var addBtn  = document.getElementById('fda-add-btn');
+  if (overlay) overlay.style.display = locked ? 'flex' : 'none';
+  if (addBtn) {
+    addBtn.disabled = locked;
+    addBtn.style.opacity = locked ? '0.4' : '';
+    addBtn.style.cursor  = locked ? 'not-allowed' : 'pointer';
+  }
+}
+
+function _escAttr(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+function _escHtml(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function renderFdaMailComposeForm() {
+  var section = document.getElementById('fda-mail-section');
+  if (!section) return;
+  window._fdaMailAttachments = [];
+  section.innerHTML =
+    '<div style="padding:10px 16px;background:#0f172a;color:#fff;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">' +
+      '<span style="font-size:.85rem;font-weight:800;letter-spacing:.04em;">✉️ STEP 1 — SEND FDA REQUEST MAIL</span>' +
+      '<span style="margin-left:auto;font-size:.7rem;background:#fbbf24;color:#78350f;padding:2px 10px;border-radius:100px;font-weight:800;">PENDING</span>' +
+    '</div>' +
+    '<div style="padding:14px 16px;display:flex;flex-direction:column;gap:10px;">' +
+      // To
+      '<div>' +
+        '<label style="font-size:.75rem;font-weight:700;color:#374151;display:block;margin-bottom:4px;">To <span style="color:#ef4444;">*</span> <span style="font-weight:500;color:#94a3b8;">(comma-separated for multiple)</span></label>' +
+        '<input id="fda-mail-to" type="text" placeholder="dipika@hcpwellness.in, shital@hcpwellness.in" style="width:100%;padding:8px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:.85rem;font-family:inherit;outline:none;box-sizing:border-box;">' +
+      '</div>' +
+      // CC
+      '<div>' +
+        '<label style="font-size:.75rem;font-weight:700;color:#374151;display:block;margin-bottom:4px;">CC <span style="font-weight:500;color:#94a3b8;">(optional)</span></label>' +
+        '<input id="fda-mail-cc" type="text" placeholder="anushka@hcpwellness.in, riya@hcpwellness.in" style="width:100%;padding:8px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:.85rem;font-family:inherit;outline:none;box-sizing:border-box;">' +
+      '</div>' +
+      // Subject
+      '<div>' +
+        '<label style="font-size:.75rem;font-weight:700;color:#374151;display:block;margin-bottom:4px;">Subject <span style="color:#ef4444;">*</span></label>' +
+        '<input id="fda-mail-subject" type="text" value="' + _escAttr(FDA_MAIL_DEFAULT_SUBJECT) + '" style="width:100%;padding:8px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:.85rem;font-family:inherit;outline:none;box-sizing:border-box;">' +
+      '</div>' +
+      // Body
+      '<div>' +
+        '<label style="font-size:.75rem;font-weight:700;color:#374151;display:block;margin-bottom:4px;">Message Body <span style="color:#ef4444;">*</span></label>' +
+        '<textarea id="fda-mail-body" rows="8" style="width:100%;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:.85rem;font-family:inherit;outline:none;box-sizing:border-box;resize:vertical;">' + _escHtml(FDA_MAIL_DEFAULT_BODY) + '</textarea>' +
+      '</div>' +
+      // Attachments
+      '<div>' +
+        '<label style="font-size:.75rem;font-weight:700;color:#374151;display:block;margin-bottom:4px;">📎 Attachments <span style="font-weight:500;color:#94a3b8;">(any file: PDF, DOC, images, etc.)</span></label>' +
+        '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">' +
+          '<label style="display:inline-flex;align-items:center;gap:5px;padding:7px 14px;background:#fff;border:1.5px solid #bfdbfe;border-radius:7px;font-size:.78rem;font-weight:700;color:#1e40af;cursor:pointer;">' +
+            '📎 Add Files' +
+            '<input type="file" multiple style="display:none;" onchange="fdaMailAttachChosen(this)">' +
+          '</label>' +
+          '<div id="fda-mail-attach-list" style="display:flex;flex-wrap:wrap;gap:6px;flex:1;"></div>' +
+        '</div>' +
+      '</div>' +
+      // Send button
+      '<div style="display:flex;justify-content:flex-end;gap:8px;padding-top:6px;border-top:1px dashed #e2e8f0;margin-top:4px;">' +
+        '<button id="fda-mail-send-btn" onclick="sendFdaMail()" style="padding:8px 22px;background:#3b82f6;color:#fff;border:none;border-radius:8px;font-size:.85rem;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:6px;">' +
+          '✉️ Send FDA Request Mail' +
+        '</button>' +
+      '</div>' +
+    '</div>';
+}
+
+function fdaMailAttachChosen(input) {
+  if (!input.files || !input.files.length) return;
+  for (var i = 0; i < input.files.length; i++) {
+    window._fdaMailAttachments.push(input.files[i]);
+  }
+  input.value = '';   // allow picking same file again later if user removes
+  _fdaMailRenderAttachList();
+}
+
+function _fdaMailRenderAttachList() {
+  var wrap = document.getElementById('fda-mail-attach-list');
+  if (!wrap) return;
+  if (!window._fdaMailAttachments.length) {
+    wrap.innerHTML = '<span style="font-size:.72rem;color:#94a3b8;">No files attached</span>';
+    return;
+  }
+  wrap.innerHTML = window._fdaMailAttachments.map(function(f, i){
+    var sizeKb = (f.size / 1024).toFixed(1);
+    return '<span style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:100px;font-size:.72rem;font-weight:600;color:#1e40af;">' +
+             '📎 ' + _escHtml(f.name) + ' <span style="color:#64748b;font-weight:500;">(' + sizeKb + ' KB)</span>' +
+             '<button onclick="fdaMailRemoveAttach(' + i + ')" style="background:none;border:none;cursor:pointer;color:#dc2626;font-size:.85rem;line-height:1;padding:0 0 0 4px;">✕</button>' +
+           '</span>';
+  }).join('');
+}
+
+function fdaMailRemoveAttach(idx) {
+  window._fdaMailAttachments.splice(idx, 1);
+  _fdaMailRenderAttachList();
+}
+
+function sendFdaMail() {
+  if (window._msLocked) return;
+  var to      = (document.getElementById('fda-mail-to')      || {}).value || '';
+  var cc      = (document.getElementById('fda-mail-cc')      || {}).value || '';
+  var subject = (document.getElementById('fda-mail-subject') || {}).value || '';
+  var body    = (document.getElementById('fda-mail-body')    || {}).value || '';
+
+  // Client-side validation — server validates again.
+  if (!to.trim())      { showBomAlert('To: email zaroori hai.', '⚠️'); return; }
+  if (!subject.trim()) { showBomAlert('Subject zaroori hai.', '⚠️'); return; }
+  if (!body.trim())    { showBomAlert('Body zaroori hai.', '⚠️'); return; }
+
+  var fd = new FormData();
+  fd.append('to', to.trim());
+  fd.append('cc', cc.trim());
+  fd.append('subject', subject.trim());
+  fd.append('body', body);
+  window._fdaMailAttachments.forEach(function(f, i){
+    fd.append('attach_' + i, f);
+  });
+
+  var btn = document.getElementById('fda-mail-send-btn');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Sending...'; btn.style.opacity = '0.7'; }
+
+  fetch('/npd/' + PROJ_ID + '/fda/mail/send', { method: 'POST', body: fd })
+    .then(function(r){ return r.json().then(function(d){ return {ok: r.ok, d: d}; }); })
+    .then(function(res){
+      if (res.ok && res.d.success) {
+        showBomAlert('Mail sent successfully!', '✅');
+        loadFdaMailStatus();   // re-render as "Sent" banner + unlock entries
+      } else {
+        if (btn) { btn.disabled = false; btn.textContent = '✉️ Send FDA Request Mail'; btn.style.opacity = ''; }
+        showBomAlert('Send failed: ' + ((res.d && res.d.error) || 'Unknown error'), '❌');
+      }
+    })
+    .catch(function(){
+      if (btn) { btn.disabled = false; btn.textContent = '✉️ Send FDA Request Mail'; btn.style.opacity = ''; }
+      showBomAlert('Network error. Try again.', '❌');
+    });
+}
+
+function renderFdaMailSentBanner(d) {
+  var section = document.getElementById('fda-mail-section');
+  if (!section) return;
+  var attaches = (d.attachments || []).map(function(a){
+    var label = a.original_name || a.file || 'file';
+    var href  = '/static/uploads/npd/' + a.file;
+    return '<a href="' + _escAttr(href) + '" target="_blank" style="display:inline-flex;align-items:center;gap:4px;padding:3px 9px;background:#fff;border:1px solid #bbf7d0;border-radius:100px;font-size:.72rem;font-weight:600;color:#047857;text-decoration:none;">📎 ' + _escHtml(label) + '</a>';
+  }).join(' ');
+  var bodyPreview = _escHtml(d.body || '').replace(/\n/g, '<br>');
+
+  section.innerHTML =
+    '<div style="padding:10px 16px;background:#065f46;color:#fff;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">' +
+      '<span style="font-size:.85rem;font-weight:800;letter-spacing:.04em;">✅ FDA REQUEST MAIL SENT</span>' +
+      '<span style="margin-left:auto;font-size:.7rem;background:#bbf7d0;color:#065f46;padding:2px 10px;border-radius:100px;font-weight:800;">COMPLETED</span>' +
+    '</div>' +
+    '<div style="padding:14px 16px;display:flex;flex-direction:column;gap:8px;background:#f0fdf4;">' +
+      '<div style="display:flex;gap:14px;flex-wrap:wrap;font-size:.78rem;">' +
+        '<div><span style="color:#64748b;font-weight:600;">Sent by:</span> <strong style="color:#065f46;">' + _escHtml(d.sent_by || '—') + '</strong></div>' +
+        '<div><span style="color:#64748b;font-weight:600;">Sent at:</span> <strong style="color:#065f46;">' + _escHtml(d.sent_at || '—') + '</strong></div>' +
+      '</div>' +
+      '<div style="font-size:.78rem;"><span style="color:#64748b;font-weight:600;">To:</span> ' + _escHtml(d.to || '—') + '</div>' +
+      (d.cc ? '<div style="font-size:.78rem;"><span style="color:#64748b;font-weight:600;">CC:</span> ' + _escHtml(d.cc) + '</div>' : '') +
+      '<div style="font-size:.78rem;"><span style="color:#64748b;font-weight:600;">Subject:</span> <strong>' + _escHtml(d.subject || '—') + '</strong></div>' +
+      // Collapsible body preview
+      '<details style="font-size:.78rem;margin-top:4px;">' +
+        '<summary style="cursor:pointer;color:#065f46;font-weight:700;">📄 View message body</summary>' +
+        '<div style="margin-top:6px;padding:10px 12px;background:#fff;border:1px solid #bbf7d0;border-radius:8px;color:#374151;line-height:1.55;white-space:normal;">' + bodyPreview + '</div>' +
+      '</details>' +
+      (attaches ? '<div style="display:flex;flex-wrap:wrap;gap:5px;align-items:center;margin-top:4px;"><span style="font-size:.72rem;color:#64748b;font-weight:600;">Attachments:</span>' + attaches + '</div>' : '') +
+    '</div>';
 }
 
 // ═══ BARCODE MILESTONE JS ═══════════════════════════════════
@@ -2614,10 +2972,10 @@ function renderNpdQuotationForm() {
           '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0;border-bottom:1px solid var(--border);">' +
             '<div style="padding:14px 16px;border-right:1px solid var(--border);">' +
               '<div style="font-size:.68rem;font-weight:800;letter-spacing:.07em;color:#64748b;text-transform:uppercase;margin-bottom:8px;">BILL TO</div>' +
-              '<input type="text" name="bill_company" value="{{ proj.client_company or proj.client_name or '' }}" placeholder="Company Name" class="fi" style="margin-bottom:6px;font-weight:600;">' +
+              '<input type="text" name="bill_company" value="{{ (proj.client_company or proj.client_name or '') if can_see_client_info else '' }}" placeholder="Company Name" class="fi" style="margin-bottom:6px;font-weight:600;">' +
               '<textarea name="bill_address" class="fi" rows="2" placeholder="Address" style="resize:none;margin-bottom:6px;"></textarea>' +
-              '<input type="text" name="bill_phone" value="{{ proj.client_phone or '' }}" placeholder="Phone" class="fi" style="margin-bottom:6px;">' +
-              '<input type="text" name="bill_email" value="{{ proj.client_email or '' }}" placeholder="Email" class="fi" style="margin-bottom:6px;">' +
+              '<input type="text" name="bill_phone" value="{{ (proj.client_phone or '') if can_see_client_info else '' }}" placeholder="Phone" class="fi" style="margin-bottom:6px;">' +
+              '<input type="text" name="bill_email" value="{{ (proj.client_email or '') if can_see_client_info else '' }}" placeholder="Email" class="fi" style="margin-bottom:6px;">' +
               '<input type="text" name="bill_gst" placeholder="GST Number (optional)" class="fi">' +
             '</div>' +
             '<div style="padding:14px 16px;">' +
@@ -2634,7 +2992,7 @@ function renderNpdQuotationForm() {
                   '<option value="0">0%</option><option value="5">5%</option><option value="12">12%</option><option value="18" selected>18%</option><option value="28">28%</option>' +
                 '</select>' +
                 '<label style="font-size:.82rem;color:#374151;font-weight:500;white-space:nowrap;">Subject :</label>' +
-                '<input type="text" name="quot_subject" value="Quotation for {{ proj.client_company or proj.client_name or '' }}" class="fi" style="font-size:.82rem;">' +
+                '<input type="text" name="quot_subject" value="{{ ('Quotation for ' + (proj.client_company or proj.client_name or '')) if can_see_client_info else 'Quotation' }}" class="fi" style="font-size:.82rem;">' +
               '</div>' +
             '</div>' +
           '</div>' +
@@ -3641,6 +3999,174 @@ function handleDrop(e, prefix) {
         }
     }
 }
+
+// ─────────────────────────────────────────────────────────────
+// Discussion Board — edit & delete comment handlers
+// ─────────────────────────────────────────────────────────────
+function startEditComment(cid){
+    var textEl = document.getElementById('disc-text-' + cid);
+    var box    = document.getElementById('disc-edit-' + cid);
+    var area   = document.getElementById('disc-edit-area-' + cid);
+    if(!box || !area) return;
+    // Seed editor with current HTML (or empty if no text element)
+    area.innerHTML = textEl ? textEl.innerHTML : '';
+    if(textEl) textEl.style.display = 'none';
+    box.style.display = 'block';
+    area.focus();
+    // Place caret at end
+    try {
+        var range = document.createRange();
+        range.selectNodeContents(area);
+        range.collapse(false);
+        var sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
+    } catch(e){}
+}
+
+function cancelEditComment(cid){
+    var textEl = document.getElementById('disc-text-' + cid);
+    var box    = document.getElementById('disc-edit-' + cid);
+    if(box) box.style.display = 'none';
+    if(textEl) textEl.style.display = '';
+}
+
+function saveEditComment(cid, pid){
+    var area = document.getElementById('disc-edit-area-' + cid);
+    if(!area) return;
+    var html  = area.innerHTML.trim();
+    var plain = area.textContent.trim();
+
+    var fileInput = document.getElementById('disc-edit-file-' + cid);
+    var hasNewFile = fileInput && fileInput.files && fileInput.files.length > 0;
+
+    // Check if an existing attachment exists on this comment in the DOM
+    var hasExistingAttach = !!document.querySelector('#disc-item-' + cid + ' .disc-attach');
+
+    // Empty check: must have text OR a new file OR an existing attachment
+    if(!plain && !hasNewFile && !hasExistingAttach){
+        alert('Comment cannot be empty');
+        return;
+    }
+
+    var fd = new FormData();
+    fd.append('comment', html);
+    if(hasNewFile) fd.append('attachment', fileInput.files[0]);
+
+    fetch('/npd/projects/' + pid + '/comment/' + cid + '/edit', {
+        method: 'POST',
+        body: fd,
+        credentials: 'same-origin'
+    })
+    .then(function(r){ return r.json().then(function(j){ return {ok:r.ok, body:j}; }); })
+    .then(function(res){
+        if(!res.ok || !res.body.success){
+            alert(res.body.error || 'Could not edit comment');
+            return;
+        }
+
+        // If a new file was uploaded, the simplest reliable way to refresh the
+        // attachment block (image/file chip) is to reload the page.
+        if(res.body.attachment_replaced){
+            window.location.reload();
+            return;
+        }
+
+        // Otherwise update the comment text inline (no reload)
+        var textEl = document.getElementById('disc-text-' + cid);
+        if(textEl){
+            textEl.innerHTML = res.body.comment;
+            textEl.style.display = '';
+        } else {
+            var contentEl = document.querySelector('#disc-item-' + cid + ' .disc-content');
+            if(contentEl){
+                var newText = document.createElement('div');
+                newText.className = 'disc-text';
+                newText.id = 'disc-text-' + cid;
+                newText.innerHTML = res.body.comment;
+                var meta = contentEl.querySelector('.disc-meta');
+                if(meta && meta.nextSibling) contentEl.insertBefore(newText, meta.nextSibling);
+                else contentEl.appendChild(newText);
+            }
+        }
+
+        // Hide editor
+        var box = document.getElementById('disc-edit-' + cid);
+        if(box) box.style.display = 'none';
+
+        // Add / update "(edited)" tag
+        var meta = document.querySelector('#disc-item-' + cid + ' .disc-meta');
+        if(meta){
+            var tag = meta.querySelector('.edited-tag');
+            if(!tag){
+                tag = document.createElement('span');
+                tag.className = 'edited-tag';
+                tag.textContent = '(edited)';
+                var firstSpan = meta.querySelector('span');
+                if(firstSpan && firstSpan.nextSibling) meta.insertBefore(tag, firstSpan.nextSibling);
+                else meta.appendChild(tag);
+            }
+            tag.title = 'Edited on ' + res.body.edited_at;
+        }
+    })
+    .catch(function(err){
+        alert('Network error while saving: ' + err);
+    });
+}
+
+// Pending delete state (used by the comment-delete modal)
+var _pendingCommentDelete = null;
+
+function confirmDeleteComment(cid, pid, isInternal){
+    _pendingCommentDelete = { cid: cid, pid: pid, isInternal: isInternal };
+    var modal = document.getElementById('commentDeleteModal');
+    if(modal){
+        modal.style.display = 'flex';
+        // Reset button state in case it was disabled from a previous attempt
+        var btn = document.getElementById('commentDeleteConfirmBtn');
+        if(btn){
+            btn.disabled = false;
+            btn.innerHTML = '🗑 Delete';
+        }
+    } else {
+        // Fallback if modal somehow not in DOM
+        if(confirm('Delete this comment? This cannot be undone.')){
+            _submitCommentDelete(cid, pid);
+        }
+    }
+}
+
+function closeCommentDeleteModal(){
+    var modal = document.getElementById('commentDeleteModal');
+    if(modal) modal.style.display = 'none';
+    _pendingCommentDelete = null;
+}
+
+function performCommentDelete(){
+    if(!_pendingCommentDelete) return;
+    var btn = document.getElementById('commentDeleteConfirmBtn');
+    if(btn){
+        btn.disabled = true;
+        btn.innerHTML = 'Deleting…';
+    }
+    _submitCommentDelete(_pendingCommentDelete.cid, _pendingCommentDelete.pid);
+}
+
+function _submitCommentDelete(cid, pid){
+    var f = document.createElement('form');
+    f.method = 'POST';
+    f.action = '/npd/projects/' + pid + '/comment/' + cid + '/delete';
+    document.body.appendChild(f);
+    f.submit();
+}
+
+// Close modal on Escape key
+document.addEventListener('keydown', function(e){
+    if(e.key === 'Escape'){
+        var modal = document.getElementById('commentDeleteModal');
+        if(modal && modal.style.display === 'flex') closeCommentDeleteModal();
+    }
+});
 
 // Print only discussion board
 function printDiscussion() {

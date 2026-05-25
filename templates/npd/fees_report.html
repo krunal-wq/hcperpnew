@@ -1,0 +1,317 @@
+{% extends "base.html" %}
+{% block title %}NPD Fees Report{% endblock %}
+{% block page_title %}NPD Fees Report{% endblock %}
+{% block bread %}NPD / Fees Report{% endblock %}
+
+{% block extra_css %}
+<style>
+/* Match npd_projects styling */
+.fees-hdr { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:.75rem; margin-bottom:1rem; }
+.fees-title-blk { display:flex; flex-direction:column; }
+.fees-title { font-size:1.1rem; font-weight:800; color:#7c3aed; display:flex; align-items:center; gap:.4rem; }
+.fees-subtitle { font-size:.77rem; color:var(--text3); }
+
+.fees-card { background:var(--white); border:1px solid var(--border); border-radius:12px; overflow:hidden; }
+
+/* Filter bar */
+.fees-filter-bar {
+    display:flex; flex-wrap:wrap; align-items:flex-end; gap:.85rem;
+    padding:14px 16px; background:#faf5ff; border-bottom:1px solid #ede9fe;
+}
+.fees-fg { display:flex; flex-direction:column; gap:4px; }
+.fees-fg label {
+    font-size:.7rem; font-weight:700; color:#6b21a8;
+    text-transform:uppercase; letter-spacing:.04em;
+}
+.fees-fg input {
+    padding:7px 11px; border:1.5px solid #ddd6fe; border-radius:8px;
+    background:#fff; font-size:.83rem; font-family:inherit;
+    color:var(--text); min-width:160px; outline:none; transition:border-color .12s;
+}
+.fees-fg input:focus { border-color:#7c3aed; }
+.fees-fg.search input { min-width:220px; }
+
+.fees-btn {
+    display:inline-flex; align-items:center; gap:5px; padding:7px 16px;
+    border:none; border-radius:8px; font-size:.82rem; font-weight:700;
+    cursor:pointer; font-family:inherit; text-decoration:none;
+    transition:transform .08s, box-shadow .12s;
+}
+.fees-btn.primary { background:#7c3aed; color:#fff; }
+.fees-btn.primary:hover { background:#6d28d9; }
+.fees-btn.ghost { background:#fff; color:#7c3aed; border:1.5px solid #ddd6fe; }
+.fees-btn.ghost:hover { background:#f5f3ff; }
+.fees-btn.green { background:#059669; color:#fff; }
+.fees-btn.green:hover { background:#047857; }
+
+/* Quick range chips */
+.fees-quick { display:flex; flex-wrap:wrap; gap:5px; }
+.fees-quick-btn {
+    padding:5px 12px; border:1px solid #ddd6fe; border-radius:100px;
+    background:#fff; color:#6d28d9; font-size:.72rem; font-weight:700;
+    cursor:pointer; font-family:inherit; transition:all .12s;
+}
+.fees-quick-btn:hover { background:#f5f3ff; border-color:#7c3aed; }
+
+/* Table */
+.fees-tbl-wrap { overflow-x:auto; }
+.fees-tbl { width:100%; border-collapse:collapse; font-size:13px; }
+.fees-tbl thead { background:#f8fafc; }
+.fees-tbl th {
+    font-size:11px; font-weight:700; color:#94a3b8;
+    text-transform:uppercase; letter-spacing:.05em;
+    padding:10px 14px; border-bottom:1px solid var(--border);
+    text-align:left; white-space:nowrap;
+}
+.fees-tbl td {
+    padding:11px 14px; border-bottom:1px solid #f1f5f9;
+    color:var(--text); vertical-align:middle; font-size:13px;
+}
+.fees-tbl tbody tr { background:#fff; transition:background .1s; }
+.fees-tbl tbody tr:hover td { background:#fafbff; }
+.fees-tbl tbody tr:last-child td { border-bottom:none; }
+.fees-tbl .num { text-align:right; font-variant-numeric:tabular-nums; font-weight:600; }
+.fees-tbl .right { text-align:right; }
+.fees-tbl .ctr { text-align:center; }
+
+.code-pill {
+    display:inline-block; padding:2px 8px; background:#f5f3ff; color:#7c3aed;
+    font-family:monospace; font-weight:700; font-size:.74rem; border-radius:5px;
+}
+.amt-strong {
+    font-weight:800; color:#059669; font-variant-numeric:tabular-nums;
+}
+.amt-zero { color:#94a3b8; font-weight:600; }
+.recvd-on {
+    font-size:.74rem; color:var(--text3); font-weight:500;
+    white-space:nowrap;
+}
+.recvd-on-date { font-size:.83rem; color:var(--text); font-weight:600; }
+
+.recpt-link {
+    display:inline-flex; align-items:center; gap:3px; padding:3px 8px;
+    background:#eff6ff; color:#1e40af; border:1px solid #bfdbfe; border-radius:6px;
+    font-size:.7rem; font-weight:700; text-decoration:none;
+}
+.recpt-link:hover { background:#dbeafe; }
+.recpt-none { color:#cbd5e1; font-size:.72rem; }
+
+.fees-tbl tfoot td {
+    background:#f5f3ff; border-top:2px solid #7c3aed; border-bottom:none;
+    font-weight:800; padding:14px;
+}
+.fees-tbl tfoot .total-lbl { color:#6d28d9; font-size:.85rem; letter-spacing:.04em; text-transform:uppercase; }
+.fees-tbl tfoot .total-amt { font-size:1rem; color:#059669; font-variant-numeric:tabular-nums; }
+
+.empty-state {
+    text-align:center; padding:48px 20px; color:var(--text3);
+}
+.empty-state .emoji { font-size:3rem; line-height:1; margin-bottom:.5rem; }
+.empty-state .ttl { font-size:.95rem; font-weight:700; color:var(--text2); margin-bottom:4px; }
+.empty-state .sub { font-size:.78rem; color:var(--text3); }
+
+/* Summary band above table */
+.fees-summary-band {
+    display:flex; align-items:center; justify-content:space-between;
+    padding:10px 16px; background:#fff; border-bottom:1px solid var(--border);
+    flex-wrap:wrap; gap:8px;
+}
+.fees-count {
+    font-size:.83rem; color:var(--text2); font-weight:600;
+}
+.fees-count strong { color:#7c3aed; font-size:.92rem; }
+.fees-summary-total {
+    display:flex; align-items:center; gap:8px;
+    background:#ecfdf5; border:1.5px solid #bbf7d0;
+    padding:5px 14px; border-radius:100px;
+}
+.fees-summary-total-lbl { font-size:.7rem; color:#047857; font-weight:700; text-transform:uppercase; letter-spacing:.04em; }
+.fees-summary-total-amt { font-size:.95rem; color:#065f46; font-weight:800; font-variant-numeric:tabular-nums; }
+
+/* Mobile */
+@media (max-width: 767px) {
+    .fees-filter-bar { padding:10px 12px; gap:.6rem; }
+    .fees-fg input { min-width:0; width:100%; }
+    .fees-fg, .fees-fg.search { flex:1 1 calc(50% - .3rem); min-width:140px; }
+    .fees-fg.search { flex-basis:100%; }
+    .fees-btn { flex:1; justify-content:center; }
+    .fees-quick { flex-basis:100%; }
+    .fees-tbl th, .fees-tbl td { padding:8px 10px; font-size:12px; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="fees-hdr">
+    <div class="fees-title-blk">
+        <div class="fees-title">💰 NPD Fees Report</div>
+        <div class="fees-subtitle">Track NPD fees received — date-wise & by project</div>
+    </div>
+    <a href="/npd/npd-dashboard" class="fees-btn ghost">📊 Dashboard</a>
+</div>
+
+<div class="fees-card">
+
+    {# ── Filter Bar ── #}
+    <form method="get" action="/npd/fees-report" class="fees-filter-bar" id="feesFilterForm">
+        <div class="fees-fg">
+            <label>From Date</label>
+            <input type="date" name="from_date" id="from_date" value="{{ from_date }}">
+        </div>
+        <div class="fees-fg">
+            <label>To Date</label>
+            <input type="date" name="to_date" id="to_date" value="{{ to_date }}">
+        </div>
+        <div class="fees-fg search">
+            <label>Search</label>
+            <input type="text" name="q" placeholder="Project code / product / client..." value="{{ q }}">
+        </div>
+        <div style="display:flex;gap:.45rem;flex-wrap:wrap;">
+            <button type="submit" class="fees-btn primary">🔍 Apply</button>
+            <a href="/npd/fees-report" class="fees-btn ghost">✕ Reset</a>
+            {% if rows %}
+            <a href="/npd/fees-report?from_date={{ from_date }}&to_date={{ to_date }}&q={{ q }}&export=csv"
+               class="fees-btn green">⬇️ Export CSV</a>
+            {% endif %}
+        </div>
+        <div class="fees-quick" style="flex-basis:100%;margin-top:6px;">
+            <span style="font-size:.72rem;color:var(--text3);font-weight:600;align-self:center;margin-right:4px;">Quick:</span>
+            <button type="button" class="fees-quick-btn" onclick="feesQuickRange('today')">Today</button>
+            <button type="button" class="fees-quick-btn" onclick="feesQuickRange('week')">This Week</button>
+            <button type="button" class="fees-quick-btn" onclick="feesQuickRange('month')">This Month</button>
+            <button type="button" class="fees-quick-btn" onclick="feesQuickRange('lastmonth')">Last Month</button>
+            <button type="button" class="fees-quick-btn" onclick="feesQuickRange('year')">This Year</button>
+        </div>
+    </form>
+
+    {# ── Summary Band ── #}
+    <div class="fees-summary-band">
+        <div class="fees-count">
+            <strong>{{ count }}</strong> {{ 'entry' if count == 1 else 'entries' }} found
+            {% if from_date or to_date %}
+                <span style="color:var(--text3);"> · </span>
+                {% if from_date and to_date %}from <strong>{{ from_date }}</strong> to <strong>{{ to_date }}</strong>
+                {% elif from_date %}since <strong>{{ from_date }}</strong>
+                {% else %}upto <strong>{{ to_date }}</strong>
+                {% endif %}
+            {% endif %}
+        </div>
+        <div class="fees-summary-total">
+            <span class="fees-summary-total-lbl">Total</span>
+            <span class="fees-summary-total-amt">₹ {{ '{:,.2f}'.format(total) }}</span>
+        </div>
+    </div>
+
+    {# ── Table ── #}
+    {% if rows %}
+    <div class="fees-tbl-wrap">
+        <table class="fees-tbl">
+            <thead>
+                <tr>
+                    <th style="width:50px;">#</th>
+                    <th>Project Code</th>
+                    <th>Product</th>
+                    <th>Client</th>
+                    <th>Company</th>
+                    <th class="right">Amount (₹)</th>
+                    <th>Fee Received On</th>
+                    <th class="ctr">Receipt</th>
+                    <th class="ctr">View</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in rows %}
+                {% set received_on = r.npd_fee_paid_at or r.created_at %}
+                <tr>
+                    <td>{{ loop.index }}</td>
+                    <td><span class="code-pill">{{ r.code or '—' }}</span></td>
+                    <td title="{{ r.product_name or '' }}">{{ (r.product_name or '—')|truncate(40) }}</td>
+                    <td>{{ r.client_name or '—' }}</td>
+                    <td>{{ r.client_company or '—' }}</td>
+                    <td class="right">
+                        {% if r.npd_fee_amount and r.npd_fee_amount|float > 0 %}
+                            <span class="amt-strong">₹ {{ '{:,.2f}'.format(r.npd_fee_amount|float) }}</span>
+                        {% else %}
+                            <span class="amt-zero">₹ 0.00</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div class="recvd-on-date">{{ received_on.strftime('%d %b %Y') if received_on else '—' }}</div>
+                        <div class="recvd-on">{{ received_on.strftime('%H:%M') if received_on else '' }}</div>
+                    </td>
+                    <td class="ctr">
+                        {% if r.npd_fee_receipt %}
+                            <a href="/npd/uploads/{{ r.npd_fee_receipt }}" target="_blank" class="recpt-link">📎 View</a>
+                        {% else %}
+                            <span class="recpt-none">—</span>
+                        {% endif %}
+                    </td>
+                    <td class="ctr">
+                        <a href="/npd/projects/{{ r.id }}" target="_blank" class="recpt-link" style="background:#f5f3ff;color:#7c3aed;border-color:#ddd6fe;">↗ Open</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot>
+                <tr>
+                    <td colspan="5" class="right total-lbl">TOTAL ({{ count }} {{ 'entry' if count == 1 else 'entries' }})</td>
+                    <td class="right total-amt">₹ {{ '{:,.2f}'.format(total) }}</td>
+                    <td colspan="3"></td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <div class="emoji">💸</div>
+        <div class="ttl">No NPD fees found</div>
+        <div class="sub">
+            {% if from_date or to_date or q %}
+                Try adjusting filters or <a href="/npd/fees-report" style="color:#7c3aed;font-weight:700;">clearing filters</a>.
+            {% else %}
+                Once "NPD Fee Received" is ticked on a project, it'll appear here.
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+// Quick-range helper. Uses local-tz date math, formats as YYYY-MM-DD
+// (HTML5 <input type=date> requires that exact format regardless of locale).
+function feesQuickRange(kind) {
+    var now = new Date();
+    var from = new Date(now);
+    var to   = new Date(now);
+
+    if (kind === 'today') {
+        // from = today, to = today
+    } else if (kind === 'week') {
+        // ISO week: Monday → Sunday containing today
+        var day = now.getDay();              // 0=Sun, 1=Mon ... 6=Sat
+        var diffToMon = (day === 0 ? -6 : 1 - day);
+        from = new Date(now);
+        from.setDate(now.getDate() + diffToMon);
+        to   = new Date(from);
+        to.setDate(from.getDate() + 6);
+    } else if (kind === 'month') {
+        from = new Date(now.getFullYear(), now.getMonth(), 1);
+        to   = new Date(now.getFullYear(), now.getMonth() + 1, 0);   // last day
+    } else if (kind === 'lastmonth') {
+        from = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        to   = new Date(now.getFullYear(), now.getMonth(), 0);
+    } else if (kind === 'year') {
+        from = new Date(now.getFullYear(), 0, 1);
+        to   = new Date(now.getFullYear(), 11, 31);
+    }
+
+    function fmt(d) {
+        var m = d.getMonth() + 1, day = d.getDate();
+        return d.getFullYear() + '-' + (m < 10 ? '0' + m : m) + '-' + (day < 10 ? '0' + day : day);
+    }
+    document.getElementById('from_date').value = fmt(from);
+    document.getElementById('to_date').value   = fmt(to);
+    document.getElementById('feesFilterForm').submit();
+}
+</script>
+{% endblock %}

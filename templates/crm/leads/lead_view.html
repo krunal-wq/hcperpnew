@@ -383,6 +383,12 @@
             </button>
             {% endif %}
 
+            <!-- Email Button (opens compose modal like WhatsApp) -->
+            <button onclick="openEmailModal()" style="background:#2563eb;color:#fff;border:none;border-radius:8px;padding:7px 14px;cursor:pointer;display:flex;align-items:center;gap:6px;font-size:0.85rem;font-weight:600;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                Email
+            </button>
+
             <div style="position:relative;" id="leadActionMenu">
                 <button onclick="toggleLeadMenu()" style="background:#fff;border:1.5px solid #d1d5db;border-radius:8px;padding:7px 12px;cursor:pointer;display:flex;align-items:center;gap:6px;font-size:0.85rem;font-weight:600;color:#374151;">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
@@ -934,14 +940,14 @@
                 <!-- Body Preview -->
                 <div style="margin-bottom:0.85rem;">
                     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
-                        <label style="font-size:0.8rem;font-weight:600;color:#374151;">Email Body</label>
+                        <label style="font-size:0.8rem;font-weight:600;color:#374151;">Email Body <span style="font-weight:400;color:#9ca3af;font-size:0.72rem;">(directly type to edit)</span></label>
                         <div style="display:flex;gap:4px;">
                             <button type="button" onclick="npdSwitchView('preview')" id="npdBtnPreview" style="background:#1e3a5f;color:#fff;border:none;padding:3px 10px;border-radius:5px;font-size:0.75rem;cursor:pointer;">Preview</button>
                             <button type="button" onclick="npdSwitchView('html')" id="npdBtnHtml" style="background:#f1f5f9;color:#374151;border:none;padding:3px 10px;border-radius:5px;font-size:0.75rem;cursor:pointer;">HTML</button>
                         </div>
                     </div>
                     <!-- Preview -->
-                    <div id="npdBodyPreview" style="border:1.5px solid #e5e7eb;border-radius:8px;padding:1rem;max-height:300px;overflow-y:auto;font-size:0.85rem;line-height:1.6;background:#fafafa;"></div>
+                    <div id="npdBodyPreview" contenteditable="true" spellcheck="true" style="border:1.5px solid #e5e7eb;border-radius:8px;padding:1rem;max-height:300px;overflow-y:auto;font-size:0.85rem;line-height:1.6;background:#fff;outline:none;" onfocus="this.style.borderColor='#1e3a5f';this.style.boxShadow='0 0 0 3px rgba(30,58,95,0.12)';" onblur="this.style.borderColor='#e5e7eb';this.style.boxShadow='none';"></div>
                     <!-- HTML edit -->
                     <textarea name="body" id="npdBodyHtml" style="display:none;width:100%;min-height:300px;font-family:monospace;font-size:0.78rem;padding:0.75rem;border:1.5px solid #e5e7eb;border-radius:8px;resize:vertical;box-sizing:border-box;outline:none;"></textarea>
                 </div>
@@ -1442,30 +1448,102 @@ Quotation valid for 30 days from date of issue.</textarea>
 🔗 Lead URL: {{ request.host_url }}crm/leads/{{ lead.id }}</textarea>
             </div>
 
-            <!-- 3 Options -->
+            <!-- Send Action -->
             <div style="display:flex;flex-direction:column;gap:0.6rem;">
-
-                <!-- Option 1: Direct to lead's phone -->
-                {% if lead.phone %}
-                <a href="https://wa.me/91{{ lead.phone|replace(' ','')|replace('-','') }}?text={{ (lead.contact_name ~ '%0A🏢 ' ~ (lead.company_name or '') ~ '%0A📞 ' ~ lead.phone ~ '%0A%0A🛒 Product: ' ~ (lead.product_name or 'N/A') ~ '%0A📋 Status: ' ~ lead.status)|urlencode }}" target="_blank"
-                   style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:#dcfce7;border:1.5px solid #86efac;border-radius:8px;text-decoration:none;color:#166534;font-weight:600;font-size:0.85rem;">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="#25D366"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
-                    📲 Send to Lead: {{ lead.phone }}
-                </a>
-                {% endif %}
-
-                <!-- Option 2: Copy message (for group paste) -->
-                <button onclick="copyWaMessage()" style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:8px;cursor:pointer;color:#1d4ed8;font-weight:600;font-size:0.85rem;width:100%;text-align:left;">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
-                    <span id="waCopyBtnText">📋 Copy Message — Paste in "KruKi - Krunal Kiran" Group</span>
+                <!-- Send via WhatsApp Web: opens WA Web with the message pre-filled, user picks the contact manually -->
+                <button onclick="openWaWeb()" style="display:flex;align-items:center;justify-content:center;gap:10px;padding:12px 18px;background:#25D366;border:none;border-radius:8px;cursor:pointer;color:#fff;font-weight:700;font-size:0.95rem;width:100%;box-shadow:0 4px 12px rgba(37,211,102,0.3);">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="#fff"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                    Send via WhatsApp Web
                 </button>
-
-                <!-- Option 3: WhatsApp Web share -->
-                <button onclick="openWaWeb()" style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:#f0fdf4;border:1.5px solid #86efac;border-radius:8px;cursor:pointer;color:#166534;font-weight:600;font-size:0.85rem;width:100%;text-align:left;">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-                    🌐 Open WhatsApp Web with Message
-                </button>
+                <div style="font-size:0.72rem;color:#6b7280;text-align:center;margin-top:-2px;">
+                    WhatsApp Web khulega, message pre-filled hoga — number manually select karke Send dabaiye.
+                </div>
             </div>
+        </div>
+    </div>
+</div>
+
+<!-- Email Modal — rich compose form (mirrors NPD modal UX) -->
+<div id="emailModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:1000;align-items:center;justify-content:center;padding:1rem;">
+    <div style="background:#fff;border-radius:12px;width:100%;max-width:720px;max-height:92vh;overflow-y:auto;box-shadow:0 25px 80px rgba(0,0,0,0.25);">
+        <!-- Header -->
+        <div style="background:#2563eb;color:#fff;padding:0.9rem 1.5rem;border-radius:12px 12px 0 0;display:flex;align-items:center;justify-content:space-between;">
+            <div>
+                <div style="font-size:1rem;font-weight:700;display:flex;align-items:center;gap:8px;">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                    Compose Email
+                </div>
+                <div style="font-size:0.78rem;opacity:0.85;margin-top:2px;">{{ lead.contact_name }}{% if lead.company_name %} — {{ lead.company_name }}{% endif %}</div>
+            </div>
+            <button onclick="document.getElementById('emailModal').style.display='none'" style="background:rgba(255,255,255,0.18);border:none;color:#fff;width:28px;height:28px;border-radius:50%;font-size:1rem;cursor:pointer;">✕</button>
+        </div>
+
+        <div style="padding:1.25rem 1.5rem;">
+
+            <!-- Status / Feedback -->
+            <div id="emailStatus" style="display:none;margin-bottom:0.85rem;padding:9px 12px;border-radius:8px;font-size:0.82rem;font-weight:600;text-align:center;"></div>
+
+            <!-- To & From Name -->
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:0.85rem;">
+                <div>
+                    <label style="font-size:0.8rem;font-weight:600;color:#374151;display:block;margin-bottom:3px;">To (Email) *</label>
+                    <input type="email" id="emailTo" value="{{ lead.email or '' }}" placeholder="recipient@example.com" class="fi" style="font-size:0.85rem;" required>
+                </div>
+                <div>
+                    <label style="font-size:0.8rem;font-weight:600;color:#374151;display:block;margin-bottom:3px;">From Name</label>
+                    <input type="text" id="emailFromName" value="{{ config.get('MAIL_FROM_NAME','HCP Wellness Pvt. Ltd.') }}" class="fi" style="font-size:0.85rem;">
+                </div>
+            </div>
+
+            <!-- From Email -->
+            <div style="margin-bottom:0.85rem;">
+                <label style="font-size:0.8rem;font-weight:600;color:#374151;display:block;margin-bottom:3px;">From Email</label>
+                <input type="email" id="emailFromEmail" value="{{ config.get('MAIL_DEFAULT_SENDER') or config.get('MAIL_USERNAME','') }}" class="fi" style="font-size:0.85rem;">
+            </div>
+
+            <!-- Subject -->
+            <div style="margin-bottom:0.85rem;">
+                <label style="font-size:0.8rem;font-weight:600;color:#374151;display:block;margin-bottom:3px;">Subject *</label>
+                <input type="text" id="emailSubject" value="Regarding {{ lead.product_name or 'your inquiry' }}{% if lead.company_name %} — {{ lead.company_name }}{% endif %}" class="fi" style="font-size:0.85rem;" required>
+            </div>
+
+            <!-- Body (Preview / HTML toggle) -->
+            <div style="margin-bottom:0.85rem;">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+                    <label style="font-size:0.8rem;font-weight:600;color:#374151;">Email Body <span style="font-weight:400;color:#9ca3af;font-size:0.72rem;">(directly type to edit)</span></label>
+                    <div style="display:flex;gap:4px;">
+                        <button type="button" onclick="emailSwitchView('preview')" id="emailBtnPreview" style="background:#2563eb;color:#fff;border:none;padding:3px 10px;border-radius:5px;font-size:0.75rem;cursor:pointer;">Preview</button>
+                        <button type="button" onclick="emailSwitchView('html')" id="emailBtnHtml" style="background:#f1f5f9;color:#374151;border:none;padding:3px 10px;border-radius:5px;font-size:0.75rem;cursor:pointer;">HTML</button>
+                    </div>
+                </div>
+                <!-- Preview pane -->
+                <div id="emailBodyPreview" contenteditable="true" spellcheck="true" style="border:1.5px solid #e5e7eb;border-radius:8px;padding:1rem;min-height:240px;max-height:340px;overflow-y:auto;font-size:0.88rem;line-height:1.6;background:#fff;color:#1f2937;outline:none;" onfocus="this.style.borderColor='#2563eb';this.style.boxShadow='0 0 0 3px rgba(37,99,235,0.1)';" onblur="this.style.borderColor='#e5e7eb';this.style.boxShadow='none';"></div>
+                <!-- HTML edit pane -->
+                <textarea id="emailBodyHtml" style="display:none;width:100%;min-height:280px;font-family:monospace;font-size:0.78rem;padding:0.75rem;border:1.5px solid #e5e7eb;border-radius:8px;resize:vertical;box-sizing:border-box;outline:none;"><p>Dear {{ lead.contact_name }},</p>
+<p>Greetings.</p>
+<p>Regarding your inquiry:</p>
+<ul>
+  <li><strong>Product:</strong> {{ lead.product_name or 'N/A' }}</li>
+  <li><strong>Category:</strong> {{ lead.category or 'N/A' }}</li>
+  <li><strong>Quantity:</strong> {{ lead.order_quantity or 'N/A' }}</li>
+</ul>
+<p>[Apna message yahan likhein]</p>
+<p>Best regards,<br>{{ current_user.full_name if current_user and current_user.is_authenticated else 'HCP Team' }}</p></textarea>
+            </div>
+
+            <!-- Hint -->
+            <div style="font-size:0.78rem;color:#6b7280;background:#fffbeb;border:1px solid #fde68a;border-radius:6px;padding:8px 12px;">
+                ⚠️ Email server (SMTP) ke through direct chala jayega. SMTP <code>config.py</code> mein set karein — Gmail/Outlook nahi khulega.
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div style="padding:1rem 1.5rem;border-top:1px solid #e5e7eb;display:flex;justify-content:flex-end;gap:0.5rem;background:#f9fafb;border-radius:0 0 12px 12px;">
+            <button type="button" onclick="document.getElementById('emailModal').style.display='none'" class="btn-outline" style="font-size:0.83rem;">Cancel</button>
+            <button id="emailSendBtn" onclick="sendEmailDirect()" style="background:#2563eb;color:#fff;border:none;padding:8px 22px;border-radius:8px;font-size:0.83rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                <span id="emailSendBtnText">Send Email</span>
+            </button>
         </div>
     </div>
 </div>
@@ -1868,26 +1946,138 @@ function openWaModal() {
     document.getElementById('waModal').style.display = 'flex';
 }
 
-function copyWaMessage() {
-    const msg = document.getElementById('waMessage').value;
-    navigator.clipboard.writeText(msg).then(() => {
-        const btn = document.getElementById('waCopyBtnText');
-        btn.textContent = '✅ Copied! Now open WhatsApp and paste in "KruKi - Krunal Kiran" group';
-        setTimeout(() => {
-            btn.textContent = '📋 Copy Message — Paste in "KruKi - Krunal Kiran" Group';
-        }, 3000);
-    }).catch(() => {
-        // Fallback for older browsers
-        const ta = document.getElementById('waMessage');
-        ta.select();
-        document.execCommand('copy');
-        alert('Copied! Paste it in your WhatsApp group.');
-    });
-}
-
 function openWaWeb() {
+    // Opens WhatsApp Web with the textarea message pre-filled.
+    // User picks the contact / number manually inside WhatsApp Web.
     const msg = encodeURIComponent(document.getElementById('waMessage').value);
     window.open('https://web.whatsapp.com/send?text=' + msg, '_blank');
+}
+
+// ── Email Modal ──
+document.getElementById('emailModal').addEventListener('click', function(e) {
+    if (e.target === this) document.getElementById('emailModal').style.display = 'none';
+});
+
+function openEmailModal() {
+    document.getElementById('emailModal').style.display = 'flex';
+    // Render preview from current HTML content
+    emailSwitchView('preview');
+}
+
+// Track current body view (preview/html) so we know where the latest edits live
+let _emailView = 'preview';
+
+// Toggle between Preview (rendered HTML — directly editable) and HTML (raw source)
+function emailSwitchView(view) {
+    const preview = document.getElementById('emailBodyPreview');
+    const html    = document.getElementById('emailBodyHtml');
+    const btnP    = document.getElementById('emailBtnPreview');
+    const btnH    = document.getElementById('emailBtnHtml');
+    if (!preview || !html) return;
+
+    if (view === 'preview') {
+        // Switching to Preview: load latest HTML from textarea into preview
+        preview.innerHTML = html.value;
+        preview.style.display = 'block';
+        html.style.display    = 'none';
+        btnP.style.background = '#2563eb'; btnP.style.color = '#fff';
+        btnH.style.background = '#f1f5f9'; btnH.style.color = '#374151';
+        _emailView = 'preview';
+    } else {
+        // Switching to HTML: pull edited preview HTML back into textarea
+        if (_emailView === 'preview') {
+            html.value = preview.innerHTML;
+        }
+        preview.style.display = 'none';
+        html.style.display    = 'block';
+        btnP.style.background = '#f1f5f9'; btnP.style.color = '#374151';
+        btnH.style.background = '#2563eb'; btnH.style.color = '#fff';
+        _emailView = 'html';
+    }
+}
+
+function _emailShowStatus(msg, kind) {
+    const el = document.getElementById('emailStatus');
+    if (!el) return;
+    el.style.display = 'block';
+    el.textContent = msg;
+    if (kind === 'success') {
+        el.style.background = '#dcfce7';
+        el.style.color      = '#166534';
+        el.style.border     = '1px solid #86efac';
+    } else if (kind === 'error') {
+        el.style.background = '#fee2e2';
+        el.style.color      = '#991b1b';
+        el.style.border     = '1px solid #fca5a5';
+    } else {
+        el.style.background = '#eff6ff';
+        el.style.color      = '#1d4ed8';
+        el.style.border     = '1px solid #bfdbfe';
+    }
+}
+
+function _emailSetSending(isSending) {
+    const btn  = document.getElementById('emailSendBtn');
+    const txt  = document.getElementById('emailSendBtnText');
+    if (!btn || !txt) return;
+    btn.disabled = isSending;
+    btn.style.opacity = isSending ? '0.65' : '1';
+    btn.style.cursor  = isSending ? 'wait'  : 'pointer';
+    txt.textContent   = isSending ? 'Sending…' : 'Send Email';
+}
+
+// Send email DIRECTLY via server SMTP. No external client opens.
+function sendEmailDirect() {
+    // If user was editing in Preview, sync their changes into the HTML textarea first
+    if (_emailView === 'preview') {
+        document.getElementById('emailBodyHtml').value =
+            document.getElementById('emailBodyPreview').innerHTML;
+    }
+    const to        = document.getElementById('emailTo').value.trim();
+    const subject   = document.getElementById('emailSubject').value.trim();
+    const body      = document.getElementById('emailBodyHtml').value.trim();   // HTML body
+    const fromName  = (document.getElementById('emailFromName')  || {}).value || '';
+    const fromEmail = (document.getElementById('emailFromEmail') || {}).value || '';
+
+    if (!to)      { _emailShowStatus('To address daalein.',   'error'); return; }
+    if (!subject) { _emailShowStatus('Subject daalein.',      'error'); return; }
+    if (!body)    { _emailShowStatus('Message body daalein.', 'error'); return; }
+
+    _emailShowStatus('Email bheja ja raha hai…', 'info');
+    _emailSetSending(true);
+
+    fetch('{{ url_for("mail.lead_send_email", id=lead.id) }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        credentials: 'same-origin',
+        body: JSON.stringify({
+            to: to,
+            subject: subject,
+            body: body,
+            from_name:  fromName.trim(),
+            from_email: fromEmail.trim()
+        })
+    })
+    .then(r => r.json().then(d => ({ ok: r.ok, data: d })))
+    .then(({ ok, data }) => {
+        _emailSetSending(false);
+        if (ok && data.success) {
+            _emailShowStatus('✅ ' + (data.message || 'Email sent!'), 'success');
+            setTimeout(() => {
+                document.getElementById('emailModal').style.display = 'none';
+                document.getElementById('emailStatus').style.display = 'none';
+            }, 1500);
+        } else {
+            _emailShowStatus('❌ ' + (data.error || 'Send failed'), 'error');
+        }
+    })
+    .catch(err => {
+        _emailSetSending(false);
+        _emailShowStatus('❌ Network error: ' + err.message, 'error');
+    });
 }
 
 // ── Load Contributors ──

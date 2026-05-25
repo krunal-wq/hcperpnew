@@ -528,6 +528,8 @@ DEFAULT_MODULES = [
     {'name':'purchase_rm',  'label':'Raw Material',   'icon':'🧪', 'url_prefix':'/material?item_type=RM', 'sort_order':21, 'parent':'purchase'},
     {'name':'purchase_pm',  'label':'Packing Material','icon':'📦','url_prefix':'/material?item_type=PM', 'sort_order':22, 'parent':'purchase'},
     {'name':'purchase_fg',  'label':'Finish Goods',   'icon':'✅', 'url_prefix':'/material?item_type=FG', 'sort_order':23, 'parent':'purchase'},
+    {'name':'formulation',  'label':'Formulation',    'icon':'🧪', 'url_prefix':'/formulation',           'sort_order':24, 'parent':'purchase'},
+    {'name':'packing_bom',  'label':'Packing BOM',    'icon':'📦', 'url_prefix':'/packing-bom',           'sort_order':25, 'parent':'purchase'},
     {'name':'hr',           'label':'HR',             'icon':'👔', 'url_prefix':'/hr',        'sort_order':5},
     {'name':'hr_employees', 'label':'Employees',      'icon':'🪪', 'url_prefix':'/hr/employees','sort_order':6,'parent':'hr'},
     {'name':'hr_contractors','label':'Contractors',   'icon':'🤝', 'url_prefix':'/hr/contractors','sort_order':7,'parent':'hr'},

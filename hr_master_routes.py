@@ -5,7 +5,7 @@ Blueprint: hr_masters at /hr/masters
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import login_required, current_user
 from models import db
-from models.employee import EmployeeTypeMaster, EmployeeLocationMaster, DepartmentMaster, DesignationMaster, CountryMaster, StateMaster, NationalityMaster, QualificationMaster
+from models.employee import EmployeeTypeMaster, EmployeeLocationMaster, DepartmentMaster, DesignationMaster, CountryMaster, StateMaster, NationalityMaster, QualificationMaster, GradeMaster
 from datetime import datetime
 
 hr_masters = Blueprint('hr_masters', __name__, url_prefix='/hr/masters')
@@ -52,6 +52,7 @@ def index():
     states    = StateMaster.query.order_by(StateMaster.country_id, StateMaster.sort_order, StateMaster.name).all()
     nationalities = NationalityMaster.query.order_by(NationalityMaster.sort_order, NationalityMaster.name).all()
     qualifications= QualificationMaster.query.order_by(QualificationMaster.sort_order, QualificationMaster.name).all()
+    grades        = GradeMaster.query.order_by(GradeMaster.sort_order, GradeMaster.grade_code).all()
 
     # Map ?tab= → sidebar active_page slug so the right submenu item highlights
     _tab_to_page = {
@@ -64,6 +65,7 @@ def index():
         'shift':       'hr_shift_master',
         'nationality': 'hr_nationality_master',
         'qualification':'hr_qualification_master',
+        'grade':       'hr_grade_master',
     }
     _tab = (request.args.get('tab') or 'emp_type').strip()
     _ap  = _tab_to_page.get(_tab, 'hr_masters')
@@ -74,6 +76,7 @@ def index():
         countries=countries, states=states,
         nationalities=nationalities,
         qualifications=qualifications,
+        grades=grades,
         active_page=_ap
     )
 
@@ -297,8 +300,21 @@ def designation_add():
     if DesignationMaster.query.filter_by(name=name).first():
         flash(f'"{name}" already exists.', 'error')
         return redirect(url_for('hr_masters.index'))
+
+    # Optional fields: notice_period_days + grade_id
+    notice = request.form.get('notice_period_days', type=int)
+    gid    = request.form.get('grade_id', type=int)
+    if gid and not GradeMaster.query.get(gid):
+        gid = None  # ignore invalid grade id silently
+
     sort = DesignationMaster.query.count()
-    db.session.add(DesignationMaster(name=name, sort_order=sort, created_by=current_user.id))
+    db.session.add(DesignationMaster(
+        name=name,
+        notice_period_days=notice,
+        grade_id=gid,
+        sort_order=sort,
+        created_by=current_user.id,
+    ))
     db.session.commit()
     flash(f'Designation "{name}" added!', 'success')
     return redirect(url_for('hr_masters.index'))
@@ -316,6 +332,20 @@ def designation_edit(id):
             flash(f'"{name}" already exists.', 'error')
             return redirect(url_for('hr_masters.index'))
         rec.name = name
+
+    # Optional fields — accept blank to clear
+    if 'notice_period_days' in request.form:
+        val = request.form.get('notice_period_days', '').strip()
+        rec.notice_period_days = int(val) if val.isdigit() else None
+
+    if 'grade_id' in request.form:
+        val = request.form.get('grade_id', '').strip()
+        if val.isdigit():
+            gid = int(val)
+            rec.grade_id = gid if GradeMaster.query.get(gid) else None
+        else:
+            rec.grade_id = None
+
     db.session.commit()
     flash('Updated!', 'success')
     return redirect(url_for('hr_masters.index'))
@@ -688,6 +718,105 @@ def qualification_toggle(id):
 
 
 # ══════════════════════════════════════════════════════════════
+# GRADE CRUD — J1, J2, M1, MG1 ... with level + positions
+# ══════════════════════════════════════════════════════════════
+ALLOWED_GRADE_LEVELS = ['Junior', 'Mid', 'Senior', 'Management']
+
+
+@hr_masters.route('/grade/add', methods=['POST'])
+@login_required
+def grade_add():
+    _admin_only()
+    code      = (request.form.get('grade_code') or '').strip().upper()
+    level     = (request.form.get('grade_level') or '').strip()
+    positions = (request.form.get('grade_positions') or '').strip()
+    remarks   = (request.form.get('remarks') or '').strip()
+
+    if not code:
+        flash('Grade Code required (e.g. J1, M2, MG3).', 'error')
+        return redirect(url_for('hr_masters.index', tab='grade'))
+    if level not in ALLOWED_GRADE_LEVELS:
+        flash(f'Invalid level. Allowed: {", ".join(ALLOWED_GRADE_LEVELS)}.', 'error')
+        return redirect(url_for('hr_masters.index', tab='grade'))
+
+    if GradeMaster.query.filter(GradeMaster.grade_code.ilike(code)).first():
+        flash(f'Grade "{code}" already exists.', 'error')
+        return redirect(url_for('hr_masters.index', tab='grade'))
+
+    sort = GradeMaster.query.count()
+    db.session.add(GradeMaster(
+        grade_code=code,
+        grade_level=level,
+        grade_positions=positions or None,
+        remarks=remarks or None,
+        sort_order=sort,
+        created_by=current_user.id,
+    ))
+    db.session.commit()
+    flash(f'Grade "{code}" added!', 'success')
+    return redirect(url_for('hr_masters.index', tab='grade'))
+
+
+@hr_masters.route('/grade/<int:id>/edit', methods=['POST'])
+@login_required
+def grade_edit(id):
+    _admin_only()
+    rec = GradeMaster.query.get_or_404(id)
+
+    code      = (request.form.get('grade_code') or '').strip().upper()
+    level     = (request.form.get('grade_level') or '').strip()
+    positions = (request.form.get('grade_positions') or '').strip()
+    remarks   = (request.form.get('remarks') or '').strip()
+
+    if code:
+        dup = GradeMaster.query.filter(
+            GradeMaster.grade_code.ilike(code),
+            GradeMaster.id != id
+        ).first()
+        if dup:
+            flash(f'Grade "{code}" already exists.', 'error')
+            return redirect(url_for('hr_masters.index', tab='grade'))
+        rec.grade_code = code
+
+    if level:
+        if level not in ALLOWED_GRADE_LEVELS:
+            flash(f'Invalid level. Allowed: {", ".join(ALLOWED_GRADE_LEVELS)}.', 'error')
+            return redirect(url_for('hr_masters.index', tab='grade'))
+        rec.grade_level = level
+
+    if 'grade_positions' in request.form:
+        rec.grade_positions = positions or None
+    if 'remarks' in request.form:
+        rec.remarks = remarks or None
+
+    rec.sort_order = request.form.get('sort_order', rec.sort_order, type=int)
+    db.session.commit()
+    flash('Grade updated!', 'success')
+    return redirect(url_for('hr_masters.index', tab='grade'))
+
+
+@hr_masters.route('/grade/<int:id>/delete', methods=['POST'])
+@login_required
+def grade_delete(id):
+    _admin_only()
+    rec = GradeMaster.query.get_or_404(id)
+    db.session.delete(rec)
+    db.session.commit()
+    flash(f'Grade "{rec.grade_code}" deleted.', 'success')
+    return redirect(url_for('hr_masters.index', tab='grade'))
+
+
+@hr_masters.route('/grade/<int:id>/toggle', methods=['POST'])
+@login_required
+def grade_toggle(id):
+    _admin_only()
+    rec = GradeMaster.query.get_or_404(id)
+    rec.is_active = not rec.is_active
+    db.session.commit()
+    return jsonify(success=True, is_active=rec.is_active)
+
+
+# ══════════════════════════════════════════════════════════════
 # SEED — Default data insert karo
 # ══════════════════════════════════════════════════════════════
 DEFAULT_NATIONALITIES = [
@@ -731,6 +860,23 @@ DEFAULT_QUALIFICATIONS = [
 ]
 
 
+DEFAULT_GRADES = [
+    # (code, level, positions, remarks)
+    ('J1',  'Junior',     'Trainee, Assistant',                                                                                              'Entry Level & support staffs'),
+    ('J2',  'Junior',     'Jr. Chemist',                                                                                                     'Entry Level & support staffs'),
+    ('J3',  'Junior',     'Jr. Executive, Jr. Officer',                                                                                      'Entry Level & support staffs'),
+    ('M1',  'Mid',        'DEO, Driver, Receptionist, Security',                                                                             'Skilled Professionals'),
+    ('M2',  'Mid',        'Accountant, Client Coordinator, Electrician, Executive, Foreman, Machine Operator, Technician, Utility Operator', 'Skilled Professionals'),
+    ('M3',  'Mid',        'Batch Operator, Chemist, Graphics Designer, Microbiologist, Officer, Security Supervisor, Supervisor',            'Skilled Professionals'),
+    ('S1',  'Senior',     'Incharge, Security Officer',                                                                                      'Expert Professionals'),
+    ('S2',  'Senior',     'Software Developer, Sr. Positions',                                                                               'Expert Professionals'),
+    ('S3',  'Senior',     'Assistant Manager',                                                                                               'Expert Professionals'),
+    ('MG1', 'Management', 'Manager',                                                                                                         'Managers, Heads'),
+    ('MG2', 'Management', 'Head',                                                                                                            'Managers, Heads'),
+    ('MG3', 'Management', 'Director',                                                                                                        'Managers, Heads'),
+]
+
+
 def seed_defaults():
     """Default data seed karo."""
     for i, name in enumerate(DEFAULT_EMP_TYPES):
@@ -756,5 +902,13 @@ def seed_defaults():
     for i, name in enumerate(DEFAULT_QUALIFICATIONS):
         if not QualificationMaster.query.filter(QualificationMaster.name.ilike(name)).first():
             db.session.add(QualificationMaster(name=name, sort_order=i, is_active=True))
+
+    for i, (code, level, positions, remarks) in enumerate(DEFAULT_GRADES):
+        if not GradeMaster.query.filter(GradeMaster.grade_code.ilike(code)).first():
+            db.session.add(GradeMaster(
+                grade_code=code, grade_level=level,
+                grade_positions=positions, remarks=remarks,
+                sort_order=i, is_active=True,
+            ))
 
     db.session.commit()

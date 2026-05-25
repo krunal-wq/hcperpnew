@@ -397,7 +397,7 @@ def _save_grn_file(file_storage, grn_number, field_label):
 
 def _next_grn_number(grn_type, grn_date):
     """Generate next GRN number — separate sequence per type per FY.
-       Format: RM-GRN/0001/26-27
+       Format: RM-0408-26-27   (also used for short version)
     """
     fy, fy_year = _financial_year(grn_date)
     # Find max serial for this type + fy
@@ -407,8 +407,8 @@ def _next_grn_number(grn_type, grn_date):
         GrnMaster.is_deleted == False,
     ).scalar() or 0
     next_serial = max_serial + 1
-    grn_no       = f'{grn_type}-GRN/{next_serial:04d}/{fy}'
-    grn_no_short = f'{grn_type}GRN-{fy_year}-{next_serial:04d}'
+    grn_no       = f'{grn_type}-{next_serial:04d}-{fy}'
+    grn_no_short = f'{grn_type}-{next_serial:04d}-{fy}'   # same format
     return grn_no, grn_no_short, next_serial, fy, fy_year
 
 
@@ -595,11 +595,31 @@ def save_grn():
             db.session.flush()
 
         # ── Header fields ─────────────────────────────────────────────────
-        grn.po_id        = _to_int(request.form.get('po_id')) or None
-        grn.po_number    = request.form.get('po_number', '').strip()
-        grn.po_date      = _parse_date(request.form.get('po_date'))
+        # GRN-Without-PO flow: when the user picks "NA" in the primary supplier
+        # dropdown and chooses from the manual (all-suppliers) one, the form
+        # posts is_without_po=1 and the supplier_id comes from the manual
+        # dropdown. The form already consolidates this into the hidden
+        # `supplier_id` field, but we also accept `manual_supplier_id` as a
+        # fallback for clients that post both fields separately.
+        is_without_po = (request.form.get('is_without_po', '0') or '0').strip() in ('1', 'true', 'True', 'yes', 'on')
+        grn.is_without_po = is_without_po
 
-        grn.supplier_id  = _to_int(request.form.get('supplier_id')) or None
+        if is_without_po:
+            # PO references must be cleared — this GRN has no parent PO.
+            grn.po_id     = None
+            grn.po_number = ''
+            grn.po_date   = None
+            # Prefer manual_supplier_id when provided; fall back to supplier_id.
+            sup_id = (_to_int(request.form.get('manual_supplier_id'))
+                      or _to_int(request.form.get('supplier_id'))
+                      or None)
+            grn.supplier_id = sup_id
+        else:
+            grn.po_id        = _to_int(request.form.get('po_id')) or None
+            grn.po_number    = request.form.get('po_number', '').strip()
+            grn.po_date      = _parse_date(request.form.get('po_date'))
+            grn.supplier_id  = _to_int(request.form.get('supplier_id')) or None
+
         grn.supplier_name = request.form.get('supplier_name', '').strip()
         grn.supplier_address = request.form.get('supplier_address', '').strip()
 
@@ -613,6 +633,13 @@ def save_grn():
                 _info = _supplier_full_info(_sup)
                 if not grn.supplier_name:    grn.supplier_name    = _info['name']
                 if not grn.supplier_address: grn.supplier_address = _info['address']
+
+        # Server-side validation: supplier is required in BOTH flows.
+        if not grn.supplier_id:
+            db.session.rollback()
+            msg = ('Manual supplier is required when creating a GRN without PO.'
+                   if is_without_po else 'Supplier is required.')
+            return jsonify(success=False, error=msg), 400
 
         grn.invoice_no   = request.form.get('invoice_no', '').strip()
         grn.invoice_date = _parse_date(request.form.get('invoice_date'))
@@ -724,8 +751,8 @@ def save_grn():
             item = GrnItem(
                 grn_id      = grn.id,
                 sr_no       = sr,
-                po_item_id  = _to_int(po_item_ids[i] if i < len(po_item_ids) else None) or None,
-                po_number   = (po_numbers_row[i] if i < len(po_numbers_row) else '').strip(),
+                po_item_id  = None if grn.is_without_po else (_to_int(po_item_ids[i] if i < len(po_item_ids) else None) or None),
+                po_number   = '' if grn.is_without_po else (po_numbers_row[i] if i < len(po_numbers_row) else '').strip(),
                 material_id = _to_int(material_ids[i] if i < len(material_ids) else None) or None,
                 item_code   = (item_codes[i] if i < len(item_codes) else '').strip(),
                 item_name   = name,
@@ -992,7 +1019,97 @@ def cancel_grn(grn_id):
 @grn_bp.route('/api/suppliers')
 @login_required
 def api_suppliers():
-    """Suppliers for the GRN form's supplier picker — filtered by GRN type."""
+    """Suppliers for the GRN form's PRIMARY supplier picker.
+
+    Returns ONLY suppliers who have at least one PO that is:
+        • status = Approved (PO open, nothing received yet), OR
+        • status = Partial Received (PO partially completed, still pending)
+    i.e. suppliers whose PO is still pending for GRN.
+
+    Optionally filters PO type to match GRN type (RM ↔ RM, PM/COR/SLV ↔ PM-family).
+
+    Always appends a sentinel option with id='__NA__' at the end so the user can
+    choose to create a GRN without a PO. Selecting it opens a secondary dropdown
+    on the client that lists ALL suppliers from master (api_all_suppliers).
+    """
+    grn_type = (request.args.get('grn_type', '') or '').upper()
+    q = (request.args.get('q', '') or '').strip()
+
+    # Sub-query: supplier IDs that have at least one open/partial PO
+    po_sup_q = db.session.query(PurchaseOrder.supplier_id).filter(
+        PurchaseOrder.is_deleted == False,
+        PurchaseOrder.supplier_id.isnot(None),
+        PurchaseOrder.status.in_([PO_STATUS_APPROVED, PO_STATUS_PARTIAL]),
+    )
+    # Match PO type to GRN type so we don't show suppliers whose only
+    # pending PO is of an unrelated material family.
+    if grn_type == 'RM':
+        po_sup_q = po_sup_q.filter(PurchaseOrder.po_type == 'RM')
+    elif grn_type in ('PM', 'COR', 'SLV'):
+        po_sup_q = po_sup_q.filter(PurchaseOrder.po_type.in_(['PM', 'COR', 'SLV']))
+    po_sup_ids = po_sup_q.distinct().subquery()
+
+    qs = (Supplier.query
+          .filter_by(is_deleted=False)
+          .filter(Supplier.id.in_(po_sup_ids)))
+    # Defence-in-depth: also keep the legacy supplier_type sanity filter so a
+    # mismatched master row never sneaks in.
+    if grn_type == 'RM':
+        qs = qs.filter(Supplier.supplier_type.ilike('%RM%'))
+    elif grn_type in ('PM', 'COR', 'SLV'):
+        qs = qs.filter(Supplier.supplier_type.ilike('%PM%'))
+    if q:
+        like = f'%{q}%'
+        qs = qs.filter(or_(
+            Supplier.supplier_name.ilike(like),
+            Supplier.gst_number.ilike(like),
+        ))
+    rows = qs.order_by(Supplier.supplier_name).limit(50).all()
+    results = []
+    for s in rows:
+        info = _supplier_full_info(s)
+        results.append({
+            'id':      s.id,
+            'text':    f'{s.supplier_name}' + (f' ({s.gst_number})' if s.gst_number else ''),
+            'name':    info['name'],
+            'address': info['address'],
+            'gst':     info['gst'],
+            'state':   info['state'],
+            'state_code': info['state_code'],
+            'phone':   info['phone'],
+            'email':   info['email'],
+        })
+
+    # Always append the "NA" sentinel as the final option. When the user picks
+    # it, the form reveals the secondary supplier dropdown (all suppliers).
+    # Only include when the search query is empty or matches "NA" loosely, so
+    # Select2 search still feels natural.
+    if not q or 'na' in q.lower():
+        results.append({
+            'id':      '__NA__',
+            'text':    'NA — Create GRN without PO',
+            'name':    '',
+            'address': '',
+            'gst':     '',
+            'state':   '',
+            'state_code': '',
+            'phone':   '',
+            'email':   '',
+            'is_na':   True,
+        })
+    return jsonify(results=results)
+
+
+@grn_bp.route('/api/all-suppliers')
+@login_required
+def api_all_suppliers():
+    """SECONDARY (manual) supplier dropdown — returns ALL suppliers from the
+    master, without PO filtering. Used when the user picks "NA" in the primary
+    supplier dropdown to create a GRN without a PO.
+
+    Still respects grn_type when given so RM GRNs see RM suppliers, etc.,
+    purely as a quality-of-life filter; pass grn_type='' to get every supplier.
+    """
     grn_type = (request.args.get('grn_type', '') or '').upper()
     q = (request.args.get('q', '') or '').strip()
 
@@ -1007,7 +1124,7 @@ def api_suppliers():
             Supplier.supplier_name.ilike(like),
             Supplier.gst_number.ilike(like),
         ))
-    rows = qs.order_by(Supplier.supplier_name).limit(50).all()
+    rows = qs.order_by(Supplier.supplier_name).limit(100).all()
     results = []
     for s in rows:
         info = _supplier_full_info(s)
