@@ -5,7 +5,7 @@ Blueprint: masters at /masters
 from flask import Blueprint, render_template, redirect, url_for, request, flash, jsonify
 from flask_login import login_required, current_user
 from permissions import get_perm
-from models import db, LeadStatus, LeadSource, LeadCategory, ProductRange, CategoryMaster, UOMMaster, HSNCode
+from models import db, LeadStatus, LeadSource, LeadCategory, ProductRange, CategoryMaster, UOMMaster, HSNCode, QCParamOption
 from flask_login import current_user
 from datetime import datetime
 
@@ -588,5 +588,114 @@ def npd_category_toggle(id):
     obj.status = not obj.status
     obj.modified_at = datetime.now()
     obj.modified_by = current_user.id
+    db.session.commit()
+    return jsonify(success=True, status=obj.status)
+
+
+# ══════════════════════════════════════════════════════════════════
+# QC PARAMETERS MASTER — Physical State / Appearance / Odour
+#   Single page, three categories. Used by the TRS form dropdowns.
+# ══════════════════════════════════════════════════════════════════
+QC_PARAM_CATS = [
+    ('physical_state', 'Physical State', '🧪'),
+    ('appearance',     'Appearance',     '👁️'),
+    ('odour',          'Odour',          '👃'),
+]
+_QC_VALID_CATS = {c[0] for c in QC_PARAM_CATS}
+
+
+@masters.route('/qc-params')
+@login_required
+def qc_param_list():
+    grouped = {}
+    for cat, _label, _icon in QC_PARAM_CATS:
+        grouped[cat] = (QCParamOption.query
+                        .filter_by(category=cat, is_deleted=False)
+                        .order_by(QCParamOption.sort_order.asc(),
+                                  QCParamOption.value.asc())
+                        .all())
+    return render_template('masters/qc_param_master.html',
+                           cats=QC_PARAM_CATS,
+                           grouped=grouped,
+                           active_page='qc_param_master')
+
+
+@masters.route('/qc-params/add', methods=['POST'])
+@login_required
+def qc_param_add():
+    category = (request.form.get('category') or '').strip()
+    value    = (request.form.get('value') or '').strip()
+    if category not in _QC_VALID_CATS:
+        flash('Invalid category', 'danger')
+        return redirect(url_for('masters.qc_param_list'))
+    if not value:
+        flash('Value required', 'danger')
+        return redirect(url_for('masters.qc_param_list'))
+    existing = QCParamOption.query.filter_by(category=category, value=value).first()
+    if existing:
+        if existing.is_deleted:
+            # revive a soft-deleted one instead of duplicate-key error
+            existing.is_deleted = False
+            existing.status = True
+            existing.modified_by = current_user.id
+            existing.modified_at = datetime.now()
+            db.session.commit()
+            flash(f'"{value}" restored', 'success')
+        else:
+            flash(f'"{value}" already exists', 'warning')
+        return redirect(url_for('masters.qc_param_list'))
+    last = (QCParamOption.query.filter_by(category=category)
+            .order_by(QCParamOption.sort_order.desc()).first())
+    nxt = (last.sort_order + 1) if last else 0
+    obj = QCParamOption(category=category, value=value, sort_order=nxt,
+                        status=True, created_by=current_user.id)
+    db.session.add(obj)
+    db.session.commit()
+    flash(f'"{value}" added', 'success')
+    return redirect(url_for('masters.qc_param_list'))
+
+
+@masters.route('/qc-params/<int:id>/edit', methods=['POST'])
+@login_required
+def qc_param_edit(id):
+    obj = QCParamOption.query.get_or_404(id)
+    new_val = (request.form.get('value') or obj.value).strip()
+    if new_val and new_val != obj.value:
+        dupe = QCParamOption.query.filter(
+            QCParamOption.category == obj.category,
+            QCParamOption.value == new_val,
+            QCParamOption.id != obj.id,
+            QCParamOption.is_deleted == False).first()
+        if dupe:
+            flash(f'"{new_val}" already exists', 'warning')
+            return redirect(url_for('masters.qc_param_list'))
+    obj.value = new_val
+    obj.status = request.form.get('status') == '1'
+    obj.modified_by = current_user.id
+    obj.modified_at = datetime.now()
+    db.session.commit()
+    flash('Updated', 'success')
+    return redirect(url_for('masters.qc_param_list'))
+
+
+@masters.route('/qc-params/<int:id>/delete', methods=['POST'])
+@login_required
+def qc_param_delete(id):
+    obj = QCParamOption.query.get_or_404(id)
+    obj.is_deleted = True
+    obj.modified_by = current_user.id
+    obj.modified_at = datetime.now()
+    db.session.commit()
+    flash(f'"{obj.value}" deleted', 'success')
+    return redirect(url_for('masters.qc_param_list'))
+
+
+@masters.route('/qc-params/<int:id>/toggle', methods=['POST'])
+@login_required
+def qc_param_toggle(id):
+    obj = QCParamOption.query.get_or_404(id)
+    obj.status = not obj.status
+    obj.modified_by = current_user.id
+    obj.modified_at = datetime.now()
     db.session.commit()
     return jsonify(success=True, status=obj.status)

@@ -22,6 +22,51 @@
       border-radius:13px; font-size:11px; font-weight:800; text-transform:uppercase;
       color:#fff; letter-spacing:.05em; }
 
+  /* ── Hamburger menu (3 lines) + dropdown ────────────────────── */
+  .gv-menu-wrap { position:relative; margin-left:auto; }
+  .gv-menu-btn {
+    width:42px; height:42px; padding:0;
+    background:#fff; border:1.5px solid #cbd5e1; border-radius:7px;
+    cursor:pointer; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; gap:4px;
+    transition:all .15s;
+  }
+  .gv-menu-btn:hover { border-color:#94a3b8; background:#f8fafc; }
+  .gv-menu-btn span {
+    display:block; width:20px; height:2.5px; background:#475569;
+    border-radius:2px; transition:all .2s;
+  }
+  .gv-menu-btn.is-open span:nth-child(1) { transform:translateY(6.5px) rotate(45deg); }
+  .gv-menu-btn.is-open span:nth-child(2) { opacity:0; }
+  .gv-menu-btn.is-open span:nth-child(3) { transform:translateY(-6.5px) rotate(-45deg); }
+
+  .gv-menu {
+    position:absolute; top:calc(100% + 6px); right:0;
+    min-width:230px; background:#fff; border:1px solid #e2e8f0;
+    border-radius:10px; box-shadow:0 10px 30px rgba(15,23,42,.12);
+    padding:6px; z-index:50;
+    display:none; flex-direction:column; gap:2px;
+  }
+  .gv-menu.is-open { display:flex; }
+  .gv-menu-item {
+    display:flex; align-items:center; gap:10px;
+    padding:10px 14px; border-radius:6px;
+    font-size:13px; font-weight:600; color:#334155;
+    background:#fff; border:0; cursor:pointer; text-align:left;
+    text-decoration:none; width:100%; white-space:nowrap;
+    transition:background .12s;
+  }
+  .gv-menu-item:hover { background:#f1f5f9; color:#0f172a; }
+  .gv-menu-item.is-success { color:#15803d; }
+  .gv-menu-item.is-success:hover { background:#dcfce7; }
+  .gv-menu-item.is-warning { color:#b45309; }
+  .gv-menu-item.is-warning:hover { background:#fef3c7; }
+  .gv-menu-item.is-primary { color:#1d4ed8; }
+  .gv-menu-item.is-primary:hover { background:#dbeafe; }
+  .gv-menu-item.is-accent { color:#1e40af; font-weight:700; }
+  .gv-menu-item.is-accent:hover { background:#dbeafe; }
+  .gv-menu-sep { height:1px; background:#e2e8f0; margin:4px 6px; }
+
   /* ═══════════════════════════════════════════════════════════════
      Document — Tally-style print-friendly layout
      ═══════════════════════════════════════════════════════════════ */
@@ -71,12 +116,35 @@
   .grn-items .desc .meta em { font-style:italic; color:#0369a1; }
   .grn-items .total-row td { font-weight:800; background:#fafbfd; font-size:12px; }
 
+  /* Quality Checklist (printable) */
+  .grn-qc { border:1px solid #1e293b; border-top:0; padding:10px 14px; background:#fafbfd; }
+  .grn-qc .qc-title { font-size:11px; font-weight:800; color:#1e293b; letter-spacing:.05em;
+                       text-transform:uppercase; margin-bottom:6px; }
+  .grn-qc .qc-grid  { display:grid; grid-template-columns: repeat(3, 1fr); gap:6px 14px; font-size:12px; }
+
+  /* Remarks (printable) */
+  .grn-remarks { display:grid; grid-template-columns: 1fr 1fr; border:1px solid #1e293b; border-top:0; }
+  .grn-remarks .rmk { padding:10px 14px; border-right:1px solid #1e293b; min-height:50px; }
+  .grn-remarks .rmk:last-child { border-right:0; }
+  .grn-remarks .rmk-lbl { font-size:10px; font-weight:700; color:#64748b; letter-spacing:.04em;
+                          text-transform:uppercase; margin-bottom:3px; }
+  .grn-remarks .rmk-val { font-size:12px; color:#0f172a; white-space:pre-wrap; }
+
   .file-btn { display:inline-block; padding:3px 9px; background:#1e40af; color:#fff !important;
       font-size:9.5px; font-weight:700; border-radius:3px; text-decoration:none;
       letter-spacing:.04em; margin-top:3px; margin-right:3px; }
   .file-btn:hover { background:#1e3a8a; }
   .file-btn.coa { background:#475569; }
   .file-btn.coa:hover { background:#334155; }
+
+  /* COA download icon button */
+  .coa-dl { display:inline-flex; align-items:center; gap:4px;
+            padding:5px 10px; background:#0f172a; color:#fff !important;
+            border-radius:5px; text-decoration:none;
+            transition:background .15s, transform .1s; }
+  .coa-dl:hover { background:#1e40af; transform:translateY(-1px); }
+  .coa-dl:active { transform:translateY(0); }
+  @media print { .coa-dl { background:#fff; color:#1e293b !important; border:1px solid #1e293b; } }
 
   /* Signature block */
   .grn-sig { display:grid; grid-template-columns: 1fr 1fr; border-top:0; }
@@ -128,18 +196,40 @@
   <div class="gv-actions">
     <a href="{{ url_for('grn.index') }}?grn_type={{ grn.grn_type }}" class="gv-act outline">← Back</a>
     <span class="gv-status-pill" style="background:{{ grn.status_color }};">{{ grn.status }}</span>
-    {% if grn.is_editable %}
-    <a href="{{ url_for('grn.edit_grn', grn_id=grn.id) }}" class="gv-act primary">✏️ Edit</a>
-    {% endif %}
-    {% if grn.can_complete and role in ('admin','director','manager','purchase_manager') %}
-    <button class="gv-act success" onclick="grnComplete({{ grn.id }})">✅ Submit &amp; Complete</button>
-    {% endif %}
-    {% if grn.can_cancel and grn.status != 'Cancelled' %}
-    <button class="gv-act warning" onclick="grnCancel({{ grn.id }})">⊘ Cancel</button>
-    {% endif %}
-    <a class="gv-act outline" href="javascript:window.print()">🖨️ Print / Save as PDF</a>
-    <a class="gv-act outline" href="{{ url_for('grn.pdf_grn', grn_id=grn.id) }}" target="_blank">📄 Download PDF</a>
-    <a class="gv-act outline" href="{{ url_for('grn.labels_grn', grn_id=grn.id) }}" target="_blank">🏷️ Print Labels</a>
+
+    <div class="gv-menu-wrap">
+      <button type="button" class="gv-menu-btn" id="gvMenuBtn"
+              onclick="gvToggleMenu(event)" aria-label="More actions">
+        <span></span><span></span><span></span>
+      </button>
+      <div class="gv-menu" id="gvMenu">
+        {% if grn.is_editable %}
+        <a class="gv-menu-item is-primary" href="{{ url_for('grn.edit_grn', grn_id=grn.id) }}">✏️ Edit</a>
+        {% endif %}
+        {% if grn.can_complete and role in ('admin','director','manager','purchase_manager') %}
+        <button type="button" class="gv-menu-item is-success" onclick="grnComplete({{ grn.id }})">✅ Submit &amp; Complete</button>
+        {% endif %}
+        {% if grn.can_cancel and grn.status != 'Cancelled' %}
+        <button type="button" class="gv-menu-item is-warning" onclick="grnCancel({{ grn.id }})">⊘ Cancel</button>
+        {% endif %}
+        {% if grn.is_editable or (grn.can_complete and role in ('admin','director','manager','purchase_manager')) or (grn.can_cancel and grn.status != 'Cancelled') %}
+        <div class="gv-menu-sep"></div>
+        {% endif %}
+        <a class="gv-menu-item" href="javascript:window.print()">🖨️ Print / Save as PDF</a>
+        <a class="gv-menu-item" href="{{ url_for('grn.pdf_grn', grn_id=grn.id) }}" target="_blank">📄 Download PDF</a>
+        <a class="gv-menu-item" href="{{ url_for('grn.labels_grn', grn_id=grn.id) }}" target="_blank">🏷️ Print Labels</a>
+        {% if grn.grn_type == 'RM' %}
+        <a class="gv-menu-item" href="{{ url_for('grn.checklist_grn', grn_id=grn.id) }}" target="_blank">📝 Check List</a>
+        {% endif %}
+        {% if grn.grn_type in ('RM', 'PM') %}
+        <a class="gv-menu-item" href="/trs/grn/{{ grn.id }}">📋 TRS</a>
+        {% endif %}
+        {% if grn.status == 'Completed' %}
+        <div class="gv-menu-sep"></div>
+        <a class="gv-menu-item is-accent" href="{{ url_for('grn.scan_page', grn_id=grn.id) }}">📷 Scan Boxes</a>
+        {% endif %}
+      </div>
+    </div>
   </div>
 
   <!-- Document -->
@@ -240,6 +330,29 @@
           </div>
         </div>
 
+        <div class="hdr-cell">
+          <div class="lbl">Vehicle No</div>
+          <div class="val">{{ grn.vehicle_no or '—' }}</div>
+        </div>
+        <div class="hdr-cell">
+          <div class="lbl">Delivery Type</div>
+          <div class="val">{{ grn.delivery_type or '—' }}</div>
+        </div>
+
+        <div class="hdr-cell">
+          <div class="lbl">Invoice No</div>
+          <div class="val">
+            {{ grn.invoice_no or '—' }}
+            {% if grn.invoice_file %}
+              <a class="file-btn" href="{{ url_for('static', filename=grn.invoice_file) }}" target="_blank" style="margin-left:6px;">📎 INVOICE</a>
+            {% endif %}
+          </div>
+        </div>
+        <div class="hdr-cell">
+          <div class="lbl">Invoice Date</div>
+          <div class="val">{{ grn.invoice_date.strftime('%d-%m-%Y') if grn.invoice_date else '—' }}</div>
+        </div>
+
         <div class="hdr-cell hdr-cell-full">
           <div class="lbl">Supervisor Name</div>
           <div class="val">{{ grn.supervisor_name or '—' }}</div>
@@ -255,10 +368,11 @@
           <th style="width:108px;">PO No.</th>
           <th style="width:78px;">PO Date</th>
           <th>Description of Goods</th>
-          <th style="width:130px;">Invoice Detail</th>
           <th style="width:64px;text-align:right;">No. of pkt</th>
           <th style="width:80px;text-align:right;">Per Pkt Qty</th>
-          <th style="width:88px;text-align:right;">Total Received<br>Qty</th>
+          <th style="width:88px;text-align:right;">Total Qty</th>
+          <th style="width:54px;text-align:center;">COA</th>
+          <th style="width:120px;">Remarks</th>
         </tr>
       </thead>
       <tbody>
@@ -275,32 +389,82 @@
             <strong>{{ it.item_name }}</strong>
             <div class="meta">
               {% if it.storage_location_name %}<em>Unload Location :</em> {{ it.storage_location_name }}<br>{% endif %}
+              {% if grn.grn_type == 'RM' %}
               <em>Batch No :</em> {{ it.batch_no or 'N/A' }}<br>
               <em>Mfg. Date :</em> {{ it.mfg_date.strftime('%d-%m-%Y') if it.mfg_date else 'N/A' }}
               &nbsp;/&nbsp;
               <em>Exp. Date :</em> {{ it.expiry_date.strftime('%d-%m-%Y') if it.expiry_date else 'N/A' }}
               {% if it.manufacturer %}<br><em>Manufacturer :</em> {{ it.manufacturer }}{% endif %}
+              {% endif %}
             </div>
-          </td>
-          <td>
-            {% if grn.invoice_no %}<i>Inv. No :</i> <b>{{ grn.invoice_no }}</b><br>{% endif %}
-            {% if grn.invoice_date %}<i>Inv. Date :</i> <b>{{ grn.invoice_date.strftime('%d-%m-%Y') }}</b><br>{% endif %}
-            {% if grn.invoice_file %}<a class="file-btn" href="{{ url_for('static', filename=grn.invoice_file) }}" target="_blank">INVOICE</a>{% endif %}
-            {% if it.coa_file %}<a class="file-btn coa" href="{{ url_for('static', filename=it.coa_file) }}" target="_blank">COA</a>{% endif %}
           </td>
           <td class="num">{{ '%.3f'|format(it.no_of_boxes or 0) }}</td>
           <td class="num">{{ '%.3f'|format(it.per_box_qty or 0) }} {{ it.uom }}</td>
           <td class="num"><b>{{ '%.3f'|format(it.received_qty or 0) }} {{ it.uom }}</b></td>
+          <td class="ctr">
+            {% if it.coa_file %}
+              <a class="coa-dl" href="{{ url_for('static', filename=it.coa_file) }}"
+                 target="_blank" download title="Download COA"
+                 aria-label="Download COA file">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+                     stroke="currentColor" stroke-width="2.2" stroke-linecap="round"
+                     stroke-linejoin="round" style="vertical-align:middle;">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                  <polyline points="7 10 12 15 17 10"/>
+                  <line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+                <span style="font-size:10px;font-weight:700;letter-spacing:.04em;">COA</span>
+              </a>
+            {% else %}
+              <span style="color:#cbd5e1;">—</span>
+            {% endif %}
+          </td>
+          <td style="font-size:11px;">{{ it.remarks or '' }}</td>
         </tr>
         {% endfor %}
         <tr class="total-row">
-          <td colspan="5" class="ctr">TOTAL</td>
+          <td colspan="4" class="ctr">TOTAL</td>
           <td class="num">{{ grn.total_box_qty or 0 }}</td>
           <td></td>
           <td class="num">{{ '%.3f'|format(grn.total_received_qty or 0) }} {{ items[0].uom if items else 'KG' }}</td>
+          <td colspan="2"></td>
         </tr>
       </tbody>
     </table>
+
+    <!-- Quality Checklist (printable) -->
+    {% set _show_qc_batch  = (grn.grn_type == 'RM') %}
+    {% set _show_qc_expiry = (grn.grn_type == 'RM') %}
+    {% if grn.qc_test_certificate or (_show_qc_batch and grn.qc_batch_on_product) or grn.qc_physical_condition or (_show_qc_expiry and grn.qc_expiry_date) or grn.qc_label_checked %}
+    <div class="grn-qc">
+      <div class="qc-title">Quality Checklist</div>
+      <div class="qc-grid">
+        <span>{{ '☑' if grn.qc_test_certificate    else '☐' }} Test Certificate Received</span>
+        {% if _show_qc_batch %}<span>{{ '☑' if grn.qc_batch_on_product    else '☐' }} Batch Number on Product</span>{% endif %}
+        <span>{{ '☑' if grn.qc_physical_condition  else '☐' }} Physical Condition OK</span>
+        {% if _show_qc_expiry %}<span>{{ '☑' if grn.qc_expiry_date         else '☐' }} Expiry Date Checked</span>{% endif %}
+        <span>{{ '☑' if grn.qc_label_checked       else '☐' }} Labels Verified</span>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Remarks (printable) -->
+    {% if grn.supplier_remarks or grn.internal_remarks %}
+    <div class="grn-remarks">
+      {% if grn.supplier_remarks %}
+      <div class="rmk">
+        <div class="rmk-lbl">Supplier Remarks</div>
+        <div class="rmk-val">{{ grn.supplier_remarks }}</div>
+      </div>
+      {% endif %}
+      {% if grn.internal_remarks %}
+      <div class="rmk">
+        <div class="rmk-lbl">Internal Remarks</div>
+        <div class="rmk-val">{{ grn.internal_remarks }}</div>
+      </div>
+      {% endif %}
+    </div>
+    {% endif %}
 
     <!-- Signature block -->
     <div class="grn-sig">
@@ -336,22 +500,214 @@
   </div>
   {% endif %}
 </div>
+
+<!-- ─── Confirm / prompt / alert modal (replaces native browser dialogs) ─── -->
+<div id="gvModal" class="gv-modal" style="display:none;" role="dialog" aria-modal="true">
+  <div class="gv-modal-bg" data-gv-close></div>
+  <div class="gv-modal-box">
+    <div class="gv-modal-hdr">
+      <span class="gv-modal-icon" id="gvIcon">ℹ️</span>
+      <h3 id="gvTitle">Notice</h3>
+      <button class="gv-modal-x" data-gv-close aria-label="Close">✕</button>
+    </div>
+    <div class="gv-modal-bd">
+      <div id="gvMessage"></div>
+      <textarea id="gvInput" rows="3" placeholder=""
+                style="width:100%;margin-top:10px;padding:8px 10px;
+                       border:1.5px solid #e2e8f0;border-radius:6px;
+                       font-size:13px;font-family:inherit;display:none;"></textarea>
+    </div>
+    <div class="gv-modal-ft">
+      <button class="gv-mbtn gv-mbtn-outline" id="gvCancel" data-gv-close style="display:none;">Cancel</button>
+      <button class="gv-mbtn gv-mbtn-primary" id="gvOk">OK</button>
+    </div>
+  </div>
+</div>
+<style>
+.gv-modal { position:fixed; inset:0; z-index:10000; display:flex; align-items:center; justify-content:center;
+            animation:gvFade .15s ease-out; }
+.gv-modal-bg { position:absolute; inset:0; background:rgba(15,23,42,.5); backdrop-filter:blur(2px); }
+.gv-modal-box { position:relative; background:#fff; border-radius:14px; width:460px; max-width:92vw;
+                box-shadow:0 20px 50px rgba(0,0,0,.25); overflow:hidden;
+                animation:gvSlide .2s ease-out; }
+.gv-modal-hdr { padding:14px 18px 12px; display:flex; align-items:center; gap:10px;
+                border-bottom:1px solid #e2e8f0; }
+.gv-modal-icon { font-size:22px; line-height:1; }
+.gv-modal-hdr h3 { margin:0; font-size:15px; font-weight:800; color:#0f172a; flex:1; }
+.gv-modal-x { background:none; border:0; font-size:18px; color:#94a3b8; cursor:pointer;
+              padding:2px 6px; border-radius:4px; }
+.gv-modal-x:hover { background:#f1f5f9; color:#475569; }
+.gv-modal-bd { padding:18px; font-size:14px; line-height:1.5; color:#1e293b;
+               max-height:60vh; overflow-y:auto; white-space:pre-wrap; }
+.gv-modal-ft { padding:12px 18px; border-top:1px solid #e2e8f0; display:flex;
+               justify-content:flex-end; gap:8px; background:#f8fafc; }
+.gv-mbtn { padding:9px 22px; border-radius:7px; border:0; font-size:13px; font-weight:700;
+           cursor:pointer; min-width:90px; }
+.gv-mbtn-primary { background:#2563eb; color:#fff; }
+.gv-mbtn-primary:hover { background:#1d4ed8; }
+.gv-mbtn-outline { background:#fff; border:1.5px solid #e2e8f0; color:#475569; }
+.gv-mbtn-outline:hover { background:#f1f5f9; }
+.gv-modal-box[data-gv-type="success"] { border-top:4px solid #10b981; }
+.gv-modal-box[data-gv-type="success"] .gv-mbtn-primary { background:#10b981; }
+.gv-modal-box[data-gv-type="success"] .gv-mbtn-primary:hover { background:#059669; }
+.gv-modal-box[data-gv-type="error"]   { border-top:4px solid #dc2626; }
+.gv-modal-box[data-gv-type="error"]   .gv-mbtn-primary { background:#dc2626; }
+.gv-modal-box[data-gv-type="error"]   .gv-mbtn-primary:hover { background:#b91c1c; }
+.gv-modal-box[data-gv-type="warning"] { border-top:4px solid #f59e0b; }
+.gv-modal-box[data-gv-type="warning"] .gv-mbtn-primary { background:#f59e0b; }
+.gv-modal-box[data-gv-type="warning"] .gv-mbtn-primary:hover { background:#d97706; }
+.gv-modal-box[data-gv-type="info"]    { border-top:4px solid #2563eb; }
+@keyframes gvFade  { from { opacity:0 } to { opacity:1 } }
+@keyframes gvSlide { from { transform:translateY(-10px); opacity:0 } to { transform:translateY(0); opacity:1 } }
+</style>
+
 {% endblock %}
 
 {% block extra_js %}
 <script>
-function grnComplete(id){
-  if (!confirm('Submit this GRN as Completed?\n\nThis will lock the GRN.')) return;
-  fetch(`/grn/${id}/submit`, { method:'POST', credentials:'same-origin' })
-    .then(r => r.json())
-    .then(d => { if (d.success) location.reload(); else alert(d.error || 'failed'); });
+// ────────── Modal helpers (alert / confirm / prompt) ──────────
+const GV_ICONS = { info:'ℹ️', success:'✅', warning:'⚠️', error:'⚠️' };
+
+function _gvShow(opts){
+  // opts: { type, title, message, mode ('alert'|'confirm'|'prompt'),
+  //         okText, cancelText, placeholder, onOk(value), onCancel }
+  const $modal = document.getElementById('gvModal');
+  const box    = $modal.querySelector('.gv-modal-box');
+  const type   = opts.type || 'info';
+  box.setAttribute('data-gv-type', type);
+  document.getElementById('gvIcon').textContent  = GV_ICONS[type] || GV_ICONS.info;
+  document.getElementById('gvTitle').textContent = opts.title || 'Notice';
+  document.getElementById('gvMessage').textContent = opts.message || '';
+
+  const $input  = document.getElementById('gvInput');
+  const $ok     = document.getElementById('gvOk');
+  const $cancel = document.getElementById('gvCancel');
+
+  if (opts.mode === 'prompt'){
+    $input.style.display = 'block';
+    $input.value = '';
+    $input.placeholder = opts.placeholder || '';
+    $cancel.style.display = 'inline-block';
+    $cancel.textContent = opts.cancelText || 'Cancel';
+    $ok.textContent = opts.okText || 'OK';
+  } else if (opts.mode === 'confirm'){
+    $input.style.display = 'none';
+    $cancel.style.display = 'inline-block';
+    $cancel.textContent = opts.cancelText || 'No';
+    $ok.textContent = opts.okText || 'Yes';
+  } else {
+    $input.style.display = 'none';
+    $cancel.style.display = 'none';
+    $ok.textContent = opts.okText || 'OK';
+  }
+  $modal.style.display = 'flex';
+
+  // Focus input if prompt, else OK button
+  setTimeout(() => {
+    if (opts.mode === 'prompt') $input.focus();
+    else $ok.focus();
+  }, 50);
+
+  // Wire buttons
+  $ok.onclick = function(){
+    const val = (opts.mode === 'prompt') ? $input.value.trim() : true;
+    _gvHide();
+    if (typeof opts.onOk === 'function') opts.onOk(val);
+  };
+  $cancel.onclick = function(){
+    _gvHide();
+    if (typeof opts.onCancel === 'function') opts.onCancel();
+  };
 }
+
+function _gvHide(){ document.getElementById('gvModal').style.display = 'none'; }
+
+document.querySelectorAll('[data-gv-close]').forEach(el => {
+  el.addEventListener('click', e => {
+    if (e.target.id === 'gvOk' || e.target.id === 'gvCancel') return;
+    _gvHide();
+  });
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && document.getElementById('gvModal').style.display !== 'none') _gvHide();
+});
+
+function gvAlert(message, type='info', title=null, onOk=null){
+  _gvShow({ mode:'alert', type, title: title || ({info:'Notice', success:'Success', warning:'Warning', error:'Error'})[type] || 'Notice',
+            message, onOk });
+}
+function gvConfirm(message, title='Confirm', onYes=null, onNo=null){
+  _gvShow({ mode:'confirm', type:'warning', title, message,
+            okText:'Yes', cancelText:'No', onOk:onYes, onCancel:onNo });
+}
+function gvPrompt(message, title='Input required', placeholder='', onOk=null, onCancel=null){
+  _gvShow({ mode:'prompt', type:'info', title, message, placeholder,
+            okText:'OK', cancelText:'Cancel', onOk, onCancel });
+}
+
+// ────────── Hamburger menu toggle ──────────
+function gvToggleMenu(e){
+  e.stopPropagation();
+  const btn  = document.getElementById('gvMenuBtn');
+  const menu = document.getElementById('gvMenu');
+  if (!btn || !menu) return;
+  const open = menu.classList.toggle('is-open');
+  btn.classList.toggle('is-open', open);
+}
+document.addEventListener('click', function(e){
+  const wrap = e.target.closest('.gv-menu-wrap');
+  if (wrap) return; // click inside menu — let it bubble normally
+  const menu = document.getElementById('gvMenu');
+  const btn  = document.getElementById('gvMenuBtn');
+  if (menu) menu.classList.remove('is-open');
+  if (btn)  btn.classList.remove('is-open');
+});
+document.addEventListener('keydown', function(e){
+  if (e.key === 'Escape') {
+    const menu = document.getElementById('gvMenu');
+    const btn  = document.getElementById('gvMenuBtn');
+    if (menu) menu.classList.remove('is-open');
+    if (btn)  btn.classList.remove('is-open');
+  }
+});
+
+// ────────── GRN action functions ──────────
+function grnComplete(id){
+  gvConfirm(
+    'Submit this GRN as Completed?\n\nThis will lock the GRN.',
+    'Confirm submit',
+    () => {
+      fetch(`/grn/${id}/submit`, { method:'POST', credentials:'same-origin' })
+        .then(r => r.json())
+        .then(d => {
+          if (d.success) location.reload();
+          else gvAlert(d.error || 'Submit failed', 'error');
+        })
+        .catch(e => gvAlert('Network error: ' + e.message, 'error'));
+    }
+  );
+}
+
 function grnCancel(id){
-  const reason = prompt('Reason for cancellation:'); if (reason === null) return;
-  const fd = new FormData(); fd.append('reason', reason);
-  fetch(`/grn/${id}/cancel`, { method:'POST', body:fd, credentials:'same-origin' })
-    .then(r => r.json())
-    .then(d => { if (d.success) location.reload(); else alert(d.error || 'failed'); });
+  gvPrompt(
+    'Please enter the reason for cancellation. This will be saved in the GRN history.',
+    'Cancel GRN',
+    'e.g. supplier returned the goods…',
+    (reason) => {
+      if (!reason){
+        gvAlert('Cancellation reason is required.', 'warning');
+        return;
+      }
+      const fd = new FormData(); fd.append('reason', reason);
+      fetch(`/grn/${id}/cancel`, { method:'POST', body:fd, credentials:'same-origin' })
+        .then(r => r.json())
+        .then(d => {
+          if (d.success) location.reload();
+          else gvAlert(d.error || 'Cancel failed', 'error');
+        })
+        .catch(e => gvAlert('Network error: ' + e.message, 'error'));
+    }
+  );
 }
 </script>
 {% endblock %}

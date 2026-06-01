@@ -277,7 +277,23 @@
                     </a>
                 </div>
 
-                <!-- Masters & Settings -->
+                
+            <!-- Quality Control (QC) — TRS Lists -->
+            <button class="nav-group-toggle {% if request.path.startswith('/qc') or request.path.startswith('/trs') %}open{% endif %}" onclick="toggleNavGroup(this)">
+                <span class="nav-ic"><i class="bi bi-clipboard2-check"></i></span>
+                <span class="nav-txt">Quality Control</span>
+                <span class="nav-group-arrow">▶</span>
+            </button>
+            <div class="nav-submenu {% if request.path.startswith('/qc') or request.path.startswith('/trs') %}open{% endif %}">
+                <a class="nav-a {% if request.path == '/qc/trs/rm' %}active{% endif %}" href="/qc/trs/rm">
+                    <span class="nav-ic"><i class="bi bi-droplet-half"></i></span><span class="nav-txt">RM TRS List</span>
+                </a>
+                <a class="nav-a {% if request.path == '/qc/trs/pm' %}active{% endif %}" href="/qc/trs/pm">
+                    <span class="nav-ic"><i class="bi bi-archive"></i></span><span class="nav-txt">PM TRS List</span>
+                </a>
+            </div>
+
+            <!-- Masters & Settings -->
                 <button class="nav-group-toggle" onclick="toggleNavGroup(this)">
                     <span class="nav-ic"><i class="bi bi-gear"></i></span>
                     <span class="nav-txt">Masters &amp; Settings</span>

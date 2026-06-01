@@ -277,13 +277,27 @@
     overflow:hidden;
 }
 .stk-product{
-    font-size:8pt; font-weight:900;
-    line-height:1.05; margin:0;
-    word-break:break-word;
-    display:-webkit-box;
-    -webkit-line-clamp:2; -webkit-box-orient:vertical;
+    flex:1 1 auto;
+    min-height:0;
+    margin:0;
+    display:flex;
+    align-items:center;
+    justify-content:center;
     overflow:hidden;
-    max-height:9mm;
+}
+.stk-product-txt{
+    font-size:8pt; font-weight:900;
+    line-height:1.04;
+    word-break:break-word;
+    max-width:100%;
+}
+.stk-npd{
+    font-size:6pt; font-weight:900;
+    line-height:1.05; margin:0;
+    font-family:'Courier New', monospace;
+    letter-spacing:.3px;
+    white-space:nowrap;
+    overflow:hidden; text-overflow:ellipsis;
 }
 .stk-sample{
     font-size:8pt; font-weight:900;
@@ -967,15 +981,34 @@ body.print-a4 #slA4Sheet input{
     }
 
     // Build single sticker DOM node
-    function buildSticker(product, sampleCode){
+    function buildSticker(product, sampleCode, npd){
         const el = document.createElement('div');
         el.className = 'stk';
         el.innerHTML = `
-            <div class="stk-product">${escapeHtml(product || '—')}</div>
+            <div class="stk-product"><span class="stk-product-txt">${escapeHtml(product || '—')}</span></div>
+            ${npd ? `<div class="stk-npd">${escapeHtml(npd)}</div>` : ''}
             <div class="stk-sample">${escapeHtml(sampleCode || '—')}</div>
-            <div class="stk-footer">HCP WELLNESS</div>
+            <div class="stk-footer">HCP WELLNESS PVT LTD</div>
         `;
         return el;
+    }
+
+    // Shrink each sticker's product name until the FULL name fits the label
+    function fitStickerNames(root){
+        (root || document).querySelectorAll('.stk-product').forEach(box => {
+            const txt = box.querySelector('.stk-product-txt');
+            if (!txt) return;
+            let size = 8;
+            txt.style.fontSize = size + 'pt';
+            let guard = 0;
+            while ((txt.scrollHeight > box.clientHeight + 0.5 ||
+                    txt.scrollWidth  > box.clientWidth  + 0.5) &&
+                   size > 3.5 && guard < 60){
+                size -= 0.25;
+                txt.style.fontSize = size + 'pt';
+                guard++;
+            }
+        });
     }
 
     // Re-render the live preview across ALL rows in the modal
@@ -985,10 +1018,11 @@ body.print-a4 #slA4Sheet input{
 
         document.querySelectorAll('.stk-row-card').forEach(card => {
             const product = card.dataset.product || '';
+            const npd     = card.dataset.npd || '';
             const input   = card.querySelector('.stk-row-codes');
             const codes   = parseCodes(input ? input.value : '');
             codes.forEach(code => {
-                prevGrid.appendChild(buildSticker(product, code));
+                prevGrid.appendChild(buildSticker(product, code, npd));
                 total++;
             });
         });
@@ -999,6 +1033,7 @@ body.print-a4 #slA4Sheet input{
             prevWrap.style.display = 'block';
             prevCount.textContent = total + ' sticker' + (total === 1 ? '' : 's');
         }
+        fitStickerNames(prevGrid);
     }
 
     // Build the modal rows for every selected row in table
@@ -1203,9 +1238,10 @@ body.print-a4 #slA4Sheet input{
             grid.innerHTML = '';
             cards.forEach(card => {
                 const product = card.dataset.product || '';
+                const npd     = card.dataset.npd || '';
                 const inp     = card.querySelector('.stk-row-codes');
                 parseCodes(inp.value).forEach(code =>
-                    grid.appendChild(buildSticker(product, code))
+                    grid.appendChild(buildSticker(product, code, npd))
                 );
             });
 
@@ -1214,6 +1250,7 @@ body.print-a4 #slA4Sheet input{
             // ── 8. Trigger browser print ────────────────────────────
             document.body.classList.add('print-stickers');
             setTimeout(() => {
+                fitStickerNames(document.getElementById('stkPrintGrid'));
                 window.print();
                 setTimeout(() => document.body.classList.remove('print-stickers'), 400);
             }, 60);

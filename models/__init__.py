@@ -7,7 +7,7 @@ from .lead       import (Lead, LeadDiscussion, LeadAttachment,
                          LeadReminder, LeadNote, LeadActivityLog,
                          SampleOrder, Quotation, EmailTemplate, LeadContribution, ContributionConfig)
 from .legacy     import Customer, CustomerAddress
-from .master     import LeadStatus, LeadSource, LeadCategory, ProductRange, CategoryMaster, UOMMaster, HSNCode, NPDStatus, MilestoneStatus
+from .master     import LeadStatus, LeadSource, LeadCategory, ProductRange, CategoryMaster, UOMMaster, HSNCode, NPDStatus, MilestoneStatus, QCParamOption
 from .employee   import Employee, Contractor, WishLog, SalaryConfig, SalaryComponent, EmployeeTypeMaster, EmployeeLocationMaster, DepartmentMaster, DesignationMaster, CountryMaster, StateMaster, NationalityMaster, QualificationMaster, GradeMaster
 from .permission import Module, RolePermission, UserGridConfig, UserPermission
 from .approval   import ApprovalRequest, ApprovalLevel
@@ -38,7 +38,7 @@ __all__ = [
     'SampleOrder', 'Quotation', 'EmailTemplate', 'LeadContribution', 'ContributionConfig',
     'Customer', 'CustomerAddress',
     'LeadStatus', 'LeadSource', 'LeadCategory', 'ProductRange', 'NPDStatus', 'MilestoneStatus',
-    'CategoryMaster', 'UOMMaster', 'HSNCode',
+    'CategoryMaster', 'UOMMaster', 'HSNCode', 'QCParamOption',
     'Employee', 'Contractor', 'WishLog', 'SalaryConfig', 'SalaryComponent',
     'EmployeeTypeMaster', 'EmployeeLocationMaster',
     'NationalityMaster',

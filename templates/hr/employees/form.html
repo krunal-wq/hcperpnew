@@ -688,7 +688,7 @@ select.fi.field-error + .select2-container--default .select2-selection--single,
                 <div class="field-err-msg" id="err_kyc_caste">Caste Category is required.</div>
             </div>
             <div class="fg">
-                <label class="fl">Physically Handicapped?</label>
+                <label class="fl">Differently Abled?</label>
                 <select name="physically_handicapped" id="kycHandicap" class="fi" onchange="togglePhysicallyHandicapped(this.value)">
                     <option value="no" {{ 'selected' if not employee or not employee.physically_handicapped }}>No</option>
                     <option value="yes" {{ 'selected' if employee and employee.physically_handicapped }}>Yes</option>
@@ -698,7 +698,7 @@ select.fi.field-error + .select2-container--default .select2-selection--single,
         <div id="handicapDetailsRow" style="{{ '' if employee and employee.physically_handicapped else 'display:none;' }}margin-top:.6rem;">
             <label class="fl">📝 Handicap Details<span class="req-star" id="handicapStar" style="{{ '' if employee and employee.physically_handicapped else 'display:none;' }}">*</span> <span style="font-size:.68rem;color:var(--text3);font-weight:500;">(Nature of disability, % disability, certificate no., etc.)</span></label>
             <textarea name="handicap_details" id="kycHandicapDetails" class="fi" rows="2" placeholder="Describe the nature/extent of disability, certificate number, etc.">{{ employee.handicap_details if employee else '' }}</textarea>
-            <div class="field-err-msg" id="err_handicap_details">Handicap Details is required when Physically Handicapped is Yes.</div>
+            <div class="field-err-msg" id="err_handicap_details">Handicap Details is required when Differently Abled is Yes.</div>
         </div>
 
         <div class="sec-hdr">🪪 KYC Documents</div>
@@ -1587,11 +1587,11 @@ function validateKycTab(){
     if (!c || !c.value) { _setEmpErr('kycCaste','err_kyc_caste','Caste Category is required.'); ok=false; }
     else _clearEmpErr('kycCaste','err_kyc_caste');
 
-    // Conditional: Handicap Details required when Physically Handicapped = Yes
+    // Conditional: Handicap Details required when Differently Abled = Yes
     var hc = document.getElementById('kycHandicap');
     if (hc && hc.value === 'yes'){
         var hd = document.getElementById('kycHandicapDetails');
-        if (!hd || !hd.value.trim()) { _setEmpErr('kycHandicapDetails','err_handicap_details','Handicap Details is required when Physically Handicapped is Yes.'); ok=false; }
+        if (!hd || !hd.value.trim()) { _setEmpErr('kycHandicapDetails','err_handicap_details','Handicap Details is required when Differently Abled is Yes.'); ok=false; }
         else _clearEmpErr('kycHandicapDetails','err_handicap_details');
     } else {
         _clearEmpErr('kycHandicapDetails','err_handicap_details');

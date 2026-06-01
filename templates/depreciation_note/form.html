@@ -1,0 +1,231 @@
+{% extends "base.html" %}
+
+{% block title %}New Depreciation Note — HCP ERP{% endblock %}
+{% block page_title %}New Depreciation Note{% endblock %}
+{% block bread %}Stores / Depreciation Notes / New{% endblock %}
+
+{% block extra_css %}
+<style>
+  .dn-wrap { max-width: 1400px; margin: 0 auto; padding: 0 16px; }
+  .dn-card { background:#fff; border:1px solid #e2e8f0; border-radius:10px;
+             padding:18px 20px; margin-bottom:14px; }
+  .dn-card-hdr { font-size:14px; font-weight:700; color:#1e293b;
+                 letter-spacing:.02em; margin-bottom:14px; padding-bottom:10px;
+                 border-bottom:1.5px solid #e2e8f0; }
+  .dn-meta { display:grid; grid-template-columns:repeat(4, 1fr); gap:14px; font-size:13px; }
+  .dn-meta .lbl { font-size:11px; color:#64748b; text-transform:uppercase; letter-spacing:.05em; }
+  .dn-meta .val { font-weight:600; color:#0f172a; margin-top:2px; }
+
+  .dn-table { width:100%; border-collapse:separate; border-spacing:0; font-size:12.5px; }
+  .dn-table thead th { background:#f1f5f9; color:#475569;
+                       font-size:11px; font-weight:700; text-transform:uppercase;
+                       letter-spacing:.04em; padding:9px 8px; text-align:left;
+                       border-bottom:1.5px solid #cbd5e1; }
+  .dn-table thead th.num { text-align:right; }
+  .dn-table tbody td { padding:8px; border-bottom:1px solid #f1f5f9; vertical-align:middle; }
+  .dn-table tbody td.num { text-align:right; }
+  .dn-table input[type="number"] { width:100%; padding:6px 8px; border:1.5px solid #e2e8f0;
+                                    border-radius:5px; font-size:12.5px; text-align:right;
+                                    font-family:inherit; }
+  .dn-table input.inv-input { border-color:#f59e0b; background:#fffbeb; }
+  .dn-table input.inv-input:focus { background:#fff; outline:none; border-color:#d97706; }
+  .dn-table input.rem-input { text-align:left; }
+  .dn-table .short-cell { color:#dc2626; font-weight:700; }
+  .dn-table .short-cell.zero { color:#94a3b8; font-weight:400; }
+
+  .dn-total-bar { display:flex; gap:16px; padding:14px 20px;
+                  background:#fef3c7; border:1px solid #f59e0b; border-radius:8px;
+                  font-size:14px; margin-bottom:14px; }
+  .dn-total-bar .item { flex:1; }
+  .dn-total-bar .lbl { font-size:11px; color:#78350f; text-transform:uppercase; letter-spacing:.05em; font-weight:600; }
+  .dn-total-bar .val { font-size:18px; font-weight:700; color:#78350f; margin-top:2px; }
+  .dn-total-bar .val.big { color:#991b1b; font-size:22px; }
+
+  .dn-actions { display:flex; gap:10px; justify-content:flex-end; padding:14px 0; }
+  .dn-btn { padding:9px 22px; border-radius:6px; border:0; font-size:13px;
+            font-weight:600; cursor:pointer; }
+  .dn-btn-primary { background:#dc2626; color:#fff; }
+  .dn-btn-primary:hover { background:#b91c1c; }
+  .dn-btn-primary:disabled { background:#fca5a5; cursor:not-allowed; }
+  .dn-btn-outline { background:#fff; border:1.5px solid #e2e8f0; color:#475569; }
+  .dn-btn-outline:hover { background:#f8fafc; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="dn-wrap">
+
+  <!-- GRN reference info -->
+  <div class="dn-card">
+    <div class="dn-card-hdr">📌 Source GRN Reference</div>
+    <div class="dn-meta">
+      <div>
+        <div class="lbl">GRN No</div>
+        <div class="val"><a href="{{ url_for('grn.view_grn', grn_id=grn.id) }}" style="color:#2563eb;">{{ grn.grn_number }}</a></div>
+      </div>
+      <div>
+        <div class="lbl">GRN Date</div>
+        <div class="val">{{ grn.grn_date.strftime('%d-%m-%Y') if grn.grn_date else '—' }}</div>
+      </div>
+      <div>
+        <div class="lbl">Supplier</div>
+        <div class="val">{{ grn.supplier_name or '—' }}</div>
+      </div>
+      <div>
+        <div class="lbl">Invoice No</div>
+        <div class="val">{{ grn.invoice_no or '—' }}{% if grn.invoice_date %} <small style="color:#94a3b8;">({{ grn.invoice_date.strftime('%d-%m-%Y') }})</small>{% endif %}</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Items table with manual Invoice Qty entry -->
+  <div class="dn-card">
+    <div class="dn-card-hdr">📋 Compare Invoice vs Received — enter Invoice Qty per item</div>
+    <p style="font-size:12px;color:#64748b;margin:-8px 0 14px;">
+      Items where Invoice Qty &gt; Received Qty will be added to the Depreciation Note.
+      Leave blank/0 if no shortage for that item.
+    </p>
+    <form id="dnForm">
+      <input type="hidden" name="grn_id" value="{{ grn.id }}">
+      <table class="dn-table">
+        <thead>
+          <tr>
+            <th style="width:36px;">#</th>
+            <th>Item</th>
+            <th class="num" style="width:90px;">Received</th>
+            <th class="num" style="width:120px;">Invoice Qty *</th>
+            <th class="num" style="width:90px;">Shortage</th>
+            <th class="num" style="width:80px;">Rate (₹)</th>
+            <th class="num" style="width:110px;">Shortage ₹</th>
+            <th style="width:200px;">Remarks</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for it in items %}
+          <tr data-row data-recv="{{ it.received_qty or 0 }}" data-rate="{{ it.rate or 0 }}">
+            <td style="color:#94a3b8;font-size:11px;">{{ loop.index }}</td>
+            <td>
+              <input type="hidden" name="grn_item_id[]" value="{{ it.id }}">
+              <div style="font-weight:600;color:#0f172a;">{{ it.item_name }}</div>
+              <div style="font-size:11px;color:#94a3b8;">
+                {{ it.item_code or '' }}{% if it.batch_no %} · Batch: {{ it.batch_no }}{% endif %}
+              </div>
+            </td>
+            <td class="num">{{ '%.3f'|format(it.received_qty|float) }} <small style="color:#94a3b8;">{{ it.uom }}</small></td>
+            <td>
+              <input type="number" class="inv-input" name="invoice_qty[]"
+                     min="0" step="0.001" placeholder="0.000"
+                     value="" data-inv>
+            </td>
+            <td class="num short-cell zero" data-short>—</td>
+            <td class="num">{{ '%.2f'|format(it.rate|float) }}</td>
+            <td class="num short-cell zero" data-short-value>—</td>
+            <td><input type="text" class="rem-input" name="item_remarks[]" placeholder="Optional"></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </form>
+  </div>
+
+  <!-- Totals + Submit -->
+  <div class="dn-total-bar">
+    <div class="item">
+      <div class="lbl">Short items</div>
+      <div class="val" id="totalShortCount">0</div>
+    </div>
+    <div class="item">
+      <div class="lbl">Total Shortage Qty</div>
+      <div class="val" id="totalShortQty">0.000</div>
+    </div>
+    <div class="item">
+      <div class="lbl">Total Shortage Value</div>
+      <div class="val big" id="totalShortValue">₹0.00</div>
+    </div>
+  </div>
+
+  <div class="dn-actions">
+    <a class="dn-btn dn-btn-outline" href="{{ url_for('grn.view_grn', grn_id=grn.id) }}">Cancel</a>
+    <button type="button" class="dn-btn dn-btn-primary" id="btnCreate" disabled
+            onclick="submitDN()">Create Depreciation Note</button>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const fmtNum  = n => Number(n).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const fmtQty  = n => Number(n).toFixed(3);
+
+function recompute(){
+  let shortCount = 0;
+  let totalShortQty = 0;
+  let totalShortValue = 0;
+
+  document.querySelectorAll('tr[data-row]').forEach(tr => {
+    const recv = parseFloat(tr.dataset.recv) || 0;
+    const rate = parseFloat(tr.dataset.rate) || 0;
+    const invInput = tr.querySelector('[data-inv]');
+    const inv = parseFloat(invInput.value) || 0;
+    const shortCell      = tr.querySelector('[data-short]');
+    const shortValueCell = tr.querySelector('[data-short-value]');
+
+    if (inv > recv + 0.001){
+      const shortage = inv - recv;
+      const shortVal = shortage * rate;
+      shortCell.textContent = fmtQty(shortage);
+      shortCell.classList.remove('zero');
+      shortValueCell.textContent = '₹' + fmtNum(shortVal);
+      shortValueCell.classList.remove('zero');
+      shortCount++;
+      totalShortQty   += shortage;
+      totalShortValue += shortVal;
+    } else {
+      shortCell.textContent = '—';
+      shortCell.classList.add('zero');
+      shortValueCell.textContent = '—';
+      shortValueCell.classList.add('zero');
+    }
+  });
+
+  document.getElementById('totalShortCount').textContent = shortCount;
+  document.getElementById('totalShortQty').textContent   = fmtQty(totalShortQty);
+  document.getElementById('totalShortValue').textContent = '₹' + fmtNum(totalShortValue);
+
+  // Enable submit only if at least one shortage
+  document.getElementById('btnCreate').disabled = (shortCount === 0);
+}
+
+document.querySelectorAll('[data-inv]').forEach(el => {
+  el.addEventListener('input', recompute);
+});
+
+function submitDN(){
+  const btn = document.getElementById('btnCreate');
+  btn.disabled = true;
+  btn.textContent = 'Creating...';
+  const fd = new FormData(document.getElementById('dnForm'));
+  fetch("{{ url_for('depreciation_note.create_dn') }}", {
+    method: 'POST',
+    body: fd,
+    credentials: 'same-origin'
+  })
+  .then(r => r.json())
+  .then(d => {
+    if (d.success){
+      location.href = d.redirect_url;
+    } else {
+      alert('Failed: ' + (d.error || 'unknown'));
+      btn.disabled = false;
+      btn.textContent = 'Create Depreciation Note';
+    }
+  })
+  .catch(e => {
+    alert('Network error: ' + e.message);
+    btn.disabled = false;
+    btn.textContent = 'Create Depreciation Note';
+  });
+}
+</script>
+{% endblock %}

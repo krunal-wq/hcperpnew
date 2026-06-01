@@ -7,9 +7,7 @@ Endpoints:
   GET  /grn/<id>/edit                → edit form
   POST /grn/save                     → save draft / submit
   GET  /grn/<id>/view                → view page
-  POST /grn/<id>/submit              → submit for approval
-  POST /grn/<id>/approve             → approve
-  POST /grn/<id>/reject              → reject
+  POST /grn/<id>/submit              → submit (Draft → Completed; locks GRN)
   POST /grn/<id>/cancel              → cancel
   GET  /grn/api/list                 → JSON listing for DataTable
   GET  /grn/api/pos-for-supplier     → POs available for receiving
@@ -28,11 +26,11 @@ from werkzeug.utils import secure_filename
 
 from models import db
 from models.grn import (
-    GrnMaster, GrnItem, GrnStatusLog, GrnApprovalLog,
-    GrnStockLedger, GrnBatchStock,
+    GrnMaster, GrnItem, GrnStatusLog,
+    GrnStockLedger, GrnBatchStock, GrnScanLog,
     GRN_STATUSES, GRN_STATUS_DRAFT, GRN_STATUS_COMPLETED,
-    GRN_STATUS_PENDING, GRN_STATUS_APPROVED, GRN_STATUS_REJECTED,
     GRN_STATUS_CANCEL, GRN_TYPES, GRN_STATUS_COLORS,
+    SCAN_STATUS_QUARANTINE, SCAN_STATUS_STOCKED_IN, SCAN_STATUS_COLORS,
     DELIVERY_TYPES,
 )
 from models.purchase_order import (PurchaseOrder, PurchaseOrderItem,
@@ -43,7 +41,9 @@ from models.purchase_order import (PurchaseOrder, PurchaseOrderItem,
                                    PO_STATUS_PARTIAL, PO_STATUS_COMPLETE,
                                    PO_STATUS_CANCEL)
 from models.supplier import Supplier
-from models.material import Material
+from models.material import Material, MaterialType
+from models.depreciation_note import (DepreciationNote, DepreciationNoteItem,
+                                       DN_STATUS_OPEN)
 
 grn_bp = Blueprint('grn', __name__, url_prefix='/grn')
 
@@ -172,9 +172,17 @@ def _apply_stock_impact(grn):
     """When a GRN moves to Completed, this fires:
        1. For each item with po_item_id: increase PurchaseOrderItem.received_qty
        2. Recalculate parent PO status (Approved → Partial → Completed)
-       3. Insert immutable stock_ledger entries (one per item)
-       4. Upsert batch_stock table
+       3. Insert immutable stock_ledger entries (one per item)   [skipped for RM]
+       4. Upsert batch_stock table                                [skipped for RM]
+
+       For RM the actual stock-in does NOT happen here — it happens via a
+       separate QR-sticker scan step (each GRN line gets a printable sticker;
+       scanning the sticker is what moves the material into on-hand stock).
     """
+    # ALL GRN types now use the QR-scan flow for stock-in.
+    # Submit just updates the PO line received_qty + PO status. The actual
+    # stock_ledger / batch_stock entries happen later via /grn/api/scan.
+    skip_stock = True
     affected_po_ids = set()
     for it in grn.items.all():
         recv = float(it.received_qty or 0)
@@ -188,6 +196,9 @@ def _apply_stock_impact(grn):
                 prev = float(po_it.received_qty or 0)
                 po_it.received_qty = prev + recv
                 affected_po_ids.add(po_it.po_id)
+
+        if skip_stock:
+            continue   # Skip stock ledger + batch upsert for RM
 
         # ── 3. Stock Ledger entry (immutable) ──────────────────────
         db.session.add(GrnStockLedger(
@@ -251,8 +262,33 @@ def _apply_stock_impact(grn):
     db.session.flush()
 
 
+def _next_dn_number():
+    """Generate next DN number in DPN-XXXX-FY format."""
+    today = date.today()
+    # Indian FY: April-March
+    if today.month >= 4:
+        fy = f"{today.year % 100:02d}-{(today.year + 1) % 100:02d}"
+        fy_year = today.year
+    else:
+        fy = f"{(today.year - 1) % 100:02d}-{today.year % 100:02d}"
+        fy_year = today.year - 1
+
+    # Find max serial for this FY
+    last = (DepreciationNote.query
+            .filter_by(dn_fy=fy)
+            .order_by(DepreciationNote.dn_serial.desc())
+            .first())
+    serial = (last.dn_serial + 1) if last else 1
+    dn_number = f"DPN-{serial:04d}-{fy}"
+    return dn_number, serial, fy, fy_year
+
+
 def _reverse_stock_impact(grn):
     """Inverse of _apply_stock_impact() — fired when a Completed GRN is Cancelled."""
+    # ALL GRN types use the QR-scan flow; ledger/batch entries are managed
+    # by per-scan delete (not by GRN cancel). Cancel only reverses the
+    # PO received_qty + recalculates PO status.
+    skip_stock = True
     affected_po_ids = set()
     for it in grn.items.all():
         recv = float(it.received_qty or 0)
@@ -265,6 +301,9 @@ def _reverse_stock_impact(grn):
             if po_it:
                 po_it.received_qty = max(float(po_it.received_qty or 0) - recv, 0)
                 affected_po_ids.add(po_it.po_id)
+
+        if skip_stock:
+            continue   # No ledger reverse / batch decrement for RM
 
         # ── 3. Reverse Stock Ledger entry ──────────────────────────
         db.session.add(GrnStockLedger(
@@ -730,14 +769,9 @@ def save_grn():
             amount = recv * rate
 
             # ── Server-side validation ──
-            # 1. Receive qty cannot exceed Remaining (Ordered - Already Received)
-            if ordered > 0:
-                max_allowed = max(ordered - already, 0)
-                if recv > max_allowed + 0.001:  # tiny float-tolerance
-                    validation_errors.append(
-                        f'Row {sr} "{name}": Received {recv:.3f} exceeds remaining {max_allowed:.3f}'
-                    )
-            # 2. Received cannot be negative
+            # Over-receipt (received > ordered - already): allowed. Frontend
+            # asks the user to confirm before submitting. Server accepts it.
+            # 1. Received cannot be negative
             if recv < 0:
                 validation_errors.append(f'Row {sr} "{name}": Received qty cannot be negative')
 
@@ -846,7 +880,14 @@ def view_grn(grn_id):
 
     items = grn.items.order_by(GrnItem.sr_no).all()
     status_logs = grn.status_logs.order_by(GrnStatusLog.created_at).all()
-    approval_logs = grn.approval_logs.order_by(GrnApprovalLog.created_at).all()
+
+    # Load attached Depreciation Note (latest, if any)
+    depreciation_note = None
+    if grn.has_depreciation_note:
+        depreciation_note = (DepreciationNote.query
+                             .filter_by(grn_id=grn.id, is_deleted=False)
+                             .order_by(DepreciationNote.created_at.desc())
+                             .first())
 
     # Live supplier info (for GST, address, state) — falls back to snapshot
     supplier_info = None
@@ -862,7 +903,7 @@ def view_grn(grn_id):
         items         = items,
         supplier_info = supplier_info,
         status_logs   = status_logs,
-        approval_logs = approval_logs,
+        depreciation_note = depreciation_note,
         grn_types     = GRN_TYPES,
         role          = _role(),
     )
@@ -915,68 +956,6 @@ def submit_grn(grn_id):
         import traceback
         traceback.print_exc()
         return jsonify(success=False, error=f'Submit failed: {e}'), 500
-
-
-@grn_bp.route('/<int:grn_id>/approve', methods=['POST'])
-@login_required
-def approve_grn(grn_id):
-    if not _can('approve'):
-        return jsonify(success=False, error='Permission denied'), 403
-    grn = GrnMaster.query.get_or_404(grn_id)
-    if grn.status != GRN_STATUS_PENDING:
-        return jsonify(success=False,
-                       error=f'Cannot approve (status: {grn.status})'), 400
-
-    comment = (request.form.get('comment') or request.json
-               and request.json.get('comment') or '').strip()
-    level   = (request.form.get('level') or 'Manager').strip()
-
-    _log_status(grn, GRN_STATUS_APPROVED, f'Approved by {level}')
-    grn.status = GRN_STATUS_APPROVED
-    grn.is_locked = True
-    grn.approved_by_id = getattr(current_user, 'id', None)
-    grn.approved_by_name = _username()
-    grn.approved_at = datetime.utcnow()
-
-    db.session.add(GrnApprovalLog(
-        grn_id=grn.id, level=level, action='APPROVED',
-        actor_id=getattr(current_user, 'id', None),
-        actor_name=_username(), actor_role=_role(), comment=comment,
-    ))
-    db.session.commit()
-
-    # TODO (Phase 3): update stock ledger + batch stock + PO received_qty
-    return jsonify(success=True)
-
-
-@grn_bp.route('/<int:grn_id>/reject', methods=['POST'])
-@login_required
-def reject_grn(grn_id):
-    if not _can('reject'):
-        return jsonify(success=False, error='Permission denied'), 403
-    grn = GrnMaster.query.get_or_404(grn_id)
-    if grn.status != GRN_STATUS_PENDING:
-        return jsonify(success=False,
-                       error=f'Cannot reject (status: {grn.status})'), 400
-
-    reason = (request.form.get('reason') or '').strip()
-    if not reason:
-        return jsonify(success=False, error='Rejection reason required'), 400
-
-    _log_status(grn, GRN_STATUS_REJECTED, f'Rejected: {reason}')
-    grn.status = GRN_STATUS_REJECTED
-    grn.rejected_by_id = getattr(current_user, 'id', None)
-    grn.rejected_by_name = _username()
-    grn.rejected_at = datetime.utcnow()
-    grn.rejection_reason = reason
-
-    db.session.add(GrnApprovalLog(
-        grn_id=grn.id, level='Manager', action='REJECTED',
-        actor_id=getattr(current_user, 'id', None),
-        actor_name=_username(), actor_role=_role(), comment=reason,
-    ))
-    db.session.commit()
-    return jsonify(success=True)
 
 
 @grn_bp.route('/<int:grn_id>/cancel', methods=['POST'])
@@ -1424,6 +1403,8 @@ def _generate_grn_pdf(grn, items, supplier_info=None):
         if grn.gate_inward_time:
             gate_dt += ' & ' + grn.gate_inward_time.strftime('%H:%M:%S')
 
+    inv_date_s = grn.invoice_date.strftime('%d-%m-%Y') if grn.invoice_date else '—'
+
     right_rows = [
         [dept_row, ''],  # full-width department; second col empty (merged via SPAN)
         [R_cell('Receipt Note No.', grn.grn_number_short or grn.grn_number),
@@ -1436,6 +1417,10 @@ def _generate_grn_pdf(grn, items, supplier_info=None):
          R_cell('LR Date', grn.lr_date.strftime('%d-%m-%Y') if grn.lr_date else '—')],
         [R_cell('GATE INWARD NO', grn.gate_inward_no or '—'),
          R_cell('DATE & TIME', gate_dt or '—')],
+        [R_cell('Vehicle No', grn.vehicle_no or '—'),
+         R_cell('Delivery Type', grn.delivery_type or '—')],
+        [R_cell('Invoice No', grn.invoice_no or '—'),
+         R_cell('Invoice Date', inv_date_s)],
         [[Paragraph('Supervisor Name', st_lbl),
           Paragraph(grn.supervisor_name or '—', st_val)], ''],
     ]
@@ -1444,7 +1429,7 @@ def _generate_grn_pdf(grn, items, supplier_info=None):
         ('VALIGN',       (0,0), (-1,-1), 'TOP'),
         ('GRID',         (0,0), (-1,-1), 0.5, colors.HexColor('#1e293b')),
         ('SPAN',         (0,0), (1,0)),    # Department full-width
-        ('SPAN',         (0,6), (1,6)),    # Supervisor full-width
+        ('SPAN',         (0,8), (1,8)),    # Supervisor full-width (last row, idx 8)
         ('LEFTPADDING',  (0,0), (-1,-1), 6),
         ('RIGHTPADDING', (0,0), (-1,-1), 6),
         ('TOPPADDING',   (0,0), (-1,-1), 4),
@@ -1468,10 +1453,11 @@ def _generate_grn_pdf(grn, items, supplier_info=None):
         Paragraph('PO No.', st_cellc),
         Paragraph('PO Date', st_cellc),
         Paragraph('Description of Goods', st_cellc),
-        Paragraph('Invoice Detail', st_cellc),
         Paragraph('No.<br/>of pkt', st_cellc),
         Paragraph('Per Pkt<br/>Qty', st_cellc),
-        Paragraph('Total Received<br/>Qty', st_cellc),
+        Paragraph('Total Qty', st_cellc),
+        Paragraph('COA', st_cellc),
+        Paragraph('Remarks', st_cellc),
     ]
 
     total_box = 0
@@ -1484,25 +1470,19 @@ def _generate_grn_pdf(grn, items, supplier_info=None):
         meta_lines = []
         if it.storage_location_name:
             meta_lines.append(f'<i>Unload Location :</i> {it.storage_location_name}')
-        meta_lines.append(f'<i>Batch No :</i> {it.batch_no or "N/A"}')
-        mfg = it.mfg_date.strftime('%d-%m-%Y') if it.mfg_date else 'N/A'
-        exp = it.expiry_date.strftime('%d-%m-%Y') if it.expiry_date else 'N/A'
-        meta_lines.append(f'<i>Mfg. Date :</i> {mfg} &nbsp;/&nbsp; <i>Exp. Date :</i> {exp}')
-        if it.manufacturer:
-            meta_lines.append(f'<i>Manufacturer :</i> {it.manufacturer}')
+        # Manufacturer / Batch / MFG / EXP only for Raw Material GRNs
+        if grn.grn_type == 'RM':
+            meta_lines.append(f'<i>Batch No :</i> {it.batch_no or "N/A"}')
+            mfg = it.mfg_date.strftime('%d-%m-%Y') if it.mfg_date else 'N/A'
+            exp = it.expiry_date.strftime('%d-%m-%Y') if it.expiry_date else 'N/A'
+            meta_lines.append(f'<i>Mfg. Date :</i> {mfg} &nbsp;/&nbsp; <i>Exp. Date :</i> {exp}')
+            if it.manufacturer:
+                meta_lines.append(f'<i>Manufacturer :</i> {it.manufacturer}')
         desc_html.append(Paragraph('<br/>'.join(meta_lines), st_meta))
 
-        # Invoice cell — stacked
-        inv_html = []
-        if grn.invoice_no:
-            inv_html.append(f'<i>Inv. No :</i> <b>{grn.invoice_no}</b>')
-        if grn.invoice_date:
-            inv_html.append(f'<i>Inv. Date :</i> <b>{grn.invoice_date.strftime("%d-%m-%Y")}</b>')
-        if grn.invoice_file:
-            inv_html.append('[INVOICE]')
-        if it.coa_file:
-            inv_html.append('[COA]')
-        inv_para = Paragraph('<br/>'.join(inv_html) if inv_html else '—', st_cell)
+        # COA cell
+        coa_cell = Paragraph('[COA]', st_cellc) if it.coa_file else Paragraph('—', st_cellc)
+        remarks_cell = Paragraph(it.remarks or '', st_cell)
 
         po_date_s = '—'
         if grn.po_date and (it.po_number == grn.po_number):
@@ -1513,10 +1493,11 @@ def _generate_grn_pdf(grn, items, supplier_info=None):
             Paragraph(it.po_number or 'N/A', st_cell),
             Paragraph(po_date_s, st_cellc),
             desc_html,
-            inv_para,
             Paragraph(f'{float(it.no_of_boxes or 0):.3f}', st_num),
             Paragraph(f'{float(it.per_box_qty or 0):.3f} {it.uom}', st_num),
             Paragraph(f'<b>{float(it.received_qty or 0):.3f} {it.uom}</b>', st_num_b),
+            coa_cell,
+            remarks_cell,
         ])
         total_box  += int(it.no_of_boxes or 0)
         total_recv += float(it.received_qty or 0)
@@ -1525,10 +1506,11 @@ def _generate_grn_pdf(grn, items, supplier_info=None):
     rows.append([
         '', '', '',
         Paragraph('<b>TOTAL</b>', st_cellc),
-        '',
         Paragraph(f'<b>{total_box}</b>', st_num_b),
         '',
         Paragraph(f'<b>{total_recv:.3f} {item_uom}</b>', st_num_b),
+        '',
+        '',
     ])
 
     col_widths = [
@@ -1536,10 +1518,11 @@ def _generate_grn_pdf(grn, items, supplier_info=None):
         avail_w * 0.12,   # PO No
         avail_w * 0.08,   # PO Date
         avail_w * 0.32,   # Description
-        avail_w * 0.16,   # Invoice
-        avail_w * 0.08,   # No. of pkt
-        avail_w * 0.10,   # Per Pkt
+        avail_w * 0.07,   # No. of pkt
+        avail_w * 0.09,   # Per Pkt
         avail_w * 0.10,   # Total Recv
+        avail_w * 0.06,   # COA
+        avail_w * 0.12,   # Remarks
     ]
     item_tbl = Table(rows, colWidths=col_widths, repeatRows=1)
     item_tbl.setStyle(TableStyle([
@@ -1547,13 +1530,67 @@ def _generate_grn_pdf(grn, items, supplier_info=None):
         ('BACKGROUND',   (0,0), (-1,0),  colors.HexColor('#f8fafc')),
         ('BACKGROUND',   (0,-1), (-1,-1),colors.HexColor('#fafbfd')),
         ('SPAN',         (0,-1), (3,-1)),   # TOTAL spans first 4 cols
-        ('SPAN',         (4,-1), (4,-1)),
         ('VALIGN',       (0,0), (-1,-1), 'TOP'),
         ('LEFTPADDING',  (0,0), (-1,-1), 4),
         ('RIGHTPADDING', (0,0), (-1,-1), 4),
         ('TOPPADDING',   (0,0), (-1,-1), 4),
         ('BOTTOMPADDING',(0,0), (-1,-1), 4),
     ]))
+
+    # ── Quality Checklist block (only if any QC was ticked) ────────────
+    # Batch Number on Product / Expiry Date Checked are RM-only.
+    _is_rm_qc = (grn.grn_type == 'RM')
+    qc_flags = [
+        ('Test Certificate Received', grn.qc_test_certificate),
+    ]
+    if _is_rm_qc:
+        qc_flags.append(('Batch Number on Product', grn.qc_batch_on_product))
+    qc_flags.append(('Physical Condition OK', grn.qc_physical_condition))
+    if _is_rm_qc:
+        qc_flags.append(('Expiry Date Checked', grn.qc_expiry_date))
+    qc_flags.append(('Labels Verified', grn.qc_label_checked))
+    qc_block = None
+    if any(v for _, v in qc_flags):
+        qc_cells = []
+        for label, v in qc_flags:
+            mark = '☑' if v else '☐'
+            qc_cells.append(Paragraph(f'<font size="10">{mark}</font> {label}', st_cell))
+        # 3 columns
+        while len(qc_cells) % 3 != 0:
+            qc_cells.append('')
+        qc_grid = [qc_cells[i:i+3] for i in range(0, len(qc_cells), 3)]
+        qc_block = Table(
+            [[Paragraph('<b>Quality Checklist</b>', st_lbl), '', '']] + qc_grid,
+            colWidths=[avail_w/3]*3)
+        qc_block.setStyle(TableStyle([
+            ('BOX',          (0,0), (-1,-1), 0.5, colors.HexColor('#1e293b')),
+            ('LINEABOVE',    (0,1), (-1,1),  0.4, colors.HexColor('#1e293b')),
+            ('SPAN',         (0,0), (2,0)),
+            ('BACKGROUND',   (0,0), (-1,0),  colors.HexColor('#fafbfd')),
+            ('LEFTPADDING',  (0,0), (-1,-1), 6),
+            ('RIGHTPADDING', (0,0), (-1,-1), 6),
+            ('TOPPADDING',   (0,0), (-1,-1), 4),
+            ('BOTTOMPADDING',(0,0), (-1,-1), 4),
+        ]))
+
+    # ── Remarks block (only if filled) ─────────────────────────────────
+    rmk_block = None
+    if grn.supplier_remarks or grn.internal_remarks:
+        rmk_block = Table([[
+            [Paragraph('<b>Supplier Remarks</b>', st_lbl),
+             Paragraph(grn.supplier_remarks or '—', st_val)],
+            [Paragraph('<b>Internal Remarks</b>', st_lbl),
+             Paragraph(grn.internal_remarks or '—', st_val)],
+        ]], colWidths=[avail_w/2, avail_w/2])
+        rmk_block.setStyle(TableStyle([
+            ('BOX',          (0,0), (-1,-1), 0.5, colors.HexColor('#1e293b')),
+            ('LINEBEFORE',   (1,0), (1,-1), 0.5, colors.HexColor('#1e293b')),
+            ('VALIGN',       (0,0), (-1,-1), 'TOP'),
+            ('LEFTPADDING',  (0,0), (-1,-1), 8),
+            ('RIGHTPADDING', (0,0), (-1,-1), 8),
+            ('TOPPADDING',   (0,0), (-1,-1), 5),
+            ('BOTTOMPADDING',(0,0), (-1,-1), 5),
+        ]))
 
     # ── Signature block ────────────────────────────────────────────────
     sig_block = Table([[
@@ -1588,10 +1625,15 @@ def _generate_grn_pdf(grn, items, supplier_info=None):
         ('BOTTOMPADDING',(0,0), (-1,-1), 5),
     ]))
 
-    story = [title_block, header_tbl, item_tbl, sig_block,
-             Spacer(1, 8),
-             Paragraph('SUBJECT TO AHMEDABAD JURISDICTION', st_footer),
-             Paragraph('This is a Computer Generated Document', st_footer_b)]
+    story = [title_block, header_tbl, item_tbl]
+    if qc_block:  story.append(qc_block)
+    if rmk_block: story.append(rmk_block)
+    story.extend([
+        sig_block,
+        Spacer(1, 8),
+        Paragraph('SUBJECT TO AHMEDABAD JURISDICTION', st_footer),
+        Paragraph('This is a Computer Generated Document', st_footer_b),
+    ])
 
     # Build with footer-only page template
     def _draw_footer(canvas, doc_):
@@ -1613,34 +1655,264 @@ def _generate_grn_pdf(grn, items, supplier_info=None):
     return buf.read()
 
 
+# ── api_stock_ledger / api_batch_stock endpoints removed (UI deprecated) ──
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# RM QUARANTINE — listing of all scanned RM boxes still in Quarantine,
+# grouped by (GRN, item, per-box-qty). Loose boxes (different per-box-qty)
+# show as separate rows.
+# ═════════════════════════════════════════════════════════════════════════════
+@grn_bp.route('/quarantine')
+@login_required
+def quarantine_page():
+    """RM Quarantine listing page."""
+    if not _can('view'):
+        abort(403)
+    return render_template('grn/quarantine.html', active_page='grn')
+
+
+@grn_bp.route('/api/quarantine')
+@login_required
+def api_quarantine():
+    """Return all quarantined scans grouped by (grn, item, per-box-qty)."""
+    if not _can('view'):
+        return jsonify(success=False, error='Permission denied'), 403
+
+    q          = (request.args.get('q', '') or '').strip()
+    date_from  = _parse_date(request.args.get('date_from'))
+    date_to    = _parse_date(request.args.get('date_to'))
+
+    # Aggregation in SQL — group by grn_id, grn_item_id, qty
+    from sqlalchemy import func
+    qs = (db.session.query(
+            GrnScanLog.grn_id,
+            GrnScanLog.grn_number,
+            GrnScanLog.grn_item_id,
+            GrnScanLog.material_id,
+            GrnScanLog.item_code,
+            GrnScanLog.item_name,
+            GrnScanLog.batch_no,
+            GrnScanLog.uom,
+            GrnScanLog.qty.label('per_box_qty'),
+            func.count(GrnScanLog.id).label('no_of_boxes'),
+            func.sum(GrnScanLog.qty).label('total_qty'),
+            func.min(GrnScanLog.scanned_at).label('first_at'),
+            func.max(GrnScanLog.scanned_at).label('last_at'),
+          )
+          .filter(GrnScanLog.is_deleted == False,
+                  GrnScanLog.status     == SCAN_STATUS_QUARANTINE))
+
+    if q:
+        like = f'%{q}%'
+        qs = qs.filter(or_(
+            GrnScanLog.grn_number.ilike(like),
+            GrnScanLog.item_name.ilike(like),
+            GrnScanLog.item_code.ilike(like),
+            GrnScanLog.batch_no.ilike(like),
+        ))
+
+    qs = qs.group_by(GrnScanLog.grn_id, GrnScanLog.grn_number,
+                     GrnScanLog.grn_item_id, GrnScanLog.material_id,
+                     GrnScanLog.item_code, GrnScanLog.item_name,
+                     GrnScanLog.batch_no, GrnScanLog.uom, GrnScanLog.qty)
+    qs = qs.order_by(func.max(GrnScanLog.scanned_at).desc())
+
+    # Fetch grn_date in one shot (avoid N+1)
+    rows = qs.all()
+    grn_ids = list({r.grn_id for r in rows})
+    grn_dates = {}
+    if grn_ids:
+        gs = GrnMaster.query.filter(GrnMaster.id.in_(grn_ids)).all()
+        for g in gs:
+            grn_dates[g.id] = g
+
+    out = []
+    for r in rows:
+        g = grn_dates.get(r.grn_id)
+        # Apply GRN-date filter here (after group, against parent GRN date)
+        if g is None: continue
+        if date_from and g.grn_date and g.grn_date < date_from: continue
+        if date_to   and g.grn_date and g.grn_date > date_to:   continue
+        out.append({
+            'grn_id':       r.grn_id,
+            'grn_number':   r.grn_number or '',
+            'grn_date':     g.grn_date.strftime('%d-%m-%Y') if g and g.grn_date else '',
+            'grn_type':     g.grn_type if g else '',
+            'supplier_name':g.supplier_name if g else '',
+            'item_code':    r.item_code or '',
+            'item_name':    r.item_name or '',
+            'batch_no':     r.batch_no  or '',
+            'uom':          r.uom       or 'KG',
+            'per_box_qty':  float(r.per_box_qty or 0),
+            'no_of_boxes':  int(r.no_of_boxes or 0),
+            'total_qty':    float(r.total_qty or 0),
+            'first_scanned':r.first_at.strftime('%d-%m-%Y %H:%M') if r.first_at else '',
+            'last_scanned': r.last_at.strftime('%d-%m-%Y %H:%M')  if r.last_at  else '',
+        })
+
+    # Grand totals
+    grand_boxes = sum(r['no_of_boxes'] for r in out)
+    grand_total = sum(r['total_qty']   for r in out)
+
+    return jsonify(success=True,
+                   results=out,
+                   row_count=len(out),
+                   grand_boxes=grand_boxes,
+                   grand_total=grand_total)
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# STOCK VIEW PAGES — Current Stock (batch-wise) & Stock Movement Ledger
+# Permission: same as GRN view (anyone who can view GRN).
+# Data source: tbl_grn_batch_stock (running totals) + tbl_grn_stock_ledger (movements),
+# both populated by the scan flow for non-RM GRNs (PM/COR/SLV/FG).
+# ═════════════════════════════════════════════════════════════════════════════
+
+def _stock_type():
+    """Stock view material-type from query string: 'rm', 'pm', or '' (all)."""
+    return (request.args.get('type', '') or '').strip().lower()
+
+
+def _material_ids_by_type(mat_type):
+    """material_ids for the stock view.
+       'rm' → RM items only; 'pm' → non-RM (PM/COR/SLV/FG); else → None (no filter)."""
+    if mat_type not in ('rm', 'pm'):
+        return None
+    abbr = func.upper(func.coalesce(MaterialType.abbreviation, ''))
+    base = (db.session.query(Material.id)
+            .outerjoin(MaterialType, Material.material_type_id == MaterialType.id))
+    base = base.filter(abbr == 'RM') if mat_type == 'rm' else base.filter(abbr != 'RM')
+    return [row[0] for row in base.all()]
+
+
+@grn_bp.route('/stock')
+@login_required
+def stock_page():
+    """Current Stock (batch-wise) listing page."""
+    if not _can('view'):
+        abort(403)
+    return render_template('grn/stock.html', active_page='grn', mat_type=_stock_type())
+
+
+@grn_bp.route('/stock-ledger')
+@login_required
+def stock_ledger_page():
+    """Stock Movement Ledger page."""
+    if not _can('view'):
+        abort(403)
+    return render_template('grn/stock_ledger.html', active_page='grn', mat_type=_stock_type())
+
+
+@grn_bp.route('/api/batch-stock')
+@login_required
+def api_batch_stock():
+    """Return current batch-wise stock for the Stock View page.
+
+    Query params:
+      q             — search item_name / item_code / batch_no  (LIKE)
+      location_id   — filter by storage location
+      expiry_filter — 'expired' | 'expiring' | 'fresh'
+      page, limit   — pagination (default 1, 50)
+    """
+    if not _can('view'):
+        return jsonify(success=False, error='Permission denied'), 403
+
+    page  = max(int(request.args.get('page',  1) or 1), 1)
+    limit = max(min(int(request.args.get('limit', 50) or 50), 200), 1)
+    q             = (request.args.get('q', '') or '').strip()
+    location_id   = (request.args.get('location_id', '') or '').strip()
+    expiry_filter = (request.args.get('expiry_filter', '') or '').strip().lower()
+
+    qs = GrnBatchStock.query.filter(GrnBatchStock.qty_on_hand > 0)
+
+    _mat_ids = _material_ids_by_type(_stock_type())
+    if _mat_ids is not None:
+        qs = qs.filter(GrnBatchStock.material_id.in_(_mat_ids or [-1]))
+
+    if q:
+        like = f'%{q}%'
+        qs = qs.filter(or_(
+            GrnBatchStock.item_name.ilike(like),
+            GrnBatchStock.item_code.ilike(like),
+            GrnBatchStock.batch_no.ilike(like),
+        ))
+
+    if location_id:
+        try:
+            qs = qs.filter(GrnBatchStock.location_id == int(location_id))
+        except ValueError:
+            pass
+
+    today = date.today()
+    if expiry_filter == 'expired':
+        qs = qs.filter(GrnBatchStock.expiry_date.isnot(None),
+                       GrnBatchStock.expiry_date < today)
+    elif expiry_filter == 'expiring':
+        from datetime import timedelta
+        cutoff = today + timedelta(days=90)
+        qs = qs.filter(GrnBatchStock.expiry_date.isnot(None),
+                       GrnBatchStock.expiry_date >= today,
+                       GrnBatchStock.expiry_date < cutoff)
+    elif expiry_filter == 'fresh':
+        from datetime import timedelta
+        cutoff = today + timedelta(days=90)
+        qs = qs.filter(or_(GrnBatchStock.expiry_date.is_(None),
+                           GrnBatchStock.expiry_date >= cutoff))
+
+    total = qs.count()
+    rows = (qs.order_by(desc(GrnBatchStock.last_inward_at),
+                        desc(GrnBatchStock.id))
+              .offset((page - 1) * limit).limit(limit).all())
+
+    results = [{
+        'material_id'   : r.material_id,
+        'item_name'     : r.item_name or '',
+        'item_code'     : r.item_code or '',
+        'batch_no'      : r.batch_no  or '',
+        'location'      : r.location_name or '',
+        'location_id'   : r.location_id,
+        'qty_on_hand'   : float(r.qty_on_hand   or 0),
+        'qty_reserved'  : float(r.qty_reserved  or 0),
+        'qty_available' : float(r.qty_available or 0),
+        'uom'           : r.uom or 'KG',
+        'avg_rate'      : float(r.avg_rate or 0),
+        'mfg_date'      : r.mfg_date.strftime('%d-%m-%Y')       if r.mfg_date       else '',
+        'expiry_date'   : r.expiry_date.strftime('%d-%m-%Y')    if r.expiry_date    else '',
+        'last_inward_at': r.last_inward_at.strftime('%d-%m-%Y %H:%M') if r.last_inward_at else '',
+    } for r in rows]
+
+    return jsonify(success=True, total=total, page=page, limit=limit, results=results)
+
+
 @grn_bp.route('/api/stock-ledger')
 @login_required
 def api_stock_ledger():
-    """Read-only stock ledger view — for reporting / debugging."""
+    """Return stock-ledger transactions for the Stock Ledger page.
+
+    Query params:
+      q          — search item_name / item_code / batch_no / txn_ref_no  (LIKE)
+      txn_type   — 'GRN_IN' | 'GRN_REVERSE' | ''  (empty = all)
+      date_from  — yyyy-mm-dd inclusive
+      date_to    — yyyy-mm-dd inclusive
+      page, limit
+    """
     if not _can('view'):
-        return jsonify(results=[], total=0), 403
-    page  = max(int(request.args.get('page', 1)), 1)
-    limit = max(int(request.args.get('limit', 50)), 1)
-    material_id = request.args.get('material_id')
-    batch_no    = request.args.get('batch_no')
-    q           = (request.args.get('q', '') or '').strip()
-    txn_type    = (request.args.get('txn_type', '') or '').strip()
-    date_from   = _parse_date(request.args.get('date_from'))
-    date_to     = _parse_date(request.args.get('date_to'))
+        return jsonify(success=False, error='Permission denied'), 403
+
+    page  = max(int(request.args.get('page',  1) or 1), 1)
+    limit = max(min(int(request.args.get('limit', 50) or 50), 200), 1)
+    q         = (request.args.get('q', '') or '').strip()
+    txn_type  = (request.args.get('txn_type', '') or '').strip()
+    date_from = _parse_date(request.args.get('date_from'))
+    date_to   = _parse_date(request.args.get('date_to'))
 
     qs = GrnStockLedger.query
-    if material_id:
-        qs = qs.filter(GrnStockLedger.material_id == int(material_id))
-    if batch_no:
-        qs = qs.filter(GrnStockLedger.batch_no == batch_no)
-    if txn_type:
-        qs = qs.filter(GrnStockLedger.txn_type == txn_type)
-    if date_from:
-        qs = qs.filter(GrnStockLedger.txn_date >= date_from)
-    if date_to:
-        # add 1 day to include the entire end date
-        from datetime import timedelta
-        qs = qs.filter(GrnStockLedger.txn_date < date_to + timedelta(days=1))
+
+    _mat_ids = _material_ids_by_type(_stock_type())
+    if _mat_ids is not None:
+        qs = qs.filter(GrnStockLedger.material_id.in_(_mat_ids or [-1]))
+
     if q:
         like = f'%{q}%'
         qs = qs.filter(or_(
@@ -1649,91 +1921,569 @@ def api_stock_ledger():
             GrnStockLedger.batch_no.ilike(like),
             GrnStockLedger.txn_ref_no.ilike(like),
         ))
+    if txn_type:
+        qs = qs.filter(GrnStockLedger.txn_type == txn_type)
+    if date_from:
+        qs = qs.filter(GrnStockLedger.txn_date >= datetime.combine(date_from, time.min))
+    if date_to:
+        qs = qs.filter(GrnStockLedger.txn_date <= datetime.combine(date_to, time.max))
+
     total = qs.count()
-    rows = qs.order_by(desc(GrnStockLedger.id)).offset((page - 1) * limit).limit(limit).all()
-    return jsonify(total=total, results=[{
-        'id': r.id,
-        'txn_date': r.txn_date.strftime('%d-%m-%Y %H:%M') if r.txn_date else '',
-        'txn_type': r.txn_type,
-        'ref_no':   r.txn_ref_no,
-        'item_code': r.item_code, 'item_name': r.item_name,
-        'batch_no': r.batch_no, 'location': r.location_name,
-        'qty_in':  float(r.qty_in or 0),
-        'qty_out': float(r.qty_out or 0),
-        'uom': r.uom, 'rate': float(r.rate or 0),
-        'amount': float(r.amount or 0),
-        'remarks': r.remarks, 'actor': r.actor_name,
-    } for r in rows])
+    rows = (qs.order_by(desc(GrnStockLedger.txn_date), desc(GrnStockLedger.id))
+              .offset((page - 1) * limit).limit(limit).all())
+
+    results = [{
+        'txn_date'  : r.txn_date.strftime('%d-%m-%Y %H:%M') if r.txn_date else '',
+        'txn_type'  : r.txn_type   or '',
+        'ref_no'    : r.txn_ref_no or '',
+        'item_name' : r.item_name  or '',
+        'item_code' : r.item_code  or '',
+        'batch_no'  : r.batch_no   or '',
+        'location'  : r.location_name or '',
+        'qty_in'    : float(r.qty_in  or 0),
+        'qty_out'   : float(r.qty_out or 0),
+        'uom'       : r.uom  or 'KG',
+        'rate'      : float(r.rate   or 0),
+        'amount'    : float(r.amount or 0),
+        'actor'     : r.actor_name or '',
+    } for r in rows]
+
+    return jsonify(success=True, total=total, page=page, limit=limit, results=results)
 
 
-@grn_bp.route('/api/batch-stock')
+
+@grn_bp.route('/stock-by-grn')
 @login_required
-def api_batch_stock():
-    """Read-only batch-wise stock view — what's currently on hand."""
+def stock_by_grn_page():
+    """Stock attributed to each GRN — one row per (GRN × item × location)."""
     if not _can('view'):
-        return jsonify(results=[], total=0), 403
-    page  = max(int(request.args.get('page', 1)), 1)
-    limit = max(int(request.args.get('limit', 50)), 1)
-    material_id   = request.args.get('material_id')
-    location_id   = request.args.get('location_id')
-    q             = (request.args.get('q', '') or '').strip()
-    expiry_filter = (request.args.get('expiry_filter', '') or '').strip()
+        abort(403)
+    return render_template('grn/stock_by_grn.html', active_page='grn', mat_type=_stock_type())
 
-    qs = GrnBatchStock.query.filter(GrnBatchStock.qty_on_hand > 0)
-    if material_id:
-        qs = qs.filter(GrnBatchStock.material_id == int(material_id))
+
+def _stock_by_grn_rm(page, limit, q, location_id, date_from, date_to):
+    """RM 'Stock by GRN' — sourced from the QC stock-in ledger (TRS_QC_IN),
+       resolved back to the originating GRN via TrsMaster.grn_id."""
+    from models.trs import TrsMaster
+
+    rm_ids = _material_ids_by_type('rm')
+    led_q = GrnStockLedger.query.filter(GrnStockLedger.txn_type == 'TRS_QC_IN')
+    if rm_ids is not None:
+        led_q = led_q.filter(GrnStockLedger.material_id.in_(rm_ids or [-1]))
     if location_id:
-        qs = qs.filter(GrnBatchStock.location_id == int(location_id))
-    if q:
-        like = f'%{q}%'
-        qs = qs.filter(or_(
-            GrnBatchStock.item_name.ilike(like),
-            GrnBatchStock.item_code.ilike(like),
-            GrnBatchStock.batch_no.ilike(like),
-        ))
-    today = date.today()
-    if expiry_filter == 'expired':
-        qs = qs.filter(GrnBatchStock.expiry_date < today)
-    elif expiry_filter == 'expiring':
-        from datetime import timedelta
-        qs = qs.filter(GrnBatchStock.expiry_date >= today,
-                       GrnBatchStock.expiry_date <= today + timedelta(days=90))
-    elif expiry_filter == 'fresh':
-        from datetime import timedelta
-        qs = qs.filter(or_(GrnBatchStock.expiry_date == None,
-                           GrnBatchStock.expiry_date > today + timedelta(days=90)))
+        try:
+            led_q = led_q.filter(GrnStockLedger.location_id == int(location_id))
+        except ValueError:
+            pass
+    ledgers = led_q.all()
 
-    total = qs.count()
-    rows = qs.order_by(desc(GrnBatchStock.last_inward_at)).offset((page-1)*limit).limit(limit).all()
-    return jsonify(total=total, results=[{
-        'id': r.id, 'material_id': r.material_id,
-        'item_code': r.item_code, 'item_name': r.item_name,
-        'batch_no': r.batch_no, 'location': r.location_name,
-        'qty_on_hand':   float(r.qty_on_hand or 0),
-        'qty_reserved':  float(r.qty_reserved or 0),
-        'qty_available': float(r.qty_available or 0),
-        'uom': r.uom, 'avg_rate': float(r.avg_rate or 0),
-        'mfg_date': r.mfg_date.strftime('%d-%m-%Y') if r.mfg_date else '',
-        'expiry_date': r.expiry_date.strftime('%d-%m-%Y') if r.expiry_date else '',
-        'last_inward_at': r.last_inward_at.strftime('%d-%m-%Y %H:%M') if r.last_inward_at else '',
-    } for r in rows])
+    # Resolve TRS → GRN in two batched lookups
+    trs_ids = list({l.txn_ref_id for l in ledgers if l.txn_ref_id})
+    trs_map = {t.id: t for t in TrsMaster.query.filter(TrsMaster.id.in_(trs_ids)).all()} if trs_ids else {}
+    grn_ids = list({t.grn_id for t in trs_map.values() if t.grn_id})
+    grn_map = {g.id: g for g in GrnMaster.query.filter(GrnMaster.id.in_(grn_ids)).all()} if grn_ids else {}
+
+    # Aggregate by (grn_id, material_id, location_id)
+    agg = {}
+    for l in ledgers:
+        trs = trs_map.get(l.txn_ref_id)
+        gid = trs.grn_id if trs else None
+        g   = grn_map.get(gid)
+        if date_from and (not g or not g.grn_date or g.grn_date < date_from):
+            continue
+        if date_to and (not g or not g.grn_date or g.grn_date > date_to):
+            continue
+        key = (gid, l.material_id, l.location_id)
+        a = agg.get(key)
+        if not a:
+            a = {
+                'grn_id': gid,
+                'grn_number': (g.grn_number if g else (l.txn_ref_no or '')),
+                'grn_date': g.grn_date.strftime('%d-%m-%Y') if g and g.grn_date else '',
+                'grn_type': (g.grn_type if g else 'RM') or 'RM',
+                'grn_status': g.status if g else '',
+                'supplier_name': g.supplier_name if g else '',
+                'material_id': l.material_id, 'item_code': l.item_code or '',
+                'item_name': l.item_name or '', 'location_id': l.location_id,
+                'location_name': l.location_name or '', 'uom': l.uom or 'KG',
+                'box_count': 0, 'total_qty': 0.0, 'total_amount': 0.0,
+                '_rate_sum': 0.0, '_rate_n': 0,
+                'first_at': l.txn_date, 'last_at': l.txn_date,
+            }
+            agg[key] = a
+        a['box_count']    += 1
+        a['total_qty']    += float(l.qty_in or 0)
+        a['total_amount'] += float(l.amount or 0)
+        a['_rate_sum']    += float(l.rate or 0)
+        a['_rate_n']      += 1
+        if l.txn_date:
+            if not a['first_at'] or l.txn_date < a['first_at']:
+                a['first_at'] = l.txn_date
+            if not a['last_at'] or l.txn_date > a['last_at']:
+                a['last_at'] = l.txn_date
+
+    out = []
+    for a in agg.values():
+        if q:
+            ql  = q.lower()
+            hay = ' '.join([a['grn_number'], a['item_name'], a['item_code'], a['supplier_name']]).lower()
+            if ql not in hay:
+                continue
+        avg_rate = (a['_rate_sum'] / a['_rate_n']) if a['_rate_n'] else 0
+        out.append({
+            'grn_id': a['grn_id'], 'grn_number': a['grn_number'], 'grn_date': a['grn_date'],
+            'grn_type': a['grn_type'], 'grn_status': a['grn_status'], 'supplier_name': a['supplier_name'],
+            'material_id': a['material_id'], 'item_code': a['item_code'], 'item_name': a['item_name'],
+            'location_id': a['location_id'], 'location_name': a['location_name'], 'uom': a['uom'],
+            'box_count': a['box_count'], 'total_qty': a['total_qty'], 'avg_rate': avg_rate,
+            'total_amount': a['total_amount'],
+            'first_inward': a['first_at'].strftime('%d-%m-%Y %H:%M') if a['first_at'] else '',
+            'last_inward': a['last_at'].strftime('%d-%m-%Y %H:%M') if a['last_at'] else '',
+            '_last_at_iso': a['last_at'].isoformat() if a['last_at'] else '',
+        })
+
+    out.sort(key=lambda d: d['_last_at_iso'], reverse=True)
+    for d in out:
+        d.pop('_last_at_iso', None)
+
+    summary = {
+        'grn_count' : len({d['grn_id']      for d in out}),
+        'item_count': len({d['material_id'] for d in out if d['material_id']}),
+        'qty_sum'   : sum(d['total_qty']    for d in out),
+        'box_sum'   : sum(d['box_count']    for d in out),
+    }
+    total = len(out)
+    page_rows = out[(page - 1) * limit : page * limit]
+    return jsonify(success=True, total=total, page=page, limit=limit,
+                   results=page_rows, summary=summary)
 
 
-# ═════ Stock View Pages ═════
-@grn_bp.route('/stock')
+@grn_bp.route('/api/stock-by-grn')
 @login_required
-def stock_page():
+def api_stock_by_grn():
+    """Aggregated stock-in per GRN, grouped by (grn_id, material_id, location_id).
+
+    Source: tbl_grn_scan_log (status = Stocked-In, is_deleted = False).
+    The scan log is the source of truth because each row has direct grn_id;
+    tbl_grn_stock_ledger only points at scan-log ids via txn_ref_id.
+
+    Query params:
+      q           — search grn_number / item_name / item_code / supplier_name
+      grn_type    — PM / COR / SLV / FG  (case-insensitive)
+      location_id — filter by storage location
+      date_from   — GRN date >= this (yyyy-mm-dd)
+      date_to     — GRN date <= this (yyyy-mm-dd)
+      page, limit
+    """
     if not _can('view'):
-        abort(403)
-    return render_template('grn/stock.html', active_page='grn')
+        return jsonify(success=False, error='Permission denied'), 403
+
+    page  = max(int(request.args.get('page',  1) or 1), 1)
+    limit = max(min(int(request.args.get('limit', 50) or 50), 200), 1)
+    q          = (request.args.get('q', '') or '').strip()
+    grn_type   = (request.args.get('grn_type', '') or '').strip().upper()
+    location_id= (request.args.get('location_id', '') or '').strip()
+    date_from  = _parse_date(request.args.get('date_from'))
+    date_to    = _parse_date(request.args.get('date_to'))
+
+    # RM stock-by-GRN is sourced from the QC stock-in ledger (TRS_QC_IN),
+    # since RM never reaches the 'Stocked-In' scan status (it is QC-approved in).
+    if _stock_type() == 'rm':
+        return _stock_by_grn_rm(page, limit, q, location_id, date_from, date_to)
+
+    # Aggregate scan log → one row per (grn, item, location)
+    base = (db.session.query(
+                GrnScanLog.grn_id.label('grn_id'),
+                GrnScanLog.grn_number.label('grn_number'),
+                GrnScanLog.material_id.label('material_id'),
+                GrnScanLog.item_code.label('item_code'),
+                GrnScanLog.item_name.label('item_name'),
+                GrnScanLog.location_id.label('location_id'),
+                GrnScanLog.location_name.label('location_name'),
+                GrnScanLog.uom.label('uom'),
+                func.count(GrnScanLog.id).label('box_count'),
+                func.sum(GrnScanLog.qty).label('total_qty'),
+                func.sum(GrnScanLog.amount).label('total_amount'),
+                func.avg(GrnScanLog.rate).label('avg_rate'),
+                func.min(GrnScanLog.scanned_at).label('first_at'),
+                func.max(GrnScanLog.scanned_at).label('last_at'),
+            )
+            .filter(GrnScanLog.is_deleted == False,
+                    GrnScanLog.status     == SCAN_STATUS_STOCKED_IN))
+
+    if location_id:
+        try:
+            base = base.filter(GrnScanLog.location_id == int(location_id))
+        except ValueError:
+            pass
+
+    base = base.group_by(GrnScanLog.grn_id, GrnScanLog.grn_number,
+                         GrnScanLog.material_id, GrnScanLog.item_code,
+                         GrnScanLog.item_name, GrnScanLog.location_id,
+                         GrnScanLog.location_name, GrnScanLog.uom)
+
+    rows = base.all()
+
+    # Hydrate GRN master metadata in one shot
+    grn_ids = list({r.grn_id for r in rows if r.grn_id})
+    grn_map = {}
+    if grn_ids:
+        for g in GrnMaster.query.filter(GrnMaster.id.in_(grn_ids)).all():
+            grn_map[g.id] = g
+
+    out = []
+    for r in rows:
+        g = grn_map.get(r.grn_id)
+        # GRN-level filters (type, date, supplier-aware search)
+        if grn_type and (not g or (g.grn_type or '').upper() != grn_type):
+            continue
+        if date_from and (not g or not g.grn_date or g.grn_date < date_from):
+            continue
+        if date_to   and (not g or not g.grn_date or g.grn_date > date_to):
+            continue
+        if q:
+            ql = q.lower()
+            hay = ' '.join([
+                (r.grn_number or ''), (r.item_name or ''), (r.item_code or ''),
+                (g.supplier_name if g else '') or '',
+            ]).lower()
+            if ql not in hay:
+                continue
+        out.append({
+            'grn_id'       : r.grn_id,
+            'grn_number'   : r.grn_number or '',
+            'grn_date'     : g.grn_date.strftime('%d-%m-%Y') if g and g.grn_date else '',
+            'grn_type'     : g.grn_type if g else '',
+            'grn_status'   : g.status   if g else '',
+            'supplier_name': g.supplier_name if g else '',
+            'material_id'  : r.material_id,
+            'item_code'    : r.item_code or '',
+            'item_name'    : r.item_name or '',
+            'location_id'  : r.location_id,
+            'location_name': r.location_name or '',
+            'uom'          : r.uom or 'KG',
+            'box_count'    : int(r.box_count or 0),
+            'total_qty'    : float(r.total_qty or 0),
+            'avg_rate'     : float(r.avg_rate or 0),
+            'total_amount' : float(r.total_amount or 0),
+            'first_inward' : r.first_at.strftime('%d-%m-%Y %H:%M') if r.first_at else '',
+            'last_inward'  : r.last_at.strftime('%d-%m-%Y %H:%M')  if r.last_at  else '',
+            '_last_at_iso' : r.last_at.isoformat() if r.last_at else '',
+        })
+
+    # Sort: most recent inward first
+    out.sort(key=lambda d: d['_last_at_iso'], reverse=True)
+    for d in out: d.pop('_last_at_iso', None)
+
+    # Summary across the full filtered set (not just the page)
+    summary = {
+        'grn_count' : len({d['grn_id']      for d in out}),
+        'item_count': len({d['material_id'] for d in out if d['material_id']}),
+        'qty_sum'   : sum(d['total_qty']    for d in out),
+        'box_sum'   : sum(d['box_count']    for d in out),
+    }
+
+    total = len(out)
+    page_rows = out[(page - 1) * limit : page * limit]
+
+    return jsonify(success=True, total=total, page=page, limit=limit,
+                   results=page_rows, summary=summary)
 
 
-@grn_bp.route('/stock-ledger')
+
+# ═════════════════════════════════════════════════════════════════════════════
+# QR SCAN — receive boxes one by one
+# QR payload format: "{TYPE}{GRN_ITEM_ID}-{PO_ITEM_ID}-{BOX_NO}"
+#   e.g.  RM15-23-1   ← Raw Material, GrnItem.id=15, PO item id=23, box 1
+# Behaviour:
+#   • RM GRN  → logged with status='Quarantine' (no stock ledger, no batch stock)
+#   • Other types → status='Stocked-In' + GrnStockLedger row + GrnBatchStock upsert
+# ═════════════════════════════════════════════════════════════════════════════
+import re
+_QR_RE = re.compile(r'^([A-Z]+)(\d+)-(\d+)-(\d+)$')
+
+
+@grn_bp.route('/<int:grn_id>/scan')
 @login_required
-def stock_ledger_page():
-    if not _can('view'):
+def scan_page(grn_id):
+    """The QR scan & receive screen for a SPECIFIC GRN. Camera/generic flow
+    has been removed — this is a per-GRN page with item-wise box visualization."""
+    if not _can('create'):
         abort(403)
-    return render_template('grn/stock_ledger.html', active_page='grn')
+    grn = GrnMaster.query.get_or_404(grn_id)
+    if grn.is_deleted:
+        flash('GRN has been deleted.', 'danger')
+        return redirect(url_for('grn.index'))
+    if grn.status != GRN_STATUS_COMPLETED:
+        flash(f'Scanning is only available on Completed GRNs. This one is "{grn.status}".', 'warning')
+        return redirect(url_for('grn.view_grn', grn_id=grn.id))
+    items = grn.items.order_by(GrnItem.sr_no).all()
+    return render_template('grn/scan.html',
+                           active_page='grn',
+                           grn=grn,
+                           items=items)
+
+
+@grn_bp.route('/api/<int:grn_id>/scan-status')
+@login_required
+def api_grn_scan_status(grn_id):
+    """For the scan page: return item-wise pending/scanned boxes for this GRN."""
+    if not _can('view'):
+        return jsonify(success=False, error='Permission denied'), 403
+    grn = GrnMaster.query.get_or_404(grn_id)
+    if grn.is_deleted:
+        return jsonify(success=False, error='GRN deleted'), 404
+
+    # All scans for this GRN (newest first)
+    scans = (GrnScanLog.query
+             .filter_by(grn_id=grn.id, is_deleted=False)
+             .order_by(GrnScanLog.id.desc())
+             .all())
+
+    # Build a set: (grn_item_id, box_no) → scan_dict for quick lookup
+    scanned_map = {}
+    for s in scans:
+        scanned_map[(s.grn_item_id, s.box_no or 1)] = s
+
+    items_out = []
+    total_boxes = 0
+    scanned_boxes = 0
+    grn_type_prefix = (grn.grn_type or '').upper()
+    for it in grn.items.order_by(GrnItem.sr_no).all():
+        n_boxes = max(int(it.no_of_boxes or 0), 0)
+        po_item = it.po_item_id or 0
+        boxes = []
+        for b in range(1, n_boxes + 1):
+            # Expected QR code for this box — same format as labels.html
+            expected_qr = f'{grn_type_prefix}{it.id}-{po_item}-{b}'
+            key = (it.id, b)
+            if key in scanned_map:
+                s = scanned_map[key]
+                boxes.append({
+                    'box_no': b, 'scanned': True,
+                    'qr_code': s.qr_code or expected_qr,
+                    'expected_qr': expected_qr,
+                    'scan_id': s.id,
+                    'status': s.status, 'status_color': s.status_color,
+                    'scanned_at': s.scanned_at.strftime('%d-%m-%Y %H:%M:%S') if s.scanned_at else '',
+                    'scanned_by': s.scanned_by_name or '',
+                })
+                scanned_boxes += 1
+            else:
+                boxes.append({
+                    'box_no': b, 'scanned': False,
+                    'qr_code': expected_qr,
+                    'expected_qr': expected_qr,
+                })
+            total_boxes += 1
+        items_out.append({
+            'id': it.id, 'sr_no': it.sr_no,
+            'item_name': it.item_name or '',
+            'item_code': it.item_code or '',
+            'batch_no':  it.batch_no or '',
+            'uom':       it.uom or 'KG',
+            'per_box_qty': float(it.per_box_qty or 0),
+            'no_of_boxes': n_boxes,
+            'received_qty': float(it.received_qty or 0),
+            'boxes': boxes,
+            'scanned_count': sum(1 for b in boxes if b['scanned']),
+        })
+
+    # All scans for this GRN (newest first) — no limit, show all in right column
+    recent = [s.to_dict() for s in scans]
+
+    # Proper status-wise counts (from full list, not limited)
+    quarantine_count = sum(1 for s in scans if s.status == SCAN_STATUS_QUARANTINE)
+    stocked_in_count = sum(1 for s in scans if s.status == SCAN_STATUS_STOCKED_IN)
+
+    return jsonify(
+        success=True,
+        grn={
+            'id': grn.id,
+            'grn_number': grn.grn_number,
+            'grn_number_short': grn.grn_number_short or grn.grn_number,
+            'grn_type': grn.grn_type or '',
+            'supplier_name': grn.supplier_name or '',
+            'grn_date': grn.grn_date.strftime('%d-%m-%Y') if grn.grn_date else '',
+            'status': grn.status,
+        },
+        items=items_out,
+        recent_scans=recent,
+        total_boxes=total_boxes,
+        scanned_boxes=scanned_boxes,
+        pending_boxes=total_boxes - scanned_boxes,
+        quarantine_count=quarantine_count,
+        stocked_in_count=stocked_in_count,
+    )
+
+
+@grn_bp.route('/api/scan', methods=['POST'])
+@login_required
+def api_scan():
+    """Process a single QR code scan.
+    Optional `grn_id` in payload restricts the scan to that GRN only.
+    """
+    if not _can('create'):
+        return jsonify(success=False, error='Permission denied'), 403
+
+    data = request.get_json(silent=True) or {}
+    qr_raw       = (data.get('qr_code') or '').strip().upper()
+    source       = (data.get('source')  or 'manual').strip()
+    expected_grn = data.get('grn_id')   # optional; if set, scanned QR must belong to this GRN
+
+    if not qr_raw:
+        return jsonify(success=False, error='QR code is empty'), 400
+
+    # Parse
+    m = _QR_RE.match(qr_raw)
+    if not m:
+        return jsonify(success=False,
+                       error=f'Invalid QR format: "{qr_raw}". Expected like RM15-23-1.'), 400
+    qr_type, grn_item_id_s, po_item_id_s, box_no_s = m.group(1), m.group(2), m.group(3), m.group(4)
+    grn_item_id = int(grn_item_id_s)
+    po_item_id  = int(po_item_id_s)
+    box_no      = int(box_no_s)
+
+    # Duplicate check
+    existing = GrnScanLog.query.filter_by(qr_code=qr_raw, is_deleted=False).first()
+    if existing:
+        return jsonify(
+            success=False,
+            error=f'Already scanned at {existing.scanned_at.strftime("%d-%m-%Y %H:%M:%S")} by {existing.scanned_by_name or "unknown"}',
+            duplicate=True,
+            scan=existing.to_dict(),
+        ), 400
+
+    # Look up GRN item
+    it = GrnItem.query.filter_by(id=grn_item_id).first()
+    if not it:
+        return jsonify(success=False, error=f'GRN item #{grn_item_id} not found'), 404
+
+    grn = GrnMaster.query.get(it.grn_id)
+    if not grn or grn.is_deleted:
+        return jsonify(success=False, error='Parent GRN not found or deleted'), 404
+    if grn.status != GRN_STATUS_COMPLETED:
+        return jsonify(success=False,
+                       error=f'GRN {grn.grn_number} is "{grn.status}" — scan only works on Completed GRNs'), 400
+
+    # If scoped to a particular GRN, enforce it
+    if expected_grn:
+        try:
+            if int(expected_grn) != grn.id:
+                return jsonify(success=False,
+                               error=f'This QR belongs to GRN {grn.grn_number}, not the one you are scanning into.'), 400
+        except (ValueError, TypeError):
+            pass
+
+    # Per-box qty
+    per_box = float(it.per_box_qty or 0)
+    if per_box <= 0:
+        n_boxes = max(int(it.no_of_boxes or 1), 1)
+        per_box = float(it.received_qty or 0) / n_boxes
+    rate    = float(it.rate or 0)
+    amount  = round(per_box * rate, 2)
+
+    # Decide status by GRN type
+    is_rm = (grn.grn_type or '').upper() == 'RM'
+    status = SCAN_STATUS_QUARANTINE if is_rm else SCAN_STATUS_STOCKED_IN
+
+    try:
+        slog = GrnScanLog(
+            qr_code      = qr_raw,
+            grn_type     = qr_type,
+            grn_item_id  = it.id,
+            po_item_id   = po_item_id or None,
+            box_no       = box_no,
+            grn_id       = grn.id,
+            grn_number   = grn.grn_number or '',
+            material_id  = it.material_id,
+            item_code    = it.item_code or '',
+            item_name    = it.item_name or '',
+            batch_no     = it.batch_no or '',
+            mfg_date     = it.mfg_date,
+            expiry_date  = it.expiry_date,
+            uom          = it.uom or 'KG',
+            qty          = per_box,
+            rate         = rate,
+            amount       = amount,
+            location_id  = it.storage_location_id,
+            location_name= it.storage_location_name or '',
+            status       = status,
+            scanned_by_id   = getattr(current_user, 'id', None),
+            scanned_by_name = _username(),
+            scan_source     = source,
+        )
+        db.session.add(slog)
+        db.session.flush()
+
+        # For non-RM → also push into stock_ledger + batch_stock
+        if not is_rm:
+            ledger = GrnStockLedger(
+                txn_date     = datetime.utcnow(),
+                txn_type     = 'GRN_IN',
+                txn_ref_type = 'GRN_SCAN',
+                txn_ref_id   = slog.id,
+                txn_ref_no   = f'{grn.grn_number} · Box {box_no} · {qr_raw}',
+                material_id  = it.material_id,
+                item_code    = it.item_code or '',
+                item_name    = it.item_name or '',
+                batch_no     = it.batch_no or '',
+                location_id  = it.storage_location_id,
+                location_name= it.storage_location_name or '',
+                qty_in       = per_box,
+                qty_out      = 0,
+                uom          = it.uom or 'KG',
+                rate         = rate,
+                amount       = amount,
+                remarks      = f'Box scan {qr_raw}',
+                actor_name   = _username(),
+            )
+            db.session.add(ledger)
+            db.session.flush()
+            slog.stock_ledger_id = ledger.id
+
+            bs = (GrnBatchStock.query
+                  .filter_by(material_id = it.material_id,
+                             batch_no    = it.batch_no or '',
+                             location_id = it.storage_location_id)
+                  .first())
+            if not bs:
+                bs = GrnBatchStock(
+                    material_id   = it.material_id,
+                    item_code     = it.item_code or '',
+                    item_name     = it.item_name or '',
+                    batch_no      = it.batch_no or '',
+                    location_id   = it.storage_location_id,
+                    location_name = it.storage_location_name or '',
+                    mfg_date      = it.mfg_date,
+                    expiry_date   = it.expiry_date,
+                    qty_on_hand   = 0,
+                    qty_available = 0,
+                    uom           = it.uom or 'KG',
+                    avg_rate      = rate,
+                )
+                db.session.add(bs)
+                db.session.flush()
+            old_qty  = float(bs.qty_on_hand or 0)
+            old_rate = float(bs.avg_rate or 0)
+            new_qty  = old_qty + per_box
+            new_avg  = ((old_qty * old_rate) + (per_box * rate)) / new_qty if new_qty > 0 else rate
+            bs.qty_on_hand    = new_qty
+            bs.qty_available  = new_qty - float(bs.qty_reserved or 0)
+            bs.avg_rate       = new_avg
+            bs.last_inward_at = datetime.utcnow()
+            slog.batch_stock_id = bs.id
+
+        db.session.commit()
+        return jsonify(success=True, scan=slog.to_dict())
+
+    except Exception as e:
+        db.session.rollback()
+        import traceback; traceback.print_exc()
+        return jsonify(success=False, error=str(e)), 500
+
+
+# ═════════════════════════════════════════════════════════════════════════════
 
 
 # ═════ Print Labels ═════
@@ -1755,13 +2505,35 @@ def labels_grn(grn_id):
                            items_data=items_data)
 
 
+
+# ═════════════════════════════════════════════════════════════════════════════
+# CHECK LIST MATERIAL FORM — Item-wise printable checklist (no data stored)
+# ═════════════════════════════════════════════════════════════════════════════
+@grn_bp.route('/<int:grn_id>/checklist')
+@login_required
+def checklist_grn(grn_id):
+    """Print item-wise Check List Material Form for an RM GRN.
+
+    Nothing is stored — the form is rendered from existing GRN/item data
+    and is meant to be printed on paper and physically ticked.
+    """
+    if not _can('view'):
+        abort(403)
+    grn = GrnMaster.query.get_or_404(grn_id)
+    if grn.is_deleted:
+        abort(404)
+    items = grn.items.order_by(GrnItem.sr_no).all()
+    return render_template('grn/checklist.html',
+                           active_page='grn',
+                           grn=grn,
+                           items=items)
+
+
 # ═════ Excel Export ═════
 @grn_bp.route('/export')
 @login_required
 def export_excel():
-    """Export GRN listing / batch stock / stock ledger to Excel.
-       Supports ?kind= grn_listing | batch_stock | stock_ledger
-    """
+    """Export GRN listing to Excel."""
     from flask import send_file
     from io import BytesIO
     try:
@@ -1769,8 +2541,6 @@ def export_excel():
         from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
     except ImportError:
         return jsonify(error='openpyxl not installed. Run: pip install openpyxl'), 500
-
-    kind = (request.args.get('kind', '') or 'grn_listing').strip()
 
     wb = Workbook()
     ws = wb.active
@@ -1787,114 +2557,215 @@ def export_excel():
             c.font = header_font; c.fill = header_fill
             c.alignment = center; c.border = border
 
+    # Branch by `kind` — listing (default) / batch_stock / stock_ledger
+    kind = (request.args.get('kind', '') or '').strip().lower()
+
     if kind == 'batch_stock':
-        ws.title = 'Batch Stock'
-        headers = ['#', 'Item Code', 'Item Name', 'Batch No', 'Location',
-                   'On Hand', 'Reserved', 'Available', 'UOM', 'Avg Rate',
-                   'MFG Date', 'Expiry Date', 'Last Inward']
+        ws.title = 'Current Stock'
+        headers = ['#', 'Item Code', 'Item Name', 'Location',
+                   'On Hand', 'Reserved', 'Available', 'UOM',
+                   'Avg Rate', 'Last Inward']
         ws.append(headers)
         _style_header(ws[1])
+
         qs = GrnBatchStock.query.filter(GrnBatchStock.qty_on_hand > 0)
-        loc_id = request.args.get('location_id')
-        q = (request.args.get('q','') or '').strip()
-        exp_f = (request.args.get('expiry_filter','') or '').strip()
-        if loc_id: qs = qs.filter(GrnBatchStock.location_id == int(loc_id))
+        q          = (request.args.get('q','') or '').strip()
+        loc_id     = (request.args.get('location_id','') or '').strip()
         if q:
             like = f'%{q}%'
-            qs = qs.filter(or_(
-                GrnBatchStock.item_name.ilike(like),
-                GrnBatchStock.item_code.ilike(like),
-                GrnBatchStock.batch_no.ilike(like),
-            ))
-        today = date.today()
-        from datetime import timedelta
-        if exp_f == 'expired':
-            qs = qs.filter(GrnBatchStock.expiry_date < today)
-        elif exp_f == 'expiring':
-            qs = qs.filter(GrnBatchStock.expiry_date >= today,
-                           GrnBatchStock.expiry_date <= today + timedelta(days=90))
+            qs = qs.filter(or_(GrnBatchStock.item_name.ilike(like),
+                               GrnBatchStock.item_code.ilike(like)))
+        if loc_id:
+            try: qs = qs.filter(GrnBatchStock.location_id == int(loc_id))
+            except ValueError: pass
+
         for i, r in enumerate(qs.order_by(desc(GrnBatchStock.last_inward_at)).all(), 1):
             ws.append([
-                i, r.item_code or '', r.item_name or '', r.batch_no or '',
-                r.location_name or '',
+                i, r.item_code or '', r.item_name or '',
+                r.location_name or '—',
                 float(r.qty_on_hand or 0), float(r.qty_reserved or 0),
-                float(r.qty_available or 0),
-                r.uom or '', float(r.avg_rate or 0),
-                r.mfg_date.strftime('%d-%m-%Y') if r.mfg_date else '',
-                r.expiry_date.strftime('%d-%m-%Y') if r.expiry_date else '',
+                float(r.qty_available or 0), r.uom or 'KG',
+                float(r.avg_rate or 0),
                 r.last_inward_at.strftime('%d-%m-%Y %H:%M') if r.last_inward_at else '',
             ])
-        # Column widths
-        widths = [5, 14, 30, 14, 18, 12, 12, 12, 8, 12, 12, 12, 18]
+        widths = [5, 16, 36, 18, 12, 12, 12, 8, 12, 18]
+        for idx, w in enumerate(widths, 1):
+            ws.column_dimensions[chr(64 + idx) if idx <= 26 else 'A' + chr(64 + idx - 26)].width = w
+        for row in ws.iter_rows(min_row=2):
+            for cell in row: cell.border = border
+        ws.freeze_panes = 'A2'
+        buf = BytesIO(); wb.save(buf); buf.seek(0)
+        fname = f'Current_Stock_{date.today().strftime("%Y%m%d")}.xlsx'
+        return send_file(buf, as_attachment=True, download_name=fname,
+                         mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
 
-    elif kind == 'stock_ledger':
+    if kind == 'stock_by_grn':
+        ws.title = 'Stock by GRN'
+        headers = ['#', 'GRN No', 'Type', 'GRN Date', 'Supplier',
+                   'Item Code', 'Item Name', 'Location',
+                   'Boxes', 'Total Qty', 'UOM',
+                   'Avg Rate', 'Amount', 'Last Inward', 'GRN Status']
+        ws.append(headers)
+        _style_header(ws[1])
+
+        q          = (request.args.get('q','') or '').strip()
+        grn_type   = (request.args.get('grn_type','') or '').strip().upper()
+        loc_id     = (request.args.get('location_id','') or '').strip()
+        df         = _parse_date(request.args.get('date_from'))
+        dt         = _parse_date(request.args.get('date_to'))
+
+        base = (db.session.query(
+                    GrnScanLog.grn_id, GrnScanLog.grn_number,
+                    GrnScanLog.material_id, GrnScanLog.item_code, GrnScanLog.item_name,
+                    GrnScanLog.location_id, GrnScanLog.location_name, GrnScanLog.uom,
+                    func.count(GrnScanLog.id).label('box_count'),
+                    func.sum(GrnScanLog.qty).label('total_qty'),
+                    func.sum(GrnScanLog.amount).label('total_amount'),
+                    func.avg(GrnScanLog.rate).label('avg_rate'),
+                    func.max(GrnScanLog.scanned_at).label('last_at'),
+                )
+                .filter(GrnScanLog.is_deleted == False,
+                        GrnScanLog.status == SCAN_STATUS_STOCKED_IN))
+        if loc_id:
+            try: base = base.filter(GrnScanLog.location_id == int(loc_id))
+            except ValueError: pass
+        base = base.group_by(GrnScanLog.grn_id, GrnScanLog.grn_number,
+                             GrnScanLog.material_id, GrnScanLog.item_code,
+                             GrnScanLog.item_name, GrnScanLog.location_id,
+                             GrnScanLog.location_name, GrnScanLog.uom)
+        agg_rows = base.all()
+
+        gids = list({r.grn_id for r in agg_rows if r.grn_id})
+        gmap = {}
+        if gids:
+            for g in GrnMaster.query.filter(GrnMaster.id.in_(gids)).all():
+                gmap[g.id] = g
+
+        i = 0
+        # Sort newest-first by last scan
+        agg_rows = sorted(agg_rows, key=lambda r: r.last_at or datetime.min, reverse=True)
+        for r in agg_rows:
+            g = gmap.get(r.grn_id)
+            if grn_type and (not g or (g.grn_type or '').upper() != grn_type): continue
+            if df and (not g or not g.grn_date or g.grn_date < df): continue
+            if dt and (not g or not g.grn_date or g.grn_date > dt): continue
+            if q:
+                ql = q.lower()
+                hay = ' '.join([(r.grn_number or ''), (r.item_name or ''),
+                                (r.item_code or ''),
+                                (g.supplier_name if g else '') or '']).lower()
+                if ql not in hay: continue
+            i += 1
+            ws.append([
+                i, r.grn_number or '',
+                g.grn_type if g else '',
+                g.grn_date.strftime('%d-%m-%Y') if g and g.grn_date else '',
+                g.supplier_name if g else '',
+                r.item_code or '', r.item_name or '',
+                r.location_name or '—',
+                int(r.box_count or 0), float(r.total_qty or 0), r.uom or 'KG',
+                float(r.avg_rate or 0), float(r.total_amount or 0),
+                r.last_at.strftime('%d-%m-%Y %H:%M') if r.last_at else '',
+                g.status if g else '',
+            ])
+        widths = [5, 22, 7, 12, 28, 16, 32, 18, 8, 14, 8, 12, 14, 18, 14]
+        for idx, w in enumerate(widths, 1):
+            ws.column_dimensions[chr(64 + idx) if idx <= 26 else 'A' + chr(64 + idx - 26)].width = w
+        for row in ws.iter_rows(min_row=2):
+            for cell in row: cell.border = border
+        ws.freeze_panes = 'A2'
+        buf = BytesIO(); wb.save(buf); buf.seek(0)
+        fname = f'Stock_by_GRN_{date.today().strftime("%Y%m%d")}.xlsx'
+        return send_file(buf, as_attachment=True, download_name=fname,
+                         mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+
+    if kind == 'stock_ledger':
         ws.title = 'Stock Ledger'
-        headers = ['#', 'Date', 'Type', 'Ref No', 'Item Code', 'Item Name',
-                   'Batch', 'Location', 'Qty IN', 'Qty OUT', 'UOM',
+        headers = ['#', 'Txn Date', 'Type', 'Ref', 'Item Code', 'Item Name',
+                   'Location', 'Qty In', 'Qty Out', 'UOM',
                    'Rate', 'Amount', 'By']
         ws.append(headers)
         _style_header(ws[1])
+
         qs = GrnStockLedger.query
-        q = (request.args.get('q','') or '').strip()
+        q          = (request.args.get('q','') or '').strip()
+        txn_type   = (request.args.get('txn_type','') or '').strip()
+        df         = _parse_date(request.args.get('date_from'))
+        dt         = _parse_date(request.args.get('date_to'))
         if q:
             like = f'%{q}%'
-            qs = qs.filter(or_(
-                GrnStockLedger.item_name.ilike(like),
-                GrnStockLedger.batch_no.ilike(like),
-                GrnStockLedger.txn_ref_no.ilike(like),
-            ))
-        for i, r in enumerate(qs.order_by(desc(GrnStockLedger.id)).all(), 1):
+            qs = qs.filter(or_(GrnStockLedger.item_name.ilike(like),
+                               GrnStockLedger.item_code.ilike(like),
+                               GrnStockLedger.txn_ref_no.ilike(like)))
+        if txn_type:
+            qs = qs.filter(GrnStockLedger.txn_type == txn_type)
+        if df:
+            qs = qs.filter(GrnStockLedger.txn_date >= datetime.combine(df, time.min))
+        if dt:
+            qs = qs.filter(GrnStockLedger.txn_date <= datetime.combine(dt, time.max))
+
+        for i, r in enumerate(qs.order_by(desc(GrnStockLedger.txn_date)).all(), 1):
             ws.append([
                 i,
                 r.txn_date.strftime('%d-%m-%Y %H:%M') if r.txn_date else '',
                 r.txn_type or '', r.txn_ref_no or '',
                 r.item_code or '', r.item_name or '',
-                r.batch_no or '', r.location_name or '',
+                r.location_name or '—',
                 float(r.qty_in or 0), float(r.qty_out or 0),
-                r.uom or '', float(r.rate or 0), float(r.amount or 0),
+                r.uom or 'KG',
+                float(r.rate or 0), float(r.amount or 0),
                 r.actor_name or '',
             ])
-        widths = [5, 16, 12, 22, 14, 28, 14, 18, 10, 10, 8, 10, 12, 14]
+        widths = [5, 18, 12, 26, 16, 32, 18, 12, 12, 8, 12, 14, 16]
+        for idx, w in enumerate(widths, 1):
+            ws.column_dimensions[chr(64 + idx) if idx <= 26 else 'A' + chr(64 + idx - 26)].width = w
+        for row in ws.iter_rows(min_row=2):
+            for cell in row: cell.border = border
+        ws.freeze_panes = 'A2'
+        buf = BytesIO(); wb.save(buf); buf.seek(0)
+        fname = f'Stock_Ledger_{date.today().strftime("%Y%m%d")}.xlsx'
+        return send_file(buf, as_attachment=True, download_name=fname,
+                         mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
 
-    else:  # grn_listing (default)
-        ws.title = 'GRN Listing'
-        headers = ['#', 'GRN No', 'Date', 'Type', 'Supplier', 'PO No',
-                   'Invoice No', 'Invoice Date', 'Total Boxes',
-                   'Total Received', 'Total Amount', 'Status', 'Created By', 'Created At']
-        ws.append(headers)
-        _style_header(ws[1])
-        qs = GrnMaster.query.filter_by(is_deleted=False)
-        gtype = (request.args.get('grn_type','') or '').upper().strip()
-        status = (request.args.get('status','') or '').strip()
-        q = (request.args.get('q','') or '').strip()
-        date_from = _parse_date(request.args.get('date_from'))
-        date_to   = _parse_date(request.args.get('date_to'))
-        if gtype: qs = qs.filter(GrnMaster.grn_type == gtype)
-        if status: qs = qs.filter(GrnMaster.status == status)
-        if date_from: qs = qs.filter(GrnMaster.grn_date >= date_from)
-        if date_to:   qs = qs.filter(GrnMaster.grn_date <= date_to)
-        if q:
-            like = f'%{q}%'
-            qs = qs.filter(or_(
-                GrnMaster.grn_number.ilike(like),
-                GrnMaster.po_number.ilike(like),
-                GrnMaster.supplier_name.ilike(like),
-                GrnMaster.invoice_no.ilike(like),
-            ))
-        for i, r in enumerate(qs.order_by(desc(GrnMaster.id)).all(), 1):
-            ws.append([
-                i, r.grn_number or '',
-                r.grn_date.strftime('%d-%m-%Y') if r.grn_date else '',
-                r.grn_type or '', r.supplier_name or '', r.po_number or '',
-                r.invoice_no or '',
-                r.invoice_date.strftime('%d-%m-%Y') if r.invoice_date else '',
-                int(r.total_box_qty or 0),
-                float(r.total_received_qty or 0),
-                float(r.total_amount or 0),
-                r.status or '', r.created_by_name or '',
-                r.created_at.strftime('%d-%m-%Y %H:%M') if r.created_at else '',
-            ])
-        widths = [5, 22, 12, 7, 30, 22, 16, 12, 12, 16, 14, 16, 14, 18]
+    # Default: GRN listing export (existing behavior)
+    ws.title = 'GRN Listing'
+    headers = ['#', 'GRN No', 'Date', 'Type', 'Supplier', 'PO No',
+               'Invoice No', 'Invoice Date', 'Total Boxes',
+               'Total Received', 'Total Amount', 'Status', 'Created By', 'Created At']
+    ws.append(headers)
+    _style_header(ws[1])
+    qs = GrnMaster.query.filter_by(is_deleted=False)
+    gtype = (request.args.get('grn_type','') or '').upper().strip()
+    status = (request.args.get('status','') or '').strip()
+    q = (request.args.get('q','') or '').strip()
+    date_from = _parse_date(request.args.get('date_from'))
+    date_to   = _parse_date(request.args.get('date_to'))
+    if gtype: qs = qs.filter(GrnMaster.grn_type == gtype)
+    if status: qs = qs.filter(GrnMaster.status == status)
+    if date_from: qs = qs.filter(GrnMaster.grn_date >= date_from)
+    if date_to:   qs = qs.filter(GrnMaster.grn_date <= date_to)
+    if q:
+        like = f'%{q}%'
+        qs = qs.filter(or_(
+            GrnMaster.grn_number.ilike(like),
+            GrnMaster.po_number.ilike(like),
+            GrnMaster.supplier_name.ilike(like),
+            GrnMaster.invoice_no.ilike(like),
+        ))
+    for i, r in enumerate(qs.order_by(desc(GrnMaster.id)).all(), 1):
+        ws.append([
+            i, r.grn_number or '',
+            r.grn_date.strftime('%d-%m-%Y') if r.grn_date else '',
+            r.grn_type or '', r.supplier_name or '', r.po_number or '',
+            r.invoice_no or '',
+            r.invoice_date.strftime('%d-%m-%Y') if r.invoice_date else '',
+            int(r.total_box_qty or 0),
+            float(r.total_received_qty or 0),
+            float(r.total_amount or 0),
+            r.status or '', r.created_by_name or '',
+            r.created_at.strftime('%d-%m-%Y %H:%M') if r.created_at else '',
+        ])
+    widths = [5, 22, 12, 7, 30, 22, 16, 12, 12, 16, 14, 16, 14, 18]
 
     # Apply column widths + borders
     for idx, w in enumerate(widths, 1):
@@ -1907,7 +2778,7 @@ def export_excel():
     buf = BytesIO()
     wb.save(buf)
     buf.seek(0)
-    fname = f'GRN_{kind}_{date.today().strftime("%Y%m%d")}.xlsx'
+    fname = f'GRN_Listing_{date.today().strftime("%Y%m%d")}.xlsx'
     return send_file(buf, as_attachment=True, download_name=fname,
                      mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
 
@@ -1925,6 +2796,7 @@ def api_grn_items(grn_id):
     return jsonify(
         grn_id=grn.id,
         grn_number=grn.grn_number,
+        grn_type=grn.grn_type or '',
         items=[it.to_dict() for it in items],
     )
 
@@ -1950,10 +2822,12 @@ def api_material(mat_id):
 def api_search_items():
     """Search items for the per-row picker.
        - If po_id given: returns ONLY that PO's pending items
-       - Else: returns all matching materials (direct GRN)
+       - Else (direct receive / NA flow): returns materials filtered by
+         the GRN type (RM GRN → RM materials, PM → PM, etc.)
     """
-    q     = (request.args.get('q', '') or '').strip()
-    po_id = (request.args.get('po_id', '') or '').strip()
+    q        = (request.args.get('q', '') or '').strip()
+    po_id    = (request.args.get('po_id', '') or '').strip()
+    grn_type = (request.args.get('grn_type', '') or '').strip().upper()
 
     if po_id:
         try:
@@ -1996,15 +2870,21 @@ def api_search_items():
             })
         return jsonify(results=items)
 
-    # Direct GRN — show all materials
+    # Direct GRN — filter materials by GRN type abbreviation (RM/PM/COR/SLV/FG)
     qs = Material.query.filter_by(is_deleted=False)
+    if grn_type:
+        # Match the GRN type to material_types.abbreviation (case-insensitive).
+        # If no matching type exists, return zero results rather than ALL.
+        qs = (qs.join(MaterialType, Material.material_type_id == MaterialType.id)
+                .filter(db.func.upper(MaterialType.abbreviation) == grn_type)
+                .filter(MaterialType.is_deleted == False))
     if q:
         like = f'%{q}%'
         qs = qs.filter(or_(
             Material.material_name.ilike(like),
             Material.code.ilike(like),
         ))
-    rows = qs.order_by(Material.material_name).limit(30).all()
+    rows = qs.order_by(Material.material_name).limit(50).all()
     return jsonify(results=[{
         'id': f'mat-{m.id}',
         'text': f'{m.material_name} — {m.code}',

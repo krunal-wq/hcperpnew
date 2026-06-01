@@ -1,0 +1,38 @@
+# ═════════════════════════════════════════════════════════════════════════════
+# CHECK LIST MATERIAL FORM — Item-wise printable checklist (no data stored)
+# ═════════════════════════════════════════════════════════════════════════════
+# Add this route in grn_routes.py.
+#
+# WHERE TO PASTE
+# ──────────────
+# Open grn_routes.py and find this existing route (around line 2363):
+#
+#     @grn_bp.route('/<int:grn_id>/labels')
+#     @login_required
+#     def labels_grn(grn_id):
+#         ...
+#         return render_template('grn/labels.html', ...)
+#
+# Paste the block below IMMEDIATELY AFTER the `labels_grn` function ends
+# (just before the "# ═════ Excel Export ═════" comment, around line 2381).
+#
+# No imports needed — all required symbols are already imported at the top.
+
+@grn_bp.route('/<int:grn_id>/checklist')
+@login_required
+def checklist_grn(grn_id):
+    """Print item-wise Check List Material Form for an RM GRN.
+
+    Nothing is stored — the form is rendered from existing GRN/item data
+    and is meant to be printed on paper and physically ticked.
+    """
+    if not _can('view'):
+        abort(403)
+    grn = GrnMaster.query.get_or_404(grn_id)
+    if grn.is_deleted:
+        abort(404)
+    items = grn.items.order_by(GrnItem.sr_no).all()
+    return render_template('grn/checklist.html',
+                           active_page='grn',
+                           grn=grn,
+                           items=items)

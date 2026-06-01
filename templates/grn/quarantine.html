@@ -1,0 +1,193 @@
+{% extends "base.html" %}
+
+{% block title %}RM Quarantine — HCP ERP{% endblock %}
+{% block page_title %}RM Quarantine{% endblock %}
+{% block bread %}Stores / GRN / RM Quarantine{% endblock %}
+
+{% block extra_css %}
+<style>
+  .qr-wrap { padding: 0 14px; }
+
+  /* Toolbar */
+  .qr-toolbar { background:#fff; border:1px solid #e2e8f0; border-radius:10px;
+                padding:14px 18px; display:flex; gap:10px; align-items:center;
+                margin-bottom:12px; flex-wrap:wrap; }
+  .qr-toolbar input { padding:8px 12px; border:1.5px solid #e2e8f0; border-radius:6px;
+                       font-size:13px; font-family:inherit; }
+  .qr-toolbar input[type="text"] { flex:1; min-width:240px; }
+  .qr-toolbar .clr-btn { padding:8px 14px; background:#f1f5f9; border:0;
+                          border-radius:6px; cursor:pointer; font-size:13px; }
+
+  /* Stats */
+  .qr-stats { display:grid; grid-template-columns: repeat(3, 1fr); gap:12px; margin-bottom:12px; }
+  .qr-stat { background:#fff; border:1px solid #e2e8f0; border-radius:10px;
+             padding:14px 18px; border-left:4px solid #f59e0b; }
+  .qr-stat .lbl { font-size:11px; color:#64748b; text-transform:uppercase; letter-spacing:.05em; font-weight:700; }
+  .qr-stat .val { font-size:22px; font-weight:800; color:#92400e; margin-top:4px; }
+
+  /* Table */
+  .qr-tbl { width:100%; border-collapse:collapse; background:#fff;
+            border:1px solid #e2e8f0; border-radius:10px; overflow:hidden;
+            font-size:12.5px; }
+  .qr-tbl th { background:#fef3c7; color:#78350f; font-size:11px; font-weight:800;
+               text-transform:uppercase; letter-spacing:.04em; padding:11px 10px;
+               text-align:left; border-bottom:2px solid #fbbf24; }
+  .qr-tbl th.num { text-align:right; }
+  .qr-tbl th.ctr { text-align:center; }
+  .qr-tbl td { padding:11px 10px; border-bottom:1px solid #f1f5f9; }
+  .qr-tbl td.num { text-align:right; font-weight:600; }
+  .qr-tbl td.ctr { text-align:center; }
+  .qr-tbl tr:hover { background:#fafbfd; }
+  .qr-tbl a { color:#2563eb; font-weight:600; text-decoration:none; }
+  .qr-tbl a:hover { text-decoration:underline; }
+  .qr-tbl .meta { font-size:10.5px; color:#94a3b8; }
+
+  /* Pill */
+  .qr-pill { display:inline-block; background:#f59e0b; color:#fff;
+             font-size:10px; padding:3px 10px; border-radius:999px;
+             font-weight:800; text-transform:uppercase; letter-spacing:.04em; }
+  .qr-type-pill { display:inline-block; font-size:10px; padding:2px 8px;
+                  border-radius:4px; font-weight:700; background:#dbeafe; color:#1e40af; }
+
+  .qr-empty { text-align:center; padding:50px 20px; color:#94a3b8; font-size:14px; }
+
+  /* Totals row */
+  .qr-tbl tfoot td { background:#fef3c7; font-weight:800; color:#78350f;
+                     padding:12px 10px; border-top:2px solid #fbbf24; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="qr-wrap">
+
+  <!-- Toolbar -->
+  <div class="qr-toolbar">
+    <input type="text" id="fSearch" placeholder="🔍 Search GRN, Item, Code, Batch...">
+    <input type="date" id="fFrom" title="GRN date from">
+    <input type="date" id="fTo"   title="GRN date to">
+    <button class="clr-btn" onclick="clearFilters()">Clear</button>
+    <span style="margin-left:auto;font-size:12px;color:#64748b;" id="rowCount">0 rows</span>
+  </div>
+
+  <!-- Stats -->
+  <div class="qr-stats">
+    <div class="qr-stat">
+      <div class="lbl">📋 Total Rows</div>
+      <div class="val" id="statRows">0</div>
+    </div>
+    <div class="qr-stat">
+      <div class="lbl">📦 Total Boxes in Quarantine</div>
+      <div class="val" id="statBoxes">0</div>
+    </div>
+    <div class="qr-stat">
+      <div class="lbl">⚖️ Total Quantity</div>
+      <div class="val" id="statTotal">0.000</div>
+    </div>
+  </div>
+
+  <!-- Table -->
+  <table class="qr-tbl">
+    <thead>
+      <tr>
+        <th style="width:42px;">#</th>
+        <th>GRN No</th>
+        <th style="width:100px;">GRN Date</th>
+        <th>Item Name</th>
+        <th class="num" style="width:120px;">Per Box Qty</th>
+        <th class="num" style="width:100px;">No of Box</th>
+        <th class="num" style="width:140px;">Total</th>
+        <th style="width:130px;">Last Scan</th>
+      </tr>
+    </thead>
+    <tbody id="qrBody">
+      <tr><td colspan="8" class="qr-empty">Loading...</td></tr>
+    </tbody>
+    <tfoot id="qrFoot" style="display:none;">
+      <tr>
+        <td colspan="5" style="text-align:right;">GRAND TOTAL</td>
+        <td class="num" id="ftBoxes">0</td>
+        <td class="num" id="ftTotal">0.000</td>
+        <td></td>
+      </tr>
+    </tfoot>
+  </table>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const esc = s => String(s||'').replace(/[<>&"]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'})[c]);
+const fmtQty = n => Number(n).toLocaleString('en-IN', { minimumFractionDigits: 3, maximumFractionDigits: 3 });
+const fmtInt = n => Number(n).toLocaleString('en-IN');
+
+function load(){
+  const q  = document.getElementById('fSearch').value;
+  const df = document.getElementById('fFrom').value;
+  const dt = document.getElementById('fTo').value;
+  const url = `/grn/api/quarantine?q=${encodeURIComponent(q)}&date_from=${df}&date_to=${dt}`;
+  fetch(url, { credentials: 'same-origin' })
+    .then(r => r.json())
+    .then(render);
+}
+
+function render(d){
+  if (!d.success){
+    document.getElementById('qrBody').innerHTML = `<tr><td colspan="8" class="qr-empty">${esc(d.error || 'Failed to load')}</td></tr>`;
+    return;
+  }
+  const rows = d.results || [];
+  document.getElementById('rowCount').textContent  = rows.length + ' rows';
+  document.getElementById('statRows').textContent  = fmtInt(rows.length);
+  document.getElementById('statBoxes').textContent = fmtInt(d.grand_boxes || 0);
+  document.getElementById('statTotal').textContent = fmtQty(d.grand_total || 0);
+
+  const tbody = document.getElementById('qrBody');
+  const tfoot = document.getElementById('qrFoot');
+  if (!rows.length){
+    tbody.innerHTML = `<tr><td colspan="8" class="qr-empty">No items in Quarantine</td></tr>`;
+    tfoot.style.display = 'none';
+    return;
+  }
+
+  let html = '';
+  rows.forEach((r, i) => {
+    html += `
+      <tr>
+        <td class="ctr meta">${i + 1}</td>
+        <td>
+          <a href="/grn/${r.grn_id}/view">${esc(r.grn_number)}</a>
+          <div class="meta">${esc(r.supplier_name)}</div>
+        </td>
+        <td>${esc(r.grn_date)}</td>
+        <td>
+          <div style="font-weight:600;color:#0f172a;">${esc(r.item_name)}</div>
+          <div class="meta">${esc(r.item_code)}${r.batch_no ? ' · Batch ' + esc(r.batch_no) : ''}</div>
+        </td>
+        <td class="num">${fmtQty(r.per_box_qty)} <span class="meta">${esc(r.uom)}</span></td>
+        <td class="num">${fmtInt(r.no_of_boxes)}</td>
+        <td class="num">${fmtQty(r.total_qty)} <span class="meta">${esc(r.uom)}</span></td>
+        <td style="font-size:11px;color:#64748b;">${esc(r.last_scanned)}</td>
+      </tr>`;
+  });
+  tbody.innerHTML = html;
+
+  document.getElementById('ftBoxes').textContent = fmtInt(d.grand_boxes || 0);
+  document.getElementById('ftTotal').textContent = fmtQty(d.grand_total || 0);
+  tfoot.style.display = '';
+}
+
+function clearFilters(){
+  ['fSearch','fFrom','fTo'].forEach(id => document.getElementById(id).value = '');
+  load();
+}
+
+let debounce;
+document.getElementById('fSearch').addEventListener('input', () => {
+  clearTimeout(debounce); debounce = setTimeout(load, 250);
+});
+['fFrom','fTo'].forEach(id => document.getElementById(id).addEventListener('change', load));
+
+load();
+</script>
+{% endblock %}

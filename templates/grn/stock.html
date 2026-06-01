@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 {% block title %}Stock View — HCP ERP{% endblock %}
-{% block page_title %}Current Stock (Batch-wise){% endblock %}
+{% block page_title %}Current Stock (Batch-wise){% if mat_type=='rm' %} — Raw Material{% elif mat_type=='pm' %} — Packing Material{% endif %}{% endblock %}
 {% block bread %}Stores / GRN / Stock View{% endblock %}
 
 {% block extra_css %}
@@ -55,14 +55,8 @@
 
 {% block content %}
 <div class="sv-toolbar">
-  <input id="fSearch" class="search" type="text" placeholder="Search item name / code / batch...">
+  <input id="fSearch" class="search" type="text" placeholder="Search item name / code...">
   <select id="fLocation"><option value="">All Locations</option></select>
-  <select id="fExpiry">
-    <option value="">All Items</option>
-    <option value="expired">⚠️ Expired</option>
-    <option value="expiring">🔶 Expiring in 90 days</option>
-    <option value="fresh">✓ Fresh</option>
-  </select>
   <button onclick="clearF()">Clear</button>
   <a href="{{ url_for('grn.stock_ledger_page') }}" class="ledger">📋 Stock Ledger</a>
   <a id="exportLink" href="#" onclick="exportExcel(event)" class="export">📊 Export Excel</a>
@@ -71,26 +65,22 @@
 <div class="sv-wrap">
   <div class="summary-bar" id="summaryBar">
     <div class="stat">Total Items: <b id="sTotalItems">0</b></div>
-    <div class="stat">Total Batches: <b id="sTotalBatches">0</b></div>
     <div class="stat">Total Qty (sum): <b id="sTotalQty">0.000</b></div>
-    <div class="stat" style="color:#7f1d1d;">Expired Batches: <b id="sExpired">0</b></div>
   </div>
   <table class="sv-table">
     <thead>
       <tr>
         <th>Item</th>
-        <th>Batch No</th>
         <th>Location</th>
         <th class="num">On Hand</th>
         <th class="num">Reserved</th>
         <th class="num">Available</th>
         <th class="num">Avg Rate</th>
-        <th>MFG / Expiry</th>
         <th>Last Inward</th>
       </tr>
     </thead>
     <tbody id="stockBody">
-      <tr><td colspan="9" class="empty-state">
+      <tr><td colspan="7" class="empty-state">
         <div class="icon">📦</div>Loading current stock...
       </td></tr>
     </tbody>
@@ -118,9 +108,8 @@ function load(){
     page: currentPage, limit: PAGE_SIZE,
     q: document.getElementById('fSearch').value.trim(),
     location_id: document.getElementById('fLocation').value,
-    expiry_filter: document.getElementById('fExpiry').value,
   });
-  fetch(`{{ url_for('grn.api_batch_stock') }}?${params}`, { credentials:'same-origin' })
+  fetch(`{{ url_for('grn.api_batch_stock') }}?${params}&type={{ mat_type }}`, { credentials:'same-origin' })
     .then(r => r.json())
     .then(d => { _allRows = d.results || []; render(_allRows, d.total || 0); });
 }
@@ -129,7 +118,7 @@ function render(rows, total){
   currentTotal = total;
   const tbody = document.getElementById('stockBody');
   if (!rows.length){
-    tbody.innerHTML = `<tr><td colspan="9" class="empty-state">
+    tbody.innerHTML = `<tr><td colspan="7" class="empty-state">
       <div class="icon">📦</div>No stock found.</td></tr>`;
     updateSummary([]);
     document.getElementById('totalCount').textContent = '0 rows';
@@ -138,30 +127,16 @@ function render(rows, total){
     document.getElementById('nextBtn').disabled = true;
     return;
   }
-  const today = new Date();
   let html = '';
   rows.forEach(r => {
-    let expPill = '';
-    if (r.expiry_date){
-      const exp = new Date(r.expiry_date.split('-').reverse().join('-'));
-      const days = Math.floor((exp - today)/86400000);
-      if (days < 0) expPill = `<span class="pill pill-expired">EXPIRED ${-days}d ago</span>`;
-      else if (days < 90) expPill = `<span class="pill pill-exp">${days}d left</span>`;
-      else expPill = `<span class="pill pill-ok">${days}d</span>`;
-    }
     html += `<tr>
       <td><b>${escapeHTML(r.item_name)}</b>
           <div class="small-meta">${escapeHTML(r.item_code||'')}</div></td>
-      <td>${escapeHTML(r.batch_no || '—')}</td>
       <td><span class="pill pill-loc">${escapeHTML(r.location||'—')}</span></td>
       <td class="num qty-on-hand">${fmt(r.qty_on_hand)} ${escapeHTML(r.uom)}</td>
       <td class="num">${fmt(r.qty_reserved)}</td>
       <td class="num">${fmt(r.qty_available)}</td>
       <td class="num">₹${Number(r.avg_rate||0).toFixed(2)}</td>
-      <td>
-        <div class="small-meta">MFG: ${escapeHTML(r.mfg_date||'—')}</div>
-        <div class="small-meta">EXP: ${escapeHTML(r.expiry_date||'—')} ${expPill}</div>
-      </td>
       <td><div class="small-meta">${escapeHTML(r.last_inward_at||'—')}</div></td>
     </tr>`;
   });
@@ -176,19 +151,10 @@ function render(rows, total){
 
 function updateSummary(rows){
   const uniqItems = new Set(rows.map(r => r.material_id));
-  let totalQty = 0, expired = 0;
-  const today = new Date();
-  rows.forEach(r => {
-    totalQty += Number(r.qty_on_hand || 0);
-    if (r.expiry_date){
-      const exp = new Date(r.expiry_date.split('-').reverse().join('-'));
-      if (exp < today) expired++;
-    }
-  });
+  let totalQty = 0;
+  rows.forEach(r => { totalQty += Number(r.qty_on_hand || 0); });
   document.getElementById('sTotalItems').textContent = uniqItems.size;
-  document.getElementById('sTotalBatches').textContent = rows.length;
   document.getElementById('sTotalQty').textContent = totalQty.toFixed(3);
-  document.getElementById('sExpired').textContent = expired;
 }
 
 function changePage(d){
@@ -201,7 +167,6 @@ function changePage(d){
 window.clearF = function(){
   document.getElementById('fSearch').value = '';
   document.getElementById('fLocation').value = '';
-  document.getElementById('fExpiry').value = '';
   currentPage = 1; load();
 };
 
@@ -210,7 +175,6 @@ window.exportExcel = function(e){
   const params = new URLSearchParams({
     q: document.getElementById('fSearch').value.trim(),
     location_id: document.getElementById('fLocation').value,
-    expiry_filter: document.getElementById('fExpiry').value,
     kind: 'batch_stock',
   });
   window.location = `{{ url_for('grn.export_excel') }}?${params}`;
@@ -231,7 +195,6 @@ let _t; document.getElementById('fSearch').addEventListener('input', () => {
   clearTimeout(_t); _t = setTimeout(() => { currentPage = 1; load(); }, 250);
 });
 document.getElementById('fLocation').addEventListener('change', () => { currentPage = 1; load(); });
-document.getElementById('fExpiry').addEventListener('change', () => { currentPage = 1; load(); });
 
 load();
 </script>

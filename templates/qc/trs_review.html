@@ -1,0 +1,511 @@
+{% extends 'base.html' %}
+{% block title %}QC Review — {{ trs.trs_no }}{% endblock %}
+{% block page_title %}🔬 QC Review{% endblock %}
+{% block bread %}QC Department / {{ trs.grn_no }} / {{ trs.trs_no }}{% endblock %}
+
+{% block extra_css %}
+<style>
+.qr-wrap { max-width: 1100px; margin: 0 auto; padding: 0 12px 40px; }
+.qr-bar { display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap; align-items:center; }
+.qr-bar a, .qr-bar button {
+  padding:9px 18px; border-radius:7px; font-size:13px; font-weight:700;
+  cursor:pointer; text-decoration:none; border:1.5px solid;
+  display:inline-flex; align-items:center; gap:6px;
+}
+.qr-bar .back  { background:#fff; color:#475569; border-color:#cbd5e1; }
+.qr-bar .edit-data { background:#fff; color:#1d4ed8; border-color:#93c5fd; }
+.qr-bar .edit-data:hover { background:#eff6ff; }
+.qr-bar .print { background:#16a34a; color:#fff; border-color:#16a34a; margin-left:auto; }
+
+.qr-status {
+  display:inline-block; padding:5px 14px; border-radius:11px;
+  font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:.04em;
+}
+.qr-status.pending { background:#fef3c7; color:#b45309; }
+.qr-status.under_testing { background:#dbeafe; color:#1d4ed8; }
+.qr-status.approved { background:#dcfce7; color:#15803d; }
+.qr-status.rejected { background:#fee2e2; color:#b91c1c; }
+.qr-status.hold { background:#f3e8ff; color:#7c3aed; }
+
+.cert-doc { background:#fff; border:1px solid #cbd5e1; font-family:Arial,Helvetica,sans-serif; color:#1e293b; overflow:hidden; }
+.cert-head { display:grid; grid-template-columns:200px 1fr; border-bottom:1px solid #cbd5e1; }
+.cert-head .logo-cell { border-right:1px solid #cbd5e1; padding:18px; display:flex; align-items:center; justify-content:center; }
+.cert-head .logo-cell img { max-width:130px; max-height:60px; object-fit:contain; }
+.cert-head .title-cell { padding:16px; text-align:center; }
+.cert-head .title-cell h1 { font-size:18px; font-weight:700; margin:0 0 4px 0; letter-spacing:.5px; }
+.cert-head .title-cell .code { font-size:14px; color:#475569; }
+.cert-row { display:grid; border-bottom:1px solid #cbd5e1; }
+.cert-row.c2 { grid-template-columns:1fr 1fr; }
+.cert-row.c3 { grid-template-columns:1fr 1fr 1fr; }
+.cert-row.c1 { grid-template-columns:1fr; }
+.cert-row .cell { display:grid; grid-template-columns:200px 1fr; }
+.cert-row .cell:not(:last-child) { border-right:1px solid #cbd5e1; }
+.cert-row .cell .lbl { padding:11px 14px; font-size:13px; font-weight:600; color:#1e293b; border-right:1px solid #cbd5e1; text-align:right; display:flex; align-items:center; justify-content:flex-end; }
+.cert-row .cell .val { padding:11px 14px; font-size:13px; color:#334155; display:flex; align-items:center; }
+.cert-section { text-align:center; font-weight:700; font-size:14px; padding:11px 0; border-bottom:1px solid #cbd5e1; letter-spacing:.8px; }
+.cert-pv { display:grid; grid-template-columns:80px 260px 1fr 200px; }
+.cert-pv > div { border-right:1px solid #cbd5e1; border-bottom:1px solid #cbd5e1; padding:11px 14px; font-size:13px; display:flex; align-items:center; }
+.cert-pv > div:nth-child(4n) { border-right:0; }
+.cert-pv .th { font-weight:700; }
+.cert-pv .sr { justify-content:center; font-weight:600; }
+.coa-yes { color:#15803d; font-weight:700; text-decoration:none; }
+.coa-yes:hover { text-decoration:underline; }
+.coa-no  { color:#b91c1c; font-weight:700; }
+
+.cert-foot { display:grid; grid-template-columns:200px 1fr 200px; border-bottom:1px solid #cbd5e1; }
+.cert-foot > div { padding:11px 14px; font-size:13px; border-right:1px solid #cbd5e1; }
+.cert-foot > div:last-child { border-right:0; text-align:right; }
+.cert-foot .l { font-weight:700; }
+
+/* QC action panel */
+.qc-action { background:#fff; border:1px solid #cbd5e1; border-top:0; }
+.qc-action .sec-title { text-align:center; font-weight:700; font-size:14px; padding:11px 0; border-bottom:1px solid #cbd5e1; letter-spacing:.6px; }
+.qc-remarks-head { display:grid; grid-template-columns:80px 1fr 60px; border-bottom:1px solid #cbd5e1; }
+.qc-remarks-head > div { padding:9px 14px; font-weight:700; text-align:center; font-size:13px; border-right:1px solid #cbd5e1; }
+.qc-remarks-head > div:last-child { border-right:0; }
+.qc-remarks-head .desc-h { text-align:left; }
+.qc-rrow { display:grid; grid-template-columns:80px 1fr 60px; border-bottom:1px solid #cbd5e1; align-items:stretch; }
+.qc-rrow > div { border-right:1px solid #cbd5e1; padding:8px 10px; display:flex; align-items:center; }
+.qc-rrow > div:last-child { border-right:0; justify-content:center; }
+.qc-rrow .srno { justify-content:center; font-weight:700; color:#334155; }
+.qc-rrow textarea { width:100%; min-height:54px; border:1px solid #cbd5e1; border-radius:6px; padding:7px 10px; font-size:13px; font-family:inherit; resize:vertical; }
+.qc-rrow .row-del { background:#fef2f2; color:#dc2626; border:none; width:30px; height:30px; border-radius:6px; cursor:pointer; font-size:15px; font-weight:700; }
+.qc-rrow .row-del:hover { background:#fee2e2; }
+.qc-addrow-bar { padding:10px 14px; border-bottom:1px solid #cbd5e1; }
+.qc-addrow-bar button { background:#eff6ff; color:#1d4ed8; border:1.5px solid #93c5fd; padding:7px 16px; border-radius:6px; font-size:13px; font-weight:700; cursor:pointer; }
+.qc-addrow-bar button:hover { background:#dbeafe; }
+.qc-decide { display:flex; align-items:center; gap:24px; padding:14px 18px; flex-wrap:wrap; }
+.qc-reject-reason { padding:14px 18px; border-bottom:1px solid #cbd5e1; background:#fff5f5; }
+.qc-reject-reason label { display:block; font-size:13px; font-weight:700; color:#b91c1c; margin-bottom:6px; }
+.qc-reject-reason textarea { width:100%; min-height:70px; border:1.5px solid #fca5a5; border-radius:6px; padding:8px 10px; font-size:13px; font-family:inherit; resize:vertical; }
+.qc-reject-reason textarea:focus { outline:0; border-color:#dc2626; box-shadow:0 0 0 3px rgba(220,38,38,.12); }
+.qc-decide label { display:flex; align-items:center; gap:7px; font-size:14px; font-weight:700; cursor:pointer; }
+.qc-decide .approved-lbl { color:#15803d; }
+.qc-decide .rejected-lbl { color:#b91c1c; }
+.qc-decide input[type=radio] { width:17px; height:17px; cursor:pointer; }
+.qc-save { margin-left:auto; padding:10px 30px; background:#2563eb; color:#fff; border:none; border-radius:7px; font-size:14px; font-weight:800; cursor:pointer; }
+.qc-save:hover { background:#1d4ed8; }
+.qc-save:disabled { opacity:.5; cursor:not-allowed; }
+.qc-locked-note { padding:12px 18px; font-size:13px; color:#475569; background:#f8fafc; border-top:1px solid #e2e8f0; }
+.qc-reopen-bar { display:flex; align-items:center; gap:12px; padding:12px 18px; flex-wrap:wrap; border-top:1px solid #e2e8f0; }
+.qc-reopen-note { font-size:12.5px; color:#64748b; }
+.qc-reject-reason-box { margin-top:10px; background:#fff5f5; border:1px solid #fecaca; border-radius:8px; padding:10px 12px; }
+.qc-reject-reason-box .rr-title { font-size:11px; font-weight:800; color:#b91c1c; text-transform:uppercase; letter-spacing:.04em; margin-bottom:4px; }
+.qc-reject-reason-box .rr-body { font-size:13px; color:#334155; white-space:pre-line; line-height:1.5; }
+.qc-reopen-btn { margin-left:auto; background:#fff; color:#b45309; border:1.5px solid #fcd34d; padding:9px 18px; border-radius:7px; font-size:13px; font-weight:700; cursor:pointer; }
+.qc-reopen-btn:hover { background:#fffbeb; }
+.qc-reopen-btn:disabled { opacity:.5; cursor:not-allowed; }
+
+/* QC result modal */
+.qcm-overlay {
+  display:none; position:fixed; inset:0; z-index:3000;
+  background:rgba(15,23,42,.55); align-items:center; justify-content:center;
+  padding:20px;
+}
+.qcm-overlay.show { display:flex; }
+.qcm-box {
+  background:#fff; border-radius:16px; width:100%; max-width:420px;
+  padding:30px 26px 24px; text-align:center;
+  box-shadow:0 24px 70px rgba(0,0,0,.3);
+  animation:qcmPop .22s ease;
+}
+@keyframes qcmPop { from{ transform:scale(.9); opacity:0; } to{ transform:scale(1); opacity:1; } }
+.qcm-icon { font-size:46px; line-height:1; margin-bottom:12px; }
+.qcm-box h3 { margin:0 0 8px; font-size:19px; font-weight:800; color:#0f172a; }
+.qcm-box p { margin:0 0 22px; font-size:14px; color:#475569; white-space:pre-line; line-height:1.5; }
+.qcm-btns { display:flex; gap:10px; justify-content:center; }
+.qcm-ok {
+  background:#2563eb; color:#fff; border:none; border-radius:9px;
+  padding:11px 40px; font-size:15px; font-weight:800; cursor:pointer;
+}
+.qcm-ok:hover { background:#1d4ed8; }
+.qcm-cancel {
+  background:#fff; color:#475569; border:1.5px solid #cbd5e1; border-radius:9px;
+  padding:11px 28px; font-size:15px; font-weight:700; cursor:pointer;
+}
+.qcm-cancel:hover { background:#f8fafc; }
+.qcm-box.is-error .qcm-ok { background:#dc2626; }
+.qcm-box.is-error .qcm-ok:hover { background:#b91c1c; }
+
+@media print {
+  body * { visibility:hidden; }
+  .cert-doc, .cert-doc * { visibility:visible; }
+  .cert-doc { position:absolute; left:0; top:0; width:100%; }
+  .qr-bar, .qc-action, .sidebar, .topbar, header, footer, nav { display:none !important; }
+  @page { size:A4 portrait; margin:10mm; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="qr-wrap">
+
+  {% set st = (trs.qc_status or 'Pending') %}
+  {% set st_slug = st|lower|replace(' ','_') %}
+  {% set locked = (st == 'Approved' or st == 'Rejected') %}
+
+  <div class="qr-bar">
+    <a class="back" href="{{ url_for('qc.rm_trs_list') if (grn and grn.grn_type|upper == 'RM') else url_for('qc.pm_trs_list') }}">← Back to List</a>
+    <span class="qr-status {{ st_slug }}">{{ st }}</span>
+    {% if not locked %}
+      <a class="edit-data" href="{{ url_for('trs.edit_trs', trs_id=trs.id) }}" title="Edit TRS slip data">✏️ Edit TRS Data</a>
+    {% endif %}
+    <button class="print" onclick="window.print()">🖨️ Print</button>
+  </div>
+
+  <div class="cert-doc">
+    <div class="cert-head">
+      <div class="logo-cell">
+        <img src="{{ url_for('static', filename='images/icons/hcp-logo.png') }}" alt="HCP" onerror="this.style.display='none'">
+      </div>
+      <div class="title-cell">
+        <h1>TESTING REQUISITION SLIP (TRS)</h1>
+        <div class="code">QR-854-01</div>
+      </div>
+    </div>
+
+    <div class="cert-row c3">
+      <div class="cell"><div class="lbl">TRS No :</div><div class="val">{{ trs.trs_no }}</div></div>
+      <div class="cell"><div class="lbl">DATE</div><div class="val">{{ trs.trs_date.strftime('%d-%m-%Y') if trs.trs_date else '—' }}</div></div>
+      <div class="cell"><div class="lbl">Department :</div><div class="val">{{ trs.department or '—' }}</div></div>
+    </div>
+    <div class="cert-row c1">
+      <div class="cell"><div class="lbl">Name of Sample :</div><div class="val">{{ trs.sample_name or '—' }}</div></div>
+    </div>
+    <div class="cert-row c2">
+      <div class="cell"><div class="lbl">Batch No or Product Code :</div><div class="val">{{ trs.batch_no or '—' }}</div></div>
+      <div class="cell"><div class="lbl">No of Pkt / Label :</div><div class="val">{{ '%.3f'|format(trs.no_of_packets|float) }}</div></div>
+    </div>
+    <div class="cert-row c2">
+      <div class="cell"><div class="lbl">GRN No :</div><div class="val">{{ trs.grn_no or '—' }}</div></div>
+      <div class="cell"><div class="lbl">GRN Date :</div><div class="val">{{ trs.grn_date.strftime('%d-%m-%Y') if trs.grn_date else '—' }}</div></div>
+    </div>
+    <div class="cert-row c2">
+      <div class="cell"><div class="lbl">Physical State :</div><div class="val">{{ trs.physical_state or '—' }}</div></div>
+      <div class="cell"><div class="lbl">Total Qty(In {{ trs.uom }}):</div><div class="val">{{ '%.3f'|format(trs.total_qty|float) }}</div></div>
+    </div>
+    <div class="cert-row c2">
+      <div class="cell"><div class="lbl">Sample Qty(In {{ trs.uom }}):</div><div class="val">{{ '%.3f'|format(trs.sample_qty|float) }}</div></div>
+      <div class="cell"><div class="lbl"></div><div class="val"></div></div>
+    </div>
+    <div class="cert-row c2">
+      <div class="cell"><div class="lbl">Mfg. Name :</div><div class="val">{{ trs.mfg_name or '—' }}</div></div>
+      <div class="cell"><div class="lbl">Mfg. Date :</div><div class="val">{{ trs.mfg_date.strftime('%d-%m-%Y') if trs.mfg_date else '—' }}</div></div>
+    </div>
+    <div class="cert-row c2">
+      <div class="cell"><div class="lbl">Supplier Name :</div><div class="val">{{ trs.supplier_name or '—' }}</div></div>
+      <div class="cell"><div class="lbl">Expiry Date :</div><div class="val">{{ trs.expiry_date.strftime('%d-%b-%Y') if trs.expiry_date else '—' }}</div></div>
+    </div>
+    <div class="cert-row c2">
+      <div class="cell"><div class="lbl">Previous Supplier :</div><div class="val">{{ trs.previous_supplier or '—' }}</div></div>
+      <div class="cell"><div class="lbl">New / OLD Material:</div><div class="val">{{ trs.new_old_material or '—' }}</div></div>
+    </div>
+
+    <div class="cert-section">PHYSICAL VERIFICATION</div>
+    <div class="cert-pv">
+      <div class="th sr">Sr No</div><div class="th">Parameter</div><div class="th"></div><div class="th"></div>
+      <div class="sr">1</div><div>Appearance</div><div>{{ trs.appearance or '—' }}</div><div></div>
+      <div class="sr">2</div><div>Odour</div><div>{{ trs.odour or '—' }}</div><div></div>
+      <div class="sr">3</div><div>COA Availability</div>
+      <div>
+        {% if has_coa %}
+          <a class="coa-yes" href="{{ url_for('qc.coa_download', trs_id=trs.id) }}" title="Download COA">YES ⬇ Download</a>
+        {% else %}
+          <span class="coa-no">NO</span>
+        {% endif %}
+      </div>
+      <div></div>
+    </div>
+
+    <div class="cert-foot">
+      <div class="l">Verified By</div>
+      <div>{{ trs.verified_by_name or '—' }}</div>
+      <div>{{ trs.verified_at.strftime('%d-%m-%Y') if trs.verified_at else '—' }}</div>
+    </div>
+  </div>
+
+  <!-- QC ACTION PANEL -->
+  <div class="qc-action">
+    <div class="sec-title">QC REMARKS</div>
+
+    <div class="qc-remarks-head">
+      <div>Sr No</div><div class="desc-h">Description</div><div>—</div>
+    </div>
+    <div id="qcRows"><!-- rows injected by JS --></div>
+
+    {% if not locked %}
+    <div class="qc-addrow-bar">
+      <button type="button" onclick="qcAddRow()">＋ Add Description / Parameter</button>
+    </div>
+    {% endif %}
+
+    {% if locked %}
+      <div class="qc-locked-note">
+        {% if st == 'Approved' %}
+          ✅ This TRS is <b>Approved</b> by {{ trs.qc_approved_by_name or '—' }}
+          {% if trs.qc_approved_at %}on {{ trs.qc_approved_at.strftime('%d-%m-%Y %H:%M') }}{% endif %}.
+          {% if trs.stock_impact_applied %} Stock impact has been applied.{% endif %}
+        {% else %}
+          ⛔ This TRS is <b>Rejected</b> by {{ trs.qc_rejected_by_name or '—' }}
+          {% if trs.qc_rejected_at %}on {{ trs.qc_rejected_at.strftime('%d-%m-%Y %H:%M') }}{% endif %}.
+          {% if trs.qc_remarks %}
+            <div class="qc-reject-reason-box">
+              <div class="rr-title">Reason / Remarks</div>
+              <div class="rr-body">{{ trs.qc_remarks }}</div>
+            </div>
+          {% endif %}
+        {% endif %}
+      </div>
+      <div class="qc-reopen-bar">
+        <span class="qc-reopen-note">Approved / Rejected by mistake? Re-open to change the decision.</span>
+        <button class="qc-reopen-btn" id="qcReopenBtn" onclick="qcReopen()">✏️ Change Decision / Re-open</button>
+      </div>
+    {% else %}
+      <!-- Rejection reason — only shown/required when REJECTED is chosen -->
+      <div id="rejectReasonWrap" class="qc-reject-reason" style="display:none;">
+        <label for="rejectReason">Reason for Rejection <span style="color:#dc2626;">*</span></label>
+        <textarea id="rejectReason" placeholder="Why is this TRS being rejected? (required)"></textarea>
+      </div>
+
+      <div class="qc-decide">
+        <label class="approved-lbl"><input type="radio" name="qcDecision" value="approve"> APPROVED</label>
+        <label class="rejected-lbl"><input type="radio" name="qcDecision" value="reject"> REJECTED</label>
+        <button class="qc-save" id="qcSaveBtn" onclick="qcSubmit()">SAVE</button>
+      </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- QC Result Modal -->
+<div id="qcModal" class="qcm-overlay">
+  <div class="qcm-box">
+    <div class="qcm-icon" id="qcmIcon">✅</div>
+    <h3 id="qcmTitle">TRS Approved</h3>
+    <p id="qcmMsg"></p>
+    <div class="qcm-btns">
+      <button class="qcm-cancel" id="qcmCancel" style="display:none;">Cancel</button>
+      <button class="qcm-ok" id="qcmOk">OK</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const TRS_ID   = {{ trs.id }};
+const GRN_TYPE = "{{ (grn.grn_type if grn else '')|upper }}";
+const LOCKED   = {{ 'true' if locked else 'false' }};
+const EXISTING_REMARKS = {{ (trs.qc_remarks or '')|tojson }};
+
+// ── Multi-row QC description / parameters ──────────────────────────
+function makeRow(text){
+  const wrap = document.createElement('div');
+  wrap.className = 'qc-rrow';
+  wrap.innerHTML =
+    '<div class="srno"></div>' +
+    '<div><textarea ' + (LOCKED ? 'readonly' : '') + ' placeholder="Parameter / observation…"></textarea></div>' +
+    '<div>' + (LOCKED ? '' : '<button type="button" class="row-del" title="Remove">✕</button>') + '</div>';
+  wrap.querySelector('textarea').value = text || '';
+  if (!LOCKED){
+    wrap.querySelector('.row-del').addEventListener('click', function(){
+      const rows = document.querySelectorAll('#qcRows .qc-rrow');
+      if (rows.length <= 1){ wrap.querySelector('textarea').value = ''; }
+      else { wrap.remove(); }
+      renumber();
+    });
+  }
+  return wrap;
+}
+
+function renumber(){
+  document.querySelectorAll('#qcRows .qc-rrow .srno').forEach(function(c, i){
+    c.textContent = (i + 1);
+  });
+}
+
+function qcAddRow(text){
+  document.getElementById('qcRows').appendChild(makeRow(text || ''));
+  renumber();
+}
+
+// Parse existing remarks back into rows. Stored as numbered lines
+// ("1. text"). Falls back to one row with the whole text.
+function loadExistingRows(){
+  const raw = (EXISTING_REMARKS || '').trim();
+  if (!raw){ qcAddRow(''); return; }
+  const lines = raw.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+  const parsed = lines.map(l => l.replace(/^\d+[\.\)]\s*/, '')).filter(Boolean);
+  if (parsed.length === 0){ qcAddRow(raw); return; }
+  parsed.forEach(t => qcAddRow(t));
+}
+
+function collectRemarks(){
+  const out = [];
+  document.querySelectorAll('#qcRows .qc-rrow textarea').forEach(function(t){
+    const v = (t.value || '').trim();
+    if (v) out.push(v);
+  });
+  // Numbered, one per line
+  return out.map((t, i) => (i + 1) + '. ' + t).join('\n');
+}
+
+document.addEventListener('DOMContentLoaded', function(){
+  loadExistingRows();
+  // Show the rejection-reason box only when REJECTED is selected
+  document.querySelectorAll('input[name="qcDecision"]').forEach(function(r){
+    r.addEventListener('change', function(){
+      const dec = document.querySelector('input[name="qcDecision"]:checked');
+      const wrap = document.getElementById('rejectReasonWrap');
+      if (!wrap) return;
+      if (dec && dec.value === 'reject'){
+        wrap.style.display = 'block';
+        document.getElementById('rejectReason').focus();
+      } else {
+        wrap.style.display = 'none';
+      }
+    });
+  });
+});
+
+function qcShowModal(opts){
+  // opts: { icon, title, msg, error, onOk, confirm, confirmLabel, onConfirm }
+  const ov = document.getElementById('qcModal');
+  const box = ov.querySelector('.qcm-box');
+  document.getElementById('qcmIcon').textContent  = opts.icon  || 'ℹ️';
+  document.getElementById('qcmTitle').textContent = opts.title || '';
+  document.getElementById('qcmMsg').textContent   = opts.msg   || '';
+  box.classList.toggle('is-error', !!opts.error);
+  ov.classList.add('show');
+
+  const okBtn     = document.getElementById('qcmOk');
+  const cancelBtn = document.getElementById('qcmCancel');
+
+  if (opts.confirm){
+    cancelBtn.style.display = '';
+    okBtn.textContent = opts.confirmLabel || 'Yes';
+    okBtn.onclick = function(){
+      ov.classList.remove('show');
+      cancelBtn.style.display = 'none';
+      okBtn.textContent = 'OK';
+      if (typeof opts.onConfirm === 'function') opts.onConfirm();
+    };
+    cancelBtn.onclick = function(){
+      ov.classList.remove('show');
+      cancelBtn.style.display = 'none';
+      okBtn.textContent = 'OK';
+    };
+  } else {
+    cancelBtn.style.display = 'none';
+    okBtn.textContent = 'OK';
+    okBtn.onclick = function(){
+      ov.classList.remove('show');
+      if (typeof opts.onOk === 'function') opts.onOk();
+    };
+  }
+  okBtn.focus();
+}
+
+function qcReopen(){
+  const btn = document.getElementById('qcReopenBtn');
+  qcShowModal({
+    icon:'⚠️',
+    title:'Re-open this TRS?',
+    msg:'This will clear the Approved/Rejected decision and set the status back to Pending. If stock was moved, it will be reversed. You can then take the decision again.',
+    confirm:true,
+    confirmLabel:'Yes, Re-open',
+    onConfirm:function(){
+      btn.disabled = true; btn.textContent = 'Re-opening…';
+      fetch(`/qc/api/trs/${TRS_ID}/reopen`, {
+        method:'POST',
+        headers:{'Content-Type':'application/json','X-Requested-With':'XMLHttpRequest'},
+        body: JSON.stringify({ remarks: '' })
+      })
+      .then(r => r.json())
+      .then(j => {
+        if (!j.success){
+          qcShowModal({icon:'❌', title:'Re-open failed', msg:(j.error || 'Unknown error'), error:true,
+                       onOk:function(){ btn.disabled=false; btn.textContent='✏️ Change Decision / Re-open'; }});
+          return;
+        }
+        let msg = 'You can now take the decision for this TRS again.';
+        if (j.stock_action && j.stock_action.startsWith('reverse'))
+          msg = `Previous stock impact reversed (${j.stock_qty}). ` + msg;
+        qcShowModal({icon:'✅', title:'Re-opened', msg:msg, onOk:function(){ location.reload(); }});
+      })
+      .catch(e => {
+        qcShowModal({icon:'❌', title:'Network error', msg:String(e), error:true,
+                     onOk:function(){ btn.disabled=false; btn.textContent='✏️ Change Decision / Re-open'; }});
+      });
+    }
+  });
+}
+
+function qcSubmit(){
+  const dec = document.querySelector('input[name="qcDecision"]:checked');
+  if (!dec){
+    qcShowModal({icon:'⚠️', title:'Select a decision', msg:'Please select APPROVED or REJECTED first.', error:true});
+    return;
+  }
+  const descRemarks = collectRemarks();
+  const btn = document.getElementById('qcSaveBtn');
+
+  let remarks = descRemarks;
+
+  if (dec.value === 'reject'){
+    const reason = (document.getElementById('rejectReason').value || '').trim();
+    if (!reason){
+      qcShowModal({icon:'⚠️', title:'Reason required', msg:'Reason is required to reject this TRS.', error:true,
+                   onOk:function(){ document.getElementById('rejectReason').focus(); }});
+      return;
+    }
+    // Reason first, then any description / parameter rows
+    remarks = 'Rejection Reason: ' + reason;
+    if (descRemarks) remarks += '\n' + descRemarks;
+  }
+
+  const url = dec.value === 'approve'
+    ? `/qc/api/trs/${TRS_ID}/approve`
+    : `/qc/api/trs/${TRS_ID}/reject`;
+
+  btn.disabled = true; btn.textContent = 'Saving…';
+
+  fetch(url, {
+    method:'POST',
+    headers:{'Content-Type':'application/json','X-Requested-With':'XMLHttpRequest'},
+    body: JSON.stringify({ remarks: remarks })
+  })
+  .then(r => r.json())
+  .then(j => {
+    if (!j.success){
+      qcShowModal({icon:'❌', title:'Action failed', msg:(j.error || 'Unknown error'), error:true,
+                   onOk:function(){ btn.disabled = false; btn.textContent = 'SAVE'; }});
+      return;
+    }
+    const approved = (dec.value === 'approve');
+    let msg = '';
+    if (j.stock_action === 'stock_in')   msg = `Stock IN: ${j.stock_qty} added to current stock + ledger.`;
+    else if (j.stock_action === 'sample_out')  msg = `Sample OUT: ${j.stock_qty} deducted from stock + ledger.`;
+    else if (j.stock_action && j.stock_action.startsWith('reverse')) msg = `Previous stock impact reversed (${j.stock_qty}).`;
+    if (approved) {
+      msg += (msg ? '\n\n' : '') + 'TRS PDF + QC sticker will open for printing.';
+    }
+    qcShowModal({
+      icon:  approved ? '✅' : '⛔',
+      title: approved ? 'TRS Approved' : 'TRS Rejected',
+      msg:   msg,
+      error: !approved,
+      onOk:  function(){
+        if (approved) {
+          // Open the TRS slip (save-as-PDF) and the QC-approved sticker
+          window.open('/trs/' + TRS_ID + '?autoprint=1', '_blank');
+          window.open('/trs/' + TRS_ID + '/sticker?autoprint=1', '_blank');
+        }
+        location.reload();
+      }
+    });
+  })
+  .catch(e => {
+    qcShowModal({icon:'❌', title:'Network error', msg:String(e), error:true,
+                 onOk:function(){ btn.disabled = false; btn.textContent = 'SAVE'; }});
+  });
+}
+</script>
+{% endblock %}

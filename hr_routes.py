@@ -1338,7 +1338,7 @@ def emp_ajax_save_tab(id):
         if e.physically_handicapped:
             _hd = (data.get('handicap_details') or '').strip()
             if not _hd:
-                return {'ok': False, 'error': 'Handicap Details is required when Physically Handicapped is Yes'}, 400
+                return {'ok': False, 'error': 'Handicap Details is required when Differently Abled is Yes'}, 400
             e.handicap_details = _hd
         else:
             e.handicap_details = None
@@ -2805,7 +2805,7 @@ def emp_export_single(id):
         ("Nationality", e.nationality),
         ("Religion", e.religion),
         ("Caste", e.caste),
-        ("Physically Handicapped", "Yes" if e.physically_handicapped else "No"),
+        ("Differently Abled", "Yes" if e.physically_handicapped else "No"),
         ("Handicap Details", e.handicap_details if e.physically_handicapped else None),
         ("Aadhaar Number", e.aadhar_number),
         ("PAN Number", e.pan_number),
@@ -3090,7 +3090,7 @@ def emp_export():
 
     # Sheet 3: KYC
     ws3 = wb.create_sheet("3 - KYC")
-    h3 = ["Code","Full Name","Nationality","Religion","Caste","Physically Handicapped","Handicap Details","Aadhaar","PAN","Election Card No","UAN","ESIC","Passport No","Passport Expiry","DL No","DL Expiry","Emergency Name","Emergency Relation","Emergency Phone","Emergency Address","PF Applicable","PF Number","EPS Applicable","Previous PF Transfer","Previous PF Number","ESIC Applicable","ESIC Nominee","Nominee Relation","ESIC Family","Dispensary","Aadhaar PAN Linked","Tax Regime","Prev Employer Income","Monthly TDS","Investment Declaration","Proof Status","PT Applicable","LWF","Gratuity Eligible","Bonus Eligible"]
+    h3 = ["Code","Full Name","Nationality","Religion","Caste","Differently Abled","Handicap Details","Aadhaar","PAN","Election Card No","UAN","ESIC","Passport No","Passport Expiry","DL No","DL Expiry","Emergency Name","Emergency Relation","Emergency Phone","Emergency Address","PF Applicable","PF Number","EPS Applicable","Previous PF Transfer","Previous PF Number","ESIC Applicable","ESIC Nominee","Nominee Relation","ESIC Family","Dispensary","Aadhaar PAN Linked","Tax Regime","Prev Employer Income","Monthly TDS","Investment Declaration","Proof Status","PT Applicable","LWF","Gratuity Eligible","Bonus Eligible"]
     r3 = []
     for e in emps:
         r3.append([e.employee_code or '',e.full_name,e.nationality or '',e.religion or '',

@@ -5,9 +5,8 @@ Tables:
   1. GrnMaster          (tbl_grn_master)
   2. GrnItem            (tbl_grn_items)
   3. GrnStatusLog       (tbl_grn_status_logs)
-  4. GrnApprovalLog     (tbl_grn_approval_logs)
-  5. GrnStockLedger     (tbl_grn_stock_ledger)
-  6. GrnBatchStock      (tbl_grn_batch_stock)
+  4. GrnStockLedger     (tbl_grn_stock_ledger)
+  5. GrnBatchStock      (tbl_grn_batch_stock)
 """
 from datetime import datetime, date
 from .base import db
@@ -20,20 +19,12 @@ GRN_STATUS_DRAFT     = 'Draft'
 GRN_STATUS_COMPLETED = 'Completed'
 GRN_STATUS_CANCEL    = 'Cancelled'
 
-# Kept for backward compat with existing DB rows; not used in new workflow
-GRN_STATUS_PENDING   = 'Pending Approval'
-GRN_STATUS_APPROVED  = 'Approved'
-GRN_STATUS_REJECTED  = 'Rejected'
-
 GRN_STATUSES = [GRN_STATUS_DRAFT, GRN_STATUS_COMPLETED, GRN_STATUS_CANCEL]
 
 GRN_STATUS_COLORS = {
     GRN_STATUS_DRAFT:     '#3b82f6',  # blue
     GRN_STATUS_COMPLETED: '#10b981',  # green
     GRN_STATUS_CANCEL:    '#6b7280',  # gray
-    GRN_STATUS_PENDING:   '#f59e0b',  # legacy (amber)
-    GRN_STATUS_APPROVED:  '#10b981',  # legacy (green)
-    GRN_STATUS_REJECTED:  '#dc2626',  # legacy (red)
 }
 
 GRN_TYPES = {
@@ -120,6 +111,9 @@ class GrnMaster(db.Model):
     total_box_qty       = db.Column(db.Integer,        default=0)
     total_amount        = db.Column(db.Numeric(14, 2), default=0)
 
+    # Depreciation note flag — True if any item was received less than invoice qty
+    has_depreciation_note = db.Column(db.Boolean, default=False)
+
     # Remarks
     supplier_remarks    = db.Column(db.Text, default='')
     internal_remarks    = db.Column(db.Text, default='')
@@ -128,17 +122,10 @@ class GrnMaster(db.Model):
     status              = db.Column(db.String(30), nullable=False, default=GRN_STATUS_DRAFT, index=True)
     is_locked           = db.Column(db.Boolean,    default=False)
 
-    # Approval audit
+    # Submit audit
     submitted_by_id     = db.Column(db.Integer,    nullable=True)
     submitted_by_name   = db.Column(db.String(150), default='')
     submitted_at        = db.Column(db.DateTime,   nullable=True)
-    approved_by_id      = db.Column(db.Integer,    nullable=True)
-    approved_by_name    = db.Column(db.String(150), default='')
-    approved_at         = db.Column(db.DateTime,   nullable=True)
-    rejected_by_id      = db.Column(db.Integer,    nullable=True)
-    rejected_by_name    = db.Column(db.String(150), default='')
-    rejected_at         = db.Column(db.DateTime,   nullable=True)
-    rejection_reason    = db.Column(db.Text,       default='')
     cancelled_by_id     = db.Column(db.Integer,    nullable=True)
     cancelled_by_name   = db.Column(db.String(150), default='')
     cancelled_at        = db.Column(db.DateTime,   nullable=True)
@@ -163,10 +150,6 @@ class GrnMaster(db.Model):
                                   backref='grn',
                                   lazy='dynamic',
                                   cascade='all, delete-orphan')
-    approval_logs = db.relationship('GrnApprovalLog',
-                                    backref='grn',
-                                    lazy='dynamic',
-                                    cascade='all, delete-orphan')
 
     @property
     def is_editable(self):
@@ -255,6 +238,7 @@ class GrnItem(db.Model):
     no_of_boxes        = db.Column(db.Integer,       default=0)
     per_box_qty        = db.Column(db.Numeric(14, 3), default=0)
     ordered_qty        = db.Column(db.Numeric(14, 3), default=0)
+    invoice_qty        = db.Column(db.Numeric(14, 3), default=0)
     already_received_qty = db.Column(db.Numeric(14, 3), default=0)
     remaining_qty      = db.Column(db.Numeric(14, 3), default=0)
     received_qty       = db.Column(db.Numeric(14, 3), default=0)
@@ -300,6 +284,7 @@ class GrnItem(db.Model):
             'no_of_boxes': int(self.no_of_boxes or 0),
             'per_box_qty': float(self.per_box_qty or 0),
             'ordered_qty': float(self.ordered_qty or 0),
+            'invoice_qty': float(self.invoice_qty or 0),
             'already_received_qty': float(self.already_received_qty or 0),
             'remaining_qty': float(self.remaining_qty or 0),
             'received_qty': float(self.received_qty or 0),
@@ -337,26 +322,7 @@ class GrnStatusLog(db.Model):
 
 
 # ═════════════════════════════════════════════════════════════════════════════
-# 4. APPROVAL LOG
-# ═════════════════════════════════════════════════════════════════════════════
-class GrnApprovalLog(db.Model):
-    __tablename__ = 'tbl_grn_approval_logs'
-
-    id          = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    grn_id      = db.Column(db.Integer,
-                            db.ForeignKey('tbl_grn_master.id', ondelete='CASCADE'),
-                            nullable=False, index=True)
-    level       = db.Column(db.String(50), default='Manager')
-    action      = db.Column(db.String(30), default='SUBMITTED')
-    actor_id    = db.Column(db.Integer,    nullable=True)
-    actor_name  = db.Column(db.String(150), default='')
-    actor_role  = db.Column(db.String(80),  default='')
-    comment     = db.Column(db.Text, default='')
-    created_at  = db.Column(db.DateTime, default=datetime.utcnow)
-
-
-# ═════════════════════════════════════════════════════════════════════════════
-# 5. STOCK LEDGER
+# 4. STOCK LEDGER
 # ═════════════════════════════════════════════════════════════════════════════
 class GrnStockLedger(db.Model):
     __tablename__ = 'tbl_grn_stock_ledger'
@@ -388,7 +354,7 @@ class GrnStockLedger(db.Model):
 
 
 # ═════════════════════════════════════════════════════════════════════════════
-# 6. BATCH STOCK (current state)
+# 5. BATCH STOCK (current state)
 # ═════════════════════════════════════════════════════════════════════════════
 class GrnBatchStock(db.Model):
     __tablename__ = 'tbl_grn_batch_stock'
@@ -424,3 +390,96 @@ class GrnBatchStock(db.Model):
         db.UniqueConstraint('material_id', 'batch_no', 'location_id',
                             name='uq_batch_loc'),
     )
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# 6. SCAN LOG (per-box QR scan history; drives quarantine / stock-in)
+# ═════════════════════════════════════════════════════════════════════════════
+SCAN_STATUS_QUARANTINE = 'Quarantine'
+SCAN_STATUS_STOCKED_IN = 'Stocked-In'
+SCAN_STATUSES = [SCAN_STATUS_QUARANTINE, SCAN_STATUS_STOCKED_IN]
+
+SCAN_STATUS_COLORS = {
+    SCAN_STATUS_QUARANTINE: '#f59e0b',  # amber
+    SCAN_STATUS_STOCKED_IN: '#10b981',  # green
+}
+
+
+class GrnScanLog(db.Model):
+    __tablename__ = 'tbl_grn_scan_log'
+
+    id              = db.Column(db.Integer, primary_key=True, autoincrement=True)
+
+    # Scanned QR payload
+    qr_code         = db.Column(db.String(60),  nullable=False, unique=True)
+    grn_type        = db.Column(db.String(10),  default='')
+    grn_item_id     = db.Column(db.Integer,     nullable=False, index=True)
+    po_item_id      = db.Column(db.Integer,     nullable=True)
+    box_no          = db.Column(db.Integer,     default=1)
+
+    # GRN snapshot
+    grn_id          = db.Column(db.Integer,     nullable=False, index=True)
+    grn_number      = db.Column(db.String(60),  default='')
+
+    # Item snapshot
+    material_id     = db.Column(db.Integer,     nullable=True)
+    item_code       = db.Column(db.String(100), default='')
+    item_name       = db.Column(db.String(300), default='')
+    batch_no        = db.Column(db.String(100), default='')
+    mfg_date        = db.Column(db.Date,        nullable=True)
+    expiry_date     = db.Column(db.Date,        nullable=True)
+    uom             = db.Column(db.String(30),  default='KG')
+    qty             = db.Column(db.Numeric(14, 3), default=0)
+    rate            = db.Column(db.Numeric(14, 4), default=0)
+    amount          = db.Column(db.Numeric(14, 2), default=0)
+
+    location_id     = db.Column(db.Integer,     nullable=True)
+    location_name   = db.Column(db.String(150), default='')
+
+    # Status
+    status          = db.Column(db.String(20),  nullable=False,
+                                default=SCAN_STATUS_STOCKED_IN, index=True)
+
+    # Linkage to inventory tables
+    stock_ledger_id = db.Column(db.Integer, nullable=True)
+    batch_stock_id  = db.Column(db.Integer, nullable=True)
+
+    # Audit
+    scanned_at      = db.Column(db.DateTime,    default=datetime.utcnow, index=True)
+    scanned_by_id   = db.Column(db.Integer,     nullable=True)
+    scanned_by_name = db.Column(db.String(150), default='')
+    scan_source     = db.Column(db.String(20),  default='camera')
+    client_remark   = db.Column(db.Text,        default='')
+
+    is_deleted      = db.Column(db.Boolean,     default=False)
+
+    @property
+    def status_color(self):
+        return SCAN_STATUS_COLORS.get(self.status, '#6b7280')
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'qr_code': self.qr_code,
+            'grn_type': self.grn_type or '',
+            'box_no': self.box_no or 1,
+            'grn_id': self.grn_id,
+            'grn_number': self.grn_number or '',
+            'grn_item_id': self.grn_item_id,
+            'material_id': self.material_id,
+            'item_code': self.item_code or '',
+            'item_name': self.item_name or '',
+            'batch_no': self.batch_no or '',
+            'mfg_date':    self.mfg_date.strftime('%d-%m-%Y')    if self.mfg_date    else '',
+            'expiry_date': self.expiry_date.strftime('%d-%m-%Y') if self.expiry_date else '',
+            'uom': self.uom or 'KG',
+            'qty':  float(self.qty  or 0),
+            'rate': float(self.rate or 0),
+            'amount': float(self.amount or 0),
+            'location_name': self.location_name or '',
+            'status': self.status,
+            'status_color': self.status_color,
+            'scanned_at':   self.scanned_at.strftime('%d-%m-%Y %H:%M:%S') if self.scanned_at else '',
+            'scanned_by':   self.scanned_by_name or '',
+            'scan_source':  self.scan_source or 'camera',
+        }

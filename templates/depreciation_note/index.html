@@ -1,0 +1,168 @@
+{% extends "base.html" %}
+
+{% block title %}Depreciation Notes — HCP ERP{% endblock %}
+{% block page_title %}Depreciation Notes{% endblock %}
+{% block bread %}Stores / Depreciation Notes{% endblock %}
+
+{% block extra_css %}
+<style>
+  .dnl-wrap { padding: 0 14px; }
+  .dnl-toolbar { background:#fff; border:1px solid #e2e8f0; border-radius:10px;
+                 padding:14px 18px; display:flex; gap:10px; align-items:center;
+                 margin-bottom:12px; flex-wrap:wrap; }
+  .dnl-toolbar input, .dnl-toolbar select {
+    padding:8px 12px; border:1.5px solid #e2e8f0; border-radius:6px;
+    font-size:13px; font-family:inherit;
+  }
+  .dnl-toolbar .clr-btn { padding:8px 14px; background:#f1f5f9; border:0;
+                          border-radius:6px; cursor:pointer; font-size:13px; }
+  .dnl-summary { display:grid; grid-template-columns: repeat(3, 1fr); gap:12px; margin-bottom:12px; }
+  .dnl-stat { background:#fff; border:1px solid #e2e8f0; border-radius:10px;
+              padding:14px 18px; }
+  .dnl-stat .lbl { font-size:11px; color:#64748b; text-transform:uppercase; letter-spacing:.05em; }
+  .dnl-stat .val { font-size:22px; font-weight:700; color:#0f172a; margin-top:4px; }
+  .dnl-stat.amber .val { color:#92400e; }
+  .dnl-stat.red .val   { color:#991b1b; }
+
+  .dnl-table { width:100%; border-collapse:collapse; background:#fff;
+               border:1px solid #e2e8f0; border-radius:10px; overflow:hidden;
+               font-size:12.5px; }
+  .dnl-table th { background:#f1f5f9; color:#475569; font-size:11px; font-weight:700;
+                  text-transform:uppercase; letter-spacing:.04em; padding:11px 10px;
+                  text-align:left; border-bottom:2px solid #cbd5e1; }
+  .dnl-table th.num, .dnl-table td.num { text-align:right; }
+  .dnl-table td { padding:11px 10px; border-bottom:1px solid #f1f5f9; }
+  .dnl-table tr:hover { background:#fafbfc; }
+  .dnl-table a { color:#2563eb; font-weight:600; text-decoration:none; }
+  .dnl-table a:hover { text-decoration:underline; }
+
+  .dnl-pill { display:inline-block; color:#fff; font-size:10.5px;
+              padding:3px 10px; border-radius:999px; font-weight:700;
+              text-transform:uppercase; letter-spacing:.03em; }
+  .dnl-short-val { color:#dc2626; font-weight:700; }
+  .dnl-empty { text-align:center; padding:50px 20px; color:#94a3b8; font-size:14px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="dnl-wrap">
+
+  <!-- Toolbar -->
+  <div class="dnl-toolbar">
+    <input type="text" id="fSearch" placeholder="🔍 Search DN, GRN, Invoice, Supplier..." style="flex:1;min-width:220px;">
+    <select id="fStatus">
+      <option value="">All Status</option>
+      {% for s in statuses %}<option value="{{ s }}">{{ s }}</option>{% endfor %}
+    </select>
+    <input type="date" id="fFrom" placeholder="From">
+    <input type="date" id="fTo"   placeholder="To">
+    <button class="clr-btn" onclick="clearFilters()">Clear</button>
+    <span style="flex:1;"></span>
+    <span id="totalCount" style="font-size:12px;color:#94a3b8;">0 rows</span>
+  </div>
+
+  <!-- Summary -->
+  <div class="dnl-summary">
+    <div class="dnl-stat">
+      <div class="lbl">Total DNs</div>
+      <div class="val" id="statCount">0</div>
+    </div>
+    <div class="dnl-stat amber">
+      <div class="lbl">Pending Shortage (Open)</div>
+      <div class="val" id="statOpenValue">₹0.00</div>
+    </div>
+    <div class="dnl-stat red">
+      <div class="lbl">Total Shortage Value</div>
+      <div class="val" id="statTotalValue">₹0.00</div>
+    </div>
+  </div>
+
+  <!-- Table -->
+  <table class="dnl-table">
+    <thead>
+      <tr>
+        <th>DN No</th>
+        <th>Date</th>
+        <th>GRN No</th>
+        <th>Supplier</th>
+        <th>Invoice No</th>
+        <th class="num">Items</th>
+        <th class="num">Shortage Qty</th>
+        <th class="num">Shortage ₹</th>
+        <th>Status</th>
+        <th>Created</th>
+      </tr>
+    </thead>
+    <tbody id="dnBody">
+      <tr><td colspan="10" class="dnl-empty">Loading...</td></tr>
+    </tbody>
+  </table>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const STATUS_COLORS = {{ status_colors|tojson }};
+const fmtMoney = n => '₹' + Number(n).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const fmtQty   = n => Number(n).toFixed(3);
+const esc      = s => String(s||'').replace(/[<>&"]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'})[c]);
+
+function load(){
+  const q  = document.getElementById('fSearch').value;
+  const st = document.getElementById('fStatus').value;
+  const df = document.getElementById('fFrom').value;
+  const dt = document.getElementById('fTo').value;
+  const url = "{{ url_for('depreciation_note.api_list') }}"
+              + `?q=${encodeURIComponent(q)}&status=${encodeURIComponent(st)}&date_from=${df}&date_to=${dt}`;
+  fetch(url, { credentials: 'same-origin' })
+    .then(r => r.json())
+    .then(render);
+}
+
+function render(d){
+  const tbody = document.getElementById('dnBody');
+  const rows = d.results || [];
+  document.getElementById('totalCount').textContent  = rows.length + ' rows';
+  document.getElementById('statCount').textContent   = rows.length;
+  document.getElementById('statOpenValue').textContent  = fmtMoney(d.open_shortage_value  || 0);
+  document.getElementById('statTotalValue').textContent = fmtMoney(d.total_shortage_value || 0);
+
+  if (!rows.length){
+    tbody.innerHTML = `<tr><td colspan="10" class="dnl-empty">No Depreciation Notes found</td></tr>`;
+    return;
+  }
+  let html = '';
+  rows.forEach(r => {
+    const color = STATUS_COLORS[r.status] || '#6b7280';
+    html += `
+    <tr>
+      <td><a href="/depreciation-note/${r.id}/view">${esc(r.dn_number)}</a></td>
+      <td>${esc(r.dn_date)}</td>
+      <td><a href="/grn/${r.grn_id}/view">${esc(r.grn_number)}</a></td>
+      <td>${esc(r.supplier_name)}</td>
+      <td>${esc(r.invoice_no)}</td>
+      <td class="num">${r.item_count}</td>
+      <td class="num">${fmtQty(r.total_shortage_qty)}</td>
+      <td class="num dnl-short-val">${fmtMoney(r.total_shortage_value)}</td>
+      <td><span class="dnl-pill" style="background:${color};">${esc(r.status)}</span></td>
+      <td style="font-size:11px;color:#64748b;">${esc(r.created_by)}<br>${esc(r.created_at)}</td>
+    </tr>`;
+  });
+  tbody.innerHTML = html;
+}
+
+function clearFilters(){
+  ['fSearch','fStatus','fFrom','fTo'].forEach(id => document.getElementById(id).value = '');
+  load();
+}
+
+let debounce;
+document.getElementById('fSearch').addEventListener('input', () => {
+  clearTimeout(debounce); debounce = setTimeout(load, 250);
+});
+['fStatus','fFrom','fTo'].forEach(id => document.getElementById(id).addEventListener('change', load));
+
+load();
+</script>
+{% endblock %}

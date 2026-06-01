@@ -1,0 +1,172 @@
+{% extends 'base.html' %}
+{% block title %}Check List Material Form — {{ grn.grn_number }}{% endblock %}
+{% block page_title %}📝 Check List Material Form{% endblock %}
+{% block bread %}Stores / GRN / {{ grn.grn_number_short or grn.grn_number }} / Check List{% endblock %}
+
+{% block extra_css %}
+<style>
+/* Top control bar (hidden on print) */
+.cl-controls {
+  padding: 14px; background: #fff; border-radius: 10px;
+  border: 1px solid #e2e8f0; margin-bottom: 18px;
+  display: flex; gap: 12px; align-items: center; flex-wrap: wrap;
+}
+.cl-controls .info  { font-size: 13px; color: #475569; flex: 1; }
+.cl-controls .info b { color: #0f172a; }
+.cl-controls .cl-btn,
+.cl-controls .cl-back {
+  padding: 9px 18px; border-radius: 7px; font-size: 13px;
+  font-weight: 700; cursor: pointer; border: 0;
+  text-decoration: none; display: inline-block;
+}
+.cl-controls .cl-btn  { background: #16a34a; color: #fff; }
+.cl-controls .cl-back { background: #fff; color: #475569; border: 1.5px solid #cbd5e1; }
+
+/* Print area + form card (A4 portrait, one per item, one per page) */
+.cl-print-area { background: transparent; }
+
+.cl-form {
+  width: 190mm;
+  min-height: 270mm;
+  margin: 0 auto 14mm auto;
+  padding: 15mm 14mm;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  box-shadow: 0 1px 3px rgba(15,23,42,.06);
+  font-family: Arial, Helvetica, sans-serif;
+  color: #1e293b;
+  box-sizing: border-box;
+  page-break-after: always;
+}
+.cl-form:last-child { page-break-after: auto; }
+
+.cl-head { display: flex; align-items: center; gap: 22px; padding-bottom: 14px; }
+.cl-head .cl-logo { width: 70px; height: 70px; object-fit: contain; flex-shrink: 0; }
+.cl-head .cl-title {
+  flex: 1; text-align: center;
+  font-size: 26px; font-weight: 600;
+  color: #1f2937; letter-spacing: .3px;
+}
+
+.cl-info { width: 100%; border-collapse: collapse; margin-top: 6px; font-size: 13pt; }
+.cl-info td { padding: 7px 4px; vertical-align: top; }
+.cl-info td.k { width: 32%; font-weight: 700; color: #1f2937; white-space: nowrap; }
+.cl-info td.v { color: #334155; font-weight: 500; word-break: break-word; }
+
+.cl-rule { border: 0; border-top: 1px solid #94a3b8; margin: 18px 0 14px 0; }
+
+.cl-h2 {
+  font-size: 18pt; font-weight: 600; color: #1f2937;
+  text-decoration: underline; text-underline-offset: 4px;
+  margin: 4px 0 16px 0;
+}
+
+.cl-boxes { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+.cl-box {
+  border: 1px solid #cbd5e1; border-radius: 6px;
+  padding: 14px 16px; min-height: 130px; background: #fff;
+}
+.cl-box-title { font-size: 13pt; font-weight: 600; color: #1f2937; margin-bottom: 10px; }
+.cl-box-row {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 12pt; color: #334155; padding: 5px 0;
+}
+.cl-chk {
+  width: 14px; height: 14px;
+  border: 1.5px solid #475569; border-radius: 2px;
+  display: inline-block; flex-shrink: 0; background: #fff;
+}
+
+.cl-empty {
+  padding: 40px; text-align: center; color: #64748b;
+  background: #fff; border-radius: 10px; border: 1px dashed #cbd5e1;
+}
+
+@media print {
+  body * { visibility: hidden; }
+  .cl-print-area, .cl-print-area * { visibility: visible; }
+  .cl-print-area { position: absolute; left: 0; top: 0; width: 100%; }
+  .cl-controls, .sidebar, .topbar, header, footer, nav { display: none !important; }
+
+  .cl-form {
+    width: 100%; min-height: auto;
+    margin: 0; padding: 12mm 12mm;
+    border: 0; border-radius: 0; box-shadow: none;
+    page-break-after: always;
+  }
+  .cl-form:last-child { page-break-after: auto; }
+  @page { size: A4 portrait; margin: 8mm; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="cl-controls">
+  <div class="info">
+    <b>{{ grn.grn_number }}</b> — {{ items|length }} item(s) from
+    <b>{{ grn.supplier_name or '—' }}</b>
+    <div style="font-size:11px;color:#94a3b8;margin-top:3px;">
+      One Check List form per item (A4 portrait). Print karke physically tick karein —
+      data store nahi hota.
+    </div>
+  </div>
+  <a href="{{ url_for('grn.view_grn', grn_id=grn.id) }}" class="cl-back">← Back to GRN</a>
+  <button class="cl-btn" onclick="window.print()">🖨️ Print Check List</button>
+</div>
+
+<div class="cl-print-area">
+  {% if items and items|length > 0 %}
+    {% for it in items %}
+      {% set _packets = (it.no_of_boxes or 0)|float %}
+      {% set _per_pkt = (it.per_box_qty or 0)|float %}
+      {% set _computed_total = _packets * _per_pkt %}
+      {% set _total = _computed_total if _computed_total > 0 else (it.received_qty or 0)|float %}
+      {% set _uom = it.uom or '' %}
+
+      <div class="cl-form">
+        <div class="cl-head">
+          <img class="cl-logo"
+               src="{{ url_for('static', filename='images/icons/hcp-logo.png') }}"
+               alt="HCP" onerror="this.style.display='none'">
+          <div class="cl-title">Check List Material Form</div>
+        </div>
+
+        <table class="cl-info">
+          <tr><td class="k">Item Name :</td>      <td class="v">{{ it.item_name or '—' }}</td></tr>
+          <tr><td class="k">Supplier Name :</td>  <td class="v">{{ grn.supplier_name or '—' }}</td></tr>
+          <tr><td class="k">GRN No :</td>         <td class="v">{{ grn.grn_number_short or grn.grn_number }}</td></tr>
+          <tr><td class="k">Invoice No :</td>     <td class="v">{{ grn.invoice_no or '—' }}</td></tr>
+          <tr><td class="k">No. of Packet :</td>  <td class="v">{{ '%.3f'|format(_packets) }}</td></tr>
+          <tr><td class="k">Per Pkt. Qty. :</td>  <td class="v">{{ '%.3f'|format(_per_pkt) }}{% if _uom %} {{ _uom }}{% endif %}</td></tr>
+          <tr><td class="k">Total Qty. :</td>     <td class="v">{{ '%.3f'|format(_total) }}{% if _uom %} {{ _uom }}{% endif %}</td></tr>
+        </table>
+
+        <hr class="cl-rule">
+
+        <div class="cl-h2">Check List :</div>
+
+        <div class="cl-boxes">
+          <div class="cl-box">
+            <div class="cl-box-title">Quality Check</div>
+            <div class="cl-box-row"><span class="cl-chk"></span>Test Certificate</div>
+            <div class="cl-box-row"><span class="cl-chk"></span>Batch On Product</div>
+          </div>
+          <div class="cl-box">
+            <div class="cl-box-title">Physical Verification</div>
+            <div class="cl-box-row"><span class="cl-chk"></span>Physical Condition</div>
+            <div class="cl-box-row"><span class="cl-chk"></span>Expiry Date</div>
+          </div>
+          <div class="cl-box">
+            <div class="cl-box-title">Other</div>
+            <div class="cl-box-row"><span class="cl-chk"></span>Lable</div>
+            <div class="cl-box-row"><span class="cl-chk"></span>Rejection Remarks</div>
+          </div>
+        </div>
+      </div>
+    {% endfor %}
+  {% else %}
+    <div class="cl-empty">No items found in this GRN.</div>
+  {% endif %}
+</div>
+{% endblock %}

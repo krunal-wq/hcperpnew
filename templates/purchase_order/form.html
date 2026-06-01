@@ -434,6 +434,17 @@
   // The first row marked is_default auto-selects (only on new PO; edit
   // keeps the PO's saved value).
   const PRESELECTED_SHIP = "{{ po.delivery_address|default('', true) }}".trim();
+
+  // Init searchable Select2 immediately so it's wired even if the fetch
+  // below fails. We'll re-init after options load (some Select2 versions
+  // require it after dynamic option changes).
+  $('#fShipLocation').select2({
+    placeholder: '-- Select Ship Location --',
+    width: '100%',
+    minimumResultsForSearch: 4,
+    dropdownAutoWidth: true,
+  });
+
   fetch("{{ url_for('purchase_order.api_ship_locations') }}", { credentials: 'same-origin' })
     .then(r => r.json())
     .then(d => {
@@ -460,6 +471,15 @@
       if (!pickedId && $sel.find('option[value!=""]').length){
         $sel.find('option[value!=""]').first().prop('selected', true);
       }
+      // Re-init Select2 so newly added options are picked up and rendered
+      if ($sel.data('select2')) $sel.select2('destroy');
+      $sel.select2({
+        placeholder: '-- Select Ship Location --',
+        width: '100%',
+        minimumResultsForSearch: 4,
+        dropdownAutoWidth: true,
+      });
+      $sel.trigger('change');
     })
     .catch(e => console.warn('Ship locations load failed', e));
 

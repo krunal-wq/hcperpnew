@@ -1,0 +1,427 @@
+{% extends 'base.html' %}
+{% block title %}GRN {{ grn.grn_number }} — HCP ERP{% endblock %}
+{% block page_title %}GRN {{ grn.grn_number_short or grn.grn_number }}{% endblock %}
+{% block bread %}Stores / GRN / {{ grn_types.get(grn.grn_type, '') }} / View{% endblock %}
+
+{% block extra_css %}
+<style>
+  /* ═══════════════════════════════════════════════════════════════
+     Layout wrapper + action bar
+     ═══════════════════════════════════════════════════════════════ */
+  .gv-wrap { max-width:920px; margin:0 auto; padding:0 12px 40px; }
+  .gv-actions { display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap; }
+  .gv-act { padding:9px 18px; border-radius:7px; font-size:13px; font-weight:700; cursor:pointer;
+      text-decoration:none; transition:all .15s; border:1.5px solid; }
+  .gv-act.outline { background:#fff; color:#475569; border-color:#cbd5e1; }
+  .gv-act.outline:hover { border-color:#94a3b8; color:#1e293b; }
+  .gv-act.success { background:#16a34a; color:#fff; border-color:#16a34a; }
+  .gv-act.success:hover { background:#15803d; }
+  .gv-act.warning { background:#f59e0b; color:#fff; border-color:#f59e0b; }
+  .gv-act.primary { background:#2563eb; color:#fff; border-color:#2563eb; }
+  .gv-status-pill { display:inline-flex; align-items:center; padding:6px 14px;
+      border-radius:13px; font-size:11px; font-weight:800; text-transform:uppercase;
+      color:#fff; letter-spacing:.05em; }
+
+  /* ═══════════════════════════════════════════════════════════════
+     Document — Tally-style print-friendly layout
+     ═══════════════════════════════════════════════════════════════ */
+  .grn-doc {
+    background:#fff; border:1.5px solid #1e293b; border-radius:0;
+    font-family:'Segoe UI', Arial, sans-serif; font-size:12px; color:#0f172a;
+    line-height:1.45;
+  }
+
+  /* Title */
+  .grn-title-row { text-align:center; padding:11px; border-bottom:1px solid #1e293b; }
+  .grn-title-row h1 { margin:0; font-size:17px; font-weight:800; letter-spacing:.01em; }
+  .grn-title-row .qr-no { margin:4px 0 0; font-size:12.5px; color:#475569; font-weight:600; }
+
+  /* 2-column header */
+  .grn-header { display:grid; grid-template-columns: 1.2fr 1fr; }
+  .grn-left  { border-right:1px solid #1e293b; }
+  .grn-right { display:grid; grid-template-columns: 1fr 1fr; }
+
+  .hdr-block { padding:9px 12px; border-bottom:1px solid #1e293b; }
+  .hdr-block:last-child { border-bottom:0; }
+  .hdr-block .name { font-weight:800; font-size:13px; margin-bottom:2px; }
+  .hdr-block .addr { font-size:11px; color:#0f172a; }
+  .hdr-block .lbl-small { color:#64748b; font-size:10.5px; font-weight:600; margin-bottom:3px; display:block; }
+  .hdr-block .gst { margin-top:4px; font-size:11.5px; }
+  .hdr-block .gst b { font-weight:700; }
+
+  .hdr-cell { padding:6px 12px; border-bottom:1px solid #1e293b; border-left:1px solid #1e293b; min-height:38px; }
+  .hdr-cell .lbl { color:#64748b; font-size:10px; font-weight:600; line-height:1.2; }
+  .hdr-cell .val { font-size:12.5px; font-weight:700; margin-top:1px; }
+  .hdr-cell-full { grid-column: 1 / 3; }
+  .hdr-cell-strong-bg { background:#fafbfd; }
+
+  /* Items table */
+  .grn-items { width:100%; border-collapse:collapse; }
+  .grn-items th, .grn-items td {
+    border:1px solid #1e293b; padding:6px 8px; font-size:11px; vertical-align:top;
+  }
+  .grn-items th {
+    background:#f8fafc; font-weight:700; font-size:10px; text-align:left;
+    letter-spacing:.02em; color:#1e293b;
+  }
+  .grn-items td.num { text-align:right; }
+  .grn-items td.ctr { text-align:center; }
+  .grn-items .desc strong { display:block; font-size:12px; margin-bottom:2px; }
+  .grn-items .desc .meta { font-size:10.5px; color:#475569; line-height:1.5; }
+  .grn-items .desc .meta em { font-style:italic; color:#0369a1; }
+  .grn-items .total-row td { font-weight:800; background:#fafbfd; font-size:12px; }
+
+  .file-btn { display:inline-block; padding:3px 9px; background:#1e40af; color:#fff !important;
+      font-size:9.5px; font-weight:700; border-radius:3px; text-decoration:none;
+      letter-spacing:.04em; margin-top:3px; margin-right:3px; }
+  .file-btn:hover { background:#1e3a8a; }
+  .file-btn.coa { background:#475569; }
+  .file-btn.coa:hover { background:#334155; }
+
+  /* Signature block */
+  .grn-sig { display:grid; grid-template-columns: 1fr 1fr; border-top:0; }
+  .grn-sig > div { padding:10px 14px; border-right:1px solid #1e293b; min-height:65px; }
+  .grn-sig > div:last-child { border-right:0; }
+  .grn-sig .for-line { font-weight:700; font-size:12px; margin-bottom:30px; }
+  .grn-sig .name-line { font-weight:700; font-size:12px; }
+  .grn-sig .sig-lbl { font-size:11px; color:#475569; }
+
+  .grn-footer { text-align:center; padding:8px; border-top:1px solid #1e293b;
+      font-size:11px; line-height:1.6; }
+  .grn-footer b { font-weight:700; }
+
+  /* Activity timeline */
+  .timeline { margin-top:20px; padding:18px; background:#fff; border-radius:10px;
+      border:1px solid #e2e8f0; }
+  .timeline h3 { margin:0 0 12px; font-size:14px; font-weight:800; color:#0f172a; }
+  .timeline-row { display:flex; gap:12px; padding:8px 0; border-bottom:1px dashed #e2e8f0; font-size:12.5px; }
+  .timeline-row:last-child { border-bottom:0; }
+  .timeline-row .dot { width:9px; height:9px; border-radius:50%; background:#2563eb; margin-top:5px; flex-shrink:0; }
+  .timeline-row .body { flex:1; }
+  .timeline-row .when { color:#94a3b8; font-size:11px; }
+
+  /* ═══════════════════════════════════════════════════════════════
+     Print mode — hides everything except .grn-doc
+     ═══════════════════════════════════════════════════════════════ */
+  @media print {
+    body * { visibility:hidden; }
+    .grn-doc, .grn-doc * { visibility:visible; }
+    .grn-doc {
+      position:absolute; left:0; top:0; width:100%;
+      border:1.5px solid #1e293b;
+    }
+    .gv-actions, .timeline, .gv-status-pill,
+    .sidebar, .topbar, header, footer, nav { display:none !important; }
+    @page { size:A4; margin:8mm; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+{# ─────────── Department label per GRN type ─────────── #}
+{% set _dept_map = {'RM':'RM Store', 'PM':'PM Store', 'COR':'Corrugation Store', 'SLV':'Sleeves Store', 'FG':'FG Store'} %}
+{% set _dept = _dept_map.get(grn.grn_type, grn.grn_type + ' Store') %}
+
+<div class="gv-wrap">
+
+  <!-- Action bar (hidden on print) -->
+  <div class="gv-actions">
+    <a href="{{ url_for('grn.index') }}?grn_type={{ grn.grn_type }}" class="gv-act outline">← Back</a>
+    <span class="gv-status-pill" style="background:{{ grn.status_color }};">{{ grn.status }}</span>
+    {% if grn.is_editable %}
+    <a href="{{ url_for('grn.edit_grn', grn_id=grn.id) }}" class="gv-act primary">✏️ Edit</a>
+    {% endif %}
+    {% if grn.can_complete and role in ('admin','director','manager','purchase_manager') %}
+    <button class="gv-act success" onclick="grnComplete({{ grn.id }})">✅ Submit &amp; Complete</button>
+    {% endif %}
+    {% if grn.can_cancel and grn.status != 'Cancelled' %}
+    <button class="gv-act warning" onclick="grnCancel({{ grn.id }})">⊘ Cancel</button>
+    {% endif %}
+    <a class="gv-act outline" href="javascript:window.print()">🖨️ Print / Save as PDF</a>
+    <a class="gv-act outline" href="{{ url_for('grn.pdf_grn', grn_id=grn.id) }}" target="_blank">📄 Download PDF</a>
+    <a class="gv-act outline" href="{{ url_for('grn.labels_grn', grn_id=grn.id) }}" target="_blank">🏷️ Print Labels</a>
+  </div>
+
+  {# ─────────── Depreciation Note alert (auto-created on submit if shortage) ─────────── #}
+  {% if grn.has_depreciation_note and depreciation_note %}
+  <div class="dn-alert">
+    <div class="dn-alert-hdr">
+      <span class="dn-alert-icon">⚠️</span>
+      <div class="dn-alert-title">
+        Depreciation Note generated — <strong>{{ depreciation_note.dn_number }}</strong>
+      </div>
+      <span class="dn-alert-pill" style="background:{{ depreciation_note.status_color }};">{{ depreciation_note.status }}</span>
+    </div>
+    <div class="dn-alert-body">
+      <span><strong>{{ depreciation_note.items.count() }}</strong> item(s) received less than invoice.</span>
+      &nbsp;·&nbsp;
+      <span>Total shortage: <strong>{{ '%.3f'|format(depreciation_note.total_shortage_qty) }}</strong></span>
+      &nbsp;·&nbsp;
+      <span>Shortage value: <strong>₹{{ '{:,.2f}'.format(depreciation_note.total_shortage_value|float) }}</strong></span>
+    </div>
+    <div class="dn-alert-actions">
+      <a class="dn-btn" href="{{ url_for('depreciation_note.view_dn', dn_id=depreciation_note.id) }}">📄 View DN</a>
+      {% if depreciation_note.status == 'Open' %}
+      <button class="dn-btn" onclick="dnMarkSent({{ depreciation_note.id }})">✉️ Mark Sent to Supplier</button>
+      <button class="dn-btn" onclick="dnMarkResolved({{ depreciation_note.id }})">✓ Mark Resolved</button>
+      {% endif %}
+    </div>
+  </div>
+  <style>
+    .dn-alert { background:#fffbeb; border-left:4px solid #f59e0b; border-radius:8px;
+                padding:14px 18px; margin:0 0 16px; font-family:inherit; }
+    .dn-alert-hdr { display:flex; align-items:center; gap:10px; margin-bottom:6px; }
+    .dn-alert-icon { font-size:20px; }
+    .dn-alert-title { flex:1; font-size:15px; font-weight:600; color:#78350f; }
+    .dn-alert-pill { color:#fff; font-size:11px; padding:3px 11px; border-radius:999px; font-weight:600; }
+    .dn-alert-body { font-size:13px; color:#92400e; margin-bottom:10px; }
+    .dn-alert-actions { display:flex; gap:8px; flex-wrap:wrap; }
+    .dn-btn { display:inline-block; background:#fff; border:1px solid #f59e0b; color:#78350f;
+              padding:7px 14px; border-radius:6px; font-size:12px; font-weight:600; cursor:pointer;
+              text-decoration:none; }
+    .dn-btn:hover { background:#fef3c7; }
+    @media print { .dn-alert-actions { display:none; } }
+  </style>
+  <script>
+    function dnMarkSent(dnId){
+      const email = prompt('Supplier email (optional):', '');
+      if (email === null) return;
+      fetch(`/depreciation-note/${dnId}/mark-sent`, {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ email: email || '' }),
+        credentials:'same-origin'
+      }).then(r => r.json()).then(d => {
+        if (d.success) location.reload();
+        else alert('Failed: ' + (d.error || 'unknown'));
+      });
+    }
+    function dnMarkResolved(dnId){
+      const remarks = prompt('Resolution remarks (e.g. "Credit note CN-122 received"):', '');
+      if (remarks === null) return;
+      fetch(`/depreciation-note/${dnId}/mark-resolved`, {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ remarks: remarks }),
+        credentials:'same-origin'
+      }).then(r => r.json()).then(d => {
+        if (d.success) location.reload();
+        else alert('Failed: ' + (d.error || 'unknown'));
+      });
+    }
+  </script>
+  {% endif %}
+
+  <!-- Document -->
+  <div class="grn-doc">
+
+    <!-- Title row -->
+    <div class="grn-title-row">
+      <h1>Goods Receipt Note</h1>
+      <div class="qr-no">{{ grn.grn_number_short or grn.grn_number }}</div>
+    </div>
+
+    <!-- 2-column header -->
+    <div class="grn-header">
+      <!-- LEFT: Bill To / Ship To / Supplier -->
+      <div class="grn-left">
+        <div class="hdr-block">
+          <div class="name">HCP Wellness Pvt Ltd</div>
+          <div class="addr">403 Maruti Vertex Elanza,<br>
+            Opp. Global Hospital, Nr. GTPL House,<br>
+            Sindhubhavan Road, Bodakdev,<br>
+            Ahmedabad-380054</div>
+          <div class="gst"><b>GSTIN/UIN:</b> 24AAFCH7246H1ZK</div>
+          <div class="gst"><b>State Name :</b> Gujarat, <b>Code :</b> 24</div>
+        </div>
+
+        <div class="hdr-block">
+          <span class="lbl-small">Consignee (Ship to)</span>
+          <div class="name">{{ grn.receive_location_name or 'HCP Wellness Private Limited' }}</div>
+          <div class="addr">{{ grn.receive_location_address or 'Plot No. 8, Ozone Industrial Estate, Beside Kerala GIDC, Bavla-Bagodara Road, Bhayla, Bavla-382220, Gujarat, India.' }}</div>
+        </div>
+
+        <div class="hdr-block">
+          <span class="lbl-small">Supplier (Bill from)</span>
+          <div class="name">{{ grn.supplier_name or '—' }}</div>
+          {% set _addr = (supplier_info.address if supplier_info and supplier_info.address else grn.supplier_address) %}
+          {% if _addr %}<div class="addr">{{ _addr|replace('\n','<br>')|safe }}</div>{% endif %}
+          {% if supplier_info and supplier_info.gst %}
+          <div class="gst"><b>GSTIN/UIN:</b> {{ supplier_info.gst }}</div>
+          {% endif %}
+          {% if supplier_info and supplier_info.state %}
+          <div class="gst"><b>State Name :</b> {{ supplier_info.state }}{% if supplier_info.state_code %}, <b>Code :</b> {{ supplier_info.state_code }}{% endif %}</div>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- RIGHT: 2-col grid -->
+      <div class="grn-right">
+        <div class="hdr-cell hdr-cell-full">
+          <span class="lbl">Department :</span>
+          <span class="val" style="display:inline; margin-left:6px;">{{ _dept }}</span>
+        </div>
+
+        <div class="hdr-cell">
+          <div class="lbl">Receipt Note No.</div>
+          <div class="val">{{ grn.grn_number_short or grn.grn_number }}</div>
+        </div>
+        <div class="hdr-cell">
+          <div class="lbl">Dated :</div>
+          <div class="val">{{ grn.grn_date.strftime('%d-%b-%Y') if grn.grn_date else '—' }}</div>
+        </div>
+
+        <div class="hdr-cell">
+          <div class="lbl">Logistic Name</div>
+          <div class="val">{{ grn.logistics_name or '—' }}</div>
+        </div>
+        <div class="hdr-cell">
+          <div class="lbl">Unloading Time</div>
+          <div class="val">{{ grn.unloading_time.strftime('%H:%M:%S') if grn.unloading_time else '—' }}</div>
+        </div>
+
+        <div class="hdr-cell">
+          <div class="lbl">Driver Name</div>
+          <div class="val">{{ grn.driver_name or '—' }}</div>
+        </div>
+        <div class="hdr-cell">
+          <div class="lbl">Driver Contact No.</div>
+          <div class="val">{{ grn.driver_contact or '—' }}</div>
+        </div>
+
+        <div class="hdr-cell">
+          <div class="lbl">LR No</div>
+          <div class="val">{{ grn.lr_no or '—' }}</div>
+        </div>
+        <div class="hdr-cell">
+          <div class="lbl">LR Date</div>
+          <div class="val">{{ grn.lr_date.strftime('%d-%m-%Y') if grn.lr_date else '—' }}</div>
+        </div>
+
+        <div class="hdr-cell">
+          <div class="lbl">GATE INWARD NO</div>
+          <div class="val">{{ grn.gate_inward_no or '—' }}</div>
+        </div>
+        <div class="hdr-cell">
+          <div class="lbl">DATE &amp; TIME</div>
+          <div class="val">
+            {% if grn.gate_inward_date %}{{ grn.gate_inward_date.strftime('%d-%m-%Y') }}{% else %}—{% endif %}
+            {% if grn.gate_inward_time %} &amp; {{ grn.gate_inward_time.strftime('%H:%M:%S') }}{% endif %}
+          </div>
+        </div>
+
+        <div class="hdr-cell hdr-cell-full">
+          <div class="lbl">Supervisor Name</div>
+          <div class="val">{{ grn.supervisor_name or '—' }}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Items table -->
+    <table class="grn-items">
+      <thead>
+        <tr>
+          <th style="width:32px;">Sl<br>No</th>
+          <th style="width:108px;">PO No.</th>
+          <th style="width:78px;">PO Date</th>
+          <th>Description of Goods</th>
+          <th style="width:130px;">Invoice Detail</th>
+          <th style="width:64px;text-align:right;">No. of pkt</th>
+          <th style="width:80px;text-align:right;">Per Pkt Qty</th>
+          <th style="width:88px;text-align:right;">Total Received<br>Qty</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for it in items %}
+        <tr>
+          <td class="ctr">{{ it.sr_no }}</td>
+          <td>{{ it.po_number or 'N/A' }}</td>
+          <td class="ctr">
+            {% if grn.po_date and (it.po_number == grn.po_number) %}
+              {{ grn.po_date.strftime('%d-%m-%Y') }}
+            {% else %}—{% endif %}
+          </td>
+          <td class="desc">
+            <strong>{{ it.item_name }}</strong>
+            <div class="meta">
+              {% if it.storage_location_name %}<em>Unload Location :</em> {{ it.storage_location_name }}<br>{% endif %}
+              <em>Batch No :</em> {{ it.batch_no or 'N/A' }}<br>
+              <em>Mfg. Date :</em> {{ it.mfg_date.strftime('%d-%m-%Y') if it.mfg_date else 'N/A' }}
+              &nbsp;/&nbsp;
+              <em>Exp. Date :</em> {{ it.expiry_date.strftime('%d-%m-%Y') if it.expiry_date else 'N/A' }}
+              {% if it.manufacturer %}<br><em>Manufacturer :</em> {{ it.manufacturer }}{% endif %}
+            </div>
+          </td>
+          <td>
+            {% if grn.invoice_no %}<i>Inv. No :</i> <b>{{ grn.invoice_no }}</b><br>{% endif %}
+            {% if grn.invoice_date %}<i>Inv. Date :</i> <b>{{ grn.invoice_date.strftime('%d-%m-%Y') }}</b><br>{% endif %}
+            {% if grn.invoice_file %}<a class="file-btn" href="{{ url_for('static', filename=grn.invoice_file) }}" target="_blank">INVOICE</a>{% endif %}
+            {% if it.coa_file %}<a class="file-btn coa" href="{{ url_for('static', filename=it.coa_file) }}" target="_blank">COA</a>{% endif %}
+          </td>
+          <td class="num">{{ '%.3f'|format(it.no_of_boxes or 0) }}</td>
+          <td class="num">{{ '%.3f'|format(it.per_box_qty or 0) }} {{ it.uom }}</td>
+          <td class="num"><b>{{ '%.3f'|format(it.received_qty or 0) }} {{ it.uom }}</b></td>
+        </tr>
+        {% endfor %}
+        <tr class="total-row">
+          <td colspan="5" class="ctr">TOTAL</td>
+          <td class="num">{{ grn.total_box_qty or 0 }}</td>
+          <td></td>
+          <td class="num">{{ '%.3f'|format(grn.total_received_qty or 0) }} {{ items[0].uom if items else 'KG' }}</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- Signature block -->
+    <div class="grn-sig">
+      <div></div>
+      <div>
+        <div class="for-line">For HCP Wellness Pvt Ltd</div>
+        <div class="name-line">{{ grn.supervisor_name or grn.created_by_name or '' }}</div>
+        <div class="sig-lbl">Received Signatory</div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="grn-footer">
+      SUBJECT TO AHMEDABAD JURISDICTION<br>
+      <b>This is a Computer Generated Document</b>
+    </div>
+  </div>
+
+  <!-- Activity timeline (hidden on print) -->
+  {% if status_logs %}
+  <div class="timeline">
+    <h3>📊 Activity Timeline</h3>
+    {% for log in status_logs %}
+    <div class="timeline-row">
+      <div class="dot"></div>
+      <div class="body">
+        <b>{{ log.from_status }} → {{ log.to_status }}</b>
+        {% if log.note %}— {{ log.note }}{% endif %}
+        <div class="when">{{ log.created_at.strftime('%d-%m-%Y %H:%M') if log.created_at else '' }} · by {{ log.actor_name or 'system' }}</div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function grnComplete(id){
+  if (!confirm('Submit this GRN as Completed?\n\nThis will lock the GRN.')) return;
+  fetch(`/grn/${id}/submit`, { method:'POST', credentials:'same-origin' })
+    .then(r => r.json())
+    .then(d => { if (d.success) location.reload(); else alert(d.error || 'failed'); });
+}
+function grnCancel(id){
+  const reason = prompt('Reason for cancellation:'); if (reason === null) return;
+  const fd = new FormData(); fd.append('reason', reason);
+  fetch(`/grn/${id}/cancel`, { method:'POST', body:fd, credentials:'same-origin' })
+    .then(r => r.json())
+    .then(d => { if (d.success) location.reload(); else alert(d.error || 'failed'); });
+}
+</script>
+{% endblock %}

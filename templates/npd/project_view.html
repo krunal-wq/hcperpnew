@@ -263,7 +263,7 @@
 .info-row{display:flex;padding:.45rem 0;border-bottom:1px solid var(--border);font-size:.85rem;}
 .info-row:last-child{border-bottom:none;}
 .info-lbl{color:var(--text2);font-weight:600;min-width:140px;flex-shrink:0;}
-.info-val{color:var(--text);flex:1;}
+.info-val{color:var(--text);flex:1;min-width:0;overflow-wrap:anywhere;word-break:break-word;}
 /* Discussion */
 .disc-input{width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:9px;font-family:inherit;font-size:.88rem;resize:vertical;min-height:80px;outline:none;transition:border-color .2s;box-sizing:border-box;}
 .disc-input:focus{border-color:var(--blue);}
@@ -941,11 +941,11 @@ function mySubEnd() {
                 <div class="card-hdr"><div class="card-title">Formulation Details</div></div>
                 <div class="card-body">
                     {% if proj.active_ingredients %}<div class="info-row"><span class="info-lbl">Active Ing. req</span><span class="info-val">{{ proj.active_ingredients }}</span></div>{% endif %}
-                    {% if proj.ingredients %}<div class="info-row"><span class="info-lbl">Ingredients</span><span class="info-val" style="font-size:.8rem;line-height:1.5;">{{ proj.ingredients[:200] }}{% if proj.ingredients|length>200 %}…{% endif %}</span></div>{% endif %}
+                    {% if proj.ingredients %}<div class="info-row"><span class="info-lbl">Ingredients</span><span class="info-val" style="font-size:.8rem;line-height:1.5;white-space:pre-wrap;">{{ proj.ingredients }}</span></div>{% endif %}
                     {% if proj.product_claim %}<div class="info-row"><span class="info-lbl">Product Claim</span><span class="info-val">{{ proj.product_claim }}</span></div>{% endif %}
                     {% if proj.label_claim %}<div class="info-row"><span class="info-lbl">Label Claim</span><span class="info-val">{{ proj.label_claim }}</span></div>{% endif %}
-                    {% if proj.description %}<div class="info-row"><span class="info-lbl">Description</span><span class="info-val" style="font-size:.8rem;line-height:1.5;">{{ proj.description[:200] }}{% if proj.description|length>200 %}…{% endif %}</span></div>{% endif %}
-                    {% if proj.requirement_spec %}<div class="info-row"><span class="info-lbl">Requirement Spec</span><span class="info-val">{{ proj.requirement_spec }}</span></div>{% endif %}
+                    {% if proj.description %}<div class="info-row"><span class="info-lbl">Description</span><span class="info-val" style="font-size:.8rem;line-height:1.5;white-space:pre-wrap;">{{ proj.description }}</span></div>{% endif %}
+                    {% if proj.requirement_spec %}<div class="info-row"><span class="info-lbl">Requirement Spec</span><span class="info-val">{% if proj.requirement_spec.startswith('http') %}<a href="{{ proj.requirement_spec }}" target="_blank" rel="noopener" style="color:var(--blue);word-break:break-all;">{{ proj.requirement_spec }}</a>{% else %}{{ proj.requirement_spec }}{% endif %}</span></div>{% endif %}
                     <div class="info-row"><span class="info-lbl">Milestones</span><span class="info-val">{{ ms_done }}/{{ selected_ms|length }} done ({{ ms_pct }}%)</span></div>
                     {% if proj.project_start_date %}<div class="info-row"><span class="info-lbl">Start Date</span><span class="info-val">{{ proj.project_start_date.strftime('%d-%m-%Y') }}</span></div>{% endif %}
                     {% if proj.project_end_date %}<div class="info-row"><span class="info-lbl">End Date</span><span class="info-val">{{ proj.project_end_date.strftime('%d-%m-%Y') }}</span></div>{% endif %}

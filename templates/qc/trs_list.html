@@ -1,0 +1,292 @@
+{% extends 'base.html' %}
+{% block title %}{{ page_title }}{% endblock %}
+{% block page_title %}🔬 {{ page_title }}{% endblock %}
+{% block bread %}QC / {{ page_title }}{% endblock %}
+
+{% block extra_css %}
+<!-- DataTables (CDN) -->
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/jquery.dataTables.min.css">
+<style>
+.qc-wrap { max-width: 1400px; margin: 0 auto; padding: 0 12px 40px; }
+
+.qc-filters {
+  background: #fff; border: 1px solid #e2e8f0; border-radius: 10px;
+  padding: 14px 16px; margin-bottom: 16px;
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 10px 14px; align-items: end;
+}
+.qc-filter label {
+  display: block; font-size: 11px; font-weight: 700; color: #475569;
+  text-transform: uppercase; letter-spacing: .04em; margin-bottom: 4px;
+}
+.qc-filter input, .qc-filter select {
+  width: 100%; padding: 8px 10px; font-size: 13px;
+  border: 1.5px solid #cbd5e1; border-radius: 6px; background: #fff;
+  font-family: inherit; color: #0f172a;
+}
+.qc-filter input:focus, .qc-filter select:focus {
+  outline: 0; border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,.12);
+}
+.qc-filter-btns { display: flex; gap: 6px; }
+.qc-filter-btns button {
+  padding: 8px 14px; border-radius: 6px; font-size: 12px; font-weight: 700;
+  cursor: pointer; border: 1.5px solid;
+}
+.qc-filter-btns .apply { background: #2563eb; color: #fff; border-color: #2563eb; }
+.qc-filter-btns .apply:hover { background: #1d4ed8; }
+.qc-filter-btns .clear { background: #fff; color: #475569; border-color: #cbd5e1; }
+.qc-filter-btns .clear:hover { background: #f8fafc; }
+
+.qc-card {
+  background: #fff; border: 1px solid #e2e8f0; border-radius: 10px;
+  padding: 14px 16px;
+}
+.qc-card-head {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 12px; flex-wrap: wrap; gap: 8px;
+}
+.qc-card-head h3 { margin: 0; font-size: 15px; font-weight: 700; color: #0f172a; }
+.qc-card-head .count {
+  background: #eff6ff; color: #1d4ed8;
+  padding: 3px 10px; border-radius: 11px;
+  font-size: 11px; font-weight: 700;
+}
+
+/* DataTable visual tweaks */
+table.dataTable {
+  border-collapse: collapse !important;
+  width: 100% !important;
+}
+table.dataTable thead th {
+  background: #f8fafc; font-size: 11px; font-weight: 700;
+  color: #475569; text-transform: uppercase; letter-spacing: .04em;
+  border-bottom: 2px solid #cbd5e1 !important;
+  padding: 10px 12px !important;
+}
+table.dataTable tbody td {
+  font-size: 12.5px; color: #334155;
+  padding: 10px 12px !important;
+  border-bottom: 1px solid #f1f5f9 !important;
+  vertical-align: middle !important;
+}
+table.dataTable tbody tr:hover { background: #f8fafc; }
+.trs-code { font-family: 'Consolas', monospace; font-size: 12px; color: #0f172a; font-weight: 600; }
+
+.pill {
+  display: inline-block; padding: 3px 10px; border-radius: 11px;
+  font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em;
+}
+.pill.pending  { background: #fef3c7; color: #b45309; }
+.pill.testing  { background: #dbeafe; color: #1e40af; }
+.pill.approved { background: #dcfce7; color: #15803d; }
+.pill.rejected { background: #fee2e2; color: #b91c1c; }
+.pill.hold     { background: #f1f5f9; color: #475569; }
+
+.row-actions { display: flex; gap: 5px; }
+.row-actions a, .row-actions button {
+  width: 30px; height: 30px; padding: 0;
+  border: 1px solid #e2e8f0; border-radius: 6px;
+  background: #fff; cursor: pointer; text-decoration: none;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 14px; line-height: 1; color: #475569;
+  transition: all .12s;
+}
+.row-actions a:hover, .row-actions button:hover {
+  background: #f1f5f9; border-color: #94a3b8; color: #1e293b;
+}
+.row-actions .approve { color: #16a34a; }
+.row-actions .approve:hover { background: #dcfce7; }
+.row-actions .reject { color: #dc2626; }
+.row-actions .reject:hover { background: #fee2e2; }
+
+.empty-cell { color: #94a3b8; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="qc-wrap">
+
+  <!-- Filters -->
+  <div class="qc-filters">
+    <div class="qc-filter">
+      <label>Date From</label>
+      <input type="date" id="f_date_from">
+    </div>
+    <div class="qc-filter">
+      <label>Date To</label>
+      <input type="date" id="f_date_to">
+    </div>
+    <div class="qc-filter">
+      <label>{{ 'Vendor' if grn_type == 'RM' else 'Supplier' }}</label>
+      <input type="text" id="f_vendor" placeholder="Search…">
+    </div>
+    <div class="qc-filter">
+      <label>Item</label>
+      <input type="text" id="f_item" placeholder="Name / Batch">
+    </div>
+    <div class="qc-filter">
+      <label>GRN No</label>
+      <input type="text" id="f_grn_no" placeholder="e.g. RM/0468">
+    </div>
+    <div class="qc-filter">
+      <label>QC Status</label>
+      <select id="f_qc_status">
+        <option value="">— All —</option>
+        {% for s in qc_statuses %}
+          <option value="{{ s }}">{{ s }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="qc-filter qc-filter-btns">
+      <button class="apply" id="btnApply">🔍 Apply</button>
+      <button class="clear" id="btnClear">Clear</button>
+    </div>
+  </div>
+
+  <!-- Table -->
+  <div class="qc-card">
+    <div class="qc-card-head">
+      <h3>{{ page_title }}</h3>
+      <span class="count" id="rowCount">0 records</span>
+    </div>
+    <table id="trsTable" class="display" style="width:100%">
+      <thead>
+        <tr>
+          <th>TRS No</th>
+          <th>TRS Date</th>
+          <th>GRN No</th>
+          <th>{{ 'Vendor' if grn_type == 'RM' else 'Supplier' }}</th>
+          <th>Item Code</th>
+          <th>Item Name</th>
+          <th>{{ 'Batch No' if grn_type == 'RM' else 'Lot No' }}</th>
+          <th>QC Status</th>
+          <th>Created By</th>
+          <th style="text-align:right;">Action</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- jQuery (ensure available) + DataTables (CDN) -->
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+<script>
+(function(){
+  'use strict';
+
+  const GRN_TYPE = '{{ grn_type }}';
+  const API      = '{{ url_for("qc.api_trs_list") }}';
+
+  let dt = null;
+
+  function pill(status) {
+    const s = (status || 'Pending').toLowerCase();
+    let cls = 'pending';
+    if (s === 'under testing') cls = 'testing';
+    else if (s === 'approved') cls = 'approved';
+    else if (s === 'rejected') cls = 'rejected';
+    else if (s === 'hold')     cls = 'hold';
+    return `<span class="pill ${cls}">${status || 'Pending'}</span>`;
+  }
+
+  function rowActions(r) {
+    let html = '<div class="row-actions">';
+    html += `<a href="${r.review_url}" title="QC Review / Approve-Reject" style="font-weight:700;color:#2563eb;">🔬</a>`;
+    html += `<a href="${r.view_url}" title="View certificate">📄</a>`;
+    html += `<a href="${r.view_url}" title="Print" onclick="setTimeout(()=>window.open(this.href,'_blank'),50);return true;">🖨️</a>`;
+    html += '</div>';
+    return html;
+  }
+
+  function safe(v) { return v ? v : '<span class="empty-cell">—</span>'; }
+
+  function buildParams() {
+    const p = new URLSearchParams({ type: GRN_TYPE });
+    const df  = document.getElementById('f_date_from').value;
+    const dt2 = document.getElementById('f_date_to').value;
+    const v   = document.getElementById('f_vendor').value.trim();
+    const it  = document.getElementById('f_item').value.trim();
+    const gn  = document.getElementById('f_grn_no').value.trim();
+    const st  = document.getElementById('f_qc_status').value;
+    if (df) p.set('date_from', df);
+    if (dt2) p.set('date_to',  dt2);
+    if (v)  p.set('vendor',   v);
+    if (it) p.set('item',     it);
+    if (gn) p.set('grn_no',   gn);
+    if (st) p.set('qc_status', st);
+    return p.toString();
+  }
+
+  function loadData() {
+    const url = API + '?' + buildParams();
+    fetch(url).then(r => r.json()).then(j => {
+      const data = (j && j.data) ? j.data : [];
+      document.getElementById('rowCount').textContent =
+        data.length + (data.length === 1 ? ' record' : ' records');
+
+      const rows = data.map(r => [
+        `<span class="trs-code">${r.trs_no || ''}</span>`,
+        r.trs_date || '',
+        safe(r.grn_no),
+        safe(r.vendor),
+        safe(r.item_code),
+        `<b style="color:#0f172a;">${r.item_name || ''}</b>`,
+        safe(GRN_TYPE === 'PM' ? r.lot_no : r.batch_no),
+        pill(r.qc_status),
+        safe(r.created_by),
+        rowActions(r),
+      ]);
+
+      if (dt) {
+        dt.clear();
+        dt.rows.add(rows);
+        dt.draw(false);
+      } else {
+        dt = $('#trsTable').DataTable({
+          data: rows,
+          pageLength: 25,
+          lengthMenu: [10, 25, 50, 100],
+          order: [[1, 'desc']],  // TRS Date desc
+          columnDefs: [{ orderable: false, targets: 9 }],
+          language: { search: 'Quick filter:', emptyTable: 'No TRS records found.' },
+        });
+      }
+    }).catch(err => {
+      console.error('TRS list fetch error:', err);
+      document.getElementById('rowCount').textContent = 'Failed to load';
+    });
+  }
+
+  document.getElementById('btnApply').addEventListener('click', loadData);
+  document.getElementById('btnClear').addEventListener('click', function(){
+    ['f_date_from','f_date_to','f_vendor','f_item','f_grn_no','f_qc_status']
+      .forEach(id => document.getElementById(id).value = '');
+    loadData();
+  });
+
+  // Enter key in any filter input triggers apply
+  ['f_vendor','f_item','f_grn_no'].forEach(id => {
+    document.getElementById(id).addEventListener('keydown', function(e){
+      if (e.key === 'Enter') { e.preventDefault(); loadData(); }
+    });
+  });
+
+  loadData();
+
+  // ── Approve / Reject — Phase 3 wired to real backend ──
+  function postJSON(url, body){
+    return fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+      body: JSON.stringify(body || {}),
+    }).then(r => r.json().then(j => ({ok: r.ok, status: r.status, json: j})));
+  }
+
+})();
+</script>
+{% endblock %}

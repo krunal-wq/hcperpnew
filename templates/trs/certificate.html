@@ -1,0 +1,225 @@
+{% extends 'base.html' %}
+{% block title %}TRS {{ trs.trs_no }}{% endblock %}
+{% block page_title %}📋 TRS Certificate{% endblock %}
+{% block bread %}Stores / GRN / {{ trs.grn_no }} / TRS / {{ trs.trs_no }}{% endblock %}
+
+{% block extra_css %}
+<style>
+.cert-wrap { max-width: 1100px; margin: 0 auto; padding: 0 12px 40px; }
+
+.cert-bar {
+  display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; align-items: center;
+}
+.cert-bar a, .cert-bar button {
+  padding: 9px 18px; border-radius: 7px; font-size: 13px; font-weight: 700;
+  cursor: pointer; text-decoration: none; border: 1.5px solid;
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.cert-bar .back  { background: #fff; color: #475569; border-color: #cbd5e1; }
+.cert-bar .edit  { background: #fff; color: #1d4ed8; border-color: #93c5fd; }
+.cert-bar .print { background: #16a34a; color: #fff; border-color: #16a34a; margin-left: auto; }
+.cert-bar .print:hover { background: #15803d; }
+
+.cert-doc {
+  background: #fff; border: 1px solid #cbd5e1;
+  font-family: Arial, Helvetica, sans-serif; color: #1e293b;
+  overflow: hidden;
+}
+
+.cert-head {
+  display: grid; grid-template-columns: 200px 1fr;
+  border-bottom: 1px solid #cbd5e1;
+}
+.cert-head .logo-cell {
+  border-right: 1px solid #cbd5e1; padding: 18px;
+  display: flex; align-items: center; justify-content: center;
+}
+.cert-head .logo-cell img { max-width: 130px; max-height: 60px; object-fit: contain; }
+.cert-head .title-cell {
+  padding: 16px; text-align: center;
+}
+.cert-head .title-cell h1 {
+  font-size: 18px; font-weight: 700;
+  margin: 0 0 4px 0; letter-spacing: .5px;
+}
+.cert-head .title-cell .code { font-size: 14px; color: #475569; }
+
+.cert-row {
+  display: grid; border-bottom: 1px solid #cbd5e1;
+}
+.cert-row.c2 { grid-template-columns: 1fr 1fr; }
+.cert-row.c3 { grid-template-columns: 1fr 1fr 1fr; }
+.cert-row.c1 { grid-template-columns: 1fr; }
+
+.cert-row .cell {
+  display: grid; grid-template-columns: 200px 1fr;
+}
+.cert-row .cell:not(:last-child) { border-right: 1px solid #cbd5e1; }
+.cert-row .cell .lbl {
+  padding: 11px 14px; font-size: 13px; font-weight: 600;
+  color: #1e293b; border-right: 1px solid #cbd5e1;
+  text-align: right; display: flex; align-items: center; justify-content: flex-end;
+}
+.cert-row .cell .val {
+  padding: 11px 14px; font-size: 13px; color: #334155;
+  display: flex; align-items: center;
+}
+
+.cert-section {
+  text-align: center; font-weight: 700; font-size: 14px;
+  padding: 11px 0; border-bottom: 1px solid #cbd5e1; letter-spacing: .8px;
+}
+.cert-pv {
+  display: grid; grid-template-columns: 80px 260px 1fr 200px;
+}
+.cert-pv > div {
+  border-right: 1px solid #cbd5e1; border-bottom: 1px solid #cbd5e1;
+  padding: 11px 14px; font-size: 13px;
+  display: flex; align-items: center;
+}
+.cert-pv > div:nth-child(4n) { border-right: 0; }
+.cert-pv .th { font-weight: 700; }
+.cert-pv .sr { justify-content: center; font-weight: 600; }
+
+.cert-foot {
+  display: grid; grid-template-columns: 200px 1fr 200px;
+  border-bottom: 1px solid #cbd5e1;
+}
+.cert-foot > div {
+  padding: 11px 14px; font-size: 13px; border-right: 1px solid #cbd5e1;
+}
+.cert-foot > div:last-child { border-right: 0; text-align: right; }
+.cert-foot .l { font-weight: 700; }
+.cert-foot.head { background: #fff; }
+.cert-foot.head > div { font-weight: 700; text-align: center; }
+.cert-foot.head > div:last-child { text-align: center; }
+
+/* ── Print: clean page, hide everything except certificate ── */
+@media print {
+  body * { visibility: hidden; }
+  .cert-doc, .cert-doc * { visibility: visible; }
+  .cert-doc { position: absolute; left: 0; top: 0; width: 100%; }
+  .cert-bar, .sidebar, .topbar, header, footer, nav { display: none !important; }
+  .cert-doc { border: 1px solid #000; }
+  @page { size: A4 portrait; margin: 10mm; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="cert-wrap">
+
+  <div class="cert-bar">
+    <a class="back" href="{{ url_for('trs.grn_items', grn_id=trs.grn_id) }}">← Back to Items</a>
+    <a class="edit" href="{{ url_for('trs.edit_trs', trs_id=trs.id) }}">✏️ Edit</a>
+    {% if trs.qc_status == 'Approved' %}
+    <a class="edit" href="{{ url_for('trs.trs_sticker', trs_id=trs.id) }}" target="_blank" style="color:#15803d;border-color:#86efac;">🏷️ QC Sticker</a>
+    {% endif %}
+    <button class="print" onclick="window.print()">🖨️ Print Certificate</button>
+  </div>
+
+  <div class="cert-doc">
+
+    <div class="cert-head">
+      <div class="logo-cell">
+        <img src="{{ url_for('static', filename='images/icons/hcp-logo.png') }}"
+             alt="HCP" onerror="this.style.display='none'">
+      </div>
+      <div class="title-cell">
+        <h1>TESTING REQUISITION SLIP (TRS)</h1>
+        <div class="code">QR-854-01</div>
+      </div>
+    </div>
+
+    <div class="cert-row c3">
+      <div class="cell"><div class="lbl">TRS No :</div><div class="val">{{ trs.trs_no }}</div></div>
+      <div class="cell"><div class="lbl">DATE</div><div class="val">{{ trs.trs_date.strftime('%d-%m-%Y') if trs.trs_date else '—' }}</div></div>
+      <div class="cell"><div class="lbl">Department :</div><div class="val">{{ trs.department or '—' }}</div></div>
+    </div>
+
+    <div class="cert-row c1">
+      <div class="cell"><div class="lbl">Name of Sample :</div><div class="val">{{ trs.sample_name or '—' }}</div></div>
+    </div>
+
+    <div class="cert-row c2">
+      <div class="cell"><div class="lbl">Batch No or Product Code :</div><div class="val">{{ trs.batch_no or '—' }}</div></div>
+      <div class="cell"><div class="lbl">No of Pkt / Label :</div><div class="val">{{ '%.3f'|format(trs.no_of_packets|float) }}</div></div>
+    </div>
+
+    <div class="cert-row c2">
+      <div class="cell"><div class="lbl">GRN No :</div><div class="val">{{ trs.grn_no or '—' }}</div></div>
+      <div class="cell"><div class="lbl">GRN Date :</div><div class="val">{{ trs.grn_date.strftime('%d-%m-%Y') if trs.grn_date else '—' }}</div></div>
+    </div>
+
+    <div class="cert-row c2">
+      <div class="cell"><div class="lbl">Physical State :</div><div class="val">{{ trs.physical_state or '—' }}</div></div>
+      <div class="cell"><div class="lbl">Total Qty(In {{ trs.uom }}):</div><div class="val">{{ '%.3f'|format(trs.total_qty|float) }}</div></div>
+    </div>
+
+    <div class="cert-row c2">
+      <div class="cell"><div class="lbl">Sample Qty(In {{ trs.uom }}):</div><div class="val">{{ '%.3f'|format(trs.sample_qty|float) }}</div></div>
+      <div class="cell"><div class="lbl"></div><div class="val"></div></div>
+    </div>
+
+    <div class="cert-row c2">
+      <div class="cell"><div class="lbl">Mfg. Name :</div><div class="val">{{ trs.mfg_name or '—' }}</div></div>
+      <div class="cell"><div class="lbl">Mfg. Date :</div><div class="val">{{ trs.mfg_date.strftime('%d-%m-%Y') if trs.mfg_date else '—' }}</div></div>
+    </div>
+
+    <div class="cert-row c2">
+      <div class="cell"><div class="lbl">Supplier Name :</div><div class="val">{{ trs.supplier_name or '—' }}</div></div>
+      <div class="cell"><div class="lbl">Expiry Date :</div><div class="val">{{ trs.expiry_date.strftime('%d-%b-%Y') if trs.expiry_date else '—' }}</div></div>
+    </div>
+
+    <div class="cert-row c2">
+      <div class="cell"><div class="lbl">Previous Supplier :</div><div class="val">{{ trs.previous_supplier or '—' }}</div></div>
+      <div class="cell"><div class="lbl">New / OLD Material:</div><div class="val">{{ trs.new_old_material or '—' }}</div></div>
+    </div>
+
+    <div class="cert-section">PHYSICAL VERIFICATION</div>
+    <div class="cert-pv">
+      <div class="th sr">Sr No</div>
+      <div class="th">Parameter</div>
+      <div class="th"></div>
+      <div class="th"></div>
+
+      <div class="sr">1</div>
+      <div>Appearance</div>
+      <div>{{ trs.appearance or '—' }}</div>
+      <div></div>
+
+      <div class="sr">2</div>
+      <div>Odour</div>
+      <div>{{ trs.odour or '—' }}</div>
+      <div></div>
+
+      <div class="sr">3</div>
+      <div>COA Availability</div>
+      <div>{{ trs.coa_available or '—' }}</div>
+      <div></div>
+    </div>
+
+    <div class="cert-foot">
+      <div class="l">Verified By</div>
+      <div>{{ trs.verified_by_name or '—' }}</div>
+      <div>{{ trs.verified_at.strftime('%d-%m-%Y') if trs.verified_at else '—' }}</div>
+    </div>
+    <div class="cert-foot head">
+      <div>Name of Incharge</div>
+      <div>Sign</div>
+      <div>Date</div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  // When opened with ?autoprint=1 (e.g. right after QC approval), fire the print
+  // dialog automatically so the user can save the TRS slip as a PDF.
+  if (new URLSearchParams(location.search).get('autoprint') === '1') {
+    window.addEventListener('load', function(){ setTimeout(function(){ window.print(); }, 500); });
+  }
+</script>
+{% endblock %}

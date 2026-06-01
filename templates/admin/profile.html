@@ -423,7 +423,7 @@
             <div class="fg"><label class="fl">Nationality</label><input type="text" name="nationality" class="fi" value="{{ employee.nationality or 'Indian' }}"></div>
             <div class="fg"><label class="fl">Religion</label><select name="religion" class="fi sd"><option value="">Select</option>{% for r in ['Hindu','Muslim','Christian','Sikh','Jain','Buddhist','Other'] %}<option value="{{ r }}" {{ 'selected' if employee.religion==r }}>{{ r }}</option>{% endfor %}</select></div>
             <div class="fg"><label class="fl">Caste Category</label><select name="caste" class="fi sd"><option value="">Select</option>{% for cat in ['General','OBC','SC','ST','EWS','Other'] %}<option value="{{ cat }}" {{ 'selected' if employee.caste==cat }}>{{ cat }}</option>{% endfor %}</select></div>
-            <div class="fg"><label class="fl">Physically Handicapped?</label><select name="physically_handicapped" class="fi"><option value="no" {{ 'selected' if not employee.physically_handicapped }}>No</option><option value="yes" {{ 'selected' if employee.physically_handicapped }}>Yes</option></select></div>
+            <div class="fg"><label class="fl">Differently Abled?</label><select name="physically_handicapped" class="fi"><option value="no" {{ 'selected' if not employee.physically_handicapped }}>No</option><option value="yes" {{ 'selected' if employee.physically_handicapped }}>Yes</option></select></div>
         </div>
 
         <div class="sec-hdr">🪪 KYC Documents</div>

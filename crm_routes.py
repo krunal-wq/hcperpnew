@@ -996,6 +996,7 @@ def leads_export():
         return float(v) if v else ''
 
     COLUMNS = [
+        ("Created Date",     lambda l: _d(l,'created_at','%d-%m-%Y')),
         ("Title",            lambda l: _s(l,'title')),
         ("Contact Name",     lambda l: _s(l,'contact_name')),
         ("Company",          lambda l: _s(l,'company_name')),

@@ -1632,7 +1632,7 @@ def emp_export_single(id):
         ("Nationality", e.nationality),
         ("Religion", e.religion),
         ("Caste", e.caste),
-        ("Physically Handicapped", "Yes" if e.physically_handicapped else "No"),
+        ("Differently Abled", "Yes" if e.physically_handicapped else "No"),
         ("Aadhaar Number", e.aadhar_number),
         ("PAN Number", e.pan_number),
         ("UAN Number", e.uan_number),

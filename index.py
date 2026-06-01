@@ -30,6 +30,9 @@ from routes.module_settings_routes import module_settings  # ← Module enable/d
 from daily_report_share import daily_report_bp   # ← Daily Report Share
 from purchase_order_routes import po_bp           # ← NEW: Purchase Order Module
 from grn_routes import grn_bp                     # ← NEW: GRN (Goods Receipt Note) Module
+from trs_routes import trs_bp           # TRS (Testing Requisition Slip)
+from qc_routes  import qc_bp            # QC Module (TRS lists, approvals)
+from depreciation_note_routes import dn_bp        # ← NEW: Depreciation Note Module
 from error_handlers import register_error_handlers          # ← 403/404/500 pages
 
 app = Flask(__name__)
@@ -106,6 +109,9 @@ app.register_blueprint(module_settings)   # Module enable/disable settings
 app.register_blueprint(daily_report_bp)   # ← Daily Report Share
 app.register_blueprint(po_bp)             # ← NEW: Purchase Order Module
 app.register_blueprint(grn_bp)            # ← NEW: GRN (Goods Receipt Note) Module
+app.register_blueprint(trs_bp)          # TRS (Testing Requisition Slip)
+app.register_blueprint(qc_bp)           # QC Module (TRS lists, approvals)
+app.register_blueprint(dn_bp)             # ← NEW: Depreciation Note Module
 
 # Register global 403 / 404 / 500 error pages
 register_error_handlers(app)

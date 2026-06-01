@@ -1,50 +1,33 @@
-# Specs/Process — Always-Toggleable + Per-Sheet Specs Textarea
+# QC Re-open / Change Decision (galti se Approve/Reject undo)
 
-## Files
+## Naya kya hai
+Agar QC ne galti se **Approve** (ya Reject) kar diya, ab use change kar sakte hain:
 
-```
-formulation_routes.py                       ← parser returns plain text for specs
-templates/formulation/index.html            ← always-present checkboxes + specs textarea
-```
+- QC Review form pe, approved/rejected hone ke baad neeche
+  **"✏️ Change Decision / Re-open"** button aata hai.
+- Click → confirm modal → confirm karne pe:
+  - Agar stock move hua tha (RM stock-in / PM sample-out), woh **reverse** ho jaata hai
+    (ledger me reverse entry banti hai).
+  - TRS status wapas **Pending** ho jaata hai, approve/reject stamps clear.
+  - Form dobara editable — ab sahi decision (Approved/Rejected) le sakte ho.
+- Upar bar me bhi **"✏️ Edit TRS Data"** link (jab locked nahi hai) — TRS slip ke
+  fields (qty, dates, etc.) edit karne ke liye.
 
-**Koi SQL change nahi.**
+Saari confirmations ab styled **modal popup** me hain (browser ka default alert nahi).
 
-## Steps
+## Install (2 files, overwrite)
 
-1. 2 files replace karo
-2. Flask restart
-3. **Ctrl+Shift+R** (hard refresh)
+| Source                          | Destination                                  |
+|---------------------------------|----------------------------------------------|
+| `qc_routes.py`                  | `D:\hcperpnew\qc_routes.py`                  |
+| `templates/qc/trs_review.html`  | `D:\hcperpnew\templates\qc\trs_review.html`  |
 
-## Kya badla
+Phir Flask restart (`python .\index.py`) + browser **Ctrl + F5**.
+(qc_routes.py me naya endpoint hai isliye restart zaroori hai.)
 
-### Pehle (galat)
-- Agar sheet me Specs nahi mile (jaise STRONG HOLD HAIR WAX me) → Specifications **plain text "—"** dikha — toggle nahi kar sakte
-- User confused — "check/uncheck nai ker pa raha hu"
+## Flow
+1. QC Department → RM/PM TRS List → 🔬 Review.
+2. Galti se Approve ho gaya? → neeche **Change Decision / Re-open** → confirm.
+3. Stock reverse ho jayega, status Pending → ab dobara Approved/Rejected karo.
 
-### Ab (sahi)
-- **Specs aur Process dono ki checkboxes hamesha rahti hain**, har sheet me — chahe parser ne detect kiya ho ya nahi
-- Agar count > 0 → checkbox auto-checked, colored count badge dikhega
-- Agar count = 0 → checkbox auto-unchecked, gray "0" badge dikhega
-- User chahe to toggle on karke **manually textarea me likh sakta hai**
-
-### Naya — Per-sheet Specs textarea
-Pehle sirf Process ka textarea tha. Ab Specs ka bhi alag textarea hai har card me:
-- Auto-detected ho to plain text format me dikhega: `"1. Appearance: Opaque Viscous Liquid"`
-- Khali ho aur user chahe to **manually likh sake** (`"pH: 5.50-6.50"` jaise lines)
-- Checkbox uncheck karoge → textarea gray ho jaayega (visually clear ki include nahi hoga)
-
-### Plain text → HTML conversion
-- Auto-detected specs ab clean plain text format me display hote hain (HTML mess nahi)
-- Commit pe server automatically HTML table banata hai for storage
-- View modal me proper styled table dikhega
-- Manual entry bhi same flow — type karo plain text, server converts to table
-
-## Behavior matrix
-
-| Sheet me | Process Checkbox | Specs Checkbox | Textarea |
-|---|---|---|---|
-| Process AND Specs dono mile (e.g. DE TAN) | ✓ auto-on, 9 | ✓ auto-on, 6 | Both pre-filled |
-| Sirf Process mila (e.g. STRONG HOLD) | ✓ auto-on, 4 | ☐ auto-off, 0 | Process pre-filled, Specs empty (toggle on to add) |
-| Kuch nahi mila | ☐ off, 0 | ☐ off, 0 | Both empty (toggle on to add manually) |
-
-User puri freedom me hai — har sheet ka apna alag treatment.
+> Koi DB migration nahi chahiye — sirf maujooda tables use hote hain.

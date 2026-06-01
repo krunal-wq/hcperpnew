@@ -937,6 +937,9 @@ def print_po(po_id):
     po = PurchaseOrder.query.get_or_404(po_id)
     if po.is_deleted:
         abort(404)
+    # Print is only available once the PO has been approved.
+    if po.status not in (PO_STATUS_APPROVED, PO_STATUS_PARTIAL, PO_STATUS_COMPLETE):
+        abort(403, description='Print available only after PO approval.')
     items = po.items.order_by(PurchaseOrderItem.sr_no).all()
     terms = po.terms.order_by(PurchaseOrderTerm.section, PurchaseOrderTerm.sort_order).all()
     return render_template(
@@ -1887,6 +1890,9 @@ def pdf_po(po_id):
     po = PurchaseOrder.query.get_or_404(po_id)
     if po.is_deleted:
         abort(404)
+    # PDF is only available once the PO has been approved.
+    if po.status not in (PO_STATUS_APPROVED, PO_STATUS_PARTIAL, PO_STATUS_COMPLETE):
+        abort(403, description='PDF available only after PO approval.')
     pdf_bytes = _build_pdf_bytes(po)
 
     # Save copy on disk so we can re-send / re-download later

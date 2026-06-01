@@ -1,0 +1,236 @@
+{% extends 'base.html' %}
+{% block title %}Stock by GRN — HCP ERP{% endblock %}
+{% block page_title %}Stock by GRN{% if mat_type=='rm' %} — Raw Material{% elif mat_type=='pm' %} — Packing Material{% endif %}{% endblock %}
+{% block bread %}Stores / GRN / Stock by GRN{% endblock %}
+
+{% block extra_css %}
+<style>
+.sv-toolbar { display:flex; gap:10px; align-items:center; margin-bottom:14px; flex-wrap:wrap; }
+.sv-toolbar input, .sv-toolbar select { padding:9px 12px; border:1.5px solid #e2e8f0;
+    border-radius:8px; font-size:13px; background:#fff; outline:none; }
+.sv-toolbar input:focus, .sv-toolbar select:focus { border-color:#2563eb; }
+.sv-toolbar .search { flex:1; max-width:340px; }
+.sv-toolbar button { padding:9px 14px; border-radius:8px; border:1.5px solid #e2e8f0;
+    background:#fff; cursor:pointer; font-size:12px; font-weight:600; color:#475569; }
+.sv-toolbar a.export { margin-left:auto; padding:9px 16px; background:#16a34a; color:#fff;
+    border-radius:8px; font-size:13px; font-weight:700; text-decoration:none; }
+.sv-toolbar a.linkbtn { padding:9px 16px; background:#1e40af; color:#fff;
+    border-radius:8px; font-size:13px; font-weight:700; text-decoration:none; }
+
+.sv-wrap { background:#fff; border-radius:12px; border:1px solid #e2e8f0;
+    box-shadow:0 1px 3px rgba(0,0,0,.04); overflow:hidden; }
+.sv-table { width:100%; border-collapse:collapse; font-size:12.5px; }
+.sv-table thead th { background:#f1f5f9; color:#475569; font-size:10.5px; font-weight:700;
+    text-transform:uppercase; letter-spacing:.04em; padding:11px 12px; text-align:left;
+    border-bottom:2px solid #cbd5e1; }
+.sv-table tbody td { padding:10px 12px; border-bottom:1px solid #f1f5f9; vertical-align:middle; }
+.sv-table tbody tr:hover { background:#fafbfd; }
+.sv-table .num { text-align:right; font-variant-numeric:tabular-nums; }
+.sv-table .qty-on-hand { font-weight:800; color:#15803d; font-size:13.5px; }
+.sv-table .small-meta { font-size:11px; color:#94a3b8; }
+.sv-table .pill { display:inline-block; padding:2px 8px; border-radius:10px;
+    font-size:10px; font-weight:700; }
+.sv-table .pill-loc  { background:#dbeafe; color:#1e40af; }
+.sv-table .pill-type-PM  { background:#fef3c7; color:#92400e; }
+.sv-table .pill-type-COR { background:#fee2e2; color:#991b1b; }
+.sv-table .pill-type-SLV { background:#e0e7ff; color:#3730a3; }
+.sv-table .pill-type-FG  { background:#dcfce7; color:#166534; }
+.sv-table .pill-type-RM  { background:#fef3c7; color:#92400e; }
+.sv-table .pill-status-Completed { background:#dcfce7; color:#166534; }
+.sv-table .pill-status-Cancel    { background:#fee2e2; color:#991b1b; }
+.sv-table .pill-status-Draft     { background:#f1f5f9; color:#475569; }
+.sv-table .grn-link { color:#1e40af; text-decoration:none; font-weight:700; }
+.sv-table .grn-link:hover { text-decoration:underline; }
+
+.empty-state { padding:60px 20px; text-align:center; color:#94a3b8; }
+.empty-state .icon { font-size:48px; margin-bottom:10px; opacity:.5; }
+
+.summary-bar { display:flex; gap:18px; padding:12px 18px; background:#f0fdf4;
+    border-bottom:2px solid #16a34a; flex-wrap:wrap; }
+.summary-bar .stat { font-size:12px; color:#15803d; font-weight:700; }
+.summary-bar .stat b { font-size:15px; color:#14532d; margin-left:4px; }
+
+.pager { display:flex; gap:6px; justify-content:flex-end; align-items:center; padding:14px 18px;
+    border-top:1px solid #e2e8f0; background:#f8fafc; }
+.pager button { padding:5px 10px; border:1.5px solid #e2e8f0; border-radius:5px;
+    background:#fff; cursor:pointer; font-size:12px; font-weight:600; }
+.pager button:hover:not(:disabled) { border-color:#2563eb; color:#2563eb; }
+.pager button:disabled { opacity:.4; cursor:not-allowed; }
+.pager .total { font-size:11.5px; color:#64748b; margin-right:auto; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="sv-toolbar">
+  <input id="fSearch" class="search" type="text" placeholder="Search GRN no / item / supplier...">
+  <select id="fType">
+    <option value="">All Types</option>
+    <option value="PM">PM</option>
+    <option value="COR">Corrugation</option>
+    <option value="SLV">Sleeves</option>
+    <option value="FG">Finish Goods</option>
+  </select>
+  <select id="fLocation"><option value="">All Locations</option></select>
+  <input type="date" id="fDateFrom" title="GRN date from">
+  <input type="date" id="fDateTo"   title="GRN date to">
+  <button onclick="clearF()">Clear</button>
+  <a href="{{ url_for('grn.stock_page') }}" class="linkbtn">📦 Current Stock</a>
+  <a href="{{ url_for('grn.stock_ledger_page') }}" class="linkbtn">📋 Stock Ledger</a>
+  <a href="#" onclick="exportExcel(event)" class="export">📊 Export Excel</a>
+</div>
+
+<div class="sv-wrap">
+  <div class="summary-bar">
+    <div class="stat">Total GRNs: <b id="sTotalGrns">0</b></div>
+    <div class="stat">Total Items: <b id="sTotalItems">0</b></div>
+    <div class="stat">Total Qty (sum): <b id="sTotalQty">0.000</b></div>
+    <div class="stat">Total Boxes: <b id="sTotalBoxes">0</b></div>
+  </div>
+  <table class="sv-table">
+    <thead>
+      <tr>
+        <th>GRN No</th>
+        <th>Type</th>
+        <th>GRN Date</th>
+        <th>Supplier</th>
+        <th>Item</th>
+        <th>Location</th>
+        <th class="num">Boxes</th>
+        <th class="num">Total Qty</th>
+        <th class="num">Avg Rate</th>
+        <th class="num">Amount</th>
+        <th>Last Inward</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody id="stockBody">
+      <tr><td colspan="12" class="empty-state">
+        <div class="icon">📊</div>Loading stock by GRN...
+      </td></tr>
+    </tbody>
+  </table>
+  <div class="pager">
+    <span class="total" id="totalCount">— rows</span>
+    <button id="prevBtn" onclick="changePage(-1)">‹ Prev</button>
+    <span id="pageInfo" style="font-size:12px;padding:0 8px;">Page 1</span>
+    <button id="nextBtn" onclick="changePage(1)">Next ›</button>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let currentPage = 1, currentTotal = 0;
+const PAGE_SIZE = 50;
+
+function escapeHTML(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function fmt(n){ return Number(n||0).toLocaleString(undefined,{minimumFractionDigits:3,maximumFractionDigits:3}); }
+
+function load(){
+  const params = new URLSearchParams({
+    page: currentPage, limit: PAGE_SIZE,
+    q:           document.getElementById('fSearch').value.trim(),
+    grn_type:    document.getElementById('fType').value,
+    location_id: document.getElementById('fLocation').value,
+    date_from:   document.getElementById('fDateFrom').value,
+    date_to:     document.getElementById('fDateTo').value,
+  });
+  fetch(`{{ url_for('grn.api_stock_by_grn') }}?${params}&type={{ mat_type }}`, { credentials:'same-origin' })
+    .then(r => r.json())
+    .then(d => render(d.results || [], d.total || 0, d.summary || {}));
+}
+
+function render(rows, total, summary){
+  currentTotal = total;
+  const tbody = document.getElementById('stockBody');
+  if (!rows.length){
+    tbody.innerHTML = `<tr><td colspan="12" class="empty-state">
+      <div class="icon">📊</div>No GRN-wise stock found.</td></tr>`;
+    document.getElementById('sTotalGrns').textContent = 0;
+    document.getElementById('sTotalItems').textContent = 0;
+    document.getElementById('sTotalQty').textContent = '0.000';
+    document.getElementById('sTotalBoxes').textContent = 0;
+    document.getElementById('totalCount').textContent = '0 rows';
+    document.getElementById('pageInfo').textContent   = 'Page 1';
+    document.getElementById('prevBtn').disabled = true;
+    document.getElementById('nextBtn').disabled = true;
+    return;
+  }
+  tbody.innerHTML = rows.map(r => `<tr>
+    <td><a class="grn-link" href="/grn/${r.grn_id}/view">${escapeHTML(r.grn_number)}</a></td>
+    <td><span class="pill pill-type-${escapeHTML(r.grn_type||'PM')}">${escapeHTML(r.grn_type||'—')}</span></td>
+    <td>${escapeHTML(r.grn_date || '—')}</td>
+    <td>${escapeHTML(r.supplier_name || '—')}</td>
+    <td><b>${escapeHTML(r.item_name)}</b>
+        <div class="small-meta">${escapeHTML(r.item_code||'')}</div></td>
+    <td><span class="pill pill-loc">${escapeHTML(r.location_name||'—')}</span></td>
+    <td class="num">${r.box_count}</td>
+    <td class="num qty-on-hand">${fmt(r.total_qty)} ${escapeHTML(r.uom)}</td>
+    <td class="num">₹${Number(r.avg_rate||0).toFixed(2)}</td>
+    <td class="num">₹${Number(r.total_amount||0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}</td>
+    <td><div class="small-meta">${escapeHTML(r.last_inward || '—')}</div></td>
+    <td><span class="pill pill-status-${escapeHTML((r.grn_status||'').split(' ')[0])}">${escapeHTML(r.grn_status||'—')}</span></td>
+  </tr>`).join('');
+
+  document.getElementById('sTotalGrns').textContent  = summary.grn_count   || 0;
+  document.getElementById('sTotalItems').textContent = summary.item_count  || 0;
+  document.getElementById('sTotalQty').textContent   = Number(summary.qty_sum || 0).toFixed(3);
+  document.getElementById('sTotalBoxes').textContent = summary.box_sum    || 0;
+
+  const totalPages = Math.max(Math.ceil(total / PAGE_SIZE), 1);
+  document.getElementById('totalCount').textContent = `${total} row${total === 1 ? '' : 's'}`;
+  document.getElementById('pageInfo').textContent   = `Page ${currentPage} of ${totalPages}`;
+  document.getElementById('prevBtn').disabled = (currentPage <= 1);
+  document.getElementById('nextBtn').disabled = (currentPage >= totalPages);
+}
+
+function changePage(d){
+  const totalPages = Math.max(Math.ceil(currentTotal / PAGE_SIZE), 1);
+  const next = currentPage + d;
+  if (next < 1 || next > totalPages) return;
+  currentPage = next; load();
+}
+
+window.clearF = function(){
+  document.getElementById('fSearch').value   = '';
+  document.getElementById('fType').value     = '';
+  document.getElementById('fLocation').value = '';
+  document.getElementById('fDateFrom').value = '';
+  document.getElementById('fDateTo').value   = '';
+  currentPage = 1; load();
+};
+
+window.exportExcel = function(e){
+  e.preventDefault();
+  const params = new URLSearchParams({
+    q:           document.getElementById('fSearch').value.trim(),
+    grn_type:    document.getElementById('fType').value,
+    location_id: document.getElementById('fLocation').value,
+    date_from:   document.getElementById('fDateFrom').value,
+    date_to:     document.getElementById('fDateTo').value,
+    kind:        'stock_by_grn',
+  });
+  window.location = `{{ url_for('grn.export_excel') }}?${params}`;
+};
+
+// Load locations
+fetch('{{ url_for("grn.api_ship_locations") }}').then(r=>r.json()).then(d=>{
+  const sel = document.getElementById('fLocation');
+  (d.results||[]).forEach(loc => {
+    const o = document.createElement('option');
+    o.value = loc.id; o.textContent = loc.name;
+    sel.appendChild(o);
+  });
+});
+
+// Search debounce
+let _t; document.getElementById('fSearch').addEventListener('input', () => {
+  clearTimeout(_t); _t = setTimeout(() => { currentPage = 1; load(); }, 250);
+});
+['fType','fLocation','fDateFrom','fDateTo'].forEach(id => {
+  document.getElementById(id).addEventListener('change', () => { currentPage = 1; load(); });
+});
+
+load();
+</script>
+{% endblock %}

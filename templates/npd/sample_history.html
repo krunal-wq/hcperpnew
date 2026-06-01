@@ -189,13 +189,19 @@ body.sh-print-a4 #sh-a4Sheet{
     overflow:hidden;
 }
 .sh-stk-prod{
-    font-size:8pt; font-weight:900;
-    line-height:1.05; margin:0;
-    word-break:break-word;
-    display:-webkit-box;
-    -webkit-line-clamp:2; -webkit-box-orient:vertical;
+    flex:1 1 auto;
+    min-height:0;
+    margin:0;
+    display:flex;
+    align-items:center;
+    justify-content:center;
     overflow:hidden;
-    max-height:9mm;
+}
+.sh-stk-prod-txt{
+    font-size:8pt; font-weight:900;
+    line-height:1.04;
+    word-break:break-word;
+    max-width:100%;
 }
 .sh-stk-code{
     font-size:8pt; font-weight:900;
@@ -206,6 +212,14 @@ body.sh-print-a4 #sh-a4Sheet{
     overflow:hidden;
     text-overflow:ellipsis;
     white-space:nowrap;
+}
+.sh-stk-npd{
+    font-size:6pt; font-weight:900;
+    line-height:1.05; margin:0;
+    font-family:'Courier New', monospace;
+    letter-spacing:.3px;
+    white-space:nowrap;
+    overflow:hidden; text-overflow:ellipsis;
 }
 .sh-stk-ftr{
     font-size:5.8pt; font-weight:900;
@@ -1930,12 +1944,31 @@ function shParseCodes(raw){
   return (raw || '').split(',').map(function(s){ return s.trim(); }).filter(Boolean);
 }
 
-function shBuildStickerHTML(product, code){
+function shBuildStickerHTML(product, code, npd){
   return '<div class="sh-stk">' +
-           '<div class="sh-stk-prod">' + shEsc(product || '—') + '</div>' +
+           '<div class="sh-stk-prod"><span class="sh-stk-prod-txt">' + shEsc(product || '—') + '</span></div>' +
+           (npd ? '<div class="sh-stk-npd">' + shEsc(npd) + '</div>' : '') +
            '<div class="sh-stk-code">' + shEsc(code || '—') + '</div>' +
-           '<div class="sh-stk-ftr">HCP WELLNESS</div>' +
+           '<div class="sh-stk-ftr">HCP WELLNESS PVT LTD</div>' +
          '</div>';
+}
+
+// Shrink each sticker's product name font until the FULL name fits the label box
+function shFitStickerNames(root){
+  (root || document).querySelectorAll('.sh-stk-prod').forEach(function(box){
+    var txt = box.querySelector('.sh-stk-prod-txt');
+    if (!txt) return;
+    var size = 8;            // pt — starting (largest) size
+    txt.style.fontSize = size + 'pt';
+    var guard = 0;
+    while ((txt.scrollHeight > box.clientHeight + 0.5 ||
+            txt.scrollWidth  > box.clientWidth  + 0.5) &&
+           size > 3.5 && guard < 60){
+      size -= 0.25;
+      txt.style.fontSize = size + 'pt';
+      guard++;
+    }
+  });
 }
 
 function shRefreshStickerPreview(){
@@ -1947,16 +1980,18 @@ function shRefreshStickerPreview(){
   var total = 0;
   document.querySelectorAll('.sh-stk-row-card').forEach(function(card){
     var product = card.dataset.product || '';
+    var npd     = card.dataset.npd || '';
     var input   = card.querySelector('.sh-stk-row-codes');
     var codes   = shParseCodes(input ? input.value : '');
     codes.forEach(function(code){
-      prevGrid.insertAdjacentHTML('beforeend', shBuildStickerHTML(product, code));
+      prevGrid.insertAdjacentHTML('beforeend', shBuildStickerHTML(product, code, npd));
       total++;
     });
   });
 
   prevCount.textContent = total + ' sticker' + (total === 1 ? '' : 's');
   prevWrap.style.display = total > 0 ? '' : 'none';
+  shFitStickerNames(prevGrid);
 }
 
 function shStickerPrint(){
@@ -1986,9 +2021,10 @@ function shStickerPrint(){
   grid.innerHTML = '';
   cards.forEach(function(card){
     var product = card.dataset.product || '';
+    var npd     = card.dataset.npd || '';
     var inp = card.querySelector('.sh-stk-row-codes');
     shParseCodes(inp.value).forEach(function(code){
-      grid.insertAdjacentHTML('beforeend', shBuildStickerHTML(product, code));
+      grid.insertAdjacentHTML('beforeend', shBuildStickerHTML(product, code, npd));
     });
   });
 
@@ -1996,6 +2032,7 @@ function shStickerPrint(){
   shCloseStickerModal();
   document.body.classList.add('sh-print-sticker');
   setTimeout(function(){
+    shFitStickerNames(grid);   // sheet is now display:block → measurable
     window.print();
     setTimeout(function(){ document.body.classList.remove('sh-print-sticker'); }, 400);
   }, 60);

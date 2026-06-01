@@ -1147,6 +1147,7 @@ function doExport(pfx){
 
 async function _doExportXLSX(){
   var headers = [
+    'Created Date',
     'Code','Company','Contact Name','Position','Email',
     'Mobile','Alt Mobile','Website',
     'City','State','Country',
@@ -1168,6 +1169,7 @@ async function _doExportXLSX(){
     // v[19]=follow_up, v[20]=last_contact, v[21]=tags
     // v[22]=lead_type, v[23]=lead_age
     rows.push([
+      v[1]||'',
       v[0]||'',  v[4]||'',  v[2]||'',  v[3]||'',  v[5]||'',
       v[6]||'',  v[7]||'',  v[8]||'',
       v[9]||'',  v[10]||'', '',
@@ -1188,7 +1190,7 @@ async function _doExportXLSX(){
   });
 
   // Column widths
-  var colWidths = [10,24,20,16,34,14,14,24,14,16,12,18,24,18,18,14,16,12,14,14,14,14,22,12];
+  var colWidths = [14,10,24,20,16,34,14,14,24,14,16,12,18,24,18,18,14,16,12,14,14,14,14,22,12];
   ws.columns = headers.map(function(h,i){
     return { header: h, key: 'c'+i, width: colWidths[i] || 14 };
   });
@@ -1222,24 +1224,24 @@ async function _doExportXLSX(){
     row.height = 18;
     var isEven = (ri % 2 === 0);
     var rowBg  = isEven ? 'FFFFFFFF' : 'FFEEF2F7';
-    var statusVal = (rowData[19]||'').toLowerCase().replace(/\s+/g,'_');
+    var statusVal = (rowData[20]||'').toLowerCase().replace(/\s+/g,'_');
 
     row.eachCell({ includeEmpty:true }, function(cell, colNum){
       var bg = rowBg, fg = 'FF1E293B', bold = false;
 
-      // Code column (1) — navy bold
-      if(colNum === 1){ fg = 'FF1B3A6B'; bold = true; }
+      // Code column (2) — navy bold
+      if(colNum === 2){ fg = 'FF1B3A6B'; bold = true; }
 
-      // Status column (19)
-      if(colNum === 19 && statusFill[statusVal]){
+      // Status column (20)
+      if(colNum === 20 && statusFill[statusVal]){
         bg   = statusFill[statusVal].bg;
         fg   = statusFill[statusVal].fg;
         bold = true;
       }
 
-      // Lead Type column (20)
-      if(colNum === 20){
-        var lt = (rowData[19]||'').toLowerCase();
+      // Lead Type column (21)
+      if(colNum === 21){
+        var lt = (rowData[20]||'').toLowerCase();
         if(lt === 'non-quality'){ bg='FFFEE2E2'; fg='FF991B1B'; bold=true; }
         else { bg='FFD1FAE5'; fg='FF065F46'; bold=true; }
       }

@@ -404,7 +404,9 @@ function render(rows){
         <div class="po-actions">
           <a class="po-act" title="View" href="/purchase-order/${r.id}/view">👁️</a>
           ${editBtn}
-          <a class="po-act" title="PDF" href="/purchase-order/${r.id}/pdf" target="_blank">📄</a>
+          ${['Approved','Partial Received','Completed'].includes(r.status)
+            ? `<a class="po-act" title="PDF" href="/purchase-order/${r.id}/pdf" target="_blank">📄</a>`
+            : ''}
           ${approveBtn}${cancelBtn}${delBtn}
         </div>
       </td>

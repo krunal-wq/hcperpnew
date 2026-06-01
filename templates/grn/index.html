@@ -111,12 +111,9 @@
     style="padding:9px 12px; border:1.5px solid #e2e8f0; border-radius:8px; font-size:12px;
     background:#fff; cursor:pointer; font-weight:600; color:#475569;">Clear</button>
 
-  <a href="{{ url_for('grn.stock_page') }}"
-    style="padding:9px 14px; background:#1e40af; color:#fff; border-radius:8px;
-    font-size:12px; font-weight:700; text-decoration:none; margin-left:auto;">📦 Stock</a>
   <a href="#" onclick="exportExcel(event)"
     style="padding:9px 14px; background:#16a34a; color:#fff; border-radius:8px;
-    font-size:12px; font-weight:700; text-decoration:none;">📊 Excel</a>
+    font-size:12px; font-weight:700; text-decoration:none; margin-left:auto;">📊 Excel</a>
   <a class="btn-add-new" href="{{ url_for('grn.new_grn') }}?grn_type={{ grn_type or 'RM' }}">
     + New GRN
   </a>
@@ -153,44 +150,7 @@
   </div>
 </div>
 
-<!-- Modal for confirm dialogs (approve / reject / cancel) -->
-<div id="grnModal" class="po-modal" style="display:none;">
-  <div class="po-modal-bg" onclick="closeModal()"></div>
-  <div class="po-modal-box">
-    <div class="po-modal-hdr">
-      <h3 id="grnModalTitle">Action</h3>
-      <span style="cursor:pointer;color:#94a3b8;" onclick="closeModal()">✕</span>
-    </div>
-    <div class="po-modal-bd" id="grnModalBody"></div>
-    <div class="po-modal-ft">
-      <button class="po-btn po-btn-outline" onclick="closeModal()">Cancel</button>
-      <button class="po-btn po-btn-primary" id="grnModalGo" onclick="submitAction()">OK</button>
-    </div>
-  </div>
-</div>
-<style>
-.po-modal { position:fixed; inset:0; z-index:9999; display:flex; align-items:center; justify-content:center; }
-.po-modal-bg { position:absolute; inset:0; background:rgba(15,23,42,.45); }
-.po-modal-box { position:relative; background:#fff; border-radius:12px; width:480px; max-width:92vw;
-    overflow:hidden; box-shadow:0 10px 30px rgba(0,0,0,.2); }
-.po-modal-hdr { padding:14px 18px; border-bottom:1px solid #e2e8f0; display:flex;
-    align-items:center; justify-content:space-between; }
-.po-modal-hdr h3 { margin:0; font-size:15px; font-weight:800; color:#0f172a; }
-.po-modal-bd { padding:18px; max-height:60vh; overflow:auto; }
-.po-modal-bd .po-fld { margin-bottom:12px; }
-.po-modal-bd .po-fld label { display:block; font-size:11px; font-weight:700; color:#475569;
-    text-transform:uppercase; margin-bottom:5px; letter-spacing:.04em; }
-.po-modal-bd textarea, .po-modal-bd select, .po-modal-bd input {
-    width:100%; padding:8px 11px; border:1.5px solid #e2e8f0; border-radius:6px;
-    font-size:13px; font-family:inherit; box-sizing:border-box; }
-.po-modal-ft { padding:12px 18px; border-top:1px solid #e2e8f0; display:flex; justify-content:flex-end; gap:8px; }
-.po-btn { padding:9px 18px; border-radius:6px; border:0; font-size:13px; font-weight:700; cursor:pointer; }
-.po-btn-primary { background:#2563eb; color:#fff; }
-.po-btn-primary:hover { background:#1d4ed8; }
-.po-btn-outline { background:#fff; border:1.5px solid #e2e8f0; color:#475569; }
-.po-btn-danger { background:#dc2626; color:#fff; }
-.po-btn-success { background:#16a34a; color:#fff; }
-</style>
+<!-- Approval system removed — GRN goes Draft → Completed directly -->
 {% endblock %}
 
 {% block extra_js %}
@@ -264,9 +224,12 @@ function renderRows(rows, total){
     const deleteBtn = r.status === 'Draft'
       ? `<button class="po-act danger" title="Delete Draft" onclick="grnDelete(${r.id},'${escapeHTML(r.grn_number)}')">🗑️</button>`
       : '';
+    const scanBtn = r.status === 'Completed'
+      ? `<a class="po-act" title="Scan Boxes" href="/grn/${r.id}/scan" style="background:#dbeafe;border-color:#93c5fd;color:#1d4ed8;">📷</a>`
+      : '';
 
-    html += `<tr class="grn-row" data-grn-id="${r.id}" data-grn-number="${escapeHTML(r.grn_number)}" title="Double-click to view items">
-      <td class="num-col"><a href="/grn/${r.id}/view">${escapeHTML(r.grn_number)}</a>
+    html += `<tr class="grn-row" data-grn-id="${r.id}" data-grn-number="${escapeHTML(r.grn_number)}" title="Click GRN number to preview items">
+      <td class="num-col"><a href="/grn/${r.id}/view" onclick="toggleGrnExpand(this.closest('tr')); return false;" title="Click to preview items · Open with eye icon →">${escapeHTML(r.grn_number)}</a>
           <div class="small-meta">${escapeHTML(r.grn_number_short)}</div></td>
       <td>${escapeHTML(r.grn_date)}</td>
       <td><span class="type-pill">${escapeHTML(r.grn_type)}</span></td>
@@ -286,6 +249,7 @@ function renderRows(rows, total){
       <td class="po-cell-center"><div class="po-actions">
           <a class="po-act" title="View" href="/grn/${r.id}/view">👁️</a>
           ${editBtn}
+          ${scanBtn}
           ${deleteBtn}
       </div></td>
     </tr>`;
@@ -315,47 +279,7 @@ document.getElementById('fStatus').addEventListener('change', () => { currentPag
 document.getElementById('fDateFrom').addEventListener('change', () => { currentPage = 1; load(); });
 document.getElementById('fDateTo').addEventListener('change', () => { currentPage = 1; load(); });
 
-// ────────── Approve modal ──────────
-let pendingId = null;
-function openApprove(id, num){
-  pendingId = id;
-  document.getElementById('grnModalTitle').textContent = `Approve GRN — ${num}`;
-  document.getElementById('grnModalBody').innerHTML = `
-    <div class="po-fld">
-      <label>Approval Level</label>
-      <select id="mLevel">
-        <option value="Manager">Manager</option>
-        <option value="Director">Director (Final)</option>
-      </select>
-    </div>
-    <div class="po-fld">
-      <label>Comment (optional)</label>
-      <textarea id="mComment" rows="3"></textarea>
-    </div>`;
-  document.getElementById('grnModalGo').className = 'po-btn po-btn-success';
-  document.getElementById('grnModalGo').textContent = 'Approve';
-  document.getElementById('grnModalGo').dataset.action = 'approve';
-  document.getElementById('grnModal').style.display = 'flex';
-}
-
-function submitAction(){
-  if (!pendingId) return;
-  const action = document.getElementById('grnModalGo').dataset.action;
-  const fd = new FormData();
-  if (action === 'approve'){
-    fd.append('level', document.getElementById('mLevel').value);
-    fd.append('comment', document.getElementById('mComment').value);
-  }
-  fetch(`/grn/${pendingId}/${action}`, { method:'POST', body:fd, credentials:'same-origin' })
-    .then(r => r.json())
-    .then(d => {
-      if (d.success){ closeModal(); load(); }
-      else alert('Failed: ' + (d.error || 'unknown'));
-    })
-    .catch(e => alert('Network error: ' + e));
-}
-
-function closeModal(){ document.getElementById('grnModal').style.display = 'none'; pendingId = null; }
+// Approval system removed — Draft GRN auto-completes on submit.
 
 function grnDelete(id, num){
   if (!confirm(`Delete this draft GRN?\n\n${num}\n\nThis action cannot be undone.`)) return;
@@ -428,6 +352,7 @@ function renderItemsInline(er, d, grnNum){
       `<div class="grn-loading">No items in this GRN.</div>`;
     return;
   }
+  const isRm = (d.grn_type === 'RM');
   const rowsHtml = d.items.map(it => `
     <tr>
       <td>${it.sr_no}</td>
@@ -435,11 +360,11 @@ function renderItemsInline(er, d, grnNum){
       <td>
         <div style="font-weight:700;">${escapeHTML(it.item_name)}</div>
         ${it.item_code  ? `<div style="font-size:10px;color:#94a3b8;">${escapeHTML(it.item_code)}</div>` : ''}
-        ${it.manufacturer ? `<div style="font-size:10px;color:#94a3b8;">Mfg: ${escapeHTML(it.manufacturer)}</div>` : ''}
+        ${isRm && it.manufacturer ? `<div style="font-size:10px;color:#94a3b8;">Mfg: ${escapeHTML(it.manufacturer)}</div>` : ''}
       </td>
-      <td>${escapeHTML(it.batch_no || '—')}
+      ${isRm ? `<td>${escapeHTML(it.batch_no || '—')}
         ${it.mfg_date || it.expiry_date ? `<div style="font-size:10px;color:#94a3b8;">MFG: ${escapeHTML(it.mfg_date||'—')} · EXP: ${escapeHTML(it.expiry_date||'—')}</div>` : ''}
-      </td>
+      </td>` : ''}
       <td class="num">${it.no_of_boxes || 0}</td>
       <td class="num">${fmt(it.per_box_qty)}</td>
       <td class="num">${fmt(it.ordered_qty)}</td>
@@ -458,7 +383,7 @@ function renderItemsInline(er, d, grnNum){
           <th style="width:30px;">#</th>
           <th>PO No.</th>
           <th>Item</th>
-          <th>Batch</th>
+          ${isRm ? '<th>Batch</th>' : ''}
           <th class="num">Boxes</th>
           <th class="num">Per Box</th>
           <th class="num">Ordered</th>

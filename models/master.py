@@ -144,3 +144,29 @@ class MilestoneStatus(db.Model):
     modified_by= db.Column(db.Integer,     nullable=True)
     modified_at= db.Column(db.DateTime,    nullable=True)
     def __repr__(self): return f'<MilestoneStatus {self.name}>'
+
+
+# ──────────────────────────────────────
+# QC Parameter Option Master
+#   One table for the TRS dropdowns:
+#   Physical State, Appearance, Odour
+#   category = 'physical_state' | 'appearance' | 'odour'
+# ──────────────────────────────────────
+class QCParamOption(db.Model):
+    __tablename__ = 'qc_param_options'
+    id          = db.Column(db.Integer, primary_key=True)
+    category    = db.Column(db.String(30), nullable=False, index=True)  # physical_state / appearance / odour
+    value       = db.Column(db.String(120), nullable=False)
+    sort_order  = db.Column(db.Integer, default=0)
+    status      = db.Column(db.Boolean, default=True)
+    is_deleted  = db.Column(db.Boolean, default=False)
+    created_at  = db.Column(db.DateTime, default=datetime.now)
+    created_by  = db.Column(db.Integer, nullable=True)
+    modified_at = db.Column(db.DateTime, nullable=True)
+    modified_by = db.Column(db.Integer, nullable=True)
+
+    __table_args__ = (
+        db.UniqueConstraint('category', 'value', name='uq_qc_param_cat_value'),
+    )
+
+    def __repr__(self): return f'<QCParamOption {self.category}:{self.value}>'

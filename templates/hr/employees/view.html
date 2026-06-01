@@ -239,7 +239,7 @@
             <div class="vcard-hdr">🪪 Identity & KYC</div>
             {% for l,v in [
                 ('Nationality',employee.nationality),('Religion',employee.religion),('Caste',employee.caste),
-                ('Physically Handicapped','Yes' if employee.physically_handicapped else 'No'),
+                ('Differently Abled','Yes' if employee.physically_handicapped else 'No'),
                 ('Handicap Details', employee.handicap_details if employee.physically_handicapped else None),
                 ('Aadhaar Number',employee.aadhar_number),('PAN Number',employee.pan_number),
                 ('Election Card No.',employee.election_card_no),

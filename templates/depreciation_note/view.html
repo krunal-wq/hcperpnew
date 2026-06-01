@@ -1,0 +1,308 @@
+{% extends "base.html" %}
+
+{% block title %}{{ dn.dn_number }} — Depreciation Note{% endblock %}
+{% block page_title %}{{ dn.dn_number }}{% endblock %}
+{% block bread %}Stores / Depreciation Notes / {{ dn.dn_number }}{% endblock %}
+
+{% block extra_css %}
+<style>
+  .dv-wrap { max-width: 1200px; margin: 0 auto; padding: 0 16px; }
+  .dv-actions { display:flex; gap:8px; align-items:center; margin-bottom:14px; flex-wrap:wrap; }
+  .dv-btn { padding:8px 16px; border-radius:6px; border:1.5px solid #e2e8f0;
+            background:#fff; color:#475569; font-size:13px; font-weight:600;
+            cursor:pointer; text-decoration:none; display:inline-block; }
+  .dv-btn:hover { background:#f8fafc; }
+  .dv-btn.success { background:#10b981; color:#fff; border-color:#10b981; }
+  .dv-btn.success:hover { background:#059669; }
+  .dv-btn.primary { background:#2563eb; color:#fff; border-color:#2563eb; }
+  .dv-btn.primary:hover { background:#1d4ed8; }
+  .dv-btn.danger { background:#dc2626; color:#fff; border-color:#dc2626; }
+  .dv-status-pill { color:#fff; font-size:11px; padding:5px 14px; border-radius:999px;
+                    font-weight:700; letter-spacing:.04em; text-transform:uppercase; }
+
+  .dv-card { background:#fff; border:1px solid #e2e8f0; border-radius:10px;
+             padding:18px 22px; margin-bottom:14px; }
+  .dv-card-hdr { font-size:13px; font-weight:700; color:#475569;
+                 text-transform:uppercase; letter-spacing:.05em;
+                 margin-bottom:14px; padding-bottom:10px;
+                 border-bottom:1.5px solid #e2e8f0; }
+
+  .dv-grid { display:grid; grid-template-columns:repeat(4, 1fr); gap:18px; font-size:13px; }
+  .dv-grid .lbl { font-size:11px; color:#64748b; text-transform:uppercase; letter-spacing:.05em; }
+  .dv-grid .val { font-weight:600; color:#0f172a; margin-top:3px; }
+
+  .dv-table { width:100%; border-collapse:collapse; font-size:12.5px; }
+  .dv-table th { background:#f1f5f9; color:#475569; font-size:11px; font-weight:700;
+                 text-transform:uppercase; letter-spacing:.04em; padding:10px 8px;
+                 text-align:left; border-bottom:2px solid #cbd5e1; }
+  .dv-table th.num, .dv-table td.num { text-align:right; }
+  .dv-table td { padding:10px 8px; border-bottom:1px solid #f1f5f9; }
+  .dv-table td.short { color:#dc2626; font-weight:700; }
+  .dv-table tfoot td { background:#fef3c7; font-weight:700; padding:12px 8px;
+                       border-top:2px solid #f59e0b; }
+  .dv-table tfoot td.big { color:#991b1b; font-size:14px; }
+
+  .dv-resolved-box { background:#d1fae5; border-left:4px solid #10b981;
+                     padding:12px 16px; border-radius:6px; font-size:13px;
+                     color:#065f46; margin-bottom:14px; }
+  .dv-sent-box { background:#dbeafe; border-left:4px solid #3b82f6;
+                 padding:12px 16px; border-radius:6px; font-size:13px;
+                 color:#1e40af; margin-bottom:14px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="dv-wrap">
+
+  <!-- Actions bar -->
+  <div class="dv-actions">
+    <a class="dv-btn" href="{{ url_for('depreciation_note.index') }}">← Back to List</a>
+    <span class="dv-status-pill" style="background:{{ dn.status_color }};">{{ dn.status }}</span>
+
+    {% if dn.status == 'Open' %}
+    <button class="dv-btn primary" onclick="dnMarkSent()">✉️ Mark Sent to Supplier</button>
+    <button class="dv-btn success" onclick="dnMarkResolved()">✓ Mark Resolved</button>
+    {% elif dn.status == 'Sent' %}
+    <button class="dv-btn success" onclick="dnMarkResolved()">✓ Mark Resolved</button>
+    {% endif %}
+
+    {% if grn %}
+    <a class="dv-btn" href="{{ url_for('grn.view_grn', grn_id=grn.id) }}" style="margin-left:auto;">📄 View Source GRN</a>
+    {% endif %}
+  </div>
+
+  <!-- Status notification boxes -->
+  {% if dn.status == 'Resolved' %}
+  <div class="dv-resolved-box">
+    <strong>✓ Resolved</strong> on {{ dn.resolved_at.strftime('%d-%m-%Y %H:%M') if dn.resolved_at else '' }}
+    by {{ dn.resolved_by_name or 'system' }}
+    {% if dn.resolved_remarks %}
+    <div style="margin-top:6px;font-style:italic;">"{{ dn.resolved_remarks }}"</div>
+    {% endif %}
+  </div>
+  {% elif dn.status == 'Sent' %}
+  <div class="dv-sent-box">
+    <strong>✉️ Sent</strong> to supplier on {{ dn.sent_at.strftime('%d-%m-%Y %H:%M') if dn.sent_at else '' }}
+    {% if dn.sent_to_email %} — {{ dn.sent_to_email }}{% endif %}
+  </div>
+  {% endif %}
+
+  <!-- Header info -->
+  <div class="dv-card">
+    <div class="dv-card-hdr">📌 Depreciation Note Details</div>
+    <div class="dv-grid">
+      <div><div class="lbl">DN Number</div><div class="val">{{ dn.dn_number }}</div></div>
+      <div><div class="lbl">DN Date</div><div class="val">{{ dn.dn_date.strftime('%d-%m-%Y') }}</div></div>
+      <div><div class="lbl">Source GRN</div>
+        <div class="val">
+          {% if grn %}
+          <a href="{{ url_for('grn.view_grn', grn_id=grn.id) }}" style="color:#2563eb;">{{ dn.grn_number }}</a>
+          {% else %}
+          {{ dn.grn_number }}
+          {% endif %}
+        </div>
+      </div>
+      <div><div class="lbl">PO No</div><div class="val">{{ dn.po_number or '—' }}</div></div>
+      <div><div class="lbl">Supplier</div><div class="val">{{ dn.supplier_name or '—' }}</div></div>
+      <div><div class="lbl">Invoice No</div><div class="val">{{ dn.invoice_no or '—' }}</div></div>
+      <div><div class="lbl">Invoice Date</div><div class="val">{{ dn.invoice_date.strftime('%d-%m-%Y') if dn.invoice_date else '—' }}</div></div>
+      <div><div class="lbl">Created By</div><div class="val">{{ dn.created_by_name or '—' }}<br><small style="color:#94a3b8;font-weight:400;">{{ dn.created_at.strftime('%d-%m-%Y %H:%M') if dn.created_at else '' }}</small></div></div>
+    </div>
+  </div>
+
+  <!-- Items table -->
+  <div class="dv-card">
+    <div class="dv-card-hdr">⚠️ Short Items ({{ items|length }})</div>
+    <table class="dv-table">
+      <thead>
+        <tr>
+          <th style="width:36px;">#</th>
+          <th>Item</th>
+          <th class="num" style="width:100px;">Invoice Qty</th>
+          <th class="num" style="width:100px;">Received Qty</th>
+          <th class="num" style="width:100px;">Shortage</th>
+          <th style="width:50px;">UOM</th>
+          <th class="num" style="width:90px;">Rate (₹)</th>
+          <th class="num" style="width:120px;">Shortage ₹</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for it in items %}
+        <tr>
+          <td style="color:#94a3b8;font-size:11px;">{{ it.sr_no }}</td>
+          <td>
+            <div style="font-weight:600;color:#0f172a;">{{ it.item_name }}</div>
+            <div style="font-size:11px;color:#94a3b8;">
+              {{ it.item_code or '' }}{% if it.batch_no %} · Batch: {{ it.batch_no }}{% endif %}
+            </div>
+            {% if it.remarks %}<div style="font-size:11px;color:#475569;font-style:italic;margin-top:2px;">{{ it.remarks }}</div>{% endif %}
+          </td>
+          <td class="num">{{ '%.3f'|format(it.invoice_qty|float) }}</td>
+          <td class="num">{{ '%.3f'|format(it.received_qty|float) }}</td>
+          <td class="num short">{{ '%.3f'|format(it.shortage_qty|float) }}</td>
+          <td>{{ it.uom }}</td>
+          <td class="num">{{ '%.2f'|format(it.rate|float) }}</td>
+          <td class="num short">₹{{ '{:,.2f}'.format(it.shortage_value|float) }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr>
+          <td colspan="2" style="text-align:right;">TOTAL</td>
+          <td class="num">{{ '%.3f'|format(dn.total_invoice_qty|float) }}</td>
+          <td class="num">{{ '%.3f'|format(dn.total_received_qty|float) }}</td>
+          <td class="num">{{ '%.3f'|format(dn.total_shortage_qty|float) }}</td>
+          <td></td>
+          <td></td>
+          <td class="num big">₹{{ '{:,.2f}'.format(dn.total_shortage_value|float) }}</td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+
+</div>
+
+<!-- ─── Confirm / prompt / alert modal ─── -->
+<div id="dvModal" class="dv-modal" style="display:none;" role="dialog" aria-modal="true">
+  <div class="dv-modal-bg" data-dv-close></div>
+  <div class="dv-modal-box">
+    <div class="dv-modal-hdr">
+      <span class="dv-modal-icon" id="dvIcon">ℹ️</span>
+      <h3 id="dvTitle">Notice</h3>
+      <button class="dv-modal-x" data-dv-close aria-label="Close">✕</button>
+    </div>
+    <div class="dv-modal-bd">
+      <div id="dvMessage"></div>
+      <textarea id="dvInput" rows="3"
+                style="width:100%;margin-top:10px;padding:8px 10px;
+                       border:1.5px solid #e2e8f0;border-radius:6px;
+                       font-size:13px;font-family:inherit;display:none;"></textarea>
+    </div>
+    <div class="dv-modal-ft">
+      <button class="dv-mbtn dv-mbtn-outline" id="dvCancel" data-dv-close style="display:none;">Cancel</button>
+      <button class="dv-mbtn dv-mbtn-primary" id="dvOk">OK</button>
+    </div>
+  </div>
+</div>
+<style>
+.dv-modal { position:fixed; inset:0; z-index:10000; display:flex; align-items:center; justify-content:center; }
+.dv-modal-bg { position:absolute; inset:0; background:rgba(15,23,42,.5); }
+.dv-modal-box { position:relative; background:#fff; border-radius:14px; width:460px; max-width:92vw;
+                box-shadow:0 20px 50px rgba(0,0,0,.25); overflow:hidden; }
+.dv-modal-hdr { padding:14px 18px 12px; display:flex; align-items:center; gap:10px;
+                border-bottom:1px solid #e2e8f0; }
+.dv-modal-icon { font-size:22px; line-height:1; }
+.dv-modal-hdr h3 { margin:0; font-size:15px; font-weight:800; color:#0f172a; flex:1; }
+.dv-modal-x { background:none; border:0; font-size:18px; color:#94a3b8; cursor:pointer;
+              padding:2px 6px; border-radius:4px; }
+.dv-modal-x:hover { background:#f1f5f9; color:#475569; }
+.dv-modal-bd { padding:18px; font-size:14px; line-height:1.5; color:#1e293b; white-space:pre-wrap; }
+.dv-modal-ft { padding:12px 18px; border-top:1px solid #e2e8f0; display:flex;
+               justify-content:flex-end; gap:8px; background:#f8fafc; }
+.dv-mbtn { padding:9px 22px; border-radius:7px; border:0; font-size:13px; font-weight:700;
+           cursor:pointer; min-width:90px; }
+.dv-mbtn-primary { background:#2563eb; color:#fff; }
+.dv-mbtn-primary:hover { background:#1d4ed8; }
+.dv-mbtn-outline { background:#fff; border:1.5px solid #e2e8f0; color:#475569; }
+.dv-mbtn-outline:hover { background:#f1f5f9; }
+.dv-modal-box[data-dv-type="success"] { border-top:4px solid #10b981; }
+.dv-modal-box[data-dv-type="success"] .dv-mbtn-primary { background:#10b981; }
+.dv-modal-box[data-dv-type="success"] .dv-mbtn-primary:hover { background:#059669; }
+.dv-modal-box[data-dv-type="error"]   { border-top:4px solid #dc2626; }
+.dv-modal-box[data-dv-type="error"]   .dv-mbtn-primary { background:#dc2626; }
+.dv-modal-box[data-dv-type="error"]   .dv-mbtn-primary:hover { background:#b91c1c; }
+</style>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const DV_ICONS = { info:'ℹ️', success:'✅', warning:'⚠️', error:'⚠️' };
+function _dvShow(opts){
+  const $modal = document.getElementById('dvModal');
+  $modal.querySelector('.dv-modal-box').setAttribute('data-dv-type', opts.type || 'info');
+  document.getElementById('dvIcon').textContent  = DV_ICONS[opts.type] || DV_ICONS.info;
+  document.getElementById('dvTitle').textContent = opts.title || 'Notice';
+  document.getElementById('dvMessage').textContent = opts.message || '';
+  const $in = document.getElementById('dvInput');
+  const $ok = document.getElementById('dvOk');
+  const $cc = document.getElementById('dvCancel');
+  if (opts.mode === 'prompt'){
+    $in.style.display = 'block';
+    $in.value = ''; $in.placeholder = opts.placeholder || '';
+    $cc.style.display = 'inline-block';
+    $cc.textContent = 'Cancel'; $ok.textContent = 'OK';
+  } else {
+    $in.style.display = 'none';
+    $cc.style.display = 'none';
+    $ok.textContent = 'OK';
+  }
+  $modal.style.display = 'flex';
+  setTimeout(() => (opts.mode === 'prompt' ? $in.focus() : $ok.focus()), 50);
+  $ok.onclick = function(){
+    const val = (opts.mode === 'prompt') ? $in.value.trim() : true;
+    $modal.style.display = 'none';
+    if (typeof opts.onOk === 'function') opts.onOk(val);
+  };
+  $cc.onclick = function(){
+    $modal.style.display = 'none';
+    if (typeof opts.onCancel === 'function') opts.onCancel();
+  };
+}
+document.querySelectorAll('[data-dv-close]').forEach(el => {
+  el.addEventListener('click', e => {
+    if (e.target.id === 'dvOk' || e.target.id === 'dvCancel') return;
+    document.getElementById('dvModal').style.display = 'none';
+  });
+});
+function dvAlert(message, type='info', title=null, onOk=null){
+  _dvShow({ mode:'alert', type, title: title || ({info:'Notice', success:'Success', warning:'Warning', error:'Error'})[type] || 'Notice',
+            message, onOk });
+}
+function dvPrompt(message, title, placeholder, onOk, onCancel){
+  _dvShow({ mode:'prompt', type:'info', title, message, placeholder, onOk, onCancel });
+}
+
+function dnMarkSent(){
+  dvPrompt(
+    'Enter the supplier email this DN was sent to (optional — leave blank to just mark Sent).',
+    'Mark as Sent to Supplier',
+    'supplier@example.com',
+    (email) => {
+      fetch("{{ url_for('depreciation_note.mark_sent', dn_id=dn.id) }}", {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email || '' }),
+        credentials: 'same-origin'
+      }).then(r => r.json()).then(d => {
+        if (d.success) location.reload();
+        else dvAlert('Failed: ' + (d.error || 'unknown'), 'error');
+      });
+    }
+  );
+}
+
+function dnMarkResolved(){
+  dvPrompt(
+    'Enter resolution remarks (e.g. "Credit note CN-122 received", "Material replaced", etc.).',
+    'Mark as Resolved',
+    'Resolution details…',
+    (remarks) => {
+      if (!remarks){
+        dvAlert('Resolution remarks are required.', 'warning');
+        return;
+      }
+      fetch("{{ url_for('depreciation_note.mark_resolved', dn_id=dn.id) }}", {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ remarks: remarks }),
+        credentials: 'same-origin'
+      }).then(r => r.json()).then(d => {
+        if (d.success) location.reload();
+        else dvAlert('Failed: ' + (d.error || 'unknown'), 'error');
+      });
+    }
+  );
+}
+</script>
+{% endblock %}

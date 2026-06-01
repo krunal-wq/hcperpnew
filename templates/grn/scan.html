@@ -1,0 +1,492 @@
+{% extends "base.html" %}
+
+{% block title %}Scan Boxes — {{ grn.grn_number }} — HCP ERP{% endblock %}
+{% block page_title %}Scan Boxes — {{ grn.grn_number_short or grn.grn_number }}{% endblock %}
+{% block bread %}Stores / GRN / {{ grn.grn_number_short or grn.grn_number }} / Scan{% endblock %}
+
+{% block extra_css %}
+<style>
+  .sc-wrap { max-width: 1500px; margin: 0 auto; padding: 0 14px; }
+
+  /* Header */
+  .sc-head { display:flex; gap:10px; align-items:center; margin-bottom:14px; flex-wrap:wrap; }
+  .sc-back { padding:8px 14px; background:#fff; border:1.5px solid #e2e8f0;
+             border-radius:7px; color:#475569; font-size:13px; font-weight:700;
+             text-decoration:none; }
+  .sc-back:hover { background:#f8fafc; }
+  .sc-grn-info { background:#fff; border:1px solid #e2e8f0; border-radius:8px;
+                 padding:9px 16px; font-size:12.5px; }
+  .sc-grn-info b { color:#0f172a; }
+  .sc-grn-info .gap { color:#cbd5e1; margin:0 8px; }
+
+  /* Stats */
+  .sc-stats { display:grid; grid-template-columns: repeat(3, 1fr); gap:10px; margin-bottom:12px; }
+  .sc-stat { background:#fff; border:1px solid #e2e8f0; border-radius:10px;
+             padding:12px 16px; }
+  .sc-stat .lbl { font-size:10px; color:#64748b; text-transform:uppercase; letter-spacing:.05em; font-weight:700; }
+  .sc-stat .val { font-size:22px; font-weight:800; color:#0f172a; margin-top:3px; }
+  .sc-stat.amber .val { color:#92400e; }
+  .sc-stat.blue  .val { color:#1e40af; }
+  .sc-stat.green .val { color:#065f46; }
+  .sc-stat .pbar { background:#e2e8f0; height:6px; border-radius:3px; overflow:hidden; margin-top:8px; }
+  .sc-stat .pbar > div { background:#10b981; height:100%; transition:width .3s; }
+
+  /* Scan input bar (sticky) */
+  .sc-input-bar { background:#fff; border:2px solid #2563eb; border-radius:12px;
+                  padding:14px 16px; margin-bottom:12px;
+                  position:sticky; top:0; z-index:50;
+                  box-shadow:0 4px 14px rgba(37,99,235,.12); }
+  .sc-input-bar form { display:flex; gap:10px; align-items:center; }
+  .sc-input-bar label { font-size:12px; font-weight:800; color:#1e40af;
+                         letter-spacing:.04em; text-transform:uppercase;
+                         white-space:nowrap; margin:0; }
+  .sc-input-bar input { flex:1; padding:13px 16px; border:1.5px solid #e2e8f0;
+                        border-radius:8px; font-size:18px;
+                        font-family:'JetBrains Mono','Menlo','Consolas',monospace;
+                        font-weight:700; letter-spacing:.06em; text-transform:uppercase;
+                        background:#fafbfd; }
+  .sc-input-bar input:focus { outline:none; border-color:#2563eb; background:#fff;
+                              box-shadow:0 0 0 3px rgba(37,99,235,.15); }
+  .sc-input-bar button { padding:13px 24px; background:#2563eb; color:#fff;
+                         border:0; border-radius:8px; font-size:14px;
+                         font-weight:800; cursor:pointer; }
+  .sc-input-bar button:hover { background:#1d4ed8; }
+  .sc-input-bar .hint { font-size:11px; color:#64748b; margin-top:6px; font-style:italic; }
+
+  /* Last scan flash */
+  .sc-last { padding:10px 14px; border-radius:8px; border:1.5px solid #e2e8f0;
+             background:#f8fafc; font-size:13px; margin-bottom:12px;
+             display:none; }
+  .sc-last.success    { background:#d1fae5; border-color:#10b981; display:block; }
+  .sc-last.quarantine { background:#fef3c7; border-color:#f59e0b; display:block; }
+  .sc-last.error      { background:#fee2e2; border-color:#dc2626; display:block; }
+  .sc-last.flash { animation: scPulse .25s ease-out; }
+  @keyframes scPulse { 0% { transform:scale(1); } 50% { transform:scale(1.01); } 100% { transform:scale(1); } }
+
+  /* 2-column layout */
+  .sc-cols { display:grid; grid-template-columns: 1fr 1fr; gap:14px; align-items:start; }
+  @media (max-width: 1100px) { .sc-cols { grid-template-columns: 1fr; } }
+
+  .sc-card { background:#fff; border:1px solid #e2e8f0; border-radius:12px;
+             overflow:hidden; }
+  .sc-card-hdr { padding:12px 16px; border-bottom:1.5px solid #e2e8f0;
+                 display:flex; align-items:center; gap:8px;
+                 font-size:13px; font-weight:800; color:#0f172a; }
+  .sc-card-hdr.amber { background:#fffbeb; border-bottom-color:#fde68a; color:#78350f; }
+  .sc-card-hdr.green { background:#ecfdf5; border-bottom-color:#a7f3d0; color:#065f46; }
+  .sc-card-hdr .count { background:#fff; color:#475569; font-size:11px;
+                        padding:3px 10px; border-radius:999px; font-weight:700;
+                        margin-left:auto; }
+  .sc-card-hdr.amber .count { background:#fef3c7; color:#92400e; }
+  .sc-card-hdr.green .count { background:#d1fae5; color:#065f46; }
+
+  /* Tables */
+  .sc-tbl { width:100%; border-collapse:collapse; font-size:12px; }
+  .sc-tbl thead th { background:#f1f5f9; color:#475569; font-size:10.5px;
+                     font-weight:800; text-transform:uppercase; letter-spacing:.04em;
+                     padding:9px 10px; text-align:left;
+                     border-bottom:2px solid #cbd5e1; }
+  .sc-tbl thead th.num { text-align:right; }
+  .sc-tbl thead th.ctr { text-align:center; }
+  .sc-tbl tbody td { padding:9px 10px; border-bottom:1px solid #f1f5f9;
+                     vertical-align:middle; }
+  .sc-tbl tbody tr:hover { background:#fafbfd; }
+  .sc-tbl tbody td.num { text-align:right; }
+  .sc-tbl tbody td.ctr { text-align:center; }
+  .sc-tbl .qr-cell { font-family:'JetBrains Mono','Menlo',monospace;
+                     font-weight:700; color:#0f172a; font-size:11.5px;
+                     letter-spacing:.03em;
+                     display:flex; align-items:center; gap:8px; }
+  .sc-tbl .qr-thumb { width:48px; height:48px; flex-shrink:0;
+                      background:#fff; padding:3px; border:1px solid #e2e8f0;
+                      border-radius:4px; }
+  .sc-tbl .qr-thumb img,
+  .sc-tbl .qr-thumb canvas { display:block; width:100% !important; height:100% !important; }
+  .sc-tbl .qr-text { word-break:break-all; }
+  .sc-tbl .meta { font-size:10px; color:#94a3b8; }
+
+  /* Status pill */
+  .sc-pill { display:inline-block; padding:3px 10px; border-radius:999px;
+             font-size:10px; font-weight:800; letter-spacing:.04em;
+             text-transform:uppercase; }
+  .sc-pill.pending    { background:#fef3c7; color:#92400e; border:1px solid #fbbf24; }
+  .sc-pill.quarantine { background:#f59e0b; color:#fff; }
+  .sc-pill.stocked    { background:#10b981; color:#fff; }
+
+  /* Item group rows */
+  .sc-tbl tr.item-grp td { background:#eff6ff; font-weight:800; color:#1e40af;
+                            padding:8px 10px; font-size:11.5px;
+                            border-top:2px solid #dbeafe; border-bottom:1px solid #dbeafe; }
+  .sc-tbl tr.item-grp .item-count { color:#64748b; font-weight:600;
+                                     font-size:10px; margin-left:6px; }
+
+  /* Just-scanned row highlight */
+  .sc-tbl tr.just-scanned td { background:#d1fae5 !important;
+                                animation: scRowFlash 1.5s ease-out; }
+  @keyframes scRowFlash { 0% { background:#86efac; } 100% { background:#d1fae5; } }
+
+  .sc-empty { text-align:center; padding:40px 20px; color:#94a3b8; font-size:13px; }
+
+  /* Tables scroll for many rows */
+  .sc-tbl-scroll { max-height: 600px; overflow-y: auto; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="sc-wrap" data-grn-id="{{ grn.id }}">
+
+  <!-- Header -->
+  <div class="sc-head">
+    <a class="sc-back" href="{{ url_for('grn.view_grn', grn_id=grn.id) }}">← Back to GRN</a>
+    <div class="sc-grn-info">
+      <b>{{ grn.grn_number }}</b>
+      <span class="gap">·</span>
+      <span style="background:#dbeafe;color:#1e40af;padding:1px 8px;border-radius:4px;font-weight:700;">{{ grn.grn_type }}</span>
+      <span class="gap">·</span>
+      Supplier: <b>{{ grn.supplier_name or '—' }}</b>
+      <span class="gap">·</span>
+      Date: <b>{{ grn.grn_date.strftime('%d-%m-%Y') if grn.grn_date else '—' }}</b>
+    </div>
+  </div>
+
+  <!-- Stats -->
+  <div class="sc-stats">
+    {% if grn.grn_type == 'RM' %}
+    <div class="sc-stat amber">
+      <div class="lbl">📦 Quarantined (RM)</div>
+      <div class="val" id="statQuarantine">0</div>
+    </div>
+    {% else %}
+    <div class="sc-stat green">
+      <div class="lbl">✅ Stocked In</div>
+      <div class="val" id="statStockedIn">0</div>
+    </div>
+    {% endif %}
+    <div class="sc-stat blue">
+      <div class="lbl">⏳ Pending Boxes</div>
+      <div class="val" id="statPending">0</div>
+    </div>
+    <div class="sc-stat">
+      <div class="lbl">📊 Total Boxes</div>
+      <div class="val" id="statTotal">0</div>
+      <div class="pbar"><div id="statProgress" style="width:0%;"></div></div>
+    </div>
+  </div>
+
+  <!-- Sticky scan input -->
+  <div class="sc-input-bar">
+    <form id="scanForm" onsubmit="event.preventDefault(); submitScan();">
+      <label>⌨️  Scan QR:</label>
+      <input type="text" id="scanInput" placeholder="Point USB scanner here, or type code"
+             autocomplete="off" spellcheck="false" autocapitalize="characters">
+      <button type="submit">Submit</button>
+    </form>
+    <div class="hint">Plug in a USB QR scanner — it sends scanned text + Enter automatically. The field auto-refocuses after every scan.</div>
+  </div>
+
+  <!-- Last scan feedback -->
+  <div class="sc-last" id="lastScan"></div>
+
+  <!-- 2-column layout: PENDING left, SCANNED right -->
+  <div class="sc-cols">
+
+    <!-- LEFT: Pending boxes -->
+    <div class="sc-card">
+      <div class="sc-card-hdr amber">
+        <span>⏳ Pending Boxes</span>
+        <span class="count" id="pendingCount">0</span>
+      </div>
+      <div class="sc-tbl-scroll">
+        <table class="sc-tbl">
+          <thead>
+            <tr>
+              <th class="ctr" style="width:36px;">#</th>
+              <th>Box Code</th>
+              <th>Product</th>
+              <th class="num" style="width:90px;">Qty / Box</th>
+            </tr>
+          </thead>
+          <tbody id="pendingBody">
+            <tr><td colspan="4" class="sc-empty">Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- RIGHT: Scanned boxes -->
+    <div class="sc-card">
+      <div class="sc-card-hdr green">
+        <span>✅ Scanned (latest first)</span>
+        <span class="count" id="scannedCount">0</span>
+      </div>
+      <div class="sc-tbl-scroll">
+        <table class="sc-tbl">
+          <thead>
+            <tr>
+              <th class="ctr" style="width:36px;">#</th>
+              <th>Box Code</th>
+              <th>Product</th>
+              <th class="ctr" style="width:100px;">Status</th>
+              <th style="width:130px;">Scanned</th>
+            </tr>
+          </thead>
+          <tbody id="scannedBody">
+            <tr><td colspan="5" class="sc-empty">No scans yet</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- QR code generation library (async — doesn't block page render) -->
+<script async src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script>
+const GRN_ID = {{ grn.id }};
+const esc = s => String(s||'').replace(/[<>&"]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'})[c]);
+let lastScanQr = null;
+
+// ──────────── Submit scan ────────────
+function submitScan(){
+  const $in = document.getElementById('scanInput');
+  const code = ($in.value || '').trim().toUpperCase();
+  if (!code){ $in.focus(); return; }
+
+  setLastProcessing(code);
+  fetch('/grn/api/scan', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ qr_code: code, source: 'manual', grn_id: GRN_ID }),
+    credentials: 'same-origin'
+  })
+  .then(r => r.json().then(d => ({ ok: r.ok, data: d })))
+  .then(({ ok, data }) => {
+    if (ok && data.success){
+      showSuccess(data.scan);
+      beep('success');
+      lastScanQr = data.scan.qr_code;
+      loadStatus();
+    } else {
+      showError(data.error || 'Scan failed', data.scan);
+      beep('error');
+    }
+  })
+  .catch(e => { showError('Network error: ' + e.message); beep('error'); });
+
+  $in.value = '';
+  $in.focus();
+}
+
+// ──────────── Feedback ────────────
+function setLastProcessing(qr){
+  const $r = document.getElementById('lastScan');
+  $r.className = 'sc-last';
+  $r.style.display = 'block';
+  $r.innerHTML = `<span style="color:#64748b;">Processing <b style="color:#0f172a;">${esc(qr)}</b>...</span>`;
+}
+
+function showSuccess(scan){
+  const $r = document.getElementById('lastScan');
+  const isQuar = scan.status === 'Quarantine';
+  $r.className = 'sc-last flash ' + (isQuar ? 'quarantine' : 'success');
+  const color = isQuar ? '#f59e0b' : '#10b981';
+  $r.innerHTML = `
+    <div style="display:flex;gap:10px;align-items:center;">
+      <span style="font-size:22px;">${isQuar ? '🟡' : '✅'}</span>
+      <div style="flex:1;">
+        <div style="font-weight:800;color:#0f172a;font-size:14px;">
+          ${esc(scan.qr_code)} — ${esc(scan.item_name)}
+        </div>
+        <div style="font-size:12px;color:#475569;margin-top:2px;">
+          Box <b>#${scan.box_no}</b> · Qty <b>${Number(scan.qty).toFixed(3)} ${esc(scan.uom)}</b>
+          ${scan.batch_no ? ' · Batch <b>'+esc(scan.batch_no)+'</b>' : ''}
+        </div>
+      </div>
+      <span style="color:#fff;background:${color};font-size:11px;padding:4px 12px;border-radius:999px;font-weight:800;">${esc(scan.status)}</span>
+    </div>
+  `;
+}
+
+function showError(msg, scan){
+  const $r = document.getElementById('lastScan');
+  $r.className = 'sc-last flash error';
+  let detail = '';
+  if (scan && scan.qr_code){
+    detail = `<div style="font-size:11.5px;color:#7f1d1d;margin-top:4px;">
+                Previously scanned ${esc(scan.qr_code)} at ${esc(scan.scanned_at)} by ${esc(scan.scanned_by)}.
+              </div>`;
+  }
+  $r.innerHTML = `
+    <div style="display:flex;gap:10px;align-items:flex-start;">
+      <span style="font-size:22px;">⚠️</span>
+      <div style="flex:1;">
+        <div style="font-weight:800;color:#991b1b;font-size:14px;">${esc(msg)}</div>
+        ${detail}
+      </div>
+    </div>
+  `;
+}
+
+// Single shared AudioContext — created lazily on first beep
+let _audioCtx = null;
+function beep(type){
+  try {
+    if (!_audioCtx) _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (_audioCtx.state === 'suspended') _audioCtx.resume();
+    const o = _audioCtx.createOscillator(); const g = _audioCtx.createGain();
+    o.connect(g); g.connect(_audioCtx.destination);
+    o.frequency.value = (type === 'success') ? 880 : 220;
+    g.gain.setValueAtTime(0.15, _audioCtx.currentTime);
+    o.start();
+    o.stop(_audioCtx.currentTime + (type === 'success' ? 0.08 : 0.22));
+  } catch(e) {}
+}
+
+// ──────────── Load + render ────────────
+function loadStatus(){
+  fetch(`/grn/api/${GRN_ID}/scan-status`, { credentials: 'same-origin' })
+    .then(r => r.json()).then(d => {
+      if (!d.success) return;
+      renderStats(d);
+      renderPending(d);
+      renderScanned(d);
+    });
+}
+
+function renderStats(d){
+  // Either the Quarantine card (RM) or the Stocked-In card (PM/COR/SLV/FG) is present, never both.
+  const qEl  = document.getElementById('statQuarantine');
+  const siEl = document.getElementById('statStockedIn');
+  if (qEl)  qEl.textContent  = d.quarantine_count || 0;
+  if (siEl) siEl.textContent = d.stocked_in_count || 0;
+  document.getElementById('statPending').textContent    = d.pending_boxes    || 0;
+  document.getElementById('statTotal').textContent      = d.total_boxes      || 0;
+  const pct = d.total_boxes ? (d.scanned_boxes / d.total_boxes * 100) : 0;
+  document.getElementById('statProgress').style.width = pct.toFixed(0) + '%';
+}
+
+function renderPending(d){
+  const tbody = document.getElementById('pendingBody');
+  const items = d.items || [];
+  let html = '';
+  let sr = 0;
+  let total = 0;
+
+  items.forEach(it => {
+    const pendingBoxes = it.boxes.filter(b => !b.scanned);
+    if (!pendingBoxes.length) return;
+    // Item group header
+    html += `
+      <tr class="item-grp">
+        <td colspan="4">
+          ${esc(it.item_name)}
+          <span class="item-count">${esc(it.item_code)}${it.batch_no ? ' · Batch ' + esc(it.batch_no) : ''} · ${pendingBoxes.length} pending</span>
+        </td>
+      </tr>`;
+    pendingBoxes.forEach(b => {
+      sr++; total++;
+      html += `
+        <tr>
+          <td class="ctr meta">${sr}</td>
+          <td class="qr-cell">
+            <div class="qr-thumb" data-qr="${esc(b.qr_code)}"></div>
+            <span class="qr-text">${esc(b.qr_code)}</span>
+          </td>
+          <td>
+            <div style="font-weight:600;color:#0f172a;">${esc(it.item_name)}</div>
+            <div class="meta">Box #${b.box_no}</div>
+          </td>
+          <td class="num">${Number(it.per_box_qty).toFixed(3)} <span class="meta">${esc(it.uom)}</span></td>
+        </tr>`;
+    });
+  });
+
+  if (total === 0){
+    tbody.innerHTML = `<tr><td colspan="4" class="sc-empty">✓ All boxes scanned for this GRN!</td></tr>`;
+  } else {
+    tbody.innerHTML = html;
+  }
+  document.getElementById('pendingCount').textContent = total + ' box' + (total === 1 ? '' : 'es');
+  generateQrsIn(tbody);
+}
+
+function renderScanned(d){
+  const tbody = document.getElementById('scannedBody');
+  const recent = d.recent_scans || [];
+  if (!recent.length){
+    tbody.innerHTML = `<tr><td colspan="5" class="sc-empty">No scans yet — point the scanner at the first box.</td></tr>`;
+    document.getElementById('scannedCount').textContent = '0 scanned';
+    return;
+  }
+  let html = '';
+  recent.forEach((s, i) => {
+    const cls = (s.status === 'Quarantine') ? 'quarantine' : 'stocked';
+    const isJust = (s.qr_code === lastScanQr);
+    html += `
+      <tr class="${isJust ? 'just-scanned' : ''}">
+        <td class="ctr meta">${i + 1}</td>
+        <td class="qr-cell">
+          <div class="qr-thumb" data-qr="${esc(s.qr_code)}"></div>
+          <span class="qr-text">${esc(s.qr_code)}</span>
+        </td>
+        <td>
+          <div style="font-weight:600;color:#0f172a;">${esc(s.item_name)}</div>
+          <div class="meta">Box #${s.box_no} · ${Number(s.qty).toFixed(3)} ${esc(s.uom)}${s.batch_no ? ' · Batch '+esc(s.batch_no) : ''}</div>
+        </td>
+        <td class="ctr"><span class="sc-pill ${cls}">${esc(s.status)}</span></td>
+        <td>
+          <div>${esc(s.scanned_at)}</div>
+          <div class="meta">${esc(s.scanned_by)}</div>
+        </td>
+      </tr>`;
+  });
+  tbody.innerHTML = html;
+  document.getElementById('scannedCount').textContent = (d.scanned_boxes || 0) + ' scanned';
+  generateQrsIn(tbody);
+  setTimeout(() => { lastScanQr = null; }, 1500);
+}
+
+// Generate QR codes inside a container, in chunks (so 100+ rows don't freeze the page)
+function generateQrsIn(container){
+  if (typeof QRCode === 'undefined') return;
+  const thumbs = container.querySelectorAll('.qr-thumb[data-qr]:not(.qr-rendered)');
+  if (!thumbs.length) return;
+  let i = 0;
+  function tick(){
+    const end = Math.min(i + 20, thumbs.length);   // 20 per frame
+    for (; i < end; i++){
+      const el = thumbs[i];
+      const code = el.dataset.qr;
+      if (!code) continue;
+      try {
+        el.innerHTML = '';
+        new QRCode(el, {
+          text: code,
+          width: 40, height: 40,
+          colorDark: '#0f172a', colorLight: '#fff',
+          correctLevel: QRCode.CorrectLevel.L,
+        });
+        el.classList.add('qr-rendered');
+      } catch(e) { /* skip */ }
+    }
+    if (i < thumbs.length) requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+}
+
+// ──────────── Init ────────────
+loadStatus();
+const $in = document.getElementById('scanInput');
+$in.focus();
+document.addEventListener('click', e => {
+  if (e.target.closest('a, button, input, textarea, select')) return;
+  setTimeout(() => $in.focus(), 50);
+});
+// Note: no auto-refresh polling — loadStatus() runs after every successful scan.
+// If you need to see updates from another user scanning into the same GRN,
+// just refresh the page manually.
+</script>
+{% endblock %}

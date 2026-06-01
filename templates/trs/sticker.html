@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>QC Sticker — {{ trs.trs_no }}</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: #f1f5f9; }
+  body { font-family: Arial, Helvetica, sans-serif; color: #000; }
+
+  /* On-screen toolbar (hidden when printing) */
+  .bar {
+    display: flex; gap: 8px; align-items: center; justify-content: center;
+    padding: 14px; flex-wrap: wrap;
+  }
+  .bar button, .bar a {
+    padding: 9px 18px; border-radius: 7px; font-size: 13px; font-weight: 700;
+    cursor: pointer; text-decoration: none; border: 1.5px solid;
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .bar .print { background: #16a34a; color: #fff; border-color: #16a34a; }
+  .bar .print:hover { background: #15803d; }
+  .bar .back  { background: #fff; color: #475569; border-color: #cbd5e1; }
+
+  .sheet { display: flex; justify-content: center; padding: 0 0 30px; }
+
+  /* The sticker — sized for a standard label (~80mm wide). */
+  .qc-sticker {
+    width: 80mm;
+    background: #fff;
+    border: 1.6pt solid #000;
+    color: #000;
+  }
+  .qc-title {
+    text-align: center; font-weight: 800; font-size: 14pt;
+    letter-spacing: .5px; padding: 3pt 0;
+    border-bottom: 1.2pt solid #000;
+  }
+  .qc-name {
+    text-align: center; font-weight: 800; font-size: 12pt;
+    padding: 3pt 4pt; border-bottom: 1.2pt solid #000;
+  }
+  table.qc-tbl { width: 100%; border-collapse: collapse; }
+  table.qc-tbl td {
+    border: 0.8pt solid #000; padding: 2.5pt 5pt;
+    font-size: 8.5pt; vertical-align: middle;
+  }
+  table.qc-tbl td.lbl { font-weight: 800; width: 22%; white-space: nowrap; }
+  table.qc-tbl td.val { width: 28%; }
+  .qc-foot td { font-weight: 800; }
+
+  @media print {
+    html, body { background: #fff !important; }
+    .bar { display: none !important; }
+    .sheet { padding: 0; }
+    @page { margin: 6mm; }
+  }
+</style>
+</head>
+<body>
+
+  <div class="bar">
+    <a class="back" href="javascript:window.close()">✖ Close</a>
+    <button class="print" onclick="window.print()">🖨️ Print Sticker</button>
+  </div>
+
+  <div class="sheet">
+    <div class="qc-sticker">
+      <div class="qc-title">QC - APPROVED</div>
+      <div class="qc-name">{{ trs.sample_name or '—' }}</div>
+
+      <table class="qc-tbl">
+        <tr>
+          <td class="lbl">TRS No</td>
+          <td class="val">{{ trs.trs_no or '—' }}</td>
+          <td class="lbl">TRS Date</td>
+          <td class="val">{{ trs.trs_date.strftime('%d-%m-%Y') if trs.trs_date else '—' }}</td>
+        </tr>
+        <tr>
+          <td class="lbl">Batch No</td>
+          <td class="val">{{ trs.batch_no or '—' }}</td>
+          <td class="lbl"></td>
+          <td class="val"></td>
+        </tr>
+        <tr>
+          <td class="lbl">GRN No</td>
+          <td class="val">{{ trs.grn_no or '—' }}</td>
+          <td class="lbl">GRN Date</td>
+          <td class="val">{{ trs.grn_date.strftime('%d-%m-%Y') if trs.grn_date else '—' }}</td>
+        </tr>
+        <tr>
+          <td class="lbl">Analysis By</td>
+          <td class="val">{{ trs.qc_approved_by_name or '—' }}</td>
+          <td class="lbl">Analysis Date</td>
+          <td class="val">{{ trs.qc_approved_at.strftime('%d-%m-%Y') if trs.qc_approved_at else '—' }}</td>
+        </tr>
+        <tr>
+          <td class="lbl">Expiry Date</td>
+          <td class="val">{{ trs.expiry_date.strftime('%d-%m-%Y') if trs.expiry_date else '—' }}</td>
+          <td class="lbl">Approval Date</td>
+          <td class="val"></td>
+        </tr>
+        <tr class="qc-foot">
+          <td class="lbl">QR-860-03</td>
+          <td></td>
+          <td></td>
+          <td>{{ trs.qc_approved_at.strftime('%d-%m-%Y') if trs.qc_approved_at else '—' }}</td>
+        </tr>
+      </table>
+    </div>
+  </div>
+
+<script>
+  // Auto-fire the print dialog when opened right after QC approval.
+  if (new URLSearchParams(location.search).get('autoprint') === '1') {
+    window.addEventListener('load', function(){ setTimeout(function(){ window.print(); }, 500); });
+  }
+</script>
+</body>
+</html>

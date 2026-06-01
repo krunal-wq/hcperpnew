@@ -206,11 +206,17 @@
                     <a class="nav-a {% if request.path.startswith('/grn') and request.args.get('grn_type','').upper() == 'RM' %}active{% endif %}" href="/grn?grn_type=RM">
                         <span class="nav-ic"><i class="bi bi-box-arrow-in-down"></i></span><span class="nav-txt">GRN (Goods Receipt)</span>
                     </a>
-                    <a class="nav-a {% if request.path == '/grn/stock' %}active{% endif %}" href="/grn/stock">
-                        <span class="nav-ic"><i class="bi bi-grid-3x3-gap-fill"></i></span><span class="nav-txt">📦 Current Stock</span>
+                    <a class="nav-a {% if request.path == '/grn/quarantine' %}active{% endif %}" href="/grn/quarantine">
+                        <span class="nav-ic"><i class="bi bi-shield-exclamation"></i></span><span class="nav-txt">🟡 RM Quarantine</span>
                     </a>
-                    <a class="nav-a {% if request.path == '/grn/stock-ledger' %}active{% endif %}" href="/grn/stock-ledger">
-                        <span class="nav-ic"><i class="bi bi-clock-history"></i></span><span class="nav-txt">📋 Stock Ledger</span>
+                    <a class="nav-a {% if request.path == '/grn/stock' and request.args.get('type','').lower() == 'rm' %}active{% endif %}" href="/grn/stock?type=rm">
+                        <span class="nav-ic"><i class="bi bi-box-seam"></i></span><span class="nav-txt">📦 Current Stock</span>
+                    </a>
+                    <a class="nav-a {% if request.path == '/grn/stock-by-grn' and request.args.get('type','').lower() == 'rm' %}active{% endif %}" href="/grn/stock-by-grn?type=rm">
+                        <span class="nav-ic"><i class="bi bi-collection"></i></span><span class="nav-txt">📊 Stock by GRN</span>
+                    </a>
+                    <a class="nav-a {% if request.path == '/grn/stock-ledger' and request.args.get('type','').lower() == 'rm' %}active{% endif %}" href="/grn/stock-ledger?type=rm">
+                        <span class="nav-ic"><i class="bi bi-journals"></i></span><span class="nav-txt">📋 Stock Ledger</span>
                     </a>
                     {% set _perm_formulation = get_perm('formulation') %}
                     {% if role == 'admin' or (_perm_formulation and _perm_formulation.can_view) %}
@@ -275,6 +281,17 @@
                             <span class="nav-ic">·</span><span class="nav-txt">Sleeves GRN</span>
                         </a>
                     </div>
+
+                    <!-- Stock view (populated by non-RM GRN scans) -->
+                    <a class="nav-a {% if request.path == '/grn/stock' and request.args.get('type','').lower() != 'rm' %}active{% endif %}" href="/grn/stock?type=pm">
+                        <span class="nav-ic"><i class="bi bi-box-seam"></i></span><span class="nav-txt">📦 Current Stock</span>
+                    </a>
+                    <a class="nav-a {% if request.path == '/grn/stock-by-grn' and request.args.get('type','').lower() != 'rm' %}active{% endif %}" href="/grn/stock-by-grn?type=pm">
+                        <span class="nav-ic"><i class="bi bi-collection"></i></span><span class="nav-txt">📊 Stock by GRN</span>
+                    </a>
+                    <a class="nav-a {% if request.path == '/grn/stock-ledger' and request.args.get('type','').lower() != 'rm' %}active{% endif %}" href="/grn/stock-ledger?type=pm">
+                        <span class="nav-ic"><i class="bi bi-journals"></i></span><span class="nav-txt">📋 Stock Ledger</span>
+                    </a>
                 </div>
 
                 <!-- Finish Goods -->
@@ -310,6 +327,23 @@
                     </a>
                 </div>
 
+            </div>
+        </div>
+        {% endif %}
+
+        {# ════ QC Department (top-level — TRS testing lists) ════ #}
+        {% set _perm_qc = get_perm('qc') %}
+        {% if role == 'admin' or (_perm_qc and _perm_qc.can_view) %}
+        <div class="sb-sec sb-accordion">
+            <button class="sb-acc-hdr" onclick="toggleAccordion(this)">
+                <span class="sb-acc-ic"><i class="bi bi-clipboard2-pulse"></i></span>
+                <span class="sb-acc-lbl">QC Department</span>
+                <span class="sb-acc-arrow">▶</span>
+            </button>
+            <div class="sb-acc-body">
+                <a class="nav-a {% if request.path == '/qc/trs/rm' %}active{% endif %}" href="/qc/trs/rm"><span class="nav-ic"><i class="bi bi-droplet-half"></i></span><span class="nav-txt">RM TRS List</span></a>
+                <a class="nav-a {% if request.path == '/qc/trs/pm' %}active{% endif %}" href="/qc/trs/pm"><span class="nav-ic"><i class="bi bi-archive"></i></span><span class="nav-txt">PM TRS List</span></a>
+                <a class="nav-a {% if active_page == 'qc_param_master' %}active{% endif %}" href="/masters/qc-params"><span class="nav-ic"><i class="bi bi-sliders"></i></span><span class="nav-txt">QC Parameters</span></a>
             </div>
         </div>
         {% endif %}
@@ -939,6 +973,17 @@
                         <span class="nav-ic">·</span><span class="nav-txt">Sleeves GRN</span>
                     </a>
                 </div>
+
+                <!-- Stock view (populated by non-RM GRN scans) -->
+                <a class="nav-a {% if request.path == '/grn/stock' %}active{% endif %}" href="/grn/stock">
+                    <span class="nav-ic"><i class="bi bi-box-seam"></i></span><span class="nav-txt">📦 Current Stock</span>
+                </a>
+                <a class="nav-a {% if request.path == '/grn/stock-by-grn' %}active{% endif %}" href="/grn/stock-by-grn">
+                    <span class="nav-ic"><i class="bi bi-collection"></i></span><span class="nav-txt">📊 Stock by GRN</span>
+                </a>
+                <a class="nav-a {% if request.path == '/grn/stock-ledger' %}active{% endif %}" href="/grn/stock-ledger">
+                    <span class="nav-ic"><i class="bi bi-journals"></i></span><span class="nav-txt">📋 Stock Ledger</span>
+                </a>
             </div>
 
             <!-- Finish Goods -->
@@ -950,6 +995,21 @@
             <div class="nav-submenu {% if request.args.get('item_type','').upper() == 'FG' %}open{% endif %}">
                 <a class="nav-a {% if request.args.get('item_type','').upper() == 'FG' %}active{% endif %}" href="/material?item_type=FG">
                     <span class="nav-ic"><i class="bi bi-card-list"></i></span><span class="nav-txt">Item Master</span>
+                </a>
+            </div>
+
+            <!-- Quality Control (QC) — TRS Lists -->
+            <button class="nav-group-toggle {% if request.path.startswith('/qc') or request.path.startswith('/trs') %}open{% endif %}" onclick="toggleNavGroup(this)">
+                <span class="nav-ic"><i class="bi bi-clipboard2-check"></i></span>
+                <span class="nav-txt">Quality Control</span>
+                <span class="nav-group-arrow">▶</span>
+            </button>
+            <div class="nav-submenu {% if request.path.startswith('/qc') or request.path.startswith('/trs') %}open{% endif %}">
+                <a class="nav-a {% if request.path == '/qc/trs/rm' %}active{% endif %}" href="/qc/trs/rm">
+                    <span class="nav-ic"><i class="bi bi-droplet-half"></i></span><span class="nav-txt">RM TRS List</span>
+                </a>
+                <a class="nav-a {% if request.path == '/qc/trs/pm' %}active{% endif %}" href="/qc/trs/pm">
+                    <span class="nav-ic"><i class="bi bi-archive"></i></span><span class="nav-txt">PM TRS List</span>
                 </a>
             </div>
 

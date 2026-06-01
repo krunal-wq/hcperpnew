@@ -168,9 +168,12 @@
       {% if po.is_editable %}
       <a href="{{ url_for('purchase_order.edit_po', po_id=po.id) }}" class="pv-act outline">✏️ Edit</a>
       {% endif %}
+      {# PDF / Download / Print only after approval (Approved, Partial Received, or Completed) #}
+      {% if po.status in ['Approved', 'Partial Received', 'Completed'] %}
       <a href="{{ url_for('purchase_order.pdf_po', po_id=po.id) }}?inline=1" target="_blank" class="pv-act outline">📄 PDF</a>
       <a href="{{ url_for('purchase_order.pdf_po', po_id=po.id) }}" class="pv-act outline">⬇️ Download</a>
       <a href="{{ url_for('purchase_order.print_po', po_id=po.id) }}" target="_blank" class="pv-act outline">🖨️ Print</a>
+      {% endif %}
       <button class="pv-act outline" onclick="pvOpen('emailModal')">✉️ Email</button>
       <button class="pv-act outline" onclick="pvOpen('whatsappModal')">💬 WhatsApp</button>
 

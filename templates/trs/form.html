@@ -1,0 +1,466 @@
+{% extends 'base.html' %}
+{% block title %}{{ 'Edit TRS' if mode=='edit' else 'New TRS' }} — {{ prefill.sample_name }}{% endblock %}
+{% block page_title %}📋 Testing Requisition Slip{% endblock %}
+{% block bread %}Stores / GRN / {{ grn.grn_number_short or grn.grn_number }} / TRS / {{ 'Edit' if mode=='edit' else 'New' }}{% endblock %}
+
+{% block extra_css %}
+<style>
+.tf-wrap { max-width: 1100px; margin: 0 auto; padding: 0 12px 40px; }
+
+.tf-bar {
+  display: flex; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; align-items: center;
+}
+.tf-bar a, .tf-bar button {
+  padding: 9px 18px; border-radius: 7px; font-size: 13px; font-weight: 700;
+  cursor: pointer; text-decoration: none; border: 1.5px solid;
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.tf-bar .back { background: #fff; color: #475569; border-color: #cbd5e1; }
+.tf-bar .save { background: #2563eb; color: #fff; border-color: #2563eb; margin-left: auto; }
+.tf-bar .save:hover { background: #1d4ed8; }
+.tf-bar .save:disabled { opacity: .6; cursor: not-allowed; }
+
+/* Document card — replicate the image's table-style layout */
+.tf-doc {
+  background: #fff; border: 1px solid #cbd5e1; border-radius: 4px;
+  font-family: Arial, Helvetica, sans-serif; color: #1e293b;
+  overflow: hidden;
+}
+
+/* Header row: logo + title */
+.tf-head {
+  display: grid; grid-template-columns: 200px 1fr;
+  border-bottom: 1px solid #cbd5e1;
+}
+.tf-head .logo-cell {
+  border-right: 1px solid #cbd5e1; padding: 18px;
+  display: flex; align-items: center; justify-content: center;
+}
+.tf-head .logo-cell img { max-width: 130px; max-height: 60px; object-fit: contain; }
+.tf-head .title-cell {
+  padding: 16px; text-align: center;
+}
+.tf-head .title-cell h1 {
+  font-size: 18px; font-weight: 700;
+  margin: 0 0 4px 0; letter-spacing: .5px;
+}
+.tf-head .title-cell .code { font-size: 14px; color: #475569; }
+
+/* Field grid */
+.tf-grid {
+  display: grid; grid-template-columns: 1fr 1fr;
+  border-top: 1px solid #cbd5e1;
+}
+.tf-grid.full { grid-template-columns: 1fr; }
+.tf-grid > .cell { border-bottom: 1px solid #cbd5e1; }
+.tf-grid > .cell:nth-child(odd):not(:last-child) { border-right: 1px solid #cbd5e1; }
+.tf-grid.full > .cell { border-right: 0; }
+
+.cell {
+  display: grid; grid-template-columns: 200px 1fr;
+  align-items: stretch;
+}
+.cell.full { grid-template-columns: 200px 1fr; }
+.cell .lbl {
+  padding: 12px 14px;
+  font-size: 13px; font-weight: 600; color: #1e293b;
+  border-right: 1px solid #cbd5e1;
+  display: flex; align-items: center; justify-content: flex-end;
+  text-align: right;
+  background: #fff;
+}
+.cell .val { padding: 8px 12px; display: flex; align-items: center; }
+.cell .val input,
+.cell .val select {
+  width: 100%; padding: 7px 9px; font-size: 13px;
+  border: 1px solid #cbd5e1; border-radius: 4px; background: #fff;
+  color: #0f172a; font-family: inherit;
+}
+.cell .val input[readonly],
+.cell .val input.readonly {
+  background: #fff; border-color: transparent; padding: 0; cursor: default;
+  font-weight: 500;
+}
+.cell .val input:focus,
+.cell .val select:focus { outline: 0; border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,.15); }
+
+/* Section row (single full-width title) */
+.tf-section {
+  background: #fff;
+  text-align: center; font-weight: 700; font-size: 14px;
+  padding: 11px 0; border-top: 1px solid #cbd5e1; border-bottom: 1px solid #cbd5e1;
+  letter-spacing: .8px;
+}
+
+/* Physical verification table */
+.tf-pv {
+  display: grid;
+  grid-template-columns: 80px 260px 1fr 200px;
+}
+.tf-pv > div {
+  border-right: 1px solid #cbd5e1; border-bottom: 1px solid #cbd5e1;
+  padding: 9px 12px; font-size: 13px;
+  display: flex; align-items: center;
+}
+.tf-pv > div:nth-child(4n) { border-right: 0; }
+.tf-pv .th {
+  background: #fff; font-weight: 700; color: #1e293b;
+}
+.tf-pv .sr { justify-content: center; font-weight: 600; }
+.tf-pv select {
+  width: 100%; padding: 7px 9px; font-size: 13px;
+  border: 1px solid #cbd5e1; border-radius: 4px;
+}
+
+/* Verified-by footer */
+.tf-foot {
+  display: grid; grid-template-columns: 200px 1fr 200px;
+  border-bottom: 1px solid #cbd5e1;
+}
+.tf-foot > div {
+  padding: 11px 14px; font-size: 13px;
+  border-right: 1px solid #cbd5e1;
+}
+.tf-foot > div:last-child { border-right: 0; text-align: right; color: #1e293b; }
+.tf-foot .l { font-weight: 700; }
+
+.tf-foot.head { background: #fff; }
+.tf-foot.head > div { font-weight: 700; text-align: center; }
+.tf-foot.head > div:last-child { text-align: center; }
+
+/* Save bar */
+.tf-savebar {
+  padding: 16px; background: #fff; display: flex; justify-content: flex-end;
+}
+.tf-savebar button {
+  background: #2563eb; color: #fff; border: 0; border-radius: 4px;
+  padding: 10px 26px; font-size: 13px; font-weight: 700; cursor: pointer;
+}
+.tf-savebar button:hover { background: #1d4ed8; }
+
+@media (max-width: 760px) {
+  .tf-grid { grid-template-columns: 1fr; }
+  .tf-grid > .cell:nth-child(odd):not(:last-child) { border-right: 0; }
+  .cell { grid-template-columns: 130px 1fr; }
+  .cell .lbl { padding: 10px; font-size: 12px; }
+  .tf-pv { grid-template-columns: 50px 140px 1fr; }
+  .tf-pv > div:nth-child(4n) { display: none; }
+  .tf-foot { grid-template-columns: 1fr; }
+  .tf-foot > div { border-right: 0; border-bottom: 1px solid #cbd5e1; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="tf-wrap">
+
+  <div class="tf-bar">
+    <a class="back" href="{{ url_for('trs.grn_items', grn_id=grn.id) }}">← Back to Items</a>
+  </div>
+
+  <form id="trsForm" method="POST" action="{{ url_for('trs.save_trs') }}">
+    <input type="hidden" name="grn_id"  value="{{ grn.id }}">
+    <input type="hidden" name="item_id" value="{{ item.id }}">
+    <input type="hidden" name="item_seq" value="{{ prefill.item_seq }}">
+    {% if mode == 'edit' %}
+      <input type="hidden" name="trs_id" value="{{ trs.id }}">
+    {% endif %}
+
+    <div class="tf-doc">
+
+      <!-- Header -->
+      <div class="tf-head">
+        <div class="logo-cell">
+          <img src="{{ url_for('static', filename='images/icons/hcp-logo.png') }}"
+               alt="HCP" onerror="this.style.display='none'">
+        </div>
+        <div class="title-cell">
+          <h1>TESTING REQUISITION SLIP (TRS)</h1>
+          <div class="code">QR-854-01</div>
+        </div>
+      </div>
+
+      <!-- Row 1: TRS No, Date, Department -->
+      <div class="tf-grid" style="grid-template-columns: 1fr 1fr 1fr;">
+        <div class="cell">
+          <div class="lbl">TRS No :</div>
+          <div class="val"><input type="text" name="trs_no" value="{{ prefill.trs_no }}" readonly class="readonly"></div>
+        </div>
+        <div class="cell">
+          <div class="lbl">DATE</div>
+          <div class="val"><input type="date" name="trs_date" value="{{ prefill.trs_date }}"></div>
+        </div>
+        <div class="cell" style="border-right:0;">
+          <div class="lbl">Department :</div>
+          <div class="val"><input type="text" name="department" value="{{ prefill.department }}"></div>
+        </div>
+      </div>
+
+      <!-- Row 2: Name of Sample (full width) -->
+      <div class="tf-grid full">
+        <div class="cell">
+          <div class="lbl">Name of Sample :</div>
+          <div class="val"><input type="text" name="sample_name" value="{{ prefill.sample_name }}"></div>
+        </div>
+      </div>
+
+      <!-- Row 3: Batch No / No of Pkt -->
+      <div class="tf-grid">
+        <div class="cell">
+          <div class="lbl">Batch No or Product Code :</div>
+          <div class="val"><input type="text" name="batch_no" value="{{ prefill.batch_no }}"></div>
+        </div>
+        <div class="cell">
+          <div class="lbl">No of Pkt / Label :</div>
+          <div class="val"><input type="number" step="0.001" name="no_of_packets" value="{{ '%.3f'|format(prefill.no_of_packets|float) }}"></div>
+        </div>
+      </div>
+
+      <!-- Row 4: GRN No / GRN Date -->
+      <div class="tf-grid">
+        <div class="cell">
+          <div class="lbl">GRN No :</div>
+          <div class="val"><input type="text" value="{{ prefill.grn_no }}" readonly class="readonly"></div>
+        </div>
+        <div class="cell">
+          <div class="lbl">GRN Date :</div>
+          <div class="val"><input type="text" value="{{ prefill.grn_date }}" readonly class="readonly"></div>
+        </div>
+      </div>
+
+      <!-- Row 5: Physical State / Total Qty -->
+      <div class="tf-grid">
+        <div class="cell">
+          <div class="lbl">Physical State :</div>
+          <div class="val">
+            <select name="physical_state" required>
+              <option value="">-- Select --</option>
+              {% for s in physical_states %}
+                <option value="{{ s }}" {% if prefill.physical_state == s %}selected{% endif %}>{{ s }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+        <div class="cell">
+          <div class="lbl">Total Qty(In {{ prefill.uom }}):</div>
+          <div class="val"><input type="number" step="0.001" name="total_qty" value="{{ '%.3f'|format(prefill.total_qty|float) }}"></div>
+        </div>
+      </div>
+
+      <!-- Row 6: Sample Qty -->
+      <div class="tf-grid">
+        <div class="cell">
+          <div class="lbl">Sample Qty(In {{ prefill.uom }}):</div>
+          <div class="val"><input type="number" step="0.001" name="sample_qty" value="{{ '%.3f'|format(prefill.sample_qty|float) }}" required></div>
+        </div>
+        <div class="cell"><div class="lbl"></div><div class="val">
+          <input type="hidden" name="uom" value="{{ prefill.uom }}">
+        </div></div>
+      </div>
+
+      <!-- Row 7: Mfg Name / Mfg Date -->
+      <div class="tf-grid">
+        <div class="cell">
+          <div class="lbl">Mfg. Name :</div>
+          <div class="val"><input type="text" name="mfg_name" value="{{ prefill.mfg_name }}"></div>
+        </div>
+        <div class="cell">
+          <div class="lbl">Mfg. Date :</div>
+          <div class="val"><input type="date" name="mfg_date" value="{{ prefill.mfg_date }}"></div>
+        </div>
+      </div>
+
+      <!-- Row 8: Supplier / Expiry -->
+      <div class="tf-grid">
+        <div class="cell">
+          <div class="lbl">Supplier Name :</div>
+          <div class="val"><input type="text" name="supplier_name" value="{{ prefill.supplier_name }}"></div>
+        </div>
+        <div class="cell">
+          <div class="lbl">Expiry Date :</div>
+          <div class="val"><input type="date" name="expiry_date" value="{{ prefill.expiry_date }}"></div>
+        </div>
+      </div>
+
+      <!-- Row 9: Previous Supplier / NEW-OLD -->
+      <div class="tf-grid">
+        <div class="cell">
+          <div class="lbl">Previous Supplier :</div>
+          <div class="val" style="flex-direction:column; align-items:stretch;">
+            <select name="previous_supplier" id="prevSupplier">
+              <option value="">-- Select --</option>
+              {% for s in supplier_options %}
+                <option value="{{ s }}" {% if prefill.previous_supplier == s %}selected{% endif %}>{{ s }}</option>
+              {% endfor %}
+            </select>
+            <div id="prevSupplierHint" style="font-size:11px; color:#475569; margin-top:4px; min-height:14px;">
+              {% if prefill._prev_grn_no and prefill.new_old_material == 'OLD' %}
+                <span style="color:#15803d;">✓ Auto-selected from GRN <b>{{ prefill._prev_grn_no }}</b> ({{ prefill._prev_grn_date }})</span>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+        <div class="cell">
+          <div class="lbl">New / OLD Material:</div>
+          <div class="val">
+            <select name="new_old_material" id="newOldMaterial">
+              {% for s in new_old %}
+                <option value="{{ s }}" {% if prefill.new_old_material == s %}selected{% endif %}>{{ s }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Hidden values used by the Previous-Supplier auto-lookup JS -->
+      <input type="hidden" id="materialId"   value="{{ item.material_id or 0 }}">
+      <input type="hidden" id="excludeGrnId" value="{{ grn.id }}">
+
+      <!-- Section: Physical Verification -->
+      <div class="tf-section">PHYSICAL VERIFICATION</div>
+      <div class="tf-pv">
+        <div class="th sr">Sr No</div>
+        <div class="th">Parameter</div>
+        <div class="th"></div>
+        <div class="th"></div>
+
+        <div class="sr">1</div>
+        <div>Appearance</div>
+        <div>
+          <select name="appearance" required>
+            <option value="">-- Select --</option>
+            {% for s in appearances %}
+              <option value="{{ s }}" {% if prefill.appearance == s %}selected{% endif %}>{{ s }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div></div>
+
+        <div class="sr">2</div>
+        <div>Odour</div>
+        <div>
+          <select name="odour" required>
+            <option value="">-- Select --</option>
+            {% for s in odours %}
+              <option value="{{ s }}" {% if prefill.odour == s %}selected{% endif %}>{{ s }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div></div>
+
+        <div class="sr">3</div>
+        <div>COA Availability</div>
+        <div>
+          <select name="coa_available" required>
+            {% for s in yes_no %}
+              <option value="{{ s }}" {% if prefill.coa_available == s %}selected{% endif %}>{{ s }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div></div>
+      </div>
+
+      <!-- Verified By footer -->
+      <div class="tf-foot">
+        <div class="l">Verified By</div>
+        <div>
+          <input type="text" name="verified_by_name" value="{{ prefill.verified_by_name }}"
+                 style="border:0; background:transparent; padding:0; font-size:13px; width:100%;">
+        </div>
+        <div>{{ prefill.trs_date }}</div>
+      </div>
+      <div class="tf-foot head">
+        <div>Name of Incharge</div>
+        <div>Sign</div>
+        <div>Date</div>
+      </div>
+
+      <div class="tf-savebar">
+        <button type="submit" id="saveBtn">SAVE</button>
+      </div>
+    </div>
+  </form>
+</div>
+
+<script>
+(function(){
+  const form = document.getElementById('trsForm');
+  const btn  = document.getElementById('saveBtn');
+  form.addEventListener('submit', function(){
+    btn.disabled = true;
+    btn.textContent = 'SAVING…';
+  });
+
+  // ── Previous-Supplier auto-lookup on OLD/NEW toggle ─────────────
+  const materialId   = parseInt(document.getElementById('materialId').value)   || 0;
+  const excludeGrnId = parseInt(document.getElementById('excludeGrnId').value) || 0;
+  const newOldSel    = document.getElementById('newOldMaterial');
+  const prevSel      = document.getElementById('prevSupplier');
+  const hint         = document.getElementById('prevSupplierHint');
+
+  function setHint(html, color){
+    if (!hint) return;
+    hint.innerHTML = html ? `<span style="color:${color || '#475569'};">${html}</span>` : '';
+  }
+
+  function selectInDropdown(name){
+    if (!name) { prevSel.selectedIndex = 0; return true; }  // placeholder "-- Select --"
+    for (let i = 0; i < prevSel.options.length; i++) {
+      if (prevSel.options[i].value === name) {
+        prevSel.selectedIndex = i;
+        return true;
+      }
+    }
+    // Not in dropdown — add it dynamically so it can be saved
+    const opt = document.createElement('option');
+    opt.value = name; opt.text = name; opt.selected = true;
+    prevSel.appendChild(opt);
+    return true;
+  }
+
+  function lookupPreviousSupplier(){
+    const val = newOldSel.value;
+
+    if (val !== 'OLD') {
+      // NEW (or anything else) → reset to "-- Select --", let user pick manually
+      selectInDropdown('');
+      setHint('NEW material — select Previous Supplier manually if needed', '#94a3b8');
+      return;
+    }
+
+    if (!materialId) {
+      setHint('Item not linked to material master — please select manually', '#b45309');
+      return;
+    }
+
+    setHint('Looking up previous GRN…', '#475569');
+
+    const params = new URLSearchParams({material_id: materialId});
+    if (excludeGrnId) params.set('exclude_grn_id', excludeGrnId);
+
+    fetch('/trs/api/previous-supplier?' + params)
+      .then(r => r.json())
+      .then(j => {
+        if (!j.success) {
+          setHint('Lookup failed', '#b91c1c');
+          return;
+        }
+        if (j.found && j.supplier_name) {
+          selectInDropdown(j.supplier_name);
+          setHint(`✓ Auto-selected from GRN <b>${j.grn_no}</b> (${j.grn_date_display})`, '#15803d');
+        } else {
+          setHint('No previous GRN found for this material — please select manually', '#94a3b8');
+        }
+      })
+      .catch(e => {
+        console.error('Previous supplier lookup error:', e);
+        setHint('Network error during lookup', '#b91c1c');
+      });
+  }
+
+  if (newOldSel) {
+    newOldSel.addEventListener('change', lookupPreviousSupplier);
+  }
+})();
+</script>
+{% endblock %}
