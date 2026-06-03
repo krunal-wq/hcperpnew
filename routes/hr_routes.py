@@ -221,7 +221,7 @@ def emp_dashboard():
         type_counts=type_counts,
         gender_counts=gender_counts,
         months_trend=months_trend,
-        total_ctc=round(total_ctc/12),  # monthly payroll
+        total_ctc=round(total_ctc),  # CTC is monthly
         avg_ctc=round(avg_ctc),
         sal_filled=sal_filled,
         bday_emps=bday_emps[:8],
@@ -1021,6 +1021,66 @@ def contractors():
         grid_cols=grid_cols, all_cols=CTR_COLS_ALL)
 
 
+# ── Contractor document field maps ──
+_CTR_DOC_NUMBERS = [
+    'aadhaar_no', 'pancard', 'gstno', 'epfo_no', 'pt_no', 'msme_no',
+    'glwf_no', 'contract_license_no', 'esic_no', 'agreement_no',
+    'trade_license_no', 'bank_account_no', 'ifsc_code',
+]
+_CTR_DOC_FILES = [
+    'aadhaar_file', 'pan_file', 'gst_file', 'epfo_file', 'pt_file', 'msme_file',
+    'glwf_file', 'contract_license_file', 'esic_file', 'agreement_file',
+    'trade_file', 'bank_file',
+]
+_CTR_REQUIRED_DOCS = [
+    ('aadhaar_no', 'Aadhaar'), ('pancard', 'PAN'), ('gstno', 'GST'),
+    ('epfo_no', 'EPFO / PF'), ('pt_no', 'Professional Tax'), ('msme_no', 'MSME / Udyam'),
+    ('glwf_no', 'GLWF'), ('contract_license_no', 'Contract License'),
+    ('agreement_no', 'Agreement'),
+]
+
+
+def _ctr_missing_docs(mpc):
+    """Return list of missing mandatory contractor documents."""
+    missing = [lbl for fld, lbl in _CTR_REQUIRED_DOCS
+               if not (request.form.get(fld) or '').strip()]
+    # CLRA mandatory only when manpower capacity >= 50
+    if mpc is not None and mpc >= 50 and not (request.form.get('trade_license_no') or '').strip():
+        missing.append('CLRA (50+ manpower)')
+    return missing
+
+
+def _ctr_apply_numbers(c):
+    for _fld in _CTR_DOC_NUMBERS:
+        setattr(c, _fld, (request.form.get(_fld) or '').strip() or None)
+
+
+def _ctr_save_doc_file(field):
+    """Save an uploaded contractor doc file; return relative path or None."""
+    import os as _os, uuid as _uuid
+    from flask import current_app as _ca
+    from werkzeug.utils import secure_filename
+    fobj = request.files.get(field)
+    if not fobj or not fobj.filename:
+        return None
+    name = secure_filename(fobj.filename)
+    ext = name.rsplit('.', 1)[-1].lower() if '.' in name else ''
+    if ext not in ('pdf', 'jpg', 'jpeg', 'png'):
+        return None
+    updir = _os.path.join(_ca.root_path, 'static', 'uploads', 'contractors')
+    _os.makedirs(updir, exist_ok=True)
+    fname = f"{field}_{_uuid.uuid4().hex[:10]}.{ext}"
+    fobj.save(_os.path.join(updir, fname))
+    return f"uploads/contractors/{fname}"
+
+
+def _ctr_apply_files(c):
+    for _fld in _CTR_DOC_FILES:
+        _saved = _ctr_save_doc_file(_fld)
+        if _saved:
+            setattr(c, _fld, _saved)
+
+
 @hr.route('/contractors/add', methods=['GET', 'POST'])
 @login_required
 def contractor_add():
@@ -1029,13 +1089,20 @@ def contractor_add():
         flash('Access denied.', 'error'); return redirect(url_for('hr.contractors'))
 
     if request.method == 'POST':
+        _mpc = (request.form.get('manpower_capacity') or '').strip()
+        _mpc = int(_mpc) if _mpc.isdigit() else None
+
+        missing = _ctr_missing_docs(_mpc)
+        if missing:
+            flash('Required documents missing: ' + ', '.join(missing), 'error')
+            return redirect(url_for('hr.contractor_add'))
+
         last = Contractor.query.order_by(Contractor.id.desc()).first()
         num  = (last.id + 1) if last else 1
         c = Contractor(
             company_name   = request.form.get('company_name', '').strip(),
             supply         = request.form.get('supply', '').strip(),
-            pancard        = request.form.get('pancard', '').strip(),
-            gstno          = request.form.get('gstno', '').strip(),
+            manpower_capacity = _mpc,
             remarks        = request.form.get('remarks', '').strip(),
             contract_id    = f"CTR-{num:04d}",
             contact_person = request.form.get('contact_person', '').strip(),
@@ -1045,6 +1112,8 @@ def contractor_add():
             status         = 1,
             created_by     = current_user.full_name or current_user.username,
         )
+        _ctr_apply_numbers(c)
+        _ctr_apply_files(c)
         db.session.add(c)
         db.session.commit()
         flash(f'Contractor {c.contract_id} added!', 'success')
@@ -1063,16 +1132,25 @@ def contractor_edit(id):
 
     c = Contractor.query.get_or_404(id)
     if request.method == 'POST':
+        _mpc = (request.form.get('manpower_capacity') or '').strip()
+        _mpc = int(_mpc) if _mpc.isdigit() else None
+
+        missing = _ctr_missing_docs(_mpc)
+        if missing:
+            flash('Required documents missing: ' + ', '.join(missing), 'error')
+            return redirect(url_for('hr.contractor_edit', id=id))
+
         c.company_name   = request.form.get('company_name', '').strip()
         c.supply         = request.form.get('supply', '').strip()
-        c.pancard        = request.form.get('pancard', '').strip()
-        c.gstno          = request.form.get('gstno', '').strip()
+        c.manpower_capacity = _mpc
         c.remarks        = request.form.get('remarks', '').strip()
         c.contact_person = request.form.get('contact_person', '').strip()
         c.contact_no     = request.form.get('contact_no', '').strip()
         c.email_address  = request.form.get('email_address', '').strip()
         c.address        = request.form.get('address', '').strip()
         c.status         = int(request.form.get('status', 1))
+        _ctr_apply_numbers(c)
+        _ctr_apply_files(c)
         c.modified_by    = current_user.full_name or current_user.username
         c.modified_date  = datetime.utcnow()
         db.session.commit()
@@ -1081,6 +1159,7 @@ def contractor_edit(id):
 
     return render_template('hr/contractors/form.html',
         contractor=c, perm=perm, active_page='hr_contractors')
+
 
 
 @hr.route('/contractors/<int:id>/delete', methods=['POST'])
@@ -1293,7 +1372,7 @@ def emp_import():
                         bank_branch     = _gv(bk,'Branch','bank_branch'),
                         bank_account_type = _gv(bk,'Account Type','bank_account_type'),
                         # Salary
-                        salary_ctc      = _dec(_gv(sl,'CTC Annual','salary_ctc')),
+                        salary_ctc      = _dec(_gv(sl,'CTC Monthly','salary_ctc')),
                         salary_basic    = _dec(_gv(sl,'Basic','salary_basic')),
                         salary_hra      = _dec(_gv(sl,'HRA','salary_hra')),
                         salary_da       = _dec(_gv(sl,'DA','salary_da')),
@@ -1458,8 +1537,8 @@ def emp_import_template():
     # ── Sheet 5: Salary ──
     ws5 = wb.create_sheet("5 - Salary")
     build_tpl(ws5, "B45309",
-        ["Code","Full Name","CTC Annual","Basic","HRA","DA","TA","Medical","Special","PF Emp","PF Er","ESIC Emp","ESIC Er","Prof Tax","TDS","Net Salary","Mode","Effective Date"],
-        ["Match Sheet1 Code","For reference","Annual CTC in ₹","Monthly basic","Monthly HRA","Monthly DA","Transport","Medical allow","Special allow","PF deduction","PF employer","ESIC employee","ESIC employer","Prof. tax","TDS monthly","Net take-home","Cash/Bank Transfer/Cheque","DD-MM-YYYY"],
+        ["Code","Full Name","CTC Monthly","Basic","HRA","DA","TA","Medical","Special","PF Emp","PF Er","ESIC Emp","ESIC Er","Prof Tax","TDS","Net Salary","Mode","Effective Date"],
+        ["Match Sheet1 Code","For reference","Monthly CTC in ₹","Monthly basic","Monthly HRA","Monthly DA","Transport","Medical allow","Special allow","PF deduction","PF employer","ESIC employee","ESIC employer","Prof. tax","TDS monthly","Net take-home","Cash/Bank Transfer/Cheque","DD-MM-YYYY"],
         ["EMP0001","Krunal Chandi","480000","16000","8000","1600","1600","1250","0","1920","1920","0","0","200","0","15280","Bank Transfer","01-01-2022"]
     )
 
@@ -1661,7 +1740,7 @@ def emp_export_single(id):
     # ── Sheet 5: Salary ──
     ws5 = wb.create_sheet("5 - Salary")
     write_sheet(ws5, "B45309", [
-        ("CTC (Annual)", fmt_cur(e.salary_ctc)),
+        ("CTC (Monthly)", fmt_cur(e.salary_ctc)),
         ("Basic Salary", fmt_cur(e.salary_basic)),
         ("HRA", fmt_cur(e.salary_hra)),
         ("DA (Dearness Allow.)", fmt_cur(e.salary_da)),
@@ -1886,7 +1965,7 @@ def emp_export():
 
     # Sheet 5: Salary
     ws5 = wb.create_sheet("5 - Salary")
-    h5 = ["Code","Full Name","CTC Annual","Basic","HRA","DA","TA","Medical","Special","PF Emp","PF Er","ESIC Emp","ESIC Er","Prof Tax","TDS","Net Salary","Mode"]
+    h5 = ["Code","Full Name","CTC Monthly","Basic","HRA","DA","TA","Medical","Special","PF Emp","PF Er","ESIC Emp","ESIC Er","Prof Tax","TDS","Net Salary","Mode"]
     r5 = []
     def fc(v): return round(float(v),2) if v else ''
     for e in emps:

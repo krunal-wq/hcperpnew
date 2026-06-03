@@ -85,13 +85,12 @@
   </div>
   <div style="display:flex;gap:.5rem;align-items:center;">
     {# Month navigation #}
-    {% set prev_month = month_start.replace(day=1) %}
-    <a href="?month={{ (month_start - timedelta(days=1)).strftime('%Y-%m') }}"
+    <a href="?month={{ prev_month }}"
        style="padding:.3rem .7rem;border:1px solid var(--border);border-radius:8px;font-size:.78rem;color:var(--text);text-decoration:none;">← Prev</a>
     <span style="font-size:.82rem;font-weight:700;color:var(--text);">
       {{ month_start.strftime('%B %Y') }}
     </span>
-    <a href="?month={{ (month_end + timedelta(days=1)).strftime('%Y-%m') }}"
+    <a href="?month={{ next_month }}"
        style="padding:.3rem .7rem;border:1px solid var(--border);border-radius:8px;font-size:.78rem;color:var(--text);text-decoration:none;">Next →</a>
   </div>
 </div>

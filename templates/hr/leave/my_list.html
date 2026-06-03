@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}My Leave{% endblock %}
+{% block page_title %}My Leave Applications{% endblock %}
+{% block bread %}HR / My Leave{% endblock %}
+{% block extra_css %}
+<style>
+.lv-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:.6rem;}
+.lv-who{font-size:.85rem;}
+.lv-who b{color:#1d4ed8;}
+.lv-bal{display:inline-flex;gap:.4rem;margin-left:.5rem;}
+.lv-bal span{background:#eff6ff;color:#1d4ed8;padding:2px 9px;border-radius:20px;font-size:.7rem;font-weight:800;}
+.btn-pri{background:#2563eb;color:#fff;border:none;padding:.5rem 1.1rem;border-radius:9px;font-weight:700;font-size:.82rem;cursor:pointer;text-decoration:none;}
+.lv-table{width:100%;border-collapse:collapse;background:#fff;border:1px solid var(--border);border-radius:12px;overflow:hidden;}
+.lv-table th,.lv-table td{padding:.6rem .7rem;font-size:.8rem;text-align:left;border-bottom:1px solid #f1f5f9;vertical-align:middle;}
+.lv-table th{background:#f8fafc;font-weight:700;color:var(--text2);white-space:nowrap;}
+.st{padding:2px 9px;border-radius:20px;font-size:.68rem;font-weight:800;text-transform:uppercase;}
+.st.pending{background:#fef3c7;color:#b45309;}
+.st.approved{background:#dcfce7;color:#16a34a;}
+.st.rejected{background:#fee2e2;color:#dc2626;}
+.lt-badge{background:#eff6ff;color:#1d4ed8;padding:2px 7px;border-radius:6px;font-size:.7rem;font-weight:800;font-family:monospace;}
+.lv-empty{text-align:center;padding:2.5rem;color:var(--text3);}
+</style>
+{% endblock %}
+{% block content %}
+<div class="lv-top">
+  <div class="lv-who">
+    <b>{{ emp.full_name }}</b>
+    <span class="lv-bal">
+      <span>CL: {{ emp.casual_leave_balance or 0 }}</span>
+      <span>SL: {{ emp.sick_leave_balance or 0 }}</span>
+      <span>PL: {{ emp.paid_leave_balance or 0 }}</span>
+    </span>
+  </div>
+  <a href="/hr/leave/my/apply" class="btn-pri">+ Apply Leave</a>
+</div>
+
+{% if applications %}
+<table class="lv-table">
+  <thead><tr>
+    <th>#</th><th>Type</th><th>From</th><th>To</th><th>Days</th>
+    <th>Reason</th><th>Applied</th><th>Status</th><th>Decision</th>
+  </tr></thead>
+  <tbody>
+    {% for a in applications %}
+    <tr>
+      <td>{{ loop.index }}</td>
+      <td><span class="lt-badge">{{ a.leave_type }}</span></td>
+      <td>{{ a.from_date.strftime('%d-%m-%Y') if a.from_date else '' }}</td>
+      <td>{{ a.to_date.strftime('%d-%m-%Y') if a.to_date else '' }}</td>
+      <td><b>{{ a.days }}</b>{% if a.half_day %} <span style="font-size:.65rem;color:var(--text3);">½</span>{% endif %}</td>
+      <td style="max-width:220px;">{{ a.reason or '—' }}</td>
+      <td style="font-size:.72rem;color:var(--text3);">{{ a.applied_at.strftime('%d-%m-%Y') if a.applied_at else '' }}</td>
+      <td><span class="st {{ a.status }}">{{ a.status }}</span></td>
+      <td style="font-size:.72rem;color:var(--text3);">
+        {% if a.decided_by %}{{ a.decided_by }}{% if a.decision_note %}<br>"{{ a.decision_note }}"{% endif %}{% else %}—{% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<div class="lv-table"><div class="lv-empty">Aapne abhi tak koi leave apply nahi ki. <a href="/hr/leave/my/apply">Apply karein →</a></div></div>
+{% endif %}
+{% endblock %}

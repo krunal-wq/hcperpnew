@@ -983,9 +983,13 @@ def my_attendance():
         })
         current_day += timedelta(days=1)
 
+    prev_month = (month_start - timedelta(days=1)).strftime('%Y-%m')
+    next_month = (month_end + timedelta(days=1)).strftime('%Y-%m')
+
     return render_template('hr/attendance/my_attendance.html',
         emp=emp, month_str=month_str,
         month_start=month_start, month_end=month_end,
+        prev_month=prev_month, next_month=next_month,
         records=records, calendar_days=calendar_days,
         summary=summary, today_punches=today_punches,
         today=date.today(),

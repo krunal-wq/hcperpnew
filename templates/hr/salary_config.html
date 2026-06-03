@@ -129,6 +129,7 @@
           <option value="HCP FACTORY STAFF" style="color:#000;">🏭 Plant — Factory Staff</option>
           <option value="HCP WORKER" style="color:#000;">🏭 Plant — Worker</option>
           <option value="WFH" style="color:#000;">🏢 HO — WFH</option>
+          <option value="HCP CONTRACTOR" style="color:#000;">🚫 Contractor (N/A)</option>
         </select>
       </div>
       <div style="display:flex;align-items:center;gap:.4rem;">
@@ -158,7 +159,7 @@
       <div class="sc-prev-item"><label>PF (Employer) <span style="opacity:.55;font-size:.6rem">(er)</span></label><span class="val" id="pv_pf_er">—</span></div>
       <div class="sc-prev-item"><label>ESIC (Employer) <span style="opacity:.55;font-size:.6rem">(er)</span></label><span class="val" id="pv_esic_er">—</span></div>
       <div class="sc-prev-item"><label>Bonus <span style="opacity:.55;font-size:.6rem">(er)</span></label><span class="val" id="pv_bonus">—</span></div>
-      <div class="sc-prev-item hi"><label>Cost to Company (Annual)</label><span class="val" id="pv_ctc_total">—</span></div>
+      <div class="sc-prev-item hi"><label>Cost to Company (Monthly)</label><span class="val" id="pv_ctc_total">—</span></div>
     </div>
   </div>
 
@@ -622,6 +623,17 @@ function updatePreview(){
 
   // Categorize
   var t = empType.toUpperCase();
+  var isContractor = (t.indexOf('CONTRACTOR') !== -1);
+  if (isContractor) {
+    catLbl.textContent = '🚫 Contractor — N/A';
+    catLbl.style.background = 'rgba(251,191,36,.3)';
+    ['pv_basic','pv_hra','pv_conv','pv_med','pv_other','pv_gross',
+     'pv_pf_emp','pv_esic_emp','pv_pt','pv_net',
+     'pv_pf_er','pv_esic_er','pv_bonus','pv_ctc_total'].forEach(function(id){
+       var e=document.getElementById(id); if(e) e.textContent='—';
+     });
+    return;
+  }
   var isPlant  = (t.indexOf('FACTORY') !== -1) || (t.indexOf('WORKER') !== -1);
   var isOffice = (t.indexOf('OFFICE') !== -1) || (t.indexOf('HO') === 0) || (t.indexOf('WFH') !== -1);
   if (!isPlant && !isOffice) isOffice = true;
@@ -664,7 +676,7 @@ function updatePreview(){
   bonus = Math.round(gross * cfg.hcp_bonus_pct / 100);
   var deductions = pfEmp + esicEmp + pt;
   var net = Math.round(gross - deductions);
-  var ctcAnnual = Math.round((gross + pfEr + esicEr + bonus) * 12);
+  var ctcMonthly = Math.round(gross + pfEr + esicEr + bonus);
 
   // Render
   document.getElementById('pv_basic').textContent   = fmt(basic);
@@ -680,7 +692,7 @@ function updatePreview(){
   document.getElementById('pv_pf_er').textContent   = fmt(pfEr);
   document.getElementById('pv_esic_er').textContent = esicEr > 0 ? fmt(Math.round(esicEr)) : '—';
   document.getElementById('pv_bonus').textContent   = fmt(bonus);
-  document.getElementById('pv_ctc_total').textContent = fmt(ctcAnnual);
+  document.getElementById('pv_ctc_total').textContent = fmt(ctcMonthly);
 }
 
 // ── Core config save ──

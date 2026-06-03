@@ -7,7 +7,7 @@ from flask_login import login_required, current_user
 from audit_helper import audit, snapshot
 from datetime import datetime
 from models import db, User, Employee, Contractor, WishLog, SalaryConfig, SalaryComponent, EmployeeTypeMaster, EmployeeLocationMaster, DepartmentMaster, DesignationMaster, NationalityMaster, QualificationMaster, GradeMaster
-from models.hr_rules import HRShift
+from models.hr_rules import HRShift, HRLeaveApplication
 from permissions import get_perm, get_grid_columns, save_grid_columns
 
 hr = Blueprint('hr', __name__, url_prefix='/hr')
@@ -317,7 +317,7 @@ def emp_dashboard():
         type_counts=type_counts,
         gender_counts=gender_counts,
         months_trend=months_trend,
-        total_ctc=round(total_ctc/12),  # monthly payroll
+        total_ctc=round(total_ctc),  # CTC is monthly
         avg_ctc=round(avg_ctc),
         sal_filled=sal_filled,
         bday_emps=bday_emps[:8],
@@ -1914,6 +1914,66 @@ def contractors():
         grid_cols=grid_cols, all_cols=CTR_COLS_ALL)
 
 
+# ── Contractor document field maps ──
+_CTR_DOC_NUMBERS = [
+    'aadhaar_no', 'pancard', 'gstno', 'epfo_no', 'pt_no', 'msme_no',
+    'glwf_no', 'contract_license_no', 'esic_no', 'agreement_no',
+    'trade_license_no', 'bank_account_no', 'ifsc_code',
+]
+_CTR_DOC_FILES = [
+    'aadhaar_file', 'pan_file', 'gst_file', 'epfo_file', 'pt_file', 'msme_file',
+    'glwf_file', 'contract_license_file', 'esic_file', 'agreement_file',
+    'trade_file', 'bank_file',
+]
+_CTR_REQUIRED_DOCS = [
+    ('aadhaar_no', 'Aadhaar'), ('pancard', 'PAN'), ('gstno', 'GST'),
+    ('epfo_no', 'EPFO / PF'), ('pt_no', 'Professional Tax'), ('msme_no', 'MSME / Udyam'),
+    ('glwf_no', 'GLWF'), ('contract_license_no', 'Contract License'),
+    ('agreement_no', 'Agreement'),
+]
+
+
+def _ctr_missing_docs(mpc):
+    """Return list of missing mandatory contractor documents."""
+    missing = [lbl for fld, lbl in _CTR_REQUIRED_DOCS
+               if not (request.form.get(fld) or '').strip()]
+    # CLRA mandatory only when manpower capacity >= 50
+    if mpc is not None and mpc >= 50 and not (request.form.get('trade_license_no') or '').strip():
+        missing.append('CLRA (50+ manpower)')
+    return missing
+
+
+def _ctr_apply_numbers(c):
+    for _fld in _CTR_DOC_NUMBERS:
+        setattr(c, _fld, (request.form.get(_fld) or '').strip() or None)
+
+
+def _ctr_save_doc_file(field):
+    """Save an uploaded contractor doc file; return relative path or None."""
+    import os as _os, uuid as _uuid
+    from flask import current_app as _ca
+    from werkzeug.utils import secure_filename
+    fobj = request.files.get(field)
+    if not fobj or not fobj.filename:
+        return None
+    name = secure_filename(fobj.filename)
+    ext = name.rsplit('.', 1)[-1].lower() if '.' in name else ''
+    if ext not in ('pdf', 'jpg', 'jpeg', 'png'):
+        return None
+    updir = _os.path.join(_ca.root_path, 'static', 'uploads', 'contractors')
+    _os.makedirs(updir, exist_ok=True)
+    fname = f"{field}_{_uuid.uuid4().hex[:10]}.{ext}"
+    fobj.save(_os.path.join(updir, fname))
+    return f"uploads/contractors/{fname}"
+
+
+def _ctr_apply_files(c):
+    for _fld in _CTR_DOC_FILES:
+        _saved = _ctr_save_doc_file(_fld)
+        if _saved:
+            setattr(c, _fld, _saved)
+
+
 @hr.route('/contractors/add', methods=['GET', 'POST'])
 @login_required
 def contractor_add():
@@ -1922,13 +1982,20 @@ def contractor_add():
         flash('Access denied.', 'error'); return redirect(url_for('hr.contractors'))
 
     if request.method == 'POST':
+        _mpc = (request.form.get('manpower_capacity') or '').strip()
+        _mpc = int(_mpc) if _mpc.isdigit() else None
+
+        missing = _ctr_missing_docs(_mpc)
+        if missing:
+            flash('Required documents missing: ' + ', '.join(missing), 'error')
+            return redirect(url_for('hr.contractor_add'))
+
         last = Contractor.query.order_by(Contractor.id.desc()).first()
         num  = (last.id + 1) if last else 1
         c = Contractor(
             company_name   = request.form.get('company_name', '').strip(),
             supply         = request.form.get('supply', '').strip(),
-            pancard        = request.form.get('pancard', '').strip(),
-            gstno          = request.form.get('gstno', '').strip(),
+            manpower_capacity = _mpc,
             remarks        = request.form.get('remarks', '').strip(),
             contract_id    = f"CTR-{num:04d}",
             contact_person = request.form.get('contact_person', '').strip(),
@@ -1938,6 +2005,8 @@ def contractor_add():
             status         = 1,
             created_by     = current_user.full_name or current_user.username,
         )
+        _ctr_apply_numbers(c)
+        _ctr_apply_files(c)
         db.session.add(c)
         db.session.commit()
         flash(f'Contractor {c.contract_id} added!', 'success')
@@ -1956,16 +2025,25 @@ def contractor_edit(id):
 
     c = Contractor.query.get_or_404(id)
     if request.method == 'POST':
+        _mpc = (request.form.get('manpower_capacity') or '').strip()
+        _mpc = int(_mpc) if _mpc.isdigit() else None
+
+        missing = _ctr_missing_docs(_mpc)
+        if missing:
+            flash('Required documents missing: ' + ', '.join(missing), 'error')
+            return redirect(url_for('hr.contractor_edit', id=id))
+
         c.company_name   = request.form.get('company_name', '').strip()
         c.supply         = request.form.get('supply', '').strip()
-        c.pancard        = request.form.get('pancard', '').strip()
-        c.gstno          = request.form.get('gstno', '').strip()
+        c.manpower_capacity = _mpc
         c.remarks        = request.form.get('remarks', '').strip()
         c.contact_person = request.form.get('contact_person', '').strip()
         c.contact_no     = request.form.get('contact_no', '').strip()
         c.email_address  = request.form.get('email_address', '').strip()
         c.address        = request.form.get('address', '').strip()
         c.status         = int(request.form.get('status', 1))
+        _ctr_apply_numbers(c)
+        _ctr_apply_files(c)
         c.modified_by    = current_user.full_name or current_user.username
         c.modified_date  = datetime.utcnow()
         db.session.commit()
@@ -1974,6 +2052,7 @@ def contractor_edit(id):
 
     return render_template('hr/contractors/form.html',
         contractor=c, perm=perm, active_page='hr_contractors')
+
 
 
 @hr.route('/contractors/<int:id>/delete', methods=['POST'])
@@ -2229,7 +2308,7 @@ def emp_import():
                         bat = _gv(bk,'Account Type','bank_account_type')
                         if bat: e.bank_account_type = bat
                         # Salary
-                        ctc = _dec(_gv(sl,'CTC Annual','salary_ctc'))
+                        ctc = _dec(_gv(sl,'CTC Monthly','salary_ctc'))
                         if ctc: e.salary_ctc = ctc
                         net = _dec(_gv(sl,'Net Salary','salary_net'))
                         if net: e.salary_net = net
@@ -2388,7 +2467,7 @@ def emp_import():
                         bank_branch     = _gv(bk,'Branch','bank_branch'),
                         bank_account_type = _gv(bk,'Account Type','bank_account_type'),
                         # Salary
-                        salary_ctc      = _dec(_gv(sl,'CTC Annual','salary_ctc')),
+                        salary_ctc      = _dec(_gv(sl,'CTC Monthly','salary_ctc')),
                         salary_basic    = _dec(_gv(sl,'Basic','salary_basic')),
                         salary_hra      = _dec(_gv(sl,'HRA','salary_hra')),
                         salary_da       = _dec(_gv(sl,'DA','salary_da')),
@@ -2597,8 +2676,8 @@ def emp_import_template():
     # ── Sheet 5: Salary ──
     ws5 = wb.create_sheet("5 - Salary")
     build_tpl(ws5, "B45309",
-        ["Code","Full Name","CTC Annual","Basic","HRA","DA","TA","Conveyance","Medical","Special","Bonus","Incentive","Gross","PF Emp","PF Er","ESIC Emp","ESIC Er","Prof Tax","TDS","Net Salary","Mode","Effective Date"],
-        ["Match Sheet1 Code","For reference","Annual CTC in ₹","Monthly basic","Monthly HRA","Monthly DA","Transport","Conveyance","Medical allow","Special allow","Monthly bonus","Monthly incentive","Monthly gross","PF deduction","PF employer","ESIC employee","ESIC employer","Prof. tax","TDS monthly","Net take-home","Cash/Bank Transfer/Cheque","DD-MM-YYYY"],
+        ["Code","Full Name","CTC Monthly","Basic","HRA","DA","TA","Conveyance","Medical","Special","Bonus","Incentive","Gross","PF Emp","PF Er","ESIC Emp","ESIC Er","Prof Tax","TDS","Net Salary","Mode","Effective Date"],
+        ["Match Sheet1 Code","For reference","Monthly CTC in ₹","Monthly basic","Monthly HRA","Monthly DA","Transport","Conveyance","Medical allow","Special allow","Monthly bonus","Monthly incentive","Monthly gross","PF deduction","PF employer","ESIC employee","ESIC employer","Prof. tax","TDS monthly","Net take-home","Cash/Bank Transfer/Cheque","DD-MM-YYYY"],
         ["EMP0001","Krunal Chandi","480000","16000","8000","1600","1600","800","1250","0","0","0","28250","1920","1920","0","0","200","0","26130","Bank Transfer","01-01-2022"]
     )
 
@@ -2859,7 +2938,7 @@ def emp_export_single(id):
     # ── Sheet 5: Salary ──
     ws5 = wb.create_sheet("5 - Salary")
     write_sheet(ws5, "B45309", [
-        ("CTC (Annual)", fmt_cur(e.salary_ctc)),
+        ("CTC (Monthly)", fmt_cur(e.salary_ctc)),
         ("Basic Salary", fmt_cur(e.salary_basic)),
         ("HRA", fmt_cur(e.salary_hra)),
         ("DA (Dearness Allow.)", fmt_cur(e.salary_da)),
@@ -3128,7 +3207,7 @@ def emp_export():
 
     # Sheet 5: Salary
     ws5 = wb.create_sheet("5 - Salary")
-    h5 = ["Code","Full Name","CTC Annual","Basic","HRA","DA","TA","Conveyance","Medical","Special","Bonus","Incentive","Gross","PF Emp","PF Er","ESIC Emp","ESIC Er","Prof Tax","TDS","Net Salary","Mode","Effective Date"]
+    h5 = ["Code","Full Name","CTC Monthly","Basic","HRA","DA","TA","Conveyance","Medical","Special","Bonus","Incentive","Gross","PF Emp","PF Er","ESIC Emp","ESIC Er","Prof Tax","TDS","Net Salary","Mode","Effective Date"]
     r5 = []
     for e in emps:
         r5.append([e.employee_code or '',e.full_name,fc(e.salary_ctc),fc(e.salary_basic),
@@ -3313,3 +3392,285 @@ def salary_component_delete(cid):
     except Exception as e:
         db.session.rollback()
         return jsonify(ok=False, error=str(e)), 500
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# LEAVE MANAGEMENT — Apply, Approve/Reject, Balance (individual + bulk)
+# ═══════════════════════════════════════════════════════════════════════════
+from datetime import date as _date
+
+_LEAVE_TYPES = [('CL', 'Casual Leave'), ('SL', 'Sick Leave'), ('PL', 'Paid Leave'), ('LOP', 'Loss of Pay')]
+_LEAVE_BAL_FIELD = {'CL': 'casual_leave_balance', 'SL': 'sick_leave_balance', 'PL': 'paid_leave_balance'}
+# LOP has NO balance — it's unpaid leave, so no deduction on approve.
+_VALID_LEAVE_TYPES = {'CL', 'SL', 'PL', 'LOP'}
+
+
+def _leave_days(from_d, to_d, half):
+    """Inclusive day count; half-day => 0.5 (only valid when from==to)."""
+    if not from_d or not to_d:
+        return 0
+    if half and from_d == to_d:
+        return 0.5
+    return (to_d - from_d).days + 1
+
+
+@hr.route('/leave/apply', methods=['GET', 'POST'])
+@login_required
+def leave_apply():
+    perm = get_perm('hr_employees')
+    if not perm or not perm.can_view:
+        flash('Access denied.', 'error'); return redirect(url_for('dashboard'))
+
+    employees = Employee.query.filter_by(is_deleted=False)\
+        .filter(Employee.status != 'terminated')\
+        .order_by(Employee.first_name).all()
+
+    if request.method == 'POST':
+        emp_id   = request.form.get('employee_id')
+        ltype    = (request.form.get('leave_type') or '').upper()
+        from_s   = request.form.get('from_date')
+        to_s     = request.form.get('to_date')
+        half     = request.form.get('half_day') == '1'
+        reason   = (request.form.get('reason') or '').strip()
+
+        emp = Employee.query.get(emp_id) if emp_id else None
+        from_d = _parse_date(from_s)
+        to_d   = _parse_date(to_s)
+
+        errors = []
+        if not emp:           errors.append('Employee select karein')
+        if ltype not in _VALID_LEAVE_TYPES: errors.append('Leave type select karein')
+        if not from_d or not to_d: errors.append('From/To date select karein')
+        elif to_d < from_d:   errors.append('To date, From date se pehle nahi ho sakti')
+        if half and from_d and to_d and from_d != to_d:
+            errors.append('Half-day sirf single din ke liye')
+        if errors:
+            flash(' • '.join(errors), 'error')
+            return redirect(url_for('hr.leave_apply'))
+
+        days = _leave_days(from_d, to_d, half)
+        app_row = HRLeaveApplication(
+            employee_id=emp.id, leave_type=ltype, from_date=from_d, to_date=to_d,
+            days=days, half_day=half, reason=reason, status='pending',
+            applied_by=(current_user.full_name or current_user.username),
+        )
+        db.session.add(app_row)
+        db.session.commit()
+        flash(f'Leave application submit ho gayi ({days} day(s), pending approval).', 'success')
+        return redirect(url_for('hr.leave_list'))
+
+    return render_template('hr/leave/apply.html',
+        employees=employees, leave_types=_LEAVE_TYPES,
+        perm=perm, active_page='hr_leave_apply')
+
+
+@hr.route('/leave/list')
+@login_required
+def leave_list():
+    perm = get_perm('hr_employees')
+    if not perm or not perm.can_view:
+        flash('Access denied.', 'error'); return redirect(url_for('dashboard'))
+
+    status_f = request.args.get('status', '')
+    q = HRLeaveApplication.query
+    if status_f in ('pending', 'approved', 'rejected'):
+        q = q.filter_by(status=status_f)
+    apps = q.order_by(HRLeaveApplication.applied_at.desc()).all()
+
+    counts = {
+        'pending':  HRLeaveApplication.query.filter_by(status='pending').count(),
+        'approved': HRLeaveApplication.query.filter_by(status='approved').count(),
+        'rejected': HRLeaveApplication.query.filter_by(status='rejected').count(),
+    }
+    return render_template('hr/leave/list.html',
+        applications=apps, counts=counts, status_f=status_f,
+        perm=perm, active_page='hr_leave_list')
+
+
+@hr.route('/leave/<int:id>/decision', methods=['POST'])
+@login_required
+def leave_decision(id):
+    perm = get_perm('hr_employees')
+    if not perm or not perm.can_edit:
+        return jsonify(ok=False, error='Access denied'), 403
+
+    app_row = HRLeaveApplication.query.get_or_404(id)
+    action = (request.form.get('action') or '').strip()
+    note   = (request.form.get('note') or '').strip()
+
+    if app_row.status != 'pending':
+        return jsonify(ok=False, error='Already decided'), 400
+
+    if action == 'approve':
+        # LOP (Loss of Pay) is unpaid — no balance to deduct.
+        if app_row.leave_type == 'LOP':
+            app_row.status = 'approved'
+        else:
+            emp = app_row.employee
+            fld = _LEAVE_BAL_FIELD.get(app_row.leave_type)
+            if not emp or not fld:
+                return jsonify(ok=False, error='Invalid employee/leave type'), 400
+            bal = float(getattr(emp, fld) or 0)
+            need = float(app_row.days or 0)
+            if bal < need:
+                return jsonify(ok=False, error=f'Insufficient {app_row.leave_type} balance ({bal} available, {need} needed)'), 400
+            # deduct
+            setattr(emp, fld, bal - need)
+            app_row.status = 'approved'
+            app_row.balance_deducted = True
+    elif action == 'reject':
+        app_row.status = 'rejected'
+    else:
+        return jsonify(ok=False, error='Invalid action'), 400
+
+    app_row.decided_by = current_user.full_name or current_user.username
+    app_row.decided_at = datetime.now()
+    app_row.decision_note = note
+    db.session.commit()
+    return jsonify(ok=True, status=app_row.status)
+
+
+@hr.route('/leave/balance', methods=['GET'])
+@login_required
+def leave_balance():
+    perm = get_perm('hr_employees')
+    if not perm or not perm.can_view:
+        flash('Access denied.', 'error'); return redirect(url_for('dashboard'))
+
+    employees = Employee.query.filter_by(is_deleted=False)\
+        .filter(Employee.status != 'terminated')\
+        .order_by(Employee.first_name).all()
+    all_depts = [r[0] for r in db.session.query(Employee.department).distinct().all() if r[0]]
+    return render_template('hr/leave/balance.html',
+        employees=employees, all_depts=all_depts, leave_types=_LEAVE_TYPES,
+        perm=perm, active_page='hr_leave_balance')
+
+
+@hr.route('/leave/balance/save', methods=['POST'])
+@login_required
+def leave_balance_save():
+    """Add/set balance for a single employee. mode = 'add' or 'set'."""
+    perm = get_perm('hr_employees')
+    if not perm or not perm.can_edit:
+        return jsonify(ok=False, error='Access denied'), 403
+
+    emp = Employee.query.get(request.form.get('employee_id'))
+    if not emp:
+        return jsonify(ok=False, error='Employee not found'), 404
+    mode = request.form.get('mode', 'add')
+
+    def _num(v):
+        try: return float(v)
+        except (TypeError, ValueError): return None
+
+    for code, fld in _LEAVE_BAL_FIELD.items():
+        raw = request.form.get(code.lower())   # cl / sl / pl
+        val = _num(raw)
+        if val is None:
+            continue
+        cur = float(getattr(emp, fld) or 0)
+        setattr(emp, fld, (cur + val) if mode == 'add' else val)
+    db.session.commit()
+    return jsonify(ok=True,
+        cl=float(emp.casual_leave_balance or 0),
+        sl=float(emp.sick_leave_balance or 0),
+        pl=float(emp.paid_leave_balance or 0))
+
+
+@hr.route('/leave/balance/bulk', methods=['POST'])
+@login_required
+def leave_balance_bulk():
+    """Add/set the same CL/SL/PL to many employees, optionally filtered by dept/type."""
+    perm = get_perm('hr_employees')
+    if not perm or not perm.can_edit:
+        return jsonify(ok=False, error='Access denied'), 403
+
+    mode = request.form.get('mode', 'add')
+    dept = request.form.get('dept', '')
+    emptype = request.form.get('emptype', '')
+
+    def _num(v):
+        try: return float(v)
+        except (TypeError, ValueError): return None
+    vals = {code: _num(request.form.get(code.lower())) for code in _LEAVE_BAL_FIELD}
+
+    q = Employee.query.filter_by(is_deleted=False).filter(Employee.status != 'terminated')
+    if dept:    q = q.filter_by(department=dept)
+    if emptype: q = q.filter_by(employee_type=emptype)
+    emps = q.all()
+
+    n = 0
+    for emp in emps:
+        changed = False
+        for code, fld in _LEAVE_BAL_FIELD.items():
+            val = vals.get(code)
+            if val is None:
+                continue
+            cur = float(getattr(emp, fld) or 0)
+            setattr(emp, fld, (cur + val) if mode == 'add' else val)
+            changed = True
+        if changed:
+            n += 1
+    db.session.commit()
+    return jsonify(ok=True, count=n)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# EMPLOYEE SELF-SERVICE LEAVE — logged-in employee applies for own leave
+# ═══════════════════════════════════════════════════════════════════════════
+def _my_employee():
+    """Return the Employee record linked to the logged-in user, or None."""
+    return Employee.query.filter_by(user_id=current_user.id, is_deleted=False).first()
+
+
+@hr.route('/leave/my/apply', methods=['GET', 'POST'])
+@login_required
+def my_leave_apply():
+    emp = _my_employee()
+    if not emp:
+        flash('Aapka employee record link nahi hai. HR se contact karein.', 'error')
+        return redirect(url_for('dashboard'))
+
+    if request.method == 'POST':
+        ltype  = (request.form.get('leave_type') or '').upper()
+        from_d = _parse_date(request.form.get('from_date'))
+        to_d   = _parse_date(request.form.get('to_date'))
+        half   = request.form.get('half_day') == '1'
+        reason = (request.form.get('reason') or '').strip()
+
+        errors = []
+        if ltype not in _VALID_LEAVE_TYPES: errors.append('Leave type select karein')
+        if not from_d or not to_d: errors.append('From/To date select karein')
+        elif to_d < from_d:   errors.append('To date, From date se pehle nahi ho sakti')
+        if half and from_d and to_d and from_d != to_d:
+            errors.append('Half-day sirf single din ke liye')
+        if errors:
+            flash(' • '.join(errors), 'error')
+            return redirect(url_for('hr.my_leave_apply'))
+
+        days = _leave_days(from_d, to_d, half)
+        db.session.add(HRLeaveApplication(
+            employee_id=emp.id, leave_type=ltype, from_date=from_d, to_date=to_d,
+            days=days, half_day=half, reason=reason, status='pending',
+            applied_by=(current_user.full_name or current_user.username),
+        ))
+        db.session.commit()
+        flash(f'Aapki leave application submit ho gayi ({days} day(s), pending approval).', 'success')
+        return redirect(url_for('hr.my_leave_list'))
+
+    return render_template('hr/leave/my_apply.html',
+        emp=emp, leave_types=_LEAVE_TYPES, active_page='hr_my_leave')
+
+
+@hr.route('/leave/my')
+@login_required
+def my_leave_list():
+    emp = _my_employee()
+    if not emp:
+        flash('Aapka employee record link nahi hai. HR se contact karein.', 'error')
+        return redirect(url_for('dashboard'))
+
+    apps = HRLeaveApplication.query.filter_by(employee_id=emp.id)\
+        .order_by(HRLeaveApplication.applied_at.desc()).all()
+    return render_template('hr/leave/my_list.html',
+        emp=emp, applications=apps, active_page='hr_my_leave')

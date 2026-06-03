@@ -944,7 +944,7 @@ select.fi.field-error + .select2-container--default .select2-selection--single,
                 <input type="number" id="salGrossInput" class="fi" step="500" min="0" value="{{ employee.salary_gross|int if employee and employee.salary_gross else '' }}" placeholder="e.g. 30000" oninput="hcpAutoFromGross()" style="font-weight:700;font-size:1rem;">
                 <span style="font-size:.68rem;color:#92400e;margin-top:2px;">Drives all calculations</span>
             </div>
-            <div class="fg"><label class="fl">CTC (Annual) ₹ <span style="font-size:.65rem;color:var(--text3);">(auto)</span></label><input type="number" name="salary_ctc" id="salCtc" class="fi" step="1000" value="{{ employee.salary_ctc|int if employee and employee.salary_ctc else '' }}" placeholder="auto-calculated" readonly style="background:#f8fafc;font-weight:700;"></div>
+            <div class="fg"><label class="fl">CTC (Monthly) ₹ <span style="font-size:.65rem;color:var(--text3);">(auto)</span></label><input type="number" name="salary_ctc" id="salCtc" class="fi" step="1000" value="{{ employee.salary_ctc|int if employee and employee.salary_ctc else '' }}" placeholder="auto-calculated" readonly style="background:#f8fafc;font-weight:700;"></div>
             <div class="fg"><label class="fl">Salary Mode</label><select name="salary_mode" class="fi sd"><option value="">Select</option>{% for sm in ['Bank Transfer','Cash','Cheque'] %}<option value="{{ sm }}" {{ 'selected' if employee and employee.salary_mode==sm else ('selected' if sm=='Bank Transfer' and not employee else '') }}>{{ sm }}</option>{% endfor %}</select></div>
             <div class="fg"><label class="fl">Effective Date</label><input type="date" name="salary_effective_date" class="fi" value="{{ employee.salary_effective_date.strftime('%Y-%m-%d') if employee and employee.salary_effective_date else '' }}"></div>
         </div>
@@ -2503,12 +2503,13 @@ function _hcpFetchCfg(cb, forceRefresh){
 
 function _hcpGetCategory(empType, gross, cfg) {
     var t = (empType || '').toUpperCase();
+    var isContractor = (t.indexOf('CONTRACTOR') !== -1);
     var isPlant  = (t.indexOf('FACTORY') !== -1) || (t.indexOf('WORKER') !== -1);
     var isOffice = (t.indexOf('OFFICE') !== -1) || (t.indexOf('HO') === 0) || (t.indexOf('WFH') !== -1);
-    if (!isPlant && !isOffice) isOffice = true;
+    if (!isContractor && !isPlant && !isOffice) isOffice = true;
     var highGross = gross >= (cfg.hcp_high_gross_thresh || 30000);
     var cat = (isPlant ? 'plant' : 'ho') + (highGross ? '_high' : '_low');
-    return { category: cat, isPlant: isPlant, isOffice: isOffice, highGross: highGross };
+    return { category: cat, isContractor: isContractor, isPlant: isPlant, isOffice: isOffice, highGross: highGross };
 }
 
 function _hcpSetField(id, val) {
@@ -2540,6 +2541,13 @@ function _hcpDoCalc(cfg) {
 
     var empType = (document.getElementById('empTypeSelect') || {}).value || '';
     var info    = _hcpGetCategory(empType, gross, cfg);
+
+    // HCP CONTRACTOR — salary structure rules do NOT apply. Leave fields for manual entry.
+    if (info.isContractor) {
+        _hcpUpdateBanner(info, gross, cfg);
+        return;
+    }
+
     var basic, hra, conv, med, other, pfEmp, pfEr, esicEmp, esicEr, pt, bonus;
 
     var HIGH_BASIC_PCT = cfg.hcp_high_basic_pct / 100;
@@ -2606,11 +2614,11 @@ function _hcpDoCalc(cfg) {
     var net = Math.round(gross - deductions);
     _hcpSetField('salNet', net);
 
-    var ctcAnnual = Math.round((gross + pfEr + esicEr + bonus) * 12);
-    _hcpSetField('salCtc', ctcAnnual);
+    var ctcMonthly = Math.round(gross + pfEr + esicEr + bonus);
+    _hcpSetField('salCtc', ctcMonthly);
 
     _hcpUpdateBanner(info, gross, cfg);
-    if (typeof updateSalSummary === 'function') updateSalSummary(ctcAnnual, gross, deductions, net);
+    if (typeof updateSalSummary === 'function') updateSalSummary(ctcMonthly, gross, deductions, net);
 }
 
 function _hcpUpdateBanner(info, gross, cfg) {
@@ -2623,6 +2631,10 @@ function _hcpUpdateBanner(info, gross, cfg) {
     }
     if (info.disabled) {
         el.innerHTML = '⚠️ <b>HCP rules are DISABLED</b> in Salary Configuration. Enable them at <a href="/hr/salary-config/page" target="_blank" style="color:#1d4ed8;">Salary Config page</a>.';
+        return;
+    }
+    if (info.isContractor) {
+        el.innerHTML = '🚫 <b>HCP CONTRACTOR</b> — salary structure rules ke liye laagu nahi. Salary fields manually bharein (auto-calculate band hai).';
         return;
     }
     var threshK = (cfg.hcp_high_gross_thresh/1000)|0;
@@ -2664,7 +2676,7 @@ document.addEventListener('DOMContentLoaded', function(){
 
 
 function recalcNet(){var earnIds=['salBasic','salHra','salDa','salTa','salConv','salMed','salSpecial','salBonus','salIncent'];var earn=earnIds.reduce((s,id)=>{var el=document.getElementById(id);return s+(el?(parseFloat(el.value)||0):0);},0);var grossEl=document.getElementById('salGross');if(grossEl)grossEl.value=Math.round(earn);var deduct=['salPfEmp','salEsicEmp','salPt','salTds'].reduce((s,id)=>{var el=document.getElementById(id);return s+(el?(parseFloat(el.value)||0):0);},0);var net=Math.round(earn-deduct);document.getElementById('salNet').value=net;updateSalSummary(parseFloat(document.getElementById('salCtc').value)||0,earn,deduct,net);}
-function updateSalSummary(ctcA,gross,deduct,net){document.getElementById('salSummary').innerHTML='<div style="display:flex;flex-direction:column;gap:.4rem;font-size:.8rem;"><div style="display:flex;justify-content:space-between;padding:.3rem 0;border-bottom:1px solid #f1f5f9;"><span style="color:var(--text2);">CTC (Annual)</span><strong>₹'+Number(ctcA).toLocaleString('en-IN')+'</strong></div><div style="display:flex;justify-content:space-between;padding:.3rem 0;"><span style="color:var(--text2);">Gross Monthly</span><strong>₹'+Math.round(gross).toLocaleString('en-IN')+'</strong></div><div style="display:flex;justify-content:space-between;padding:.3rem 0;"><span style="color:#dc2626;">Total Deductions</span><strong style="color:#dc2626;">- ₹'+Math.round(deduct).toLocaleString('en-IN')+'</strong></div><div style="display:flex;justify-content:space-between;padding:.5rem .6rem;background:#dcfce7;border-radius:7px;margin-top:.2rem;"><span style="color:#16a34a;font-weight:800;">Net Take Home</span><strong style="color:#16a34a;font-size:1rem;">₹'+Math.round(net).toLocaleString('en-IN')+'</strong></div></div>';}
+function updateSalSummary(ctcA,gross,deduct,net){document.getElementById('salSummary').innerHTML='<div style="display:flex;flex-direction:column;gap:.4rem;font-size:.8rem;"><div style="display:flex;justify-content:space-between;padding:.3rem 0;border-bottom:1px solid #f1f5f9;"><span style="color:var(--text2);">CTC (Monthly)</span><strong>₹'+Number(ctcA).toLocaleString('en-IN')+'</strong></div><div style="display:flex;justify-content:space-between;padding:.3rem 0;"><span style="color:var(--text2);">Gross Monthly</span><strong>₹'+Math.round(gross).toLocaleString('en-IN')+'</strong></div><div style="display:flex;justify-content:space-between;padding:.3rem 0;"><span style="color:#dc2626;">Total Deductions</span><strong style="color:#dc2626;">- ₹'+Math.round(deduct).toLocaleString('en-IN')+'</strong></div><div style="display:flex;justify-content:space-between;padding:.5rem .6rem;background:#dcfce7;border-radius:7px;margin-top:.2rem;"><span style="color:#16a34a;font-weight:800;">Net Take Home</span><strong style="color:#16a34a;font-size:1rem;">₹'+Math.round(net).toLocaleString('en-IN')+'</strong></div></div>';}
 /* ─────────────────────────────────────────────────────────────────────
    Family Details — dynamic rows + JSON sync
    ───────────────────────────────────────────────────────────────────── */

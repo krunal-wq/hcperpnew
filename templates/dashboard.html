@@ -1,430 +1,186 @@
 {% extends "base.html" %}
-{% block title %}Main Dashboard — ERP{% endblock %}
-{% block page_title %}Dashboard{% endblock %}
+{% block title %}Home — HCP ERP{% endblock %}
+{% block page_title %}Home{% endblock %}
 {% block bread %}Home{% endblock %}
 
 {% block extra_css %}
 <style>
-/* Welcome card */
-.welcome-card {
-    background: linear-gradient(135deg, #1e2d5e 0%, #2563eb 60%, #0d9488 100%);
-    border-radius: 16px; padding: 1.6rem 2rem; color: #fff;
-    display: flex; align-items: center; justify-content: space-between;
-    flex-wrap: wrap; gap: 1rem; margin-bottom: 1.25rem;
-    position: relative; overflow: hidden;
-}
-.welcome-card::before { content:''; position:absolute; top:-40px; right:-40px; width:200px; height:200px; background:rgba(255,255,255,.05); border-radius:50%; }
-.welcome-card::after  { content:''; position:absolute; bottom:-60px; right:100px; width:150px; height:150px; background:rgba(255,255,255,.04); border-radius:50%; }
-.wc-title { font-size:1.35rem; font-weight:800; margin-bottom:3px; }
-.wc-sub   { font-size:.83rem; opacity:.8; }
-.wc-date  { font-size:.73rem; opacity:.6; margin-top:3px; }
-.wc-btns  { display:flex; gap:.6rem; flex-wrap:wrap; z-index:1; }
-.wc-btn   { padding:8px 18px; border-radius:9px; font-size:.82rem; font-weight:600; text-decoration:none; transition:all .15s; white-space:nowrap; }
-.wc-btn-white { background:#fff; color:#1e2d5e; }
-.wc-btn-white:hover { background:#f0f4ff; transform:translateY(-1px); }
-.wc-btn-ghost { background:rgba(255,255,255,.15); color:#fff; border:1px solid rgba(255,255,255,.3); }
-.wc-btn-ghost:hover { background:rgba(255,255,255,.25); }
+/* ═══════════════ HCP Portal Home — soft pastel card grid ═══════════════ */
+.home-wrap { max-width: 1320px; margin: 0 auto; padding: 8px 14px 60px; }
 
-/* Section label — exact like screenshot */
-.sec-lbl {
-    font-size:.72rem; font-weight:800; color:var(--text2);
-    text-transform:uppercase; letter-spacing:.09em;
-    margin-bottom:.65rem; display:flex; align-items:center; gap:6px;
+/* Greeting */
+.home-hero { margin: 18px 4px 30px; }
+.home-hi {
+    font-size: clamp(28px, 4vw, 40px); font-weight: 800;
+    color: #1e1b2e; letter-spacing: -0.025em; line-height: 1.1; margin: 0;
 }
-.sec-lbl-dot {
-    width:8px; height:8px; border-radius:50%; flex-shrink:0;
-    background:var(--blue);
+.home-hi .nm {
+    background: linear-gradient(90deg, #2563eb 0%, #7c3aed 100%);
+    -webkit-background-clip: text; background-clip: text;
+    -webkit-text-fill-color: transparent;
 }
+.home-sub { margin-top: 8px; font-size: 14px; color: #a8a29e; font-weight: 500; }
 
-/* ═══ QUICK OVERVIEW — exactly like screenshot ═══ */
-.qo-grid {
+/* Section */
+.home-sec { margin-bottom: 30px; }
+.home-sec-lbl {
+    display: flex; align-items: center; gap: 9px;
+    font-size: 14px; font-weight: 700; color: #44404f;
+    margin: 0 4px 14px; letter-spacing: -0.01em;
+}
+.home-sec-lbl .dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+
+/* Grid */
+.home-grid {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 0;
-    background: #fff;
-    border: 1px solid #e2e8f0;
-    border-radius: 14px;
-    overflow: hidden;
-    margin-bottom: 1.25rem;
+    grid-template-columns: repeat(auto-fill, minmax(232px, 1fr));
+    gap: 18px;
 }
-.qo-card {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    padding: 18px 22px;
-    text-decoration: none;
-    color: var(--text);
-    transition: background .15s;
-    border-right: 1px solid #e2e8f0;
-    position: relative;
-}
-.qo-card:last-child { border-right: none; }
-.qo-card:hover { background: #f8fafc; }
 
-/* Colored RIGHT border stripe */
-.qo-card::after {
-    content: ''; position: absolute;
-    top: 0; right: 0; width: 4px; height: 100%;
-}
-.qo-card.c-blue::after   { background: #3b82f6; }
-.qo-card.c-purple::after { background: #8b5cf6; }
-.qo-card.c-green::after  { background: #10b981; }
-.qo-card.c-amber::after  { background: #f59e0b; }
-
-/* Icon box */
-.qo-icon {
-    width: 44px; height: 44px;
-    border-radius: 11px; flex-shrink: 0;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 1.3rem;
-}
-.qo-icon.c-blue   { background: #eff6ff; }
-.qo-icon.c-purple { background: #f5f3ff; }
-.qo-icon.c-green  { background: #f0fdf4; }
-.qo-icon.c-amber  { background: #fffbeb; }
-
-/* Text */
-.qo-lbl {
-    font-size: 10px; font-weight: 800; letter-spacing: .08em;
-    text-transform: uppercase; color: var(--text3); margin-bottom: 2px;
-}
-.qo-num {
-    font-size: 1.7rem; font-weight: 900; line-height: 1;
-    letter-spacing: -0.03em;
-}
-.qo-num.c-blue   { color: #2563eb; }
-.qo-num.c-purple { color: #7c3aed; }
-.qo-num.c-green  { color: #059669; }
-.qo-num.c-amber  { color: #d97706; }
-.qo-hint { font-size: 11.5px; color: var(--text3); margin-top: 3px; }
-
-/* ═══ ERP MODULES — exact screenshot ═══ */
-.modules-grid {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 12px;
-    margin-bottom: 1.25rem;
-}
+/* Card */
 .mod-card {
-    background: #fff;
-    border: 1px solid #e2e8f0;
-    border-radius: 14px;
-    padding: 22px 16px 18px;
-    text-align: center;
-    text-decoration: none;
-    color: var(--text);
-    transition: border-color .15s, box-shadow .15s, transform .15s;
-    cursor: pointer;
+    display: flex; flex-direction: column;
+    background: #fff; border-radius: 20px;
+    border: 1px solid #efeee9;
+    box-shadow: 0 1px 2px rgba(30,27,46,.04);
+    overflow: hidden; text-decoration: none;
+    transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease;
 }
 .mod-card:hover {
-    border-color: #93c5fd;
-    box-shadow: 0 4px 16px rgba(37,99,235,.1);
-    transform: translateY(-2px);
+    transform: translateY(-4px);
+    box-shadow: 0 14px 34px rgba(76,29,149,.13);
+    border-color: #e6e0f2;
 }
-.mod-card.mod-active {
-    border: 2px solid #2563eb;
-    background: #eff6ff;
+.mc-head {
+    height: 92px; display: flex; align-items: center; justify-content: center;
+    position: relative;
 }
-.mod-icon {
-    font-size: 2rem;
-    margin-bottom: 8px;
-    display: block;
-    line-height: 1;
+.mc-ic {
+    width: 52px; height: 52px; border-radius: 15px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 24px; background: rgba(255,255,255,.65);
+    box-shadow: 0 4px 12px rgba(30,27,46,.08), inset 0 0 0 1px rgba(255,255,255,.5);
 }
-.mod-name { font-size: .88rem; font-weight: 700; color: #0f172a; margin-bottom: 3px; }
-.mod-desc { font-size: .72rem; color: var(--text3); }
-.mod-pill {
-    display: inline-block; margin-top: 6px;
-    padding: 2px 10px; border-radius: 100px;
-    font-size: .63rem; font-weight: 800;
-    background: #2563eb; color: #fff; letter-spacing: .03em;
+.mc-body { padding: 16px 18px 18px; display: flex; flex-direction: column; flex: 1; }
+.mc-cat {
+    font-size: 10.5px; font-weight: 700; letter-spacing: .08em;
+    text-transform: uppercase; color: #b1aaba; margin-bottom: 5px;
 }
+.mc-title { font-size: 17px; font-weight: 700; color: #211f2e; letter-spacing: -0.02em; margin-bottom: 6px; }
+.mc-desc  { font-size: 12.5px; color: #8b8398; line-height: 1.5; flex: 1; }
+.mc-live {
+    align-self: flex-start; margin-top: 13px;
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 11px; font-weight: 700; color: #16a34a;
+    background: #dcfce7; padding: 3px 10px; border-radius: 20px;
+}
+.mc-live .dot { width: 6px; height: 6px; border-radius: 50%; background: #22c55e; }
 
-/* ═══ LEAD STATUS — exact screenshot colored cards ═══ */
-.lead-status-grid {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 12px;
-    margin-bottom: 1.25rem;
-}
-.ls-card {
-    border-radius: 12px;
-    padding: 16px 20px;
-    display: flex; align-items: center; gap: 12px;
-    text-decoration: none;
-    transition: transform .15s, box-shadow .15s;
-}
-.ls-card:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,.12); }
+/* ── Pastel tints (header gradient + icon colour) ── */
+.tint-lav  .mc-head { background: linear-gradient(135deg,#ede9fe,#f5f3ff); } .tint-lav  .mc-ic { color:#7c3aed; }
+.tint-sky  .mc-head { background: linear-gradient(135deg,#dbeafe,#eff6ff); } .tint-sky  .mc-ic { color:#2563eb; }
+.tint-mint .mc-head { background: linear-gradient(135deg,#dcfce7,#f0fdf4); } .tint-mint .mc-ic { color:#16a34a; }
+.tint-peach.mc-head, .tint-peach .mc-head { background: linear-gradient(135deg,#ffedd5,#fff7ed); } .tint-peach .mc-ic { color:#ea580c; }
+.tint-pink .mc-head { background: linear-gradient(135deg,#fae8ff,#fdf4ff); } .tint-pink .mc-ic { color:#c026d3; }
+.tint-cyan .mc-head { background: linear-gradient(135deg,#cffafe,#ecfeff); } .tint-cyan .mc-ic { color:#0891b2; }
+.tint-sun  .mc-head { background: linear-gradient(135deg,#fef9c3,#fefce8); } .tint-sun  .mc-ic { color:#ca8a04; }
+.tint-rose .mc-head { background: linear-gradient(135deg,#ffe4e6,#fff1f2); } .tint-rose .mc-ic { color:#e11d48; }
 
-.ls-card {
-    background: #fff;
-    border: 1px solid #e2e8f0;
-    border-left: 4px solid transparent;
-    color: var(--text);
-}
-.ls-card.open       { border-left-color: #6366f1; }
-.ls-card.in_process { border-left-color: #1e2d5e; }
-.ls-card.close      { border-left-color: #0d9488; }
-.ls-card.cancel     { border-left-color: #ef4444; }
+/* section dot colours */
+.dot-blue { background:#3b82f6; } .dot-green{ background:#22c55e; }
+.dot-purple{ background:#8b5cf6;} .dot-amber{ background:#f59e0b; }
+.dot-cyan { background:#06b6d4; }
 
-.ls-icon { font-size: 1.3rem; flex-shrink: 0; }
-.ls-lbl  {
-    font-size: .65rem; font-weight: 800;
-    text-transform: uppercase; letter-spacing: .08em;
-    color: var(--text3); margin-bottom: 2px;
-}
-.ls-num  { font-size: 1.65rem; font-weight: 900; line-height: 1; letter-spacing: -0.03em; color: var(--text); }
-
-/* Bottom grid */
-.bottom-grid { display:grid; grid-template-columns:1.5fr 1fr; gap:1rem; }
-.icard { background:#fff; border:1px solid #e2e8f0; border-radius:14px; overflow:hidden; }
-.icard-hdr { padding:.85rem 1.1rem; border-bottom:1px solid #f1f5f9; display:flex; align-items:center; justify-content:space-between; }
-.icard-ttl { font-size:.87rem; font-weight:700; color:var(--text); }
-.icard-lnk { font-size:.77rem; color:#2563eb; text-decoration:none; font-weight:600; }
-.icard-lnk:hover { text-decoration:underline; }
-.icard-body { padding:.75rem 1.1rem; }
-
-.lead-item { display:flex; align-items:center; gap:.65rem; padding:.55rem 0; border-bottom:1px solid #f1f5f9; }
-.lead-item:last-child { border-bottom:none; }
-.li-av { width:30px; height:30px; border-radius:50%; flex-shrink:0; background:linear-gradient(135deg,#667eea,#764ba2); display:flex; align-items:center; justify-content:center; font-size:.65rem; font-weight:700; color:#fff; }
-.li-name { font-size:.83rem; font-weight:600; color:#2563eb; text-decoration:none; flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.li-name:hover { text-decoration:underline; }
-.li-co   { font-size:.74rem; color:var(--text2); }
-
-.rem-item { display:flex; align-items:flex-start; gap:.6rem; padding:.55rem 0; border-bottom:1px solid #f1f5f9; }
-.rem-item:last-child { border-bottom:none; }
-.rem-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; margin-top:5px; }
-.rem-ttl { font-size:.83rem; font-weight:600; color:var(--text); }
-.rem-dt  { font-size:.71rem; color:var(--text3); }
-
-@media(max-width:1100px) {
-    .qo-grid { grid-template-columns:repeat(2,1fr); }
-    .modules-grid { grid-template-columns:repeat(2,1fr); }
-    .lead-status-grid { grid-template-columns:repeat(2,1fr); }
-    .bottom-grid { grid-template-columns:1fr; }
-}
-@media(max-width:600px) {
-    .qo-grid { grid-template-columns:1fr 1fr; }
-    .qo-card { padding:14px 16px; }
-    .modules-grid { grid-template-columns:repeat(2,1fr); }
-    .lead-status-grid { grid-template-columns:repeat(2,1fr); }
-    .welcome-card { padding:1.25rem; }
-    .wc-title { font-size:1.1rem; }
-}
-/* ═══ DASHBOARD ls-card style ═══ */
-.dash-ls-grid {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 12px;
-    margin-bottom: 1.1rem;
-}
-.dash-ls-card {
-    background: #fff;
-    border: 1px solid #e2e8f0;
-    border-left: 4px solid transparent;
-    border-radius: 13px;
-    padding: 20px 24px;
-    display: flex; align-items: center; gap: 16px;
-    text-decoration: none; color: var(--text);
-    transition: transform .15s, box-shadow .15s;
-    cursor: pointer; min-height: 82px;
-}
-.dash-ls-card:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,.1); }
-.dash-ls-lbl { font-size: .63rem; font-weight: 800; text-transform: uppercase; letter-spacing: .09em; color: var(--text3); margin-bottom: 4px; }
-.dash-ls-num { font-size: 2.1rem; font-weight: 900; line-height: 1; letter-spacing: -0.03em; }
-@media(max-width:900px) { .dash-ls-grid { grid-template-columns: repeat(2,1fr); } }
-@media(max-width:500px)  { .dash-ls-grid { grid-template-columns: repeat(2,1fr); gap:8px; } .dash-ls-num { font-size:1.6rem; } }
+@media (max-width: 600px){ .home-grid{ grid-template-columns: repeat(auto-fill, minmax(160px,1fr)); gap:13px; } }
 </style>
 {% endblock %}
 
 {% block content %}
+{# ── permission flags (mirror base.html sidebar logic) ── #}
+{% set role = current_user.role if current_user.is_authenticated else '' %}
+{% set p_crm      = (get_perm('crm') and get_perm('crm').can_view and get_module_active('crm')) %}
+{% set p_packing  = (get_perm('packing') and get_perm('packing').can_view and get_module_active('packing')) %}
+{% set p_purchase = (role == 'admin' or (get_perm('material') and get_perm('material').can_view) or (get_perm('procurement') and get_perm('procurement').can_view)) %}
+{% set p_qc       = (role == 'admin' or (get_perm('qc') and get_perm('qc').can_view)) %}
+{% set p_rms      = (role == 'admin' or (get_perm('raw_material_sample') and get_perm('raw_material_sample').can_view)) %}
+{% set p_rd       = (get_perm('rd') and get_perm('rd').can_view) %}
+{% set p_npd      = ((get_perm('npd') and get_perm('npd').can_view) or role == 'admin') %}
+{% set p_hr       = (get_perm('hr') and get_perm('hr').can_view) %}
+{% set p_masters  = (get_perm('masters') and get_perm('masters').can_view) %}
+{% set p_admin    = (role == 'admin') %}
 
-<!-- Welcome -->
-<div class="welcome-card">
-    <div style="z-index:1;">
-        <div class="wc-title">👋 Welcome back, {{ current_user.full_name }}!</div>
-        <div class="wc-sub">Manufacturing ERP — Complete Business Management</div>
-        <div class="wc-date">{{ now.strftime('%A, %d %B %Y') }}</div>
+{% macro mcard(cat, title, desc, url, icon, tint, live=false) %}
+  <a class="mod-card {{ tint }}" href="{{ url }}">
+    <div class="mc-head"><span class="mc-ic"><i class="bi {{ icon }}"></i></span></div>
+    <div class="mc-body">
+      <div class="mc-cat">{{ cat }}</div>
+      <div class="mc-title">{{ title }}</div>
+      <div class="mc-desc">{{ desc }}</div>
+      {% if live %}<span class="mc-live"><span class="dot"></span>Live</span>{% endif %}
     </div>
-</div>
+  </a>
+{% endmacro %}
 
-{% if current_user.role == 'admin' %}
+<div class="home-wrap">
 
-<!-- ═══ QUICK OVERVIEW ═══ -->
-<div class="sec-lbl">
-    <span class="sec-lbl-dot" style="background:#3b82f6;"></span>
-    Quick Overview
-</div>
-<div class="dash-ls-grid">
-    <a href="/crm/leads" class="dash-ls-card" style="border-left-color:#3b82f6;">
-        <span style="font-size:1.4rem;flex-shrink:0;opacity:.85;">📋</span>
-        <div>
-            <div class="dash-ls-lbl">Total Leads</div>
-            <div class="dash-ls-num" style="color:#2563eb;">{{ lead_counts.total }}</div>
-        </div>
-    </a>
-    <a href="/crm/clients" class="dash-ls-card" style="border-left-color:#8b5cf6;">
-        <span style="font-size:1.4rem;flex-shrink:0;opacity:.85;">👥</span>
-        <div>
-            <div class="dash-ls-lbl">Clients</div>
-            <div class="dash-ls-num" style="color:#7c3aed;">{{ total_clients }}</div>
-        </div>
-    </a>
-    <a href="/crm/leads?status=close" class="dash-ls-card" style="border-left-color:#10b981;">
-        <span style="font-size:1.4rem;flex-shrink:0;opacity:.85;">✅</span>
-        <div>
-            <div class="dash-ls-lbl">Closed</div>
-            <div class="dash-ls-num" style="color:#059669;">{{ lead_counts.close }}</div>
-        </div>
-    </a>
-    <a href="/crm/leads?status=in_process" class="dash-ls-card" style="border-left-color:#f59e0b;">
-        <span style="font-size:1.4rem;flex-shrink:0;opacity:.85;">⚙️</span>
-        <div>
-            <div class="dash-ls-lbl">In Process</div>
-            <div class="dash-ls-num" style="color:#d97706;">{{ lead_counts.in_process }}</div>
-        </div>
-    </a>
-</div>
+  <div class="home-hero">
+    <h1 class="home-hi"><span id="greet">Welcome</span>, <span class="nm">{{ current_user.full_name or 'User' }}</span></h1>
+    <div class="home-sub">HCP ERP · Manufacturing Portal · <span id="todayDate"></span></div>
+  </div>
 
-<!-- ═══ ERP MODULES ═══ -->
-<div class="sec-lbl">
-    <span class="sec-lbl-dot" style="background:#6366f1;"></span>
-    ERP Modules
-</div>
-<div class="modules-grid">
-    <a href="/crm/dashboard" class="mod-card mod-active">
-        <span class="mod-icon">📊</span>
-        <div class="mod-name">CRM</div>
-        <div class="mod-desc">Leads & Clients</div>
-        <div class="mod-pill">Active</div>
-    </a>
-    <a href="#" class="mod-card">
-        <span class="mod-icon">📦</span>
-        <div class="mod-name">Inventory</div>
-        <div class="mod-desc">Stock Management</div>
-    </a>
-    <a href="#" class="mod-card">
-        <span class="mod-icon">🏭</span>
-        <div class="mod-name">Production</div>
-        <div class="mod-desc">Manufacturing</div>
-    </a>
-    <a href="#" class="mod-card">
-        <span class="mod-icon">🛒</span>
-        <div class="mod-name">Purchase</div>
-        <div class="mod-desc">Procurement</div>
-    </a>
-    <a href="#" class="mod-card">
-        <span class="mod-icon">📤</span>
-        <div class="mod-name">Sales</div>
-        <div class="mod-desc">Order Management</div>
-    </a>
-    <a href="#" class="mod-card">
-        <span class="mod-icon">💰</span>
-        <div class="mod-name">Accounts</div>
-        <div class="mod-desc">Finance & GST</div>
-    </a>
-    <a href="/hr/employees" class="mod-card">
-        <span class="mod-icon">👥</span>
-        <div class="mod-name">HR & Payroll</div>
-        <div class="mod-desc">Employee Mgmt</div>
-    </a>
-    <a href="#" class="mod-card">
-        <span class="mod-icon">📋</span>
-        <div class="mod-name">Reports</div>
-        <div class="mod-desc">Analytics</div>
-    </a>
-</div>
-
-<!-- ═══ LEAD STATUS ═══ -->
-<div class="sec-lbl">
-    <span class="sec-lbl-dot" style="background:#f59e0b;"></span>
-    Lead Status
-</div>
-<div class="dash-ls-grid">
-    <a href="/crm/leads?status=open" class="dash-ls-card" style="border-left-color:#6366f1;">
-        <span style="font-size:1.4rem;flex-shrink:0;opacity:.85;">✉️</span>
-        <div>
-            <div class="dash-ls-lbl">Open</div>
-            <div class="dash-ls-num" style="color:#4f46e5;">{{ lead_counts.open }}</div>
-        </div>
-    </a>
-    <a href="/crm/leads?status=in_process" class="dash-ls-card" style="border-left-color:#1e2d5e;">
-        <span style="font-size:1.4rem;flex-shrink:0;opacity:.85;">⚙️</span>
-        <div>
-            <div class="dash-ls-lbl">In Process</div>
-            <div class="dash-ls-num" style="color:#1e2d5e;">{{ lead_counts.in_process }}</div>
-        </div>
-    </a>
-    <a href="/crm/leads?status=close" class="dash-ls-card" style="border-left-color:#0d9488;">
-        <span style="font-size:1.4rem;flex-shrink:0;opacity:.85;">✅</span>
-        <div>
-            <div class="dash-ls-lbl">Close</div>
-            <div class="dash-ls-num" style="color:#0d9488;">{{ lead_counts.close }}</div>
-        </div>
-    </a>
-    <a href="/crm/leads?status=cancel" class="dash-ls-card" style="border-left-color:#ef4444;">
-        <span style="font-size:1.4rem;flex-shrink:0;opacity:.85;">❌</span>
-        <div>
-            <div class="dash-ls-lbl">Cancel</div>
-            <div class="dash-ls-num" style="color:#ef4444;">{{ lead_counts.cancel }}</div>
-        </div>
-    </a>
-</div>
-
-<!-- ═══ BOTTOM — Recent Leads + Reminders ═══ -->
-<div class="bottom-grid">
-    <div class="icard">
-        <div class="icard-hdr">
-            <span class="icard-ttl">🕐 Recent Leads</span>
-            <a href="/crm/leads" class="icard-lnk">View All →</a>
-        </div>
-        <div class="icard-body">
-            {% if recent_leads %}
-                {% for l in recent_leads %}
-                <div class="lead-item">
-                    <div class="li-av">{{ l.contact_name[:2]|upper }}</div>
-                    <div style="flex:1;min-width:0;">
-                        <a href="/crm/leads/{{ l.id }}" class="li-name">{{ l.contact_name }}</a>
-                        <div class="li-co">{{ l.company_name or '—' }}</div>
-                    </div>
-                    {% if l.status=='open' %}<span class="sbadge open">Open</span>
-                    {% elif l.status=='in_process' %}<span class="sbadge in-process">In Process</span>
-                    {% elif l.status=='close' %}<span class="sbadge submitted">Close</span>
-                    {% elif l.status=='cancel' %}<span class="sbadge cancel">Cancel</span>
-                    {% endif %}
-                    <div style="font-size:.7rem;color:var(--text3);white-space:nowrap;margin-left:4px;">{{ l.created_at.strftime('%d %b') }}</div>
-                </div>
-                {% endfor %}
-            {% else %}
-            <div style="text-align:center;padding:2rem;color:var(--text3);font-size:.82rem;">No leads yet. <a href="/crm/leads/add" style="color:#2563eb;font-weight:600;">Add first →</a></div>
-            {% endif %}
-        </div>
+  {# ════ SALES ════ #}
+  {% if p_crm %}
+  <div class="home-sec">
+    <div class="home-sec-lbl"><span class="dot dot-cyan"></span> Sales &amp; CRM</div>
+    <div class="home-grid">
+      {{ mcard('SALES','CRM','Leads, clients, quotations & leaderboard','/crm/dashboard','bi-graph-up-arrow','tint-cyan', true) }}
     </div>
+  </div>
+  {% endif %}
 
-    <div class="icard">
-        <div class="icard-hdr">
-            <span class="icard-ttl">🔔 Reminders</span>
-            <a href="/crm/leads" class="icard-lnk">View All →</a>
-        </div>
-        <div class="icard-body">
-            {% if upcoming_reminders %}
-                {% for r in upcoming_reminders %}
-                {% set ov = r.remind_at < now %}
-                <div class="rem-item">
-                    <div class="rem-dot" style="background:{{ '#ef4444' if ov else '#2563eb' }};"></div>
-                    <div>
-                        <div class="rem-ttl">{{ r.title }}</div>
-                        <div class="rem-dt">{{ r.remind_at.strftime('%d %b, %H:%M') }}{% if ov %} <span style="color:#ef4444;font-weight:700;">· Overdue</span>{% endif %}</div>
-                    </div>
-                </div>
-                {% endfor %}
-            {% else %}
-            <div style="text-align:center;padding:2rem;color:var(--text3);font-size:.82rem;">No upcoming reminders.</div>
-            {% endif %}
-        </div>
+  {# ════ OPERATIONS ════ #}
+  {% if p_packing or p_purchase %}
+  <div class="home-sec">
+    <div class="home-sec-lbl"><span class="dot dot-blue"></span> Operations</div>
+    <div class="home-grid">
+      {% if p_packing %}{{ mcard('PACKING','Packing Entry','Sample receipt log — date, brand, product, batch & MRP','/packing','bi-box-seam','tint-peach', true) }}{% endif %}
+      {% if p_purchase %}{{ mcard('PROCUREMENT','Raw Material','RM item master, suppliers, PO, GRN, stock & ledger','/material?item_type=RM','bi-droplet-half','tint-sky') }}{% endif %}
+      {% if p_purchase %}{{ mcard('PROCUREMENT','Packing Material','PM item master, suppliers, PO, GRN, BOM & stock','/material?item_type=PM','bi-archive','tint-lav') }}{% endif %}
+      {% if p_purchase %}{{ mcard('PROCUREMENT','Finish Good','FG item master & finished goods stock','/material?item_type=FG','bi-check2-square','tint-mint') }}{% endif %}
     </div>
+  </div>
+  {% endif %}
+
+  {# ════ R&D / NPD ════ #}
+  {% if p_rd or p_npd %}
+  <div class="home-sec">
+    <div class="home-sec-lbl"><span class="dot dot-purple"></span> Research &amp; Development</div>
+    <div class="home-grid">
+      {% if p_rd %}{{ mcard('R&D','Research &amp; Development','Projects, trials, sample ready & sample log','/rd/dashboard','bi-search-heart','tint-rose') }}{% endif %}
+      {% if p_npd %}{{ mcard('NPD / EPD','NPD','New & existing product development projects','/npd/npd-dashboard','bi-lightbulb','tint-sun') }}{% endif %}
+    </div>
+  </div>
+  {% endif %}
+
+  {# ════ PEOPLE ════ #}
+  {% if p_hr %}
+  <div class="home-sec">
+    <div class="home-sec-lbl"><span class="dot dot-green"></span> People</div>
+    <div class="home-grid">
+      {{ mcard('HUMAN RESOURCES','HR','Employees, contractors, attendance & payroll','/hr/employees/dashboard','bi-people','tint-pink') }}
+    </div>
+  </div>
+  {% endif %}
+
 </div>
 
-{% endif %}
-
+<script>
+(function(){
+  var h = new Date().getHours();
+  var g = h < 12 ? 'Good morning' : (h < 17 ? 'Good afternoon' : 'Good evening');
+  var ge = document.getElementById('greet'); if (ge) ge.textContent = g;
+  var dt = document.getElementById('todayDate');
+  if (dt) dt.textContent = new Date().toLocaleDateString('en-IN',{weekday:'long', day:'numeric', month:'long', year:'numeric'});
+})();
+</script>
 {% endblock %}

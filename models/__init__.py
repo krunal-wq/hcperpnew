@@ -14,7 +14,7 @@ from .approval   import ApprovalRequest, ApprovalLevel
 from .attendance import RawPunchLog, Attendance, HolidayMaster, LateShiftRule, LatePenaltyRule, EarlyComingRule
 from .hr_rules import (HRShift, HRLocation, HRLateRule, HRLatePenaltySlab,
                        HREarlyGoingRule, HROvertimeRule, HRLeavePolicy, HRLeaveType,
-                       HRLOPRule, HRAbsentRule, HRCompOffRule)
+                       HRLOPRule, HRAbsentRule, HRCompOffRule, HRLeaveApplication)
 from .npd        import (NPDProject, MilestoneMaster, MilestoneLog, NPDMilestoneTemplate,
                          NPDFormulation, NPDPackingMaterial, NPDArtwork, NPDActivityLog,
                          NPDComment, NPDNote,

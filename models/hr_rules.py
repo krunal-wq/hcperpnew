@@ -368,3 +368,43 @@ class HRCompOffRule(db.Model):
 
     def __repr__(self):
         return f'<HRCompOffRule {self.name}>'
+
+
+# ═══════════════════════════════════════════════════════
+# LEAVE APPLICATION  (apply → approve/reject → balance deduct)
+# ═══════════════════════════════════════════════════════
+class HRLeaveApplication(db.Model):
+    """Employee leave applications with approval workflow."""
+    __tablename__ = 'hr_leave_applications'
+
+    id            = db.Column(db.Integer, primary_key=True)
+    employee_id   = db.Column(db.Integer, db.ForeignKey('employees.id'), nullable=False)
+    leave_type    = db.Column(db.String(10), nullable=False)   # CL / SL / PL
+    from_date     = db.Column(db.Date, nullable=False)
+    to_date       = db.Column(db.Date, nullable=False)
+    days          = db.Column(db.Numeric(5, 1), nullable=False, default=1)
+    half_day      = db.Column(db.Boolean, default=False)
+    reason        = db.Column(db.Text)
+    status        = db.Column(db.String(20), default='pending')  # pending / approved / rejected
+    applied_by    = db.Column(db.String(100))
+    applied_at    = db.Column(db.DateTime, default=datetime.now)
+    decided_by    = db.Column(db.String(100))
+    decided_at    = db.Column(db.DateTime)
+    decision_note = db.Column(db.Text)
+    balance_deducted = db.Column(db.Boolean, default=False)  # guard against double-deduct
+
+    employee = db.relationship('Employee', lazy='joined')
+
+    LEAVE_LABELS = {'CL': 'Casual Leave', 'SL': 'Sick Leave', 'PL': 'Paid Leave', 'LOP': 'Loss of Pay'}
+    BALANCE_FIELD = {
+        'CL': 'casual_leave_balance',
+        'SL': 'sick_leave_balance',
+        'PL': 'paid_leave_balance',
+    }
+
+    @property
+    def type_label(self):
+        return self.LEAVE_LABELS.get(self.leave_type, self.leave_type)
+
+    def __repr__(self):
+        return f'<HRLeaveApplication emp={self.employee_id} {self.leave_type} {self.status}>'

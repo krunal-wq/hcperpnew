@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% block title %}Apply Leave{% endblock %}
+{% block page_title %}Apply Leave{% endblock %}
+{% block bread %}HR / Leave / Apply{% endblock %}
+{% block extra_css %}
+<style>
+.lv-card{background:#fff;border:1px solid var(--border);border-radius:14px;box-shadow:0 1px 6px rgba(0,0,0,.05);max-width:640px;margin:0 auto;}
+.lv-hdr{display:flex;align-items:center;gap:.6rem;padding:.9rem 1.1rem;border-bottom:1px solid var(--border);background:#f8fafc;border-radius:14px 14px 0 0;}
+.lv-hdr h3{margin:0;font-size:.95rem;}
+.lv-body{padding:1.1rem;}
+.lv-fg{margin-bottom:.9rem;}
+.lv-fl{display:block;font-size:.78rem;font-weight:700;color:var(--text2);margin-bottom:.3rem;}
+.lv-fi{width:100%;padding:.55rem .7rem;border:1.5px solid var(--border);border-radius:9px;font-size:.85rem;font-family:inherit;}
+.lv-row{display:flex;gap:.8rem;flex-wrap:wrap;}
+.lv-row > .lv-fg{flex:1;min-width:180px;}
+.lv-bal{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.3rem;}
+.lv-bal span{background:#eff6ff;color:#1d4ed8;padding:3px 10px;border-radius:20px;font-size:.72rem;font-weight:800;}
+.lv-actions{display:flex;justify-content:flex-end;gap:.6rem;padding:.9rem 1.1rem;border-top:1px solid var(--border);}
+.btn-pri{background:#2563eb;color:#fff;border:none;padding:.55rem 1.3rem;border-radius:9px;font-weight:700;font-size:.85rem;cursor:pointer;}
+.btn-sec{background:#f1f5f9;color:var(--text2);border:none;padding:.55rem 1.1rem;border-radius:9px;font-weight:700;font-size:.85rem;cursor:pointer;text-decoration:none;}
+.lv-days{font-size:.8rem;font-weight:800;color:#16a34a;}
+</style>
+{% endblock %}
+{% block content %}
+<form method="POST" class="lv-card" id="leaveForm">
+  <div class="lv-hdr"><span style="font-size:1.2rem;">📝</span><h3>Apply Leave</h3></div>
+  <div class="lv-body">
+    <div class="lv-fg">
+      <label class="lv-fl">Employee *</label>
+      <select name="employee_id" id="empSel" class="lv-fi" required onchange="showBal()">
+        <option value="">— Select employee —</option>
+        {% for e in employees %}
+        <option value="{{ e.id }}"
+          data-cl="{{ e.casual_leave_balance or 0 }}"
+          data-sl="{{ e.sick_leave_balance or 0 }}"
+          data-pl="{{ e.paid_leave_balance or 0 }}">
+          {{ e.employee_code }} — {{ e.full_name }}{% if e.department %} ({{ e.department }}){% endif %}
+        </option>
+        {% endfor %}
+      </select>
+      <div class="lv-bal" id="balRow" style="display:none;">
+        <span>CL: <b id="balCL">0</b></span>
+        <span>SL: <b id="balSL">0</b></span>
+        <span>PL: <b id="balPL">0</b></span>
+      </div>
+    </div>
+
+    <div class="lv-fg">
+      <label class="lv-fl">Leave Type *</label>
+      <select name="leave_type" class="lv-fi" required onchange="lopNote(this)">
+        <option value="">— Select —</option>
+        {% for code, name in leave_types %}
+        <option value="{{ code }}">{{ name }} ({{ code }})</option>
+        {% endfor %}
+      </select>
+      <div id="lopNote" style="display:none;font-size:.72rem;color:#b45309;margin-top:.3rem;">ℹ️ Loss of Pay unpaid hai — kisi balance se minus nahi hoga.</div>
+    </div>
+
+    <div class="lv-row">
+      <div class="lv-fg">
+        <label class="lv-fl">From Date *</label>
+        <input type="date" name="from_date" id="fromD" class="lv-fi" required onchange="calcDays()">
+      </div>
+      <div class="lv-fg">
+        <label class="lv-fl">To Date *</label>
+        <input type="date" name="to_date" id="toD" class="lv-fi" required onchange="calcDays()">
+      </div>
+    </div>
+
+    <div class="lv-fg">
+      <label class="lv-fl" style="display:flex;align-items:center;gap:.4rem;font-weight:600;">
+        <input type="checkbox" name="half_day" value="1" id="halfD" onchange="calcDays()" style="width:auto;">
+        Half Day (single din ke liye)
+      </label>
+      <div class="lv-days" id="daysOut"></div>
+    </div>
+
+    <div class="lv-fg">
+      <label class="lv-fl">Reason</label>
+      <textarea name="reason" class="lv-fi" rows="3" placeholder="Leave ka reason..."></textarea>
+    </div>
+  </div>
+  <div class="lv-actions">
+    <a href="/hr/leave/list" class="btn-sec">Cancel</a>
+    <button type="submit" class="btn-pri">Submit Application</button>
+  </div>
+</form>
+
+<script>
+function lopNote(sel){
+  document.getElementById('lopNote').style.display = (sel.value==='LOP') ? 'block' : 'none';
+}
+function showBal(){
+  var o=document.getElementById('empSel').selectedOptions[0];
+  var row=document.getElementById('balRow');
+  if(!o || !o.value){ row.style.display='none'; return; }
+  document.getElementById('balCL').textContent=o.getAttribute('data-cl');
+  document.getElementById('balSL').textContent=o.getAttribute('data-sl');
+  document.getElementById('balPL').textContent=o.getAttribute('data-pl');
+  row.style.display='flex';
+}
+function calcDays(){
+  var f=document.getElementById('fromD').value, t=document.getElementById('toD').value;
+  var half=document.getElementById('halfD').checked;
+  var out=document.getElementById('daysOut');
+  if(!f||!t){ out.textContent=''; return; }
+  var fd=new Date(f), td=new Date(t);
+  if(td<fd){ out.textContent='⚠️ To date From se pehle hai'; out.style.color='#dc2626'; return; }
+  var days=Math.round((td-fd)/86400000)+1;
+  if(half){ if(f===t){ days=0.5; } else { out.textContent='⚠️ Half-day sirf single din'; out.style.color='#dc2626'; return; } }
+  out.style.color='#16a34a';
+  out.textContent='Total: '+days+' day(s)';
+}
+</script>
+{% endblock %}

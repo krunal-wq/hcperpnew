@@ -62,7 +62,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/theme.css') }}">
     {% block extra_css %}{% endblock %}
 </head>
-<body class="sb-preload">
+<body class="sb-preload {% if active_page == 'dashboard' %}is-home{% endif %}">
 
 <div class="overlay" id="overlay" onclick="closeSB()"></div>
 
@@ -726,6 +726,9 @@
             <a class="nav-a {% if _pg == 'hierarchy' %}active{% endif %}" href="/hierarchy">
                 <span class="nav-ic"><i class="bi bi-building"></i></span><span class="nav-txt">Org Chart</span>
             </a>
+        </div>
+        <div class="sb-sec">
+            <div class="sb-sec-lbl">Attendance</div>
             <a class="nav-a {% if _pg == 'hr_attendance' %}active{% endif %}" href="/hr/attendance">
                 <span class="nav-ic"><i class="bi bi-clock"></i></span><span class="nav-txt">Attendance</span>
             </a>
@@ -753,15 +756,23 @@
             <a class="nav-a nav-sub {% if _pg == 'att_holidays' %}active{% endif %}" href="/hr/attendance/holidays">
                 <span class="nav-ic"><i class="bi bi-stars"></i></span><span class="nav-txt">Holidays</span>
             </a>
-
-            <a class="nav-a nav-sub {% if _pg == 'my_attendance' %}active{% endif %}" href="/hr/attendance/my">
-                <span class="nav-ic"><i class="bi bi-person"></i></span><span class="nav-txt">My Attendance</span>
+        </div>
+        <div class="sb-sec">
+            <div class="sb-sec-lbl">Leave</div>
+            <a class="nav-a {% if _pg == 'hr_leave_apply' %}active{% endif %}" href="/hr/leave/apply">
+                <span class="nav-ic"><i class="bi bi-calendar-plus"></i></span><span class="nav-txt">Apply Leave</span>
+            </a>
+            <a class="nav-a {% if _pg == 'hr_leave_list' %}active{% endif %}" href="/hr/leave/list">
+                <span class="nav-ic"><i class="bi bi-list-check"></i></span><span class="nav-txt">Leave Applications</span>
+            </a>
+            <a class="nav-a {% if _pg == 'hr_leave_balance' %}active{% endif %}" href="/hr/leave/balance">
+                <span class="nav-ic"><i class="bi bi-wallet2"></i></span><span class="nav-txt">Leave Balance</span>
             </a>
         </div>
         {% set _perm_hr_rules = get_perm('hr') %}
         {% if _perm_hr_rules and _perm_hr_rules.can_view %}
         <div class="sb-sec">
-            <div class="sb-sec-lbl">Rules & Policies</div>
+            <div class="sb-sec-lbl">Policies</div>
 
             {# ── Attendance Rules ── #}
             <button class="sb-acc-hdr {% if _pg in ('hr_shifts','hr_locations_master','hr_late_rules','hr_early_rules','hr_ot_rules','late_rules') %}open{% endif %}" onclick="toggleAccordion(this)">
@@ -850,7 +861,7 @@
 
         </div>
         <div class="sb-sec">
-            <div class="sb-sec-lbl">Configuration</div>
+            <div class="sb-sec-lbl">Salary</div>
             <a class="nav-a {% if _pg == 'salary_config' %}active{% endif %}" href="/hr/salary-config/page">
                 <span class="nav-ic"><i class="bi bi-gear"></i></span><span class="nav-txt">Salary Config</span>
             </a>
@@ -1072,8 +1083,16 @@
                 <div class="u-name">{{ current_user.full_name }}</div>
                 <div class="u-role">{{ current_user.role|capitalize }}</div>
             </div>
-            <a href="/admin/profile" title="My Profile" style="text-decoration:none;font-size:15px;padding:4px 7px;border-radius:7px;color:var(--text3);transition:background .12s;" onmouseover="this.style.background='var(--bg)'" onmouseout="this.style.background=''">👤</a>
-            <a href="{{ url_for('logout') }}" class="logout-a" title="Logout">↩</a>
+            <div class="u-menu-wrap">
+                <button type="button" class="u-menu-btn" title="Menu" onclick="toggleUserMenu(event)">⋮</button>
+                <div class="u-menu" id="userMenu">
+                    <a href="/admin/profile" class="u-menu-item"><span>👤</span> My Profile</a>
+                    <a href="/hr/attendance/my" class="u-menu-item"><span>🕒</span> My Attendance</a>
+                    <a href="/hr/leave/my" class="u-menu-item"><span>📝</span> My Leave Application</a>
+                    <div class="u-menu-sep"></div>
+                    <a href="{{ url_for('logout') }}" class="u-menu-item u-menu-logout"><span>↩</span> Logout</a>
+                </div>
+            </div>
         </div>
     </div>
 </aside>
@@ -1805,7 +1824,7 @@ document.addEventListener('keydown',function(e){
     shift:'Shift', date_of_birth:'Date of Birth', blood_group:'Blood Group',
     gender:'Gender', marital_status:'Marital Status', reports_to:'Reports To',
     bank_name:'Bank Name', bank_account_number:'Account No', bank_ifsc:'IFSC',
-    salary_ctc:'CTC Annual', salary_basic:'Basic', salary_net:'Net Salary',
+    salary_ctc:'CTC Monthly', salary_basic:'Basic', salary_net:'Net Salary',
     salary_mode:'Salary Mode', highest_qualification:'Qualification',
     emergency_name:'Emergency Contact', emergency_phone:'Emergency Phone',
     /* Contractor */
@@ -2293,6 +2312,24 @@ document.addEventListener('click', function(e) {
 });
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.js"></script>
+<script>
+// ══ USER MENU (3-dot dropdown) ══════════════════════════════════
+function toggleUserMenu(e){
+  e.stopPropagation();
+  var m = document.getElementById('userMenu');
+  if (m) m.classList.toggle('open');
+}
+document.addEventListener('click', function(e){
+  var m = document.getElementById('userMenu');
+  if (!m) return;
+  if (!m.classList.contains('open')) return;
+  if (!e.target.closest('.u-menu-wrap')) m.classList.remove('open');
+});
+document.addEventListener('keydown', function(e){
+  if (e.key === 'Escape'){ var m=document.getElementById('userMenu'); if(m) m.classList.remove('open'); }
+});
+</script>
+
 <script>
 // ══ GLOBAL FLATPICKR — All date inputs auto-initialized ══════════
 (function() {

@@ -83,6 +83,10 @@
             <input type="text" name="supply" class="fi" value="{{ contractor.supply if contractor else '' }}" placeholder="Type of supply/service">
           </div>
           <div class="fg">
+            <label class="fl">Manpower Capacity</label>
+            <input type="number" min="0" step="1" name="manpower_capacity" id="manpower_capacity" class="fi" value="{{ contractor.manpower_capacity if (contractor and contractor.manpower_capacity is not none) else '' }}" placeholder="No. of workers" oninput="updateClraRequirement()">
+          </div>
+          <div class="fg">
             <label class="fl">Contact Person <span style="color:#ef4444;">*</span></label>
             <input type="text" name="contact_person" id="contact_person" class="fi" value="{{ contractor.contact_person if contractor else '' }}" placeholder="Contact person name">
             <div id="err_contact_person" style="display:none;font-size:.72rem;color:#dc2626;margin-top:3px;">⚠️ Contact Person required</div>
@@ -125,29 +129,42 @@
         <div class="doc-grid">
 
           {% set docs = [
-            ('aadhaar','🪪','Aadhaar Card','aadhaar_no','Aadhaar Number','XXXX XXXX XXXX','aadhaar_file',12),
-            ('pan','💳','PAN Card','pancard','PAN Number','ABCDE1234F','pan_file',10),
-            ('gst','🏛️','GST Certificate','gstno','GST Number','22AAAAA0000A1Z5','gst_file',15),
-            ('msme','🏭','MSME / Udyam','msme_no','Udyam Reg. No','UDYAM-XX-00-0000000','msme_file',19),
-            ('trade','📜','Trade License','trade_license_no','License Number','License number','trade_file',30),
-            ('bank','🏦','Bank / Cancelled Cheque','bank_account_no','Account Number','Account number','bank_file',18),
+            ('aadhaar','🪪','Aadhaar Card','aadhaar_no','Aadhaar Number','XXXX XXXX XXXX','aadhaar_file',12,True),
+            ('pan','💳','PAN Card','pancard','PAN Number','ABCDE1234F','pan_file',10,True),
+            ('gst','🏛️','GST Certificate','gstno','GST Number','22AAAAA0000A1Z5','gst_file',15,True),
+            ('epfo','🏢','EPFO / PF','epfo_no','PF Code / EPFO No','PF establishment code','epfo_file',30,True),
+            ('pt','🧾','Professional Tax (PT)','pt_no','PT Reg. No','Professional Tax no.','pt_file',30,True),
+            ('msme','🏭','MSME / Udyam','msme_no','Udyam Reg. No','UDYAM-XX-00-0000000','msme_file',19,True),
+            ('glwf','🤝','GLWF','glwf_no','GLWF No','Labour Welfare Fund no.','glwf_file',30,True),
+            ('contract','📑','Contract License','contract_license_no','Contract License No','Contract labour license no.','contract_license_file',50,True),
+            ('esic','🏥','ESIC','esic_no','ESIC No','ESIC code (NA if none)','esic_file',30,False),
+            ('agreement','✍️','Agreement','agreement_no','Agreement No','Agreement reference no.','agreement_file',50,True),
+            ('trade','📜','CLRA','trade_license_no','CLRA Reg. No','CLRA registration no.','trade_file',30,False),
+            ('bank','🏦','Bank / Cancelled Cheque','bank_account_no','Account Number','Account number','bank_file',18,False),
           ] %}
 
-          {% for key, icon, title, field_name, num_label, num_ph, file_field, maxlen in docs %}
+          {% for key, icon, title, field_name, num_label, num_ph, file_field, maxlen, req in docs %}
           <div class="doc-card" id="dc-{{ key }}">
             <div class="doc-card-hdr">
               <span class="doc-icon">{{ icon }}</span>
-              <span class="doc-title">{{ title }}</span>
+              <span class="doc-title">{{ title }}</span>{% if req %}<span style="color:#ef4444;font-weight:800;"> *</span>{% endif %}{% if key == 'trade' %}<span id="clra-req-star" style="color:#ef4444;font-weight:800;display:none;"> *</span>{% endif %}
               <span class="doc-status-dot"></span>
             </div>
             <div class="doc-card-body">
               <div>
                 <span class="doc-num-label">{{ num_label }}</span>
-                <input type="text" name="{{ field_name }}" class="doc-num-input"
+                <input type="text" name="{{ field_name }}" id="docnum-{{ key }}" class="doc-num-input"
                   maxlength="{{ maxlen }}" placeholder="{{ num_ph }}"
                   value="{{ contractor[field_name] if contractor and contractor[field_name] else '' }}"
+                  {% if req %}data-req="1" data-doclabel="{{ title }}"{% endif %}
                   {% if field_name in ('pancard','gstno','msme_no','trade_license_no') %}style="text-transform:uppercase;"{% endif %}
                   oninput="docNumChange(this,'{{ key }}')">
+                {% if req %}
+                <div id="err_doc_{{ key }}" style="display:none;font-size:.72rem;color:#dc2626;margin-top:3px;">⚠️ {{ title }} number required</div>
+                {% endif %}
+                {% if key == 'trade' %}
+                <div id="err_clra" style="display:none;font-size:.72rem;color:#dc2626;margin-top:3px;">⚠️ CLRA registration required when Manpower Capacity is 50 or more.</div>
+                {% endif %}
               </div>
               {% if key == 'bank' %}
               <div>
@@ -221,6 +238,49 @@ REQUIRED_FIELDS.forEach(function(f){
   var el=document.getElementById(f.id);
   if(el) el.addEventListener('input',function(){_setErr(f.id,false);});
 });
+
+// CLRA becomes mandatory when Manpower Capacity >= 50
+var CLRA_THRESHOLD = 50;
+function updateClraRequirement(){
+  var mpEl = document.getElementById('manpower_capacity');
+  var mp = mpEl ? parseInt(mpEl.value, 10) : NaN;
+  var need = !isNaN(mp) && mp >= CLRA_THRESHOLD;
+  var star = document.getElementById('clra-req-star');
+  if(star) star.style.display = need ? 'inline' : 'none';
+  if(!need){
+    var clra = document.getElementById('docnum-trade');
+    var clraErr = document.getElementById('err_clra');
+    if(clra){ clra.style.borderColor=''; clra.style.background=''; }
+    if(clraErr) clraErr.style.display='none';
+  }
+  return need;
+}
+(function(){
+  var clra = document.getElementById('docnum-trade');
+  if(clra) clra.addEventListener('input', function(){
+    var clraErr = document.getElementById('err_clra');
+    clra.style.borderColor=''; clra.style.background='';
+    if(clraErr) clraErr.style.display='none';
+  });
+  updateClraRequirement();
+})();
+
+function validateRequiredDocs(errors){
+  document.querySelectorAll('.doc-num-input[data-req="1"]').forEach(function(inp){
+    var card=inp.closest('.doc-card');
+    var key=card ? card.id.replace('dc-','') : '';
+    var errEl=document.getElementById('err_doc_'+key);
+    if(!inp.value.trim()){
+      inp.style.borderColor='#ef4444'; inp.style.background='#fff5f5';
+      if(errEl) errEl.style.display='block';
+      errors.push(inp.getAttribute('data-doclabel')||'Document');
+    } else {
+      inp.style.borderColor=''; inp.style.background='';
+      if(errEl) errEl.style.display='none';
+    }
+  });
+}
+
 function submitContractorForm() {
   var errors=[];
   REQUIRED_FIELDS.forEach(function(f){
@@ -228,11 +288,31 @@ function submitContractorForm() {
     if(!el||!el.value.trim()){_setErr(f.id,true);errors.push(f.label);}
     else _setErr(f.id,false);
   });
+  // Mandatory documents (Aadhaar, PAN, GST, EPFO, PT, MSME, GLWF, Contract License, Agreement)
+  validateRequiredDocs(errors);
+  // CLRA conditional requirement (>= 50 manpower)
+  if(updateClraRequirement()){
+    var clra = document.getElementById('docnum-trade');
+    var clraErr = document.getElementById('err_clra');
+    if(!clra || !clra.value.trim()){
+      if(clra){ clra.style.borderColor='#ef4444'; clra.style.background='#fff5f5'; }
+      if(clraErr) clraErr.style.display='block';
+      errors.push('CLRA Reg. No (required for 50+ manpower)');
+    } else {
+      if(clra){ clra.style.borderColor=''; clra.style.background=''; }
+      if(clraErr) clraErr.style.display='none';
+    }
+  }
   if(errors.length){
     document.getElementById('valBannerMsg').textContent='Please fill required fields: '+errors.join(', ');
     document.getElementById('valBanner').style.display='block';
-    var fid=REQUIRED_FIELDS.find(function(f){return errors.indexOf(f.label)>=0;}).id;
-    var fe=document.getElementById(fid);
+    var firstReq=REQUIRED_FIELDS.find(function(f){return errors.indexOf(f.label)>=0;});
+    var fe=firstReq ? document.getElementById(firstReq.id) : null;
+    if(!fe){
+      var rd=document.querySelectorAll('.doc-num-input[data-req="1"]');
+      for(var i=0;i<rd.length;i++){ if(!rd[i].value.trim()){ fe=rd[i]; break; } }
+    }
+    if(!fe) fe=document.getElementById('docnum-trade');
     if(fe){fe.scrollIntoView({behavior:'smooth',block:'center'});fe.focus();}
     return;
   }
@@ -260,6 +340,10 @@ function clearFile(key) {
 function docNumChange(inp, key) {
   var dc=document.getElementById('dc-'+key);
   if(dc) dc.classList.toggle('has-number', inp.value.trim().length > 0);
+  if(inp.value.trim()){
+    inp.style.borderColor=''; inp.style.background='';
+    var e=document.getElementById('err_doc_'+key); if(e) e.style.display='none';
+  }
 }
 function dragOver(e,el){e.preventDefault();el.classList.add('drag-over');}
 function dragLeave(el){el.classList.remove('drag-over');}

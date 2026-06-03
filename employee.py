@@ -23,6 +23,7 @@ class Contractor(db.Model):
     id             = db.Column(db.BigInteger, primary_key=True)
     company_name   = db.Column(db.String(255), nullable=False)
     supply         = db.Column(db.String(100))
+    manpower_capacity = db.Column(db.Integer)   # No. of workers contractor can supply
     pancard        = db.Column(db.String(50))
     gstno          = db.Column(db.String(50))
     remarks        = db.Column(db.Text)
@@ -52,6 +53,20 @@ class Contractor(db.Model):
     msme_file     = db.Column(db.String(255))
     trade_file    = db.Column(db.String(255))
     bank_file     = db.Column(db.String(255))
+
+    # ── New contractor registrations (number + file) ──
+    epfo_no               = db.Column(db.String(30))
+    pt_no                 = db.Column(db.String(30))
+    glwf_no               = db.Column(db.String(30))
+    contract_license_no   = db.Column(db.String(50))
+    esic_no               = db.Column(db.String(30))
+    agreement_no          = db.Column(db.String(50))
+    epfo_file             = db.Column(db.String(255))
+    pt_file               = db.Column(db.String(255))
+    glwf_file             = db.Column(db.String(255))
+    contract_license_file = db.Column(db.String(255))
+    esic_file             = db.Column(db.String(255))
+    agreement_file        = db.Column(db.String(255))
 
     # ── Other / Extra Documents (JSON list) ────────────────────────
     # Format: [{"type": "ISO Certificate", "doc_no": "...", "file": "path/..."}, ...]

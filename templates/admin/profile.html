@@ -552,7 +552,7 @@
                 <div style="font-size:1.1rem;font-weight:800;color:#15803d;margin-top:3px;">₹{{ '{:,.0f}'.format(employee.salary_net) if employee.salary_net else '—' }}</div>
             </div>
             <div style="background:#dbeafe;border:1.5px solid #93c5fd;border-radius:9px;padding:.65rem .85rem;">
-                <div style="font-size:.68rem;color:#1d4ed8;font-weight:700;text-transform:uppercase;letter-spacing:.04em;">💼 CTC (Annual)</div>
+                <div style="font-size:.68rem;color:#1d4ed8;font-weight:700;text-transform:uppercase;letter-spacing:.04em;">💼 CTC (Monthly)</div>
                 <div style="font-size:1.1rem;font-weight:800;color:#1d4ed8;margin-top:3px;">₹{{ '{:,.0f}'.format(employee.salary_ctc) if employee.salary_ctc else '—' }}</div>
             </div>
         </div>
@@ -861,12 +861,13 @@ function _hcpFetchCfg(cb, forceRefresh){
 }
 function _hcpGetCategory(empType, gross, cfg) {
     var t = (empType || '').toUpperCase();
+    var isContractor = (t.indexOf('CONTRACTOR') !== -1);
     var isPlant  = (t.indexOf('FACTORY') !== -1) || (t.indexOf('WORKER') !== -1);
     var isOffice = (t.indexOf('OFFICE') !== -1) || (t.indexOf('HO') === 0) || (t.indexOf('WFH') !== -1);
-    if (!isPlant && !isOffice) isOffice = true;
+    if (!isContractor && !isPlant && !isOffice) isOffice = true;
     var thresh = (cfg && cfg.hcp_high_gross_thresh) || 30000;
     return { category: (isPlant ? 'plant' : 'ho') + (gross >= thresh ? '_high' : '_low'),
-             isPlant: isPlant, isOffice: isOffice, highGross: gross >= thresh };
+             isContractor: isContractor, isPlant: isPlant, isOffice: isOffice, highGross: gross >= thresh };
 }
 function _hcpSetField(id, val) { var el = document.getElementById(id); if (el) el.value = Math.round(val); }
 
@@ -889,6 +890,12 @@ function _hcpDoCalc(cfg) {
 
     var empType = (document.getElementById('empTypeSelect') || {}).value || '';
     var info    = _hcpGetCategory(empType, gross, cfg);
+
+    if (info.isContractor) {
+        _hcpUpdateBanner(info, gross, cfg);
+        return;
+    }
+
     var basic, hra, conv, med, other, pfEmp, pfEr, esicEmp, esicEr, pt, bonus;
 
     var HIGH_BASIC_PCT = cfg.hcp_high_basic_pct / 100;
@@ -938,7 +945,7 @@ function _hcpDoCalc(cfg) {
     var tds = parseFloat((document.getElementById('salTds')||{}).value) || 0;
     var deductions = pfEmp + esicEmp + pt + tds;
     _hcpSetField('salNet', gross - deductions);
-    _hcpSetField('salCtc', (gross + pfEr + esicEr + bonus) * 12);
+    _hcpSetField('salCtc', (gross + pfEr + esicEr + bonus));
     _hcpUpdateBanner(info, gross, cfg);
 }
 
@@ -948,6 +955,10 @@ function _hcpUpdateBanner(info, gross, cfg) {
     if (!info || gross <= 0) { el.textContent = 'Enter Gross Salary below — Basic, HRA, PF, ESIC etc. will auto-calculate as per company rules.'; return; }
     if (info.disabled) {
         el.innerHTML = '⚠️ <b>HCP rules are DISABLED</b> in Salary Configuration. Enable them at <a href="/hr/salary-config/page" target="_blank" style="color:#1d4ed8;">Salary Config page</a>.';
+        return;
+    }
+    if (info.isContractor) {
+        el.innerHTML = '🚫 <b>HCP CONTRACTOR</b> — salary structure rules ke liye laagu nahi. Salary fields manually bharein (auto-calculate band hai).';
         return;
     }
     var threshK = (cfg.hcp_high_gross_thresh/1000)|0;
