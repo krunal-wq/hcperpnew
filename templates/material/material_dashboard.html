@@ -1,0 +1,286 @@
+{% extends "base.html" %}
+{% block title %}{{ mtitle }}{% endblock %}
+{% block page_title %}{{ mtitle }}{% endblock %}
+{% block bread %}Purchase / {{ mtitle }}{% endblock %}
+
+{% block extra_css %}
+<style>
+.main{ background:
+  radial-gradient(120% 55% at 0% 0%, #f3f0fc 0%, rgba(243,240,252,0) 55%),
+  radial-gradient(120% 60% at 100% 20%, #fdeef4 0%, rgba(253,238,244,0) 50%),
+  #f7f7fb !important; }
+.dash{ max-width:1700px; margin:0 auto; padding:8px 4px 30px; color:#1e1b2e; }
+
+.dh{ display:flex; align-items:flex-start; justify-content:space-between; flex-wrap:wrap; gap:12px; margin:2px 0 20px; }
+.dh-title{ font-size:23px; font-weight:800; letter-spacing:-.025em; margin:0; }
+.dh-sub{ font-size:13px; color:#9b95a6; margin-top:3px; }
+.dh-tools{ display:flex; gap:9px; align-items:center; flex-wrap:wrap; }
+.dh-select{ font-family:'Inter',sans-serif; font-size:13px; font-weight:600; color:#4a4560; background:#fff; border:1px solid #e8e6ef; border-radius:11px; padding:9px 30px 9px 13px; cursor:pointer; appearance:none; -webkit-appearance:none; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='%239b95a6' d='M0 0l5 6 5-6z'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 12px center; }
+.dh-date{ font-family:'Inter',sans-serif; font-size:12.5px; color:#4a4560; background:#fff; border:1px solid #e8e6ef; border-radius:10px; padding:8px 10px; }
+.dh-primary{ background:linear-gradient(135deg,#7c3aed,#6366f1); color:#fff; border:none; box-shadow:0 7px 18px rgba(99,102,241,.30); border-radius:11px; padding:9px 15px; font-size:12.5px; font-weight:600; cursor:pointer; }
+
+.panel{ background:#fff; border:1px solid #efeef3; border-radius:18px; box-shadow:0 2px 12px rgba(30,27,46,.04); padding:18px 18px 16px; }
+.panel-h{ display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+.panel-t{ font-size:15px; font-weight:700; letter-spacing:-.01em; }
+.panel-link{ font-size:11.5px; font-weight:600; color:#6d5fe6; text-decoration:none; } .panel-link:hover{ text-decoration:underline; }
+
+.kpi-grid{ display:grid; grid-template-columns:repeat(6,1fr); gap:14px; margin-bottom:16px; }
+.kpi{ background:#fff; border:1px solid #efeef3; border-radius:16px; padding:15px 16px; display:flex; align-items:flex-start; gap:12px; box-shadow:0 2px 12px rgba(30,27,46,.04); }
+.kpi-ic{ width:42px; height:42px; border-radius:12px; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:18px; }
+.kpi-l{ font-size:11px; font-weight:600; color:#9b95a6; }
+.kpi-n{ font-size:22px; font-weight:800; letter-spacing:-.02em; line-height:1.2; margin:2px 0; }
+.kpi-c{ font-size:10.5px; color:#b7b2c2; }
+.k-lav{background:#f1edfe;color:#7c3aed;} .k-green{background:#e7f8ef;color:#16a34a;} .k-amber{background:#fef3e2;color:#ea580c;} .k-blue{background:#e7f0fe;color:#2563eb;} .k-rose{background:#fde7ea;color:#e11d48;} .k-cyan{background:#e3f6fb;color:#0891b2;}
+
+.row3{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px; margin-bottom:16px; }
+.row4{ display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:16px; }
+.rowb{ display:grid; grid-template-columns:1.1fr 1fr 1fr; gap:16px; margin-bottom:16px; }
+
+.line-box,.bar-box{ position:relative; width:100%; height:170px; }
+.line-box canvas,.bar-box canvas{ position:absolute; inset:0; width:100%!important; height:100%!important; }
+
+.dn-wrap{ display:flex; align-items:center; gap:14px; }
+.dn-c{ width:150px; height:150px; flex-shrink:0; position:relative; }
+.dn-c canvas{ position:absolute; inset:0; width:100%!important; height:100%!important; }
+.dn-center{ position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+.dn-center .big{ font-size:16px; font-weight:800; } .dn-center .sm{ font-size:10px; color:#9b95a6; }
+.dn-leg{ flex:1; display:flex; flex-direction:column; gap:8px; }
+.dn-li{ display:flex; align-items:center; gap:8px; font-size:12px; }
+.dn-li .nm{ color:#3a3550; font-weight:600; } .dn-li .vl{ margin-left:auto; color:#9b95a6; }
+.fn-dot{ width:9px; height:9px; border-radius:50%; flex-shrink:0; }
+
+.rmt{ width:100%; border-collapse:collapse; font-size:12px; }
+.rmt th{ text-align:left; font-size:10.5px; font-weight:700; color:#9b95a6; text-transform:uppercase; letter-spacing:.04em; padding:6px 8px; border-bottom:1px solid #f0eef5; }
+.rmt td{ padding:8px; border-bottom:1px solid #f6f5f9; color:#3a3550; }
+.rmt tr:last-child td{ border-bottom:none; }
+.rmt .danger{ color:#e11d48; font-weight:700; } .rmt .warn{ color:#ea580c; font-weight:700; }
+.badge{ font-size:10px; font-weight:700; padding:2px 8px; border-radius:100px; }
+.empty{ font-size:12.5px; color:#b7b2c2; padding:18px 4px; text-align:center; }
+
+.sv-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:12px; }
+.sv-card{ border-radius:14px; padding:16px 14px; text-align:center; }
+.sv-ic{ width:40px; height:40px; border-radius:50%; margin:0 auto 8px; display:flex; align-items:center; justify-content:center; font-size:17px; background:rgba(255,255,255,.7); }
+.sv-l{ font-size:11px; color:#7a7588; font-weight:600; } .sv-n{ font-size:17px; font-weight:800; letter-spacing:-.02em; margin-top:3px; }
+.sv-1{ background:linear-gradient(135deg,#eef0ff,#f3eefe); } .sv-1 .sv-ic{ color:#7c3aed; }
+.sv-2{ background:linear-gradient(135deg,#fdeee7,#fdf1ea); } .sv-2 .sv-ic{ color:#ea580c; }
+.sv-3{ background:linear-gradient(135deg,#e7f8ef,#eafdf4); } .sv-3 .sv-ic{ color:#16a34a; }
+
+.rm-foot{ display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; font-size:11.5px; color:#9b95a6; margin-top:6px; padding:0 4px; }
+
+@media(max-width:1200px){ .kpi-grid{grid-template-columns:repeat(3,1fr)} .row4{grid-template-columns:repeat(2,1fr)} }
+@media(max-width:1000px){ .row3,.rowb{grid-template-columns:1fr} }
+@media(max-width:560px){ .kpi-grid,.row4,.sv-grid{grid-template-columns:1fr} }
+</style>
+{% endblock %}
+
+{% block content %}
+{% set a = analytics if analytics is defined else {} %}
+{% set ss = a.get('stock_summary', {'total':0,'blocked':0,'available':0}) %}
+{% set cat_total = (a.get('category', [])|sum(attribute='value')) or 0 %}
+{% set age_total = (a.get('aging', [])|sum(attribute='value')) or 0 %}
+
+<div class="dash">
+
+  <!-- HEADER -->
+  <div class="dh">
+    <div>
+      <h1 class="dh-title">{{ mtitle }}</h1>
+      <div class="dh-sub">{{ msub }}</div>
+    </div>
+    <div class="dh-tools">
+      <select id="periodSel" class="dh-select" onchange="onPeriodChange()">
+        <option value="all"          {{ 'selected' if period=='all' else '' }}>All Time</option>
+        <option value="today"        {{ 'selected' if period=='today' else '' }}>Today</option>
+        <option value="yesterday"    {{ 'selected' if period=='yesterday' else '' }}>Yesterday</option>
+        <option value="last_7_days"  {{ 'selected' if period=='last_7_days' else '' }}>Last 7 Days</option>
+        <option value="last_30_days" {{ 'selected' if period=='last_30_days' else '' }}>Last 30 Days</option>
+        <option value="custom"       {{ 'selected' if period=='custom' else '' }}>Custom Date</option>
+      </select>
+      <span id="customRange" style="display:{{ 'inline-flex' if period=='custom' else 'none' }}; gap:6px; align-items:center;">
+        <input type="date" id="dFrom" class="dh-date" value="{{ cust_from }}">
+        <span style="color:#9b95a6;">–</span>
+        <input type="date" id="dTo" class="dh-date" value="{{ cust_to }}">
+        <button type="button" class="dh-primary" onclick="applyCustom()">Apply</button>
+      </span>
+    </div>
+  </div>
+
+  <!-- KPI ROW -->
+  <div class="kpi-grid">
+    <div class="kpi"><div class="kpi-ic k-lav"><i class="bi bi-clipboard-data"></i></div><div><div class="kpi-l">Total {{ mabbr }} Items</div><div class="kpi-n">{{ "{:,}".format(a.get('total_items',0)) }}</div><div class="kpi-c">Active Items</div></div></div>
+    <div class="kpi"><div class="kpi-ic k-green"><i class="bi bi-currency-rupee"></i></div><div><div class="kpi-l">{{ mabbr }} Stock Value</div><div class="kpi-n">&#8377;{{ "{:,.0f}".format(a.get('stock_value',0)) }}</div><div class="kpi-c">Current Stock Value</div></div></div>
+    <div class="kpi"><div class="kpi-ic k-amber"><i class="bi bi-receipt"></i></div><div><div class="kpi-l">Pending {{ mabbr }} PO</div><div class="kpi-n">{{ "{:,}".format(a.get('pending_po',0)) }}</div><div class="kpi-c">Open Purchase Orders</div></div></div>
+    <div class="kpi"><div class="kpi-ic k-blue"><i class="bi bi-box-seam"></i></div><div><div class="kpi-l">Pending {{ mabbr }} GRN</div><div class="kpi-n">{{ "{:,}".format(a.get('pending_grn',0)) }}</div><div class="kpi-c">Pending Receipts</div></div></div>
+    <div class="kpi"><div class="kpi-ic k-rose"><i class="bi bi-exclamation-triangle"></i></div><div><div class="kpi-l">Low Stock {{ mabbr }} Items</div><div class="kpi-n">{{ "{:,}".format(a.get('low_stock',0)) }}</div><div class="kpi-c">Below Reorder Level</div></div></div>
+    <div class="kpi"><div class="kpi-ic k-cyan"><i class="bi bi-hourglass-split"></i></div><div><div class="kpi-l">Expiring {{ mabbr }} Items</div><div class="kpi-n">{{ "{:,}".format(a.get('expiring',0)) }}</div><div class="kpi-c">Within 30 Days</div></div></div>
+  </div>
+
+  <!-- CHARTS ROW -->
+  <div class="row3">
+    <div class="panel">
+      <div class="panel-h"><span class="panel-t">{{ mabbr }} Purchase Trend (By Value)</span><span class="dh-sub">Last 6 months</span></div>
+      <div class="line-box"><canvas id="purchaseLine"></canvas></div>
+    </div>
+    <div class="panel">
+      <div class="panel-h"><span class="panel-t">{{ mabbr }} Category Wise Stock Value</span></div>
+      <div class="dn-wrap">
+        <div class="dn-c"><canvas id="catDonut"></canvas><div class="dn-center"><span class="big">&#8377;{{ "{:,.0f}".format(cat_total) }}</span><span class="sm">Total</span></div></div>
+        <div class="dn-leg">
+          {% for c in a.get('category', []) %}<div class="dn-li"><span class="fn-dot" style="background:{{ c.color }}"></span><span class="nm">{{ c.label }}</span><span class="vl">{{ ((c.value/cat_total*100)|round)|int if cat_total else 0 }}% (&#8377;{{ "{:,.0f}".format(c.value) }})</span></div>{% endfor %}
+          {% if not a.get('category') %}<div class="dn-li"><span class="nm" style="color:#b7b2c2">No stock data yet</span></div>{% endif %}
+        </div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-h"><span class="panel-t">{{ mabbr }} Consumption Trend (By Value)</span></div>
+      {% if a.get('consumption_trend') %}
+      <div class="bar-box"><canvas id="consBar"></canvas></div>
+      {% else %}
+      <div class="empty"><i class="bi bi-bar-chart" style="font-size:22px;color:#dcd9e4;display:block;margin-bottom:6px;"></i>Consumption tracking coming soon</div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- TABLES ROW -->
+  <div class="row4">
+    <div class="panel">
+      <div class="panel-h"><span class="panel-t">Low Stock Alerts</span><a class="panel-link" href="/material?item_type={{ mabbr }}">View All</a></div>
+      {% if a.get('low_stock_rows') %}
+      <table class="rmt"><thead><tr><th>Item</th><th>Current</th><th>Reorder</th></tr></thead><tbody>
+        {% for r in a.get('low_stock_rows', []) %}<tr><td>{{ r.code }} · {{ r.name|truncate(16) }}</td><td>{{ "{:g}".format(r.current) }} {{ r.uom }}</td><td class="danger">{{ "{:g}".format(r.reorder) }} {{ r.uom }}</td></tr>{% endfor %}
+      </tbody></table>
+      {% else %}<div class="empty">No low-stock items</div>{% endif %}
+    </div>
+    <div class="panel">
+      <div class="panel-h"><span class="panel-t">Expiring Materials</span><a class="panel-link" href="/material?item_type={{ mabbr }}">View All</a></div>
+      {% if a.get('expiring_rows') %}
+      <table class="rmt"><thead><tr><th>Item</th><th>Expiry</th><th>Qty</th></tr></thead><tbody>
+        {% for r in a.get('expiring_rows', []) %}<tr><td>{{ r.code }} · {{ r.name|truncate(14) }}</td><td class="warn">{{ r.expiry.strftime('%d %b %Y') if r.expiry else '-' }}</td><td>{{ "{:g}".format(r.qty) }} {{ r.uom }}</td></tr>{% endfor %}
+      </tbody></table>
+      {% else %}<div class="empty">No expiring materials</div>{% endif %}
+    </div>
+    <div class="panel">
+      <div class="panel-h"><span class="panel-t">Pending {{ mabbr }} PO</span><a class="panel-link" href="/purchase-order?po_type={{ mabbr }}">View All</a></div>
+      {% if a.get('pending_po_rows') %}
+      <table class="rmt"><thead><tr><th>PO No</th><th>Supplier</th><th>Status</th></tr></thead><tbody>
+        {% for r in a.get('pending_po_rows', []) %}<tr><td>{{ r.no }}</td><td>{{ r.supplier|truncate(14) }}</td><td><span class="badge" style="background:{{ r.color }}22;color:{{ r.color }};">{{ r.status }}</span></td></tr>{% endfor %}
+      </tbody></table>
+      {% else %}<div class="empty">No pending POs</div>{% endif %}
+    </div>
+    <div class="panel">
+      <div class="panel-h"><span class="panel-t">Recent {{ mabbr }} GRN</span><a class="panel-link" href="/grn?grn_type={{ mabbr }}">View All</a></div>
+      {% if a.get('recent_grn') %}
+      <table class="rmt"><thead><tr><th>GRN No</th><th>Supplier</th><th>Status</th></tr></thead><tbody>
+        {% for r in a.get('recent_grn', []) %}<tr><td>{{ r.no }}</td><td>{{ r.supplier|truncate(14) }}</td><td><span class="badge" style="background:{{ r.color }}22;color:{{ r.color }};">{{ r.status }}</span></td></tr>{% endfor %}
+      </tbody></table>
+      {% else %}<div class="empty">No GRN records</div>{% endif %}
+    </div>
+  </div>
+
+  <!-- BOTTOM ROW -->
+  <div class="rowb">
+    <div class="panel">
+      <div class="panel-h"><span class="panel-t">Top Consumed {{ mabbr }} (This Month)</span></div>
+      {% if a.get('top_consumed') %}
+      <table class="rmt"><thead><tr><th>Item</th><th>Consumption</th><th>Value</th></tr></thead><tbody>
+        {% for r in a.get('top_consumed', []) %}<tr><td>{{ r.name }}</td><td>{{ r.qty }}</td><td>&#8377;{{ "{:,.0f}".format(r.value) }}</td></tr>{% endfor %}
+      </tbody></table>
+      {% else %}<div class="empty"><i class="bi bi-list-ul" style="font-size:22px;color:#dcd9e4;display:block;margin-bottom:6px;"></i>Consumption tracking coming soon</div>{% endif %}
+    </div>
+
+    <div class="panel">
+      <div class="panel-h"><span class="panel-t">Stock Value Summary</span></div>
+      <div class="sv-grid">
+        <div class="sv-card sv-1"><div class="sv-ic"><i class="bi bi-stack"></i></div><div class="sv-l">Total Stock Value</div><div class="sv-n">&#8377;{{ "{:,.0f}".format(ss.get('total',0)) }}</div></div>
+        <div class="sv-card sv-2"><div class="sv-ic"><i class="bi bi-lock"></i></div><div class="sv-l">Blocked Stock Value</div><div class="sv-n">&#8377;{{ "{:,.0f}".format(ss.get('blocked',0)) }}</div></div>
+        <div class="sv-card sv-3"><div class="sv-ic"><i class="bi bi-unlock"></i></div><div class="sv-l">Available Stock Value</div><div class="sv-n">&#8377;{{ "{:,.0f}".format(ss.get('available',0)) }}</div></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-h"><span class="panel-t">Stock Aging (By Value)</span></div>
+      <div class="dn-wrap">
+        <div class="dn-c"><canvas id="ageDonut"></canvas><div class="dn-center"><span class="big">&#8377;{{ "{:,.0f}".format(age_total) }}</span><span class="sm">Total</span></div></div>
+        <div class="dn-leg">
+          {% for x in a.get('aging', []) %}<div class="dn-li"><span class="fn-dot" style="background:{{ x.color }}"></span><span class="nm">{{ x.label }}</span><span class="vl">{{ ((x.value/age_total*100)|round)|int if age_total else 0 }}% (&#8377;{{ "{:,.0f}".format(x.value) }})</span></div>{% endfor %}
+          {% if not a.get('aging') %}<div class="dn-li"><span class="nm" style="color:#b7b2c2">No stock data yet</span></div>{% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="rm-foot">
+    <span>All values are in INR &nbsp;|&nbsp; Data as on {{ now.strftime('%d %b %Y, %H:%M') }}</span>
+    <span>Some sections (consumption) will populate once that module is live.</span>
+  </div>
+
+</div>
+
+<script id="rm-data" type="application/json">{{ {'purchase_trend': a.get('purchase_trend', []), 'category': a.get('category', []), 'aging': a.get('aging', []), 'consumption_trend': a.get('consumption_trend', [])} | tojson }}</script>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function onPeriodChange(){
+  var v = document.getElementById('periodSel').value;
+  if (v === 'custom'){ document.getElementById('customRange').style.display = 'inline-flex'; return; }
+  window.location = window.location.pathname + '?period=' + encodeURIComponent(v);
+}
+function applyCustom(){
+  var f = document.getElementById('dFrom').value, t = document.getElementById('dTo').value;
+  var u = window.location.pathname + '?period=custom';
+  if (f) u += '&from=' + encodeURIComponent(f);
+  if (t) u += '&to='   + encodeURIComponent(t);
+  window.location = u;
+}
+function linkMatDates(tries){
+  tries = tries || 0;
+  var fEl = document.getElementById('dFrom'), tEl = document.getElementById('dTo');
+  if (!fEl || !tEl) return;
+  var fp = fEl._flatpickr, tp = tEl._flatpickr;
+  if (!fp || !tp){ if (tries < 30) setTimeout(function(){ linkMatDates(tries+1); }, 100); return; }
+  if (fp.selectedDates && fp.selectedDates[0]) tp.set('minDate', fp.selectedDates[0]);
+  try { fp.config.onChange.push(function(sel){ if (sel[0]) tp.set('minDate', sel[0]); }); }
+  catch(e){ fp.set('onChange', function(sel){ if (sel[0]) tp.set('minDate', sel[0]); }); }
+}
+document.addEventListener('DOMContentLoaded', function(){ linkMatDates(0); });
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script>
+(function(){
+  var data = {};
+  try { data = JSON.parse(document.getElementById('rm-data').textContent || '{}'); } catch(e){ data = {}; }
+  if (typeof Chart === 'undefined') return;
+  Chart.defaults.font.family = "'Inter', sans-serif";
+  Chart.defaults.plugins.legend.display = false;
+  var yGrid = { beginAtZero:true, grid:{color:'#f1eff6'}, ticks:{color:'#b7b2c2',font:{size:10}} };
+  var noGrid = { grid:{display:false}, ticks:{color:'#b7b2c2',font:{size:10}} };
+
+  var pt = data.purchase_trend || [];
+  var lc = document.getElementById('purchaseLine');
+  if (lc && pt.length){
+    var ctx = lc.getContext('2d');
+    var g = ctx.createLinearGradient(0,0,0,170);
+    g.addColorStop(0,'rgba(124,58,237,.28)'); g.addColorStop(1,'rgba(124,58,237,0)');
+    new Chart(ctx, { type:'line', data:{ labels: pt.map(function(d){return d.label;}),
+      datasets:[{ data: pt.map(function(d){return d.value;}), borderColor:'#7c3aed', backgroundColor:g, fill:true, tension:.4, pointRadius:3, pointBackgroundColor:'#7c3aed', borderWidth:2 }]},
+      options:{ responsive:true, maintainAspectRatio:false, scales:{ y:yGrid, x:noGrid } } });
+  }
+  function donut(id, arr){
+    var el = document.getElementById(id); if(!el || !arr.length) return;
+    new Chart(el, { type:'doughnut', data:{ labels: arr.map(function(x){return x.label;}),
+      datasets:[{ data: arr.map(function(x){return x.value;}), backgroundColor: arr.map(function(x){return x.color;}), borderWidth:0, cutout:'70%' }]},
+      options:{ responsive:true, maintainAspectRatio:false } });
+  }
+  donut('catDonut', data.category || []);
+  donut('ageDonut', data.aging || []);
+  var cons = data.consumption_trend || [];
+  var cb = document.getElementById('consBar');
+  if (cb && cons.length){
+    new Chart(cb, { type:'bar', data:{ labels: cons.map(function(d){return d.label;}),
+      datasets:[{ data: cons.map(function(d){return d.value;}), backgroundColor:'#10b981', borderRadius:5, maxBarThickness:38 }]},
+      options:{ responsive:true, maintainAspectRatio:false, scales:{ y:yGrid, x:noGrid } } });
+  }
+})();
+</script>
+{% endblock %}

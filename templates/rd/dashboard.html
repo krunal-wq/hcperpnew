@@ -1,300 +1,306 @@
 {% extends "base.html" %}
-{% block title %}R&D NPD Dashboard{% endblock %}
-{% block page_title %}R&D NPD Management{% endblock %}
+{% block title %}R&D Dashboard{% endblock %}
+{% block page_title %}R&D Management{% endblock %}
 {% block bread %}R&D / Dashboard{% endblock %}
 
 {% block extra_css %}
 <style>
-/* ── R&D Module Styles ── */
-.rd-stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:1.1rem;}
-@media(max-width:900px){.rd-stat-grid{grid-template-columns:repeat(2,1fr);}}
-.rd-stat{background:var(--white);border:1px solid var(--border);border-radius:var(--r-xl);padding:1rem 1.25rem;box-shadow:var(--sh-sm);}
-.rd-stat-lbl{font-size:10px;font-weight:800;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.4rem;}
-.rd-stat-val{font-size:1.8rem;font-weight:900;color:var(--text);line-height:1;}
-.rd-stat-sub{font-size:.72rem;color:var(--text3);margin-top:3px;}
-.rd-trend{display:inline-flex;align-items:center;gap:3px;font-size:.7rem;font-weight:700;padding:2px 6px;border-radius:5px;margin-top:4px;}
-.rd-trend.up{background:var(--green-lt);color:#166534;}
-.rd-2col{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:1rem;}
-@media(max-width:768px){.rd-2col{grid-template-columns:1fr;}}
+.main{ background:
+  radial-gradient(120% 55% at 0% 0%, #f3f0fc 0%, rgba(243,240,252,0) 55%),
+  radial-gradient(120% 60% at 100% 20%, #fdeef4 0%, rgba(253,238,244,0) 50%),
+  #f7f7fb !important; }
+.dash{ max-width:1700px; margin:0 auto; padding:8px 4px 30px; color:#1e1b2e; }
 
-/* ── R&D Table ── */
-.rd-tbl{width:100%;border-collapse:collapse;font-size:.82rem;}
-.rd-tbl th{font-size:.68rem;font-weight:800;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;padding:.5rem .9rem;border-bottom:2px solid var(--border);text-align:left;background:var(--bg);}
-.rd-tbl td{padding:.6rem .9rem;border-bottom:1px solid var(--border);color:var(--text);vertical-align:middle;}
-.rd-tbl tbody tr:hover td{background:var(--blue-lt);}
-.rd-tbl tbody tr:last-child td{border-bottom:none;}
+.dh{ display:flex; align-items:flex-start; justify-content:space-between; flex-wrap:wrap; gap:12px; margin:2px 0 20px; }
+.dh-title{ font-size:23px; font-weight:800; letter-spacing:-.025em; margin:0; }
+.dh-sub{ font-size:13px; color:#9b95a6; margin-top:3px; }
+.dh-tools{ display:flex; gap:9px; align-items:center; flex-wrap:wrap; }
+.dh-pill{ display:inline-flex; align-items:center; gap:8px; background:#fff; border:1px solid #e8e6ef; border-radius:11px; padding:8px 13px; font-size:12.5px; font-weight:600; color:#4a4560; text-decoration:none; }
+.dh-primary{ background:linear-gradient(135deg,#7c3aed,#6366f1); color:#fff; border:none; box-shadow:0 7px 18px rgba(99,102,241,.30); }
+.dh-select{ font-family:'Inter',sans-serif; font-size:13px; font-weight:600; color:#4a4560; background:#fff; border:1px solid #e8e6ef; border-radius:11px; padding:9px 30px 9px 13px; cursor:pointer; appearance:none; -webkit-appearance:none; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='%239b95a6' d='M0 0l5 6 5-6z'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 12px center; }
+.dh-date{ font-family:'Inter',sans-serif; font-size:12.5px; color:#4a4560; background:#fff; border:1px solid #e8e6ef; border-radius:10px; padding:8px 10px; }
+a.kpi{ text-decoration:none; color:inherit; cursor:pointer; }
+a.kpi:hover{ box-shadow:0 10px 24px rgba(76,29,149,.12); transform:translateY(-2px); transition:transform .15s, box-shadow .15s; }
 
-/* ── Badges ── */
-.rd-badge{display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:100px;font-size:.7rem;font-weight:700;border:1px solid transparent;}
-.rd-badge-active{background:var(--green-lt);color:#166534;border-color:var(--green-border);}
-.rd-badge-inactive{background:var(--bg);color:var(--text3);border-color:var(--border);}
-.rd-badge-pass{background:var(--green-lt);color:#166534;border-color:var(--green-border);}
-.rd-badge-fail{background:var(--red-lt);color:#991b1b;border-color:var(--red-border);}
-.rd-badge-pending{background:var(--amber-lt);color:#92400e;border-color:var(--amber-border);}
+.panel{ background:#fff; border:1px solid #efeef3; border-radius:18px; box-shadow:0 2px 12px rgba(30,27,46,.04); padding:18px 18px 16px; }
+.panel-h{ display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+.panel-t{ font-size:15px; font-weight:700; letter-spacing:-.01em; }
+.panel-link{ font-size:11.5px; font-weight:600; color:#6d5fe6; text-decoration:none; } .panel-link:hover{ text-decoration:underline; }
 
-/* ── Tags ── */
-.rd-tag{display:inline-flex;padding:2px 7px;border-radius:5px;font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;}
-.rd-tag-npd{background:var(--purple-lt);color:var(--purple);}
-.rd-tag-epd{background:#d1fae5;color:#065f46;}
+.kpi-grid{ display:grid; grid-template-columns:repeat(7,1fr); gap:14px; margin-bottom:16px; }
+.kpi{ background:#fff; border:1px solid #efeef3; border-radius:16px; padding:15px 16px; display:flex; align-items:flex-start; gap:12px; box-shadow:0 2px 12px rgba(30,27,46,.04); }
+.kpi-ic{ width:42px; height:42px; border-radius:12px; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:18px; }
+.kpi-l{ font-size:11px; font-weight:600; color:#9b95a6; }
+.kpi-n{ font-size:22px; font-weight:800; letter-spacing:-.02em; line-height:1.2; margin:2px 0; }
+.kpi-c{ font-size:10.5px; color:#b7b2c2; }
+.k-lav{background:#f1edfe;color:#7c3aed;} .k-green{background:#e7f8ef;color:#16a34a;} .k-amber{background:#fef3e2;color:#ea580c;} .k-blue{background:#e7f0fe;color:#2563eb;} .k-rose{background:#fde7ea;color:#e11d48;} .k-cyan{background:#e3f6fb;color:#0891b2;}
 
-/* ── Progress ── */
-.rd-prog{height:4px;background:var(--border);border-radius:2px;overflow:hidden;}
-.rd-prog-fill{height:100%;border-radius:2px;transition:width .3s;}
+.r1{ display:grid; grid-template-columns:1fr 1.4fr 1fr 1fr; gap:16px; margin-bottom:16px; }
+.r3{ display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-bottom:16px; }
 
-/* ── Quick Actions ── */
-.qa-item{display:flex;align-items:center;gap:.75rem;padding:.7rem 1rem;border:1px solid var(--border);border-radius:var(--r-md);text-decoration:none;color:var(--text);transition:.12s;margin-bottom:.4rem;}
-.qa-item:hover{border-color:var(--blue-border);background:var(--blue-lt);}
-.qa-ic{width:36px;height:36px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0;}
+.line-box,.bar-box{ position:relative; width:100%; height:185px; }
+.line-box canvas,.bar-box canvas{ position:absolute; inset:0; width:100%!important; height:100%!important; }
 
-/* ── Workload ── */
-.wl-av{width:28px;height:28px;border-radius:8px;background:var(--blue-lt);color:var(--blue);display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:800;flex-shrink:0;}
+.dn-wrap{ display:flex; flex-direction:column; align-items:center; gap:12px; }
+.dn-c{ width:150px; height:150px; flex-shrink:0; position:relative; }
+.dn-c canvas{ position:absolute; inset:0; width:100%!important; height:100%!important; }
+.dn-center{ position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+.dn-center .big{ font-size:20px; font-weight:800; } .dn-center .sm{ font-size:10px; color:#9b95a6; }
+.dn-leg{ width:100%; display:flex; flex-direction:column; gap:7px; }
+.dn-li{ display:flex; align-items:center; gap:8px; font-size:12px; }
+.dn-li .nm{ color:#3a3550; font-weight:600; } .dn-li .vl{ margin-left:auto; color:#9b95a6; }
+.fn-dot{ width:9px; height:9px; border-radius:50%; flex-shrink:0; }
+
+.rmt{ width:100%; border-collapse:collapse; font-size:12px; }
+.rmt th{ text-align:left; font-size:10.5px; font-weight:700; color:#9b95a6; text-transform:uppercase; letter-spacing:.04em; padding:6px 8px; border-bottom:1px solid #f0eef5; }
+.rmt td{ padding:8px; border-bottom:1px solid #f6f5f9; color:#3a3550; }
+.rmt tr:last-child td{ border-bottom:none; }
+.badge{ font-size:10px; font-weight:700; padding:2px 8px; border-radius:100px; }
+.empty{ font-size:12.5px; color:#b7b2c2; padding:26px 4px; text-align:center; }
+.prog{ height:7px; border-radius:100px; background:#f0eef5; overflow:hidden; min-width:70px; }
+.prog>span{ display:block; height:100%; border-radius:100px; background:linear-gradient(90deg,#7c3aed,#6366f1); }
+
+.wl-row{ display:flex; align-items:center; gap:10px; padding:8px 4px; border-bottom:1px solid #f6f5f9; }
+.wl-row:last-child{ border-bottom:none; }
+.wl-av{ width:30px; height:30px; border-radius:50%; flex-shrink:0; background:linear-gradient(135deg,#a78bfa,#7c3aed); color:#fff; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; }
+.wl-nm{ font-size:12.5px; font-weight:600; color:#3a3550; }
+.wl-st{ margin-left:auto; display:flex; gap:12px; font-size:11.5px; }
+.wl-st b{ font-weight:700; } .wl-ip{ color:#2563eb; } .wl-cp{ color:#16a34a; } .wl-rj{ color:#e11d48; }
+
+@media(max-width:1200px){ .kpi-grid{grid-template-columns:repeat(3,1fr)} .r1{grid-template-columns:1fr 1fr} }
+@media(max-width:1000px){ .r3{grid-template-columns:1fr} }
+@media(max-width:560px){ .kpi-grid,.r1{grid-template-columns:1fr} }
 </style>
 {% endblock %}
 
 {% block content %}
+{% set a = analytics if analytics is defined else {} %}
+{% set ss_total = (a.get('sample_status', [])|sum(attribute='value')) or 0 %}
+{% set rj_total = (a.get('rejection_overview', [])|sum(attribute='value')) or 0 %}
 
-<!-- Header -->
-<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.75rem;margin-bottom:1.1rem;">
+<div class="dash">
+
+  <!-- HEADER -->
+  <div class="dh">
     <div>
-        <div style="font-size:1.1rem;font-weight:800;color:var(--text);">⚗️ R&D NPD Management</div>
-        <div style="font-size:.77rem;color:var(--text3);">New Product Development — R&D Overview</div>
+      <h1 class="dh-title">R&amp;D Management</h1>
+      <div class="dh-sub">Research &amp; Development — Overview</div>
     </div>
-    <div style="display:flex;gap:.4rem;flex-wrap:wrap;">
-        <a href="{{ url_for('rd.trials') }}" class="btn-grid-action">⚗ Trials</a>
-        <a href="/rd/param-master" class="btn-grid-action">🧪 Parameters</a>
-        <a href="{{ url_for('rd.executives') }}" class="btn-grid-action">◎ Team</a>
-        <a href="{{ url_for('npd.npd_new') }}" class="btn-add-new" style="text-decoration:none;">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>New NPD
-        </a>
+    <div class="dh-tools">
+      <select id="periodSel" class="dh-select" onchange="onPeriodChange()">
+        <option value="all"          {{ 'selected' if period=='all' else '' }}>All Time</option>
+        <option value="today"        {{ 'selected' if period=='today' else '' }}>Today</option>
+        <option value="yesterday"    {{ 'selected' if period=='yesterday' else '' }}>Yesterday</option>
+        <option value="last_7_days"  {{ 'selected' if period=='last_7_days' else '' }}>Last 7 Days</option>
+        <option value="last_30_days" {{ 'selected' if period=='last_30_days' else '' }}>Last 30 Days</option>
+        <option value="custom"       {{ 'selected' if period=='custom' else '' }}>Custom Date</option>
+      </select>
+      <span id="customRange" style="display:{{ 'inline-flex' if period=='custom' else 'none' }}; gap:6px; align-items:center;">
+        <input type="date" id="dFrom" class="dh-date" value="{{ cust_from }}">
+        <span style="color:#9b95a6;">–</span>
+        <input type="date" id="dTo" class="dh-date" value="{{ cust_to }}">
+        <button type="button" class="dh-primary" onclick="applyCustom()" style="border-radius:11px;padding:9px 15px;font-size:12.5px;font-weight:600;cursor:pointer;">Apply</button>
+      </span>
     </div>
-</div>
+  </div>
 
-<!-- Stat Cards -->
-<div class="rd-stat-grid">
-    <div class="rd-stat">
-        <div class="rd-stat-lbl">Active Projects</div>
-        <div class="rd-stat-val" style="color:var(--blue);">{{ active_projects }}</div>
-        <div><span class="rd-trend up">▲ Running</span></div>
-    </div>
-    <div class="rd-stat">
-        <div class="rd-stat-lbl">R&D Trials</div>
-        <div class="rd-stat-val" style="color:var(--purple);">{{ total_trials }}</div>
-        <div class="rd-stat-sub">Formulation iterations</div>
-    </div>
-    <div class="rd-stat">
-        <div class="rd-stat-lbl">Success Rate</div>
-        <div class="rd-stat-val" style="color:var(--green);">{{ success_rate }}%</div>
-        <div class="rd-stat-sub">Projects completed</div>
-    </div>
-    <div class="rd-stat">
-        <div class="rd-stat-lbl">R&D Team</div>
-        <div class="rd-stat-val" style="color:var(--amber);">{{ total_users }}</div>
-        <div class="rd-stat-sub">Active members</div>
-    </div>
-</div>
+  <!-- KPI ROW -->
+  <div class="kpi-grid">
+    <a class="kpi" href="/rd/projects"><div class="kpi-ic k-lav"><i class="bi bi-folder2-open"></i></div><div><div class="kpi-l">Total R&amp;D Projects</div><div class="kpi-n">{{ a.get('total_npd',0) }}</div><div class="kpi-c">All projects</div></div></a>
+    <a class="kpi" href="/rd/projects"><div class="kpi-ic k-green"><i class="bi bi-play-circle"></i></div><div><div class="kpi-l">Active Projects</div><div class="kpi-n">{{ a.get('active_projects',0) }}</div><div class="kpi-c">Running</div></div></a>
+    <a class="kpi" href="/rd/sample-history"><div class="kpi-ic k-cyan"><i class="bi bi-eyedropper"></i></div><div><div class="kpi-l">Total Samples</div><div class="kpi-n">{{ a.get('total_samples',0) }}</div><div class="kpi-c">All samples</div></div></a>
+    <a class="kpi" href="/rd/sample-ready"><div class="kpi-ic k-amber"><i class="bi bi-hourglass-split"></i></div><div><div class="kpi-l">Samples In Process</div><div class="kpi-n">{{ a.get('in_process',0) }}</div><div class="kpi-c">Pending review</div></div></a>
+    <a class="kpi" href="/rd/sample-history"><div class="kpi-ic k-green"><i class="bi bi-check2-circle"></i></div><div><div class="kpi-l">Samples Completed</div><div class="kpi-n">{{ a.get('completed',0) }}</div><div class="kpi-c">Approved</div></div></a>
+    <a class="kpi" href="/rd/sample-history"><div class="kpi-ic k-rose"><i class="bi bi-x-circle"></i></div><div><div class="kpi-l">Samples Rejected</div><div class="kpi-n">{{ a.get('rejected',0) }}</div><div class="kpi-c">Rejected</div></div></a>
+    <a class="kpi" href="/rd/sample-history"><div class="kpi-ic k-blue"><i class="bi bi-pie-chart-fill"></i></div><div><div class="kpi-l">Conversion Ratio</div><div class="kpi-n">{{ a.get('conversion',0) }}%</div><div class="kpi-c">Approved / Total</div></div></a>
+  </div>
 
-<!-- Projects + Trials -->
-<div class="rd-2col">
-
-    <!-- Active Projects -->
-    <div class="card">
-        <div class="card-hdr">
-            <div class="card-title">⬡ Active Projects</div>
-            <a href="{{ url_for('rd.projects') }}" class="card-action">View all →</a>
+  <!-- ROW 1 -->
+  <div class="r1">
+    <div class="panel">
+      <div class="panel-h"><span class="panel-t">Sample Status Overview</span></div>
+      {% if ss_total %}
+      <div class="dn-wrap">
+        <div class="dn-c"><canvas id="statusDonut"></canvas><div class="dn-center"><span class="big">{{ ss_total }}</span><span class="sm">Total Samples</span></div></div>
+        <div class="dn-leg">
+          {% for x in a.get('sample_status', []) %}<div class="dn-li"><span class="fn-dot" style="background:{{ x.color }}"></span><span class="nm">{{ x.label }}</span><span class="vl">{{ x.value }} ({{ ((x.value/ss_total*100)|round(1)) }}%)</span></div>{% endfor %}
         </div>
-        <table class="rd-tbl">
-            <thead><tr><th>Project</th><th>Type</th><th>Status</th><th>Age</th></tr></thead>
-            <tbody>
-            {% if recent_projects %}
-            {% for p in recent_projects %}
-            <tr>
-                <td>
-                    <div style="font-weight:700;font-size:.83rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:160px;" title="{{ p.product_name }}">{{ p.product_name }}</div>
-                    <div style="font-size:.7rem;color:var(--text3);font-family:var(--font-mono);">{{ p.code }}</div>
-                </td>
-                <td>
-                    {% if p.project_type == 'npd' %}<span class="rd-tag rd-tag-npd">NPD</span>
-                    {% else %}<span class="rd-tag rd-tag-epd">EPD</span>{% endif %}
-                </td>
-                <td><span class="rd-badge" style="background:{{ p.status_color }}18;color:{{ p.status_color }};border-color:{{ p.status_color }}44;">{{ p.status_label }}</span></td>
-                <td style="font-size:.78rem;color:var(--text3);">{{ p.project_age }}d{% if p.project_age > 30 %} <span style="color:var(--red);">⚠️</span>{% endif %}</td>
-            </tr>
-            {% endfor %}
-            {% else %}
-            <tr><td colspan="4" style="text-align:center;color:var(--text3);padding:2rem;">
-                No active projects — <a href="{{ url_for('npd.npd_new') }}" style="color:var(--blue);">Create NPD →</a>
-            </td></tr>
-            {% endif %}
-            </tbody>
-        </table>
+      </div>
+      {% else %}<div class="empty">No samples yet</div>{% endif %}
     </div>
 
-    <!-- Recent Trials -->
-    <div class="card">
-        <div class="card-hdr">
-            <div class="card-title">⚗ Recent Trials</div>
-            <a href="{{ url_for('rd.trials') }}" class="card-action">View all →</a>
+    <div class="panel">
+      <div class="panel-h"><span class="panel-t">Samples Trend (Last 6 Months)</span></div>
+      {% if a.get('samples_trend') %}
+      <div class="line-box"><canvas id="trendLine"></canvas></div>
+      {% else %}<div class="empty">No sample trend data yet</div>{% endif %}
+    </div>
+
+    <div class="panel">
+      <div class="panel-h"><span class="panel-t">Rejection Overview</span></div>
+      {% if rj_total %}
+      <div class="dn-wrap">
+        <div class="dn-c"><canvas id="rejDonut"></canvas><div class="dn-center"><span class="big">{{ a.get('rejected',0) }}</span><span class="sm">Total Rejected</span></div></div>
+        <div class="dn-leg">
+          {% for x in a.get('rejection_overview', []) %}<div class="dn-li"><span class="fn-dot" style="background:{{ x.color }}"></span><span class="nm">{{ x.label }}</span><span class="vl">{{ x.value }} ({{ ((x.value/rj_total*100)|round) if rj_total else 0 }}%)</span></div>{% endfor %}
         </div>
-        <table class="rd-tbl">
-            <thead><tr><th>Iter</th><th>Project</th><th>R&D</th><th>Result</th></tr></thead>
-            <tbody>
-            {% if recent_trials %}
-            {% for t in recent_trials %}
-            <tr>
-                <td><span style="font-family:var(--font-mono);font-size:.78rem;font-weight:700;background:var(--bg);padding:2px 7px;border-radius:5px;border:1px solid var(--border);color:var(--blue);">#{{ t.iteration }}</span></td>
-                <td style="font-size:.78rem;">
-                    {% if t.project %}{{ t.project.product_name[:22] }}{% if t.project.product_name|length > 22 %}…{% endif %}{% else %}—{% endif %}
-                </td>
-                <td style="font-size:.78rem;color:var(--text2);">{{ t.rd_user.full_name.split()[0] if t.rd_user else '—' }}</td>
-                <td>
-                    {% if t.client_status == 'approved' %}<span class="rd-badge rd-badge-pass">✅ Pass</span>
-                    {% elif 'rejected' in t.status %}<span class="rd-badge rd-badge-fail">❌ Fail</span>
-                    {% else %}<span class="rd-badge rd-badge-pending">⏳ Pending</span>{% endif %}
-                </td>
-            </tr>
-            {% endfor %}
-            {% else %}
-            <tr><td colspan="4" style="text-align:center;color:var(--text3);padding:2rem;">No trials yet</td></tr>
-            {% endif %}
-            </tbody>
-        </table>
-    </div>
-</div>
-
-<!-- Workload + Quick Actions -->
-<div class="rd-2col">
-
-    <!-- SC Workload -->
-    <div class="card">
-        <div class="card-hdr"><div class="card-title">👤 SC Workload</div></div>
-        <div class="card-body">
-            {% if sc_workload %}
-            {% for name, uid, count in sc_workload %}
-            {% set ini = (name.split()[0][0] + name.split()[-1][0]).upper() if name.split()|length > 1 else name[:2].upper() %}
-            <div style="display:flex;align-items:center;gap:.6rem;margin-bottom:.65rem;">
-                <div class="wl-av">{{ ini }}</div>
-                <div style="flex:1;">
-                    <div style="display:flex;justify-content:space-between;margin-bottom:2px;">
-                        <span style="font-size:.82rem;font-weight:600;">{{ name }}</span>
-                        <span style="font-size:.7rem;color:var(--text3);">{{ count }} proj</span>
-                    </div>
-                    <div class="rd-prog">
-                        <div class="rd-prog-fill" style="width:{{ [count * 12, 100]|min }}%;background:var(--blue);"></div>
-                    </div>
-                </div>
-            </div>
-            {% endfor %}
-            {% else %}
-            <p style="color:var(--text3);font-size:.82rem;text-align:center;padding:1.5rem 0;">No active workload</p>
-            {% endif %}
-        </div>
+      </div>
+      {% else %}<div class="empty">No rejections yet</div>{% endif %}
     </div>
 
-    <!-- Quick Actions -->
-    <div class="card">
-        <div class="card-hdr"><div class="card-title">🚀 Quick Actions</div></div>
-        <div class="card-body" style="padding-top:.75rem;">
-            <a href="{{ url_for('npd.npd_new') }}" class="qa-item">
-                <div class="qa-ic" style="background:var(--purple-lt);">🧪</div>
-                <div><div style="font-weight:700;font-size:.85rem;">New NPD Project</div><div style="font-size:.72rem;color:var(--text3);">R&D formulation from scratch</div></div>
-            </a>
-            <a href="{{ url_for('npd.epd_new') }}" class="qa-item">
-                <div class="qa-ic" style="background:#d1fae5;">📦</div>
-                <div><div style="font-weight:700;font-size:.85rem;">New EPD Project</div><div style="font-size:.72rem;color:var(--text3);">Existing product development</div></div>
-            </a>
-            <a href="{{ url_for('rd.trials') }}" class="qa-item">
-                <div class="qa-ic" style="background:var(--blue-lt);">⚗️</div>
-                <div><div style="font-weight:700;font-size:.85rem;">R&D Trials</div><div style="font-size:.72rem;color:var(--text3);">Log formulation iterations</div></div>
-            </a>
-            <a href="{{ url_for('rd.performance') }}" class="qa-item">
-                <div class="qa-ic" style="background:var(--amber-lt);">◑</div>
-                <div><div style="font-weight:700;font-size:.85rem;">Performance Report</div><div style="font-size:.72rem;color:var(--text3);">Executive leaderboard</div></div>
-            </a>
-            <a href="{{ url_for('rd.discussion') }}" class="qa-item">
-                <div class="qa-ic" style="background:var(--bg);">💬</div>
-                <div><div style="font-weight:700;font-size:.85rem;">Discussion Board</div><div style="font-size:.72rem;color:var(--text3);">Project discussions</div></div>
-            </a>
-            <a href="/rd/param-master" class="qa-item">
-                <div class="qa-ic" style="background:#fef3c7;">🧪</div>
-                <div><div style="font-weight:700;font-size:.85rem;">Parameter Master</div><div style="font-size:.72rem;color:var(--text3);">Manage test parameters</div></div>
-            </a>
-        </div>
+    <div class="panel">
+      <div class="panel-h"><span class="panel-t">Rejection Reasons (Top 5)</span></div>
+      {% if a.get('rejection_reasons') %}
+      <table class="rmt"><thead><tr><th>Reason</th><th style="text-align:right">Total</th></tr></thead><tbody>
+        {% for r in a.get('rejection_reasons', []) %}<tr><td>{{ r.reason|truncate(22) }}</td><td style="text-align:right"><b>{{ r.count }}</b> <span style="color:#b7b2c2">({{ r.pct }}%)</span></td></tr>{% endfor %}
+      </tbody></table>
+      {% else %}<div class="empty">No rejection data yet</div>{% endif %}
     </div>
+  </div>
+
+  <!-- ROW 2: tables -->
+  <div class="r3">
+    <div class="panel">
+      <div class="panel-h"><span class="panel-t">R&amp;D Projects Overview</span><a class="panel-link" href="/rd/projects">View All</a></div>
+      {% if a.get('npd_projects') %}
+      <table class="rmt"><thead><tr><th>Code</th><th>Project</th><th>Status</th><th>Progress</th></tr></thead><tbody>
+        {% for p in a.get('npd_projects', []) %}
+        <tr>
+          <td>{{ p.code }}</td>
+          <td>{{ p.name|truncate(18) }}<div style="font-size:10.5px;color:#b7b2c2">{{ p.client|truncate(18) }}</div></td>
+          <td><span class="badge" style="background:{{ p.color }}22;color:{{ p.color }};">{{ p.status }}</span></td>
+          <td><div class="prog"><span style="width:{{ p.progress }}%"></span></div></td>
+        </tr>{% endfor %}
+      </tbody></table>
+      {% else %}<div class="empty">No projects yet</div>{% endif %}
+    </div>
+
+    <div class="panel">
+      <div class="panel-h"><span class="panel-t">Samples In Process</span></div>
+      {% if a.get('samples_in_process') %}
+      <table class="rmt"><thead><tr><th>Sample</th><th>Project</th><th>Status</th></tr></thead><tbody>
+        {% for r in a.get('samples_in_process', []) %}<tr><td>{{ r.sample_code|truncate(14) }}</td><td>{{ r.project|truncate(16) }}</td><td><span class="badge" style="background:#3b82f622;color:#3b82f6;">In Process</span></td></tr>{% endfor %}
+      </tbody></table>
+      {% else %}<div class="empty">No samples in process</div>{% endif %}
+    </div>
+
+    <div class="panel">
+      <div class="panel-h"><span class="panel-t">Recently Completed Samples</span></div>
+      {% if a.get('recently_completed') %}
+      <table class="rmt"><thead><tr><th>Sample</th><th>Project</th><th>Completed</th></tr></thead><tbody>
+        {% for r in a.get('recently_completed', []) %}<tr><td>{{ r.sample_code|truncate(14) }}</td><td>{{ r.project|truncate(14) }}</td><td>{{ r.date.strftime('%d %b %Y') if r.date else '—' }}</td></tr>{% endfor %}
+      </tbody></table>
+      {% else %}<div class="empty">No completed samples</div>{% endif %}
+    </div>
+  </div>
+
+  <!-- ROW 3 -->
+  <div class="r3">
+    <div class="panel">
+      <div class="panel-h"><span class="panel-t">Rejection Register (Recent)</span></div>
+      {% if a.get('rejection_register') %}
+      <table class="rmt"><thead><tr><th>Sample</th><th>Project</th><th>Reason</th><th>Date</th></tr></thead><tbody>
+        {% for r in a.get('rejection_register', []) %}<tr><td>{{ r.sample_code|truncate(12) }}</td><td>{{ r.project|truncate(12) }}</td><td style="color:#e11d48;">{{ r.reason|truncate(16) }}</td><td>{{ r.date.strftime('%d %b %Y') if r.date else '—' }}</td></tr>{% endfor %}
+      </tbody></table>
+      {% else %}<div class="empty">No rejections yet</div>{% endif %}
+    </div>
+
+    <div class="panel">
+      <div class="panel-h"><span class="panel-t">Team Workload Overview</span></div>
+      {% if a.get('team_workload') %}
+      <div>
+        {% for w in a.get('team_workload', []) %}
+        <div class="wl-row">
+          <div class="wl-av">{{ w.name[:1]|upper }}</div>
+          <div class="wl-nm">{{ w.name|truncate(18) }}</div>
+          <div class="wl-st"><span class="wl-ip"><b>{{ w.in_process }}</b> IP</span><span class="wl-cp"><b>{{ w.completed }}</b> Done</span><span class="wl-rj"><b>{{ w.rejected }}</b> Rej</span></div>
+        </div>{% endfor %}
+      </div>
+      {% else %}<div class="empty">No workload data yet</div>{% endif %}
+    </div>
+
+    <div class="panel">
+      <div class="panel-h"><span class="panel-t">Sample Status by Department</span></div>
+      {% if a.get('dept_status') %}
+      <div class="bar-box"><canvas id="deptBar"></canvas></div>
+      {% else %}<div class="empty"><i class="bi bi-bar-chart" style="font-size:22px;color:#dcd9e4;display:block;margin-bottom:6px;"></i>Department-wise data not available yet</div>{% endif %}
+    </div>
+  </div>
 
 </div>
 
-{% if is_rd_manager and rejected_samples %}
-<!-- Rejected Samples — R&D Manager only -->
-<div class="card" style="margin-top:1rem; border:1.5px solid #fecaca;">
-    <div class="card-hdr" style="background:linear-gradient(to right, #fef2f2, #fff); border-bottom:1px solid #fecaca;">
-        <div class="card-title" style="color:#b91c1c;">❌ Rejected Samples</div>
-        <span style="font-size:.7rem; background:#fee2e2; color:#b91c1c; padding:3px 10px; border-radius:100px; font-weight:700;">
-            {{ rejected_samples|length }} recent
-        </span>
-    </div>
-    <div style="overflow-x:auto;">
-        <table class="rd-tbl" style="width:100%;">
-            <thead>
-                <tr>
-                    <th style="width:38px;">#</th>
-                    <th>Project</th>
-                    <th>Sample Code</th>
-                    <th>Reason</th>
-                    <th>Rejected By</th>
-                    <th>When</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for r in rejected_samples %}
-                <tr>
-                    <td style="color:var(--text3); font-size:.72rem;">{{ loop.index }}</td>
-                    <td>
-                        {% if r.project_id %}
-                        <a href="{{ url_for('npd.project_view', pid=r.project_id) }}"
-                           style="text-decoration:none; color:inherit;">
-                            <div style="font-weight:700; font-size:.83rem;
-                                        overflow:hidden; text-overflow:ellipsis;
-                                        white-space:nowrap; max-width:200px;"
-                                 title="{{ r.project_name }}">{{ r.project_name }}</div>
-                            <div style="font-size:.7rem; color:var(--text3);
-                                        font-family:var(--font-mono);">
-                                {{ r.project_no }} · {{ r.client_name }}
-                            </div>
-                        </a>
-                        {% else %}
-                        <div style="font-weight:700; font-size:.83rem;">{{ r.project_name }}</div>
-                        <div style="font-size:.7rem; color:var(--text3);">{{ r.project_no }}</div>
-                        {% endif %}
-                    </td>
-                    <td>
-                        <span style="display:inline-block; background:#fef2f2; color:#b91c1c;
-                                     padding:2px 8px; border-radius:6px; font-size:.72rem;
-                                     font-weight:700; font-family:var(--font-mono);
-                                     border:1px solid #fecaca;">
-                            {{ r.sample_code }}
-                        </span>
-                    </td>
-                    <td style="font-size:.78rem; color:var(--text2); max-width:280px;">
-                        <div style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"
-                             title="{{ r.reason }}">{{ r.reason }}</div>
-                    </td>
-                    <td style="font-size:.78rem;">{{ r.actioned_by }}</td>
-                    <td style="font-size:.72rem; color:var(--text3); white-space:nowrap;">
-                        {{ r.actioned_at }}
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-    <div style="padding:.5rem 1rem; font-size:.72rem; color:var(--text3);
-                background:#fafafa; border-top:1px solid var(--border);">
-        These projects have been <strong>unassigned</strong> and moved to the
-        <a href="{{ url_for('rd.projects') }}?filter=unallotted"
-           style="color:var(--blue); font-weight:600;">Unassigned list</a>
-        — reassign them to a team member to continue.
-    </div>
-</div>
-{% endif %}
+<script id="rd-data" type="application/json">{{ {'sample_status': a.get('sample_status', []), 'samples_trend': a.get('samples_trend', []), 'rejection_overview': a.get('rejection_overview', []), 'dept_status': a.get('dept_status', [])} | tojson }}</script>
+{% endblock %}
 
+{% block extra_js %}
+<script>
+function onPeriodChange(){
+  var v = document.getElementById('periodSel').value;
+  if (v === 'custom'){ document.getElementById('customRange').style.display = 'inline-flex'; return; }
+  window.location = window.location.pathname + '?period=' + encodeURIComponent(v);
+}
+function applyCustom(){
+  var f = document.getElementById('dFrom').value, t = document.getElementById('dTo').value;
+  var u = window.location.pathname + '?period=custom';
+  if (f) u += '&from=' + encodeURIComponent(f);
+  if (t) u += '&to='   + encodeURIComponent(t);
+  window.location = u;
+}
+function linkRdDates(tries){
+  tries = tries || 0;
+  var fEl = document.getElementById('dFrom'), tEl = document.getElementById('dTo');
+  if (!fEl || !tEl) return;
+  var fp = fEl._flatpickr, tp = tEl._flatpickr;
+  if (!fp || !tp){ if (tries < 30) setTimeout(function(){ linkRdDates(tries+1); }, 100); return; }
+  if (fp.selectedDates && fp.selectedDates[0]) tp.set('minDate', fp.selectedDates[0]);
+  try { fp.config.onChange.push(function(sel){ if (sel[0]) tp.set('minDate', sel[0]); }); }
+  catch(e){ fp.set('onChange', function(sel){ if (sel[0]) tp.set('minDate', sel[0]); }); }
+}
+document.addEventListener('DOMContentLoaded', function(){ linkRdDates(0); });
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script>
+(function(){
+  var data = {};
+  try { data = JSON.parse(document.getElementById('rd-data').textContent || '{}'); } catch(e){ data = {}; }
+  if (typeof Chart === 'undefined') return;
+  Chart.defaults.font.family = "'Inter', sans-serif";
+  Chart.defaults.plugins.legend.display = false;
+  var yGrid = { beginAtZero:true, grid:{color:'#f1eff6'}, ticks:{color:'#b7b2c2',font:{size:10}} };
+  var noGrid = { grid:{display:false}, ticks:{color:'#b7b2c2',font:{size:10}} };
+
+  function donut(id, arr){
+    var el = document.getElementById(id); if(!el || !arr.length) return;
+    new Chart(el, { type:'doughnut', data:{ labels: arr.map(function(x){return x.label;}),
+      datasets:[{ data: arr.map(function(x){return x.value;}), backgroundColor: arr.map(function(x){return x.color;}), borderWidth:0, cutout:'70%' }]},
+      options:{ responsive:true, maintainAspectRatio:false } });
+  }
+  donut('statusDonut', data.sample_status || []);
+  donut('rejDonut', data.rejection_overview || []);
+
+  var tr = data.samples_trend || [];
+  var tl = document.getElementById('trendLine');
+  if (tl && tr.length){
+    new Chart(tl, { type:'line', data:{ labels: tr.map(function(d){return d.label;}),
+      datasets:[
+        { label:'In Process', data: tr.map(function(d){return d.in_process;}), borderColor:'#3b82f6', backgroundColor:'#3b82f6', tension:.4, pointRadius:3, borderWidth:2 },
+        { label:'Completed',  data: tr.map(function(d){return d.completed;}),  borderColor:'#10b981', backgroundColor:'#10b981', tension:.4, pointRadius:3, borderWidth:2 },
+        { label:'Rejected',   data: tr.map(function(d){return d.rejected;}),   borderColor:'#ef4444', backgroundColor:'#ef4444', tension:.4, pointRadius:3, borderWidth:2 }
+      ]},
+      options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:true, labels:{boxWidth:10, font:{size:10}, color:'#7a7588'}}}, scales:{ y:yGrid, x:noGrid } } });
+  }
+
+  var dept = data.dept_status || [];
+  var db_ = document.getElementById('deptBar');
+  if (db_ && dept.length){
+    new Chart(db_, { type:'bar', data:{ labels: dept.map(function(d){return d.label;}),
+      datasets:[
+        { label:'In Process', data: dept.map(function(d){return d.in_process||0;}), backgroundColor:'#3b82f6', borderRadius:4 },
+        { label:'Completed',  data: dept.map(function(d){return d.completed||0;}),  backgroundColor:'#10b981', borderRadius:4 },
+        { label:'Rejected',   data: dept.map(function(d){return d.rejected||0;}),   backgroundColor:'#ef4444', borderRadius:4 }
+      ]},
+      options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:true, labels:{boxWidth:10,font:{size:10}}}}, scales:{ y:yGrid, x:noGrid } } });
+  }
+})();
+</script>
 {% endblock %}

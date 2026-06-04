@@ -5,735 +5,360 @@
 
 {% block extra_css %}
 <style>
-.sec-lbl {
-    font-size: .7rem; font-weight: 800; color: var(--text3);
-    text-transform: uppercase; letter-spacing: .09em;
-    margin-bottom: .65rem; margin-top: .1rem;
-}
+.main{ background:
+  radial-gradient(120% 55% at 0% 0%, #f3f0fc 0%, rgba(243,240,252,0) 55%),
+  radial-gradient(120% 60% at 100% 20%, #fdeef4 0%, rgba(253,238,244,0) 50%),
+  #f7f7fb !important; }
+.dash{ max-width:1700px; margin:0 auto; padding:8px 4px 50px; color:#1e1b2e; }
 
-/* ── Action Row ── */
-.crm-hdr {
-    display: flex; align-items: center; justify-content: space-between;
-    flex-wrap: wrap; gap: .75rem; margin-bottom: 1.1rem;
-}
-.crm-hdr-title { font-size: 1.1rem; font-weight: 800; color: var(--text); }
-.crm-hdr-sub   { font-size: .77rem; color: var(--text3); margin-top: 2px; }
-.crm-hdr-btns  { display: flex; gap: .45rem; flex-wrap: wrap; align-items: center; }
+/* header */
+.dh{ display:flex; align-items:flex-start; justify-content:space-between; flex-wrap:wrap; gap:12px; margin:2px 0 20px; }
+.dh-title{ font-size:23px; font-weight:800; letter-spacing:-.025em; margin:0; }
+.dh-sub{ font-size:13px; color:#9b95a6; margin-top:3px; }
+.dh-tools{ display:flex; gap:9px; align-items:center; flex-wrap:wrap; }
+.dh-pill{ display:inline-flex; align-items:center; gap:8px; background:#fff; border:1px solid #e8e6ef; border-radius:11px; padding:8px 13px; font-size:12.5px; font-weight:600; color:#4a4560; text-decoration:none; }
+.dh-pill .bi{ color:#8b86a0; }
+.dh-primary{ background:linear-gradient(135deg,#7c3aed,#6366f1); color:#fff; border:none; box-shadow:0 7px 18px rgba(99,102,241,.30); }
+.dh-select{ font-family:'Inter',sans-serif; font-size:13px; font-weight:600; color:#4a4560; background:#fff; border:1px solid #e8e6ef; border-radius:11px; padding:9px 30px 9px 13px; cursor:pointer; appearance:none; -webkit-appearance:none; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='%239b95a6' d='M0 0l5 6 5-6z'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 12px center; }
+.dh-date{ font-family:'Inter',sans-serif; font-size:12.5px; color:#4a4560; background:#fff; border:1px solid #e8e6ef; border-radius:10px; padding:8px 10px; }
+.kpi{ cursor:pointer; text-decoration:none; }
+.kpi:hover{ box-shadow:0 10px 24px rgba(76,29,149,.12); transform:translateY(-2px); transition:transform .15s, box-shadow .15s; }
 
-/* ── LEAD STATUS — full color cards (exact screenshot) ── */
-.ls-grid {
-    display: grid;
-    grid-template-columns: repeat(4,1fr);
-    gap: 12px;
-    margin-bottom: 1.1rem;
-}
-.ls-card {
-    background: #fff;
-    border: 1px solid #e2e8f0;
-    border-left: 4px solid transparent;
-    border-radius: 13px;
-    padding: 20px 24px;
-    display: flex; align-items: center; gap: 16px;
-    text-decoration: none; color: var(--text);
-    transition: transform .15s, box-shadow .15s;
-    cursor: pointer; min-height: 82px;
-}
-.ls-card:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,.08); }
-.ls-open       { background: #fff; border-left-color: #6366f1; }
-.ls-in_process { background: #fff; border-left-color: #1e2d5e; }
-.ls-close      { background: #fff; border-left-color: #0d9488; }
-.ls-cancel     { background: #fff; border-left-color: #ef4444; }
+/* cards shared */
+.panel{ background:#fff; border:1px solid #efeef3; border-radius:18px; box-shadow:0 2px 12px rgba(30,27,46,.04); padding:18px 18px 16px; }
+.panel-h{ display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+.panel-t{ font-size:15px; font-weight:700; letter-spacing:-.01em; }
+.mini-sel{ font-size:11.5px; color:#8b86a0; border:1px solid #ececf2; border-radius:8px; padding:4px 9px; background:#fafafe; }
 
-.ls-lbl  { font-size: .63rem; font-weight: 800; text-transform: uppercase; letter-spacing: .09em; color: var(--text3); margin-bottom: 4px; }
-.ls-num  { font-size: 2.1rem; font-weight: 900; line-height: 1; letter-spacing: -0.03em; color: var(--text); }
+/* KPI row */
+.kpi-grid{ display:grid; grid-template-columns:repeat(6,1fr); gap:14px; margin-bottom:16px; }
+.kpi{ background:#fff; border:1px solid #efeef3; border-radius:16px; padding:15px 16px; display:flex; align-items:center; gap:13px; box-shadow:0 2px 12px rgba(30,27,46,.04); }
+.kpi-ic{ width:44px; height:44px; border-radius:50%; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:19px; }
+.kpi-l{ font-size:11px; font-weight:600; color:#9b95a6; }
+.kpi-n{ font-size:23px; font-weight:800; letter-spacing:-.02em; line-height:1.15; }
+.k-lav{background:#f1edfe;color:#7c3aed;} .k-blue{background:#e7f0fe;color:#2563eb;} .k-green{background:#e7f8ef;color:#16a34a;} .k-amber{background:#fef3e2;color:#ea580c;} .k-pink{background:#fde9f3;color:#db2777;} .k-rose{background:#fde7ea;color:#e11d48;}
 
-/* km-* styles removed — using ls-card style */
+/* layout rows */
+.row3{ display:grid; grid-template-columns:1fr 1.25fr 1fr; gap:16px; margin-bottom:16px; }
+.row3b{ display:grid; grid-template-columns:1fr 1.1fr 1.1fr; gap:16px; margin-bottom:16px; }
+.quick-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:16px; }
 
-/* Charts */
-.charts-row1 { display:grid; grid-template-columns:2fr 1fr; gap:1rem; margin-bottom:1rem; }
-.charts-row2 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:1rem; margin-bottom:1.1rem; }
-.chart-card  { background:#fff; border:1px solid #e2e8f0; border-radius:14px; padding:1.1rem 1.25rem; }
-.chart-ttl   { font-size:.85rem; font-weight:700; color:var(--text); margin-bottom:.85rem; }
+/* funnel */
+.fn{ display:flex; gap:16px; }
+.fn-bars{ flex:1; display:flex; flex-direction:column; align-items:center; gap:7px; padding-top:4px; }
+.fn-bar{ height:30px; border-radius:7px; min-width:36%; display:flex; align-items:center; justify-content:center; color:#fff; font-size:11.5px; font-weight:700; }
+.fn-leg{ flex:1; display:flex; flex-direction:column; gap:9px; justify-content:center; }
+.fn-li{ display:flex; align-items:center; gap:8px; font-size:12.5px; }
+.fn-dot{ width:9px; height:9px; border-radius:50%; flex-shrink:0; }
+.fn-li .nm{ color:#3a3550; font-weight:600; }
+.fn-li .vl{ margin-left:auto; color:#9b95a6; font-weight:600; }
 
-/* Bottom */
-.bottom-grid { display:grid; grid-template-columns:1.5fr 1fr; gap:1rem; }
-.icard { background:#fff; border:1px solid #e2e8f0; border-radius:14px; overflow:hidden; }
-.icard-hdr { padding:.8rem 1.1rem; border-bottom:1px solid #f1f5f9; display:flex; align-items:center; justify-content:space-between; }
-.icard-ttl { font-size:.86rem; font-weight:700; color:var(--text); }
-.icard-lnk { font-size:.76rem; color:#2563eb; text-decoration:none; font-weight:600; }
-.icard-lnk:hover { text-decoration:underline; }
-.icard-body { padding:.7rem 1.1rem; }
+/* donut legend */
+.dn-wrap{ display:flex; align-items:center; gap:14px; }
+.dn-c{ width:150px; height:150px; flex-shrink:0; position:relative; }
+.dn-c canvas{ position:absolute; inset:0; width:100%!important; height:100%!important; }
+.line-box{ position:relative; height:170px; width:100%; }
+.bar-box{ position:relative; height:240px; width:100%; }
+.line-box canvas{ position:absolute; inset:0; width:100%!important; height:100%!important; }
+.dn-center{ position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+.dn-center .big{ font-size:20px; font-weight:800; } .dn-center .sm{ font-size:10.5px; color:#9b95a6; }
+.dn-leg{ flex:1; display:flex; flex-direction:column; gap:8px; }
+.dn-li{ display:flex; align-items:center; gap:8px; font-size:12px; }
+.dn-li .nm{ color:#3a3550; font-weight:600; } .dn-li .vl{ margin-left:auto; color:#9b95a6; }
 
-.lead-item { display:flex; align-items:center; gap:.65rem; padding:.5rem 0; border-bottom:1px solid #f8fafc; }
-.lead-item:last-child { border-bottom:none; }
-.li-av { width:30px; height:30px; border-radius:50%; flex-shrink:0; background:linear-gradient(135deg,#667eea,#764ba2); display:flex; align-items:center; justify-content:center; font-size:.65rem; font-weight:700; color:#fff; }
-.li-name { font-size:.82rem; font-weight:600; color:#2563eb; text-decoration:none; flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.li-name:hover { text-decoration:underline; }
-.li-co { font-size:.73rem; color:var(--text2); }
-.li-dt { font-size:.69rem; color:var(--text3); white-space:nowrap; }
+/* agents */
+.ag{ display:flex; align-items:center; gap:11px; margin-bottom:13px; }
+.ag-av{ width:34px; height:34px; border-radius:50%; flex-shrink:0; background:linear-gradient(135deg,#7c3aed,#6366f1); color:#fff; font-size:12px; font-weight:700; display:flex; align-items:center; justify-content:center; }
+.ag-mid{ flex:1; min-width:0; }
+.ag-nm{ font-size:12.5px; font-weight:600; color:#2a2640; }
+.ag-track{ height:6px; background:#f1eff6; border-radius:6px; margin-top:5px; overflow:hidden; }
+.ag-fill{ height:100%; border-radius:6px; background:linear-gradient(90deg,#8b5cf6,#6366f1); }
+.ag-val{ font-size:12.5px; font-weight:700; color:#2a2640; white-space:nowrap; }
 
-.rem-item { display:flex; align-items:flex-start; gap:.6rem; padding:.5rem 0; border-bottom:1px solid #f8fafc; }
-.rem-item:last-child { border-bottom:none; }
-.rem-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; margin-top:5px; }
-.rem-ttl { font-size:.82rem; font-weight:600; color:var(--text); }
-.rem-dt  { font-size:.7rem; color:var(--text3); }
+/* activities */
+.act{ display:flex; gap:11px; margin-bottom:14px; }
+.act-ic{ width:32px; height:32px; border-radius:9px; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:14px; background:#eef7f0; color:#16a34a; }
+.act-b{ flex:1; min-width:0; }
+.act-t{ font-size:12.5px; font-weight:700; color:#2a2640; }
+.act-d{ font-size:11.5px; color:#9b95a6; }
+.act-w{ font-size:10.5px; color:#b7b2c2; white-space:nowrap; }
 
-/* Responsive */
-@media(max-width:1100px) {
-    .ls-grid { grid-template-columns:repeat(2,1fr); }
-    .charts-row1,.charts-row2,.bottom-grid { grid-template-columns:1fr; }
-}
-@media(max-width:767px) {
-    /* Stat grids — 2 col on mobile */
-    .ls-grid { grid-template-columns:repeat(2,1fr); gap:8px; }
-    /* ls-card mobile fix — stack icon+text properly, show everything */
-    .ls-card {
-        padding: 14px 14px;
-        min-height: 72px;
-        gap: 10px;
-        flex-direction: row;
-        align-items: center;
-    }
-    .ls-card span[style] { font-size:1.2rem !important; }
-    .ls-lbl { font-size:.58rem; }
-    .ls-num { font-size:1.5rem; }
+/* quick cards */
+.qk{ background:#fff; border:1px solid #efeef3; border-radius:16px; padding:15px 16px; box-shadow:0 2px 12px rgba(30,27,46,.04); }
+.qk-top{ display:flex; align-items:center; gap:11px; }
+.qk-ic{ width:40px; height:40px; border-radius:11px; display:flex; align-items:center; justify-content:center; font-size:17px; }
+.qk-l{ font-size:11.5px; color:#9b95a6; font-weight:600; } .qk-n{ font-size:21px; font-weight:800; letter-spacing:-.02em; }
+.qk-link{ font-size:11.5px; font-weight:600; color:#6d5fe6; text-decoration:none; margin-top:10px; display:inline-block; }
+.qk-link:hover{ text-decoration:underline; }
 
-    /* Charts — single column, reduced height */
-    .charts-row1,.charts-row2,.bottom-grid { grid-template-columns:1fr; gap:10px; }
-    .chart-card { padding:.9rem 1rem; border-radius:12px; }
-    .chart-ttl  { font-size:.82rem; margin-bottom:.65rem; }
-
-    /* Canvas height overrides on mobile */
-    #monthlyChart    { max-height:200px !important; }
-    #statusDonut     { max-height:200px !important; }
-    #sourceChart     { max-height:200px !important; }
-    #categoryChart   { max-height:200px !important; }
-    #weekChart       { max-height:200px !important; }
-    #empMonthlyChart { max-height:200px !important; }
-    #empStatusDonut  { max-height:200px !important; }
-
-    /* Bottom grid cards */
-    .icard { border-radius:12px; }
-    .icard-hdr { padding:.7rem 1rem; }
-    .icard-body { padding:.6rem 1rem; }
-
-    /* CRM header */
-    .crm-hdr { flex-direction:column; align-items:flex-start; gap:8px; }
-    .crm-hdr > div:last-child { width:100%; }
-}
+@media(max-width:1100px){ .kpi-grid{grid-template-columns:repeat(2,1fr)} .row3,.row3b{grid-template-columns:1fr} .quick-grid{grid-template-columns:repeat(2,1fr)} }
+@media(max-width:560px){ .kpi-grid,.quick-grid{grid-template-columns:1fr} }
 </style>
 {% endblock %}
 
 {% block content %}
+{% set analytics = analytics if analytics is defined else {} %}
+{% set kpi = analytics.get('kpi', {}) %}
+{% set pipeline = analytics.get('pipeline', []) %}
+{% set agents = analytics.get('agents', []) %}
+{% set recent = analytics.get('recent', []) %}
+{% set deal_status = analytics.get('deal_status', []) %}
+{% set fname = (current_user.full_name or 'there').split()[0] %}
+{% set amax = (agents|map(attribute='value')|max) if agents else 1 %}
+{% set src_total = (analytics.get('sources', [])|sum(attribute='value')) or 0 %}
+{% set range_total = (analytics.get('product_range', [])|sum(attribute='value')) or 0 %}
+{% set deal_total = (deal_status|sum(attribute='value')) or 0 %}
 
-<!-- ── Header ── -->
-<div class="crm-hdr">
+<div class="dash">
+
+  <!-- HEADER -->
+  <div class="dh">
     <div>
-        <div class="crm-hdr-title">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;margin-right:6px;"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
-            CRM Dashboard
+      <h1 class="dh-title">CRM Dashboard</h1>
+      <div class="dh-sub">Welcome back, {{ fname }}! Here's what's happening with your CRM.</div>
+    </div>
+    <div class="dh-tools">
+      <select id="periodSel" class="dh-select" onchange="onPeriodChange()">
+        <option value="all"          {{ 'selected' if period=='all' else '' }}>All Time</option>
+        <option value="today"        {{ 'selected' if period=='today' else '' }}>Today</option>
+        <option value="yesterday"    {{ 'selected' if period=='yesterday' else '' }}>Yesterday</option>
+        <option value="last_7_days"  {{ 'selected' if period=='last_7_days' else '' }}>Last 7 Days</option>
+        <option value="last_30_days" {{ 'selected' if period=='last_30_days' else '' }}>Last 30 Days</option>
+        <option value="custom"       {{ 'selected' if period=='custom' else '' }}>Custom Date</option>
+      </select>
+      <span id="customRange" style="display:{{ 'inline-flex' if period=='custom' else 'none' }}; gap:6px; align-items:center;">
+        <input type="date" id="dFrom" class="dh-date" value="{{ cust_from }}">
+        <span style="color:#9b95a6;">–</span>
+        <input type="date" id="dTo" class="dh-date" value="{{ cust_to }}">
+        <button type="button" class="dh-pill dh-primary" onclick="applyCustom()" style="cursor:pointer;">Apply</button>
+      </span>
+    </div>
+  </div>
+
+  <!-- KPI ROW -->
+  <div class="kpi-grid">
+    <a class="kpi" href="/crm/leads"><div class="kpi-ic k-lav"><i class="bi bi-people-fill"></i></div><div><div class="kpi-l">Total Leads</div><div class="kpi-n">{{ "{:,}".format(lead_counts.get('total',0)) }}</div></div></a>
+    <a class="kpi" href="/crm/leads?status=open"><div class="kpi-ic k-blue"><i class="bi bi-briefcase-fill"></i></div><div><div class="kpi-l">Open Leads</div><div class="kpi-n">{{ "{:,}".format(lead_counts.get('open',0) + lead_counts.get('in_process',0)) }}</div></div></a>
+    <a class="kpi" href="/crm/leads?status=close"><div class="kpi-ic k-green"><i class="bi bi-trophy-fill"></i></div><div><div class="kpi-l">Closed Leads</div><div class="kpi-n">{{ "{:,}".format(lead_counts.get('close',0)) }}</div></div></a>
+    <a class="kpi" href="/crm/leads?status=cancel"><div class="kpi-ic k-rose"><i class="bi bi-x-octagon-fill"></i></div><div><div class="kpi-l">Cancelled Leads</div><div class="kpi-n">{{ "{:,}".format(lead_counts.get('cancel',0)) }}</div></div></a>
+    <a class="kpi" href="/crm/leads?status=close"><div class="kpi-ic k-amber"><i class="bi bi-currency-rupee"></i></div><div><div class="kpi-l">Total Revenue</div><div class="kpi-n">&#8377;0</div></div></a>
+    <a class="kpi" href="/crm/leads"><div class="kpi-ic k-pink"><i class="bi bi-pie-chart-fill"></i></div><div><div class="kpi-l">Conversion Rate</div><div class="kpi-n">{{ ((lead_counts.get('close',0) / lead_counts.get('total',1) * 100)|round(1)) if lead_counts.get('total',0) else 0 }}%</div></div></a>
+  </div>
+
+  <!-- ROW: Leads over time · Product range · Quality · NPD vs EPD -->
+  <div class="row3" style="grid-template-columns:1.4fr 1fr 1fr 1fr;">
+    <div class="panel">
+      <div class="panel-h"><span class="panel-t">Leads Over Time</span><span class="mini-sel">Last 7 days</span></div>
+      <div class="line-box"><canvas id="leadsLine"></canvas></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-h"><span class="panel-t">Product Range</span></div>
+      <div class="dn-wrap">
+        <div class="dn-c"><canvas id="rangeDonut"></canvas><div class="dn-center"><span class="big">{{ "{:,}".format(range_total) }}</span><span class="sm">Total</span></div></div>
+        <div class="dn-leg">
+          {% for r in analytics.get('product_range', []) %}<div class="dn-li"><span class="fn-dot" style="background:{{ r.color }}"></span><span class="nm">{{ r.label }}</span><span class="vl">{{ ((r.value/range_total*100)|round)|int if range_total else 0 }}% ({{ r.value }})</span></div>{% endfor %}
+          {% if not analytics.get('product_range') %}<div class="dn-li"><span class="nm" style="color:#b7b2c2">No product range data yet</span></div>{% endif %}
         </div>
-        <div class="crm-hdr-sub">{{ now.strftime('%A, %d %B %Y') }} — CRM Overview</div>
+      </div>
     </div>
-</div>
 
-<!-- ── TABS ── -->
-<div style="display:flex;gap:0;border-bottom:2px solid #e2e8f0;margin-bottom:1.25rem;">
-    <button id="tab-main" onclick="switchDashTab('main')" style="padding:10px 22px;font-size:0.88rem;font-weight:700;color:#2563eb;background:transparent;border:none;border-bottom:2.5px solid #2563eb;margin-bottom:-2px;cursor:pointer;display:flex;align-items:center;gap:6px;">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
-        Main CRM Dashboard
-    </button>
-    <button id="tab-emp" onclick="switchDashTab('emp')" style="padding:10px 22px;font-size:0.88rem;font-weight:700;color:#64748b;background:transparent;border:none;border-bottom:2.5px solid transparent;margin-bottom:-2px;cursor:pointer;display:flex;align-items:center;gap:6px;">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-        <span id="empTabTitle">{% if is_admin %}Administrator Dashboard{% else %}My Performance{% endif %}</span>
-    </button>
-</div>
-<div id="dashTab-main">
-
-<!-- ── LEAD STATUS ── -->
-<div class="sec-lbl">Lead Status</div>
-<div class="ls-grid">
-    {% for ls in lead_statuses %}
-    <a href="/crm/leads?status={{ ls.name }}" class="ls-card ls-{{ ls.name|replace(' ','_')|lower }}"
-       style="border-left-color:{{ ls.color }};">
-        <span style="font-size:1.4rem;flex-shrink:0;opacity:.85;">{% if ls.icon %}{{ ls.icon }}{% elif ls.name == "open" %}✉️{% elif ls.name == "in_process" %}⚙️{% elif ls.name == "close" %}✅{% elif ls.name == "cancel" %}❌{% else %}📌{% endif %}</span>
-        <div>
-            <div class="ls-lbl">{{ ls.name.replace('_',' ')|title }}</div>
-            <div class="ls-num" style="color:{{ ls.color }};">{{ lead_counts.get(ls.name, 0) }}</div>
+    {% set ltype = analytics.get('lead_type', []) %}
+    {% set ltype_total = (ltype|sum(attribute='value')) or 0 %}
+    <div class="panel">
+      <div class="panel-h"><span class="panel-t">Quality vs Non-Quality</span></div>
+      <div class="dn-wrap">
+        <div class="dn-c"><canvas id="qualDonut"></canvas><div class="dn-center"><span class="big">{{ "{:,}".format(ltype_total) }}</span><span class="sm">Total</span></div></div>
+        <div class="dn-leg">
+          {% for q in ltype %}<div class="dn-li"><span class="fn-dot" style="background:{{ q.color }}"></span><span class="nm">{{ q.label }}</span><span class="vl">{{ ((q.value/ltype_total*100)|round)|int if ltype_total else 0 }}% ({{ q.value }})</span></div>{% endfor %}
+          {% if not ltype_total %}<div class="dn-li"><span class="nm" style="color:#b7b2c2">No lead-type data yet</span></div>{% endif %}
         </div>
-    </a>
-    {% endfor %}
-</div>
+      </div>
+    </div>
 
-<!-- ── KEY METRICS ── -->
-<div class="ls-grid">
-    <a href="/crm/leads" class="ls-card" style="border-left-color:#3b82f6;">
-        <span style="font-size:1.4rem;flex-shrink:0;opacity:.85;">📋</span>
-        <div>
-            <div class="ls-lbl">Total Leads</div>
-            <div class="ls-num" style="color:#2563eb;">{{ lead_counts.total }}</div>
+    {% set ne = analytics.get('npd_epd', []) %}
+    {% set ne_total = (ne|sum(attribute='value')) or 0 %}
+    <div class="panel">
+      <div class="panel-h"><span class="panel-t">NPD vs EPD Leads</span></div>
+      <div class="dn-wrap">
+        <div class="dn-c"><canvas id="npdDonut"></canvas><div class="dn-center"><span class="big">{{ "{:,}".format(ne_total) }}</span><span class="sm">Total</span></div></div>
+        <div class="dn-leg">
+          {% for x in ne %}<div class="dn-li"><span class="fn-dot" style="background:{{ x.color }}"></span><span class="nm">{{ x.label }}</span><span class="vl">{{ ((x.value/ne_total*100)|round)|int if ne_total else 0 }}% ({{ x.value }})</span></div>{% endfor %}
+          {% if not ne_total %}<div class="dn-li"><span class="nm" style="color:#b7b2c2">No NPD/EPD data yet</span></div>{% endif %}
         </div>
-    </a>
-    <a href="/crm/clients" class="ls-card" style="border-left-color:#8b5cf6;">
-        <span style="font-size:1.4rem;flex-shrink:0;opacity:.85;">👥</span>
-        <div>
-            <div class="ls-lbl">Clients</div>
-            <div class="ls-num" style="color:#7c3aed;">{{ total_clients }}</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ROW: Source Wise · Category Wise · Last 7 Days (bar charts) -->
+  <div class="row3" style="grid-template-columns:1fr 1fr 1fr;">
+    <div class="panel">
+      <div class="panel-h"><span class="panel-t">Source Wise</span></div>
+      <div class="bar-box"><canvas id="srcBar"></canvas></div>
+    </div>
+    <div class="panel">
+      <div class="panel-h"><span class="panel-t">Category Wise</span></div>
+      <div class="bar-box"><canvas id="catBar"></canvas></div>
+    </div>
+    <div class="panel">
+      <div class="panel-h"><span class="panel-t">Last 7 Days</span></div>
+      <div class="bar-box"><canvas id="weekBar"></canvas></div>
+    </div>
+  </div>
+
+  <!-- ROW: Deal status · Top agents · Recent activities -->
+  <div class="row3b">
+    <div class="panel">
+      <div class="panel-h"><span class="panel-t">Deal Status</span></div>
+      <div class="dn-wrap">
+        <div class="dn-c"><canvas id="dealDonut"></canvas><div class="dn-center"><span class="big">{{ "{:,}".format(deal_total) }}</span><span class="sm">Total Deals</span></div></div>
+        <div class="dn-leg">
+          {% for d in deal_status %}<div class="dn-li"><span class="fn-dot" style="background:{{ d.color }}"></span><span class="nm">{{ d.label }}</span><span class="vl">{{ ((d.value/deal_total*100)|round)|int if deal_total else 0 }}% ({{ d.value }})</span></div>{% endfor %}
         </div>
-    </a>
-    <a href="/crm/leads?status=close" class="ls-card" style="border-left-color:#10b981;">
-        <span style="font-size:1.4rem;flex-shrink:0;opacity:.85;">✅</span>
-        <div>
-            <div class="ls-lbl">Closed</div>
-            <div class="ls-num" style="color:#059669;">{{ lead_counts.get('close', 0) }}</div>
-        </div>
-    </a>
-    <a href="/crm/leads?status=in_process" class="ls-card" style="border-left-color:#f59e0b;">
-        <span style="font-size:1.4rem;flex-shrink:0;opacity:.85;">⚙️</span>
-        <div>
-            <div class="ls-lbl">In Process</div>
-            <div class="ls-num" style="color:#d97706;">{{ lead_counts.get('in_process', 0) }}</div>
-        </div>
-    </a>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-h"><span class="panel-t">Top Performing Agents</span></div>
+      {% for a in agents %}
+      <div class="ag">
+        <div class="ag-av">{{ (a.name or 'U')[0]|upper }}</div>
+        <div class="ag-mid"><div class="ag-nm">{{ a.name }}</div><div class="ag-track"><div class="ag-fill" style="width:{{ ((a.value/amax*100)|round)|int if amax else 0 }}%"></div></div></div>
+        <div class="ag-val">&#8377;{{ "{:,.0f}".format(a.value) }}</div>
+      </div>
+      {% endfor %}
+      {% if not agents %}<div style="font-size:12.5px;color:#b7b2c2;padding:8px 0;">No assigned-lead data yet.</div>{% endif %}
+    </div>
+
+    <div class="panel">
+      <div class="panel-h"><span class="panel-t">Recent Activities</span></div>
+      {% for a in recent %}
+      <div class="act">
+        <div class="act-ic"><i class="bi bi-plus-circle-fill"></i></div>
+        <div class="act-b"><div class="act-t">{{ a.title }}</div><div class="act-d">{{ a.desc }}</div></div>
+        <div class="act-w">{{ a.when.strftime('%d %b %H:%M') if a.when else '' }}</div>
+      </div>
+      {% endfor %}
+      {% if not recent %}<div style="font-size:12.5px;color:#b7b2c2;padding:8px 0;">No recent activity.</div>{% endif %}
+    </div>
+  </div>
+
+  <!-- QUICK CARDS -->
+  <div class="quick-grid">
+    <div class="qk"><div class="qk-top"><div class="qk-ic k-lav"><i class="bi bi-telephone"></i></div><div><div class="qk-l">Pending Follow-ups</div><div class="qk-n">{{ analytics.get('pending_followups',0) }}</div></div></div><a class="qk-link" href="/crm/leads">View follow-ups &rarr;</a></div>
+    <div class="qk"><div class="qk-top"><div class="qk-ic k-green"><i class="bi bi-person-plus"></i></div><div><div class="qk-l">Unassigned Leads</div><div class="qk-n">{{ analytics.get('unassigned_leads',0) }}</div></div></div><a class="qk-link" href="/crm/leads">View leads &rarr;</a></div>
+    <div class="qk"><div class="qk-top"><div class="qk-ic k-blue"><i class="bi bi-link-45deg"></i></div><div><div class="qk-l">Leads Linked with Client</div><div class="qk-n">{{ analytics.get('leads_with_client',0) }}</div></div></div><a class="qk-link" href="/crm/clients">View clients &rarr;</a></div>
+  </div>
+
 </div>
 
+<script id="crm-data" type="application/json">{{ {'week': analytics.get('week', []), 'sources': analytics.get('sources', []), 'deal_status': analytics.get('deal_status', []), 'categories': analytics.get('categories', []), 'lead_type': analytics.get('lead_type', []), 'product_range': analytics.get('product_range', []), 'npd_epd': analytics.get('npd_epd', [])} | tojson }}</script>
+{% endblock %}
 
-<!-- ── Analytics ── -->
-<div class="sec-lbl">Analytics</div>
-<div class="charts-row1">
-    <div class="chart-card">
-        <div class="chart-ttl">📈 Monthly Lead Trend (Last 6 Months)</div>
-        <div style="position:relative;width:100%;"><canvas id="monthlyChart"></canvas></div>
-    </div>
-    <div class="chart-card">
-        <div class="chart-ttl">🎯 Status Distribution</div>
-        <div style="position:relative;width:100%;height:220px;"><canvas id="statusDonut"></canvas></div>
-    </div>
-</div>
-<div class="charts-row2">
-    <div class="chart-card">
-        <div class="chart-ttl">📡 Source Wise</div>
-        <div style="position:relative;width:100%;"><canvas id="sourceChart"></canvas></div>
-    </div>
-    <div class="chart-card">
-        <div class="chart-ttl">🏷️ Category Wise</div>
-        <div style="position:relative;width:100%;"><canvas id="categoryChart"></canvas></div>
-    </div>
-    <div class="chart-card">
-        <div class="chart-ttl">📅 Last 7 Days</div>
-        <div style="position:relative;width:100%;"><canvas id="weekChart"></canvas></div>
-    </div>
-</div>
-
-<!-- ── Activity ── -->
-<div class="sec-lbl">Activity</div>
-<div class="bottom-grid">
-    <div class="icard">
-        <div class="icard-hdr">
-            <span class="icard-ttl">🕐 Recent Leads</span>
-            <a href="/crm/leads" class="icard-lnk">View All →</a>
-        </div>
-        <div class="icard-body">
-            {% if recent_leads %}
-                {% for l in recent_leads %}
-                <div class="lead-item">
-                    <div class="li-av">{{ l.contact_name[:2]|upper }}</div>
-                    <div style="flex:1;min-width:0;">
-                        <a href="/crm/leads/{{ l.id }}" class="li-name">{{ l.contact_name }}</a>
-                        <div class="li-co">{{ l.company_name or '—' }}</div>
-                    </div>
-                    {% if l.status=='open' %}<span class="sbadge open">Open</span>
-                    {% elif l.status=='in_process' %}<span class="sbadge in-process">In Process</span>
-                    {% elif l.status=='close' %}<span class="sbadge submitted">Close</span>
-                    {% elif l.status=='cancel' %}<span class="sbadge cancel">Cancel</span>
-                    {% else %}
-                    {% for ls in lead_statuses if ls.name == l.status %}
-                    <span class="sbadge" style="background:{{ ls.color }}22;color:{{ ls.color }};">{{ ls.icon }} {{ ls.name.replace('_',' ')|title }}</span>
-                    {% endfor %}
-                    {% endif %}
-                    <div class="li-dt" style="margin-left:4px;">{{ l.created_at.strftime('%d %b') }}</div>
-                </div>
-                {% endfor %}
-            {% else %}
-            <div style="text-align:center;padding:2rem;color:var(--text3);font-size:.82rem;">No leads yet.</div>
-            {% endif %}
-        </div>
-    </div>
-    <div class="icard">
-        <div class="icard-hdr">
-            <span class="icard-ttl">🔔 Reminders</span>
-            <a href="/crm/leads" class="icard-lnk">View All →</a>
-        </div>
-        <div class="icard-body">
-            {% if upcoming_reminders %}
-                {% for r in upcoming_reminders %}
-                {% set ov = r.remind_at < now %}
-                <div class="rem-item">
-                    <div class="rem-dot" style="background:{{ '#ef4444' if ov else '#2563eb' }};margin-top:5px;"></div>
-                    <div>
-                        <div class="rem-ttl">{{ r.title }}</div>
-                        <div class="rem-dt">{{ r.remind_at.strftime('%d %b, %H:%M') }}{% if ov %} <span style="color:#ef4444;font-weight:700;">· Overdue</span>{% endif %}</div>
-                    </div>
-                </div>
-                {% endfor %}
-            {% else %}
-            <div style="text-align:center;padding:2rem;color:var(--text3);font-size:.82rem;">No upcoming reminders.</div>
-            {% endif %}
-        </div>
-    </div>
-</div>
-
-</div><!-- /dashTab-main -->
-
-<!-- ══ TAB 2: EMPLOYEE PERFORMANCE ══ -->
-<div id="dashTab-emp" style="display:none;">
-
-<!-- Big Heading -->
-<h2 id="empDashHeading" style="font-size:1.6rem;font-weight:800;color:var(--text);margin:0 0 1rem 0;">{% if is_admin %}Administrator Dashboard{% else %}My Performance{% endif %}</h2>
-
-<!-- Filters Row -->
-<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.5rem;margin-bottom:1rem;">
-    <div style="font-size:0.78rem;color:var(--text3);">Select employee and period to view performance</div>
-    <div style="display:flex;gap:0.5rem;align-items:center;">
-        {% if is_admin %}
-        <select id="empSelect" onchange="loadEmpDash()" style="font-size:0.82rem;padding:7px 12px;border:1.5px solid #e2e8f0;border-radius:8px;outline:none;background:#fff;min-width:170px;color:var(--text);">
-            <option value="">👥 All Employees</option>
-            {% for u in all_users %}
-            <option value="{{ u.id }}">{{ u.full_name }}</option>
-            {% endfor %}
-        </select>
-        {% else %}
-        {# Non-admin: sirf apna data dekhe, dropdown nahi #}
-        <input type="hidden" id="empSelect" value="{{ current_user.id }}">
-        {% endif %}
-        <select id="periodSelect" onchange="loadEmpDash()" style="font-size:0.82rem;padding:7px 12px;border:1.5px solid #e2e8f0;border-radius:8px;outline:none;background:#fff;color:var(--text);">
-            <option value="today">Today</option>
-            <option value="this_week">This Week</option>
-            <option value="this_month" selected>This Month</option>
-            <option value="last_month">Last Month</option>
-            <option value="last_3_months">Last 3 Months</option>
-            <option value="last_6_months">Last 6 Months</option>
-            <option value="this_year">This Year</option>
-            <option value="last_year">Last Year</option>
-        </select>
-    </div>
-</div>
-
-<!-- Leaderboard -->
-<div class="sec-lbl" style="margin-top:0.5rem;">🏆 Contribution Leaderboard</div>
-<div style="background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:1rem 1.25rem;margin-bottom:1rem;">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.85rem;" id="lbPointsRow">
-        <div style="font-size:0.85rem;font-weight:700;color:var(--text);">Points: Comment=1 · Edit=1 · Status=2 · Cancel=2 · Close=5</div>
-        <div id="lbPeriodLabel" style="font-size:0.75rem;color:var(--text3);background:#f1f5f9;padding:3px 10px;border-radius:6px;"></div>
-    </div>
-    <div id="lbBody">
-        <div style="text-align:center;color:var(--text3);padding:1.5rem;font-size:0.85rem;">Select period to view leaderboard</div>
-    </div>
-</div>
-
-<!-- Lead Status Cards -->
-<div class="sec-lbl">Lead Status</div>
-<div class="ls-grid">
-    <div onclick="goEmpLeads('open')" class="ls-card ls-open" style="cursor:pointer;">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="opacity:.6;flex-shrink:0;"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
-        <div><div class="ls-lbl">Open</div><div class="ls-num" id="emp_open">—</div></div>
-    </div>
-    <div onclick="goEmpLeads('in_process')" class="ls-card ls-in_process" style="cursor:pointer;">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="opacity:.7;flex-shrink:0;"><path d="M12 22C6.477 22 2 17.523 2 12S6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/><path d="M12 6v6l4 2"/></svg>
-        <div><div class="ls-lbl">In Process</div><div class="ls-num" id="emp_in_process">—</div></div>
-    </div>
-    <div onclick="goEmpLeads('close')" class="ls-card ls-close" style="cursor:pointer;">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="opacity:.7;flex-shrink:0;"><polyline points="20 6 9 17 4 12"/></svg>
-        <div><div class="ls-lbl">Close</div><div class="ls-num" id="emp_close">—</div></div>
-    </div>
-    <div onclick="goEmpLeads('cancel')" class="ls-card ls-cancel" style="cursor:pointer;">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="opacity:.7;flex-shrink:0;"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-        <div><div class="ls-lbl">Cancel</div><div class="ls-num" id="emp_cancel">—</div></div>
-    </div>
-</div>
-
-<!-- Charts -->
-<div class="sec-lbl">Analytics</div>
-<div class="charts-row1">
-    <div class="chart-card">
-        <div class="chart-ttl">📈 Monthly Lead Trend</div>
-        <div style="position:relative;width:100%;"><canvas id="empMonthlyChart"></canvas></div>
-    </div>
-    <div class="chart-card">
-        <div class="chart-ttl">🎯 Status Distribution</div>
-        <div style="position:relative;width:100%;height:220px;"><canvas id="empStatusDonut"></canvas></div>
-    </div>
-</div>
-<div class="charts-row2">
-    <div class="chart-card">
-        <div class="chart-ttl">📡 Source Wise</div>
-        <canvas id="empSourceChart" height="180"></canvas>
-    </div>
-    <div class="chart-card">
-        <div class="chart-ttl">🏷️ Category Wise</div>
-        <canvas id="empCategoryChart" height="180"></canvas>
-    </div>
-    <div class="chart-card">
-        <div class="chart-ttl">📅 Last 7 Days</div>
-        <canvas id="empWeekChart" height="180"></canvas>
-    </div>
-</div>
-
-
-
-</div><!-- /dashTab-emp -->
-
-
-
+{% block extra_js %}
+<script>
+function onPeriodChange(){
+  var v = document.getElementById('periodSel').value;
+  if (v === 'custom'){ document.getElementById('customRange').style.display = 'inline-flex'; return; }
+  window.location = '/crm/dashboard?period=' + encodeURIComponent(v);
+}
+function applyCustom(){
+  var f = document.getElementById('dFrom').value, t = document.getElementById('dTo').value;
+  var u = '/crm/dashboard?period=custom';
+  if (f) u += '&from=' + encodeURIComponent(f);
+  if (t) u += '&to='   + encodeURIComponent(t);
+  window.location = u;
+}
+// Link the two date pickers: "To" cannot be earlier than "From"
+function linkCrmDates(tries){
+  tries = tries || 0;
+  var fromEl = document.getElementById('dFrom');
+  var toEl   = document.getElementById('dTo');
+  if (!fromEl || !toEl) return;
+  var fpFrom = fromEl._flatpickr, fpTo = toEl._flatpickr;
+  if (!fpFrom || !fpTo){ if (tries < 30) setTimeout(function(){ linkCrmDates(tries+1); }, 100); return; }
+  // apply on initial load if a from-date is already chosen
+  if (fpFrom.selectedDates && fpFrom.selectedDates[0]) fpTo.set('minDate', fpFrom.selectedDates[0]);
+  // hook future changes
+  try { fpFrom.config.onChange.push(function(sel){ if (sel[0]) fpTo.set('minDate', sel[0]); }); }
+  catch(e){ fpFrom.set('onChange', function(sel){ if (sel[0]) fpTo.set('minDate', sel[0]); }); }
+}
+document.addEventListener('DOMContentLoaded', function(){ linkCrmDates(0); });
+</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script>
-Chart.defaults.font.family = "'Plus Jakarta Sans', sans-serif";
+(function(){
+  var data = {};
+  try { data = JSON.parse(document.getElementById('crm-data').textContent || '{}'); } catch(e){ data = {}; }
+  if (typeof Chart === 'undefined') return;
+  Chart.defaults.font.family = "'Inter', sans-serif";
+  Chart.defaults.plugins.legend.display = false;
 
-// ── Tab Switching ──
-function switchDashTab(tab) {
-    const mainEl = document.getElementById('dashTab-main');
-    const empEl  = document.getElementById('dashTab-emp');
-    const btnMain = document.getElementById('tab-main');
-    const btnEmp  = document.getElementById('tab-emp');
-    if (!mainEl || !empEl || !btnMain || !btnEmp) return;
+  // Leads over time — area line
+  var wk = data.week || [];
+  var lc = document.getElementById('leadsLine');
+  if (lc) {
+    var ctx = lc.getContext('2d');
+    var g = ctx.createLinearGradient(0,0,0,150);
+    g.addColorStop(0,'rgba(124,58,237,.28)'); g.addColorStop(1,'rgba(124,58,237,0)');
+    new Chart(ctx, { type:'line', data:{ labels: wk.map(function(d){return d.day;}),
+      datasets:[{ data: wk.map(function(d){return d.count;}), borderColor:'#7c3aed', backgroundColor:g,
+        fill:true, tension:.4, pointRadius:3, pointBackgroundColor:'#7c3aed', borderWidth:2 }]},
+      options:{ responsive:true, maintainAspectRatio:false,
+        scales:{ y:{ beginAtZero:true, grid:{color:'#f1eff6'}, ticks:{color:'#b7b2c2',font:{size:10}} },
+                 x:{ grid:{display:false}, ticks:{color:'#b7b2c2',font:{size:10}} } } } });
+  }
 
-    mainEl.style.display = tab === 'main' ? 'block' : 'none';
-    empEl.style.display  = tab === 'emp'  ? 'block' : 'none';
+  function donut(id, arr){
+    var el = document.getElementById(id); if(!el) return;
+    new Chart(el, { type:'doughnut',
+      data:{ labels: arr.map(function(x){return x.label;}),
+        datasets:[{ data: arr.map(function(x){return x.value;}),
+          backgroundColor: arr.map(function(x){return x.color;}), borderWidth:0, cutout:'70%' }]},
+      options:{ responsive:true, maintainAspectRatio:false } });
+  }
+  donut('rangeDonut', data.product_range || []);
+  donut('dealDonut', data.deal_status || []);
+  donut('qualDonut', data.lead_type || []);
+  donut('npdDonut', data.npd_epd || []);
 
-    if (tab === 'main') {
-        btnMain.style.color = '#2563eb'; btnMain.style.borderBottomColor = '#2563eb';
-        btnEmp.style.color  = '#64748b'; btnEmp.style.borderBottomColor  = 'transparent';
-    } else {
-        btnEmp.style.color  = '#2563eb'; btnEmp.style.borderBottomColor  = '#2563eb';
-        btnMain.style.color = '#64748b'; btnMain.style.borderBottomColor = 'transparent';
-        loadEmpDash();
-    }
-}
-Chart.defaults.color = '#64748b';
+  var noGrid = { grid:{display:false}, ticks:{color:'#9b95a6',font:{size:10}} };
+  var yGrid  = { beginAtZero:true, grid:{color:'#f1eff6'}, ticks:{color:'#9b95a6',font:{size:10},precision:0} };
 
-// ── Employee Dashboard ──
-let _empCharts = {};
+  // Source Wise — vertical bars (per-source colour)
+  var sb = document.getElementById('srcBar');
+  if (sb) {
+    var src = data.sources || [];
+    new Chart(sb, { type:'bar',
+      data:{ labels: src.map(function(x){return x.label;}),
+        datasets:[{ data: src.map(function(x){return x.value;}),
+          backgroundColor: src.map(function(x){return x.color || '#3b82f6';}),
+          borderRadius:5, maxBarThickness:46 }]},
+      options:{ responsive:true, maintainAspectRatio:false,
+        scales:{ y:yGrid, x:noGrid } } });
+  }
 
-async function loadEmpDash() {
-    const empEl   = document.getElementById('empSelect');
-    const empId   = empEl ? empEl.value : '';
-    const period  = document.getElementById('periodSelect').value;
+  // Category Wise — horizontal bars
+  var cb = document.getElementById('catBar');
+  if (cb) {
+    var cat = data.categories || [];
+    new Chart(cb, { type:'bar', data:{ labels: cat.map(function(x){return x.label;}),
+        datasets:[{ data: cat.map(function(x){return x.value;}),
+          backgroundColor:'#7c3aed', borderRadius:5, maxBarThickness:22 }]},
+      options:{ indexAxis:'y', responsive:true, maintainAspectRatio:false,
+        scales:{ x:yGrid, y:{ grid:{display:false}, ticks:{color:'#6b6679',font:{size:11}} } } } });
+  }
 
-    // empName safely — hidden input has no options
-    const empName = (empEl && empEl.tagName === 'SELECT' && empEl.selectedIndex >= 0)
-                    ? empEl.options[empEl.selectedIndex].text
-                    : '{{ current_user.full_name or current_user.username }}';
-
-    const titleEl = document.getElementById('empTabTitle');
-    if (titleEl) {
-        {% if is_admin %}
-        titleEl.textContent = empId ? empName + ' Dashboard' : 'Administrator Dashboard';
-        {% else %}
-        titleEl.textContent = 'My Performance';
-        {% endif %}
-    }
-    const headingEl = document.getElementById('empDashHeading');
-    if (headingEl) {
-        {% if is_admin %}
-        headingEl.textContent = empId ? empName + ' Dashboard' : 'Administrator Dashboard';
-        {% else %}
-        headingEl.textContent = 'My Performance';
-        {% endif %}
-    }
-    const url    = `/crm/api/emp-dashboard-stats?emp_id=${empId}&period=${period}`;
-    const clrs   = ['#2563eb','#0d9488','#7c3aed','#ea580c','#dc2626','#0891b2','#65a30d','#d97706'];
-
-    try {
-        const res = await fetch(url);
-        const d   = await res.json();
-
-        // ── Status Cards ──
-        document.getElementById('emp_open').textContent       = d.counts.open;
-        document.getElementById('emp_in_process').textContent = d.counts.in_process;
-        document.getElementById('emp_close').textContent      = d.counts.close;
-        document.getElementById('emp_cancel').textContent     = d.counts.cancel;
-
-        // ── Helper: destroy & recreate chart ──
-        function makeChart(id, cfg) {
-            if (_empCharts[id]) { _empCharts[id].destroy(); }
-            _empCharts[id] = new Chart(document.getElementById(id), cfg);
-        }
-
-        // ── Monthly Trend ──
-        makeChart('empMonthlyChart', {
-            type: 'line',
-            data: { labels: d.monthly.map(x=>x.month),
-                datasets:[{ label:'Leads', data:d.monthly.map(x=>x.count),
-                    borderColor:'#2563eb', backgroundColor:'rgba(37,99,235,.08)',
-                    borderWidth:2.5, pointRadius:4, pointBackgroundColor:'#2563eb',
-                    fill:true, tension:.4 }]},
-            options:{ responsive:true, plugins:{legend:{display:false}},
-                scales:{ y:{beginAtZero:true,grid:{color:'#f1f5f9'}}, x:{grid:{display:false}} }}
-        });
-
-        // ── Status Donut ──
-        makeChart('empStatusDonut', {
-            type:'doughnut',
-            data:{ labels:d.status.map(x=>x.label),
-                datasets:[{data:d.status.map(x=>x.value), backgroundColor:d.status.map(x=>x.color), borderWidth:2, borderColor:'#fff'}]},
-            options:{ responsive:true, cutout:'65%',
-                plugins:{legend:{position:'bottom',labels:{padding:10,font:{size:11}}}},
-                onClick:(e,el)=>{ if(!el.length) return; const s=['open','in_process','close','cancel']; goEmpLeads(s[el[0].index]); }
-            }
-        });
-
-        // ── Source Chart ──
-        makeChart('empSourceChart', {
-            type:'bar', data:{ labels:d.sources.map(x=>x.label),
-                datasets:[{data:d.sources.map(x=>x.value), backgroundColor:d.sources.map((_,i)=>clrs[i%clrs.length]), borderRadius:6}]},
-            options:{responsive:true,maintainAspectRatio:true,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,grid:{color:'#f1f5f9'}},x:{grid:{display:false},ticks:{font:{size:10}}}}}
-        });
-
-        // ── Category Chart ──
-        makeChart('empCategoryChart', {
-            type:'bar', data:{ labels:d.categories.map(x=>x.label),
-                datasets:[{data:d.categories.map(x=>x.value), backgroundColor:'#7c3aed', borderRadius:6}]},
-            options:{indexAxis:'y',responsive:true,maintainAspectRatio:true,plugins:{legend:{display:false}},scales:{x:{beginAtZero:true,grid:{color:'#f1f5f9'}},y:{grid:{display:false},ticks:{font:{size:10}}}}}
-        });
-
-        // ── Week Chart ──
-        makeChart('empWeekChart', {
-            type:'bar', data:{ labels:d.week.map(x=>x.day),
-                datasets:[{label:'Leads',data:d.week.map(x=>x.count), backgroundColor:'rgba(5,150,105,.7)', borderRadius:6}]},
-            options:{responsive:true,maintainAspectRatio:true,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,grid:{color:'#f1f5f9'}},x:{grid:{display:false}}}}
-        });
-
-    } catch(e) { console.error('EmpDash error:', e); }
-
-    // ── Leaderboard ──
-    const isSpecific = !!empId;
-    fetch(`/crm/api/emp-contribution-stats?period=${period}${empId ? '&emp_id='+empId : ''}`)
-        .then(r => r.json())
-        .then(d => {
-            const el = document.getElementById('lbBody');
-            document.getElementById('lbPeriodLabel').textContent = document.getElementById('periodSelect').options[document.getElementById('periodSelect').selectedIndex].text;
-            const lbPointsRow = document.getElementById('lbPointsRow');
-            if (!d.leaderboard || !d.leaderboard.length) {
-                if (lbPointsRow) lbPointsRow.style.display = 'none';
-                el.innerHTML = '<div style="text-align:center;color:var(--text3);padding:1.5rem;font-size:0.85rem;">No contribution data yet.</div>';
-                return;
-            }
-            if (lbPointsRow) lbPointsRow.style.display = 'flex';
-            const medals  = ['🥇','🥈','🥉'];
-            const borderClr = (i) => i===0?'#fbbf24':i===1?'#94a3b8':i===2?'#cd7c3a':'#e2e8f0';
-            const bgClr     = (i) => i===0?'#fffbeb':i===1?'#f8fafc':i===2?'#fff7ed':'#fff';
-            const ptClr     = (i) => i===0?'#d97706':i===1?'#64748b':i===2?'#b45309':'#1e3a5f';
-
-            if (isSpecific) {
-                // ── Specific employee: horizontal row design ──
-                el.innerHTML = `<div style="display:flex;flex-direction:column;gap:0.6rem;">` +
-                    d.leaderboard.map((r,i) => `
-                    <div style="display:flex;align-items:center;gap:1rem;background:${bgClr(i)};border:1.5px solid ${borderClr(i)};border-radius:12px;padding:0.75rem 1.25rem;">
-                        <div style="font-size:1.6rem;min-width:28px;text-align:center;">${medals[i]||('<span style="font-size:0.85rem;font-weight:700;color:#94a3b8;">#'+r.rank+'</span>')}</div>
-                        <div style="width:40px;height:40px;border-radius:50%;background:#1e3a5f;color:#fff;display:flex;align-items:center;justify-content:center;font-size:0.82rem;font-weight:700;flex-shrink:0;">${r.name.substring(0,2).toUpperCase()}</div>
-                        <div style="flex:1;min-width:0;">
-                            <div style="font-weight:700;font-size:0.92rem;color:var(--text);">${r.name}</div>
-                            <div style="display:flex;gap:0.75rem;margin-top:4px;flex-wrap:wrap;">
-                                <span style="font-size:0.75rem;color:#64748b;">💬 ${r.comments} comments</span>
-                                <span style="font-size:0.75rem;color:#16a34a;">✅ ${r.closes} closes</span>
-                                <span style="font-size:0.75rem;color:#2563eb;">🔄 ${r.actions - r.closes - r.comments} status</span>
-                                <span style="font-size:0.75rem;color:#7c3aed;">📋 ${r.actions} actions</span>
-                            </div>
-                        </div>
-                        <div style="font-size:1.8rem;font-weight:900;color:${ptClr(i)};text-align:right;min-width:60px;">
-                            ${r.points}<div style="font-size:0.62rem;font-weight:600;color:#94a3b8;letter-spacing:1px;">POINTS</div>
-                        </div>
-                    </div>`).join('') + `</div>`;
-            } else {
-                // ── All employees: boxes grid ──
-                el.innerHTML = `<div style="display:flex;flex-direction:row;gap:0.75rem;overflow-x:auto;padding-bottom:0.5rem;flex-wrap:nowrap;">` +
-                    d.leaderboard.map((r,i) => `
-                    <div style="background:${bgClr(i)};border:1.5px solid ${borderClr(i)};border-radius:12px;padding:0.85rem 1rem;text-align:center;min-width:180px;flex-shrink:0;">
-                        <div style="font-size:1.8rem;">${medals[i]||'#'+r.rank}</div>
-                        <div style="width:44px;height:44px;border-radius:50%;background:#1e3a5f;color:#fff;display:flex;align-items:center;justify-content:center;font-size:0.85rem;font-weight:700;margin:0.35rem auto;">${r.name.substring(0,2).toUpperCase()}</div>
-                        <div style="font-weight:700;font-size:0.88rem;color:var(--text);margin-bottom:4px;">${r.name}</div>
-                        <div style="font-size:1.5rem;font-weight:900;color:${ptClr(i)};">${r.points} pts</div>
-                        <div style="display:flex;justify-content:center;gap:0.5rem;margin-top:6px;font-size:0.72rem;color:var(--text3);flex-wrap:wrap;">
-                            <span>✅ ${r.closes} closed</span>
-                            <span>💬 ${r.comments} comments</span>
-                        </div>
-                    </div>`).join('') + `</div>`;
-            }
-        }).catch(() => {});
-}
-
-function goEmpLeads(status) {
-    const empEl   = document.getElementById('empSelect');
-    const empId   = empEl ? empEl.value : '';
-    const period  = document.getElementById('periodSelect').value;
-    const empName = (empEl && empEl.tagName === 'SELECT' && empEl.selectedIndex >= 0)
-                    ? empEl.options[empEl.selectedIndex].text
-                    : '{{ current_user.full_name or current_user.username }}';
-    const periodName = document.getElementById('periodSelect').options[document.getElementById('periodSelect').selectedIndex].text;
-
-    const statusLabels = {open:'Open', in_process:'In Process', close:'Close', cancel:'Cancel', '':'All'};
-    const statusColors = {open:'#6366f1', in_process:'#1e3a5f', close:'#0d9488', cancel:'#ef4444', '':'#2563eb'};
-
-    // Show modal
-    document.getElementById('empLeadsModal').style.display = 'flex';
-    document.getElementById('empModalTitle').textContent   = (statusLabels[status] || 'All') + ' Leads';
-    document.getElementById('empModalSub').textContent     = empName + ' · ' + periodName;
-    document.getElementById('empModalLoading').style.display = 'block';
-    document.getElementById('empModalTable').style.display   = 'none';
-    document.getElementById('empModalEmpty').style.display   = 'none';
-
-    // View all link
-    let viewUrl = '/crm/leads' + (status ? '?status='+status : '?');
-    if (empId)  viewUrl += (viewUrl.includes('?') && viewUrl.slice(-1)!='?' ? '&' : '') + 'assigned_to_filter='+empId;
-    if (period) viewUrl += '&perf_period='+period;
-    document.getElementById('empModalViewAll').href = viewUrl;
-
-    // Fetch leads
-    let apiUrl = `/crm/api/emp-leads-list?emp_id=${empId}&period=${period}`;
-    if (status) apiUrl += '&status=' + status;
-
-    fetch(apiUrl).then(r=>r.json()).then(d => {
-        document.getElementById('empModalLoading').style.display = 'none';
-        document.getElementById('empModalCount').textContent = d.total + ' leads found';
-
-        if (!d.leads || !d.leads.length) {
-            document.getElementById('empModalEmpty').style.display = 'block';
-            return;
-        }
-
-        const sc = statusColors;
-        const tbody = document.getElementById('empModalBody');
-        tbody.innerHTML = d.leads.map((l, i) => `
-            <tr style="border-bottom:1px solid #f1f5f9;transition:background .1s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
-                <td style="padding:9px 12px;font-size:0.78rem;color:var(--text3);">${i+1}</td>
-                <td style="padding:9px 12px;">
-                    <div style="font-weight:600;font-size:0.85rem;color:var(--text);">${l.name}</div>
-                    <div style="font-size:0.72rem;color:var(--text3);">${l.code} · ${l.city}</div>
-                </td>
-                <td style="padding:9px 12px;font-size:0.83rem;color:var(--text2);">${l.company || '—'}</td>
-                <td style="padding:9px 12px;font-size:0.83rem;color:var(--text2);">${l.product || '—'}</td>
-                <td style="padding:9px 12px;font-size:0.83rem;">${l.mobile || '—'}</td>
-                <td style="padding:9px 12px;">
-                    <span style="font-size:0.72rem;font-weight:700;color:${sc[l.status]||'#94a3b8'};background:${sc[l.status]||'#94a3b8'}18;padding:3px 9px;border-radius:100px;">
-                        ${l.status_label}
-                    </span>
-                </td>
-                <td style="padding:9px 12px;">
-                    <span style="font-size:0.72rem;font-weight:700;color:${l.lead_type==='Quality'?'#166534':'#dc2626'};background:${l.lead_type==='Quality'?'#dcfce7':'#fee2e2'};padding:3px 9px;border-radius:100px;">
-                        ${l.lead_type==='Quality'?'✅':'❌'} ${l.lead_type}
-                    </span>
-                </td>
-                <td style="padding:9px 12px;font-size:0.82rem;font-weight:600;color:${l.age>30?'#dc2626':l.age>15?'#d97706':'#2563eb'};">${l.age}d</td>
-                <td style="padding:9px 12px;font-size:0.78rem;color:var(--text3);">${l.created}</td>
-                <td style="padding:9px 12px;">
-                    <a href="/crm/leads/${l.id}" target="_blank" style="font-size:0.75rem;font-weight:600;color:#1e3a5f;text-decoration:none;background:#eff6ff;padding:4px 10px;border-radius:6px;">View →</a>
-                </td>
-            </tr>`).join('');
-
-        document.getElementById('empModalTable').style.display = 'table';
-    }).catch(e => {
-        document.getElementById('empModalLoading').innerHTML = '❌ Error loading leads.';
-    });
-}
-
-function closeEmpModal() {
-    document.getElementById('empLeadsModal').style.display = 'none';
-}
-
-// Close modal on outside click
-document.addEventListener('DOMContentLoaded', function() {
-    var m = document.getElementById('empLeadsModal');
-    if(m) m.addEventListener('click', function(e) { if (e.target === this) closeEmpModal(); });
-});
-
-async function loadCharts() {
-    try {
-        const res = await fetch('/crm/api/dashboard-stats');
-        const d   = await res.json();
-        const clrs = ['#2563eb','#0d9488','#7c3aed','#ea580c','#dc2626','#0891b2','#65a30d','#d97706'];
-
-        new Chart(document.getElementById('monthlyChart'), {
-            type: 'line',
-            data: { labels: d.monthly.map(x=>x.month),
-                datasets:[{ label:'Leads', data:d.monthly.map(x=>x.count),
-                    borderColor:'#2563eb', backgroundColor:'rgba(37,99,235,.08)',
-                    borderWidth:2.5, pointRadius:4, pointBackgroundColor:'#2563eb',
-                    fill:true, tension:.4 }]},
-            options: { responsive:true, maintainAspectRatio:true, plugins:{legend:{display:false}},
-                scales:{ y:{beginAtZero:true,grid:{color:'#f1f5f9'}}, x:{grid:{display:false}} }}
-        });
-
-        new Chart(document.getElementById('statusDonut'), {
-            type:'doughnut',
-            data:{ labels:d.status.map(x=>x.label),
-                datasets:[{data:d.status.map(x=>x.value), backgroundColor:d.status.map(x=>x.color), borderWidth:2, borderColor:'#fff'}]},
-            options:{ responsive:true, maintainAspectRatio:false, cutout:'65%', plugins:{legend:{position:'bottom',labels:{padding:10,font:{size:11}}}} }
-        });
-
-        new Chart(document.getElementById('sourceChart'), {
-            type:'bar', data:{ labels:d.sources.map(x=>x.label),
-                datasets:[{data:d.sources.map(x=>x.value), backgroundColor:d.sources.map((_,i)=>clrs[i%clrs.length]), borderRadius:6}]},
-            options:{responsive:true,maintainAspectRatio:true,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,grid:{color:'#f1f5f9'}},x:{grid:{display:false},ticks:{font:{size:10}}}}}
-        });
-
-        new Chart(document.getElementById('categoryChart'), {
-            type:'bar', data:{ labels:d.categories.map(x=>x.label),
-                datasets:[{data:d.categories.map(x=>x.value), backgroundColor:'#7c3aed', borderRadius:6}]},
-            options:{indexAxis:'y',responsive:true,maintainAspectRatio:true,plugins:{legend:{display:false}},scales:{x:{beginAtZero:true,grid:{color:'#f1f5f9'}},y:{grid:{display:false},ticks:{font:{size:10}}}}}
-        });
-
-        new Chart(document.getElementById('weekChart'), {
-            type:'bar', data:{ labels:d.week.map(x=>x.day),
-                datasets:[{label:'Leads',data:d.week.map(x=>x.count), backgroundColor:'rgba(5,150,105,.7)', borderRadius:6}]},
-            options:{responsive:true,maintainAspectRatio:true,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,grid:{color:'#f1f5f9'}},x:{grid:{display:false}}}}
-        });
-    } catch(e) { console.error('Chart error:', e); }
-}
-loadCharts();
+  // Last 7 Days — vertical bars
+  var wb = document.getElementById('weekBar');
+  if (wb) {
+    var wkb = data.week || [];
+    new Chart(wb, { type:'bar', data:{ labels: wkb.map(function(d){return d.dow || d.day;}),
+        datasets:[{ data: wkb.map(function(d){return d.count;}),
+          backgroundColor:'#10b981', borderRadius:5, maxBarThickness:38 }]},
+      options:{ responsive:true, maintainAspectRatio:false,
+        scales:{ y:yGrid, x:noGrid } } });
+  }
+})();
 </script>
-
-<!-- ── Leads Popup Modal ── -->
-<div id="empLeadsModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:2000;align-items:center;justify-content:center;padding:1rem;">
-    <div style="background:#fff;border-radius:14px;width:100%;max-width:900px;max-height:88vh;display:flex;flex-direction:column;box-shadow:0 25px 80px rgba(0,0,0,0.25);">
-        <!-- Header -->
-        <div style="background:#1e3a5f;color:#fff;padding:0.9rem 1.25rem;border-radius:14px 14px 0 0;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
-            <div>
-                <div id="empModalTitle" style="font-size:1rem;font-weight:700;"></div>
-                <div id="empModalSub" style="font-size:0.75rem;opacity:0.75;margin-top:2px;"></div>
-            </div>
-            <button onclick="closeEmpModal()" style="background:rgba(255,255,255,0.15);border:none;color:#fff;width:28px;height:28px;border-radius:50%;font-size:1rem;cursor:pointer;">✕</button>
-        </div>
-        <!-- Body -->
-        <div style="overflow-y:auto;flex:1;">
-            <div id="empModalLoading" style="padding:2rem;text-align:center;color:var(--text3);">⏳ Loading...</div>
-            <table id="empModalTable" style="display:none;width:100%;border-collapse:collapse;">
-                <thead>
-                    <tr style="background:#f8fafc;position:sticky;top:0;z-index:1;">
-                        <th style="padding:9px 12px;text-align:left;font-size:0.75rem;font-weight:700;color:#64748b;border-bottom:1.5px solid #e2e8f0;">#</th>
-                        <th style="padding:9px 12px;text-align:left;font-size:0.75rem;font-weight:700;color:#64748b;border-bottom:1.5px solid #e2e8f0;">Lead</th>
-                        <th style="padding:9px 12px;text-align:left;font-size:0.75rem;font-weight:700;color:#64748b;border-bottom:1.5px solid #e2e8f0;">Company</th>
-                        <th style="padding:9px 12px;text-align:left;font-size:0.75rem;font-weight:700;color:#64748b;border-bottom:1.5px solid #e2e8f0;">Product</th>
-                        <th style="padding:9px 12px;text-align:left;font-size:0.75rem;font-weight:700;color:#64748b;border-bottom:1.5px solid #e2e8f0;">Mobile</th>
-                        <th style="padding:9px 12px;text-align:left;font-size:0.75rem;font-weight:700;color:#64748b;border-bottom:1.5px solid #e2e8f0;">Status</th>
-                        <th style="padding:9px 12px;text-align:left;font-size:0.75rem;font-weight:700;color:#64748b;border-bottom:1.5px solid #e2e8f0;">Type</th>
-                        <th style="padding:9px 12px;text-align:left;font-size:0.75rem;font-weight:700;color:#64748b;border-bottom:1.5px solid #e2e8f0;">Days</th>
-                        <th style="padding:9px 12px;text-align:left;font-size:0.75rem;font-weight:700;color:#64748b;border-bottom:1.5px solid #e2e8f0;">Date</th>
-                        <th style="padding:9px 12px;border-bottom:1.5px solid #e2e8f0;"></th>
-                    </tr>
-                </thead>
-                <tbody id="empModalBody"></tbody>
-            </table>
-            <div id="empModalEmpty" style="display:none;padding:2.5rem;text-align:center;color:var(--text3);">
-                <div style="font-size:1.5rem;margin-bottom:0.5rem;">📭</div>
-                No leads found for this selection.
-            </div>
-        </div>
-        <!-- Footer -->
-        <div style="padding:0.75rem 1.25rem;border-top:1px solid #e5e7eb;display:flex;justify-content:space-between;align-items:center;background:#f9fafb;border-radius:0 0 14px 14px;flex-shrink:0;">
-            <div id="empModalCount" style="font-size:0.82rem;color:var(--text3);"></div>
-            <a id="empModalViewAll" href="#" style="font-size:0.82rem;font-weight:600;color:#1e3a5f;text-decoration:none;">View in Leads Page →</a>
-        </div>
-    </div>
-</div>
-
 {% endblock %}

@@ -2613,25 +2613,170 @@ def client_import_template():
 @login_required
 def crm_dashboard():
     from models import LeadReminder
+    from sqlalchemy import func
+    from datetime import timedelta
+
+    # ── Period filter (drives the whole dashboard) ──
+    period    = (request.args.get('period') or 'all').lower()
+    cust_from = request.args.get('from', '')
+    cust_to   = request.args.get('to', '')
+    _now = datetime.utcnow(); _today = _now.date()
+    pf = pt = None
+    if period == 'today':
+        pf = datetime.combine(_today, datetime.min.time()); pt = _now
+    elif period == 'yesterday':
+        _y = _today - timedelta(days=1)
+        pf = datetime.combine(_y, datetime.min.time()); pt = datetime.combine(_y, datetime.max.time())
+    elif period == 'last_7_days':
+        pf = _now - timedelta(days=7); pt = _now
+    elif period == 'last_30_days':
+        pf = _now - timedelta(days=30); pt = _now
+    elif period == 'custom':
+        try:
+            if cust_from: pf = datetime.combine(datetime.strptime(cust_from, '%Y-%m-%d').date(), datetime.min.time())
+            if cust_to:   pt = datetime.combine(datetime.strptime(cust_to, '%Y-%m-%d').date(), datetime.max.time())
+        except Exception:
+            pf = pt = None
+    else:
+        period = 'all'
+
+    def _rng(q):
+        if pf is not None: q = q.filter(Lead.created_at >= pf)
+        if pt is not None: q = q.filter(Lead.created_at <= pt)
+        return q
+
     _dash_statuses = LeadStatus.query.filter_by(is_active=True).order_by(LeadStatus.sort_order).all()
-    _dash_lead_statuses = _dash_statuses  # reuse for template
-    lead_counts = {st.name: Lead.query.filter_by(status=st.name).count() for st in _dash_statuses}
+    _dash_lead_statuses = _dash_statuses
+    lead_counts = {st.name: _rng(Lead.query.filter_by(status=st.name)).count() for st in _dash_statuses}
     lead_counts.update({
-        'open':       Lead.query.filter_by(status='open').count(),
-        'in_process': Lead.query.filter_by(status='in_process').count(),
-        'close':      Lead.query.filter_by(status='close').count(),
-        'cancel':     Lead.query.filter_by(status='cancel').count(),
-        'total':      Lead.query.count(),
+        'open':       _rng(Lead.query.filter_by(status='open')).count(),
+        'in_process': _rng(Lead.query.filter_by(status='in_process')).count(),
+        'close':      _rng(Lead.query.filter_by(status='close')).count(),
+        'cancel':     _rng(Lead.query.filter_by(status='cancel')).count(),
+        'total':      _rng(Lead.query).count(),
     })
-    total_clients     = ClientMaster.query.count()
-    recent_leads      = Lead.query.order_by(Lead.created_at.desc()).limit(5).all()
+    total_clients      = ClientMaster.query.count()
+    recent_leads       = _rng(Lead.query).order_by(Lead.created_at.desc()).limit(8).all()
     upcoming_reminders = LeadReminder.query.filter(
         LeadReminder.is_done == False,
         LeadReminder.remind_at >= datetime.utcnow()
     ).order_by(LeadReminder.remind_at).limit(5).all()
-
-    # Users who have leads assigned
     all_users = User.query.filter_by(is_active=True).order_by(User.full_name).all()
+
+    # ── Analytics (all guarded; respect period via _rng) ──
+    analytics = {}
+    try:
+        total  = lead_counts.get('total', 0) or 0
+        won    = lead_counts.get('close', 0) or 0
+        openc  = lead_counts.get('open', 0) or 0
+        inproc = lead_counts.get('in_process', 0) or 0
+        cancel = lead_counts.get('cancel', 0) or 0
+
+        revenue = _rng(db.session.query(func.coalesce(func.sum(Lead.expected_value), 0)).filter(Lead.status == 'close')).scalar() or 0
+        revenue = float(revenue)
+        conv = round((won / total * 100), 1) if total else 0.0
+        analytics['kpi'] = {'total_leads': total, 'open_deals': openc + inproc, 'won_deals': won, 'revenue': revenue, 'conversion': conv}
+
+        def _pct(v): return round((v / total * 100)) if total else 0
+        analytics['pipeline'] = [
+            {'label': 'New Leads',  'value': total,  'pct': 100,         'color': '#8b5cf6'},
+            {'label': 'Open',       'value': openc,  'pct': _pct(openc), 'color': '#3b82f6'},
+            {'label': 'In Process', 'value': inproc, 'pct': _pct(inproc),'color': '#10b981'},
+            {'label': 'Won',        'value': won,    'pct': _pct(won),   'color': '#f59e0b'},
+        ]
+        analytics['deal_status'] = [
+            {'label': 'Open',       'value': openc,  'color': '#3b82f6'},
+            {'label': 'In Process', 'value': inproc, 'color': '#8b5cf6'},
+            {'label': 'Won',        'value': won,    'color': '#10b981'},
+            {'label': 'Cancelled',  'value': cancel, 'color': '#ef4444'},
+        ]
+
+        srcs = _rng(db.session.query(Lead.source, func.count(Lead.id))).group_by(Lead.source).all()
+        palette = ['#8b5cf6','#3b82f6','#10b981','#f59e0b','#ef4444','#06b6d4','#ec4899','#64748b']
+        src_list = []
+        for i, (sv, cv) in enumerate(sorted(srcs, key=lambda x: x[1], reverse=True)):
+            src_list.append({'label': sv or 'Unknown', 'value': cv, 'color': palette[i % len(palette)]})
+        analytics['sources'] = src_list
+
+        _prev = 100.0
+        for _st in analytics['pipeline']:
+            _raw = 28 + 0.64 * _st['pct']
+            _wv = min(_raw, _prev - 8)
+            if _wv < 14: _wv = 14
+            _st['w'] = round(_wv, 1); _prev = _wv
+
+        cats = _rng(db.session.query(Lead.category, func.count(Lead.id))).group_by(Lead.category).all()
+        cat_list = [{'label': (cv or 'N/A'), 'value': cc} for cv, cc in cats]
+        cat_list.sort(key=lambda x: x['value'], reverse=True)
+        analytics['categories'] = cat_list[:8]
+
+        qrows = _rng(db.session.query(Lead.lead_type, func.count(Lead.id))).group_by(Lead.lead_type).all()
+        _q = 0; _nq = 0
+        for _lt, _cc in qrows:
+            _k = (_lt or '').strip().lower().replace('-', '').replace(' ', '')
+            if _k == 'quality': _q += _cc
+            elif _k in ('nonquality',): _nq += _cc
+        analytics['lead_type'] = [
+            {'label': 'Quality',     'value': _q,  'color': '#10b981'},
+            {'label': 'Non-Quality', 'value': _nq, 'color': '#f59e0b'},
+        ]
+
+        prng = _rng(db.session.query(Lead.product_range, func.count(Lead.id))).group_by(Lead.product_range).all()
+        _pal = ['#8b5cf6','#3b82f6','#10b981','#f59e0b','#ef4444','#06b6d4','#ec4899','#64748b']
+        pr_list = []
+        for i, (pv, pc) in enumerate(sorted(prng, key=lambda x: x[1], reverse=True)):
+            pr_list.append({'label': (pv or 'Other'), 'value': pc, 'color': _pal[i % len(_pal)]})
+        analytics['product_range'] = pr_list
+
+        _npd = 0; _epd = 0
+        try:
+            from models.npd import NPDProject
+            _npd = db.session.query(func.count(func.distinct(NPDProject.lead_id))).filter(
+                       NPDProject.project_type == 'npd', NPDProject.lead_id.isnot(None)).scalar() or 0
+            _epd = db.session.query(func.count(func.distinct(NPDProject.lead_id))).filter(
+                       NPDProject.project_type != 'npd', NPDProject.lead_id.isnot(None)).scalar() or 0
+        except Exception:
+            _npd = 0; _epd = 0
+        analytics['npd_epd'] = [
+            {'label': 'NPD', 'value': _npd, 'color': '#8b5cf6'},
+            {'label': 'EPD', 'value': _epd, 'color': '#06b6d4'},
+        ]
+
+        week = []
+        for i in range(6, -1, -1):
+            d = datetime.utcnow().date() - timedelta(days=i)
+            c = Lead.query.filter(func.date(Lead.created_at) == d).count()
+            week.append({'day': d.strftime('%b %d'), 'dow': d.strftime('%a'), 'count': c})
+        analytics['week'] = week
+
+        rows = _rng(db.session.query(Lead.assigned_to, func.count(Lead.id),
+                                func.coalesce(func.sum(Lead.expected_value), 0)
+               ).filter(Lead.assigned_to.isnot(None))).group_by(Lead.assigned_to).all()
+        umap = {u.id: u.full_name for u in all_users}
+        agents = []
+        for uid, cnt, val in rows:
+            name = umap.get(uid)
+            if not name:
+                u = User.query.get(uid)
+                name = (u.full_name if u else None) or ('User #%s' % uid)
+            agents.append({'name': name, 'leads': cnt, 'value': float(val or 0)})
+        agents.sort(key=lambda a: a['value'], reverse=True)
+        analytics['agents'] = agents[:5]
+
+        acts = []
+        for l in recent_leads:
+            desc = (l.contact_name or l.title or 'Lead')
+            if l.company_name: desc += ' · ' + l.company_name
+            acts.append({'title': 'New lead created', 'desc': desc, 'when': l.created_at})
+        analytics['recent'] = acts[:5]
+
+        now_dt = datetime.utcnow()
+        analytics['pending_followups'] = LeadReminder.query.filter(LeadReminder.is_done == False, LeadReminder.remind_at >= now_dt).count()
+        analytics['unassigned_leads']  = _rng(Lead.query.filter(Lead.assigned_to.is_(None))).count()
+        analytics['leads_with_client'] = _rng(Lead.query.filter(Lead.client_id.isnot(None))).count()
+    except Exception as _e:
+        try: current_app.logger.warning('CRM dashboard analytics failed: %s', _e)
+        except Exception: pass
 
     return render_template('crm/dashboard/index.html',
         active_page='crm_dashboard',
@@ -2641,6 +2786,10 @@ def crm_dashboard():
         recent_leads=recent_leads,
         upcoming_reminders=upcoming_reminders,
         all_users=all_users,
+        analytics=analytics,
+        period=period,
+        cust_from=cust_from,
+        cust_to=cust_to,
         is_admin=(current_user.role == 'admin'),
         now=datetime.utcnow())
 

@@ -205,131 +205,146 @@ def employees():
 @hr.route('/employees/dashboard')
 @login_required
 def emp_dashboard():
-    from sqlalchemy import func, extract
     from datetime import date, timedelta
+    import json
     perm = get_perm('hr_employees')
     if not perm or not perm.can_view:
         flash('Access denied.', 'error'); return redirect(url_for('dashboard'))
+    try:
+        from models.hr_rules import HRLeaveApplication
+    except Exception:
+        HRLeaveApplication = None
+    from models.attendance import Attendance
 
     today = date.today()
-    this_month_start = today.replace(day=1)
-    last_month_start = (this_month_start - timedelta(days=1)).replace(day=1)
+    m0 = today.replace(day=1)
+    lm0 = (m0 - timedelta(days=1)).replace(day=1)
+    PAL = ['#8b5cf6','#3b82f6','#10b981','#f59e0b','#ef4444','#06b6d4','#ec4899','#64748b','#a855f7','#14b8a6']
 
-    all_emps = Employee.query.filter(Employee.status != 'terminated').all()
-    total       = len(all_emps)
-    active      = sum(1 for e in all_emps if e.status == 'active')
-    inactive    = sum(1 for e in all_emps if e.status == 'inactive')
-    on_leave    = sum(1 for e in all_emps if e.status == 'on_leave')
-    terminated  = Employee.query.filter_by(status='terminated').count()
-    probation   = sum(1 for e in all_emps if e.is_probation)
-    on_block    = sum(1 for e in all_emps if e.is_block)
-    contractors = sum(1 for e in all_emps if e.is_contractor)
+    emps = Employee.query.filter(Employee.status != 'terminated').all()
+    total = len(emps)
+    a = {}
+    a['total_employees'] = total
+    a['new_this_month'] = sum(1 for e in emps if e.date_of_joining and e.date_of_joining >= m0)
+    a['new_last_month'] = sum(1 for e in emps if e.date_of_joining and lm0 <= e.date_of_joining < m0)
+    a['departments_count'] = len(set((e.department or '').strip() for e in emps if (e.department or '').strip()))
+    a['designations_count'] = len(set((e.designation or '').strip() for e in emps if (e.designation or '').strip()))
+    male = sum(1 for e in emps if (e.gender or '').strip().lower() == 'male')
+    female = sum(1 for e in emps if (e.gender or '').strip().lower() == 'female')
+    a['male'] = male; a['female'] = female
+    a['male_pct'] = round(male/total*100, 2) if total else 0
+    a['female_pct'] = round(female/total*100, 2) if total else 0
 
-    # New joinings this month
-    new_this_month = sum(1 for e in all_emps if e.date_of_joining and e.date_of_joining >= this_month_start)
-    new_last_month = sum(1 for e in all_emps if e.date_of_joining and last_month_start <= e.date_of_joining < this_month_start)
+    # ── Profile completion per employee (8 sections) ──
+    def _sections(e):
+        return [
+            bool(e.profile_photo),
+            bool(e.date_of_birth and e.gender),
+            bool(e.mobile and e.email and e.address),
+            bool(e.aadhar_number and e.pan_number),
+            bool(e.bank_account_number and e.bank_ifsc),
+            bool(e.salary_ctc),
+            bool(e.department and e.designation),
+            bool(e.emergency_name and e.emergency_phone),
+        ]
+    SEC_NAMES = ['Photo','Personal','Contact','KYC','Bank','Salary','Job','Emergency']
+    NSEC = 8
+    comp = {}   # emp.id -> pct
+    pend = {}   # emp.id -> pending count
+    for e in emps:
+        secs = _sections(e); filled = sum(1 for x in secs if x)
+        comp[e.id] = round(filled/NSEC*100)
+        pend[e.id] = NSEC - filled
 
-    # By department
-    dept_counts = {}
-    for e in all_emps:
-        d = e.department or 'Unassigned'
-        dept_counts[d] = dept_counts.get(d, 0) + 1
-    dept_data = sorted(dept_counts.items(), key=lambda x: -x[1])
+    def _bucket(pct):
+        if pct >= 100: return '100'
+        if pct >= 75:  return '75'
+        if pct >= 50:  return '50'
+        if pct >= 25:  return '25'
+        return '0'
+    BLABEL = {'100':'Completed (100%)','75':'75% - 99%','50':'50% - 74%','25':'25% - 49%','0':'0% - 24%'}
+    BCOLOR = {'100':'#10b981','75':'#06b6d4','50':'#3b82f6','25':'#f59e0b','0':'#ef4444'}
+    bc = {'100':0,'75':0,'50':0,'25':0,'0':0}
+    for e in emps: bc[_bucket(comp[e.id])] += 1
+    a['profile_overview'] = [{'key':k,'label':BLABEL[k],'value':bc[k],'color':BCOLOR[k],
+                              'pct': round(bc[k]/total*100,2) if total else 0} for k in ['100','75','50','25','0']]
 
-    # By employee type
-    type_counts = {}
-    for e in all_emps:
-        t = e.employee_type or 'Unknown'
-        type_counts[t] = type_counts.get(t, 0) + 1
+    # ── By department (donut) ──
+    dept_map = {}
+    for e in emps:
+        d = (e.department or 'Unassigned').strip() or 'Unassigned'; dept_map.setdefault(d, []).append(e)
+    dlist = sorted(dept_map.items(), key=lambda x: -len(x[1]))
+    a['dept_donut'] = []
+    for i, (d, lst) in enumerate(dlist[:7]):
+        a['dept_donut'].append({'label': d, 'value': len(lst), 'color': PAL[i % len(PAL)],
+                                'pct': round(len(lst)/total*100,2) if total else 0})
+    if len(dlist) > 7:
+        others = sum(len(lst) for _, lst in dlist[7:])
+        a['dept_donut'].append({'label':'Others','value':others,'color':'#64748b','pct': round(others/total*100,2) if total else 0})
 
-    # By gender
-    gender_counts = {}
-    for e in all_emps:
-        g = e.gender or 'Not Specified'
-        gender_counts[g] = gender_counts.get(g, 0) + 1
+    # ── By employee type (bar) ──
+    type_map = {}
+    for e in emps:
+        t = (e.employee_type or 'Unknown').strip() or 'Unknown'; type_map[t] = type_map.get(t, 0) + 1
+    a['type_bar'] = [{'label': k, 'value': v, 'color': PAL[i % len(PAL)]} for i,(k,v) in enumerate(sorted(type_map.items(), key=lambda x:-x[1]))]
 
-    # Monthly joining trend (last 6 months)
-    months_trend = []
-    for i in range(5, -1, -1):
-        m_start = (today.replace(day=1) - timedelta(days=i*28)).replace(day=1)
-        if i > 0:
-            m_end = (today.replace(day=1) - timedelta(days=(i-1)*28)).replace(day=1)
-        else:
-            m_end = today
-        cnt = sum(1 for e in all_emps if e.date_of_joining and m_start <= e.date_of_joining < m_end)
-        months_trend.append({'label': m_start.strftime('%b %Y'), 'count': cnt})
+    # ── Profile completion by department (table) ──
+    a['profile_by_dept'] = []
+    for d, lst in dlist[:10]:
+        b = {'100':0,'75':0,'50':0,'25':0,'0':0}
+        tot_pct = 0
+        for e in lst:
+            b[_bucket(comp[e.id])] += 1; tot_pct += comp[e.id]
+        a['profile_by_dept'].append({'dept': d, 'total': len(lst),
+            'c100': b['100'], 'c75': b['75'], 'c50': b['50'], 'c25': b['25'], 'c0': b['0'],
+            'avg': round(tot_pct/len(lst)) if lst else 0})
 
-    # Salary stats
-    sal_emps = [e for e in all_emps if e.salary_ctc]
-    total_ctc = sum(float(e.salary_ctc) for e in sal_emps)
-    avg_ctc   = total_ctc / len(sal_emps) if sal_emps else 0
+    # ── Top incomplete profiles ──
+    inc = sorted([e for e in emps if comp[e.id] < 100], key=lambda e: comp[e.id])[:6]
+    a['top_incomplete'] = []
+    for e in inc:
+        secs = _sections(e)
+        miss = [SEC_NAMES[i] for i, x in enumerate(secs) if not x]
+        a['top_incomplete'].append({'id': e.employee_code or ('EMP-%s' % e.id), 'name': e.full_name,
+            'dept': e.department or '-', 'pct': comp[e.id], 'pending': pend[e.id],
+            'missing': ', '.join(miss[:4])})
 
-    # Upcoming birthdays (next 30 days)
-    bday_emps = []
-    for e in all_emps:
-        if e.date_of_birth:
-            try:
-                bday_this_year = e.date_of_birth.replace(year=today.year)
-                if 0 <= (bday_this_year - today).days <= 30:
-                    bday_emps.append({'emp': e, 'bday': bday_this_year, 'days': (bday_this_year - today).days})
-            except ValueError:
-                pass
-    bday_emps.sort(key=lambda x: x['days'])
+    # ── New joinees this month (table) ──
+    nj = sorted([e for e in emps if e.date_of_joining and e.date_of_joining >= m0], key=lambda e: e.date_of_joining, reverse=True)[:6]
+    a['new_joinees'] = [{'id': e.employee_code or ('EMP-%s' % e.id), 'name': e.full_name,
+                         'dept': e.department or '-', 'doj': e.date_of_joining} for e in nj]
 
-    # Work anniversaries (joined exactly N years ago this month)
-    anniv_emps = []
-    for e in all_emps:
-        if e.date_of_joining:
-            years = today.year - e.date_of_joining.year
-            if years > 0:
-                try:
-                    anniv = e.date_of_joining.replace(year=today.year)
-                    if 0 <= (anniv - today).days <= 30:
-                        anniv_emps.append({'emp': e, 'years': years, 'days': (anniv - today).days})
-                except ValueError:
-                    pass
-    anniv_emps.sort(key=lambda x: x['days'])
+    # ── Employees on leave today + attendance summary ──
+    onleave_codes = set(); a['on_leave_today'] = []
+    if HRLeaveApplication:
+        try:
+            laps = HRLeaveApplication.query.filter(HRLeaveApplication.status=='approved',
+                       HRLeaveApplication.from_date<=today, HRLeaveApplication.to_date>=today).all()
+            for l in laps:
+                e = Employee.query.get(l.employee_id)
+                if e and e.employee_code: onleave_codes.add(e.employee_code)
+                if len(a['on_leave_today']) < 6:
+                    a['on_leave_today'].append({'id': (e.employee_code if e else '-'),
+                        'name': (e.full_name if e else '-'), 'dept': (e.department if e else '-'), 'type': l.leave_type})
+        except Exception:
+            pass
+    try:
+        att = Attendance.query.filter(Attendance.attendance_date == today).all()
+        ap = sum(1 for x in att if x.status == 'Present')
+        aa = sum(1 for x in att if x.status == 'Absent')
+        am = sum(1 for x in att if x.status == 'MIS-PUNCH')
+    except Exception:
+        ap = aa = am = 0
+    al = len(onleave_codes)
+    def _p(v): return round(v/total*100,2) if total else 0
+    a['att_present'] = ap; a['att_absent'] = aa; a['att_mispunch'] = am; a['att_onleave'] = al
+    a['att_present_pct'] = _p(ap); a['att_absent_pct'] = _p(aa); a['att_mispunch_pct'] = _p(am); a['att_onleave_pct'] = _p(al)
 
-    # KYC completeness
-    kyc_complete   = sum(1 for e in all_emps if e.aadhar_number and e.pan_number)
-    bank_complete  = sum(1 for e in all_emps if e.bank_account_number and e.bank_ifsc)
-    photo_complete = sum(1 for e in all_emps if e.profile_photo)
-    sal_filled     = len(sal_emps)
-
-    # Recent joiners (last 5)
-    recent = sorted([e for e in all_emps if e.date_of_joining], key=lambda e: e.date_of_joining, reverse=True)[:5]
-
-    # Expiring documents (passport/DL in next 60 days)
-    expiring_docs = []
-    for e in all_emps:
-        for doc_name, expiry in [('Passport', e.passport_expiry), ('Driving License', e.dl_expiry)]:
-            if expiry and 0 <= (expiry - today).days <= 60:
-                expiring_docs.append({'emp': e, 'doc': doc_name, 'expiry': expiry, 'days': (expiry - today).days})
-    expiring_docs.sort(key=lambda x: x['days'])
-
-    import json
     return render_template('hr/employees/dashboard.html',
-        perm=perm, active_page='hr_emp_dashboard',
-        total=total, active=active, inactive=inactive, on_leave=on_leave,
-        terminated=terminated, probation=probation, on_block=on_block, contractors=contractors,
-        new_this_month=new_this_month, new_last_month=new_last_month,
-        dept_data=dept_data[:10],
-        type_counts=type_counts,
-        gender_counts=gender_counts,
-        months_trend=months_trend,
-        total_ctc=round(total_ctc),  # CTC is monthly
-        avg_ctc=round(avg_ctc),
-        sal_filled=sal_filled,
-        bday_emps=bday_emps[:8],
-        anniv_emps=anniv_emps[:5],
-        kyc_complete=kyc_complete, bank_complete=bank_complete,
-        photo_complete=photo_complete,
-        recent=recent,
-        expiring_docs=expiring_docs[:5],
-        dept_json=json.dumps(dict(dept_data[:8])),
-        type_json=json.dumps(type_counts),
-        gender_json=json.dumps(gender_counts),
-        trend_json=json.dumps(months_trend),
+        perm=perm, active_page='hr_emp_dashboard', analytics=a,
+        dept_json=json.dumps(a['dept_donut']),
+        type_json=json.dumps(a['type_bar']),
+        profile_json=json.dumps(a['profile_overview']),
     )
 
 

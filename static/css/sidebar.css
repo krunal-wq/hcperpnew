@@ -391,12 +391,14 @@ body.is-home .tb-sep  { display: none; }
 body.is-home,
 body.is-home .main { background: #faf9f6 !important; }
 
-/* ── Module pages on desktop: pin the sidebar open ── */
-@media (min-width: 769px) {
-    body:not(.is-home) .sidebar { transform: translateX(0); box-shadow: 1px 0 0 rgba(255,255,255,.6) inset; }
-    body:not(.is-home) .topbar  { left: var(--sw); }
-    body:not(.is-home) .main    { margin-left: var(--sw); }
-    body:not(.is-home) .hbg     { display: none; }   /* no hamburger needed when pinned */
-    /* overlay never needed on desktop pin */
-    body:not(.is-home) #overlay { display: none !important; }
+/* ── Module pages: sidebar stays CLOSED, opens on hamburger click (drawer) ── */
+/* (base rule `body.sb-open .sidebar{translateX(0)}` handles open/close + push) */
+
+
+/* ── CRM module pages: soft multi-hue page background (like CRM dashboard) ── */
+body.is-crm .main {
+    background:
+        radial-gradient(120% 55% at 0% 0%,   #f3f0fc 0%, rgba(243,240,252,0) 55%),
+        radial-gradient(120% 60% at 100% 20%, #fdeef4 0%, rgba(253,238,244,0) 50%),
+        #f7f7fb;
 }

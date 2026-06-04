@@ -204,86 +204,193 @@ def _recompute_project_status(pid, *, commit=False):
 @rd.route('/dashboard')
 @login_required
 def dashboard():
-    from models.npd import NPDProject, NPDFormulation, MilestoneMaster
-    from sqlalchemy import func
+    from models.npd import NPDProject, NPDFormulation, OfficeDispatchItem, OfficeDispatchToken
+    from sqlalchemy import func, extract
+    from datetime import timedelta
 
-    # Stats
-    active_projects = NPDProject.query.filter(
-        NPDProject.is_deleted == False,
-        NPDProject.status.notin_(['complete', 'cancelled'])
-    ).count()
-
-    total_trials = NPDFormulation.query.count()
-
-    completed = NPDProject.query.filter_by(is_deleted=False, status='complete').count()
-    total_proj = NPDProject.query.filter_by(is_deleted=False).count()
-    success_rate = round((completed / total_proj * 100), 1) if total_proj else 0
-
-    total_users = User.query.filter_by(is_active=True).count()
-
-    # Recent projects — R&D Manager sees all, executive sees only assigned
     is_rd_manager = is_rd_manager_user()
-    if is_rd_manager:
-        recent_projects = NPDProject.query.filter_by(is_deleted=False)\
-            .order_by(NPDProject.created_at.desc()).limit(6).all()
+    a = {}
+
+    # ── Period filter (CRM-style) ──
+    period = (request.args.get('period') or 'all').lower()
+    cf = request.args.get('from', ''); ct = request.args.get('to', '')
+    _today = datetime.now().date(); pf = pt = None
+    if period == 'today':
+        pf = datetime.combine(_today, datetime.min.time()); pt = datetime.now()
+    elif period == 'yesterday':
+        _y = _today - timedelta(days=1)
+        pf = datetime.combine(_y, datetime.min.time()); pt = datetime.combine(_y, datetime.max.time())
+    elif period == 'last_7_days':
+        pf = datetime.now() - timedelta(days=7); pt = datetime.now()
+    elif period == 'last_30_days':
+        pf = datetime.now() - timedelta(days=30); pt = datetime.now()
+    elif period == 'custom':
+        try:
+            if cf: pf = datetime.combine(datetime.strptime(cf, '%Y-%m-%d').date(), datetime.min.time())
+            if ct: pt = datetime.combine(datetime.strptime(ct, '%Y-%m-%d').date(), datetime.max.time())
+        except Exception:
+            pf = pt = None
     else:
-        recent_projects = NPDProject.query.filter_by(is_deleted=False)\
-            .filter(NPDProject.assigned_rd == current_user.id)\
-            .order_by(NPDProject.created_at.desc()).limit(6).all()
+        period = 'all'
 
-    # Recent trials (formulations)
-    recent_trials = NPDFormulation.query\
-        .order_by(NPDFormulation.created_at.desc()).limit(6).all()
+    def _proj(q):
+        if pf is not None: q = q.filter(NPDProject.created_at >= pf)
+        if pt is not None: q = q.filter(NPDProject.created_at <= pt)
+        return q
 
-    # SC workload
-    from models.npd import NPDProject as NP
-    sc_workload = db.session.query(
-        User.full_name, User.id,
-        func.count(NP.id).label('project_count')
-    ).join(NP, NP.assigned_sc == User.id)\
-     .filter(NP.is_deleted == False, NP.status.notin_(['complete', 'cancelled']))\
-     .group_by(User.id, User.full_name).all()
+    def _samp(q):
+        # q must already join OfficeDispatchToken
+        if pf is not None: q = q.filter(OfficeDispatchToken.dispatched_at >= pf)
+        if pt is not None: q = q.filter(OfficeDispatchToken.dispatched_at <= pt)
+        return q
 
-    # ─────────────────────────────────────────────────────────
-    # Rejected Samples — visible to R&D Manager / Admin only.
-    # Shows recently rejected OfficeDispatchItem rows with project
-    # name, sample code, and rejection reason.
-    # ─────────────────────────────────────────────────────────
-    rejected_samples = []
-    if is_rd_manager:
-        from models.npd import OfficeDispatchItem
-        q = OfficeDispatchItem.query.filter_by(approval_status='rejected') \
-            .order_by(OfficeDispatchItem.actioned_at.desc()) \
-            .limit(25).all()
+    # ── KPIs: projects ──
+    try:
+        a['total_npd'] = _proj(NPDProject.query.filter(NPDProject.is_deleted == False)).count()
+    except Exception:
+        a['total_npd'] = 0
+    try:
+        a['active_projects'] = _proj(NPDProject.query.filter(NPDProject.is_deleted == False,
+                            NPDProject.status.notin_(['complete', 'completed', 'cancelled']))).count()
+    except Exception:
+        a['active_projects'] = 0
 
-        for it in q:
-            proj = it.project
-            rejected_samples.append({
-                'item_id'     : it.id,
-                'project_id'  : proj.id if proj else None,
-                'project_no'  : (proj.code if proj else '—'),
-                'project_name': (proj.product_name if proj else '—'),
-                'client_name' : (proj.client_name if proj and proj.client_name else '—'),
-                'sample_code' : it.sample_code or '—',
-                'reason'      : it.reject_reason or '—',
-                'actioned_by' : (it.actioner.full_name if it.actioner else '—'),
-                'actioned_at' : (it.actioned_at.strftime('%d %b %Y, %I:%M %p')
-                                 if it.actioned_at else '—'),
+    # ── KPIs: samples (join token for period) ──
+    def _scount(st):
+        try:
+            q = db.session.query(func.count(OfficeDispatchItem.id))\
+                .join(OfficeDispatchToken, OfficeDispatchToken.id == OfficeDispatchItem.token_id)\
+                .filter(OfficeDispatchItem.approval_status == st)
+            return _samp(q).scalar() or 0
+        except Exception:
+            return 0
+    s_pending  = _scount('pending')
+    s_approved = _scount('approved')
+    s_rejected = _scount('rejected')
+    s_total    = s_pending + s_approved + s_rejected
+    a['total_samples'] = s_total
+    a['in_process']    = s_pending
+    a['completed']     = s_approved
+    a['rejected']      = s_rejected
+    a['conversion']    = round((s_approved / s_total * 100), 1) if s_total else 0.0
+
+    a['sample_status'] = [
+        {'label': 'In Process', 'value': s_pending,  'color': '#3b82f6'},
+        {'label': 'Completed',  'value': s_approved, 'color': '#10b981'},
+        {'label': 'Rejected',   'value': s_rejected, 'color': '#ef4444'},
+    ]
+
+    # ── Samples trend (last 6 months; period-independent) ──
+    a['samples_trend'] = []
+    try:
+        for i in range(5, -1, -1):
+            mref = (datetime.now().replace(day=1) - timedelta(days=i * 30))
+            rows = db.session.query(OfficeDispatchItem.approval_status, func.count(OfficeDispatchItem.id))\
+                .join(OfficeDispatchToken, OfficeDispatchToken.id == OfficeDispatchItem.token_id)\
+                .filter(extract('month', OfficeDispatchToken.dispatched_at) == mref.month,
+                        extract('year', OfficeDispatchToken.dispatched_at) == mref.year)\
+                .group_by(OfficeDispatchItem.approval_status).all()
+            d = {'label': mref.strftime('%b'), 'in_process': 0, 'completed': 0, 'rejected': 0}
+            for st, c in rows:
+                if st == 'pending': d['in_process'] = c
+                elif st == 'approved': d['completed'] = c
+                elif st == 'rejected': d['rejected'] = c
+            a['samples_trend'].append(d)
+    except Exception:
+        a['samples_trend'] = []
+
+    a['rejection_overview'] = [
+        {'label': 'Office Rejection', 'value': s_rejected, 'color': '#f97316'},
+        {'label': 'Client Rejection', 'value': 0,          'color': '#ef4444'},
+    ]
+
+    # ── Rejection reasons (Top 5) ──
+    a['rejection_reasons'] = []
+    try:
+        rr = _samp(db.session.query(OfficeDispatchItem.reject_reason, func.count(OfficeDispatchItem.id))\
+            .join(OfficeDispatchToken, OfficeDispatchToken.id == OfficeDispatchItem.token_id)\
+            .filter(OfficeDispatchItem.approval_status == 'rejected')).group_by(OfficeDispatchItem.reject_reason).all()
+        reasons = [{'reason': (r or 'Not specified'), 'count': c} for r, c in rr]
+        reasons.sort(key=lambda x: x['count'], reverse=True)
+        tot = sum(x['count'] for x in reasons) or 0
+        for x in reasons[:5]:
+            x['pct'] = round(x['count'] / tot * 100) if tot else 0
+        a['rejection_reasons'] = reasons[:5]
+    except Exception:
+        a['rejection_reasons'] = []
+
+    # ── R&D Projects Overview ──
+    _PROG = {'not_started': 5, 'in_process': 45, 'in process': 45, 'sample_ready': 70,
+             'approved_by_office': 85, 'approved': 85, 'complete': 100, 'completed': 100, 'cancelled': 0}
+    a['npd_projects'] = []
+    try:
+        pq = NPDProject.query.filter_by(is_deleted=False)
+        if not is_rd_manager:
+            pq = pq.filter(NPDProject.assigned_rd == current_user.id)
+        projs = _proj(pq).order_by(NPDProject.created_at.desc()).limit(6).all()
+        for p in projs:
+            a['npd_projects'].append({
+                'code': p.code or '—', 'name': p.product_name or '—', 'client': p.client_name or '—',
+                'status': getattr(p, 'status_label', None) or (p.status or '—'),
+                'color': getattr(p, 'status_color', None) or '#64748b',
+                'start': (p.project_start_date or (p.created_at.date() if p.created_at else None)),
+                'target': p.target_sample_date,
+                'progress': _PROG.get((p.status or '').lower(), 30),
             })
+    except Exception:
+        a['npd_projects'] = []
+
+    # ── Sample tables ──
+    def _sample_rows(status, limit=6):
+        out = []
+        try:
+            q = db.session.query(OfficeDispatchItem, OfficeDispatchToken.dispatched_at)\
+                .join(OfficeDispatchToken, OfficeDispatchToken.id == OfficeDispatchItem.token_id)\
+                .filter(OfficeDispatchItem.approval_status == status)
+            q = _samp(q).order_by(OfficeDispatchToken.dispatched_at.desc()).limit(limit).all()
+            for it, disp in q:
+                pr = it.project
+                out.append({
+                    'sample_code': it.sample_code or '—',
+                    'project': (pr.product_name if pr else '—'),
+                    'assigned': (it.handover_to or it.submitted_by or '—'),
+                    'date': (it.actioned_at or disp),
+                    'reason': (it.reject_reason or '—'),
+                    'by': (it.actioner.full_name if it.actioner else '—'),
+                })
+        except Exception:
+            pass
+        return out
+    a['samples_in_process']  = _sample_rows('pending')
+    a['recently_completed']  = _sample_rows('approved')
+    a['rejection_register']  = _sample_rows('rejected')
+
+    # ── Team workload (by project's assigned R&D person) ──
+    a['team_workload'] = []
+    try:
+        rows = _samp(db.session.query(User.full_name, OfficeDispatchItem.approval_status, func.count(OfficeDispatchItem.id))\
+            .join(NPDProject, NPDProject.id == OfficeDispatchItem.project_id)\
+            .join(User, User.id == NPDProject.assigned_rd)\
+            .join(OfficeDispatchToken, OfficeDispatchToken.id == OfficeDispatchItem.token_id))\
+            .group_by(User.full_name, OfficeDispatchItem.approval_status).all()
+        wm = {}
+        for nm, st, c in rows:
+            d = wm.setdefault(nm, {'name': nm, 'in_process': 0, 'completed': 0, 'rejected': 0})
+            if st == 'pending': d['in_process'] += c
+            elif st == 'approved': d['completed'] += c
+            elif st == 'rejected': d['rejected'] += c
+        a['team_workload'] = sorted(wm.values(), key=lambda x: (x['in_process'] + x['completed'] + x['rejected']), reverse=True)[:6]
+    except Exception:
+        a['team_workload'] = []
+
+    a['dept_status'] = []
 
     perm = get_perm('rd')
     return render_template('rd/dashboard.html',
         active_page='rd_dashboard', perm=perm,
-        active_projects=active_projects,
-        total_trials=total_trials,
-        success_rate=success_rate,
-        total_users=total_users,
-        recent_projects=recent_projects,
-        recent_trials=recent_trials,
-        sc_workload=sc_workload,
-        is_rd_manager=is_rd_manager,
-        rejected_samples=rejected_samples,
-    )
+        analytics=a, is_rd_manager=is_rd_manager,
+        period=period, cust_from=cf, cust_to=ct,
+        now=datetime.now())
 
 
 # ══════════════════════════════════════════════════════════════

@@ -1,312 +1,252 @@
 {% extends "base.html" %}
-{% block title %}Attendance Dashboard{% endblock %}
-{% block page_title %}Attendance{% endblock %}
-{% block bread %}HR / Attendance{% endblock %}
+{% block title %}HRMS Dashboard{% endblock %}
+{% block page_title %}HRMS Dashboard{% endblock %}
+{% block bread %}HR / Attendance Dashboard{% endblock %}
 
 {% block extra_css %}
 <style>
-/* ── Stat Cards ── */
-.att-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(155px,1fr)); gap:.9rem; margin-bottom:1.4rem; }
-.att-card { background:#fff; border-radius:14px; padding:1.1rem 1.3rem; border:1px solid var(--border);
-            box-shadow:0 1px 6px rgba(0,0,0,.05); position:relative; overflow:hidden; }
-.att-card::before { content:''; position:absolute; top:0; left:0; right:0; height:3px; border-radius:14px 14px 0 0; }
-.ac-green::before  { background:#16a34a; }
-.ac-blue::before   { background:#2563eb; }
-.ac-orange::before { background:#d97706; }
-.ac-red::before    { background:#dc2626; }
-.ac-purple::before { background:#7c3aed; }
-.ac-teal::before   { background:#0891b2; }
-.att-card .ac-label { font-size:.67rem; font-weight:700; text-transform:uppercase;
-                      letter-spacing:.07em; color:var(--text3); margin-bottom:.35rem; }
-.att-card .ac-val   { font-size:2rem; font-weight:800; line-height:1; margin-bottom:.2rem; }
-.att-card .ac-sub   { font-size:.7rem; color:var(--text3); }
-.ac-green  .ac-val  { color:#16a34a; }
-.ac-blue   .ac-val  { color:#2563eb; }
-.ac-orange .ac-val  { color:#d97706; }
-.ac-red    .ac-val  { color:#dc2626; }
-.ac-purple .ac-val  { color:#7c3aed; }
-.ac-teal   .ac-val  { color:#0891b2; }
+.main{ background:
+  radial-gradient(120% 55% at 0% 0%, #f3f0fc 0%, rgba(243,240,252,0) 55%),
+  radial-gradient(120% 60% at 100% 20%, #fdeef4 0%, rgba(253,238,244,0) 50%),
+  #f7f7fb !important; }
+.dash{ max-width:1700px; margin:0 auto; padding:8px 4px 30px; color:#1e1b2e; }
 
-/* ── Charts Row ── */
-.charts-row { display:grid; grid-template-columns:2fr 1fr; gap:.9rem; margin-bottom:1.4rem; }
-@media(max-width:800px){ .charts-row{ grid-template-columns:1fr; } }
-.chart-box { background:#fff; border:1px solid var(--border); border-radius:14px;
-             padding:1.2rem; box-shadow:0 1px 6px rgba(0,0,0,.05); }
-.chart-box .cb-title { font-size:.69rem; font-weight:700; text-transform:uppercase;
-                       letter-spacing:.07em; color:var(--text3); margin-bottom:1rem; }
+.dh{ display:flex; align-items:flex-start; justify-content:space-between; flex-wrap:wrap; gap:12px; margin:2px 0 18px; }
+.dh-title{ font-size:23px; font-weight:800; letter-spacing:-.025em; margin:0; }
+.dh-sub{ font-size:13px; color:#9b95a6; margin-top:3px; }
+.dh-tools{ display:flex; gap:9px; align-items:center; flex-wrap:wrap; }
+.dh-date{ font-family:'Inter',sans-serif; font-size:13px; font-weight:600; color:#4a4560; background:#fff; border:1px solid #e8e6ef; border-radius:11px; padding:9px 12px; }
+.dh-pill{ display:inline-flex; align-items:center; gap:7px; background:#fff; border:1px solid #e8e6ef; border-radius:11px; padding:9px 13px; font-size:12.5px; font-weight:600; color:#4a4560; text-decoration:none; cursor:pointer; }
 
-/* ── Status pills ── */
-.sp { display:inline-block; padding:2px 9px; border-radius:20px; font-size:.67rem; font-weight:700; white-space:nowrap; }
-.sp-Present   { background:#dcfce7; color:#16a34a; }
-.sp-Absent    { background:#fee2e2; color:#dc2626; }
-.sp-Half-Day  { background:#eff6ff; color:#2563eb; }
-.sp-Holiday   { background:#f3e8ff; color:#7c3aed; }
-.sp-MIS-PUNCH { background:#fef9c3; color:#ca8a04; }
+.panel{ background:#fff; border:1px solid #efeef3; border-radius:18px; box-shadow:0 2px 12px rgba(30,27,46,.04); padding:18px 18px 16px; }
+.panel-h{ display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+.panel-t{ font-size:14.5px; font-weight:700; letter-spacing:-.01em; }
+.panel-t small{ color:#b7b2c2; font-weight:600; font-size:11px; }
+.panel-link{ font-size:11.5px; font-weight:600; color:#6d5fe6; text-decoration:none; } .panel-link:hover{ text-decoration:underline; }
 
-/* ── Table ── */
-.att-tbl { width:100%; border-collapse:collapse; font-size:.8rem; }
-.att-tbl th { text-align:left; padding:.5rem .85rem; font-size:.66rem; font-weight:700;
-              color:var(--text3); text-transform:uppercase; letter-spacing:.07em;
-              border-bottom:2px solid var(--border); background:#f8fafc; white-space:nowrap; }
-.att-tbl td { padding:.58rem .85rem; border-bottom:1px solid #f1f5f9; vertical-align:middle; }
-.att-tbl tr:hover td { background:#f8fafc; }
-.att-tbl tr:last-child td { border-bottom:none; }
+.kpi-grid{ display:grid; grid-template-columns:repeat(6,1fr); gap:14px; margin-bottom:16px; }
+.kpi{ background:#fff; border:1px solid #efeef3; border-radius:16px; padding:15px 16px; display:flex; align-items:flex-start; gap:12px; box-shadow:0 2px 12px rgba(30,27,46,.04); text-decoration:none; color:inherit; }
+a.kpi:hover{ box-shadow:0 10px 22px rgba(76,29,149,.12); transform:translateY(-2px); transition:transform .15s, box-shadow .15s; }
+.kpi-ic{ width:40px; height:40px; border-radius:12px; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:17px; }
+.kpi-l{ font-size:10.5px; font-weight:600; color:#9b95a6; }
+.kpi-n{ font-size:22px; font-weight:800; letter-spacing:-.02em; line-height:1.2; margin:2px 0; }
+.kpi-c{ font-size:10.5px; color:#b7b2c2; font-weight:600; }
+.k-lav{background:#f1edfe;color:#7c3aed;} .k-green{background:#e7f8ef;color:#16a34a;} .k-amber{background:#fef3e2;color:#ea580c;} .k-blue{background:#e7f0fe;color:#2563eb;} .k-rose{background:#fde7ea;color:#e11d48;} .k-cyan{background:#e3f6fb;color:#0891b2;}
 
-/* ── Tabs ── */
-.tab-pills { display:flex; gap:.35rem; flex-wrap:wrap; }
-.tab-pill  { padding:.32rem .85rem; border-radius:20px; font-size:.73rem; font-weight:600;
-             cursor:pointer; border:1px solid var(--border); background:#fff;
-             color:var(--text3); transition:.12s; }
-.tab-pill.active       { background:#2563eb; color:#fff; border-color:#2563eb; }
-.tab-pill.tp-absent    { }
-.tab-pill.tp-absent.active    { background:#dc2626; border-color:#dc2626; }
-.tab-pill.tp-halfday.active   { background:#2563eb; border-color:#2563eb; }
-.tab-pill.tp-mispunch.active  { background:#ca8a04; border-color:#ca8a04; }
-.tab-pill.tp-holiday.active   { background:#7c3aed; border-color:#7c3aed; }
+.r3{ display:grid; grid-template-columns:1fr 1.3fr 1fr; gap:16px; margin-bottom:16px; }
+.r3b{ display:grid; grid-template-columns:1.2fr 1fr 1fr; gap:16px; margin-bottom:16px; }
+.r3c{ display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-bottom:16px; }
 
-/* ── Sync badge ── */
-.sync-badge { display:inline-flex; align-items:center; gap:.35rem; font-size:.71rem;
-              background:#f0fdf4; color:#16a34a; border:1px solid #bbf7d0;
-              border-radius:20px; padding:3px 11px; font-weight:600; }
-.time-in  { font-family:monospace; font-size:.79rem; font-weight:700; color:#16a34a; }
-.time-out { font-family:monospace; font-size:.79rem; font-weight:700; color:#2563eb; }
-.time-nil { color:var(--text3); font-size:.75rem; }
+.line-box,.bar-box{ position:relative; width:100%; height:230px; }
+.line-box canvas,.bar-box canvas{ position:absolute; inset:0; width:100%!important; height:100%!important; }
 
-/* ── Avatar ── */
-.emp-av { width:30px; height:30px; border-radius:50%; object-fit:cover; border:2px solid var(--border); }
-.emp-av-txt { width:30px; height:30px; border-radius:50%; background:#6366f1; color:#fff;
-              display:inline-flex; align-items:center; justify-content:center;
-              font-size:.65rem; font-weight:800; flex-shrink:0; }
+.dn-wrap{ display:flex; align-items:center; gap:14px; }
+.dn-c{ width:160px; height:160px; flex-shrink:0; position:relative; }
+.dn-c canvas{ position:absolute; inset:0; width:100%!important; height:100%!important; }
+.dn-center{ position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+.dn-center .big{ font-size:22px; font-weight:800; } .dn-center .sm{ font-size:10px; color:#9b95a6; }
+.dn-leg{ flex:1; display:flex; flex-direction:column; gap:8px; }
+.dn-li{ display:flex; align-items:center; gap:8px; font-size:12px; }
+.dn-li .nm{ color:#3a3550; font-weight:600; } .dn-li .vl{ margin-left:auto; color:#9b95a6; }
+.fn-dot{ width:9px; height:9px; border-radius:50%; flex-shrink:0; }
+
+.rmt{ width:100%; border-collapse:collapse; font-size:12px; }
+.rmt th{ text-align:left; font-size:10px; font-weight:700; color:#9b95a6; text-transform:uppercase; letter-spacing:.03em; padding:6px 7px; border-bottom:1px solid #f0eef5; }
+.rmt td{ padding:7px; border-bottom:1px solid #f6f5f9; color:#3a3550; }
+.rmt tr:last-child td{ border-bottom:none; }
+.rmt .tot td{ font-weight:800; border-top:1.5px solid #ece9f3; }
+.rmt .num{ text-align:right; }
+.pp{ color:#16a34a; font-weight:700; } .pa{ color:#e11d48; font-weight:700; } .pm{ color:#ea580c; font-weight:700; } .pl{ color:#2563eb; font-weight:700; }
+.badge{ font-size:10px; font-weight:700; padding:2px 8px; border-radius:100px; }
+.empty{ font-size:12.5px; color:#b7b2c2; padding:24px 4px; text-align:center; }
+
+.rm-foot{ display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; font-size:11.5px; color:#9b95a6; margin-top:6px; padding:0 4px; }
+
+@media(max-width:1200px){ .kpi-grid{grid-template-columns:repeat(3,1fr)} .r3,.r3b,.r3c{grid-template-columns:1fr} }
+@media(max-width:560px){ .kpi-grid{grid-template-columns:1fr} }
 </style>
 {% endblock %}
 
 {% block content %}
+{% set a = analytics if analytics is defined else {} %}
+{% set ov_total = (a.get('overview', [])|sum(attribute='value')) or 0 %}
+{% set gd_total = (a.get('gender', [])|sum(attribute='value')) or 0 %}
 
-{# ── Header ── #}
-<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.6rem;margin-bottom:1.2rem;">
-  <div>
-    <h2 style="margin:0;font-size:1.18rem;font-weight:800;">Attendance Dashboard</h2>
-    <div style="font-size:.72rem;color:var(--text3);margin-top:.15rem;">{{ today.strftime('%A, %d %B %Y') }}</div>
-  </div>
-  <div style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;">
-    <span class="sync-badge">🟢 Last Sync: {{ last_sync }}</span>
-    <a href="/hr/attendance/report" style="padding:.35rem .85rem;background:#f8fafc;border:1px solid var(--border);border-radius:8px;font-size:.76rem;font-weight:600;color:var(--text);text-decoration:none;">📅 Monthly Report</a>
-    <a href="/hr/attendance/logs"   style="padding:.35rem .85rem;background:#f8fafc;border:1px solid var(--border);border-radius:8px;font-size:.76rem;font-weight:600;color:var(--text);text-decoration:none;">🗂 Raw Logs</a>
-  </div>
-</div>
+<div class="dash">
 
-{# ── Stat Cards ── #}
-<div class="att-grid">
-  <div class="att-card ac-green">
-    <div class="ac-label">Present Today</div>
-    <div class="ac-val">{{ today_present }}</div>
-    <div class="ac-sub">of {{ total_employees }} employees</div>
-  </div>
-  <div class="att-card ac-red">
-    <div class="ac-label">Absent</div>
-    <div class="ac-val">{{ today_absent }}</div>
-    <div class="ac-sub">No punch today</div>
-  </div>
-  <div class="att-card ac-blue">
-    <div class="ac-label">Half Day</div>
-    <div class="ac-val">{{ today_halfday }}</div>
-    <div class="ac-sub">Under 4 hours</div>
-  </div>
-  <div class="att-card ac-orange">
-    <div class="ac-label">MIS-PUNCH</div>
-    <div class="ac-val">{{ today_mispunch }}</div>
-    <div class="ac-sub">Single punch only</div>
-  </div>
-  <div class="att-card ac-purple">
-    <div class="ac-label">Holiday</div>
-    <div class="ac-val">{{ today_holiday }}</div>
-    <div class="ac-sub">Today</div>
-  </div>
-  <div class="att-card ac-teal">
-    <div class="ac-label">This Month</div>
-    <div class="ac-val">{{ month_present }}</div>
-    <div class="ac-sub">Present records</div>
-  </div>
-</div>
-
-{# ── Charts ── #}
-<div class="charts-row">
-  <div class="chart-box">
-    <div class="cb-title">Last 7 Days Attendance Trend</div>
-    <canvas id="trendChart" height="130"></canvas>
-  </div>
-  <div class="chart-box" style="display:flex;flex-direction:column;">
-    <div class="cb-title">Today's Breakdown</div>
-    <div style="flex:1;display:flex;align-items:center;justify-content:center;">
-      <canvas id="todayDonut" style="max-height:180px;"></canvas>
+  <!-- HEADER -->
+  <div class="dh">
+    <div>
+      <h1 class="dh-title">HRMS Dashboard</h1>
+      <div class="dh-sub">Overview of Attendance, Leave and Employee Status</div>
     </div>
-  </div>
-</div>
-
-{# ── Today Attendance Table ── #}
-<div style="background:#fff;border:1px solid var(--border);border-radius:14px;
-            box-shadow:0 1px 6px rgba(0,0,0,.05);overflow:hidden;">
-  <div style="padding:.85rem 1.1rem;border-bottom:1px solid var(--border);
-              display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem;">
-    <div style="font-size:.69rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text3);">
-      Today's Attendance
-      <span style="background:#f1f5f9;color:var(--text);padding:2px 8px;border-radius:10px;font-size:.7rem;margin-left:.3rem;font-weight:600;">
-        {{ today_list|length }}
-      </span>
-    </div>
-    <div class="tab-pills">
-      <button class="tab-pill active"               onclick="filterTbl('all',this)">All</button>
-      <button class="tab-pill"                      onclick="filterTbl('Present',this)">✅ Present</button>
-      <button class="tab-pill tp-absent"            onclick="filterTbl('Absent',this)">❌ Absent</button>
-      <button class="tab-pill tp-halfday"           onclick="filterTbl('Half Day',this)">🌓 Half Day</button>
-      <button class="tab-pill tp-mispunch"          onclick="filterTbl('MIS-PUNCH',this)">⚠️ MIS-PUNCH</button>
-      <button class="tab-pill tp-holiday"           onclick="filterTbl('Holiday',this)">🎉 Holiday</button>
+    <div class="dh-tools">
+      <input type="date" id="dDate" class="dh-date" value="{{ sel_date.strftime('%Y-%m-%d') }}" onchange="onDateChange()">
+      <a class="dh-pill" href="/hr/attendance"><i class="bi bi-arrow-counterclockwise"></i> Today</a>
     </div>
   </div>
 
-  {% if today_list %}
-  <div style="overflow-x:auto;">
-  <table class="att-tbl" id="todayTbl">
-    <thead>
-      <tr>
-        <th>#</th>
-        <th>Employee</th>
-        <th>Code</th>
-        <th>Emp ID</th>
-        <th>Department</th>
-        <th>Punch IN</th>
-        <th>Punch OUT</th>
-        <th>Hours</th>
-        <th>Device IN</th>
-        <th>Status</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for rec in today_list %}
-      <tr data-status="{{ rec.status }}">
-        <td style="color:var(--text3);font-size:.71rem;">{{ loop.index }}</td>
-        <td>
-          <div style="display:flex;align-items:center;gap:.5rem;">
-            {% if rec.employee and rec.employee.profile_photo %}
-              <img src="{{ rec.employee.profile_photo }}" class="emp-av">
-            {% else %}
-              <span class="emp-av-txt">
-                {{ (rec.employee.first_name[0] + rec.employee.last_name[0]) if rec.employee else rec.employee_code[:2].upper() }}
-              </span>
-            {% endif %}
-            <div>
-              <div style="font-weight:600;font-size:.81rem;">
-                {{ rec.employee.first_name + ' ' + rec.employee.last_name if rec.employee else '—' }}
-              </div>
-              <div style="font-size:.68rem;color:var(--text3);">
-                {{ rec.employee.designation if rec.employee else '' }}
-              </div>
-            </div>
-          </div>
-        </td>
-        <td style="font-family:monospace;font-size:.77rem;font-weight:700;color:var(--blue);">
-          {{ rec.employee_code }}
-        </td>
-        <td style="font-family:monospace;font-size:.75rem;color:var(--text3);">
-          {{ rec.employee.employee_id if rec.employee and rec.employee.employee_id else '—' }}
-        </td>
-        <td style="font-size:.77rem;">{{ rec.employee.department if rec.employee else '—' }}</td>
-        <td>
-          {% if rec.punch_in %}
-            <span class="time-in">{{ rec.punch_in.strftime('%I:%M %p') }}</span>
-          {% else %}<span class="time-nil">—</span>{% endif %}
-        </td>
-        <td>
-          {% if rec.punch_out %}
-            <span class="time-out">{{ rec.punch_out.strftime('%I:%M %p') }}</span>
-          {% elif rec.status == 'MIS-PUNCH' %}
-            <span style="color:#d97706;font-size:.74rem;font-weight:600;">Not Out</span>
-          {% else %}<span class="time-nil">—</span>{% endif %}
-        </td>
-        <td style="font-weight:700;font-size:.79rem;">{{ rec.working_hours_display }}</td>
-        <td style="font-size:.72rem;color:var(--text3);font-family:monospace;">{{ rec.in_device or '—' }}</td>
-        <td><span class="sp sp-{{ rec.status.replace(' ','-') }}">{{ rec.status }}</span></td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+  <!-- KPI CARDS (clickable) -->
+  <div class="kpi-grid">
+    <a class="kpi" href="/hr/employees"><div class="kpi-ic k-lav"><i class="bi bi-people-fill"></i></div><div><div class="kpi-l">Total Employees</div><div class="kpi-n">{{ a.get('total_employees',0) }}</div><div class="kpi-c" style="color:#b7b2c2">All Active Employees</div></div></a>
+    <a class="kpi" href="/hr/attendance/daily?date={{ sel_date.strftime('%Y-%m-%d') }}"><div class="kpi-ic k-green"><i class="bi bi-person-check-fill"></i></div><div><div class="kpi-l">Present</div><div class="kpi-n">{{ a.get('present',0) }}</div><div class="kpi-c pp">{{ a.get('present_pct',0) }}%</div></div></a>
+    <a class="kpi" href="/hr/attendance/daily?date={{ sel_date.strftime('%Y-%m-%d') }}"><div class="kpi-ic k-rose"><i class="bi bi-person-x-fill"></i></div><div><div class="kpi-l">Absent</div><div class="kpi-n">{{ a.get('absent',0) }}</div><div class="kpi-c pa">{{ a.get('absent_pct',0) }}%</div></div></a>
+    <a class="kpi" href="/hr/attendance/late-absent"><div class="kpi-ic k-amber"><i class="bi bi-clock-history"></i></div><div><div class="kpi-l">Mis Punch</div><div class="kpi-n">{{ a.get('mispunch',0) }}</div><div class="kpi-c pm">{{ a.get('mispunch_pct',0) }}%</div></div></a>
+    <a class="kpi" href="/hr/leave/list"><div class="kpi-ic k-blue"><i class="bi bi-airplane-fill"></i></div><div><div class="kpi-l">On Leave</div><div class="kpi-n">{{ a.get('on_leave',0) }}</div><div class="kpi-c pl">{{ a.get('on_leave_pct',0) }}%</div></div></a>
+    <a class="kpi" href="/hr/attendance/monthly"><div class="kpi-ic k-cyan"><i class="bi bi-calendar2-week"></i></div><div><div class="kpi-l">Total Working Days</div><div class="kpi-n">{{ a.get('working_days',0) }}</div><div class="kpi-c" style="color:#b7b2c2">{{ sel_date.strftime('%b %Y') }}</div></div></a>
   </div>
-  {% else %}
-  <div style="text-align:center;padding:3rem 1rem;color:var(--text3);">
-    <div style="font-size:2.5rem;margin-bottom:.5rem;">📭</div>
-    <div style="font-weight:600;margin-bottom:.3rem;">Aaj ka data nahi mila</div>
-    <div style="font-size:.76rem;">seed_attendance.py chalao ya device se data push karo</div>
+
+  <!-- ROW 1 -->
+  <div class="r3">
+    <div class="panel">
+      <div class="panel-h"><span class="panel-t">Attendance Overview <small>(Selected Day)</small></span></div>
+      {% if ov_total %}
+      <div class="dn-wrap">
+        <div class="dn-c"><canvas id="ovDonut"></canvas><div class="dn-center"><span class="big">{{ a.get('total_employees',0) }}</span><span class="sm">Total</span></div></div>
+        <div class="dn-leg">
+          {% for x in a.get('overview', []) %}<div class="dn-li"><span class="fn-dot" style="background:{{ x.color }}"></span><span class="nm">{{ x.label }}</span><span class="vl">{{ x.value }} ({{ ((x.value/ov_total*100)|round(2)) }}%)</span></div>{% endfor %}
+        </div>
+      </div>
+      {% else %}<div class="empty">No attendance for this day</div>{% endif %}
+    </div>
+
+    <div class="panel">
+      <div class="panel-h"><span class="panel-t">Employee Category Summary <small>(Selected Day)</small></span></div>
+      {% if a.get('category_summary') %}
+      <table class="rmt"><thead><tr><th>Category</th><th class="num">Total</th><th class="num">Present</th><th class="num">Absent</th><th class="num">Mis Punch</th><th class="num">On Leave</th></tr></thead><tbody>
+        {% for c in a.get('category_summary', []) %}
+        <tr><td>{{ c.label }}</td><td class="num">{{ c.total }}</td><td class="num pp">{{ c.present }}</td><td class="num pa">{{ c.absent }}</td><td class="num pm">{{ c.mispunch }}</td><td class="num pl">{{ c.on_leave }}</td></tr>
+        {% endfor %}
+        <tr class="tot"><td>Total</td><td class="num">{{ a.get('total_employees',0) }}</td><td class="num pp">{{ a.get('present',0) }}</td><td class="num pa">{{ a.get('absent',0) }}</td><td class="num pm">{{ a.get('mispunch',0) }}</td><td class="num pl">{{ a.get('on_leave',0) }}</td></tr>
+      </tbody></table>
+      {% else %}<div class="empty">No category data</div>{% endif %}
+    </div>
+
+    <div class="panel">
+      <div class="panel-h"><span class="panel-t">Gender Wise Attendance</span></div>
+      {% if gd_total %}
+      <div class="dn-wrap">
+        <div class="dn-c"><canvas id="gdDonut"></canvas><div class="dn-center"><span class="big">{{ gd_total }}</span><span class="sm">Total</span></div></div>
+        <div class="dn-leg">
+          {% for x in a.get('gender', []) %}<div class="dn-li"><span class="fn-dot" style="background:{{ x.color }}"></span><span class="nm">{{ x.label }}</span><span class="vl">{{ x.value }} ({{ ((x.value/gd_total*100)|round(2)) }}%)</span></div>{% endfor %}
+        </div>
+      </div>
+      {% else %}<div class="empty">No employee data</div>{% endif %}
+    </div>
   </div>
-  {% endif %}
+
+  <!-- ROW 2 -->
+  <div class="r3b">
+    <div class="panel">
+      <div class="panel-h"><span class="panel-t">Attendance Trend <small>(Last 7 Days)</small></span></div>
+      {% if a.get('trend') %}<div class="line-box"><canvas id="trendLine"></canvas></div>{% else %}<div class="empty">No trend data</div>{% endif %}
+    </div>
+    <div class="panel">
+      <div class="panel-h"><span class="panel-t">Category Wise Attendance <small>(Selected Day)</small></span></div>
+      {% if a.get('category_bar') %}<div class="bar-box"><canvas id="catBar"></canvas></div>{% else %}<div class="empty">No category data</div>{% endif %}
+    </div>
+    <div class="panel">
+      <div class="panel-h"><span class="panel-t">Shift Wise Attendance <small>(Selected Day)</small></span></div>
+      {% if a.get('shift_summary') %}
+      <table class="rmt"><thead><tr><th>Shift</th><th class="num">Total</th><th class="num">Present</th><th class="num">Absent</th><th class="num">M.P.</th><th class="num">Leave</th></tr></thead><tbody>
+        {% for s in a.get('shift_summary', []) %}<tr><td>{{ s.label|truncate(16) }}</td><td class="num">{{ s.total }}</td><td class="num pp">{{ s.present }}</td><td class="num pa">{{ s.absent }}</td><td class="num pm">{{ s.mispunch }}</td><td class="num pl">{{ s.on_leave }}</td></tr>{% endfor %}
+      </tbody></table>
+      {% else %}<div class="empty">No shift data</div>{% endif %}
+    </div>
+  </div>
+
+  <!-- ROW 3 -->
+  <div class="r3c">
+    <div class="panel">
+      <div class="panel-h"><span class="panel-t">Top Mis Punch Employees <small>(Selected Day)</small></span><a class="panel-link" href="/hr/attendance/late-absent">View All</a></div>
+      {% if a.get('top_mispunch') %}
+      <table class="rmt"><thead><tr><th>Code</th><th>Name</th><th>In</th><th>Issue</th></tr></thead><tbody>
+        {% for r in a.get('top_mispunch', []) %}<tr><td>{{ r.code }}</td><td>{{ r.name|truncate(12) }}</td><td>{{ r.in }}</td><td><span class="badge" style="background:#fde7ea;color:#e11d48;">{{ r.issue }}</span></td></tr>{% endfor %}
+      </tbody></table>
+      {% else %}<div class="empty">No mis-punch records</div>{% endif %}
+    </div>
+
+    <div class="panel">
+      <div class="panel-h"><span class="panel-t">Employees On Leave <small>(Selected Day)</small></span><a class="panel-link" href="/hr/leave/list">View All</a></div>
+      {% if a.get('leave_rows') %}
+      <table class="rmt"><thead><tr><th>Code</th><th>Name</th><th>Type</th><th>Days</th></tr></thead><tbody>
+        {% for r in a.get('leave_rows', []) %}<tr><td>{{ r.code }}</td><td>{{ r.name|truncate(12) }}</td><td>{{ r.type }}</td><td>{{ "{:g}".format(r.days) }}</td></tr>{% endfor %}
+      </tbody></table>
+      {% else %}<div class="empty">No one on leave</div>{% endif %}
+    </div>
+
+    <div class="panel">
+      <div class="panel-h"><span class="panel-t">Department Wise Attendance <small>(Selected Day)</small></span></div>
+      {% if a.get('dept_summary') %}
+      <table class="rmt"><thead><tr><th>Department</th><th class="num">Total</th><th class="num">Present</th><th class="num">Absent</th><th class="num">Leave</th></tr></thead><tbody>
+        {% for d in a.get('dept_summary', []) %}<tr><td>{{ d.label|truncate(14) }}</td><td class="num">{{ d.total }}</td><td class="num pp">{{ d.present }}</td><td class="num pa">{{ d.absent }}</td><td class="num pl">{{ d.on_leave }}</td></tr>{% endfor %}
+      </tbody></table>
+      {% else %}<div class="empty">No department data</div>{% endif %}
+    </div>
+  </div>
+
+  <div class="rm-foot">
+    <span>Last sync: {{ a.get('last_sync','-') }}</span>
+    <span>Data as on {{ sel_date.strftime('%d %b %Y') }} &nbsp;|&nbsp; All times are in IST</span>
+  </div>
+
 </div>
 
+<script id="hr-data" type="application/json">{{ {'overview': a.get('overview', []), 'gender': a.get('gender', []), 'trend': a.get('trend', []), 'category_bar': a.get('category_bar', [])} | tojson }}</script>
 {% endblock %}
 
 {% block extra_js %}
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script>
-// Trend Chart
-(function(){
-  var raw = {{ trend_data | safe }};
-  new Chart(document.getElementById('trendChart'),{
-    type:'bar',
-    data:{
-      labels: raw.map(function(r){return r.date;}),
-      datasets:[
-        {label:'Present', data:raw.map(function(r){return r.present;}),
-         backgroundColor:'rgba(37,99,235,.15)',borderColor:'#2563eb',borderWidth:2,borderRadius:5},
-        {label:'Absent',  data:raw.map(function(r){return r.absent;}),
-         backgroundColor:'rgba(220,38,38,.12)',borderColor:'#dc2626',borderWidth:2,borderRadius:5},
-        {label:'Half Day',data:raw.map(function(r){return r.half_day;}),
-         backgroundColor:'rgba(217,119,6,.12)',borderColor:'#d97706',borderWidth:2,borderRadius:5},
-      ]
-    },
-    options:{
-      responsive:true,
-      plugins:{legend:{position:'top',labels:{font:{size:11},padding:10}}},
-      scales:{
-        y:{beginAtZero:true,ticks:{precision:0},grid:{color:'rgba(0,0,0,.04)'}},
-        x:{grid:{display:false}}
-      }
-    }
-  });
-})();
-
-// Today Donut
-(function(){
-  var d = {
-    'Present':   {{ today_present }},
-    'Absent':    {{ today_absent }},
-    'Half Day':  {{ today_halfday }},
-    'MIS-PUNCH': {{ today_mispunch }},
-    'Holiday':   {{ today_holiday }},
-  };
-  var total = Object.values(d).reduce(function(a,b){return a+b;},0);
-  if(!total){ d={'No data':1}; }
-  new Chart(document.getElementById('todayDonut'),{
-    type:'doughnut',
-    data:{
-      labels:Object.keys(d),
-      datasets:[{
-        data:Object.values(d),
-        backgroundColor:['#86efac','#fca5a5','#bfdbfe','#fde68a','#e9d5ff'],
-        borderWidth:2,borderColor:'#fff',hoverOffset:5
-      }]
-    },
-    options:{
-      responsive:true,cutout:'68%',
-      plugins:{legend:{position:'bottom',labels:{font:{size:11},padding:8}}}
-    }
-  });
-})();
-
-// Table filter
-function filterTbl(status,btn){
-  document.querySelectorAll('.tab-pill').forEach(function(t){t.classList.remove('active');});
-  btn.classList.add('active');
-  document.querySelectorAll('#todayTbl tbody tr').forEach(function(row){
-    row.style.display=(status==='all'||row.dataset.status===status)?'':'none';
-  });
+function onDateChange(){
+  var v = document.getElementById('dDate').value;
+  window.location = '/hr/attendance' + (v ? ('?date=' + encodeURIComponent(v)) : '');
 }
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script>
+(function(){
+  var data = {};
+  try { data = JSON.parse(document.getElementById('hr-data').textContent || '{}'); } catch(e){ data = {}; }
+  if (typeof Chart === 'undefined') return;
+  Chart.defaults.font.family = "'Inter', sans-serif";
+  Chart.defaults.plugins.legend.display = false;
+  var yGrid = { beginAtZero:true, grid:{color:'#f1eff6'}, ticks:{color:'#b7b2c2',font:{size:10}} };
+  var noGrid = { grid:{display:false}, ticks:{color:'#b7b2c2',font:{size:10}} };
+
+  function donut(id, arr){
+    var el = document.getElementById(id); if(!el || !arr.length) return;
+    new Chart(el, { type:'doughnut', data:{ labels: arr.map(function(x){return x.label;}),
+      datasets:[{ data: arr.map(function(x){return x.value;}), backgroundColor: arr.map(function(x){return x.color;}), borderWidth:0, cutout:'68%' }]},
+      options:{ responsive:true, maintainAspectRatio:false } });
+  }
+  donut('ovDonut', data.overview || []);
+  donut('gdDonut', data.gender || []);
+
+  var tr = data.trend || [];
+  var tl = document.getElementById('trendLine');
+  if (tl && tr.length){
+    new Chart(tl, { type:'line', data:{ labels: tr.map(function(d){return d.label;}),
+      datasets:[
+        { label:'Present',   data: tr.map(function(d){return d.present;}),  borderColor:'#10b981', backgroundColor:'#10b981', tension:.4, pointRadius:3, borderWidth:2 },
+        { label:'Absent',    data: tr.map(function(d){return d.absent;}),   borderColor:'#ef4444', backgroundColor:'#ef4444', tension:.4, pointRadius:3, borderWidth:2 },
+        { label:'Mis Punch', data: tr.map(function(d){return d.mispunch;}), borderColor:'#f59e0b', backgroundColor:'#f59e0b', tension:.4, pointRadius:3, borderWidth:2 },
+        { label:'On Leave',  data: tr.map(function(d){return d.on_leave;}), borderColor:'#3b82f6', backgroundColor:'#3b82f6', tension:.4, pointRadius:3, borderWidth:2 }
+      ]},
+      options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:true, labels:{boxWidth:10,font:{size:10},color:'#7a7588'}}}, scales:{ y:yGrid, x:noGrid } } });
+  }
+
+  var cb = data.category_bar || [];
+  var cbar = document.getElementById('catBar');
+  if (cbar && cb.length){
+    new Chart(cbar, { type:'bar', data:{ labels: cb.map(function(d){return d.label;}),
+      datasets:[
+        { label:'Present',   data: cb.map(function(d){return d.present;}),  backgroundColor:'#10b981', borderRadius:4 },
+        { label:'Absent',    data: cb.map(function(d){return d.absent;}),   backgroundColor:'#ef4444', borderRadius:4 },
+        { label:'Mis Punch', data: cb.map(function(d){return d.mispunch;}), backgroundColor:'#f59e0b', borderRadius:4 },
+        { label:'On Leave',  data: cb.map(function(d){return d.on_leave;}), backgroundColor:'#3b82f6', borderRadius:4 }
+      ]},
+      options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:true, labels:{boxWidth:10,font:{size:10}}}}, scales:{ y:yGrid, x:noGrid } } });
+  }
+})();
 </script>
 {% endblock %}

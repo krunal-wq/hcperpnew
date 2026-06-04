@@ -395,89 +395,137 @@ def receive_logs():
 @attendance_bp.route('/hr/attendance')
 @login_required
 def attendance_dashboard():
-    today       = date.today()
-    month_start = today.replace(day=1)
+    from datetime import timedelta
+    from sqlalchemy import func
+    try:
+        from models.hr_rules import HRLeaveApplication
+    except Exception:
+        HRLeaveApplication = None
 
-    # Today stats
-    today_present  = Attendance.query.filter(
-        Attendance.attendance_date == today,
-        Attendance.status == 'Present'
-    ).count()
-    today_absent   = Attendance.query.filter(
-        Attendance.attendance_date == today,
-        Attendance.status == 'Absent'
-    ).count()
-    today_halfday  = Attendance.query.filter(
-        Attendance.attendance_date == today,
-        Attendance.status == 'Half Day'
-    ).count()
-    today_mispunch = Attendance.query.filter(
-        Attendance.attendance_date == today,
-        Attendance.status == 'MIS-PUNCH'
-    ).count()
-    today_holiday  = Attendance.query.filter(
-        Attendance.attendance_date == today,
-        Attendance.status == 'Holiday'
-    ).count()
+    # ── Date filter ──
+    qd = request.args.get('date', '')
+    try:
+        sel = datetime.strptime(qd, '%Y-%m-%d').date() if qd else date.today()
+    except Exception:
+        sel = date.today()
+    month_start = sel.replace(day=1)
 
-    total_employees = Employee.query.filter_by(status='active').count()
+    a = {}
+    emps = Employee.query.filter_by(status='active').all()
+    total_emp = len(emps)
+    code2emp = {e.employee_code: e for e in emps if e.employee_code}
+    a['total_employees'] = total_emp
 
-    # Last sync time
-    last_raw  = RawPunchLog.query.order_by(RawPunchLog.synced_at.desc()).first()
-    last_sync = last_raw.synced_at.strftime('%d %b %Y, %I:%M %p') if last_raw else 'No data yet'
+    att = Attendance.query.filter(Attendance.attendance_date == sel).all()
+    code_status = {x.employee_code: x.status for x in att}
+    def _cnt(st): return sum(1 for x in att if x.status == st)
+    present = _cnt('Present'); absent = _cnt('Absent'); mispunch = _cnt('MIS-PUNCH')
 
-    # Today list — all statuses (Present, Absent, Half Day, MIS-PUNCH, Holiday)
-    today_list = db.session.query(Attendance).filter(
-        Attendance.attendance_date == today
-    ).order_by(
-        db.case(
-            (Attendance.status == 'Present',  1),
-            (Attendance.status == 'Half Day', 2),
-            (Attendance.status == 'MIS-PUNCH',3),
-            (Attendance.status == 'Absent',   4),
-            (Attendance.status == 'Holiday',  5),
-            else_=6
-        ),
-        Attendance.punch_in
-    ).limit(200).all()
+    # On leave (approved leaves covering sel)
+    laps = []; onleave_codes = set(); leave_rows = []
+    if HRLeaveApplication:
+        try:
+            laps = HRLeaveApplication.query.filter(HRLeaveApplication.status == 'approved',
+                       HRLeaveApplication.from_date <= sel, HRLeaveApplication.to_date >= sel).all()
+            for l in laps:
+                e = Employee.query.get(l.employee_id)
+                if e and e.employee_code: onleave_codes.add(e.employee_code)
+                if len(leave_rows) < 8:
+                    leave_rows.append({'code': (e.employee_code if e else '-'),
+                        'name': (e.full_name if e else '-'), 'type': l.leave_type,
+                        'from': l.from_date, 'to': l.to_date, 'days': float(l.days or 0)})
+        except Exception:
+            laps = []
+    on_leave = len(onleave_codes) if onleave_codes else len(laps)
 
-    # Last 7 days trend — Present / Absent / Half Day
-    trend_data = []
+    a['present'] = present; a['absent'] = absent; a['mispunch'] = mispunch; a['on_leave'] = on_leave
+    def _pct(v): return round(v / total_emp * 100, 2) if total_emp else 0
+    a['present_pct'] = _pct(present); a['absent_pct'] = _pct(absent)
+    a['mispunch_pct'] = _pct(mispunch); a['on_leave_pct'] = _pct(on_leave)
+
+    try:
+        a['working_days'] = db.session.query(func.count(func.distinct(Attendance.attendance_date)))\
+            .filter(Attendance.attendance_date >= month_start, Attendance.attendance_date <= sel).scalar() or 0
+    except Exception:
+        a['working_days'] = 0
+
+    a['overview'] = [x for x in [
+        {'label': 'Present',   'value': present,  'color': '#10b981'},
+        {'label': 'Absent',    'value': absent,   'color': '#ef4444'},
+        {'label': 'Mis Punch', 'value': mispunch, 'color': '#f59e0b'},
+        {'label': 'On Leave',  'value': on_leave, 'color': '#3b82f6'},
+    ] if x['value']]
+
+    # Gender wise (all active employees)
+    g = {}
+    for e in emps:
+        gg = (e.gender or 'Other').strip().title() or 'Other'
+        g[gg] = g.get(gg, 0) + 1
+    gcol = {'Male': '#3b82f6', 'Female': '#ec4899'}
+    a['gender'] = [{'label': k, 'value': v, 'color': gcol.get(k, '#8b5cf6')} for k, v in sorted(g.items(), key=lambda x: -x[1])]
+
+    def _bucket(lst):
+        d = {'total': 0, 'present': 0, 'absent': 0, 'mispunch': 0, 'on_leave': 0}
+        for e in lst:
+            d['total'] += 1; c = e.employee_code
+            if c in onleave_codes: d['on_leave'] += 1
+            st = code_status.get(c)
+            if st == 'Present': d['present'] += 1
+            elif st == 'Absent': d['absent'] += 1
+            elif st == 'MIS-PUNCH': d['mispunch'] += 1
+        return d
+
+    def _group(attr):
+        m = {}
+        for e in emps:
+            k = (getattr(e, attr, None) or 'Unassigned'); m.setdefault(k, []).append(e)
+        out = []
+        for k, lst in sorted(m.items(), key=lambda x: -len(x[1])):
+            b = _bucket(lst); b['label'] = k; out.append(b)
+        return out
+
+    a['category_summary'] = _group('employee_type')
+    a['category_bar'] = [{'label': c['label'], 'present': c['present'], 'absent': c['absent'],
+                          'mispunch': c['mispunch'], 'on_leave': c['on_leave']} for c in a['category_summary'][:8]]
+    a['shift_summary'] = _group('shift')
+    a['dept_summary'] = _group('department')
+
+    # Attendance trend (last 7 days)
+    a['trend'] = []
     for i in range(6, -1, -1):
-        d = today - timedelta(days=i)
-        stats = dict(
-            db.session.query(Attendance.status, db.func.count(Attendance.id))
-            .filter(Attendance.attendance_date == d)
-            .group_by(Attendance.status).all()
-        )
-        trend_data.append({
-            'date':     d.strftime('%d %b'),
-            'present':  stats.get('Present', 0),
-            'absent':   stats.get('Absent', 0),
-            'half_day': stats.get('Half Day', 0),
-        })
+        dd = sel - timedelta(days=i)
+        rows = dict(db.session.query(Attendance.status, func.count(Attendance.id))
+                    .filter(Attendance.attendance_date == dd).group_by(Attendance.status).all())
+        ol = 0
+        if HRLeaveApplication:
+            try:
+                ol = HRLeaveApplication.query.filter(HRLeaveApplication.status == 'approved',
+                        HRLeaveApplication.from_date <= dd, HRLeaveApplication.to_date >= dd).count()
+            except Exception:
+                ol = 0
+        a['trend'].append({'label': dd.strftime('%d %b'), 'present': rows.get('Present', 0),
+                           'absent': rows.get('Absent', 0), 'mispunch': rows.get('MIS-PUNCH', 0), 'on_leave': ol})
 
-    # This month present count
-    month_present = Attendance.query.filter(
-        Attendance.attendance_date >= month_start,
-        Attendance.attendance_date <= today,
-        Attendance.status == 'Present'
-    ).count()
+    # Top mis-punch employees
+    a['top_mispunch'] = []
+    for x in att:
+        if x.status == 'MIS-PUNCH':
+            e = code2emp.get(x.employee_code)
+            issue = 'Mis Punch'
+            if x.punch_in and not x.punch_out: issue = 'No Check Out'
+            elif x.punch_out and not x.punch_in: issue = 'No Check In'
+            a['top_mispunch'].append({'code': x.employee_code, 'name': (e.full_name if e else '-'),
+                'dept': (e.department if e else '-'),
+                'in': (x.punch_in.strftime('%I:%M %p') if x.punch_in else '-'),
+                'out': (x.punch_out.strftime('%I:%M %p') if x.punch_out else '-'), 'issue': issue})
+    a['top_mispunch'] = a['top_mispunch'][:6]
+    a['leave_rows'] = leave_rows
 
-    return render_template(
-        'hr/attendance/dashboard.html',
-        today           = today,
-        today_present   = today_present,
-        today_absent    = today_absent,
-        today_halfday   = today_halfday,
-        today_mispunch  = today_mispunch,
-        today_holiday   = today_holiday,
-        total_employees = total_employees,
-        last_sync       = last_sync,
-        today_list      = today_list,
-        trend_data      = json.dumps(trend_data),
-        month_present   = month_present,
-        active_page     = 'hr_attendance',
+    last_raw = RawPunchLog.query.order_by(RawPunchLog.synced_at.desc()).first()
+    a['last_sync'] = last_raw.synced_at.strftime('%d %b %Y, %I:%M %p') if last_raw and last_raw.synced_at else 'No data yet'
+
+    return render_template('hr/attendance/dashboard.html',
+        analytics=a, sel_date=sel, active_page='hr_attendance', now=datetime.now()
     )
 
 

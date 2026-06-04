@@ -2,273 +2,408 @@
 {% block title %}NPD Dashboard{% endblock %}
 {% block page_title %}NPD Dashboard{% endblock %}
 {% block bread %}NPD / Dashboard{% endblock %}
+
 {% block extra_css %}
 <style>
-.hdr{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.75rem;margin-bottom:1rem;}
-.stat-row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:1rem;}
-@media(max-width:800px){.stat-row{grid-template-columns:repeat(2,1fr);}}
-.s-card{background:#fff;border:1px solid var(--border);border-radius:var(--r-lg);padding:1rem 1.1rem;display:flex;gap:.75rem;align-items:center;}
-.s-ic{width:42px;height:42px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:1.25rem;flex-shrink:0;}
-.s-num{font-size:1.9rem;font-weight:900;line-height:1;}
-.s-lbl{font-size:.72rem;color:var(--text3);margin-top:3px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;}
-.proj-table-wrap{background:#fff;border:1px solid var(--border);border-radius:var(--r-lg);overflow:visible;}
-.proj-table{width:100%;border-collapse:collapse;font-size:.82rem;}
-.proj-table th{font-size:.68rem;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;padding:.55rem .9rem;border-bottom:2px solid var(--border);text-align:left;background:var(--bg);}
-.proj-table td{padding:.65rem .9rem;border-bottom:1px solid var(--border);color:var(--text);vertical-align:middle;}
-.proj-table tbody tr:hover td{background:#fafbff;}
-.proj-table tbody tr:last-child td{border-bottom:none;}
-.badge{display:inline-block;padding:2px 9px;border-radius:100px;font-size:.71rem;font-weight:700;}
-.prog-wrap{background:var(--border);border-radius:100px;height:6px;width:60px;}
-.prog-fill{height:100%;border-radius:100px;}
-.act-wrap{position:relative;}
-.act-dots{width:28px;height:28px;border-radius:7px;border:1px solid var(--border);background:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1rem;font-weight:900;color:var(--text2);}
-.act-dots:hover{background:var(--bg);}
-.act-menu{display:none;position:absolute;right:0;top:calc(100% + 4px);background:#fff;border:1.5px solid var(--border);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.12);min-width:160px;z-index:300;overflow:hidden;}
-.act-menu.open{display:block;}
-.act-item{display:flex;align-items:center;gap:8px;padding:8px 12px;font-size:.82rem;font-weight:600;color:var(--text);text-decoration:none;cursor:pointer;transition:background .1s;border:none;background:none;width:100%;text-align:left;font-family:inherit;}
-.act-item:hover{background:var(--bg);}
-.act-item.red{color:#dc2626;}
-.act-item.red:hover{background:#fef2f2;}
-.act-divider{height:1px;background:var(--border);margin:2px 0;}
+.main{ background:
+  radial-gradient(120% 55% at 0% 0%, #f3f0fc 0%, rgba(243,240,252,0) 55%),
+  radial-gradient(120% 60% at 100% 20%, #fdeef4 0%, rgba(253,238,244,0) 50%),
+  #f7f7fb !important; }
+.dash{ max-width:1700px; margin:0 auto; padding:8px 4px 30px; color:#1e1b2e; }
 
-/* ═══ MOBILE ONLY ═══ */
-@media(max-width: 767px) {
-    /* Header buttons */
-    .npd-hdr-btns {
-        display: grid !important;
-        grid-template-columns: 1fr 1fr;
-        gap: 10px;
-        width: 100%;
-    }
-    .npd-btn-new {
-        display: flex; align-items: center; justify-content: center; gap: 7px;
-        padding: 13px 10px; border-radius: 14px;
-        font-size: 14px; font-weight: 700;
-        background: linear-gradient(135deg,#7c3aed,#6d28d9);
-        color: #fff; text-decoration: none;
-        box-shadow: 0 3px 10px rgba(124,58,237,.3);
-        grid-column: 1 / -1;
-    }
-    .npd-btn-all {
-        display: flex; align-items: center; justify-content: center; gap: 7px;
-        padding: 11px 10px; border-radius: 12px;
-        font-size: 13px; font-weight: 600;
-        border: 1.5px solid var(--border);
-        background: var(--white); color: var(--text2);
-        text-decoration: none; grid-column: 1 / -1;
-    }
+.dh{ display:flex; align-items:flex-start; justify-content:space-between; flex-wrap:wrap; gap:12px; margin:2px 0 18px; }
+.dh-title{ font-size:23px; font-weight:800; letter-spacing:-.025em; margin:0; }
+.dh-sub{ font-size:13px; color:#9b95a6; margin-top:3px; }
+.dh-tools{ display:flex; gap:9px; align-items:center; flex-wrap:wrap; }
+.dh-select{ font-family:'Inter',sans-serif; font-size:13px; font-weight:600; color:#4a4560; background:#fff; border:1px solid #e8e6ef; border-radius:11px; padding:9px 30px 9px 13px; cursor:pointer; appearance:none; -webkit-appearance:none; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='%239b95a6' d='M0 0l5 6 5-6z'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 12px center; }
+.dh-date{ font-family:'Inter',sans-serif; font-size:12.5px; color:#4a4560; background:#fff; border:1px solid #e8e6ef; border-radius:10px; padding:8px 10px; }
+.dh-primary{ background:linear-gradient(135deg,#7c3aed,#6366f1); color:#fff; border:none; box-shadow:0 7px 18px rgba(99,102,241,.30); border-radius:11px; padding:9px 15px; font-size:12.5px; font-weight:600; cursor:pointer; }
 
-    /* Hide table, show cards */
-    .proj-table-wrap .tbl-scroll { display: none !important; }
-    .mobile-proj-list { display: block !important; }
+.panel{ background:#fff; border:1px solid #efeef3; border-radius:18px; box-shadow:0 2px 12px rgba(30,27,46,.04); padding:18px 18px 16px; }
+.panel-h{ display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+.panel-t{ font-size:14.5px; font-weight:700; letter-spacing:-.01em; }
+.panel-link{ font-size:11.5px; font-weight:600; color:#6d5fe6; text-decoration:none; } .panel-link:hover{ text-decoration:underline; }
 
-    /* Project card */
-    .m-proj-card {
-        padding: 14px 16px;
-        border-bottom: 1px solid #f1f5f9;
-        display: flex; align-items: center; gap: 12px;
-        text-decoration: none; color: var(--text);
-        -webkit-tap-highlight-color: transparent;
-        transition: background .1s;
-    }
-    .m-proj-card:active { background: #faf5ff; }
-    .m-proj-avatar {
-        width: 44px; height: 44px; border-radius: 12px; flex-shrink: 0;
-        background: linear-gradient(135deg,#7c3aed,#a855f7);
-        display: flex; align-items: center; justify-content: center;
-        font-size: 15px; font-weight: 800; color: #fff;
-    }
-    .m-proj-info { flex: 1; min-width: 0; }
-    .m-proj-name { font-size: 14px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .m-proj-meta { font-size: 11.5px; color: var(--text3); margin-top: 2px; }
-    .m-proj-right { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex-shrink: 0; }
-    .m-proj-age { font-size: 11px; color: var(--text3); }
-}
-@media(min-width: 768px) {
-    .npd-hdr-btns { display: flex; gap: .4rem; flex-wrap: wrap; }
-    .npd-btn-new {
-        display: inline-flex; align-items: center; gap: 6px;
-        padding: 7px 16px; border-radius: 7px; font-size: 13px; font-weight: 600;
-        background: #7c3aed; color: #fff; text-decoration: none; border: none;
-    }
-    .npd-btn-new:hover { background: #6d28d9; }
-    .npd-btn-all {
-        display: inline-flex; align-items: center; gap: 6px;
-        padding: 6px 13px; border-radius: 7px; font-size: 12.5px; font-weight: 600;
-        border: 1px solid var(--border); background: var(--white);
-        color: var(--text2); text-decoration: none;
-    }
-    .mobile-proj-list { display: none !important; }
-    .tbl-scroll { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
-}
+.kpi-grid{ display:grid; grid-template-columns:repeat(6,1fr); gap:13px; margin-bottom:16px; }
+.kpi{ background:#fff; border:1px solid #efeef3; border-radius:15px; padding:14px 15px; display:flex; align-items:flex-start; gap:11px; box-shadow:0 2px 12px rgba(30,27,46,.04); text-decoration:none; color:inherit; }
+a.kpi:hover{ box-shadow:0 10px 22px rgba(76,29,149,.12); transform:translateY(-2px); transition:transform .15s, box-shadow .15s; }
+.kpi-ic{ width:38px; height:38px; border-radius:11px; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:16px; }
+.kpi-l{ font-size:10.5px; font-weight:600; color:#9b95a6; line-height:1.25; }
+.kpi-n{ font-size:20px; font-weight:800; letter-spacing:-.02em; line-height:1.2; margin:2px 0; }
+.kpi-c{ font-size:10px; color:#b7b2c2; }
+.k-lav{background:#f1edfe;color:#7c3aed;} .k-green{background:#e7f8ef;color:#16a34a;} .k-amber{background:#fef3e2;color:#ea580c;} .k-blue{background:#e7f0fe;color:#2563eb;} .k-rose{background:#fde7ea;color:#e11d48;} .k-cyan{background:#e3f6fb;color:#0891b2;} .k-pink{background:#fdecf5;color:#db2777;}
+
+.r4{ display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:16px; }
+.r3{ display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-bottom:16px; }
+.r2{ display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px; }
+@media(max-width:980px){ .r2{ grid-template-columns:1fr; } }
+.np-main{ display:grid; grid-template-columns:1.15fr 1fr; gap:16px; margin-bottom:16px; align-items:stretch; }
+.np-right{ display:grid; grid-template-rows:auto 1fr; gap:16px; min-width:0; }
+.np-2{ display:grid; grid-template-columns:1fr 1fr; gap:16px; min-width:0; }
+.np-2 .dn-c{ width:120px; height:120px; }
+.np-2 .dn-center .big{ font-size:17px; } .np-2 .dn-li{ font-size:11px; }
+@media(max-width:1100px){ .np-main{ grid-template-columns:1fr; } .np-2{ grid-template-columns:1fr 1fr; } }
+@media(max-width:560px){ .np-2{ grid-template-columns:1fr; } }
+
+.line-box,.bar-box{ position:relative; width:100%; height:185px; }
+.line-box canvas,.bar-box canvas{ position:absolute; inset:0; width:100%!important; height:100%!important; }
+
+.dn-wrap{ display:flex; align-items:center; gap:14px; }
+.dn-c{ width:140px; height:140px; flex-shrink:0; position:relative; }
+.dn-c canvas{ position:absolute; inset:0; width:100%!important; height:100%!important; }
+.dn-center{ position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+.dn-center .big{ font-size:18px; font-weight:800; } .dn-center .sm{ font-size:9.5px; color:#9b95a6; }
+.dn-leg{ flex:1; display:flex; flex-direction:column; gap:6px; }
+.dn-li{ display:flex; align-items:center; gap:8px; font-size:11.5px; }
+.dn-li .nm{ color:#3a3550; font-weight:600; } .dn-li .vl{ margin-left:auto; color:#9b95a6; }
+.fn-dot{ width:9px; height:9px; border-radius:50%; flex-shrink:0; }
+
+.fun-wrap{ display:flex; gap:16px; align-items:center; }
+.fun-bars{ flex:0 0 150px; display:flex; flex-direction:column; align-items:center; gap:3px; }
+.fun-bar{ height:20px; border-radius:4px; display:flex; align-items:center; justify-content:center; color:#fff; font-size:10px; font-weight:700; }
+
+.lc-wrap{ display:flex; gap:18px; align-items:center; flex-wrap:wrap; }
+.lc-chart{ width:230px; height:230px; position:relative; flex-shrink:0; margin:0 auto; }
+.lc-chart canvas{ position:absolute; inset:0; width:100%!important; height:100%!important; }
+.lc-center{ position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; pointer-events:none; }
+.lc-center .t{ font-size:11px; color:#9b95a6; font-weight:600; }
+.lc-center .n{ font-size:30px; font-weight:800; letter-spacing:-.03em; line-height:1; margin:3px 0; color:#1e1b2e; }
+.lc-center .s{ font-size:10px; color:#9b95a6; }
+.lc-leg{ flex:1; min-width:230px; display:flex; flex-direction:column; }
+.lc-row{ display:flex; align-items:center; gap:10px; padding:8px 2px; border-bottom:1px dashed #eeecf3; }
+.lc-row:last-child{ border-bottom:none; }
+.lc-row .dot{ width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+.lc-row .tile{ width:32px; height:32px; border-radius:9px; display:flex; align-items:center; justify-content:center; font-size:14px; flex-shrink:0; }
+.lc-row .lab{ font-size:12.5px; font-weight:700; color:#2b2640; }
+.lc-row .val{ margin-left:auto; font-size:16px; font-weight:800; }
+.lc-row .pct{ font-size:11px; color:#9b95a6; font-weight:600; width:62px; text-align:right; }
+.lc-seg-ov{ position:absolute; text-align:center; color:#fff; pointer-events:none; line-height:1; }
+.lc-seg-ov i{ font-size:13px; display:block; margin-bottom:1px; }
+.lc-seg-ov span{ font-size:12px; font-weight:800; }
+.lc-foot{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:12px; background:#f7f6fb; border-radius:12px; padding:10px 14px; flex-wrap:wrap; }
+.lc-foot .note{ font-size:11.5px; color:#8b86a0; display:flex; align-items:center; gap:7px; }
+.lc-foot .btn{ display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:700; color:#6d5fe6; text-decoration:none; background:#fff; border:1px solid #e3e0ec; border-radius:10px; padding:8px 12px; }
+@media(max-width:760px){ .lc-row .pct{display:none} }
+
+.rmt{ width:100%; border-collapse:collapse; font-size:12px; }
+.rmt th{ text-align:left; font-size:10px; font-weight:700; color:#9b95a6; text-transform:uppercase; letter-spacing:.04em; padding:6px 7px; border-bottom:1px solid #f0eef5; }
+.rmt td{ padding:7px; border-bottom:1px solid #f6f5f9; color:#3a3550; }
+.rmt tr:last-child td{ border-bottom:none; }
+.badge{ font-size:10px; font-weight:700; padding:2px 8px; border-radius:100px; }
+.empty{ font-size:12.5px; color:#b7b2c2; padding:26px 4px; text-align:center; }
+
+.wl-row{ display:flex; align-items:center; gap:10px; padding:7px 2px; border-bottom:1px solid #f6f5f9; }
+.wl-row:last-child{ border-bottom:none; }
+.wl-av{ width:28px; height:28px; border-radius:50%; flex-shrink:0; background:linear-gradient(135deg,#a78bfa,#7c3aed); color:#fff; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; }
+.wl-nm{ font-size:12px; font-weight:600; color:#3a3550; }
+.wl-st{ margin-left:auto; display:flex; gap:10px; font-size:11px; }
+.wl-st b{ font-weight:700; } .wl-ip{ color:#2563eb; } .wl-cp{ color:#16a34a; } .wl-rj{ color:#e11d48; }
+
+@media(max-width:1300px){ .kpi-grid{grid-template-columns:repeat(4,1fr)} .r4{grid-template-columns:repeat(2,1fr)} }
+@media(max-width:1000px){ .r3{grid-template-columns:1fr} }
+@media(max-width:560px){ .kpi-grid,.r4{grid-template-columns:1fr} }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="hdr">
+{% set a = analytics if analytics is defined else {} %}
+{% set ss_total = (a.get('sample_status', [])|sum(attribute='value')) or 0 %}
+{% set ri_total = (a.get('rejection_internal', [])|sum(attribute='value')) or 0 %}
+{% set fn_max = (a.get('funnel', [])|map(attribute='value')|max) if a.get('funnel') else 0 %}
+
+<div class="dash">
+
+  <!-- HEADER -->
+  <div class="dh">
     <div>
-        <div style="font-size:1.1rem;font-weight:800;color:#7c3aed;">🧪 NPD — New Product Development</div>
-        <div style="font-size:.77rem;color:var(--text3);">All NPD projects overview</div>
+      <h1 class="dh-title">NPD Dashboard</h1>
+      <div class="dh-sub">Overview of NPD Projects, Samples, Approvals and Status</div>
     </div>
-    <div class="npd-hdr-btns">
-        {% if perm and perm.can_add %}<a href="/npd/npd-new" class="npd-btn-new">+ New NPD Project</a>{% endif %}
-        <a href="/npd/npd-projects" class="npd-btn-all">📋 All NPD Projects</a>
+    <div class="dh-tools">
+      <select id="periodSel" class="dh-select" onchange="onPeriodChange()">
+        <option value="all"          {{ 'selected' if period=='all' else '' }}>All Time</option>
+        <option value="today"        {{ 'selected' if period=='today' else '' }}>Today</option>
+        <option value="yesterday"    {{ 'selected' if period=='yesterday' else '' }}>Yesterday</option>
+        <option value="last_7_days"  {{ 'selected' if period=='last_7_days' else '' }}>Last 7 Days</option>
+        <option value="last_30_days" {{ 'selected' if period=='last_30_days' else '' }}>Last 30 Days</option>
+        <option value="custom"       {{ 'selected' if period=='custom' else '' }}>Custom Date</option>
+      </select>
+      <span id="customRange" style="display:{{ 'inline-flex' if period=='custom' else 'none' }}; gap:6px; align-items:center;">
+        <input type="date" id="dFrom" class="dh-date" value="{{ cust_from }}">
+        <span style="color:#9b95a6;">–</span>
+        <input type="date" id="dTo" class="dh-date" value="{{ cust_to }}">
+        <button type="button" class="dh-primary" onclick="applyCustom()">Apply</button>
+      </span>
     </div>
-</div>
+  </div>
 
-<!-- Stats -->
-<div class="stat-row">
-    <div class="s-card">
-        <div class="s-ic" style="background:#f3e8ff;">🧪</div>
-        <div><div class="s-num" style="color:#7c3aed;">{{ total }}</div><div class="s-lbl">Total NPD</div></div>
-    </div>
-    <div class="s-card">
-        <div class="s-ic" style="background:#fefce8;">🔄</div>
-        <div><div class="s-num" style="color:#f59e0b;">{{ active }}</div><div class="s-lbl">Active</div></div>
-    </div>
-    <div class="s-card">
-        <div class="s-ic" style="background:#f0fdf4;">✅</div>
-        <div><div class="s-num" style="color:#22c55e;">{{ completed }}</div><div class="s-lbl">Completed</div></div>
-    </div>
-    <div class="s-card">
-        <div class="s-ic" style="background:#fef2f2;">❌</div>
-        <div><div class="s-num" style="color:#ef4444;">{{ cancelled }}</div><div class="s-lbl">Cancelled</div></div>
-    </div>
-</div>
+  <!-- KPI CARDS (clickable) -->
+  <div class="kpi-grid">
+    <a class="kpi" href="/crm/leads"><div class="kpi-ic k-lav"><i class="bi bi-people-fill"></i></div><div><div class="kpi-l">Total Leads Converted</div><div class="kpi-n">{{ a.get('leads_converted',0) }}</div><div class="kpi-c">From CRM</div></div></a>
+    <a class="kpi" href="/npd/npd-dashboard"><div class="kpi-ic k-green"><i class="bi bi-folder-fill"></i></div><div><div class="kpi-l">Active NPD Projects</div><div class="kpi-n">{{ a.get('active_projects',0) }}</div><div class="kpi-c">Running</div></div></a>
+    <a class="kpi" href="/npd/npd-dashboard"><div class="kpi-ic k-amber"><i class="bi bi-calendar-plus"></i></div><div><div class="kpi-l">New Projects (This Month)</div><div class="kpi-n">{{ a.get('new_this_month',0) }}</div><div class="kpi-c">This month</div></div></a>
+    <a class="kpi" href="/npd/npd-dashboard"><div class="kpi-ic k-blue"><i class="bi bi-check-circle-fill"></i></div><div><div class="kpi-l">Completed Projects</div><div class="kpi-n">{{ a.get('completed_projects',0) }}</div><div class="kpi-c">Complete</div></div></a>
+    <a class="kpi" href="/npd/sample-history"><div class="kpi-ic k-lav"><i class="bi bi-eyedropper"></i></div><div><div class="kpi-l">Total Samples</div><div class="kpi-n">{{ a.get('total_samples',0) }}</div><div class="kpi-c">All samples</div></div></a>
+    <a class="kpi" href="/npd/sample-ready"><div class="kpi-ic k-amber"><i class="bi bi-arrow-repeat"></i></div><div><div class="kpi-l">Samples In Development</div><div class="kpi-n">{{ a.get('in_development',0) }}</div><div class="kpi-c">Pending</div></div></a>
 
-<!-- Milestone Progress -->
-{% if ms_total %}
-<div style="background:#fff;border:1px solid var(--border);border-radius:var(--r-lg);padding:.9rem 1.1rem;margin-bottom:1rem;display:flex;align-items:center;gap:1rem;">
-    <div style="font-size:.8rem;font-weight:700;color:var(--text);white-space:nowrap;">⚙️ Milestone Completion</div>
-    <div style="flex:1;">
-        <div style="background:var(--border);border-radius:100px;height:10px;">
-            <div style="height:100%;border-radius:100px;background:linear-gradient(90deg,#7c3aed,#a855f7);width:{{ ms_pct }}%;transition:width .6s;"></div>
+    <a class="kpi" href="/npd/sample-history"><div class="kpi-ic k-green"><i class="bi bi-patch-check-fill"></i></div><div><div class="kpi-l">Internal Approved Samples</div><div class="kpi-n">{{ a.get('internal_approved',0) }}</div><div class="kpi-c">Approved</div></div></a>
+    <a class="kpi" href="/npd/sample-history"><div class="kpi-ic k-cyan"><i class="bi bi-send-fill"></i></div><div><div class="kpi-l">Samples Dispatched</div><div class="kpi-n">{{ a.get('samples_dispatched',0) }}</div><div class="kpi-c">Sent to client</div></div></a>
+    <a class="kpi" href="/npd/sample-history"><div class="kpi-ic k-green"><i class="bi bi-hand-thumbs-up-fill"></i></div><div><div class="kpi-l">Client Approved Samples</div><div class="kpi-n">{{ a.get('client_approved',0) }}</div><div class="kpi-c">No data yet</div></div></a>
+    <a class="kpi" href="/npd/sample-history"><div class="kpi-ic k-rose"><i class="bi bi-hand-thumbs-down-fill"></i></div><div><div class="kpi-l">Client Rejected Samples</div><div class="kpi-n">{{ a.get('client_rejected',0) }}</div><div class="kpi-c">No data yet</div></div></a>
+    <a class="kpi" href="/npd/sample-history"><div class="kpi-ic k-amber"><i class="bi bi-arrow-clockwise"></i></div><div><div class="kpi-l">Rework Samples</div><div class="kpi-n">{{ a.get('rework_samples',0) }}</div><div class="kpi-c">No data yet</div></div></a>
+    <a class="kpi" href="/npd/sample-history"><div class="kpi-ic k-pink"><i class="bi bi-clock-history"></i></div><div><div class="kpi-l">Pending Client Feedback</div><div class="kpi-n">{{ a.get('pending_feedback',0) }}</div><div class="kpi-c">No data yet</div></div></a>
+
+    <a class="kpi" href="/npd/sample-history"><div class="kpi-ic k-cyan"><i class="bi bi-box-seam"></i></div><div><div class="kpi-l">Total Dispatches</div><div class="kpi-n">{{ a.get('total_dispatches',0) }}</div><div class="kpi-c">To client</div></div></a>
+    <a class="kpi" href="/npd/sample-history"><div class="kpi-ic k-blue"><i class="bi bi-truck"></i></div><div><div class="kpi-l">In Transit</div><div class="kpi-n">{{ a.get('in_transit',0) }}</div><div class="kpi-c">No data yet</div></div></a>
+    <a class="kpi" href="/npd/sample-history"><div class="kpi-ic k-green"><i class="bi bi-check2-all"></i></div><div><div class="kpi-l">Delivered</div><div class="kpi-n">{{ a.get('delivered',0) }}</div><div class="kpi-c">No data yet</div></div></a>
+    <a class="kpi" href="/npd/sample-history"><div class="kpi-ic k-amber"><i class="bi bi-stopwatch"></i></div><div><div class="kpi-l">Avg Sample Cycle Time</div><div class="kpi-n">{{ a.get('avg_cycle',0) }}<span style="font-size:12px"> days</span></div><div class="kpi-c">Dispatch → action</div></div></a>
+    <a class="kpi" href="/npd/sample-history"><div class="kpi-ic k-rose"><i class="bi bi-exclamation-triangle-fill"></i></div><div><div class="kpi-l">Overdue Samples</div><div class="kpi-n">{{ a.get('overdue',0) }}</div><div class="kpi-c">No data yet</div></div></a>
+    <a class="kpi" href="/npd/sample-history"><div class="kpi-ic k-cyan"><i class="bi bi-clock-fill"></i></div><div><div class="kpi-l">On Time Delivery</div><div class="kpi-n">{{ a.get('on_time',0) }}%</div><div class="kpi-c">No data yet</div></div></a>
+  </div>
+
+  <!-- MAIN: Lifecycle (left) + [Sample Status | Rejection Internal] + Project Stage (right) -->
+  {% set lc_total = (a.get('funnel', [])|sum(attribute='value')) or 0 %}
+  {% set lc_icons = ['bi-people-fill','bi-file-earmark-text','bi-eyedropper','bi-patch-check-fill','bi-send-fill','bi-hand-thumbs-up-fill','bi-flag-fill'] %}
+  <div class="np-main">
+    <div class="panel">
+      <div class="panel-h"><span class="panel-t" style="font-size:16px;">NPD Lifecycle Overview</span></div>
+      {% if a.get('funnel') %}
+      <div class="lc-wrap">
+        <div class="lc-chart">
+          <canvas id="lcDonut"></canvas>
+          <div class="lc-center"><span class="t">Total</span><span class="n">{{ lc_total }}</span><span class="s">Lifecycle Count</span></div>
         </div>
+        <div class="lc-leg">
+          {% for f in a.get('funnel', []) %}
+          <div class="lc-row">
+            <span class="dot" style="background:{{ f.color }}"></span>
+            <span class="tile" style="background:{{ f.color }}1a; color:{{ f.color }}"><i class="bi {{ lc_icons[loop.index0] }}"></i></span>
+            <span class="lab">{{ f.label }}</span>
+            <span class="val" style="color:{{ f.color }}">{{ f.value }}</span>
+            <span class="pct">({{ ((f.value/lc_total*100)|round(2)) if lc_total else 0 }}%)</span>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="lc-foot">
+        <span class="note"><i class="bi bi-info-circle"></i> Counts flowing through the NPD lifecycle.</span>
+        <a class="btn" href="/npd/sample-history"><i class="bi bi-box-arrow-up-right"></i> View Full Report</a>
+      </div>
+      {% else %}<div class="empty">No data yet</div>{% endif %}
     </div>
-    <div style="font-size:.85rem;font-weight:800;color:#7c3aed;white-space:nowrap;">{{ ms_done }}/{{ ms_total }} ({{ ms_pct }}%)</div>
-</div>
-{% endif %}
 
-<!-- Project List -->
-<div class="proj-table-wrap">
-    <div style="padding:.75rem 1rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
-        <div style="font-size:.85rem;font-weight:700;">Recent NPD Projects</div>
-        <a href="/npd/npd-projects" style="font-size:.78rem;color:var(--blue);">View all →</a>
-    </div>
-
-    {% if projects %}
-
-    {# ── MOBILE: Card List ── #}
-    <div class="mobile-proj-list">
-        {% for p in projects[:15] %}
-        {% set sel_ms = p.milestones|selectattr('is_selected')|list %}
-        {% set done_ms = sel_ms|selectattr('status','eq','approved')|list %}
-        {% set ms_pct2 = ((done_ms|length / sel_ms|length)*100)|round|int if sel_ms else 0 %}
-        <a href="/npd/projects/{{ p.id }}" class="m-proj-card">
-            <div class="m-proj-avatar">{{ p.product_name[0]|upper }}</div>
-            <div class="m-proj-info">
-                <div class="m-proj-name">{{ p.product_name }}</div>
-                <div class="m-proj-meta">
-                    {{ p.code }}
-                    {% if p.client_company or p.client_name %}
-                     · {{ (p.client_company or p.client_name)[:20] }}
-                    {% endif %}
-                </div>
-                {% if sel_ms %}
-                <div style="margin-top:5px;display:flex;align-items:center;gap:6px;">
-                    <div style="flex:1;background:var(--border);border-radius:100px;height:4px;max-width:80px;">
-                        <div style="height:100%;border-radius:100px;width:{{ ms_pct2 }}%;background:{% if ms_pct2==100 %}#22c55e{% else %}#7c3aed{% endif %};"></div>
-                    </div>
-                    <span style="font-size:10px;color:var(--text3);">{{ done_ms|length }}/{{ sel_ms|length }}</span>
-                </div>
-                {% endif %}
+    <div class="np-right">
+      <div class="np-2">
+        <div class="panel">
+          <div class="panel-h"><span class="panel-t">Sample Status Overview</span></div>
+          {% if ss_total %}
+          <div class="dn-wrap">
+            <div class="dn-c"><canvas id="statusDonut"></canvas><div class="dn-center"><span class="big">{{ ss_total }}</span><span class="sm">Total</span></div></div>
+            <div class="dn-leg">
+              {% for x in a.get('sample_status', []) %}<div class="dn-li"><span class="fn-dot" style="background:{{ x.color }}"></span><span class="nm">{{ x.label|truncate(14) }}</span><span class="vl">{{ x.value }}</span></div>{% endfor %}
             </div>
-            <div class="m-proj-right">
-                <span class="badge" style="background:{{ p.status_color }}22;color:{{ p.status_color }};font-size:10px;">{{ p.status_label }}</span>
-                <span class="m-proj-age">{{ p.project_age }}d</span>
+          </div>
+          {% else %}<div class="empty">No samples yet</div>{% endif %}
+        </div>
+
+        <div class="panel">
+          <div class="panel-h"><span class="panel-t">Rejection Analysis (Internal)</span></div>
+          {% if ri_total %}
+          <div class="dn-wrap">
+            <div class="dn-c"><canvas id="riDonut"></canvas><div class="dn-center"><span class="big">{{ ri_total }}</span><span class="sm">Total</span></div></div>
+            <div class="dn-leg">
+              {% for x in a.get('rejection_internal', []) %}<div class="dn-li"><span class="fn-dot" style="background:{{ x.color }}"></span><span class="nm">{{ x.label|truncate(14) }}</span><span class="vl">{{ x.value }}</span></div>{% endfor %}
             </div>
-        </a>
-        {% endfor %}
+          </div>
+          {% else %}<div class="empty">No rejections yet</div>{% endif %}
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-h"><span class="panel-t">Project Stage Overview</span></div>
+        {% if a.get('project_stage') %}
+        <div class="bar-box"><canvas id="stageBar"></canvas></div>
+        {% else %}<div class="empty">No projects yet</div>{% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Client Approval Trend (full width) -->
+  <div class="panel" style="margin-bottom:16px;">
+    <div class="panel-h"><span class="panel-t">Client Approval Trend</span></div>
+    {% if a.get('client_trend') %}
+    <div class="line-box"><canvas id="clientLine"></canvas></div>
+    {% else %}<div class="empty" style="padding:40px 4px;"><i class="bi bi-graph-up" style="font-size:24px;color:#dcd9e4;display:block;margin-bottom:6px;"></i>Client approval data not available yet</div>{% endif %}
+  </div>
+
+  <!-- ROW: Top Rework | Recent Dispatches | Pending Feedback -->
+  <div class="r3">
+    <div class="panel">
+      <div class="panel-h"><span class="panel-t">Top Rework Samples</span></div>
+      {% if a.get('top_rework') %}
+      <table class="rmt"><thead><tr><th>Project</th><th>Sample</th><th>Rework</th></tr></thead><tbody>
+        {% for r in a.get('top_rework', []) %}<tr><td>{{ r.project }}</td><td>{{ r.sample }}</td><td>{{ r.count }}</td></tr>{% endfor %}
+      </tbody></table>
+      {% else %}<div class="empty">Rework tracking not available yet</div>{% endif %}
     </div>
 
-    {# ── DESKTOP: Table ── #}
-    <div class="tbl-scroll" style="overflow-x:auto;">
-        <table class="proj-table">
-            <thead><tr>
-                <th>Code</th><th>Product</th><th>Client</th><th>SC</th>
-                <th>Status</th><th style="text-align:center;">Milestones</th><th>Age</th><th></th>
-            </tr></thead>
-            <tbody>
-            {% for p in projects[:15] %}
-            {% set sel_ms = p.milestones|selectattr('is_selected')|list %}
-            {% set done_ms = sel_ms|selectattr('status','eq','approved')|list %}
-            {% set ms_pct2 = ((done_ms|length / sel_ms|length)*100)|round|int if sel_ms else 0 %}
-            <tr>
-                <td><a href="/npd/projects/{{ p.id }}" style="font-family:var(--font-mono);font-weight:700;font-size:.8rem;color:#7c3aed;text-decoration:none;">{{ p.code }}</a></td>
-                <td style="max-width:160px;"><div style="font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="{{ p.product_name }}">{{ p.product_name }}</div>
-                    {% if p.product_category %}<div style="font-size:.7rem;color:var(--text3);">{{ p.product_category }}</div>{% endif %}</td>
-                <td style="font-size:.8rem;">{{ p.client_company or p.client_name or '—' }}</td>
-                <td style="font-size:.8rem;color:var(--text2);">{{ p.sc_user.full_name if p.sc_user else '—' }}</td>
-                <td><span class="badge" style="background:{{ p.status_color }}22;color:{{ p.status_color }};">{{ p.status_label }}</span></td>
-                <td style="text-align:center;">
-                    {% if sel_ms %}
-                    <div style="font-size:.72rem;color:var(--text3);margin-bottom:3px;">{{ done_ms|length }}/{{ sel_ms|length }}</div>
-                    <div class="prog-wrap" style="margin:0 auto;"><div class="prog-fill" style="width:{{ ms_pct2 }}%;background:{% if ms_pct2==100 %}#22c55e{% else %}#7c3aed{% endif %};"></div></div>
-                    {% else %}—{% endif %}
-                </td>
-                <td style="font-size:.78rem;color:var(--text3);">{{ p.project_age }}d</td>
-                <td>
-                    <div class="act-wrap">
-                        <button class="act-dots" onclick="toggleAct(this,event)">⋯</button>
-                        <div class="act-menu">
-                            <a href="/npd/projects/{{ p.id }}/edit" class="act-item">✏️ Edit</a>
-                            <div class="act-divider"></div>
-                            <form method="POST" action="/npd/projects/{{ p.id }}/status" onsubmit="return confirm('Mark complete?')">
-                                <input type="hidden" name="status" value="complete">
-                                <button type="submit" class="act-item" style="color:#22c55e;">✅ Complete</button>
-                            </form>
-                            <form method="POST" action="/npd/projects/{{ p.id }}/status" onsubmit="return confirm('Cancel project?')">
-                                <input type="hidden" name="status" value="cancelled">
-                                <button type="submit" class="act-item red">❌ Cancel</button>
-                            </form>
-                            <div class="act-divider"></div>
-                            <form method="POST" action="/npd/projects/{{ p.id }}/delete" onsubmit="return confirm('Delete?')">
-                                <button type="submit" class="act-item red">🗑️ Delete</button>
-                            </form>
-                        </div>
-                    </div>
-                </td>
-            </tr>
-            {% endfor %}
-            </tbody>
-        </table>
+    <div class="panel">
+      <div class="panel-h"><span class="panel-t">Recent Dispatches</span><a class="panel-link" href="/npd/sample-history">View All</a></div>
+      {% if a.get('recent_dispatches') %}
+      <table class="rmt"><thead><tr><th>Dispatch No</th><th>Project</th><th>Client</th><th>Date</th></tr></thead><tbody>
+        {% for r in a.get('recent_dispatches', []) %}<tr><td>{{ r.no|truncate(12) }}</td><td>{{ r.project }}</td><td>{{ r.client|truncate(12) }}</td><td>{{ r.date.strftime('%d %b %Y') if r.date else '—' }}</td></tr>{% endfor %}
+      </tbody></table>
+      {% else %}<div class="empty">No dispatches yet</div>{% endif %}
     </div>
 
-    {% else %}
-    <div style="text-align:center;padding:3rem;color:var(--text3);">
-        <div style="font-size:2.5rem;margin-bottom:.5rem;">🧪</div>
-        <div style="font-weight:700;">No NPD Projects yet</div>
-        <a href="/npd/npd-new" style="color:#7c3aed;font-weight:600;">+ Create first NPD Project →</a>
+    <div class="panel">
+      <div class="panel-h"><span class="panel-t">Pending Client Feedback</span></div>
+      {% if a.get('pending_feedback_rows') %}
+      <table class="rmt"><thead><tr><th>Project</th><th>Client</th><th>Days</th></tr></thead><tbody>
+        {% for r in a.get('pending_feedback_rows', []) %}<tr><td>{{ r.project }}</td><td>{{ r.client }}</td><td>{{ r.days }}</td></tr>{% endfor %}
+      </tbody></table>
+      {% else %}<div class="empty">Client feedback tracking not available yet</div>{% endif %}
     </div>
-    {% endif %}
+  </div>
+
+  <!-- ROW: Rejection Client | Samples Rejected | Team Workload -->
+  <div class="r3">
+    <div class="panel">
+      <div class="panel-h"><span class="panel-t">Rejection Analysis (Client)</span></div>
+      {% if a.get('rejection_client') %}
+      <div class="dn-wrap"><div class="dn-c"><canvas id="rcDonut"></canvas></div></div>
+      {% else %}<div class="empty">Client rejection data not available yet</div>{% endif %}
+    </div>
+
+    <div class="panel">
+      <div class="panel-h"><span class="panel-t">Samples Rejected (Recent)</span><a class="panel-link" href="/npd/sample-history">View All</a></div>
+      {% if a.get('rejected_recent') %}
+      <table class="rmt"><thead><tr><th>Sample</th><th>Project</th><th>Reason</th></tr></thead><tbody>
+        {% for r in a.get('rejected_recent', []) %}<tr><td>{{ r.sample_code|truncate(11) }}</td><td>{{ r.project|truncate(10) }}</td><td style="color:#e11d48;">{{ r.reason|truncate(14) }}</td></tr>{% endfor %}
+      </tbody></table>
+      {% else %}<div class="empty">No rejections yet</div>{% endif %}
+    </div>
+
+    <div class="panel">
+      <div class="panel-h"><span class="panel-t">Team Workload Overview</span></div>
+      {% if a.get('team_workload') %}
+      <div>
+        {% for w in a.get('team_workload', []) %}
+        <div class="wl-row">
+          <div class="wl-av">{{ w.name[:1]|upper }}</div>
+          <div class="wl-nm">{{ w.name|truncate(14) }}</div>
+          <div class="wl-st"><span class="wl-ip"><b>{{ w.in_process }}</b></span><span class="wl-cp"><b>{{ w.completed }}</b></span><span class="wl-rj"><b>{{ w.rejected }}</b></span></div>
+        </div>{% endfor %}
+      </div>
+      {% else %}<div class="empty">No workload data yet</div>{% endif %}
+    </div>
+  </div>
+
 </div>
 
+<script id="npd-data" type="application/json">{{ {'funnel': a.get('funnel', []), 'sample_status': a.get('sample_status', []), 'project_stage': a.get('project_stage', []), 'rejection_internal': a.get('rejection_internal', []), 'client_trend': a.get('client_trend', []), 'rejection_client': a.get('rejection_client', [])} | tojson }}</script>
+{% endblock %}
+
+{% block extra_js %}
 <script>
-function toggleAct(btn,e){
-  e.stopPropagation();e.preventDefault();
-  var m=btn.nextElementSibling;
-  var o=m.classList.contains('open');
-  document.querySelectorAll('.act-menu.open').forEach(function(x){x.classList.remove('open');});
-  if(!o){
-    var rect=btn.getBoundingClientRect();
-    m.style.position='fixed';
-    m.style.top=(rect.bottom+4)+'px';
-    m.style.right=(window.innerWidth-rect.right)+'px';
-    m.style.left='auto';
-    m.style.zIndex='9999';
-    m.classList.add('open');
-  }
+function onPeriodChange(){
+  var v = document.getElementById('periodSel').value;
+  if (v === 'custom'){ document.getElementById('customRange').style.display = 'inline-flex'; return; }
+  window.location = window.location.pathname + '?period=' + encodeURIComponent(v);
 }
-document.addEventListener('click',function(){document.querySelectorAll('.act-menu.open').forEach(function(m){m.classList.remove('open');});});
+function applyCustom(){
+  var f = document.getElementById('dFrom').value, t = document.getElementById('dTo').value;
+  var u = window.location.pathname + '?period=custom';
+  if (f) u += '&from=' + encodeURIComponent(f);
+  if (t) u += '&to='   + encodeURIComponent(t);
+  window.location = u;
+}
+function linkNpdDates(tries){
+  tries = tries || 0;
+  var fEl = document.getElementById('dFrom'), tEl = document.getElementById('dTo');
+  if (!fEl || !tEl) return;
+  var fp = fEl._flatpickr, tp = tEl._flatpickr;
+  if (!fp || !tp){ if (tries < 30) setTimeout(function(){ linkNpdDates(tries+1); }, 100); return; }
+  if (fp.selectedDates && fp.selectedDates[0]) tp.set('minDate', fp.selectedDates[0]);
+  try { fp.config.onChange.push(function(sel){ if (sel[0]) tp.set('minDate', sel[0]); }); }
+  catch(e){ fp.set('onChange', function(sel){ if (sel[0]) tp.set('minDate', sel[0]); }); }
+}
+document.addEventListener('DOMContentLoaded', function(){ linkNpdDates(0); });
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script>
+(function(){
+  var data = {};
+  try { data = JSON.parse(document.getElementById('npd-data').textContent || '{}'); } catch(e){ data = {}; }
+  if (typeof Chart === 'undefined') return;
+  Chart.defaults.font.family = "'Inter', sans-serif";
+  Chart.defaults.plugins.legend.display = false;
+  var yGrid = { beginAtZero:true, grid:{color:'#f1eff6'}, ticks:{color:'#b7b2c2',font:{size:10}} };
+  var noGrid = { grid:{display:false}, ticks:{color:'#b7b2c2',font:{size:10}} };
+
+  function donut(id, arr){
+    var el = document.getElementById(id); if(!el || !arr.length) return;
+    new Chart(el, { type:'doughnut', data:{ labels: arr.map(function(x){return x.label;}),
+      datasets:[{ data: arr.map(function(x){return x.value;}), backgroundColor: arr.map(function(x){return x.color;}), borderWidth:0, cutout:'70%' }]},
+      options:{ responsive:true, maintainAspectRatio:false } });
+  }
+  donut('statusDonut', data.sample_status || []);
+  donut('riDonut', data.rejection_internal || []);
+  donut('rcDonut', data.rejection_client || []);
+
+  // NPD Lifecycle wheel: equal segments, icon + count inside each
+  var fn = data.funnel || [];
+  var lc = document.getElementById('lcDonut');
+  if (lc && fn.length){
+    var vals = fn.map(function(x){ return x.value || 0; });
+    var ICONS = ['bi-people-fill','bi-file-earmark-text','bi-eyedropper','bi-patch-check-fill','bi-send-fill','bi-hand-thumbs-up-fill','bi-flag-fill'];
+    var wrap = lc.parentElement;
+    function placeSeg(chart){
+      if (!wrap || !chart) return;
+      var olds = wrap.querySelectorAll('.lc-seg-ov');
+      for (var k=0;k<olds.length;k++){ olds[k].remove(); }
+      var meta = chart.getDatasetMeta(0);
+      meta.data.forEach(function(arc, i){
+        var ang = (arc.startAngle + arc.endAngle) / 2;
+        var r = (arc.innerRadius + arc.outerRadius) / 2;
+        var x = arc.x + Math.cos(ang) * r;
+        var y = arc.y + Math.sin(ang) * r;
+        var d = document.createElement('div');
+        d.className = 'lc-seg-ov';
+        d.style.left = x + 'px';
+        d.style.top  = y + 'px';
+        d.style.transform = 'translate(-50%,-50%)';
+        d.innerHTML = '<i class="bi ' + (ICONS[i] || 'bi-circle-fill') + '"></i><span>' + vals[i] + '</span>';
+        wrap.appendChild(d);
+      });
+    }
+    var lcChart = new Chart(lc, {
+      type:'doughnut',
+      data:{ labels: fn.map(function(x){return x.label;}),
+        datasets:[{ data: fn.map(function(){ return 1; }), backgroundColor: fn.map(function(x){return x.color;}),
+                    borderColor:'#fff', borderWidth:3, cutout:'56%' }]},
+      options:{ responsive:true, maintainAspectRatio:false,
+        animation:{ onComplete: function(c){ placeSeg(c.chart); }, onProgress: function(c){ placeSeg(c.chart); } },
+        plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label:function(c){ return c.label + ': ' + vals[c.dataIndex]; } } } } }
+    });
+    window.addEventListener('resize', function(){ setTimeout(function(){ placeSeg(lcChart); }, 250); });
+  }
+
+  var stage = data.project_stage || [];
+  var sb = document.getElementById('stageBar');
+  if (sb && stage.length){
+    new Chart(sb, { type:'bar', data:{ labels: stage.map(function(d){return d.label;}),
+      datasets:[{ data: stage.map(function(d){return d.value;}), backgroundColor: stage.map(function(d){return d.color;}), borderRadius:5, maxBarThickness:34 }]},
+      options:{ responsive:true, maintainAspectRatio:false, scales:{ y:yGrid, x:noGrid } } });
+  }
+
+  var ct = data.client_trend || [];
+  var cl = document.getElementById('clientLine');
+  if (cl && ct.length){
+    new Chart(cl, { type:'line', data:{ labels: ct.map(function(d){return d.label;}),
+      datasets:[{ data: ct.map(function(d){return d.value;}), borderColor:'#7c3aed', backgroundColor:'rgba(124,58,237,.15)', fill:true, tension:.4, pointRadius:3, borderWidth:2 }]},
+      options:{ responsive:true, maintainAspectRatio:false, scales:{ y:yGrid, x:noGrid } } });
+  }
+})();
 </script>
 {% endblock %}

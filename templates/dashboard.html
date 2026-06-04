@@ -172,6 +172,17 @@
   </div>
   {% endif %}
 
+  {# ════ SETTINGS ════ #}
+  {% if p_masters or p_admin %}
+  <div class="home-sec">
+    <div class="home-sec-lbl"><span class="dot dot-amber"></span> Settings</div>
+    <div class="home-grid">
+      {% if p_masters %}{{ mcard('SETUP','Masters','Category, UOM & HSN code masters','/masters/category-master','bi-sliders2','tint-rose') }}{% endif %}
+      {% if p_admin %}{{ mcard('ADMINISTRATION','Administration','Approvals, user permissions & audit logs','/approvals','bi-shield-lock','tint-pink') }}{% endif %}
+    </div>
+  </div>
+  {% endif %}
+
 </div>
 
 <script>

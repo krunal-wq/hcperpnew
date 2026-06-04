@@ -907,3 +907,168 @@ def api_brands():
          'client': b.client.company_name or b.client.contact_name if b.client else ''}
         for b in brands
     ]})
+
+
+# ══════════════════════════════════════════════════════════
+#  MATERIAL DASHBOARD  (RM: /material/rm-dashboard, PM: /material/pm-dashboard)
+#  Same layout for both. Real data where available; consumption
+#  portions stay blank (that feature is still pending).
+# ══════════════════════════════════════════════════════════
+def _md_period():
+    """Parse ?period= (+ custom from/to) into date bounds for PO/GRN."""
+    from datetime import timedelta
+    period = (request.args.get('period') or 'all').lower()
+    cf = request.args.get('from', ''); ct = request.args.get('to', '')
+    today = datetime.utcnow().date()
+    pf = pt = None
+    if period == 'today':
+        pf = pt = today
+    elif period == 'yesterday':
+        pf = pt = today - timedelta(days=1)
+    elif period == 'last_7_days':
+        pf = today - timedelta(days=7); pt = today
+    elif period == 'last_30_days':
+        pf = today - timedelta(days=30); pt = today
+    elif period == 'custom':
+        try:
+            if cf: pf = datetime.strptime(cf, '%Y-%m-%d').date()
+            if ct: pt = datetime.strptime(ct, '%Y-%m-%d').date()
+        except Exception:
+            pf = pt = None
+    else:
+        period = 'all'
+    return period, pf, pt, cf, ct
+
+
+def _material_dash(abbr, pf, pt):
+    """Build analytics dict for a material type (abbr = 'RM'/'PM'/...)."""
+    from sqlalchemy import func
+    from datetime import timedelta
+    a = {}
+    today = datetime.utcnow().date()
+    _PAL = ['#8b5cf6', '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#06b6d4', '#ec4899', '#64748b']
+
+    mats = []; mat_ids = []
+    try:
+        type_ids = [t.id for t in MaterialType.query.filter(MaterialType.abbreviation == abbr).all()]
+        mq = Material.query.filter(Material.is_deleted == False)
+        if type_ids:
+            mq = mq.filter(Material.material_type_id.in_(type_ids))
+        mats = mq.all(); mat_ids = [m.id for m in mats]
+    except Exception:
+        mats = []; mat_ids = []
+    a['total_items'] = len(mats)
+    a.update({'stock_value': 0.0, 'pending_po': 0, 'pending_grn': 0, 'low_stock': 0, 'expiring': 0,
+              'stock_summary': {'total': 0.0, 'blocked': 0.0, 'available': 0.0},
+              'category': [], 'low_stock_rows': [], 'expiring_rows': [], 'aging': [],
+              'recent_grn': [], 'pending_po_rows': [], 'purchase_trend': [],
+              'consumption_trend': [], 'top_consumed': []})
+
+    # ── Stock (current; period-independent) ──
+    try:
+        from models.grn import GrnBatchStock
+        bq = GrnBatchStock.query
+        if mat_ids:
+            bq = bq.filter(GrnBatchStock.material_id.in_(mat_ids))
+        batches = bq.all()
+        mat_cat = {m.id: (m.category or 'Other') for m in mats}
+        tot = blocked = avail = 0.0; avail_by = {}; cat_val = {}
+        for b in batches:
+            rate = float(b.avg_rate or 0); oh = float(b.qty_on_hand or 0); av = float(b.qty_available or 0)
+            rs = float(b.qty_reserved or 0); qh = float(b.qc_hold_qty or 0)
+            tot += oh * rate; avail += av * rate; blocked += (rs + qh) * rate
+            avail_by[b.material_id] = avail_by.get(b.material_id, 0) + av
+            c = mat_cat.get(b.material_id, 'Other'); cat_val[c] = cat_val.get(c, 0) + oh * rate
+        a['stock_value'] = tot
+        a['stock_summary'] = {'total': tot, 'blocked': blocked, 'available': avail}
+        cats = sorted(cat_val.items(), key=lambda x: x[1], reverse=True)
+        a['category'] = [{'label': k, 'value': round(v), 'color': _PAL[i % len(_PAL)]} for i, (k, v) in enumerate(cats)]
+        low = []
+        for m in mats:
+            av = avail_by.get(m.id, 0); reorder = float(m.msl or 0)
+            if reorder > 0 and av < reorder:
+                low.append({'code': m.code or '', 'name': m.material_name, 'current': av, 'reorder': reorder, 'uom': m.uom or ''})
+        a['low_stock'] = len(low); a['low_stock_rows'] = sorted(low, key=lambda x: x['current'])[:6]
+        exp = []
+        for b in batches:
+            if b.expiry_date and float(b.qty_on_hand or 0) > 0:
+                d = (b.expiry_date - today).days
+                if d <= 30:
+                    exp.append({'code': b.item_code or '', 'name': b.item_name or '', 'expiry': b.expiry_date,
+                                'qty': float(b.qty_on_hand or 0), 'uom': b.uom or '', 'days': d})
+        a['expiring'] = len(exp); a['expiring_rows'] = sorted(exp, key=lambda x: x['expiry'])[:6]
+        aging = {'0 - 30 Days': 0.0, '31 - 60 Days': 0.0, '61 - 90 Days': 0.0, '90+ Days': 0.0}
+        for b in batches:
+            val = float(b.qty_on_hand or 0) * float(b.avg_rate or 0)
+            cd = (b.created_at.date() if b.created_at else today); age = (today - cd).days
+            if age <= 30: aging['0 - 30 Days'] += val
+            elif age <= 60: aging['31 - 60 Days'] += val
+            elif age <= 90: aging['61 - 90 Days'] += val
+            else: aging['90+ Days'] += val
+        agc = {'0 - 30 Days': '#8b5cf6', '31 - 60 Days': '#3b82f6', '61 - 90 Days': '#f59e0b', '90+ Days': '#ef4444'}
+        a['aging'] = [{'label': k, 'value': round(v), 'color': agc[k]} for k, v in aging.items()]
+    except Exception:
+        pass
+
+    # ── GRN (grn_date respects period) ──
+    try:
+        from models.grn import GrnMaster, GRN_STATUS_DRAFT
+        gq = GrnMaster.query.filter(GrnMaster.grn_type == abbr)
+        if pf: gq = gq.filter(GrnMaster.grn_date >= pf)
+        if pt: gq = gq.filter(GrnMaster.grn_date <= pt)
+        rg = gq.order_by(GrnMaster.grn_date.desc(), GrnMaster.id.desc()).limit(6).all()
+        a['recent_grn'] = [{'no': (g.grn_number_short or g.grn_number), 'supplier': g.supplier_name or '',
+                            'date': g.grn_date, 'status': g.status, 'color': getattr(g, 'status_color', '#16a34a')} for g in rg]
+        pgq = GrnMaster.query.filter(GrnMaster.grn_type == abbr, GrnMaster.status == GRN_STATUS_DRAFT)
+        if pf: pgq = pgq.filter(GrnMaster.grn_date >= pf)
+        if pt: pgq = pgq.filter(GrnMaster.grn_date <= pt)
+        a['pending_grn'] = pgq.count()
+    except Exception:
+        pass
+
+    # ── PO + purchase trend (po_date respects period) ──
+    try:
+        from models.purchase_order import PurchaseOrder, PO_STATUS_COMPLETE, PO_STATUS_CANCEL, PO_STATUS_REJECTED
+        oq = PurchaseOrder.query.filter(PurchaseOrder.po_type == abbr,
+                ~PurchaseOrder.status.in_([PO_STATUS_COMPLETE, PO_STATUS_CANCEL, PO_STATUS_REJECTED]))
+        if pf: oq = oq.filter(PurchaseOrder.po_date >= pf)
+        if pt: oq = oq.filter(PurchaseOrder.po_date <= pt)
+        a['pending_po'] = oq.count()
+        pend = oq.order_by(PurchaseOrder.po_date.desc()).limit(6).all()
+        a['pending_po_rows'] = [{'no': (p.po_number_short or p.po_number), 'supplier': p.supplier_name or '',
+                                 'due': p.expected_delivery, 'status': p.status, 'color': getattr(p, 'status_color', '#64748b')} for p in pend]
+        trend = []
+        for i in range(5, -1, -1):
+            mref = (datetime.utcnow().replace(day=1) - timedelta(days=i * 30))
+            val = db.session.query(func.coalesce(func.sum(PurchaseOrder.grand_total), 0)).filter(
+                PurchaseOrder.po_type == abbr,
+                func.extract('month', PurchaseOrder.po_date) == mref.month,
+                func.extract('year', PurchaseOrder.po_date) == mref.year).scalar() or 0
+            trend.append({'label': mref.strftime('%b'), 'value': float(val)})
+        a['purchase_trend'] = trend
+    except Exception:
+        pass
+
+    return a
+
+
+@material_bp.route('/rm-dashboard')
+@login_required
+def rm_dashboard():
+    period, pf, pt, cf, ct = _md_period()
+    a = _material_dash('RM', pf, pt)
+    return render_template('material/material_dashboard.html', active_page='material',
+        analytics=a, mabbr='RM', mtitle='Raw Material Dashboard',
+        msub='Overview of Raw Material Purchase, GRN and Stock',
+        period=period, cust_from=cf, cust_to=ct, now=datetime.utcnow())
+
+
+@material_bp.route('/pm-dashboard')
+@login_required
+def pm_dashboard():
+    period, pf, pt, cf, ct = _md_period()
+    a = _material_dash('PM', pf, pt)
+    return render_template('material/material_dashboard.html', active_page='material',
+        analytics=a, mabbr='PM', mtitle='Packing Material Dashboard',
+        msub='Overview of Packing Material Purchase, GRN and Stock',
+        period=period, cust_from=cf, cust_to=ct, now=datetime.utcnow())

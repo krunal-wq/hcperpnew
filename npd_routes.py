@@ -2484,37 +2484,231 @@ def link_client(project_id):
 @npd.route('/npd-dashboard')
 @login_required
 def npd_dashboard():
-    from sqlalchemy import func, case
+    from sqlalchemy import func, extract
+    from datetime import timedelta
+    from models.npd import (NPDProject, MilestoneMaster, OfficeDispatchItem,
+                            OfficeDispatchToken, ClientDispatch)
     ptype = 'npd'
-    projects = NPDProject.query.filter_by(is_deleted=False, project_type=ptype)\
-                   .order_by(NPDProject.created_at.desc()).all()
-    total     = len(projects)
-    active    = sum(1 for p in projects if p.status not in ('finish','cancelled'))
-    completed = sum(1 for p in projects if p.status == 'complete')
-    cancelled = sum(1 for p in projects if p.status == 'cancelled')
+    a = {}
 
-    status_counts = {}
-    for p in projects:
-        status_counts[p.status] = status_counts.get(p.status, 0) + 1
+    # ── Period filter (same as R&D) ──
+    period = (request.args.get('period') or 'all').lower()
+    cf = request.args.get('from', ''); ct = request.args.get('to', '')
+    _today = datetime.now().date(); pf = pt = None
+    if period == 'today':
+        pf = datetime.combine(_today, datetime.min.time()); pt = datetime.now()
+    elif period == 'yesterday':
+        _y = _today - timedelta(days=1)
+        pf = datetime.combine(_y, datetime.min.time()); pt = datetime.combine(_y, datetime.max.time())
+    elif period == 'last_7_days':
+        pf = datetime.now() - timedelta(days=7); pt = datetime.now()
+    elif period == 'last_30_days':
+        pf = datetime.now() - timedelta(days=30); pt = datetime.now()
+    elif period == 'custom':
+        try:
+            if cf: pf = datetime.combine(datetime.strptime(cf, '%Y-%m-%d').date(), datetime.min.time())
+            if ct: pt = datetime.combine(datetime.strptime(ct, '%Y-%m-%d').date(), datetime.max.time())
+        except Exception:
+            pf = pt = None
+    else:
+        period = 'all'
 
-    ms_total = MilestoneMaster.query.join(NPDProject, MilestoneMaster.project_id==NPDProject.id)\
-                .filter(NPDProject.project_type==ptype, MilestoneMaster.is_selected==True).count()
-    ms_done  = MilestoneMaster.query.join(NPDProject, MilestoneMaster.project_id==NPDProject.id)\
-                .filter(NPDProject.project_type==ptype, MilestoneMaster.is_selected==True,
-                        MilestoneMaster.status=='approved').count()
-    ms_pct   = round((ms_done/ms_total)*100, 1) if ms_total else 0
+    def _proj(q):
+        if pf is not None: q = q.filter(NPDProject.created_at >= pf)
+        if pt is not None: q = q.filter(NPDProject.created_at <= pt)
+        return q
+    def _samp(q):
+        if pf is not None: q = q.filter(OfficeDispatchToken.dispatched_at >= pf)
+        if pt is not None: q = q.filter(OfficeDispatchToken.dispatched_at <= pt)
+        return q
+    _PAL = ['#8b5cf6','#3b82f6','#10b981','#f59e0b','#ef4444','#06b6d4','#ec4899','#64748b']
 
-    sc_stats = []
+    def _pcount(**kw):
+        try:
+            q = NPDProject.query.filter_by(is_deleted=False, project_type=ptype)
+            return _proj(q.filter_by(**kw)).count() if kw else _proj(q).count()
+        except Exception:
+            return 0
+
+    # ── Project KPIs ──
+    total_proj = _pcount()
+    try:
+        a['leads_converted'] = _proj(NPDProject.query.filter(NPDProject.is_deleted==False,
+                                  NPDProject.project_type==ptype, NPDProject.lead_id.isnot(None))).count()
+    except Exception:
+        a['leads_converted'] = 0
+    try:
+        a['active_projects'] = _proj(NPDProject.query.filter(NPDProject.is_deleted==False,
+                                  NPDProject.project_type==ptype,
+                                  NPDProject.status.notin_(['complete','completed','cancelled']))).count()
+    except Exception:
+        a['active_projects'] = 0
+    try:
+        _m0 = datetime.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        a['new_this_month'] = NPDProject.query.filter(NPDProject.is_deleted==False,
+                                  NPDProject.project_type==ptype, NPDProject.created_at>=_m0).count()
+    except Exception:
+        a['new_this_month'] = 0
+    a['completed_projects'] = _pcount(status='complete')
+
+    # ── Sample KPIs (join token for period) ──
+    def _scount(st=None, sent=False):
+        try:
+            q = db.session.query(func.count(OfficeDispatchItem.id))\
+                .join(OfficeDispatchToken, OfficeDispatchToken.id==OfficeDispatchItem.token_id)
+            if st: q = q.filter(OfficeDispatchItem.approval_status==st)
+            if sent: q = q.filter(OfficeDispatchItem.sent_to_client_at.isnot(None))
+            return _samp(q).scalar() or 0
+        except Exception:
+            return 0
+    s_total    = _scount()
+    s_pending  = _scount('pending')
+    s_approved = _scount('approved')
+    s_rejected = _scount('rejected')
+    s_sent     = _scount(sent=True)
+    a['total_samples']      = s_total
+    a['in_development']     = s_pending
+    a['internal_approved']  = s_approved
+    a['samples_dispatched'] = s_sent
+    a['internal_rejected']  = s_rejected
+    # client-side metrics: no data field -> blank (0)
+    a['client_approved'] = 0
+    a['client_rejected'] = 0
+    a['rework_samples']  = 0
+    a['pending_feedback']= 0
+    a['in_transit']      = 0
+    a['delivered']       = 0
+    a['overdue']         = 0
+    a['on_time']         = 0
+
+    # total dispatches (ClientDispatch)
+    try:
+        cq = ClientDispatch.query
+        if pf is not None: cq = cq.filter(ClientDispatch.dispatched_at >= pf)
+        if pt is not None: cq = cq.filter(ClientDispatch.dispatched_at <= pt)
+        a['total_dispatches'] = cq.count()
+    except Exception:
+        a['total_dispatches'] = 0
+
+    # avg sample cycle time (dispatch -> action), days
+    try:
+        rows = _samp(db.session.query(OfficeDispatchToken.dispatched_at, OfficeDispatchItem.actioned_at)\
+            .join(OfficeDispatchToken, OfficeDispatchToken.id==OfficeDispatchItem.token_id)\
+            .filter(OfficeDispatchItem.actioned_at.isnot(None))).limit(500).all()
+        difs = [ (act - disp).days for disp, act in rows if disp and act and (act - disp).days >= 0 ]
+        a['avg_cycle'] = round(sum(difs)/len(difs), 1) if difs else 0
+    except Exception:
+        a['avg_cycle'] = 0
+
+    # ── Lifecycle funnel ──
+    a['funnel'] = [
+        {'label': 'Leads Converted',    'value': a['leads_converted'],    'color': '#8b5cf6'},
+        {'label': 'NPD Projects Created','value': total_proj,             'color': '#6366f1'},
+        {'label': 'Samples Created',     'value': s_total,                 'color': '#3b82f6'},
+        {'label': 'Internal Approved',   'value': s_approved,              'color': '#06b6d4'},
+        {'label': 'Client Sent',         'value': s_sent,                  'color': '#10b981'},
+        {'label': 'Client Approved',     'value': a['client_approved'],    'color': '#f59e0b'},
+        {'label': 'Projects Completed',  'value': a['completed_projects'], 'color': '#ef4444'},
+    ]
+
+    # ── Sample status donut ──
+    a['sample_status'] = [x for x in [
+        {'label': 'In Development',   'value': s_pending,  'color': '#3b82f6'},
+        {'label': 'Internal Approval','value': s_approved, 'color': '#06b6d4'},
+        {'label': 'Client Sent',      'value': s_sent,     'color': '#10b981'},
+        {'label': 'Client Rejected',  'value': s_rejected, 'color': '#ef4444'},
+    ] if x['value']]
+
+    # ── Project stage overview (by status) ──
+    a['project_stage'] = []
+    try:
+        rows = _proj(db.session.query(NPDProject.status, func.count(NPDProject.id))\
+            .filter(NPDProject.is_deleted==False, NPDProject.project_type==ptype)).group_by(NPDProject.status).all()
+        st = [{'label': (s_ or 'Unknown').replace('_',' ').title(), 'value': c} for s_, c in rows]
+        st.sort(key=lambda x: x['value'], reverse=True)
+        for i, x in enumerate(st): x['color'] = _PAL[i % len(_PAL)]
+        a['project_stage'] = st[:8]
+    except Exception:
+        a['project_stage'] = []
+
+    # ── Client approval trend: no client-approval data -> blank ──
+    a['client_trend'] = []
+
+    # ── Rejection analysis (internal) ──
+    a['rejection_internal'] = []
+    try:
+        rr = _samp(db.session.query(OfficeDispatchItem.reject_reason, func.count(OfficeDispatchItem.id))\
+            .join(OfficeDispatchToken, OfficeDispatchToken.id==OfficeDispatchItem.token_id)\
+            .filter(OfficeDispatchItem.approval_status=='rejected')).group_by(OfficeDispatchItem.reject_reason).all()
+        rl = [{'label': (r or 'Not specified'), 'value': c} for r, c in rr]
+        rl.sort(key=lambda x: x['value'], reverse=True)
+        for i, x in enumerate(rl[:6]): x['color'] = _PAL[i % len(_PAL)]
+        a['rejection_internal'] = rl[:6]
+    except Exception:
+        a['rejection_internal'] = []
+    # client rejection analysis: no data -> blank
+    a['rejection_client'] = []
+    a['top_rework'] = []
+    a['pending_feedback_rows'] = []
+
+    # ── Recent dispatches (ClientDispatch) ──
+    a['recent_dispatches'] = []
+    try:
+        dq = ClientDispatch.query
+        if pf is not None: dq = dq.filter(ClientDispatch.dispatched_at >= pf)
+        if pt is not None: dq = dq.filter(ClientDispatch.dispatched_at <= pt)
+        for d in dq.order_by(ClientDispatch.dispatched_at.desc()).limit(6).all():
+            pr = NPDProject.query.get(d.project_id) if d.project_id else None
+            a['recent_dispatches'].append({
+                'no': d.token_no or '—',
+                'project': (pr.code if pr else '—'),
+                'client': (pr.client_name if pr and pr.client_name else '—'),
+                'date': d.dispatched_at,
+            })
+    except Exception:
+        a['recent_dispatches'] = []
+
+    # ── Recently rejected samples ──
+    a['rejected_recent'] = []
+    try:
+        q = _samp(db.session.query(OfficeDispatchItem, OfficeDispatchToken.dispatched_at)\
+            .join(OfficeDispatchToken, OfficeDispatchToken.id==OfficeDispatchItem.token_id)\
+            .filter(OfficeDispatchItem.approval_status=='rejected'))\
+            .order_by(OfficeDispatchToken.dispatched_at.desc()).limit(6).all()
+        for it, disp in q:
+            pr = it.project
+            a['rejected_recent'].append({
+                'sample_code': it.sample_code or '—',
+                'project': (pr.code if pr else '—'),
+                'reason': it.reject_reason or '—',
+                'date': (it.actioned_at or disp),
+            })
+    except Exception:
+        a['rejected_recent'] = []
+
+    # ── Team workload (by project assigned R&D) ──
+    a['team_workload'] = []
+    try:
+        rows = _samp(db.session.query(User.full_name, OfficeDispatchItem.approval_status, func.count(OfficeDispatchItem.id))\
+            .join(NPDProject, NPDProject.id==OfficeDispatchItem.project_id)\
+            .join(User, User.id==NPDProject.assigned_rd)\
+            .join(OfficeDispatchToken, OfficeDispatchToken.id==OfficeDispatchItem.token_id))\
+            .group_by(User.full_name, OfficeDispatchItem.approval_status).all()
+        wm = {}
+        for nm, stt, c in rows:
+            d = wm.setdefault(nm, {'name': nm, 'in_process': 0, 'completed': 0, 'rejected': 0})
+            if stt == 'pending': d['in_process'] += c
+            elif stt == 'approved': d['completed'] += c
+            elif stt == 'rejected': d['rejected'] += c
+        a['team_workload'] = sorted(wm.values(), key=lambda x: (x['in_process']+x['completed']+x['rejected']), reverse=True)[:6]
+    except Exception:
+        a['team_workload'] = []
 
     perm = get_perm('npd')
     return render_template('npd/npd_dashboard.html',
-        active_page='npd_npd_dashboard',
-        projects=projects, total=total, active=active,
-        completed=completed, cancelled=cancelled,
-        status_counts=status_counts,
-        ms_pct=ms_pct, ms_done=ms_done, ms_total=ms_total,
-        sc_stats=sc_stats, perm=perm,
-    )
+        active_page='npd_npd_dashboard', perm=perm,
+        analytics=a, period=period, cust_from=cf, cust_to=ct,
+        now=datetime.now())
 
 
 # ═════════════════════════════════════════════════════════════════

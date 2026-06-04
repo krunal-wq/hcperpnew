@@ -56,3 +56,35 @@
 
         .overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 250; backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); }
         .overlay.open { display: block; }
+
+/* ── Topbar user profile (moved from sidebar bottom) ── */
+.tb-user { position: relative; flex-shrink: 0; margin-left: 4px; }
+.tb-user-btn {
+    display: flex; align-items: center; gap: 9px;
+    background: none; border: 1px solid transparent;
+    border-radius: 12px; padding: 4px 8px 4px 5px;
+    cursor: pointer; font-family: 'Inter', sans-serif;
+    transition: background .15s, border-color .15s;
+}
+.tb-user-btn:hover { background: rgba(124,58,237,.07); border-color: #ece9f4; }
+.tb-user-av {
+    width: 34px; height: 34px; flex-shrink: 0;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #2563eb, #7c3aed);
+    color: #fff; font-size: 13px; font-weight: 800;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 3px 8px rgba(124,58,237,.30);
+}
+.tb-user-meta { display: flex; flex-direction: column; line-height: 1.15; text-align: left; min-width: 0; }
+.tb-user-name { font-size: 13px; font-weight: 700; color: var(--text, #1e293b); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px; }
+.tb-user-role { font-size: 11px; font-weight: 500; color: #94a3b8; white-space: nowrap; }
+.tb-user-caret { font-size: 10px; color: #94a3b8; flex-shrink: 0; }
+
+/* dropdown opens DOWNWARD now that it's at the top */
+.tb-user .u-menu { top: calc(100% + 8px); bottom: auto; right: 0; }
+
+/* hide name/role on small screens, keep just the avatar */
+@media (max-width: 640px) {
+    .tb-user-meta, .tb-user-caret { display: none; }
+    .tb-user-btn { padding: 3px; }
+}

@@ -62,7 +62,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/theme.css') }}">
     {% block extra_css %}{% endblock %}
 </head>
-<body class="sb-preload {% if active_page == 'dashboard' %}is-home{% endif %}">
+<body class="sb-preload {% if active_page == 'dashboard' %}is-home{% endif %}{% if request.path.startswith('/crm') %} is-crm{% endif %}">
 
 <div class="overlay" id="overlay" onclick="closeSB()"></div>
 
@@ -194,6 +194,9 @@
                     <span class="nav-group-arrow">▶</span>
                 </button>
                 <div class="nav-submenu">
+                    <a class="nav-a {% if request.path == '/material/rm-dashboard' %}active{% endif %}" href="/material/rm-dashboard">
+                        <span class="nav-ic"><i class="bi bi-bar-chart-line"></i></span><span class="nav-txt">Dashboard</span>
+                    </a>
                     <a class="nav-a {% if request.args.get('item_type','').upper() == 'RM' %}active{% endif %}" href="/material?item_type=RM">
                         <span class="nav-ic"><i class="bi bi-card-list"></i></span><span class="nav-txt">Item Master</span>
                     </a>
@@ -233,6 +236,9 @@
                     <span class="nav-group-arrow">▶</span>
                 </button>
                 <div class="nav-submenu">
+                    <a class="nav-a {% if request.path == '/material/pm-dashboard' %}active{% endif %}" href="/material/pm-dashboard">
+                        <span class="nav-ic"><i class="bi bi-bar-chart-line"></i></span><span class="nav-txt">Dashboard</span>
+                    </a>
                     <a class="nav-a {% if request.args.get('item_type','').upper() == 'PM' %}active{% endif %}" href="/material?item_type=PM">
                         <span class="nav-ic"><i class="bi bi-card-list"></i></span><span class="nav-txt">Item Master</span>
                     </a>
@@ -921,6 +927,9 @@
                 <span class="nav-group-arrow">▶</span>
             </button>
             <div class="nav-submenu {% if request.args.get('item_type','').upper() == 'RM' or (request.path.startswith('/supplier') and request.args.get('supplier_type','').upper() == 'RM') or (request.path.startswith('/purchase-order') and request.args.get('po_type','').upper() == 'RM') or (request.path.startswith('/grn') and request.args.get('grn_type','').upper() == 'RM') %}open{% endif %}">
+                <a class="nav-a {% if request.path == '/material/rm-dashboard' %}active{% endif %}" href="/material/rm-dashboard">
+                    <span class="nav-ic"><i class="bi bi-bar-chart-line"></i></span><span class="nav-txt">Dashboard</span>
+                </a>
                 <a class="nav-a {% if request.args.get('item_type','').upper() == 'RM' %}active{% endif %}" href="/material?item_type=RM">
                     <span class="nav-ic"><i class="bi bi-card-list"></i></span><span class="nav-txt">Item Master</span>
                 </a>
@@ -942,11 +951,12 @@
                 <span class="nav-group-arrow">▶</span>
             </button>
             <div class="nav-submenu {% if request.args.get('item_type','').upper() == 'PM' or (request.path.startswith('/supplier') and request.args.get('supplier_type','').upper() == 'PM') or (request.path.startswith('/purchase-order') and request.args.get('po_type','').upper() in ('PM','COR','SLV')) or (request.path.startswith('/grn') and request.args.get('grn_type','').upper() in ('PM','COR','SLV')) %}open{% endif %}">
+                <a class="nav-a {% if request.path == '/material/pm-dashboard' %}active{% endif %}" href="/material/pm-dashboard">
+                    <span class="nav-ic"><i class="bi bi-bar-chart-line"></i></span><span class="nav-txt">Dashboard</span>
+                </a>
                 <a class="nav-a {% if request.args.get('item_type','').upper() == 'PM' %}active{% endif %}" href="/material?item_type=PM">
                     <span class="nav-ic"><i class="bi bi-card-list"></i></span><span class="nav-txt">Item Master</span>
                 </a>
-                <a class="nav-a {% if request.path.startswith('/supplier') and request.args.get('supplier_type','').upper() == 'PM' %}active{% endif %}" href="/supplier/?supplier_type=PM">
-                    <span class="nav-ic"><i class="bi bi-people"></i></span><span class="nav-txt">Supplier</span>
                 </a>
 
                 <!-- Purchase Order — nested dropdown -->
@@ -1076,25 +1086,6 @@
 
     </nav>
 
-    <div class="sb-foot">
-        <div class="user-row">
-            <div class="u-av">{{ current_user.full_name[0]|upper if current_user.full_name else 'A' }}</div>
-            <div style="flex:1;min-width:0;">
-                <div class="u-name">{{ current_user.full_name }}</div>
-                <div class="u-role">{{ current_user.role|capitalize }}</div>
-            </div>
-            <div class="u-menu-wrap">
-                <button type="button" class="u-menu-btn" title="Menu" onclick="toggleUserMenu(event)">⋮</button>
-                <div class="u-menu" id="userMenu">
-                    <a href="/admin/profile" class="u-menu-item"><span>👤</span> My Profile</a>
-                    <a href="/hr/attendance/my" class="u-menu-item"><span>🕒</span> My Attendance</a>
-                    <a href="/hr/leave/my" class="u-menu-item"><span>📝</span> My Leave Application</a>
-                    <div class="u-menu-sep"></div>
-                    <a href="{{ url_for('logout') }}" class="u-menu-item u-menu-logout"><span>↩</span> Logout</a>
-                </div>
-            </div>
-        </div>
-    </div>
 </aside>
 
 <!-- ══ TOPBAR ══ -->
@@ -1117,33 +1108,6 @@
     <div class="tb-right">
         <span class="tb-date" id="tdate"></span>
 
-        <!-- Theme Switcher -->
-        <button class="tb-btn theme-btn" id="themeBtn" onclick="toggleThemePanel()" title="Change Theme">🎨</button>
-        <div class="theme-panel" id="themePanel">
-            <div class="theme-panel-title">🎨 Choose Theme</div>
-            <div class="theme-options">
-                <button class="theme-option active" data-theme="white" onclick="setTheme('white',this)">
-                    <div class="theme-swatch ts-white"></div>
-                    <span class="theme-name">White</span>
-                </button>
-                <button class="theme-option" data-theme="black" onclick="setTheme('black',this)">
-                    <div class="theme-swatch ts-black"></div>
-                    <span class="theme-name">Night</span>
-                </button>
-                <button class="theme-option" data-theme="blue" onclick="setTheme('blue',this)">
-                    <div class="theme-swatch ts-blue"></div>
-                    <span class="theme-name">Blue</span>
-                </button>
-                <button class="theme-option" data-theme="orange" onclick="setTheme('orange',this)">
-                    <div class="theme-swatch ts-orange"></div>
-                    <span class="theme-name">Orange</span>
-                </button>
-                <button class="theme-option" data-theme="grey" onclick="setTheme('grey',this)">
-                    <div class="theme-swatch ts-grey"></div>
-                    <span class="theme-name">Grey</span>
-                </button>
-            </div>
-        </div>
         <button class="tb-btn" id="bellBtn" onclick="toggleReminderPanel()" title="Reminders" style="position:relative;">
             🔔
             <span id="bellCount" style="display:none;position:absolute;top:3px;right:3px;background:var(--red);color:#fff;font-size:9px;font-weight:800;border-radius:50%;min-width:16px;height:16px;line-height:16px;text-align:center;padding:0 3px;border:2px solid var(--white);"></span>
@@ -1153,6 +1117,25 @@
           <button class="tb-btn" id="gsBtnTrigger" onclick="gsOpen()" title="Search (Ctrl+K)">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
           </button>
+        </div>
+
+        <!-- User Profile (moved from sidebar) -->
+        <div class="tb-user u-menu-wrap">
+            <button type="button" class="tb-user-btn" onclick="toggleUserMenu(event)" title="Account">
+                <span class="tb-user-av">{{ current_user.full_name[0]|upper if current_user.full_name else 'A' }}</span>
+                <span class="tb-user-meta">
+                    <span class="tb-user-name">{{ current_user.full_name }}</span>
+                    <span class="tb-user-role">{{ current_user.role|capitalize }}</span>
+                </span>
+                <span class="tb-user-caret">▾</span>
+            </button>
+            <div class="u-menu" id="userMenu">
+                <a href="/admin/profile" class="u-menu-item"><span>👤</span> My Profile</a>
+                <a href="/hr/attendance/my" class="u-menu-item"><span>🕒</span> My Attendance</a>
+                <a href="/hr/leave/my" class="u-menu-item"><span>📝</span> My Leave Application</a>
+                <div class="u-menu-sep"></div>
+                <a href="{{ url_for('logout') }}" class="u-menu-item u-menu-logout"><span>↩</span> Logout</a>
+            </div>
         </div>
     </div>
 </header>
@@ -1544,34 +1527,23 @@ function showToast(msg, type, duration){
 
 <script>
 // ══ Global App Search ════════════════════════════════════════════════════
+// Limited to the modules shown on the main dashboard page
 var GS_DATA=[
   {icon:'🏠',bg:'#f5f3ff',label:'Dashboard',sub:'Home / Main overview',url:'/',tags:['home','main','overview'],section:'Home'},
-  {icon:'📊',bg:'#fef9c3',label:'CRM Dashboard',sub:'CRM / Analytics & overview',url:'/crm/dashboard',tags:['crm','dashboard','analytics'],section:'CRM'},
-  {icon:'📋',bg:'#eff6ff',label:'Leads',sub:'CRM / Lead management & pipeline',url:'/crm/leads',tags:['leads','crm','prospects','pipeline','sales'],section:'CRM'},
-  {icon:'👥',bg:'#f0fdf4',label:'Client Master',sub:'CRM / All client records',url:'/crm/clients',tags:['clients','customers','crm','accounts'],section:'CRM'},
-  {icon:'📥',bg:'#fdf4ff',label:'Import Leads',sub:'CRM / Bulk lead import',url:'/crm/leads/import',tags:['import','leads','bulk','upload','excel'],section:'CRM'},
-  {icon:'📤',bg:'#fdf4ff',label:'Import Clients',sub:'CRM / Bulk client import',url:'/crm/clients/import',tags:['import','clients','bulk','upload','excel'],section:'CRM'},
-  {icon:'⚙️',bg:'#f8fafc',label:'Masters',sub:'CRM / Products, Sources, Categories',url:'/masters/',tags:['masters','settings','product','source','category','config'],section:'CRM'},
-  {icon:'📊',bg:'#fef9c3',label:'HR Dashboard',sub:'HR / Employee analytics',url:'/hr/employees/dashboard',tags:['hr','dashboard','analytics','employees','stats'],section:'HR'},
-  {icon:'🪪',bg:'#eff6ff',label:'Employees',sub:'HR / Employee master list',url:'/hr/employees',tags:['employees','hr','staff','team','people'],section:'HR'},
-  {icon:'➕',bg:'#f0fdf4',label:'Add Employee',sub:'HR / Create new employee record',url:'/hr/employees/add',tags:['add','new','employee','hr','create'],section:'HR'},
-  {icon:'🤝',bg:'#fdf4ff',label:'Contractors',sub:'HR / Contractor management',url:'/hr/contractors',tags:['contractors','hr','vendors','third party'],section:'HR'},
-  {icon:'🌳',bg:'#f0fdf4',label:'Org Hierarchy',sub:'HR / Organisation chart & reporting',url:'/hierarchy',tags:['hierarchy','org','chart','tree','reporting','structure'],section:'HR'},
-  {icon:'📥',bg:'#fdf4ff',label:'Import Employees',sub:'HR / Bulk employee import',url:'/hr/employees/import',tags:['import','employees','bulk','upload','hr','excel'],section:'HR'},
-  {icon:'🧪',bg:'#f3e8ff',label:'NPD Dashboard',sub:'NPD / New Product Development overview',url:'/npd/npd-dashboard',tags:['npd','dashboard','new product'],section:'NPD'},
-  {icon:'📋',bg:'#f3e8ff',label:'NPD Projects',sub:'NPD / All NPD project list',url:'/npd/npd-projects',tags:['npd','projects','list'],section:'NPD'},
-  {icon:'💰',bg:'#f3e8ff',label:'NPD Fees Report',sub:'NPD / Fees received with date filter & total',url:'/npd/fees-report',tags:['npd','fees','fee','payment','receipt','report','collection','revenue','total','date','filter'],section:'NPD'},
-  {icon:'➕',bg:'#f3e8ff',label:'New NPD Project',sub:'NPD / Create new NPD project',url:'/npd/npd-new',tags:['npd','new','create'],section:'NPD'},  {icon:'📦',bg:'#d1fae5',label:'EPD Dashboard',sub:'EPD / Existing Product Development overview',url:'/npd/epd-dashboard',tags:['epd','dashboard','existing product'],section:'EPD'},
-  {icon:'📋',bg:'#d1fae5',label:'EPD Projects',sub:'EPD / All EPD project list',url:'/npd/epd-projects',tags:['epd','projects','list'],section:'EPD'},
-  {icon:'➕',bg:'#d1fae5',label:'New EPD Project',sub:'EPD / Create new EPD project',url:'/npd/epd-new',tags:['epd','new','create'],section:'EPD'},
-  {icon:'⚙️',bg:'#fdf4ff',label:'Milestone Master',sub:'NPD / Configure milestone types',url:'/npd/milestone-master',tags:['milestone','master','config'],section:'NPD'},
-  {icon:'📈',bg:'#fdf4ff',label:'NPD Reports',sub:'NPD / Analytics & reports',url:'/npd/reports',tags:['npd','reports','analytics'],section:'NPD'},
-  {icon:'✅',bg:'#f0fdf4',label:'Approvals',sub:'Admin / Pending approval requests',url:'/approvals',tags:['approvals','pending','admin','workflow','requests'],section:'Admin'},
-  {icon:'🔐',bg:'#fef2f2',label:'Permissions',sub:'Admin / Role & access control',url:'/admin/permissions',tags:['permissions','roles','access','admin','security'],section:'Admin'},
-  {icon:'🔍',bg:'#f8fafc',label:'Audit Logs',sub:'Admin / System activity logs',url:'/admin/audit-logs',tags:['audit','logs','activity','history','admin','trail'],section:'Admin'},
-  {icon:'👤',bg:'#eff6ff',label:'Users',sub:'Admin / User account management',url:'/admin/users',tags:['users','admin','accounts','manage','login'],section:'Admin'},
+  {icon:'📈',bg:'#dbeafe',label:'CRM',sub:'Sales / Leads, clients, quotations, leaderboard',url:'/crm/dashboard',tags:['crm','sales','leads','clients','quotation','leaderboard'],section:'Sales & CRM'},
+  {icon:'📦',bg:'#ffedd5',label:'Packing Entry',sub:'Packing / Sample receipt log',url:'/packing',tags:['packing','entry','sample','receipt','log','brand','batch','mrp'],section:'Operations'},
+  {icon:'📊',bg:'#ede9fe',label:'Raw Material Dashboard',sub:'RM stock, PO, GRN, low-stock & expiry overview',url:'/material/rm-dashboard',tags:['raw','material','rm','dashboard','stock','po','grn','expiry','low','analytics','purchase'],section:'Operations'},
+  {icon:'💧',bg:'#dbeafe',label:'Raw Material',sub:'Procurement / RM master, PO, GRN, stock',url:'/material?item_type=RM',tags:['raw','material','rm','procurement','purchase','po','grn','supplier','stock'],section:'Operations'},
+  {icon:'📊',bg:'#e0f2fe',label:'Packing Material Dashboard',sub:'PM stock, PO, GRN, low-stock & expiry overview',url:'/material/pm-dashboard',tags:['packing','material','pm','dashboard','stock','po','grn','expiry','low','analytics'],section:'Operations'},
+  {icon:'🗄️',bg:'#ede9fe',label:'Packing Material',sub:'Procurement / PM master, PO, GRN, BOM, stock',url:'/material?item_type=PM',tags:['packing','material','pm','procurement','purchase','po','grn','bom','supplier','stock'],section:'Operations'},
+  {icon:'✅',bg:'#dcfce7',label:'Finish Good',sub:'Procurement / FG master & finished goods stock',url:'/material?item_type=FG',tags:['finish','good','fg','finished','goods','stock','procurement'],section:'Operations'},
+  {icon:'🔬',bg:'#ede9fe',label:'Research & Development',sub:'R&D / Projects, trials, sample log',url:'/rd/dashboard',tags:['rd','research','development','projects','trials','sample','log'],section:'R&D'},
+  {icon:'💡',bg:'#fef9c3',label:'NPD',sub:'NPD / New & existing product development',url:'/npd/npd-dashboard',tags:['npd','epd','new','product','development','projects'],section:'R&D'},
+  {icon:'👥',bg:'#fce7f3',label:'HR',sub:'People / Employees, contractors, attendance',url:'/hr/employees/dashboard',tags:['hr','human','resources','employees','contractors','attendance','payroll','people'],section:'People'},
+  {icon:'🎛️',bg:'#ffe4e6',label:'Masters',sub:'Settings / Category, UOM & HSN code masters',url:'/masters/category-master',tags:['masters','category','uom','hsn','settings','setup','config'],section:'Settings'},
+  {icon:'🛡️',bg:'#fae8ff',label:'Administration',sub:'Settings / Approvals, permissions, audit logs',url:'/approvals',tags:['administration','admin','approvals','permissions','audit','logs','users','settings'],section:'Settings'},
 ];
-var SEC_COLORS={CRM:{bg:'#eff6ff',txt:'#1d4ed8'},HR:{bg:'#f0fdf4',txt:'#166534'},Admin:{bg:'#fef2f2',txt:'#dc2626'},Home:{bg:'#f5f3ff',txt:'#7c3aed'},NPD:{bg:'#f3e8ff',txt:'#7c3aed'},EPD:{bg:'#d1fae5',txt:'#065f46'}};
+var SEC_COLORS={'Home':{bg:'#f5f3ff',txt:'#7c3aed'},'Sales & CRM':{bg:'#dbeafe',txt:'#1d4ed8'},'Operations':{bg:'#dbeafe',txt:'#1d4ed8'},'R&D':{bg:'#f3e8ff',txt:'#7c3aed'},'People':{bg:'#fce7f3',txt:'#be185d'},'Settings':{bg:'#fef9c3',txt:'#ca8a04'}};
 var _gsOpen=false,_gsSel=-1,_gsItems=[];
 
 function gsOpen(){
