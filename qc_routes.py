@@ -21,12 +21,12 @@ QC stock-impact rules:
     Reject (after approve)  →  Reverses whatever the approve did.
     Other statuses → no stock impact (informational only)
 """
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 import os
 from flask import (Blueprint, render_template, request, jsonify, abort,
                    redirect, url_for, flash, send_file, current_app)
 from flask_login import login_required, current_user
-from sqlalchemy import or_
+from sqlalchemy import or_, func
 
 from models import db
 from models.trs import (
@@ -63,8 +63,181 @@ def _parse_date(s):
 @qc_bp.route('/')
 @login_required
 def index():
-    return redirect(url_for('qc.rm_trs_list'))
+    return redirect(url_for('qc.qc_dashboard'))
 
+
+
+
+# ═════════════════════════════════════════════════════════════════════
+# QC DASHBOARD — RM + PM overview (COR / SLV excluded by design:
+# only grn_type 'RM' and 'PM' are considered)
+# ═════════════════════════════════════════════════════════════════════
+def _qc_dashboard_stats(grn_type, d_from=None, d_to=None):
+    """Compute all dashboard stats for one GRN type ('RM' or 'PM')."""
+    today = date.today()
+    yesterday = today - timedelta(days=1)
+
+    # ── Base GRN query ──
+    gq = GrnMaster.query.filter(GrnMaster.grn_type == grn_type,
+                                GrnMaster.is_deleted == False,
+                                GrnMaster.status != 'Cancelled')
+    if d_from: gq = gq.filter(GrnMaster.grn_date >= d_from)
+    if d_to:   gq = gq.filter(GrnMaster.grn_date <= d_to)
+    total_grn = gq.count()
+
+    # ── Base TRS query (joined to GRN for type) ──
+    def trs_base():
+        q = (db.session.query(TrsMaster)
+             .join(GrnMaster, GrnMaster.id == TrsMaster.grn_id)
+             .filter(GrnMaster.grn_type == grn_type,
+                     TrsMaster.is_deleted == False,
+                     GrnMaster.is_deleted == False))
+        if d_from: q = q.filter(TrsMaster.trs_date >= d_from)
+        if d_to:   q = q.filter(TrsMaster.trs_date <= d_to)
+        return q
+
+    trs_total = trs_base().count()
+    approved  = trs_base().filter(TrsMaster.qc_status == QC_STATUS_APPROVED).count()
+    rejected  = trs_base().filter(TrsMaster.qc_status == QC_STATUS_REJECTED).count()
+    pending   = trs_total - approved - rejected
+
+    # ── GRN items without TRS ──
+    trs_item_ids = db.session.query(TrsMaster.grn_item_id).filter(
+        TrsMaster.is_deleted == False)
+    iq = (db.session.query(GrnItem, GrnMaster)
+          .join(GrnMaster, GrnMaster.id == GrnItem.grn_id)
+          .filter(GrnMaster.grn_type == grn_type,
+                  GrnMaster.is_deleted == False,
+                  GrnMaster.status != 'Cancelled',
+                  ~GrnItem.id.in_(trs_item_ids)))
+    if d_from: iq = iq.filter(GrnMaster.grn_date >= d_from)
+    if d_to:   iq = iq.filter(GrnMaster.grn_date <= d_to)
+    without_trs = iq.count()
+
+    wt_rows = iq.order_by(GrnMaster.grn_date.asc()).limit(5).all()
+    without_trs_rows = [{
+        'grn_no':   (g.grn_number_short or g.grn_number),
+        'material': i.item_name,
+        'grn_date': g.grn_date,
+        'days':     (today - g.grn_date).days if g.grn_date else 0,
+    } for i, g in wt_rows]
+
+    # ── Pending TRS list + aging buckets ──
+    pq = trs_base().filter(TrsMaster.qc_status.notin_(
+        [QC_STATUS_APPROVED, QC_STATUS_REJECTED]))
+    pending_rows = [{
+        'trs_no':  r.trs_no, 'grn_no': r.grn_no,
+        'material': r.sample_name,
+        'trs_date': r.trs_date,
+        'days':    (today - r.trs_date).days if r.trs_date else 0,
+    } for r in pq.order_by(TrsMaster.trs_date.asc()).limit(5).all()]
+
+    aging = [0, 0, 0, 0, 0]   # 0-1 / 2-3 / 4-7 / 8-15 / >15 days
+    for r in pq.all():
+        dys = (today - r.trs_date).days if r.trs_date else 0
+        if   dys <= 1:  aging[0] += 1
+        elif dys <= 3:  aging[1] += 1
+        elif dys <= 7:  aging[2] += 1
+        elif dys <= 15: aging[3] += 1
+        else:           aging[4] += 1
+
+    # ── Rejection reasons (top 4 + Others, from qc_remarks) ──
+    counts = {}
+    for r in trs_base().filter(TrsMaster.qc_status == QC_STATUS_REJECTED).all():
+        k = (r.qc_remarks or '').strip() or 'Not specified'
+        if len(k) > 40: k = k[:37] + '...'
+        counts[k] = counts.get(k, 0) + 1
+    top = sorted(counts.items(), key=lambda x: -x[1])
+    reasons = [{'label': k, 'count': c} for k, c in top[:4]]
+    others = sum(c for _, c in top[4:])
+    if others:
+        reasons.append({'label': 'Others', 'count': others})
+
+    # ── Recent TRS (QC review) ──
+    recent = [{
+        'trs_no':  r.trs_no, 'grn_no': r.grn_no,
+        'material': r.sample_name,
+        'trs_date': r.trs_date,
+        'status':  r.qc_status or QC_STATUS_PENDING,
+        'analyst': (r.qc_approved_by_name or r.qc_rejected_by_name
+                    or r.verified_by_name or r.created_by_name or '\u2014'),
+    } for r in trs_base().order_by(TrsMaster.updated_at.desc()).limit(5).all()]
+
+    # ── vs yesterday deltas (new records today vs yesterday) ──
+    def _pct(t_cnt, y_cnt):
+        if y_cnt == 0:
+            return 100 if t_cnt else 0
+        return round((t_cnt - y_cnt) / y_cnt * 100)
+
+    g_t = GrnMaster.query.filter(GrnMaster.grn_type == grn_type,
+                                 GrnMaster.is_deleted == False,
+                                 GrnMaster.grn_date == today).count()
+    g_y = GrnMaster.query.filter(GrnMaster.grn_type == grn_type,
+                                 GrnMaster.is_deleted == False,
+                                 GrnMaster.grn_date == yesterday).count()
+    t_t = trs_base().filter(TrsMaster.trs_date == today).count()
+    t_y = trs_base().filter(TrsMaster.trs_date == yesterday).count()
+    a_t = trs_base().filter(func.date(TrsMaster.qc_approved_at) == today).count()
+    a_y = trs_base().filter(func.date(TrsMaster.qc_approved_at) == yesterday).count()
+    r_t = trs_base().filter(func.date(TrsMaster.qc_rejected_at) == today).count()
+    r_y = trs_base().filter(func.date(TrsMaster.qc_rejected_at) == yesterday).count()
+
+    return {
+        'total_grn': total_grn, 'trs_total': trs_total,
+        'pending': pending, 'approved': approved, 'rejected': rejected,
+        'without_trs': without_trs,
+        'without_trs_rows': without_trs_rows,
+        'pending_rows': pending_rows,
+        'aging': aging,
+        'reasons': reasons,
+        'recent': recent,
+        'delta': {
+            'total_grn':  _pct(g_t, g_y),
+            'trs_total':  _pct(t_t, t_y),
+            'pending':    _pct(t_t - a_t - r_t, max(t_y - a_y - r_y, 0)),
+            'approved':   _pct(a_t, a_y),
+            'rejected':   _pct(r_t, r_y),
+            'without_trs': _pct(g_t, g_y),
+        },
+    }
+
+
+@qc_bp.route('/dashboard')
+@login_required
+def qc_dashboard():
+    d_from = _parse_date(request.args.get('from'))
+    d_to   = _parse_date(request.args.get('to'))
+    rm = _qc_dashboard_stats('RM', d_from, d_to)
+    pm = _qc_dashboard_stats('PM', d_from, d_to)
+    return render_template('qc/dashboard.html',
+                           active_page='qc',
+                           page_title='QC Dashboard',
+                           rm=rm, pm=pm,
+                           d_from=d_from, d_to=d_to)
+
+
+@qc_bp.route('/dashboard/export')
+@login_required
+def qc_dashboard_export():
+    """Summary KPI export as CSV."""
+    import csv, io
+    d_from = _parse_date(request.args.get('from'))
+    d_to   = _parse_date(request.args.get('to'))
+    rm = _qc_dashboard_stats('RM', d_from, d_to)
+    pm = _qc_dashboard_stats('PM', d_from, d_to)
+    buf = io.StringIO()
+    w = csv.writer(buf)
+    w.writerow(['Metric', 'RM', 'PM'])
+    w.writerow(['Total GRN',        rm['total_grn'],   pm['total_grn']])
+    w.writerow(['TRS Generated',    rm['trs_total'],   pm['trs_total']])
+    w.writerow(['Testing Pending',  rm['pending'],     pm['pending']])
+    w.writerow(['Approved',         rm['approved'],    pm['approved']])
+    w.writerow(['Rejected',         rm['rejected'],    pm['rejected']])
+    w.writerow(['GRN Without TRS',  rm['without_trs'], pm['without_trs']])
+    from flask import Response
+    fname = 'qc_dashboard_%s.csv' % date.today().strftime('%d%m%Y')
+    return Response(buf.getvalue(), mimetype='text/csv',
+                    headers={'Content-Disposition': 'attachment; filename=%s' % fname})
 
 @qc_bp.route('/trs/rm')
 @login_required

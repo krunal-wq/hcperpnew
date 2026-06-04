@@ -74,14 +74,14 @@
 
 /* ── Nav Items (pill style) ── */
 .nav-a {
-    display: flex; align-items: center; gap: 11px;
-    padding: 9px 11px;
-    border-radius: 13px;
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 10px;
+    border-radius: 10px;
     text-decoration: none;
     color: #57534e;
-    font-size: 14px; font-weight: 600;
+    font-size: 13px; font-weight: 600;
     transition: background .18s ease, color .18s ease, box-shadow .18s ease;
-    margin-bottom: 4px;
+    margin-bottom: 2px;
     position: relative;
     border-left: none;
 }
@@ -99,12 +99,12 @@
 
 /* icon chip — echoes the portal card icon tiles */
 .nav-ic {
-    font-size: 14px;
-    width: 30px; height: 30px;
+    font-size: 12px;
+    width: 24px; height: 24px;
     display: flex; align-items: center; justify-content: center;
     text-align: center; flex-shrink: 0;
-    border-radius: 9px;
-    background: #f1eef7;
+    border-radius: 7px;
+    background: #f3f1f8;
     color: #6b6478;
     box-shadow: inset 0 0 0 1px rgba(0,0,0,.02);
     transition: background .18s ease, color .18s ease, transform .18s ease;
@@ -332,7 +332,8 @@ body.sb-open .main    { margin-left: var(--sw); }
 .nav-badge.blue { background: linear-gradient(135deg, #2563eb, #7c3aed); box-shadow: 0 2px 6px rgba(124,58,237,.30); }
 
 /* Bootstrap Icons inside chips */
-.nav-ic i, .sb-acc-ic i { font-size: 15px; display: block; line-height: 1; }
+.nav-ic i { font-size: 13px; display: block; line-height: 1; }
+.sb-acc-ic i { font-size: 15px; display: block; line-height: 1; }
 .sb-acc-body .nav-a .nav-ic i, .nav-group-toggle .nav-ic i { font-size: 13px; }
 .nav-submenu .nav-a .nav-ic i { font-size: 12px; }
 

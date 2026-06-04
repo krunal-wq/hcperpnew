@@ -1,0 +1,354 @@
+{% extends "base.html" %}
+{% block title %}QC Dashboard{% endblock %}
+{% block page_title %}QC Dashboard{% endblock %}
+{% block bread %}QC / Dashboard{% endblock %}
+
+{% block extra_css %}
+<style>
+.qcd-wrap { display:flex; flex-direction:column; gap:14px; }
+
+/* ── Header bar ── */
+.qcd-head { display:flex; align-items:center; gap:12px; flex-wrap:wrap; background:#fff; border:1px solid #e8ecf3; border-radius:14px; padding:12px 16px; }
+.qcd-title { display:flex; align-items:center; gap:10px; margin-right:auto; }
+.qcd-title .ic { width:38px; height:38px; border-radius:11px; background:#eef2ff; color:#4f46e5; display:flex; align-items:center; justify-content:center; font-size:1.1rem; }
+.qcd-title h2 { font-size:1.05rem; font-weight:800; color:#1e293b; margin:0; }
+.qcd-title p  { font-size:.72rem; color:#94a3b8; margin:0; font-weight:600; }
+
+/* ── Section label ── */
+.qcd-sec-lbl { display:flex; align-items:center; gap:7px; font-size:.78rem; font-weight:800; letter-spacing:.05em; text-transform:uppercase; margin:2px 2px -6px; }
+.qcd-sec-lbl.rm { color:#2563eb; }
+.qcd-sec-lbl.pm { color:#7c3aed; }
+
+/* ── KPI cards ── */
+.qcd-cards { display:grid; grid-template-columns:repeat(auto-fit, minmax(165px, 1fr)); gap:12px; }
+.qcd-card { display:flex; flex-direction:column; gap:2px; background:#fff; border:1px solid #e8ecf3; border-radius:14px; padding:14px 16px; text-decoration:none; transition:box-shadow .15s, transform .15s; position:relative; }
+.qcd-card:hover { box-shadow:0 6px 18px rgba(30,41,90,.10); transform:translateY(-2px); }
+.qcd-card .top { display:flex; align-items:flex-start; gap:10px; }
+.qcd-card .cic { width:40px; height:40px; border-radius:11px; display:flex; align-items:center; justify-content:center; font-size:1rem; flex-shrink:0; }
+.qcd-card .lbl { font-size:.7rem; font-weight:700; color:#64748b; line-height:1.3; }
+.qcd-card .num { font-size:1.45rem; font-weight:900; color:#1e293b; letter-spacing:-.02em; line-height:1.1; }
+.qcd-card .dlt { font-size:.66rem; font-weight:700; margin-top:6px; }
+.qcd-card .dlt.up   { color:#16a34a; }
+.qcd-card .dlt.down { color:#dc2626; }
+.qcd-card .dlt.flat { color:#94a3b8; }
+.cic.blue   { background:#e3edff; color:#2563eb; }
+.cic.purple { background:#efe9fe; color:#7c3aed; }
+.cic.amber  { background:#fef3c7; color:#d97706; }
+.cic.green  { background:#dcfce7; color:#16a34a; }
+.cic.red    { background:#fee2e2; color:#dc2626; }
+.cic.orange { background:#ffedd5; color:#ea580c; }
+
+/* ── Panels ── */
+.qcd-row { display:grid; gap:12px; }
+.qcd-row.c3 { grid-template-columns:2fr 1fr 1fr; }
+.qcd-row.c4 { grid-template-columns:repeat(4, 1fr); }
+.qcd-row.c2 { grid-template-columns:1fr 1fr; }
+@media (max-width:1100px){ .qcd-row.c3, .qcd-row.c4 { grid-template-columns:1fr 1fr; } }
+@media (max-width:700px){ .qcd-row.c3, .qcd-row.c4, .qcd-row.c2 { grid-template-columns:1fr; } }
+.qcd-panel { background:#fff; border:1px solid #e8ecf3; border-radius:14px; padding:14px 16px; min-width:0; }
+.qcd-panel h3 { font-size:.78rem; font-weight:800; color:#1e293b; margin:0 0 10px; display:flex; align-items:center; gap:6px; }
+.qcd-panel h3 .dot { width:7px; height:7px; border-radius:50%; flex-shrink:0; }
+
+/* mini tables */
+.qcd-tbl { width:100%; border-collapse:collapse; font-size:.7rem; }
+.qcd-tbl th { text-align:left; padding:6px 6px; color:#64748b; font-weight:800; font-size:.62rem; text-transform:uppercase; letter-spacing:.04em; border-bottom:1px solid #eef2f7; background:#f8fafc; }
+.qcd-tbl td { padding:7px 6px; border-bottom:1px solid #f4f6fa; color:#334155; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:120px; }
+.qcd-tbl tr:last-child td { border-bottom:none; }
+.qcd-view-all { display:block; text-align:center; margin-top:8px; font-size:.72rem; font-weight:800; color:#2563eb; text-decoration:none; }
+.qcd-view-all:hover { text-decoration:underline; }
+.qcd-pill { display:inline-block; padding:2px 9px; border-radius:99px; font-size:.62rem; font-weight:800; }
+.qcd-pill.pending  { background:#fef3c7; color:#b45309; }
+.qcd-pill.approved { background:#dcfce7; color:#15803d; }
+.qcd-pill.rejected { background:#fee2e2; color:#b91c1c; }
+.qcd-pill.hold     { background:#e2e8f0; color:#475569; }
+.qcd-pill.testing  { background:#e0e7ff; color:#4338ca; }
+.qcd-days { display:inline-block; min-width:22px; text-align:center; padding:1px 7px; border-radius:8px; font-weight:800; }
+.qcd-days.ok   { background:#fef3c7; color:#b45309; }
+.qcd-days.late { background:#fee2e2; color:#b91c1c; }
+
+.qcd-canvas-box { position:relative; height:210px; }
+.qcd-canvas-box.tall { height:230px; }
+.qcd-empty { color:#94a3b8; font-size:.74rem; font-weight:600; text-align:center; padding:28px 0; }
+</style>
+{% endblock %}
+
+{% block content %}
+{% set rm_list = '/qc/trs/rm' %}
+{% set pm_list = '/qc/trs/pm' %}
+<div class="qcd-wrap">
+
+  <!-- ── Header ── -->
+  <div class="qcd-head">
+    <div class="qcd-title">
+      <span class="ic"><i class="bi bi-shield-check"></i></span>
+      <div>
+        <h2>QC Dashboard</h2>
+        <p>Quality Control Overview</p>
+      </div>
+    </div>
+  </div>
+
+  {# ── KPI card macro ── #}
+  {% macro kpi(href, ic, color, label, value, delta) %}
+  <a class="qcd-card" href="{{ href }}">
+    <div class="top">
+      <span class="cic {{ color }}"><i class="bi {{ ic }}"></i></span>
+      <div>
+        <div class="lbl">{{ label }}</div>
+        <div class="num">{{ value }}</div>
+      </div>
+    </div>
+    {% if delta > 0 %}<div class="dlt up">&#8593; {{ delta }}% vs yesterday</div>
+    {% elif delta < 0 %}<div class="dlt down">&#8595; {{ delta|abs }}% vs yesterday</div>
+    {% else %}<div class="dlt flat">&mdash; 0% vs yesterday</div>{% endif %}
+  </a>
+  {% endmacro %}
+
+  <!-- ── RM cards ── -->
+  <div class="qcd-sec-lbl rm"><i class="bi bi-droplet-half"></i> Raw Material (RM)</div>
+  <div class="qcd-cards">
+    {{ kpi('/grn?grn_type=RM',                 'bi-box-arrow-in-down', 'blue',   'Total RM GRN',        rm.total_grn,   rm.delta.total_grn) }}
+    {{ kpi(rm_list,                            'bi-flask',             'purple', 'RM TRS Generated',    rm.trs_total,   rm.delta.trs_total) }}
+    {{ kpi(rm_list ~ '?qc_status=Pending',     'bi-clock-history',     'amber',  'RM Testing Pending',  rm.pending,     rm.delta.pending) }}
+    {{ kpi(rm_list ~ '?qc_status=Approved',    'bi-check-circle',      'green',  'RM Approved',         rm.approved,    rm.delta.approved) }}
+    {{ kpi(rm_list ~ '?qc_status=Rejected',    'bi-x-circle',          'red',    'RM Rejected',         rm.rejected,    rm.delta.rejected) }}
+    {{ kpi('/grn?grn_type=RM',                 'bi-file-earmark-x',    'orange', 'RM GRN Without TRS',  rm.without_trs, rm.delta.without_trs) }}
+  </div>
+
+  <!-- ── PM cards ── -->
+  <div class="qcd-sec-lbl pm"><i class="bi bi-archive"></i> Packing Material (PM)</div>
+  <div class="qcd-cards">
+    {{ kpi('/grn?grn_type=PM',                 'bi-box-arrow-in-down', 'blue',   'Total PM GRN',        pm.total_grn,   pm.delta.total_grn) }}
+    {{ kpi(pm_list,                            'bi-flask',             'purple', 'PM TRS Generated',    pm.trs_total,   pm.delta.trs_total) }}
+    {{ kpi(pm_list ~ '?qc_status=Pending',     'bi-clock-history',     'amber',  'PM Testing Pending',  pm.pending,     pm.delta.pending) }}
+    {{ kpi(pm_list ~ '?qc_status=Approved',    'bi-check-circle',      'green',  'PM Approved',         pm.approved,    pm.delta.approved) }}
+    {{ kpi(pm_list ~ '?qc_status=Rejected',    'bi-x-circle',          'red',    'PM Rejected',         pm.rejected,    pm.delta.rejected) }}
+    {{ kpi('/grn?grn_type=PM',                 'bi-file-earmark-x',    'orange', 'PM GRN Without TRS',  pm.without_trs, pm.delta.without_trs) }}
+  </div>
+
+  <!-- ── Comparison + donuts ── -->
+  <div class="qcd-row c3">
+    <div class="qcd-panel">
+      <h3>RM vs PM Comparison</h3>
+      <div class="qcd-canvas-box tall"><canvas id="cmpChart"></canvas></div>
+    </div>
+    <div class="qcd-panel">
+      <h3>Testing Pending (RM vs PM)</h3>
+      <div class="qcd-canvas-box tall"><canvas id="pendDonut"></canvas></div>
+    </div>
+    <div class="qcd-panel">
+      <h3>GRN Without TRS (RM vs PM)</h3>
+      <div class="qcd-canvas-box tall"><canvas id="wtDonut"></canvas></div>
+    </div>
+  </div>
+
+  {# ── mini pending table macro ── #}
+  {% macro mini_grn_tbl(rows) %}
+  {% if rows %}
+  <table class="qcd-tbl">
+    <thead><tr><th>GRN No.</th><th>Material</th><th>GRN Date</th><th>Days</th></tr></thead>
+    <tbody>
+    {% for r in rows %}
+      <tr>
+        <td>{{ r.grn_no }}</td>
+        <td title="{{ r.material }}">{{ r.material }}</td>
+        <td>{{ r.grn_date.strftime('%d %b %Y') if r.grn_date else '—' }}</td>
+        <td><span class="qcd-days {{ 'late' if r.days > 3 else 'ok' }}">{{ r.days }}</span></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}<div class="qcd-empty">No pending records 🎉</div>{% endif %}
+  {% endmacro %}
+
+  {% macro mini_trs_tbl(rows) %}
+  {% if rows %}
+  <table class="qcd-tbl">
+    <thead><tr><th>TRS No.</th><th>GRN No.</th><th>Material</th><th>Received</th><th>Days</th></tr></thead>
+    <tbody>
+    {% for r in rows %}
+      <tr>
+        <td>{{ r.trs_no }}</td>
+        <td>{{ r.grn_no }}</td>
+        <td title="{{ r.material }}">{{ r.material }}</td>
+        <td>{{ r.trs_date.strftime('%d %b %Y') if r.trs_date else '—' }}</td>
+        <td><span class="qcd-days {{ 'late' if r.days > 3 else 'ok' }}">{{ r.days }}</span></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}<div class="qcd-empty">No pending TRS 🎉</div>{% endif %}
+  {% endmacro %}
+
+  <!-- ── Pending tables ── -->
+  <div class="qcd-row c4">
+    <div class="qcd-panel">
+      <h3><span class="dot" style="background:#2563eb;"></span>RM – GRN Without TRS (Pending)</h3>
+      {{ mini_grn_tbl(rm.without_trs_rows) }}
+      <a class="qcd-view-all" href="/grn?grn_type=RM">View All RM GRN Without TRS →</a>
+    </div>
+    <div class="qcd-panel">
+      <h3><span class="dot" style="background:#2563eb;"></span>RM – Testing Pending (TRS)</h3>
+      {{ mini_trs_tbl(rm.pending_rows) }}
+      <a class="qcd-view-all" href="{{ rm_list }}?qc_status=Pending">View All RM Pending TRS →</a>
+    </div>
+    <div class="qcd-panel">
+      <h3><span class="dot" style="background:#7c3aed;"></span>PM – GRN Without TRS (Pending)</h3>
+      {{ mini_grn_tbl(pm.without_trs_rows) }}
+      <a class="qcd-view-all" href="/grn?grn_type=PM">View All PM GRN Without TRS →</a>
+    </div>
+    <div class="qcd-panel">
+      <h3><span class="dot" style="background:#7c3aed;"></span>PM – Testing Pending (TRS)</h3>
+      {{ mini_trs_tbl(pm.pending_rows) }}
+      <a class="qcd-view-all" href="{{ pm_list }}?qc_status=Pending">View All PM Pending TRS →</a>
+    </div>
+  </div>
+
+  <!-- ── Rejection reasons + aging ── -->
+  <div class="qcd-row c4">
+    <div class="qcd-panel">
+      <h3><span class="dot" style="background:#dc2626;"></span>RM – Rejection Reasons</h3>
+      {% if rm.reasons %}<div class="qcd-canvas-box"><canvas id="rmRej"></canvas></div>
+      {% else %}<div class="qcd-empty">No rejections</div>{% endif %}
+    </div>
+    <div class="qcd-panel">
+      <h3><span class="dot" style="background:#dc2626;"></span>PM – Rejection Reasons</h3>
+      {% if pm.reasons %}<div class="qcd-canvas-box"><canvas id="pmRej"></canvas></div>
+      {% else %}<div class="qcd-empty">No rejections</div>{% endif %}
+    </div>
+    <div class="qcd-panel">
+      <h3>TRS Pending – Aging Analysis (RM)</h3>
+      <div class="qcd-canvas-box"><canvas id="rmAging"></canvas></div>
+    </div>
+    <div class="qcd-panel">
+      <h3>TRS Pending – Aging Analysis (PM)</h3>
+      <div class="qcd-canvas-box"><canvas id="pmAging"></canvas></div>
+    </div>
+  </div>
+
+  {# ── recent TRS macro ── #}
+  {% macro recent_tbl(rows, list_url) %}
+  {% if rows %}
+  <table class="qcd-tbl">
+    <thead><tr><th>TRS No.</th><th>GRN No.</th><th>Material</th><th>Received On</th><th>Status</th><th>QC Analyst</th></tr></thead>
+    <tbody>
+    {% for r in rows %}
+      <tr>
+        <td>{{ r.trs_no }}</td>
+        <td>{{ r.grn_no }}</td>
+        <td title="{{ r.material }}">{{ r.material }}</td>
+        <td>{{ r.trs_date.strftime('%d %b %Y') if r.trs_date else '—' }}</td>
+        <td>
+          {% set st = (r.status or 'Pending')|lower %}
+          <span class="qcd-pill {{ 'approved' if st == 'approved' else 'rejected' if st == 'rejected' else 'hold' if st == 'hold' else 'testing' if 'testing' in st else 'pending' }}">{{ r.status }}</span>
+        </td>
+        <td>{{ r.analyst }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}<div class="qcd-empty">No TRS records</div>{% endif %}
+  <a class="qcd-view-all" href="{{ list_url }}">View All →</a>
+  {% endmacro %}
+
+  <!-- ── Recent TRS ── -->
+  <div class="qcd-row c2">
+    <div class="qcd-panel">
+      <h3><span class="dot" style="background:#2563eb;"></span>Recent RM TRS (QC Review)</h3>
+      {{ recent_tbl(rm.recent, rm_list) }}
+    </div>
+    <div class="qcd-panel">
+      <h3><span class="dot" style="background:#7c3aed;"></span>Recent PM TRS (QC Review)</h3>
+      {{ recent_tbl(pm.recent, pm_list) }}
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script>
+(function(){
+  const RM = '#3b82f6', PM = '#8b5cf6';
+  Chart.defaults.font.family = getComputedStyle(document.body).fontFamily;
+  Chart.defaults.font.size = 10;
+
+  // ── RM vs PM grouped bar ──
+  new Chart(document.getElementById('cmpChart'), {
+    type: 'bar',
+    data: {
+      labels: ['GRN Generated','TRS Generated','Testing Pending','Approved','Rejected','GRN Without TRS'],
+      datasets: [
+        { label:'RM', data: [{{ rm.total_grn }},{{ rm.trs_total }},{{ rm.pending }},{{ rm.approved }},{{ rm.rejected }},{{ rm.without_trs }}], backgroundColor: RM, borderRadius: 5, maxBarThickness: 26 },
+        { label:'PM', data: [{{ pm.total_grn }},{{ pm.trs_total }},{{ pm.pending }},{{ pm.approved }},{{ pm.rejected }},{{ pm.without_trs }}], backgroundColor: PM, borderRadius: 5, maxBarThickness: 26 },
+      ]
+    },
+    options: { responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ position:'top', labels:{ boxWidth:10, boxHeight:10 } } },
+      scales:{ y:{ beginAtZero:true, grid:{ color:'#f1f5f9' } }, x:{ grid:{ display:false } } } }
+  });
+
+  // ── donut helper ──
+  function donut(id, labels, data, colors, centerLabel){
+    const el = document.getElementById(id);
+    if (!el) return;
+    new Chart(el, {
+      type:'doughnut',
+      data:{ labels: labels, datasets:[{ data: data, backgroundColor: colors, borderWidth: 2, borderColor:'#fff' }] },
+      options:{ responsive:true, maintainAspectRatio:false, cutout:'68%',
+        plugins:{ legend:{ position:'right', labels:{ boxWidth:9, boxHeight:9, font:{ size:9.5 } } } } },
+      plugins: [{
+        id:'centerText',
+        beforeDraw(chart){
+          const total = data.reduce((a,b)=>a+b,0);
+          const {ctx} = chart;
+          const meta = chart.getDatasetMeta(0).data[0];
+          if (!meta) return;
+          ctx.save();
+          ctx.textAlign='center'; ctx.textBaseline='middle';
+          ctx.font='800 20px ' + Chart.defaults.font.family; ctx.fillStyle='#1e293b';
+          ctx.fillText(total, meta.x, meta.y - 6);
+          ctx.font='700 8.5px ' + Chart.defaults.font.family; ctx.fillStyle='#94a3b8';
+          ctx.fillText(centerLabel, meta.x, meta.y + 12);
+          ctx.restore();
+        }
+      }]
+    });
+  }
+
+  donut('pendDonut', ['RM Pending ({{ rm.pending }})','PM Pending ({{ pm.pending }})'],
+        [{{ rm.pending }}, {{ pm.pending }}], [RM, PM], 'Total Pending');
+  donut('wtDonut', ['RM Without TRS ({{ rm.without_trs }})','PM Without TRS ({{ pm.without_trs }})'],
+        [{{ rm.without_trs }}, {{ pm.without_trs }}], [RM, PM], 'Total');
+
+  // ── rejection reason donuts ──
+  const REASON_COLORS = ['#22c55e','#f59e0b','#3b82f6','#8b5cf6','#ef4444'];
+  {% if rm.reasons %}
+  donut('rmRej', {{ rm.reasons|map(attribute='label')|list|tojson }},
+        {{ rm.reasons|map(attribute='count')|list|tojson }}, REASON_COLORS, 'Total');
+  {% endif %}
+  {% if pm.reasons %}
+  donut('pmRej', {{ pm.reasons|map(attribute='label')|list|tojson }},
+        {{ pm.reasons|map(attribute='count')|list|tojson }}, REASON_COLORS, 'Total');
+  {% endif %}
+
+  // ── aging bars ──
+  function aging(id, data, color){
+    const el = document.getElementById(id);
+    if (!el) return;
+    new Chart(el, {
+      type:'bar',
+      data:{ labels:['0 - 1 Day','2 - 3 Days','4 - 7 Days','8 - 15 Days','> 15 Days'],
+        datasets:[{ data: data, backgroundColor: color, borderRadius: 5, maxBarThickness: 30 }] },
+      options:{ responsive:true, maintainAspectRatio:false,
+        plugins:{ legend:{ display:false },
+          title:{ display:true, text:'No. of TRS', align:'start', font:{ size:9 }, color:'#94a3b8' } },
+        scales:{ y:{ beginAtZero:true, grid:{ color:'#f1f5f9' }, ticks:{ precision:0 } }, x:{ grid:{ display:false } } } }
+    });
+  }
+  aging('rmAging', {{ rm.aging|tojson }}, RM);
+  aging('pmAging', {{ pm.aging|tojson }}, PM);
+})();
+</script>
+{% endblock %}

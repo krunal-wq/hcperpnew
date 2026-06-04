@@ -91,15 +91,17 @@
                         'rd_dashboard','rd_projects','rd_executives','rd_performance',
                         'rd_discussion','rd_param_master',
                         'rd_sample_ready','rd_sample_history','rd_sample_log',
+                        'rd_trials','rd_settings','formulation',
+                        'npd_fees_report','npd_sample_ready','npd_sample_history','client_dispatch',
                         'raw_material_sample') %}
             {% set _mod = 'rd' %}
         {% elif _pg in ('cat_master','uom_master','hsn_master','masters') %}
             {% set _mod = 'masters' %}
-        {% elif _pg in ('hr_emp_dashboard','hr_employees','hr_contractors','hierarchy','salary_config','hr_attendance','att_sync','att_daily','att_monthly','att_manual','att_late','att_holidays','my_attendance','hr_masters','late_rules','hr_shifts','hr_locations_master','hr_late_rules','hr_early_rules','hr_ot_rules','hr_leave_policy','hr_lop_rules','hr_absent_rules','hr_compoff_rules','hr_dept_master','hr_desig_master','hr_shift_master','hr_emptype_master','hr_loc_master','hr_nationality_master','hr_grade_master') %}
+        {% elif _pg in ('hr_emp_dashboard','hr_employees','hr_contractors','hierarchy','salary_config','hr_attendance','att_sync','att_daily','att_monthly','att_manual','att_late','att_holidays','my_attendance','hr_leave_apply','hr_leave_balance','hr_leave_list','hr_my_leave','hr_masters','late_rules','hr_shifts','hr_locations_master','hr_late_rules','hr_early_rules','hr_ot_rules','hr_leave_policy','hr_lop_rules','hr_absent_rules','hr_compoff_rules','hr_dept_master','hr_desig_master','hr_shift_master','hr_emptype_master','hr_loc_master','hr_nationality_master','hr_grade_master') %}
             {% set _mod = 'hr' %}
-        {% elif _pg in ('approvals','permissions','audit_logs','users','admin_profile') %}
+        {% elif _pg in ('approvals','permissions','audit_logs','users','admin_profile','user_mgmt','user_permissions','approval_config','profile') %}
             {% set _mod = 'admin' %}
-        {% elif _pg in ('material',) or (request.path.startswith('/material')) %}
+        {% elif _pg in ('material','supplier','purchase_order','grn','qr_scan','depreciation_note','qc','qc_param_master') or request.path.startswith('/material') or request.path.startswith('/supplier') or request.path.startswith('/purchase-order') or request.path.startswith('/grn') or request.path.startswith('/qc') or request.path.startswith('/trs') %}
             {% set _mod = 'procurement' %}
         {% elif _pg in ('packing',) %}
             {% set _mod = 'packing' %}
@@ -242,7 +244,7 @@
                     <a class="nav-a {% if request.args.get('item_type','').upper() == 'PM' %}active{% endif %}" href="/material?item_type=PM">
                         <span class="nav-ic"><i class="bi bi-card-list"></i></span><span class="nav-txt">Item Master</span>
                     </a>
-                    <a class="nav-a {% if request.path.startswith('/supplier') and request.args.get('type','').upper() == 'PM' %}active{% endif %}" href="/supplier?type=PM">
+                    <a class="nav-a {% if request.path.startswith('/supplier') and request.args.get('supplier_type','').upper() == 'PM' %}active{% endif %}" href="/supplier/?supplier_type=PM">
                         <span class="nav-ic"><i class="bi bi-people"></i></span><span class="nav-txt">Supplier</span>
                     </a>
                     {% set _perm_packing_bom = get_perm('packing_bom') %}
@@ -347,6 +349,7 @@
                 <span class="sb-acc-arrow">▶</span>
             </button>
             <div class="sb-acc-body">
+                <a class="nav-a {% if request.path == '/qc/dashboard' %}active{% endif %}" href="/qc/dashboard"><span class="nav-ic"><i class="bi bi-speedometer2"></i></span><span class="nav-txt">QC Dashboard</span></a>
                 <a class="nav-a {% if request.path == '/qc/trs/rm' %}active{% endif %}" href="/qc/trs/rm"><span class="nav-ic"><i class="bi bi-droplet-half"></i></span><span class="nav-txt">RM TRS List</span></a>
                 <a class="nav-a {% if request.path == '/qc/trs/pm' %}active{% endif %}" href="/qc/trs/pm"><span class="nav-ic"><i class="bi bi-archive"></i></span><span class="nav-txt">PM TRS List</span></a>
                 <a class="nav-a {% if active_page == 'qc_param_master' %}active{% endif %}" href="/masters/qc-params"><span class="nav-ic"><i class="bi bi-sliders"></i></span><span class="nav-txt">QC Parameters</span></a>
@@ -957,6 +960,8 @@
                 <a class="nav-a {% if request.args.get('item_type','').upper() == 'PM' %}active{% endif %}" href="/material?item_type=PM">
                     <span class="nav-ic"><i class="bi bi-card-list"></i></span><span class="nav-txt">Item Master</span>
                 </a>
+                <a class="nav-a {% if request.path.startswith('/supplier') and request.args.get('supplier_type','').upper() == 'PM' %}active{% endif %}" href="/supplier/?supplier_type=PM">
+                    <span class="nav-ic"><i class="bi bi-people"></i></span><span class="nav-txt">Supplier</span>
                 </a>
 
                 <!-- Purchase Order — nested dropdown -->
@@ -1026,11 +1031,17 @@
                 <span class="nav-group-arrow">▶</span>
             </button>
             <div class="nav-submenu {% if request.path.startswith('/qc') or request.path.startswith('/trs') %}open{% endif %}">
+                <a class="nav-a {% if request.path == '/qc/dashboard' %}active{% endif %}" href="/qc/dashboard">
+                    <span class="nav-ic"><i class="bi bi-speedometer2"></i></span><span class="nav-txt">QC Dashboard</span>
+                </a>
                 <a class="nav-a {% if request.path == '/qc/trs/rm' %}active{% endif %}" href="/qc/trs/rm">
                     <span class="nav-ic"><i class="bi bi-droplet-half"></i></span><span class="nav-txt">RM TRS List</span>
                 </a>
                 <a class="nav-a {% if request.path == '/qc/trs/pm' %}active{% endif %}" href="/qc/trs/pm">
                     <span class="nav-ic"><i class="bi bi-archive"></i></span><span class="nav-txt">PM TRS List</span>
+                </a>
+                <a class="nav-a {% if _pg == 'qc_param_master' %}active{% endif %}" href="/masters/qc-params">
+                    <span class="nav-ic"><i class="bi bi-sliders"></i></span><span class="nav-txt">QC Parameters</span>
                 </a>
             </div>
 
@@ -1067,17 +1078,14 @@
             <a class="nav-a {% if _pg == 'approvals' %}active{% endif %}" href="/approvals">
                 <span class="nav-ic"><i class="bi bi-check2-all"></i></span><span class="nav-txt">Approvals</span>
             </a>
-            <a class="nav-a {% if _pg == 'permissions' %}active{% endif %}" href="/admin/permissions">
-                <span class="nav-ic"><i class="bi bi-shield-lock"></i></span><span class="nav-txt">Role Perms</span></a>
             <a class="nav-a {% if _pg == 'user_permissions' %}active{% endif %}" href="/admin/user-permissions">
-                <span class="nav-ic"><i class="bi bi-person"></i></span><span class="nav-txt">User Perms</span></a>
-                <span class="nav-ic"><i class="bi bi-shield-lock"></i></span><span class="nav-txt">Permissions</span>
+                <span class="nav-ic"><i class="bi bi-person-lock"></i></span><span class="nav-txt">User Permissions</span>
             </a>
             <a class="nav-a {% if _pg == 'audit_logs' %}active{% endif %}" href="/admin/audit-logs">
                 <span class="nav-ic"><i class="bi bi-search"></i></span><span class="nav-txt">Audit Logs</span>
             </a>
             {% if role == 'admin' %}
-            <a class="nav-a {% if _pg == 'users' %}active{% endif %}" href="/admin/users">
+            <a class="nav-a {% if _pg in ('users','user_mgmt') %}active{% endif %}" href="/admin/users">
                 <span class="nav-ic"><i class="bi bi-person"></i></span><span class="nav-txt">Users</span>
             </a>
             {% endif %}

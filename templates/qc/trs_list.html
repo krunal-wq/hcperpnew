@@ -276,6 +276,14 @@ table.dataTable tbody tr:hover { background: #f8fafc; }
     });
   });
 
+  // ── Prefill filters from URL (dashboard card clicks) ──
+  (function(){
+    const qs = new URLSearchParams(location.search);
+    if (qs.get('qc_status'))  document.getElementById('f_qc_status').value = qs.get('qc_status');
+    if (qs.get('date_from'))  document.getElementById('f_date_from').value = qs.get('date_from');
+    if (qs.get('date_to'))    document.getElementById('f_date_to').value   = qs.get('date_to');
+  })();
+
   loadData();
 
   // ── Approve / Reject — Phase 3 wired to real backend ──
