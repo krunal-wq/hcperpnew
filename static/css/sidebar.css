@@ -403,3 +403,31 @@ body.is-crm .main {
         radial-gradient(120% 60% at 100% 20%, #fdeef4 0%, rgba(253,238,244,0) 50%),
         #f7f7fb;
 }
+
+/* ──────────────────────────────────────────────
+   MODULE MENU — right chevron + count badges
+   (CRM Management / Other Modules design)
+   ────────────────────────────────────────────── */
+.sb-sec > .nav-a:not(.nav-back)::after {
+    content: '›';
+    margin-left: auto; flex-shrink: 0;
+    color: #c4bdcf; font-size: 15px; font-weight: 700; line-height: 1;
+    transition: color .15s ease, transform .15s ease;
+}
+.sb-sec > .nav-a:not(.nav-back):hover::after  { color: #8b5cf6; transform: translateX(2px); }
+.sb-sec > .nav-a.active::after { color: #6366f1; }
+
+/* Agar item me count badge hai to chevron hata do */
+.sb-sec > .nav-a:has(.nav-count)::after { content: ''; margin-left: 0; }
+
+/* Count badge pill — usage: <span class="nav-count">25</span> nav-txt ke baad */
+.nav-count {
+    margin-left: auto; flex-shrink: 0; min-width: 20px; text-align: center;
+    background: #ede9fe; color: #6d28d9;
+    font-size: 10px; font-weight: 800;
+    border-radius: 99px; padding: 2px 7px; line-height: 1.4;
+}
+.nav-a.active .nav-count { background: #6366f1; color: #fff; }
+
+/* Section labels — thoda zyada breathing room (image jaisa) */
+.sb-sec-lbl { margin-bottom: 6px; }
